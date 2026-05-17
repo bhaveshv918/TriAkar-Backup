@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Checkout — TriAkar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="shared.css">
+<style>
+/* ── CHECKOUT PAGE ──────────────────────────────────────── */
+.ck-wrap{min-height:calc(100vh - var(--total-h));background:var(--ivory);padding:40px var(--pad) 80px}
+.ck-inner{max-width:580px;margin:0 auto}
+
+/* Steps indicator */
+.ck-steps{display:flex;align-items:center;gap:10px;margin-bottom:32px}
+.ck-dot{width:26px;height:26px;border-radius:50%;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;background:var(--stone-p);color:var(--stone);transition:all .3s}
+.ck-dot.active{background:var(--charcoal);color:var(--white)}
+.ck-dot.done{background:var(--charcoal);color:var(--white)}
+.ck-step-label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:500;color:var(--stone);transition:color .3s}
+.ck-step-label.active{color:var(--charcoal);font-weight:600}
+.ck-step-arr{color:var(--stone-l);font-size:11px}
+
+/* Section title */
+.ck-title{font-size:22px;font-weight:700;letter-spacing:-.02em;color:var(--charcoal);margin-bottom:24px}
+
+/* Saved address card */
+.ck-saved{background:var(--white);border:1.5px solid var(--stone-p);padding:16px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.ck-saved-tag{font-size:8px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;padding:2px 7px;background:var(--charcoal);color:var(--white);display:inline-block;margin-bottom:5px}
+.ck-saved-name{font-size:14px;font-weight:600;color:var(--charcoal)}
+.ck-saved-detail{font-size:12px;color:var(--warm);line-height:1.7;margin-top:3px}
+.ck-saved-actions{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+.ck-saved-btn{font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;padding:7px 14px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.ck-use-btn{background:var(--charcoal);color:var(--white);border:none}
+.ck-use-btn:hover{background:var(--char-2)}
+.ck-edit-btn{background:none;color:var(--stone);border:1px solid var(--stone-p)}
+.ck-edit-btn:hover{border-color:var(--charcoal);color:var(--charcoal)}
+
+.ck-or{text-align:center;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);margin:16px 0;position:relative}
+.ck-or::before,.ck-or::after{content:'';position:absolute;top:50%;width:calc(50% - 30px);height:1px;background:var(--stone-p)}
+.ck-or::before{left:0}.ck-or::after{right:0}
+
+/* Form */
+.ck-form{display:flex;flex-direction:column;gap:14px}
+.ck-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ck-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.ck-field{display:flex;flex-direction:column;gap:5px}
+.ck-field label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--stone)}
+.ck-field input{padding:11px 13px;border:1.5px solid var(--stone-p);background:var(--white);font-family:var(--font-b);font-size:13px;color:var(--charcoal);outline:none;transition:border-color .2s}
+.ck-field input:focus{border-color:var(--charcoal)}
+.ck-field input::placeholder{color:var(--stone-l)}
+
+/* Checkbox */
+.ck-check-row{display:flex;align-items:center;gap:8px;margin-top:4px}
+.ck-check-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--charcoal)}
+.ck-check-row label{font-size:12px;color:var(--warm);cursor:pointer}
+
+/* Primary btn */
+.ck-btn{width:100%;padding:14px;margin-top:8px;background:var(--charcoal);color:var(--white);border:none;cursor:pointer;font-family:var(--font-b);font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;transition:background .2s}
+.ck-btn:hover:not(:disabled){background:var(--char-2)}
+.ck-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* Review step */
+.ck-items{margin-bottom:20px}
+.ck-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--stone-p)}
+.ck-item:last-child{border-bottom:none}
+.ck-item-name{font-size:13px;font-weight:500;color:var(--charcoal)}
+.ck-item-qty{font-size:11px;color:var(--stone);margin-top:2px}
+.ck-item-price{font-size:13px;font-weight:700;color:var(--charcoal);white-space:nowrap}
+
+.ck-summary{border-top:2px solid var(--charcoal);padding-top:14px;margin-bottom:20px}
+.ck-summary-row{display:flex;justify-content:space-between;font-size:12px;color:var(--warm);padding:3px 0}
+.ck-summary-total{display:flex;justify-content:space-between;font-size:18px;font-weight:700;color:var(--charcoal);padding-top:8px}
+
+.ck-addr-review{background:var(--white);border:1px solid var(--stone-p);padding:14px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-start}
+.ck-addr-review-label{font-size:9px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;color:var(--stone);margin-bottom:6px}
+.ck-addr-review-val{font-size:12px;line-height:1.7;color:var(--charcoal)}
+.ck-addr-edit{font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;color:var(--stone);background:none;border:none;cursor:pointer;flex-shrink:0}
+.ck-addr-edit:hover{color:var(--charcoal)}
+.ck-secure{text-align:center;margin-top:12px;font-size:10px;letter-spacing:.06em;color:var(--stone)}
+
+/* Empty / loading */
+.ck-empty{text-align:center;padding:60px 0;color:var(--stone);font-size:14px}
+.ck-empty a{color:var(--accent);text-decoration:underline}
+
+@media(max-width:500px){
+  .ck-row2{grid-template-columns:1fr}
+  .ck-row3{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="notice-bar">
+  Free shipping above ₹999 in India<span class="ndot">·</span>Ships internationally<span class="ndot">·</span><a href="contact.html">hello@triakar.com</a>
+</div>
+
+<nav class="main-nav" id="mainNav">
+  <div class="nav-inner">
+    <a href="index.html" class="logo"><span class="logo-en">TRIAKAR</span><span class="logo-hi">त्रिआकार</span></a>
+    <ul class="nav-links">
+      <li><a href="products.html">Shop</a></li>
+      <li><a href="custom.html">Custom</a></li>
+      <li><a href="updates.html">Updates</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="contact.html">Contact</a></li>
+      <li><a href="track-order.html">Track Order</a></li>
+    </ul>
+    <div class="nav-right">
+      <a href="#" class="cart-btn" onclick="openCart();return false;">
+        <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M1 1h2.5l1.6 8h8.4l1.5-5.5H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="14.5" r="1.2" fill="currentColor"/><circle cx="13" cy="14.5" r="1.2" fill="currentColor"/></svg>
+        Cart <span class="cart-badge" id="cartBadge">0</span>
+      </a>
+      <a href="products.html" class="nav-shop">Shop Now</a>
+      <button class="nav-toggle" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+</nav>
+<nav class="nav-drawer">
+  <a href="products.html">Shop</a><a href="custom.html">Custom</a><a href="updates.html">Updates</a><a href="about.html">About</a><a href="contact.html">Contact</a><a href="track-order.html">Track Order</a>
+</nav>
+
+<!-- ── CHECKOUT CONTENT ──────────────────────────────────── -->
+<div class="ck-wrap">
+  <div class="ck-inner" id="ckContent">
+
+    <!-- Steps indicator -->
+    <div class="ck-steps">
+      <span class="ck-dot active" id="ckDot1">1</span>
+      <span class="ck-step-label active" id="ckLbl1">Address</span>
+      <span class="ck-step-arr">→</span>
+      <span class="ck-dot" id="ckDot2">2</span>
+      <span class="ck-step-label" id="ckLbl2">Review &amp; Pay</span>
+    </div>
+
+    <!-- Step 1: Address -->
+    <div id="ckStep1">
+      <div class="ck-title">Shipping Address</div>
+
+      <div id="ckSavedCard" style="display:none"></div>
+
+      <form id="ckForm" class="ck-form">
+        <div class="ck-row2">
+          <div class="ck-field"><label>Full Name *</label><input name="full_name" placeholder="Your full name" required></div>
+          <div class="ck-field"><label>Phone *</label><input name="phone" placeholder="+91 98765 43210" required></div>
+        </div>
+        <div class="ck-field"><label>Address Line 1 *</label><input name="address_line1" placeholder="House / Flat no., Street, Area" required></div>
+        <div class="ck-field"><label>Address Line 2</label><input name="address_line2" placeholder="Landmark (optional)"></div>
+        <div class="ck-row3">
+          <div class="ck-field"><label>City *</label><input name="city" placeholder="Mumbai" required></div>
+          <div class="ck-field"><label>State *</label><input name="state" placeholder="Maharashtra" required></div>
+          <div class="ck-field"><label>Pincode *</label><input name="pincode" placeholder="400001" required></div>
+        </div>
+        <div class="ck-field"><label>Country</label><input name="country" value="India"></div>
+        <div class="ck-check-row">
+          <input type="checkbox" id="ckSaveAddr" checked>
+          <label for="ckSaveAddr">Save as default address</label>
+        </div>
+        <button type="submit" class="ck-btn" id="ckAddrBtn">Continue to Review →</button>
+      </form>
+    </div>
+
+    <!-- Step 2: Review & Pay -->
+    <div id="ckStep2" style="display:none">
+      <div class="ck-title">Review &amp; Pay</div>
+      <div class="ck-items" id="ckItems"></div>
+      <div class="ck-summary">
+        <div class="ck-summary-row"><span>Subtotal</span><span id="ckSubtotal"></span></div>
+        <div class="ck-summary-row"><span>Shipping</span><span id="ckShipping"></span></div>
+        <div class="ck-summary-total"><span>Total</span><span id="ckTotal"></span></div>
+      </div>
+      <div class="ck-addr-review">
+        <div>
+          <div class="ck-addr-review-label">Delivering to</div>
+          <div class="ck-addr-review-val" id="ckAddrSummary"></div>
+        </div>
+        <button class="ck-addr-edit" onclick="showStep(1)">Edit</button>
+      </div>
+      <button class="ck-btn" id="ckPayBtn" onclick="placeOrder()">Pay <span id="ckPayAmt"></span> →</button>
+      <div class="ck-secure">🔒 Secured by Razorpay</div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <div class="mw">
+    <div class="foot-grid">
+      <div>
+        <div class="foot-brand">TRIAKAR</div>
+        <div class="foot-hi">त्रिआकार</div>
+        <p class="foot-desc">3D printed design objects. Made in India. Shipped worldwide.</p>
+        <div class="foot-mail"><a href="mailto:hello@triakar.com">hello@triakar.com</a></div>
+        <div class="foot-reply">We reply within 24 hours.</div>
+      </div>
+      <div><div class="foot-col-t">Shop</div><ul class="foot-links"><li><a href="products.html">All Products</a></li><li><a href="products.html?cat=desk">Desk</a></li><li><a href="products.html?cat=home">Home</a></li><li><a href="products.html?cat=gifting">Gifting</a></li><li><a href="custom.html">Custom Order</a></li></ul></div>
+      <div><div class="foot-col-t">Help</div><ul class="foot-links"><li><a href="contact.html">Contact Us</a></li><li><a href="track-order.html">Track Order</a></li><li><a href="refund-policy.html">Refund Policy</a></li><li><a href="about.html">About</a></li></ul></div>
+      <div><div class="foot-col-t">Legal</div><ul class="foot-links"><li><a href="terms.html">Terms &amp; Conditions</a></li><li><a href="privacy.html">Privacy Policy</a></li></ul></div>
+    </div>
+    <div class="foot-bottom"><p class="foot-copy">© 2025 TriAkar. All rights reserved.</p><p class="foot-tag">Designed globally. Made in India.</p></div>
+  </div>
+</footer>
+
+<!-- Cart sidebar (shared across all pages) -->
+<div class="cart-overlay" id="cartOverlay" onclick="closeCart()"></div>
+<div class="cart-sidebar" id="cartSidebar">
+  <div class="cart-head"><h3>Cart</h3><button class="cart-close" onclick="closeCart()">×</button></div>
+  <div class="cart-items" id="cartItemsList"></div>
+  <div class="cart-foot">
+    <div class="cart-sub"><span class="cart-sub-l">Subtotal</span><span class="cart-sub-v" id="cartTotal">₹0</span></div>
+    <div class="cart-note">Free shipping above ₹999 in India.</div>
+    <button class="btn btn-dark" style="width:100%;justify-content:center" onclick="checkout()">Checkout →</button>
+    <div style="text-align:center;margin-top:10px"><button class="btn-ghost" onclick="closeCart()">Continue shopping</button></div>
+  </div>
+</div>
+
+<script src="js/auth.js" defer></script>
+<script src="shared.js" defer></script>
+<script>
+const API = window.location.hostname === 'localhost'
+  ? 'http://localhost:3000'
+  : 'https://triakar.onrender.com';
+
+let savedAddr  = null;   // from server
+let chosenAddr = null;   // the address being used for this order
+
+document.addEventListener('DOMContentLoaded', function() {
+  if (!Auth.isLoggedIn()) { window.location.href = 'account.html'; return; }
+
+  const items = Cart.getItems();
+  if (!items.length) {
+    document.getElementById('ckContent').innerHTML =
+      '<div class="ck-empty">Your cart is empty.<br><a href="products.html">Continue shopping</a></div>';
+    return;
+  }
+
+  loadSavedAddress();
+
+  document.getElementById('ckForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    submitAddress();
+  });
+});
+
+/* ── Step navigation ─────────────────────────────────────── */
+function showStep(n) {
+  document.getElementById('ckStep1').style.display = n === 1 ? '' : 'none';
+  document.getElementById('ckStep2').style.display = n === 2 ? '' : 'none';
+  document.getElementById('ckDot1').classList.toggle('active', true);
+  document.getElementById('ckDot1').classList.toggle('done', n === 2);
+  document.getElementById('ckDot2').classList.toggle('active', n === 2);
+  document.getElementById('ckLbl1').classList.toggle('active', n === 1);
+  document.getElementById('ckLbl2').classList.toggle('active', n === 2);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ── Load saved default address ─────────────────────────── */
+async function loadSavedAddress() {
+  try {
+    const res = await fetch(API + '/api/addresses/default', { headers: Auth.authHeader() });
+    if (!res.ok) return;
+    const { address } = await res.json();
+    if (!address) return;
+    savedAddr = address;
+
+    document.getElementById('ckSavedCard').style.display = '';
+    document.getElementById('ckSavedCard').innerHTML =
+      '<div class="ck-saved">'
+      + '<div>'
+      + '  <div class="ck-saved-tag">Saved address</div>'
+      + '  <div class="ck-saved-name">' + address.full_name + '</div>'
+      + '  <div class="ck-saved-detail">'
+      +      address.address_line1
+      +      (address.address_line2 ? ', ' + address.address_line2 : '') + '<br>'
+      +      address.city + ', ' + address.state + ' ' + address.pincode + '<br>'
+      +      address.phone
+      + '  </div>'
+      + '</div>'
+      + '<div class="ck-saved-actions">'
+      + '  <button class="ck-saved-btn ck-use-btn" onclick="useSavedAddress()">Use this →</button>'
+      + '  <button class="ck-saved-btn ck-edit-btn" onclick="editSavedAddress()">Edit</button>'
+      + '</div>'
+      + '</div>'
+      + '<div class="ck-or">or enter a new address</div>';
+
+    fillForm(address);
+  } catch (_) {}
+}
+
+function fillForm(addr) {
+  var form = document.getElementById('ckForm');
+  ['full_name','phone','address_line1','address_line2','city','state','pincode','country'].forEach(function(k) {
+    if (form[k]) form[k].value = addr[k] || '';
+  });
+}
+
+function useSavedAddress() {
+  chosenAddr = savedAddr;
+  showStep(2);
+  renderReview();
+}
+
+function editSavedAddress() {
+  if (savedAddr) fillForm(savedAddr);
+  document.getElementById('ckSavedCard').style.display = 'none';
+  document.getElementById('ckForm').elements.full_name.focus();
+}
+
+/* ── Submit address form ────────────────────────────────── */
+async function submitAddress() {
+  var form = document.getElementById('ckForm');
+  var btn  = document.getElementById('ckAddrBtn');
+  var data = {};
+  ['full_name','phone','address_line1','address_line2','city','state','pincode','country'].forEach(function(k) {
+    data[k] = form[k]?.value || '';
+  });
+
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  try {
+    if (document.getElementById('ckSaveAddr').checked) {
+      var res = await fetch(API + '/api/addresses', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
+        body: JSON.stringify(data),
+      });
+      var result = await res.json();
+      chosenAddr = res.ok ? result.address : Object.assign({}, data, { id: null });
+    } else {
+      chosenAddr = Object.assign({}, data, { id: null });
+      // Still need to save to get an address_id for the order
+      var res2 = await fetch(API + '/api/addresses', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
+        body: JSON.stringify(Object.assign({}, data, { is_default: false })),
+      });
+      var result2 = await res2.json();
+      if (res2.ok) chosenAddr = result2.address;
+    }
+  } catch (_) {
+    chosenAddr = Object.assign({}, data, { id: null });
+  }
+
+  btn.disabled = false; btn.textContent = 'Continue to Review →';
+  showStep(2);
+  renderReview();
+}
+
+/* ── Render review step ─────────────────────────────────── */
+function renderReview() {
+  var items = Cart.getItems();
+  var subtotal = Cart.total();
+  var shipping = subtotal >= 999 ? 0 : 49;
+  var total = subtotal + shipping;
+
+  document.getElementById('ckItems').innerHTML = items.map(function(i) {
+    return '<div class="ck-item">'
+      + '<div><div class="ck-item-name">' + i.name + '</div>'
+      + '<div class="ck-item-qty">Qty ' + i.qty + (i.variant ? ' · ' + i.variant : '') + '</div></div>'
+      + '<div class="ck-item-price">₹' + (i.price * i.qty).toLocaleString('en-IN') + '</div>'
+      + '</div>';
+  }).join('');
+
+  document.getElementById('ckSubtotal').textContent = '₹' + subtotal.toLocaleString('en-IN');
+  document.getElementById('ckShipping').textContent = shipping === 0 ? 'Free' : '₹' + shipping;
+  document.getElementById('ckTotal').textContent = '₹' + total.toLocaleString('en-IN');
+  document.getElementById('ckPayAmt').textContent = '₹' + total.toLocaleString('en-IN');
+
+  if (chosenAddr) {
+    document.getElementById('ckAddrSummary').innerHTML =
+      '<strong>' + chosenAddr.full_name + '</strong><br>'
+      + chosenAddr.address_line1 + (chosenAddr.address_line2 ? ', ' + chosenAddr.address_line2 : '') + '<br>'
+      + chosenAddr.city + ', ' + chosenAddr.state + ' ' + chosenAddr.pincode + '<br>'
+      + chosenAddr.phone;
+  }
+}
+
+/* ── Place order + Razorpay ─────────────────────────────── */
+async function placeOrder() {
+  var items = Cart.getItems();
+  var btn   = document.getElementById('ckPayBtn');
+
+  if (!chosenAddr?.id) { alert('Please provide a shipping address.'); showStep(1); return; }
+
+  btn.disabled = true; btn.textContent = 'Processing…';
+
+  try {
+    var cartItems = items.map(function(i) {
+      return { slug: i.id, quantity: i.qty, customization_notes: i.customization_notes || null };
+    });
+
+    var res = await fetch(API + '/api/payments/create-order', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
+      body: JSON.stringify({ items: cartItems, address_id: chosenAddr.id }),
+    });
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not initiate payment');
+
+    // Load Razorpay SDK
+    await new Promise(function(resolve, reject) {
+      if (window.Razorpay) { resolve(); return; }
+      var s = document.createElement('script');
+      s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      s.onload = resolve;
+      s.onerror = function() { reject(new Error('Could not load payment gateway')); };
+      document.head.appendChild(s);
+    });
+
+    var rzp = new window.Razorpay({
+      key:       data.key_id,
+      amount:    data.amount,
+      currency:  data.currency,
+      name:      'TriAkar',
+      description: 'Premium 3D Printed Products',
+      order_id:  data.razorpay_order_id,
+      prefill:   { name: chosenAddr.full_name, contact: chosenAddr.phone },
+      theme:     { color: '#161614' },
+      handler: async function(response) {
+        btn.textContent = 'Verifying payment…';
+        var vRes = await fetch(API + '/api/payments/verify', {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
+          body: JSON.stringify({
+            razorpay_order_id:  response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            order_id:           data.order_id,
+          }),
+        });
+        var vData = await vRes.json();
+        if (!vRes.ok) throw new Error(vData.error || 'Payment verification failed');
+        Cart.clear();
+        window.location.href = 'order-confirmation.html?order_id=' + data.order_id;
+      },
+      modal: {
+        ondismiss: function() {
+          btn.disabled = false;
+          btn.innerHTML = 'Pay <span>' + document.getElementById('ckPayAmt').textContent + '</span> →';
+        }
+      }
+    });
+    rzp.on('payment.failed', function(r) {
+      btn.disabled = false;
+      btn.innerHTML = 'Pay <span>' + document.getElementById('ckPayAmt').textContent + '</span> →';
+      alert('Payment failed: ' + r.error.description);
+    });
+    rzp.open();
+
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = 'Pay <span>' + document.getElementById('ckPayAmt').textContent + '</span> →';
+    alert('Checkout error: ' + err.message);
+  }
+}
+</script>
+</body>
+</html>

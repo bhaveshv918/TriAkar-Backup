@@ -1,12 +1,12 @@
 import supabase from '../db/supabaseClient.js';
 
 export async function requireAuth(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Unauthorised — no token provided' });
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = header.split(' ')[1];
   const { data: { user }, error } = await supabase.auth.getUser(token);
 
   if (error || !user) {

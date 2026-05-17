@@ -1,5 +1,5 @@
 import Razorpay from 'razorpay';
-import crypto from 'crypto';
+import crypto   from 'crypto';
 import supabase from '../db/supabaseClient.js';
 
 const razorpay = new Razorpay({
@@ -7,60 +7,75 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
+/* ── POST /api/payments/create-order ──────────────────────── */
 export async function createOrder(req, res, next) {
   try {
-    const { items, shipping_address = {}, address_id = null } = req.body;
+    const { items, address_id } = req.body;
     const user_id = req.user.id;
 
     if (!items?.length) return res.status(400).json({ error: 'Cart is empty' });
+    if (!address_id)    return res.status(400).json({ error: 'Shipping address is required' });
 
+    /* 1. Ensure profile exists (safety-net for FK) */
+    await supabase.from('profiles').upsert(
+      { id: user_id, full_name: req.user.user_metadata?.full_name || '' },
+      { onConflict: 'id' },
+    );
+
+    /* 2. Fetch & validate products by slug */
     const slugs = items.map(i => i.slug);
-    const { data: products, error: productError } = await supabase
+    const { data: products, error: pErr } = await supabase
       .from('products')
       .select('id, name, slug, price, stock_qty')
       .in('slug', slugs)
       .eq('is_active', true);
-
-    if (productError) throw productError;
+    if (pErr) throw pErr;
 
     let total_amount = 0;
     for (const item of items) {
-      const product = products.find(p => p.slug === item.slug);
-      if (!product) return res.status(400).json({ error: `Product "${item.slug}" not found` });
-      if (product.stock_qty < item.quantity) {
-        return res.status(400).json({ error: `Insufficient stock for "${product.name}"` });
-      }
-      total_amount += product.price * item.quantity;
+      const p = products.find(x => x.slug === item.slug);
+      if (!p) return res.status(400).json({ error: `Product "${item.slug}" not found` });
+      if (p.stock_qty < item.quantity)
+        return res.status(400).json({ error: `Insufficient stock for "${p.name}"` });
+      total_amount += p.price * item.quantity;
     }
 
-    // Ensure profile row exists — handles cases where the auth trigger hasn't fired yet
-    await supabase.from('profiles').upsert(
-      { id: user_id, email: req.user.email || '' },
-      { onConflict: 'id' }
-    );
+    /* 3. Fetch shipping address */
+    const { data: addr, error: aErr } = await supabase
+      .from('user_addresses')
+      .select('*')
+      .eq('id', address_id)
+      .eq('user_id', user_id)
+      .single();
+    if (aErr || !addr) return res.status(400).json({ error: 'Address not found' });
 
-    const { data: order, error: orderError } = await supabase
+    const shipping_address = {
+      full_name: addr.full_name, phone: addr.phone,
+      address_line1: addr.address_line1, address_line2: addr.address_line2,
+      city: addr.city, state: addr.state, pincode: addr.pincode, country: addr.country,
+    };
+
+    /* 4. Create DB order */
+    const { data: order, error: oErr } = await supabase
       .from('orders')
-      .insert({ user_id, status: 'pending', total_amount, shipping_address, address_id })
+      .insert({ user_id, address_id, status: 'pending', total_amount, shipping_address })
       .select()
       .single();
+    if (oErr) throw oErr;
 
-    if (orderError) throw orderError;
-
-    const orderItems = items.map(item => {
-      const product = products.find(p => p.slug === item.slug);
+    /* 5. Create order items */
+    const rows = items.map(item => {
+      const p = products.find(x => x.slug === item.slug);
       return {
-        order_id:            order.id,
-        product_id:          product.id,
-        quantity:            item.quantity,
-        unit_price:          product.price,
+        order_id: order.id, product_id: p.id,
+        quantity: item.quantity, unit_price: p.price,
         customization_notes: item.customization_notes || null,
       };
     });
+    const { error: iErr } = await supabase.from('order_items').insert(rows);
+    if (iErr) throw iErr;
 
-    const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
-    if (itemsError) throw itemsError;
-
+    /* 6. Create Razorpay order (amount in paise) */
     const rzpOrder = await razorpay.orders.create({
       amount:   Math.round(total_amount * 100),
       currency: 'INR',
@@ -69,9 +84,10 @@ export async function createOrder(req, res, next) {
     });
 
     await supabase.from('orders')
-      .update({ stripe_payment_intent_id: rzpOrder.id })
+      .update({ razorpay_order_id: rzpOrder.id })
       .eq('id', order.id);
 
+    /* 7. Return data for frontend Razorpay modal */
     res.json({
       razorpay_order_id: rzpOrder.id,
       amount:            rzpOrder.amount,
@@ -79,36 +95,36 @@ export async function createOrder(req, res, next) {
       order_id:          order.id,
       key_id:            process.env.RAZORPAY_KEY_ID,
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 }
 
+/* ── POST /api/payments/verify ────────────────────────────── */
 export async function verifyPayment(req, res, next) {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, order_id } = req.body;
-
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !order_id) {
       return res.status(400).json({ error: 'Missing payment verification fields' });
     }
 
-    const expectedSig = crypto
+    const expected = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest('hex');
 
-    if (expectedSig !== razorpay_signature) {
-      return res.status(400).json({ error: 'Payment verification failed — signature mismatch' });
+    if (expected !== razorpay_signature) {
+      return res.status(400).json({ error: 'Signature mismatch — payment verification failed' });
     }
 
+    /* Update order status */
+    await supabase.from('orders')
+      .update({ status: 'confirmed', razorpay_payment_id })
+      .eq('id', order_id);
+
+    /* Decrement stock */
     const { data: orderItems } = await supabase
       .from('order_items')
       .select('product_id, quantity')
       .eq('order_id', order_id);
-
-    await supabase.from('orders')
-      .update({ status: 'confirmed', stripe_payment_intent_id: razorpay_payment_id })
-      .eq('id', order_id);
 
     for (const item of orderItems ?? []) {
       await supabase.rpc('decrement_stock', {
@@ -118,7 +134,5 @@ export async function verifyPayment(req, res, next) {
     }
 
     res.json({ ok: true, order_id });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 }

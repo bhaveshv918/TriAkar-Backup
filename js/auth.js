@@ -2,18 +2,24 @@
 
 const Auth = (function () {
   const API_BASE = window.location.hostname === 'localhost'
-    ? 'http://localhost:3000' : 'https://triakar.onrender.com';
+    ? 'http://localhost:3000'
+    : 'https://triakar.onrender.com';
 
   const TOKEN_KEY = 'ta_token';
   const USER_KEY  = 'ta_user';
 
-  function getToken() { return localStorage.getItem(TOKEN_KEY); }
+  function getToken()  { return localStorage.getItem(TOKEN_KEY); }
+  function isLoggedIn() { return !!getToken(); }
 
   function getUser() {
-    try { return JSON.parse(localStorage.getItem(USER_KEY)); } catch (_) { return null; }
+    try { return JSON.parse(localStorage.getItem(USER_KEY)); }
+    catch (_) { return null; }
   }
 
-  function isLoggedIn() { return !!getToken(); }
+  function authHeader() {
+    const t = getToken();
+    return t ? { Authorization: 'Bearer ' + t } : {};
+  }
 
   function _save(token, user) {
     localStorage.setItem(TOKEN_KEY, token);
@@ -64,15 +70,14 @@ const Auth = (function () {
     window.location.href = 'index.html';
   }
 
-  function authHeader() {
-    const t = getToken();
-    return t ? { Authorization: 'Bearer ' + t } : {};
-  }
-
   function _updateNav() {
-    const user = getUser();
-    document.querySelectorAll('.nav-auth-link').forEach(el => el.remove());
+    document.querySelectorAll('.nav-auth-link').forEach(el => {
+      const parent = el.parentElement;
+      if (parent && parent.tagName === 'LI') parent.remove();
+      else el.remove();
+    });
 
+    const user  = getUser();
     const label = user
       ? ((user.user_metadata?.full_name || user.email || 'Account').split(' ')[0])
       : 'Login';
@@ -80,23 +85,17 @@ const Auth = (function () {
     document.querySelectorAll('.nav-links').forEach(nav => {
       const li = document.createElement('li');
       const a  = document.createElement('a');
-      a.href = 'account.html';
-      a.textContent = label;
-      a.className = 'nav-auth-link';
-      li.appendChild(a);
-      nav.appendChild(li);
+      a.href = 'account.html'; a.textContent = label; a.className = 'nav-auth-link';
+      li.appendChild(a); nav.appendChild(li);
     });
-
     document.querySelectorAll('.nav-drawer').forEach(nav => {
       const a = document.createElement('a');
-      a.href = 'account.html';
-      a.textContent = label;
-      a.className = 'nav-auth-link';
+      a.href = 'account.html'; a.textContent = label; a.className = 'nav-auth-link';
       nav.appendChild(a);
     });
   }
 
   function init() { _updateNav(); }
 
-  return { signup, login, logout, getToken, getUser, isLoggedIn, authHeader, init };
+  return { signup, login, logout, getToken, getUser, isLoggedIn, authHeader, init, API_BASE };
 })();
