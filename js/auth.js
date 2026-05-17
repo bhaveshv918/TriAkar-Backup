@@ -1,8 +1,8 @@
 /* TriAkar — auth.js */
 
 const Auth = (function () {
-  const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://localhost:3000' : 'https://triakar-api.onrender.com';
+  const API_BASE = window.location.hostname === 'localhost'
+    ? 'http://localhost:3000' : 'https://triakar.onrender.com';
 
   const TOKEN_KEY = 'ta_token';
   const USER_KEY  = 'ta_user';

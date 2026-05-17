@@ -30,7 +30,7 @@
 })();
 
 const Cart=(function(){
-  const _API=(window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1')?'http://localhost:3000':'https://triakar-api.onrender.com';
+  const _API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
   let items=[];
   try{items=JSON.parse(localStorage.getItem('ta_cart')||'[]')}catch(e){items=[]}
 
@@ -93,7 +93,7 @@ async function checkout(){
   const btns=document.querySelectorAll('[onclick*="checkout"]');
   btns.forEach(b=>{b.disabled=true;b._origText=b.textContent;b.textContent='Processing…';});
   try{
-    const _API=(window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1')?'http://localhost:3000':'https://triakar-api.onrender.com';
+    const _API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
     const cartItems=items.map(i=>({slug:i.id,quantity:i.qty,customization_notes:i.customization_notes||null}));
 
     // Step 1: create order on backend
