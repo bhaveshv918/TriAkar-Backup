@@ -25,6 +25,7 @@ CREATE TABLE profiles (
 );
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users read own profile"   ON profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
 CREATE POLICY "Users update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 
 -- ════════════════════════════════════════════════════════════════════════
@@ -83,6 +84,7 @@ CREATE TABLE orders (
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users read own orders"   ON orders FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users insert own orders" ON orders FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users update own orders" ON orders FOR UPDATE USING (auth.uid() = user_id);
 
 -- ════════════════════════════════════════════════════════════════════════
 -- 6. ORDER ITEMS
@@ -99,6 +101,8 @@ CREATE TABLE order_items (
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users read own order items" ON order_items FOR SELECT
   USING (EXISTS (SELECT 1 FROM orders WHERE orders.id = order_id AND orders.user_id = auth.uid()));
+CREATE POLICY "Users insert own order items" ON order_items FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM orders WHERE orders.id = order_id AND orders.user_id = auth.uid()));
 
 -- ════════════════════════════════════════════════════════════════════════
 -- 7. CARTS (JSONB-based, one row per user)
