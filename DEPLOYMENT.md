@@ -3,7 +3,7 @@
 **Frontend:** Vercel → `triakar.vercel.app`  
 **Backend API:** Render → `https://triakar-api.onrender.com`  
 **Database / Auth:** Supabase  
-**Payments:** Stripe
+**Payments:** Razorpay
 
 ---
 
@@ -11,7 +11,7 @@
 
 - GitHub repo exists and this code is pushed to the `main` branch
 - Supabase project created at [supabase.com](https://supabase.com)
-- Stripe account created at [stripe.com](https://stripe.com) (test mode keys ready)
+- Razorpay account created at [razorpay.com](https://razorpay.com) (test mode keys ready)
 - Vercel account linked to the GitHub repo
 - Render account at [render.com](https://render.com)
 
@@ -59,18 +59,17 @@ Once the service is created, go to **Environment** tab and add these key/value p
 | `FRONTEND_URL` | `https://triakar.vercel.app` |
 | `SUPABASE_URL` | Your Supabase project URL (Settings → API → Project URL) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Your service role key (Settings → API → service_role, click reveal) |
-| `STRIPE_SECRET_KEY` | `sk_test_…` from Stripe Dashboard → Developers → API keys |
-| `STRIPE_WEBHOOK_SECRET` | See Step 2c below |
+| `RAZORPAY_KEY_ID` | Razorpay Dashboard → Settings → API Keys → Key ID (`rzp_test_…`) |
+| `RAZORPAY_KEY_SECRET` | Razorpay Dashboard → Settings → API Keys → Key Secret |
 
-### 2c — Get the Stripe Webhook Secret
+### 2c — Get Razorpay API Keys
 
-1. Go to [Stripe Dashboard](https://dashboard.stripe.com) → **Developers** → **Webhooks**
-2. Click **Add endpoint**
-3. Endpoint URL: `https://triakar-api.onrender.com/api/payments/webhook`
-4. Select events: `checkout.session.completed`, `checkout.session.expired`
-5. Click **Add endpoint**
-6. Click the endpoint → **Signing secret** → **Reveal** → copy the `whsec_…` value
-7. Paste it as `STRIPE_WEBHOOK_SECRET` in Render
+1. Go to [Razorpay Dashboard](https://dashboard.razorpay.com) → **Settings** → **API Keys**
+2. Click **Generate Test Key** (if not already generated)
+3. Copy the **Key ID** (`rzp_test_…`) and **Key Secret**
+4. Paste both into Render as `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`
+
+> **No webhook setup needed.** Razorpay uses a frontend callback + backend HMAC signature verification — no endpoint registration required.
 
 ### 2d — Trigger a redeploy
 
@@ -131,8 +130,8 @@ Run through this in order after both services are live:
 
 ### Cart & Checkout
 - [ ] Add a product to cart → cart sidebar opens, item shown
-- [ ] Click Checkout → redirected to Stripe hosted checkout
-- [ ] Use test card: `4242 4242 4242 4242`, any future expiry, any CVV
+- [ ] Click Checkout → Razorpay payment modal opens in-page
+- [ ] Use test card: `4111 1111 1111 1111`, any future expiry, any CVV, any OTP
 - [ ] After payment → redirected to `order-confirmation.html` with order details
 
 ### Orders
@@ -159,12 +158,23 @@ Run through this in order after both services are live:
 | `FRONTEND_URL` | `https://triakar.vercel.app` |
 | `SUPABASE_URL` | Supabase → Settings → API → Project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API → service_role key |
-| `STRIPE_SECRET_KEY` | Stripe → Developers → API keys → Secret key |
-| `STRIPE_WEBHOOK_SECRET` | Stripe → Developers → Webhooks → Signing secret |
+| `RAZORPAY_KEY_ID` | Razorpay → Settings → API Keys → Key ID |
+| `RAZORPAY_KEY_SECRET` | Razorpay → Settings → API Keys → Key Secret |
 
 ### Vercel (frontend)
 
 No environment variables needed — the frontend is static HTML/JS. The Render API URL is hardcoded in the JS as `https://triakar-api.onrender.com`.
+
+---
+
+## How Razorpay Payments Work
+
+1. User clicks **Checkout** → frontend calls `POST /api/payments/create-order`
+2. Backend creates a pending order in Supabase + a Razorpay order, returns `razorpay_order_id` and `key_id`
+3. Frontend opens the **Razorpay modal** (in-page, no redirect)
+4. User completes payment → Razorpay calls the `handler` callback with `payment_id` + `signature`
+5. Frontend calls `POST /api/payments/verify` — backend validates the HMAC-SHA256 signature
+6. On success: order marked `confirmed`, stock decremented, user redirected to order confirmation
 
 ---
 
@@ -174,17 +184,20 @@ No environment variables needed — the frontend is static HTML/JS. The Render A
 → Make sure `FRONTEND_URL` on Render is set to exactly `https://triakar.vercel.app` (no trailing slash)
 
 **Auth is not defined**  
-→ Cleared in the latest commit — `js/auth.js` now loads with `defer` and inline scripts wait for `DOMContentLoaded`
+→ `js/auth.js` loads with `defer` and inline scripts wait for `DOMContentLoaded` — ensure latest code is deployed
 
-**Stripe webhook returning 400**  
-→ Verify `STRIPE_WEBHOOK_SECRET` matches the signing secret in Stripe dashboard for the exact endpoint URL
+**Razorpay modal not opening**  
+→ Check browser console — usually means `RAZORPAY_KEY_ID` is missing or wrong on Render; confirm `/api/payments/create-order` returns a valid `key_id`
+
+**Payment verification failing (400)**  
+→ Confirm `RAZORPAY_KEY_SECRET` on Render matches the key secret shown in Razorpay dashboard exactly
 
 **Render backend returning 500**  
-→ Check Render **Logs** tab — usually a missing env var. All 5 keys must be set.
+→ Check Render **Logs** tab — usually a missing env var. All 6 keys must be set.
 
 **Products page shows nothing**  
 → Confirm the schema SQL was run and `products` table has rows — add one via the admin panel first
 
 ---
 
-*Last updated: 2026-05-17 | Stack: Node + Supabase + Stripe + Vercel + Render*
+*Last updated: 2026-05-17 | Stack: Node + Supabase + Razorpay + Vercel + Render*
