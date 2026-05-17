@@ -1,8 +1,7 @@
 -- TriAkar — Supabase / PostgreSQL schema
--- Run this in the Supabase SQL editor to set up all tables.
+-- Safe to run multiple times — uses IF NOT EXISTS and DROP POLICY IF EXISTS.
 
 -- ── PROFILES ───────────────────────────────────────────────────────────────
--- Extends Supabase Auth users with additional fields.
 CREATE TABLE IF NOT EXISTS profiles (
   id          UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email       TEXT NOT NULL,
@@ -11,6 +10,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read own profile"   ON profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can read own profile"   ON profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 
@@ -21,18 +22,22 @@ CREATE TABLE IF NOT EXISTS products (
   slug            TEXT NOT NULL UNIQUE,
   description     TEXT,
   price           NUMERIC(10,2) NOT NULL,
-  category        TEXT NOT NULL,        -- desk | home | gifting | custom
+  category        TEXT NOT NULL,
   stock_qty       INTEGER NOT NULL DEFAULT 0,
-  images          TEXT[] DEFAULT '{}',  -- Supabase Storage URLs
+  images          TEXT[] DEFAULT '{}',
   is_customizable BOOLEAN DEFAULT FALSE,
   is_active       BOOLEAN DEFAULT TRUE,
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can read active products" ON products;
 CREATE POLICY "Anyone can read active products" ON products FOR SELECT USING (is_active = TRUE);
 
 -- ── ORDERS ─────────────────────────────────────────────────────────────────
-CREATE TYPE order_status AS ENUM ('pending','confirmed','processing','shipped','delivered','cancelled');
+DO $$ BEGIN
+  CREATE TYPE order_status AS ENUM ('pending','confirmed','processing','shipped','delivered','cancelled');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 CREATE TABLE IF NOT EXISTS orders (
   id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -44,6 +49,8 @@ CREATE TABLE IF NOT EXISTS orders (
   created_at               TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read own orders"   ON orders;
+DROP POLICY IF EXISTS "Users can insert own orders" ON orders;
 CREATE POLICY "Users can read own orders"   ON orders FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own orders" ON orders FOR INSERT WITH CHECK (auth.uid() = user_id);
 
@@ -58,17 +65,18 @@ CREATE TABLE IF NOT EXISTS order_items (
   created_at           TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read own order items" ON order_items;
 CREATE POLICY "Users can read own order items" ON order_items FOR SELECT
   USING (EXISTS (SELECT 1 FROM orders WHERE orders.id = order_id AND orders.user_id = auth.uid()));
 
 -- ── CARTS ──────────────────────────────────────────────────────────────────
--- One cart per user, items stored as JSONB for simplicity.
 CREATE TABLE IF NOT EXISTS carts (
   user_id    UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   items      JSONB NOT NULL DEFAULT '[]',
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE carts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage own cart" ON carts;
 CREATE POLICY "Users can manage own cart" ON carts FOR ALL USING (auth.uid() = user_id);
 
 -- ── CORPORATE INQUIRIES ────────────────────────────────────────────────────
@@ -82,10 +90,8 @@ CREATE TABLE IF NOT EXISTS corporate_inquiries (
   product_interest TEXT,
   created_at       TIMESTAMPTZ DEFAULT NOW()
 );
--- No RLS — service role only (submitted via server, not direct client)
 
 -- ── STOCK DECREMENT RPC ────────────────────────────────────────────────────
--- Called by the webhook after payment succeeds to safely decrement stock.
 CREATE OR REPLACE FUNCTION decrement_stock(p_product_id UUID, p_qty INTEGER)
 RETURNS VOID AS $$
 BEGIN
