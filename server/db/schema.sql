@@ -187,5 +187,6 @@ INSERT INTO products (name, slug, description, price, category, stock_qty, is_cu
   ('Coaster Set',         'coaster-set',   'Set of 4 geometric coasters for home or gifting',          680, 'gifting', 100,  false),
   ('Custom Replacement',  'custom-bracket','Custom replacement part printed to your specs',            299, 'custom', 999,  true),
   ('Functional Prototype','prototype',     'Rapid prototype printing for your product idea',           499, 'custom', 999,  true),
-  ('Bulk Custom Order',   'bulk-gifting',  'Bulk corporate gifting with custom branding',              180, 'gifting', 999,  true)
+  ('Bulk Custom Order',   'bulk-gifting',  'Bulk corporate gifting with custom branding',              180, 'gifting', 999,  true),
+  ('Mini Keychain',        'mini-keychain','Compact 3D-printed keychain with minimal geometric design', 119, 'decor',  200,  false)
 ON CONFLICT (slug) DO NOTHING;
