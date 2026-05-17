@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Order Confirmed — TriAkar</title>
+<meta name="description" content="Your TriAkar order has been confirmed. Thank you for your purchase.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="shortcut icon" href="favicon.svg">
+<link rel="stylesheet" href="shared.css">
+<style>
+.confirm-wrap{min-height:calc(100vh - var(--total-h));display:flex;align-items:flex-start;justify-content:center;padding:72px var(--pad) 80px;background:var(--ivory)}
+.confirm-inner{max-width:580px;width:100%}
+
+/* top check mark */
+.confirm-check{width:56px;height:56px;border-radius:50%;background:var(--charcoal);display:flex;align-items:center;justify-content:center;margin-bottom:28px}
+.confirm-check svg{width:26px;height:26px}
+
+.confirm-title{font-size:clamp(26px,4vw,38px);font-weight:700;letter-spacing:-.02em;color:var(--charcoal);margin-bottom:6px}
+.confirm-sub{font-size:14px;color:var(--warm);line-height:1.7;margin-bottom:36px}
+
+/* order meta */
+.confirm-meta{display:flex;gap:32px;margin-bottom:36px;flex-wrap:wrap}
+.confirm-meta-item{display:flex;flex-direction:column;gap:4px}
+.confirm-meta-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:var(--stone)}
+.confirm-meta-value{font-size:14px;font-weight:600;color:var(--charcoal)}
+
+/* divider */
+.confirm-divider{height:1px;background:var(--stone-p);margin:0 0 28px}
+
+/* items */
+.confirm-items-title{font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:var(--stone);margin-bottom:16px}
+.confirm-item{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid var(--stone-p)}
+.confirm-item:last-child{border-bottom:none}
+.confirm-item-name{font-size:14px;font-weight:500;color:var(--charcoal)}
+.confirm-item-qty{font-size:12px;color:var(--stone);margin-top:2px}
+.confirm-item-price{font-size:14px;font-weight:600;color:var(--charcoal);white-space:nowrap}
+
+/* total row */
+.confirm-total-row{display:flex;justify-content:space-between;align-items:center;padding:20px 0 0;margin-top:4px}
+.confirm-total-label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--stone)}
+.confirm-total-value{font-size:20px;font-weight:700;color:var(--charcoal)}
+
+/* status badge */
+.status-badge{display:inline-block;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:4px 10px;border-radius:2px;background:#DCFCE7;color:#14532D}
+
+/* actions */
+.confirm-actions{display:flex;gap:12px;margin-top:36px;flex-wrap:wrap}
+
+/* loading / error */
+.confirm-loading{padding:60px 0;text-align:center;font-size:13px;color:var(--stone);letter-spacing:.06em}
+.confirm-error{padding:60px 0;text-align:center}
+.confirm-error p{font-size:14px;color:var(--stone);margin-bottom:20px}
+
+@media(max-width:600px){
+  .confirm-wrap{padding:48px var(--pad) 60px;align-items:flex-start}
+  .confirm-meta{gap:20px}
+}
+</style>
+</head>
+<body>
+
+<div class="notice-bar">
+  Free shipping above ₹999 in India<span class="ndot">·</span>Ships internationally<span class="ndot">·</span><a href="contact.html">hello@triakar.com</a>
+</div>
+
+<nav class="main-nav" id="mainNav">
+  <div class="nav-inner">
+    <a href="index.html" class="logo">
+      <span class="logo-en">TRIAKAR</span>
+      <span class="logo-hi">त्रिआकार</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="products.html">Shop</a></li>
+      <li><a href="custom.html">Custom</a></li>
+      <li><a href="updates.html">Updates</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="contact.html">Contact</a></li>
+      <li><a href="track-order.html">Track Order</a></li>
+    </ul>
+    <div class="nav-right">
+      <a href="#" class="cart-btn" onclick="openCart();return false;">
+        <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M1 1h2.5l1.6 8h8.4l1.5-5.5H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="14.5" r="1.2" fill="currentColor"/><circle cx="13" cy="14.5" r="1.2" fill="currentColor"/></svg>
+        Cart <span class="cart-badge" id="cartBadge">0</span>
+      </a>
+      <a href="products.html" class="nav-shop">Shop Now</a>
+      <button class="nav-toggle" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+</nav>
+<nav class="nav-drawer">
+  <a href="products.html">Shop</a>
+  <a href="custom.html">Custom</a>
+  <a href="updates.html">Updates</a>
+  <a href="about.html">About</a>
+  <a href="contact.html">Contact</a>
+  <a href="track-order.html">Track Order</a>
+</nav>
+
+<div class="confirm-wrap">
+  <div class="confirm-inner" id="confirmContent">
+    <div class="confirm-loading">Loading your order…</div>
+  </div>
+</div>
+
+<footer>
+  <div class="mw">
+    <div class="foot-grid">
+      <div>
+        <div class="foot-brand">TRIAKAR</div>
+        <div class="foot-hi">त्रिआकार</div>
+        <p class="foot-desc">3D printed design objects. Made in India. Shipped worldwide.</p>
+        <div class="foot-mail"><a href="mailto:hello@triakar.com">hello@triakar.com</a></div>
+        <div class="foot-reply">We reply within 24 hours.</div>
+      </div>
+      <div>
+        <div class="foot-col-t">Shop</div>
+        <ul class="foot-links">
+          <li><a href="products.html">All Products</a></li>
+          <li><a href="products.html?cat=desk">Desk</a></li>
+          <li><a href="products.html?cat=home">Home</a></li>
+          <li><a href="products.html?cat=gifting">Gifting</a></li>
+          <li><a href="custom.html">Custom Order</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="foot-col-t">Help</div>
+        <ul class="foot-links">
+          <li><a href="contact.html">Contact Us</a></li>
+          <li><a href="track-order.html">Track Order</a></li>
+          <li><a href="refund-policy.html">Refund Policy</a></li>
+          <li><a href="about.html">About</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="foot-col-t">Legal</div>
+        <ul class="foot-links">
+          <li><a href="terms.html">Terms &amp; Conditions</a></li>
+          <li><a href="privacy.html">Privacy Policy</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <p class="foot-copy">© 2025 TriAkar. All rights reserved.</p>
+      <p class="foot-tag">Designed globally. Made in India.</p>
+    </div>
+  </div>
+</footer>
+
+<div class="cart-overlay" id="cartOverlay" onclick="closeCart()"></div>
+<div class="cart-sidebar" id="cartSidebar">
+  <div class="cart-head"><h3>Cart</h3><button class="cart-close" onclick="closeCart()">×</button></div>
+  <div class="cart-items" id="cartItemsList"></div>
+  <div class="cart-foot">
+    <div class="cart-sub"><span class="cart-sub-l">Subtotal</span><span class="cart-sub-v" id="cartTotal">₹0</span></div>
+    <div class="cart-note">Free shipping above ₹999 in India.</div>
+    <button class="btn btn-dark" style="width:100%;justify-content:center" onclick="checkout()">Checkout →</button>
+    <div style="text-align:center;margin-top:10px"><button class="btn-ghost" onclick="closeCart()">Continue shopping</button></div>
+  </div>
+</div>
+
+<script src="js/auth.js" defer></script>
+<script src="shared.js" defer></script>
+<script>
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:3000' : 'https://triakar-api.onrender.com';
+
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function renderOrder(order) {
+  const items = order.order_items || [];
+  const shortId = order.id.slice(0, 8).toUpperCase();
+
+  const itemsHtml = items.map(function(item) {
+    const name  = item.products ? item.products.name : 'Product';
+    const price = Number(item.unit_price * item.quantity).toLocaleString('en-IN');
+    return '<div class="confirm-item">'
+      + '<div><div class="confirm-item-name">' + name + '</div>'
+      + '<div class="confirm-item-qty">Qty ' + item.quantity + (item.customization_notes ? ' · ' + item.customization_notes : '') + '</div></div>'
+      + '<div class="confirm-item-price">₹' + price + '</div>'
+      + '</div>';
+  }).join('');
+
+  document.getElementById('confirmContent').innerHTML =
+    '<div class="confirm-check">'
+    + '<svg viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    + '</div>'
+    + '<div class="confirm-title">Order Confirmed</div>'
+    + '<p class="confirm-sub">Thank you! We\'ll start making your items right away.<br>Tracking details will be sent to your email once shipped.</p>'
+
+    + '<div class="confirm-meta">'
+    + '<div class="confirm-meta-item"><div class="confirm-meta-label">Order ID</div><div class="confirm-meta-value">#' + shortId + '</div></div>'
+    + '<div class="confirm-meta-item"><div class="confirm-meta-label">Date</div><div class="confirm-meta-value">' + fmtDate(order.created_at) + '</div></div>'
+    + '<div class="confirm-meta-item"><div class="confirm-meta-label">Status</div><div class="confirm-meta-value"><span class="status-badge">' + order.status + '</span></div></div>'
+    + '</div>'
+
+    + '<div class="confirm-divider"></div>'
+    + '<div class="confirm-items-title">Items Ordered</div>'
+    + itemsHtml
+    + '<div class="confirm-total-row"><div class="confirm-total-label">Total Paid</div><div class="confirm-total-value">₹' + Number(order.total_amount).toLocaleString('en-IN') + '</div></div>'
+
+    + '<div class="confirm-actions">'
+    + '<a href="products.html" class="btn btn-dark">Continue Shopping</a>'
+    + '<a href="account.html" class="btn btn-outline">View All Orders</a>'
+    + '</div>';
+}
+
+function showError(msg) {
+  document.getElementById('confirmContent').innerHTML =
+    '<div class="confirm-error">'
+    + '<p>' + msg + '</p>'
+    + '<a href="products.html" class="btn btn-dark">Back to Shop</a>'
+    + '</div>';
+}
+
+async function loadOrder() {
+  const orderId = new URLSearchParams(window.location.search).get('order_id');
+  if (!orderId) { showError('No order ID found.'); return; }
+
+  const token = localStorage.getItem('ta_token');
+  if (!token) { window.location.href = 'account.html'; return; }
+
+  try {
+    const res = await fetch(API_BASE + '/api/orders/' + orderId, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (!res.ok) throw new Error('Order not found');
+    const { order } = await res.json();
+    renderOrder(order);
+  } catch (err) {
+    showError('Could not load order details. ' + err.message);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() { loadOrder(); });
+</script>
+</body>
+</html>

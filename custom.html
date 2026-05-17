@@ -99,13 +99,13 @@
       <div class="custom-right" id="enquiry-form">
         <div class="form-title">Tell us what you need</div>
         <div class="form-row">
-          <div class="form-group"><label>Your Name *</label><input type="text" placeholder="Rahul Mehta" required></div>
-          <div class="form-group"><label>Email *</label><input type="email" placeholder="rahul@email.com" required></div>
+          <div class="form-group"><label>Your Name *</label><input type="text" id="eq-name" placeholder="Rahul Mehta" required></div>
+          <div class="form-group"><label>Email *</label><input type="email" id="eq-email" placeholder="rahul@email.com" required></div>
         </div>
         <div class="form-group">
           <label>Phone (optional)</label>
           <div class="phone-row">
-            <select class="phone-code">
+            <select class="phone-code" id="eq-phone-code">
               <option value="+91">🇮🇳 +91</option>
               <option value="+1">🇺🇸 +1</option>
               <option value="+44">🇬🇧 +44</option>
@@ -117,13 +117,13 @@
               <option value="+33">🇫🇷 +33</option>
               <option value="+81">🇯🇵 +81</option>
             </select>
-            <input type="tel" class="phone-input form-group" style="margin-bottom:0;border-left:none" placeholder="98765 43210">
+            <input type="tel" id="eq-phone" class="phone-input form-group" style="margin-bottom:0;border-left:none" placeholder="98765 43210">
           </div>
           <div class="form-note">We may call for quick clarifications on complex orders.</div>
         </div>
         <div class="form-group">
           <label>Type of Order *</label>
-          <select required>
+          <select id="eq-type" required>
             <option value="">Select...</option>
             <option>Replacement Part</option>
             <option>Corporate Gifting</option>
@@ -135,11 +135,11 @@
         </div>
         <div class="form-group">
           <label>Describe your need *</label>
-          <textarea rows="4" placeholder="A photo link, sketch, or 2–3 sentences is enough. What is it? What material if you know? Any dimensions?" required></textarea>
+          <textarea id="eq-message" rows="4" placeholder="A photo link, sketch, or 2–3 sentences is enough. What is it? What material if you know? Any dimensions?" required></textarea>
         </div>
         <div class="form-group">
           <label>Budget (optional)</label>
-          <input type="text" placeholder="e.g. ₹500 or not sure — no upper limit">
+          <input type="text" id="eq-budget" placeholder="e.g. ₹500 or not sure — no upper limit">
           <div class="form-note">We work with all budgets. No upper limit — just describe what you need.</div>
         </div>
         <button class="btn btn-dark" style="width:100%;justify-content:center;padding:15px" onclick="submitEnquiry(this)">Submit Enquiry →</button>
@@ -214,12 +214,48 @@
 </section>
 
 <script>
-function submitEnquiry(btn){
-  btn.textContent='Sending...';btn.disabled=true;
-  setTimeout(()=>{
-    document.getElementById('enquiry-form').innerHTML='<div style="padding:80px 40px;text-align:center"><div style="font-size:44px;margin-bottom:14px">✓</div><h3 style="font-size:20px;font-weight:700;margin-bottom:12px">Enquiry received</h3><p style="font-size:14px;color:#645F59;line-height:1.7;max-width:340px;margin:0 auto">We'll reply within 24 hours with details on how we can help.</p></div>';
-  },1200);
-}
+(function(){
+  const _API=(window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1')?'http://localhost:3000':'https://triakar-api.onrender.com';
+
+  window.submitEnquiry = async function(btn) {
+    const name    = document.getElementById('eq-name')?.value.trim();
+    const email   = document.getElementById('eq-email')?.value.trim();
+    const phone   = (document.getElementById('eq-phone-code')?.value || '+91') + ' ' + (document.getElementById('eq-phone')?.value.trim() || '');
+    const type    = document.getElementById('eq-type')?.value;
+    const message = document.getElementById('eq-message')?.value.trim();
+    const budget  = document.getElementById('eq-budget')?.value.trim();
+
+    if (!name || !email || !type || !message) {
+      alert('Please fill in all required fields.');
+      return;
+    }
+
+    const fullMessage = budget ? message + '\n\nBudget: ' + budget : message;
+
+    btn.textContent = 'Sending…'; btn.disabled = true;
+
+    try {
+      const res = await fetch(_API + '/api/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contact_name: name, email, phone: phone.trim(), product_interest: type, message: fullMessage }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Submission failed');
+
+      document.getElementById('enquiry-form').innerHTML =
+        '<div style="padding:60px 32px;text-align:center">'
+        + '<div style="width:52px;height:52px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto 20px">'
+        + '<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>'
+        + '<h3 style="font-size:20px;font-weight:700;margin-bottom:10px;color:var(--ivory)">Enquiry Received</h3>'
+        + '<p style="font-size:13.5px;color:var(--stone-l);line-height:1.8;max-width:320px;margin:0 auto">We\'ll reply within 24 hours with a quote and timeline.<br>Check your inbox at <strong>' + email + '</strong></p>'
+        + '</div>';
+    } catch (err) {
+      btn.textContent = 'Submit Enquiry →'; btn.disabled = false;
+      alert('Could not send enquiry: ' + err.message);
+    }
+  };
+})();
 </script>
 
 <div class="cart-overlay" id="cartOverlay" onclick="closeCart()"></div>

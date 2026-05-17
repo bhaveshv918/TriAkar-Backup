@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Admin — TriAkar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="shortcut icon" href="favicon.svg">
+<link rel="stylesheet" href="shared.css">
+<style>
+/* ── DARK OVERRIDE ──────────────────────────────── */
+body{background:#0F0F0E!important;color:var(--ivory)}
+nav.main-nav{background:rgba(15,15,14,.96)!important;border-bottom:1px solid rgba(255,255,255,.07)!important}
+nav.main-nav.scrolled{background:rgba(15,15,14,.98)!important;box-shadow:0 1px 0 rgba(255,255,255,.07)!important}
+.logo-en,.logo-hi{color:var(--stone-l)!important}
+.nav-links a,.cart-btn{color:var(--stone)!important}
+.nav-links a:hover,.cart-btn:hover{color:var(--stone-l)!important}
+.nav-shop{border-color:rgba(255,255,255,.18)!important;color:var(--stone-l)!important}
+.nav-shop:hover{background:rgba(255,255,255,.08)!important;color:var(--ivory)!important}
+.nav-toggle span{background:var(--stone-l)!important}
+.nav-drawer{background:#0F0F0E!important;border-bottom-color:rgba(255,255,255,.08)!important}
+.nav-drawer a{color:var(--stone)!important;border-bottom-color:rgba(255,255,255,.06)!important}
+
+/* ── ADMIN SHELL ────────────────────────────────── */
+.admin-wrap{min-height:calc(100vh - var(--total-h));padding:0}
+.admin-bar{background:#161614;border-bottom:1px solid rgba(255,255,255,.07);padding:14px var(--pad);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.admin-bar-left{display:flex;align-items:center;gap:14px}
+.admin-label{font-size:9px;letter-spacing:.2em;text-transform:uppercase;font-weight:700;color:var(--accent);background:rgba(196,98,42,.12);padding:4px 10px;border:1px solid rgba(196,98,42,.25)}
+.admin-email{font-size:11.5px;color:var(--stone)}
+.admin-bar-right{display:flex;align-items:center;gap:12px}
+.admin-back{font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;color:var(--stone);transition:color .2s}
+.admin-back:hover{color:var(--ivory)}
+.admin-logout-btn{font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;background:none;border:1px solid rgba(255,255,255,.1);color:var(--stone);padding:7px 14px;cursor:pointer;transition:all .2s}
+.admin-logout-btn:hover{border-color:rgba(255,255,255,.25);color:var(--ivory)}
+
+/* ── TABS ───────────────────────────────────────── */
+.admin-tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.07);padding:0 var(--pad)}
+.admin-tab{font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:var(--stone);background:none;border:none;border-bottom:2px solid transparent;padding:16px 20px;cursor:pointer;margin-bottom:-1px;transition:color .2s}
+.admin-tab.active{color:var(--ivory);border-bottom-color:var(--accent)}
+.admin-tab:hover{color:var(--stone-l)}
+
+/* ── PANEL BODY ─────────────────────────────────── */
+.admin-panel{display:none;padding:32px var(--pad) 64px}
+.admin-panel.active{display:block}
+.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:12px;flex-wrap:wrap}
+.panel-title{font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;color:var(--stone)}
+.btn-add{font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;background:var(--accent);color:white;border:none;padding:10px 20px;cursor:pointer;transition:background .2s}
+.btn-add:hover{background:#b05828}
+
+/* ── PRODUCT FORM ───────────────────────────────── */
+.prod-form-wrap{background:#161614;border:1px solid rgba(255,255,255,.07);padding:28px 28px 32px;margin-bottom:28px;display:none}
+.prod-form-wrap.open{display:block}
+.prod-form-title{font-size:13px;font-weight:700;color:var(--ivory);margin-bottom:20px;letter-spacing:-.01em}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.form-grid.full{grid-template-columns:1fr}
+.f-group{display:flex;flex-direction:column;gap:6px}
+.f-group label{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--stone)}
+.f-group input,.f-group select,.f-group textarea{background:#0F0F0E;border:1px solid rgba(255,255,255,.1);color:var(--ivory);font-family:var(--font-b);font-size:13.5px;padding:10px 12px;outline:none;transition:border-color .2s;width:100%}
+.f-group input:focus,.f-group select:focus,.f-group textarea:focus{border-color:rgba(255,255,255,.3)}
+.f-group input::placeholder,.f-group textarea::placeholder{color:rgba(255,255,255,.2)}
+.f-group select option{background:#161614}
+.f-check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--stone-l);cursor:pointer}
+.f-check input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent)}
+.form-actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+.btn-save{font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;background:var(--ivory);color:var(--charcoal);border:none;padding:11px 24px;cursor:pointer;transition:opacity .2s}
+.btn-save:hover{opacity:.85}
+.btn-cancel{font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;background:none;border:1px solid rgba(255,255,255,.1);color:var(--stone);padding:11px 20px;cursor:pointer;transition:all .2s}
+.btn-cancel:hover{border-color:rgba(255,255,255,.25);color:var(--ivory)}
+.form-err{font-size:12px;color:#F87171;margin-top:10px;display:none}
+.form-err.show{display:block}
+
+/* ── TABLES ─────────────────────────────────────── */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--stone);text-align:left;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.07);white-space:nowrap}
+tbody tr{border-bottom:1px solid rgba(255,255,255,.04);transition:background .15s}
+tbody tr:hover{background:rgba(255,255,255,.025)}
+tbody td{padding:13px 14px;color:var(--stone-l);vertical-align:middle}
+tbody td.td-main{color:var(--ivory);font-weight:500}
+.tbl-loading{padding:48px 0;text-align:center;color:var(--stone);letter-spacing:.06em;font-size:12.5px}
+.tbl-empty{padding:48px 0;text-align:center;color:var(--stone);font-size:13px}
+
+/* badges */
+.cat-badge{font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:3px 8px;background:rgba(255,255,255,.06);color:var(--stone-l)}
+.stock-ok{color:#86EFAC}
+.stock-low{color:#FCD34D}
+.stock-out{color:#F87171}
+.active-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.active-dot.on{background:#86EFAC}
+.active-dot.off{background:rgba(255,255,255,.15)}
+
+/* status */
+.status-sel{background:#0F0F0E;border:1px solid rgba(255,255,255,.1);color:var(--stone-l);font-family:var(--font-b);font-size:11px;padding:5px 8px;cursor:pointer;outline:none;transition:border-color .2s}
+.status-sel:focus{border-color:rgba(255,255,255,.25)}
+.status-sel option{background:#161614}
+
+/* action buttons */
+.btn-edit{font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;background:none;border:1px solid rgba(255,255,255,.1);color:var(--stone);padding:5px 12px;cursor:pointer;transition:all .2s;margin-right:6px}
+.btn-edit:hover{border-color:rgba(255,255,255,.3);color:var(--ivory)}
+.btn-del{font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;background:none;border:1px solid rgba(248,113,113,.2);color:#F87171;padding:5px 12px;cursor:pointer;transition:all .2s}
+.btn-del:hover{background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.4)}
+
+/* order status colors */
+.st-pending{color:#FCD34D}
+.st-confirmed{color:#86EFAC}
+.st-processing{color:#93C5FD}
+.st-shipped{color:#C4B5FD}
+.st-delivered{color:#6EE7B7}
+.st-cancelled{color:#F87171}
+
+@media(max-width:900px){
+  .admin-bar{flex-wrap:wrap;gap:10px}
+  .form-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="notice-bar">
+  Free shipping above ₹999 in India<span class="ndot">·</span>Ships internationally<span class="ndot">·</span><a href="contact.html">hello@triakar.com</a>
+</div>
+
+<nav class="main-nav" id="mainNav">
+  <div class="nav-inner">
+    <a href="index.html" class="logo">
+      <span class="logo-en">TRIAKAR</span>
+      <span class="logo-hi">त्रिआकार</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="products.html">Shop</a></li>
+      <li><a href="custom.html">Custom</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="contact.html">Contact</a></li>
+    </ul>
+    <div class="nav-right">
+      <button class="nav-toggle" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+</nav>
+<nav class="nav-drawer">
+  <a href="products.html">Shop</a>
+  <a href="custom.html">Custom</a>
+  <a href="about.html">About</a>
+  <a href="contact.html">Contact</a>
+</nav>
+
+<div class="admin-wrap" id="adminWrap" style="display:none">
+
+  <!-- Admin bar -->
+  <div class="admin-bar">
+    <div class="admin-bar-left">
+      <span class="admin-label">Admin</span>
+      <span class="admin-email" id="adminEmail"></span>
+    </div>
+    <div class="admin-bar-right">
+      <a href="index.html" class="admin-back">← Back to Site</a>
+      <button class="admin-logout-btn" onclick="Auth.logout()">Sign Out</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="admin-tabs">
+    <button class="admin-tab active" data-tab="products" onclick="switchTab('products')">Products</button>
+    <button class="admin-tab" data-tab="orders" onclick="switchTab('orders')">Orders</button>
+  </div>
+
+  <!-- Products Panel -->
+  <div class="admin-panel active" id="panelProducts">
+    <div class="panel-head">
+      <div class="panel-title">All Products</div>
+      <button class="btn-add" onclick="openProductForm()">+ Add Product</button>
+    </div>
+
+    <!-- Add / Edit Form -->
+    <div class="prod-form-wrap" id="productFormWrap">
+      <div class="prod-form-title" id="formTitle">Add Product</div>
+      <input type="hidden" id="editingId">
+      <div class="form-grid">
+        <div class="f-group">
+          <label>Name *</label>
+          <input type="text" id="fName" placeholder="Arc Desk Organizer">
+        </div>
+        <div class="f-group">
+          <label>Slug *</label>
+          <input type="text" id="fSlug" placeholder="arc-desk-organizer">
+        </div>
+        <div class="f-group">
+          <label>Price (₹) *</label>
+          <input type="number" id="fPrice" placeholder="1890" min="0" step="1">
+        </div>
+        <div class="f-group">
+          <label>Category *</label>
+          <select id="fCategory">
+            <option value="">Select…</option>
+            <option value="desk">Desk</option>
+            <option value="home">Home</option>
+            <option value="gifting">Gifting</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="f-group">
+          <label>Stock Qty</label>
+          <input type="number" id="fStock" placeholder="10" min="0" step="1">
+        </div>
+        <div class="f-group">
+          <label>Image URL</label>
+          <input type="url" id="fImage" placeholder="https://…">
+        </div>
+      </div>
+      <div class="form-grid full" style="margin-top:14px">
+        <div class="f-group">
+          <label>Description</label>
+          <textarea id="fDescription" rows="3" placeholder="Short product description…"></textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:24px;margin-top:16px;flex-wrap:wrap">
+        <label class="f-check"><input type="checkbox" id="fCustomizable"> Customizable</label>
+        <label class="f-check"><input type="checkbox" id="fActive" checked> Active (visible in shop)</label>
+      </div>
+      <div class="form-actions">
+        <button class="btn-save" onclick="submitProductForm()">Save Product</button>
+        <button class="btn-cancel" onclick="closeProductForm()">Cancel</button>
+      </div>
+      <div class="form-err" id="formErr"></div>
+    </div>
+
+    <!-- Products table -->
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Price</th>
+            <th>Stock</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="productsBody">
+          <tr><td colspan="6" class="tbl-loading">Loading products…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Orders Panel -->
+  <div class="admin-panel" id="panelOrders">
+    <div class="panel-head">
+      <div class="panel-title">All Orders</div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Order #</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Items</th>
+            <th>Total</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="ordersBody">
+          <tr><td colspan="6" class="tbl-loading">Loading orders…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="js/auth.js" defer></script>
+<script src="shared.js" defer></script>
+<script>
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:3000' : 'https://triakar-api.onrender.com';
+
+// ── Auth guard ──────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  const user = Auth.getUser();
+  if (!user) { window.location.href = 'account.html'; return; }
+  if (user.app_metadata?.role !== 'admin') {
+    document.body.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0F0F0E;color:#88847E;font-family:Manrope,sans-serif;font-size:14px;letter-spacing:.04em">Access denied.</div>';
+    return;
+  }
+  document.getElementById('adminEmail').textContent = user.email || '';
+  document.getElementById('adminWrap').style.display = 'block';
+  loadProducts();
+  loadOrders();
+});
+
+// ── Tabs ────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.admin-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('panelProducts').classList.toggle('active', tab === 'products');
+  document.getElementById('panelOrders').classList.toggle('active', tab === 'orders');
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────
+function apiHeaders() {
+  return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + Auth.getToken() };
+}
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function fmtPrice(n) { return '₹' + Number(n).toLocaleString('en-IN'); }
+function stockClass(n) { return n === 0 ? 'stock-out' : n < 5 ? 'stock-low' : 'stock-ok'; }
+
+// ── PRODUCTS ────────────────────────────────────────────────────────────
+let _products = [];
+
+async function loadProducts() {
+  try {
+    const res = await fetch(API_BASE + '/api/admin/products', { headers: apiHeaders() });
+    if (!res.ok) throw new Error('Failed');
+    const { products } = await res.json();
+    _products = products;
+    renderProducts(products);
+  } catch (err) {
+    document.getElementById('productsBody').innerHTML =
+      '<tr><td colspan="6" class="tbl-empty">Could not load products — ' + err.message + '</td></tr>';
+  }
+}
+
+function renderProducts(products) {
+  const tbody = document.getElementById('productsBody');
+  if (!products.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="tbl-empty">No products yet. Add one above.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = products.map(p => {
+    const sc = stockClass(p.stock_qty);
+    return '<tr>'
+      + '<td class="td-main">' + p.name + '<div style="font-size:11px;color:var(--stone);margin-top:2px">' + p.slug + '</div></td>'
+      + '<td><span class="cat-badge">' + p.category + '</span></td>'
+      + '<td>' + fmtPrice(p.price) + '</td>'
+      + '<td class="' + sc + '">' + p.stock_qty + '</td>'
+      + '<td><span class="active-dot ' + (p.is_active ? 'on' : 'off') + '"></span> ' + (p.is_active ? 'Active' : 'Hidden') + '</td>'
+      + '<td><button class="btn-edit" onclick="openProductForm(\'' + p.id + '\')">Edit</button>'
+      + '<button class="btn-del" onclick="softDeleteProduct(\'' + p.id + '\',\'' + p.name.replace(/'/g, "\\'") + '\')">Delete</button></td>'
+      + '</tr>';
+  }).join('');
+}
+
+// Product form open/close
+function openProductForm(id) {
+  const wrap = document.getElementById('productFormWrap');
+  wrap.classList.add('open');
+  wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  clearFormError();
+
+  if (id) {
+    const p = _products.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById('formTitle').textContent = 'Edit Product';
+    document.getElementById('editingId').value = id;
+    document.getElementById('fName').value = p.name || '';
+    document.getElementById('fSlug').value = p.slug || '';
+    document.getElementById('fPrice').value = p.price || '';
+    document.getElementById('fCategory').value = p.category || '';
+    document.getElementById('fStock').value = p.stock_qty ?? '';
+    document.getElementById('fImage').value = (p.images && p.images[0]) || '';
+    document.getElementById('fDescription').value = p.description || '';
+    document.getElementById('fCustomizable').checked = !!p.is_customizable;
+    document.getElementById('fActive').checked = p.is_active !== false;
+  } else {
+    document.getElementById('formTitle').textContent = 'Add Product';
+    document.getElementById('editingId').value = '';
+    document.getElementById('fName').value = '';
+    document.getElementById('fSlug').value = '';
+    document.getElementById('fPrice').value = '';
+    document.getElementById('fCategory').value = '';
+    document.getElementById('fStock').value = '';
+    document.getElementById('fImage').value = '';
+    document.getElementById('fDescription').value = '';
+    document.getElementById('fCustomizable').checked = false;
+    document.getElementById('fActive').checked = true;
+  }
+}
+
+function closeProductForm() {
+  document.getElementById('productFormWrap').classList.remove('open');
+  clearFormError();
+}
+
+function showFormError(msg) {
+  const el = document.getElementById('formErr');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function clearFormError() {
+  const el = document.getElementById('formErr');
+  el.textContent = '';
+  el.classList.remove('show');
+}
+
+// Auto-generate slug from name
+document.getElementById('fName').addEventListener('input', function() {
+  const sf = document.getElementById('fSlug');
+  if (!sf._manual) {
+    sf.value = this.value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+});
+document.getElementById('fSlug').addEventListener('input', function() { this._manual = true; });
+
+async function submitProductForm() {
+  const id   = document.getElementById('editingId').value;
+  const name = document.getElementById('fName').value.trim();
+  const slug = document.getElementById('fSlug').value.trim();
+  const price = document.getElementById('fPrice').value;
+  const category = document.getElementById('fCategory').value;
+
+  if (!name || !slug || !price || !category) {
+    showFormError('Name, slug, price, and category are required.');
+    return;
+  }
+
+  const body = {
+    name, slug, price: Number(price),
+    category,
+    stock_qty: Number(document.getElementById('fStock').value) || 0,
+    description: document.getElementById('fDescription').value.trim() || null,
+    images: document.getElementById('fImage').value.trim() || null,
+    is_customizable: document.getElementById('fCustomizable').checked,
+    is_active: document.getElementById('fActive').checked,
+  };
+
+  const saveBtn = document.querySelector('.btn-save');
+  saveBtn.textContent = 'Saving…'; saveBtn.disabled = true;
+  clearFormError();
+
+  try {
+    const url   = id ? API_BASE + '/api/admin/products/' + id : API_BASE + '/api/admin/products';
+    const method = id ? 'PUT' : 'POST';
+    const res   = await fetch(url, { method, headers: apiHeaders(), body: JSON.stringify(body) });
+    const data  = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Save failed');
+    closeProductForm();
+    loadProducts();
+  } catch (err) {
+    showFormError(err.message);
+  } finally {
+    saveBtn.textContent = 'Save Product'; saveBtn.disabled = false;
+  }
+}
+
+async function softDeleteProduct(id, name) {
+  if (!confirm('Hide "' + name + '" from the shop?')) return;
+  try {
+    const res = await fetch(API_BASE + '/api/admin/products/' + id, {
+      method: 'DELETE', headers: apiHeaders()
+    });
+    if (!res.ok) throw new Error('Delete failed');
+    loadProducts();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+// ── ORDERS ───────────────────────────────────────────────────────────────
+async function loadOrders() {
+  try {
+    const res = await fetch(API_BASE + '/api/admin/orders', { headers: apiHeaders() });
+    if (!res.ok) throw new Error('Failed');
+    const { orders } = await res.json();
+    renderOrders(orders);
+  } catch (err) {
+    document.getElementById('ordersBody').innerHTML =
+      '<tr><td colspan="6" class="tbl-empty">Could not load orders — ' + err.message + '</td></tr>';
+  }
+}
+
+const STATUS_OPTIONS = ['pending','confirmed','processing','shipped','delivered','cancelled'];
+
+function renderOrders(orders) {
+  const tbody = document.getElementById('ordersBody');
+  if (!orders.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="tbl-empty">No orders yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = orders.map(o => {
+    const shortId  = o.id.slice(0, 8).toUpperCase();
+    const customer = o.profiles ? (o.profiles.email || o.profiles.full_name || o.user_id.slice(0,8)) : o.user_id.slice(0,8);
+    const itemCount = (o.order_items || []).length;
+    const stClass  = 'st-' + (o.status || 'pending');
+    const selOpts  = STATUS_OPTIONS.map(s =>
+      '<option value="' + s + '"' + (o.status === s ? ' selected' : '') + '>' + s + '</option>'
+    ).join('');
+    return '<tr>'
+      + '<td class="td-main">#' + shortId + '</td>'
+      + '<td>' + fmtDate(o.created_at) + '</td>'
+      + '<td style="font-size:12px">' + customer + '</td>'
+      + '<td>' + itemCount + ' item' + (itemCount !== 1 ? 's' : '') + '</td>'
+      + '<td>' + fmtPrice(o.total_amount) + '</td>'
+      + '<td><select class="status-sel ' + stClass + '" onchange="updateStatus(\'' + o.id + '\',this)">' + selOpts + '</select></td>'
+      + '</tr>';
+  }).join('');
+}
+
+async function updateStatus(orderId, sel) {
+  const status = sel.value;
+  sel.disabled = true;
+  try {
+    const res = await fetch(API_BASE + '/api/admin/orders/' + orderId + '/status', {
+      method: 'PUT', headers: apiHeaders(), body: JSON.stringify({ status })
+    });
+    if (!res.ok) throw new Error('Update failed');
+    sel.className = 'status-sel st-' + status;
+  } catch (err) {
+    alert('Could not update status: ' + err.message);
+  } finally {
+    sel.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
