@@ -168,7 +168,7 @@ function _coInjectModal(){
 
   </div>
 </div>`;
-  document.body.appendChild(div.firstChild);
+  document.body.appendChild(div.firstElementChild);
 }
 
 async function checkout(){
@@ -345,7 +345,7 @@ async function _coPlaceOrder(){
         if(!vRes.ok)throw new Error(vData.error||'Payment verification failed');
         Cart.clear();
         _coClose();
-        window.location.href='order-confirmation.html?order_id='+data.order_id;
+        window.location.href='/order-confirmation.html?order_id='+data.order_id;
       },
       modal:{
         ondismiss:function(){
