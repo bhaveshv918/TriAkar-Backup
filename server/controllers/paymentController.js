@@ -16,6 +16,8 @@ export async function createOrder(req, res, next) {
 
     if (!items?.length) return res.status(400).json({ error: 'Cart is empty' });
 
+    console.log('[createOrder] user_id:', user_id, 'items:', JSON.stringify(items));
+
     const slugs = items.map(i => i.slug);
     const { data: products, error: productError } = await supabase
       .from('products')
@@ -41,7 +43,7 @@ export async function createOrder(req, res, next) {
       .select()
       .single();
 
-    if (orderError) throw orderError;
+    if (orderError) { console.error('[createOrder] orderError:', orderError); throw orderError; }
 
     const orderItems = items.map(item => {
       const product = products.find(p => p.slug === item.slug);
