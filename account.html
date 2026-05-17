@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>My Account — TriAkar</title>
+<meta name="description" content="Sign in or create your TriAkar account to track orders and manage your profile.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="shortcut icon" href="favicon.svg">
+<link rel="stylesheet" href="shared.css">
+<style>
+/* ── PAGE LAYOUT ─────────────────────────────────── */
+.account-wrap{min-height:calc(100vh - var(--total-h));background:var(--ivory);padding:64px var(--pad) 80px}
+.account-inner{max-width:520px;margin:0 auto}
+
+/* ── AUTH CARD ───────────────────────────────────── */
+.auth-card{background:var(--white);border:1px solid var(--stone-p)}
+
+/* tabs */
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--stone-p)}
+.auth-tab{padding:18px 0;font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;
+  color:var(--stone);background:none;border:none;cursor:pointer;transition:color .2s;
+  border-bottom:2px solid transparent;margin-bottom:-1px}
+.auth-tab.active{color:var(--charcoal);border-bottom-color:var(--accent)}
+
+/* form */
+.auth-form{display:none;padding:36px 40px 40px}
+.auth-form.active{display:block}
+.auth-form-title{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px;color:var(--charcoal)}
+.auth-form-sub{font-size:13px;color:var(--stone);margin-bottom:28px;line-height:1.6}
+
+.field{margin-bottom:18px}
+.field label{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  font-weight:600;color:var(--warm);margin-bottom:7px}
+.field input{width:100%;padding:12px 14px;border:1px solid var(--stone-p);background:var(--ivory);
+  font-family:var(--font-b);font-size:14px;color:var(--charcoal);outline:none;
+  transition:border-color .2s}
+.field input:focus{border-color:var(--charcoal)}
+.field input::placeholder{color:var(--stone-l)}
+
+.auth-submit{width:100%;margin-top:8px}
+.auth-msg{margin-top:14px;font-size:12.5px;padding:12px 14px;display:none}
+.auth-msg.err{background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA}
+.auth-msg.ok{background:#F0FDF4;color:#166534;border:1px solid #BBF7D0}
+.auth-msg.show{display:block}
+
+/* ── DASHBOARD ───────────────────────────────────── */
+.dash{display:none}
+.dash.active{display:block}
+
+.dash-header{padding:40px 0 32px;border-bottom:1px solid var(--stone-p);margin-bottom:36px}
+.dash-greeting{font-size:28px;font-weight:700;letter-spacing:-.02em;color:var(--charcoal);margin-bottom:4px}
+.dash-email{font-size:13px;color:var(--stone)}
+.dash-actions{margin-top:20px;display:flex;gap:12px;align-items:center}
+.dash-logout{background:none;border:1px solid var(--stone-p);color:var(--stone);
+  font-family:var(--font-b);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  font-weight:600;padding:9px 18px;cursor:pointer;transition:all .2s}
+.dash-logout:hover{border-color:var(--charcoal);color:var(--charcoal)}
+
+/* orders */
+.orders-title{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;
+  color:var(--stone);margin-bottom:20px}
+.order-card{border:1px solid var(--stone-p);padding:20px 24px;margin-bottom:12px;background:var(--white)}
+.order-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.order-id{font-size:11px;letter-spacing:.08em;color:var(--stone);font-weight:500}
+.order-date{font-size:12px;color:var(--stone)}
+.order-total{font-size:15px;font-weight:700;color:var(--charcoal)}
+.order-status{display:inline-block;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  font-weight:700;padding:4px 10px;border-radius:2px}
+.status-pending{background:#FEF9C3;color:#854D0E}
+.status-confirmed{background:#DCFCE7;color:#14532D}
+.status-processing{background:#DBEAFE;color:#1E3A5F}
+.status-shipped{background:#E0E7FF;color:#312E81}
+.status-delivered{background:#F0FDF4;color:#166534}
+.order-items-preview{margin-top:10px;font-size:12px;color:var(--warm);border-top:1px solid var(--stone-p);padding-top:10px}
+
+.orders-empty{padding:48px 0;text-align:center}
+.orders-empty p{font-size:14px;color:var(--stone);margin-bottom:16px}
+
+.orders-loading{padding:40px 0;text-align:center;font-size:13px;color:var(--stone);letter-spacing:.06em}
+
+@media(max-width:600px){
+  .account-wrap{padding:40px var(--pad) 60px}
+  .auth-form{padding:28px 20px 32px}
+  .auth-tabs .auth-tab{font-size:9px;padding:16px 0}
+}
+</style>
+</head>
+<body>
+
+<div class="notice-bar">
+  Free shipping above ₹999 in India<span class="ndot">·</span>Ships internationally<span class="ndot">·</span><a href="contact.html">hello@triakar.com</a>
+</div>
+
+<nav class="main-nav" id="mainNav">
+  <div class="nav-inner">
+    <a href="index.html" class="logo">
+      <span class="logo-en">TRIAKAR</span>
+      <span class="logo-hi">त्रिआकार</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="products.html">Shop</a></li>
+      <li><a href="custom.html">Custom</a></li>
+      <li><a href="updates.html">Updates</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="contact.html">Contact</a></li>
+      <li><a href="track-order.html">Track Order</a></li>
+    </ul>
+    <div class="nav-right">
+      <a href="#" class="cart-btn" onclick="openCart();return false;">
+        <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M1 1h2.5l1.6 8h8.4l1.5-5.5H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="14.5" r="1.2" fill="currentColor"/><circle cx="13" cy="14.5" r="1.2" fill="currentColor"/></svg>
+        Cart <span class="cart-badge" id="cartBadge">0</span>
+      </a>
+      <a href="products.html" class="nav-shop">Shop Now</a>
+      <button class="nav-toggle" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+</nav>
+<nav class="nav-drawer">
+  <a href="products.html">Shop</a>
+  <a href="custom.html">Custom</a>
+  <a href="updates.html">Updates</a>
+  <a href="about.html">About</a>
+  <a href="contact.html">Contact</a>
+  <a href="track-order.html">Track Order</a>
+</nav>
+
+<div class="account-wrap">
+  <div class="account-inner">
+
+    <!-- AUTH CARD (shown when logged out) -->
+    <div class="auth-card" id="authCard">
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-tab="login" onclick="switchTab('login')">Sign In</button>
+        <button class="auth-tab" data-tab="signup" onclick="switchTab('signup')">Create Account</button>
+      </div>
+
+      <!-- Sign In -->
+      <form class="auth-form active" id="loginForm" onsubmit="handleLogin(event)">
+        <div class="auth-form-title">Welcome back</div>
+        <p class="auth-form-sub">Sign in to view your orders and manage your account.</p>
+        <div class="field">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" placeholder="you@example.com" required autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" placeholder="Your password" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-dark auth-submit" id="loginBtn">Sign In →</button>
+        <div class="auth-msg" id="loginMsg"></div>
+      </form>
+
+      <!-- Create Account -->
+      <form class="auth-form" id="signupForm" onsubmit="handleSignup(event)">
+        <div class="auth-form-title">Create account</div>
+        <p class="auth-form-sub">Join TriAkar to track orders, save addresses, and check out faster.</p>
+        <div class="field">
+          <label for="signupName">Full Name</label>
+          <input type="text" id="signupName" placeholder="Your full name" required autocomplete="name">
+        </div>
+        <div class="field">
+          <label for="signupEmail">Email</label>
+          <input type="email" id="signupEmail" placeholder="you@example.com" required autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="signupPhone">Phone <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--stone-l)">(optional)</span></label>
+          <input type="tel" id="signupPhone" placeholder="+91 98765 43210" autocomplete="tel">
+        </div>
+        <div class="field">
+          <label for="signupPassword">Password</label>
+          <input type="password" id="signupPassword" placeholder="Min. 8 characters" required minlength="8" autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn btn-dark auth-submit" id="signupBtn">Create Account →</button>
+        <div class="auth-msg" id="signupMsg"></div>
+      </form>
+    </div>
+
+    <!-- DASHBOARD (shown when logged in) -->
+    <div class="dash" id="dashboard">
+      <div class="dash-header">
+        <div class="dash-greeting" id="dashGreeting">Welcome back</div>
+        <div class="dash-email" id="dashEmail"></div>
+        <div class="dash-actions">
+          <a href="products.html" class="btn btn-outline" style="font-size:10px;padding:9px 20px">Continue Shopping</a>
+          <button class="dash-logout" onclick="Auth.logout()">Sign Out</button>
+        </div>
+      </div>
+
+      <div class="orders-title">Your Orders</div>
+      <div id="ordersContainer"><div class="orders-loading">Loading orders…</div></div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <div class="mw">
+    <div class="foot-grid">
+      <div>
+        <div class="foot-brand">TRIAKAR</div>
+        <div class="foot-hi">त्रिआकार</div>
+        <p class="foot-desc">3D printed design objects. Made in India. Shipped worldwide.</p>
+        <div class="foot-mail"><a href="mailto:hello@triakar.com">hello@triakar.com</a></div>
+        <div class="foot-reply">We reply within 24 hours.</div>
+      </div>
+      <div>
+        <div class="foot-col-t">Shop</div>
+        <ul class="foot-links">
+          <li><a href="products.html">All Products</a></li>
+          <li><a href="products.html?cat=desk">Desk</a></li>
+          <li><a href="products.html?cat=home">Home</a></li>
+          <li><a href="products.html?cat=gifting">Gifting</a></li>
+          <li><a href="custom.html">Custom Order</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="foot-col-t">Help</div>
+        <ul class="foot-links">
+          <li><a href="contact.html">Contact Us</a></li>
+          <li><a href="track-order.html">Track Order</a></li>
+          <li><a href="refund-policy.html">Refund Policy</a></li>
+          <li><a href="about.html">About</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="foot-col-t">Legal</div>
+        <ul class="foot-links">
+          <li><a href="terms.html">Terms &amp; Conditions</a></li>
+          <li><a href="privacy.html">Privacy Policy</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <p class="foot-copy">© 2025 TriAkar. All rights reserved.</p>
+      <p class="foot-tag">Designed globally. Made in India.</p>
+    </div>
+  </div>
+</footer>
+
+<div class="cart-overlay" id="cartOverlay" onclick="closeCart()"></div>
+<div class="cart-sidebar" id="cartSidebar">
+  <div class="cart-head"><h3>Cart</h3><button class="cart-close" onclick="closeCart()">×</button></div>
+  <div class="cart-items" id="cartItemsList"></div>
+  <div class="cart-foot">
+    <div class="cart-sub"><span class="cart-sub-l">Subtotal</span><span class="cart-sub-v" id="cartTotal">₹0</span></div>
+    <div class="cart-note">Free shipping above ₹999 in India.</div>
+    <button class="btn btn-dark" style="width:100%;justify-content:center" onclick="checkout()">Checkout via Razorpay →</button>
+    <div style="text-align:center;margin-top:10px"><button class="btn-ghost" onclick="closeCart()">Continue shopping</button></div>
+  </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="shared.js"></script>
+<script>
+const STATUS_CLASS = {
+  pending:     'status-pending',
+  confirmed:   'status-confirmed',
+  processing:  'status-processing',
+  shipped:     'status-shipped',
+  delivered:   'status-delivered',
+};
+
+function switchTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('loginForm').classList.toggle('active', tab === 'login');
+  document.getElementById('signupForm').classList.toggle('active', tab === 'signup');
+}
+
+function showMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'auth-msg show ' + type;
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  btn.textContent = 'Signing in…'; btn.disabled = true;
+  try {
+    await Auth.login(
+      document.getElementById('loginEmail').value.trim(),
+      document.getElementById('loginPassword').value
+    );
+    showDashboard();
+  } catch (err) {
+    showMsg('loginMsg', err.message, 'err');
+  } finally {
+    btn.textContent = 'Sign In →'; btn.disabled = false;
+  }
+}
+
+async function handleSignup(e) {
+  e.preventDefault();
+  const btn = document.getElementById('signupBtn');
+  btn.textContent = 'Creating account…'; btn.disabled = true;
+  try {
+    await Auth.signup(
+      document.getElementById('signupEmail').value.trim(),
+      document.getElementById('signupPassword').value,
+      document.getElementById('signupName').value.trim(),
+      document.getElementById('signupPhone').value.trim() || null
+    );
+    showMsg('signupMsg', 'Account created! Please check your email to verify, then sign in.', 'ok');
+    document.getElementById('signupForm').reset();
+  } catch (err) {
+    showMsg('signupMsg', err.message, 'err');
+  } finally {
+    btn.textContent = 'Create Account →'; btn.disabled = false;
+  }
+}
+
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function renderOrders(orders) {
+  const el = document.getElementById('ordersContainer');
+  if (!orders.length) {
+    el.innerHTML = '<div class="orders-empty"><p>No orders yet.</p><a href="products.html" class="btn btn-dark">Start Shopping</a></div>';
+    return;
+  }
+  el.innerHTML = orders.map(function(o) {
+    const statusClass = STATUS_CLASS[o.status] || 'status-pending';
+    const items = (o.order_items || []);
+    const preview = items.slice(0, 3).map(function(i) {
+      return (i.products && i.products.name ? i.products.name : 'Item') + ' × ' + i.quantity;
+    }).join(', ') + (items.length > 3 ? ' +' + (items.length - 3) + ' more' : '');
+    return '<div class="order-card">'
+      + '<div class="order-row">'
+      + '<div><div class="order-id">Order #' + o.id.slice(0, 8).toUpperCase() + '</div><div class="order-date">' + fmtDate(o.created_at) + '</div></div>'
+      + '<div style="display:flex;align-items:center;gap:12px"><span class="order-status ' + statusClass + '">' + o.status + '</span><div class="order-total">₹' + Number(o.total_amount).toLocaleString('en-IN') + '</div></div>'
+      + '</div>'
+      + (preview ? '<div class="order-items-preview">' + preview + '</div>' : '')
+      + '</div>';
+  }).join('');
+}
+
+async function loadOrders() {
+  const container = document.getElementById('ordersContainer');
+  container.innerHTML = '<div class="orders-loading">Loading orders…</div>';
+  try {
+    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : '';
+    const res = await fetch(API_BASE + '/api/orders', {
+      headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader())
+    });
+    if (!res.ok) throw new Error('Could not load orders');
+    const { orders } = await res.json();
+    renderOrders(orders);
+  } catch (err) {
+    container.innerHTML = '<div class="orders-empty"><p style="color:var(--stone)">' + err.message + '</p></div>';
+  }
+}
+
+function showDashboard() {
+  const user = Auth.getUser();
+  if (!user) return;
+  const name = (user.user_metadata && user.user_metadata.full_name) ? user.user_metadata.full_name.split(' ')[0] : 'there';
+  document.getElementById('dashGreeting').textContent = 'Welcome back, ' + name;
+  document.getElementById('dashEmail').textContent = user.email || '';
+  document.getElementById('authCard').style.display = 'none';
+  document.getElementById('dashboard').classList.add('active');
+  loadOrders();
+}
+
+// On load: show dashboard if already logged in
+if (Auth.isLoggedIn()) {
+  showDashboard();
+}
+</script>
+</body>
+</html>
