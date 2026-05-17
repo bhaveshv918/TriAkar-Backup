@@ -95,15 +95,63 @@ async function checkout(){
   try{
     const _API=(window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1')?'http://localhost:3000':'https://triakar-api.onrender.com';
     const cartItems=items.map(i=>({slug:i.id,quantity:i.qty,customization_notes:i.customization_notes||null}));
-    const res=await fetch(_API+'/api/payments/checkout',{
+
+    // Step 1: create order on backend
+    const res=await fetch(_API+'/api/payments/create-order',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify({items:cartItems,shipping_address:{}}),
     });
     const data=await res.json();
-    if(!res.ok)throw new Error(data.error||'Checkout failed');
-    Cart.clear();
-    window.location.href=data.url;
+    if(!res.ok)throw new Error(data.error||'Could not initiate payment');
+
+    // Step 2: load Razorpay SDK if not already present
+    await new Promise((resolve,reject)=>{
+      if(window.Razorpay){resolve();return;}
+      const s=document.createElement('script');
+      s.src='https://checkout.razorpay.com/v1/checkout.js';
+      s.onload=resolve;
+      s.onerror=()=>reject(new Error('Could not load payment gateway'));
+      document.head.appendChild(s);
+    });
+
+    // Step 3: open Razorpay modal
+    const rzp=new window.Razorpay({
+      key:data.key_id,
+      amount:data.amount,
+      currency:data.currency,
+      name:'TriAkar',
+      description:'Premium 3D Printed Products',
+      order_id:data.razorpay_order_id,
+      theme:{color:'#C8A96E'},
+      handler:async function(response){
+        // Step 4: verify signature on backend
+        const vRes=await fetch(_API+'/api/payments/verify',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+          body:JSON.stringify({
+            razorpay_order_id:response.razorpay_order_id,
+            razorpay_payment_id:response.razorpay_payment_id,
+            razorpay_signature:response.razorpay_signature,
+            order_id:data.order_id,
+          }),
+        });
+        const vData=await vRes.json();
+        if(!vRes.ok)throw new Error(vData.error||'Payment verification failed');
+        Cart.clear();
+        window.location.href='/order-confirmation.html?order_id='+data.order_id;
+      },
+      modal:{
+        ondismiss:function(){
+          btns.forEach(b=>{b.disabled=false;b.textContent=b._origText||'Checkout →';});
+        }
+      }
+    });
+    rzp.on('payment.failed',function(r){
+      btns.forEach(b=>{b.disabled=false;b.textContent=b._origText||'Checkout →';});
+      alert('Payment failed: '+r.error.description);
+    });
+    rzp.open();
   }catch(err){
     btns.forEach(b=>{b.disabled=false;b.textContent=b._origText||'Checkout →';});
     alert('Checkout error: '+err.message);
