@@ -18,8 +18,6 @@ const PORT = process.env.PORT || 3000;
 app.use(helmet());
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5500' }));
 
-// Stripe webhook needs raw body — must be registered before express.json()
-app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 
 app.use('/api/products', productRoutes);
