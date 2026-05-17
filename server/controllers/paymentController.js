@@ -7,21 +7,17 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-// POST /api/payments/create-order
-// Resolves cart slugs → product UUIDs, creates DB order + Razorpay order in one call.
 export async function createOrder(req, res, next) {
   try {
-    const { items, shipping_address = {} } = req.body;
+    const { items, shipping_address = {}, address_id = null } = req.body;
     const user_id = req.user.id;
 
     if (!items?.length) return res.status(400).json({ error: 'Cart is empty' });
 
-    console.log('[createOrder] user_id:', user_id, 'items:', JSON.stringify(items));
-
     const slugs = items.map(i => i.slug);
     const { data: products, error: productError } = await supabase
       .from('products')
-      .select('id, name, slug, price, stock_qty, images')
+      .select('id, name, slug, price, stock_qty')
       .in('slug', slugs)
       .eq('is_active', true);
 
@@ -37,29 +33,34 @@ export async function createOrder(req, res, next) {
       total_amount += product.price * item.quantity;
     }
 
+    // Ensure profile row exists — handles cases where the auth trigger hasn't fired yet
+    await supabase.from('profiles').upsert(
+      { id: user_id, email: req.user.email || '' },
+      { onConflict: 'id' }
+    );
+
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .insert({ user_id, status: 'pending', total_amount, shipping_address })
+      .insert({ user_id, status: 'pending', total_amount, shipping_address, address_id })
       .select()
       .single();
 
-    if (orderError) { console.error('[createOrder] orderError:', orderError); throw orderError; }
+    if (orderError) throw orderError;
 
     const orderItems = items.map(item => {
       const product = products.find(p => p.slug === item.slug);
       return {
-        order_id:             order.id,
-        product_id:           product.id,
-        quantity:             item.quantity,
-        unit_price:           product.price,
-        customization_notes:  item.customization_notes || null,
+        order_id:            order.id,
+        product_id:          product.id,
+        quantity:            item.quantity,
+        unit_price:          product.price,
+        customization_notes: item.customization_notes || null,
       };
     });
 
     const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
     if (itemsError) throw itemsError;
 
-    // Create Razorpay order — amount must be in paise (₹1 = 100 paise)
     const rzpOrder = await razorpay.orders.create({
       amount:   Math.round(total_amount * 100),
       currency: 'INR',
@@ -83,8 +84,6 @@ export async function createOrder(req, res, next) {
   }
 }
 
-// POST /api/payments/verify
-// Verifies Razorpay HMAC signature, confirms order, decrements stock.
 export async function verifyPayment(req, res, next) {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, order_id } = req.body;

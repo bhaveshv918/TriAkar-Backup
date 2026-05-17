@@ -15,6 +15,46 @@ DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can read own profile"   ON profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 
+-- ── AUTO-CREATE PROFILE ON SIGNUP ─────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name, phone)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
+    NEW.raw_user_meta_data->>'phone'
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ── USER ADDRESSES ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS user_addresses (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  full_name     TEXT NOT NULL,
+  phone         TEXT NOT NULL,
+  address_line1 TEXT NOT NULL,
+  address_line2 TEXT,
+  city          TEXT NOT NULL,
+  state         TEXT NOT NULL,
+  pincode       TEXT NOT NULL,
+  country       TEXT NOT NULL DEFAULT 'India',
+  is_default    BOOLEAN DEFAULT FALSE,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE user_addresses ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage own addresses" ON user_addresses;
+CREATE POLICY "Users can manage own addresses" ON user_addresses FOR ALL USING (auth.uid() = user_id);
+
 -- ── PRODUCTS ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS products (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -42,6 +82,7 @@ END $$;
 CREATE TABLE IF NOT EXISTS orders (
   id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id                  UUID NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
+  address_id               UUID REFERENCES user_addresses(id),
   status                   order_status NOT NULL DEFAULT 'pending',
   total_amount             NUMERIC(10,2) NOT NULL,
   stripe_payment_intent_id TEXT,
@@ -100,3 +141,6 @@ BEGIN
   WHERE id = p_product_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ── MIGRATION: add address_id to existing orders table ───────────────────
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS address_id UUID REFERENCES user_addresses(id);

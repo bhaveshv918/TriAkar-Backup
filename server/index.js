@@ -10,6 +10,7 @@ import paymentRoutes from './routes/payments.js';
 import cartRoutes from './routes/cart.js';
 import adminRoutes from './routes/admin.js';
 import inquiryRoutes from './routes/inquiries.js';
+import addressRoutes from './routes/addresses.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -44,6 +45,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/inquiries', inquiryRoutes);
+app.use('/api/addresses', addressRoutes);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', brand: 'TriAkar' }));
 
