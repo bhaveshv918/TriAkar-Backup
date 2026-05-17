@@ -26,7 +26,7 @@ Full-stack e-commerce website.
 - **Current state:** Frontend only — HTML, CSS, vanilla JavaScript
 - **Goal:** Add a complete backend with database, authentication, payments, admin panel,
   and all e-commerce functionality
-- **Target stack:** Node.js + Express, Supabase (DB + Auth), Stripe (payments), Vercel (hosting)
+- **Target stack:** Node.js + Express, Supabase (DB + Auth), Razorpay (payments), Vercel (hosting)
 
 ---
 
@@ -88,7 +88,7 @@ When in doubt: less is more. Whitespace is not wasted space.
 - **Framework:** Express.js
 - **Database:** Supabase (PostgreSQL)
 - **Authentication:** Supabase Auth
-- **Payments:** Stripe
+- **Payments:** Razorpay
 - **File storage:** Supabase Storage (for product images)
 - **Hosting:** Vercel (frontend) + Render or Railway (backend API)
 
@@ -162,7 +162,7 @@ triakar/
   is_active, created_at
 
 **orders**
-- id, user_id (FK), status, total_amount, stripe_payment_intent_id, shipping_address,
+- id, user_id (FK), status, total_amount, razorpay_payment_id, shipping_address,
   created_at
 
 **order_items**
@@ -214,7 +214,7 @@ triakar/
 Use conventional commits:
 
 ```
-feat: add Stripe webhook handler
+feat: add Razorpay webhook handler
 fix: resolve cart total rounding issue
 style: update product card layout for mobile
 refactor: extract auth logic into middleware
@@ -231,7 +231,7 @@ chore: add .env.example with required keys
 - [ ] 4. Connect frontend product listing to live API
 - [ ] 5. Implement Supabase Auth — signup, login, session handling
 - [ ] 6. Build persistent cart (DB-backed, not just localStorage)
-- [ ] 7. Stripe integration — payment intent, checkout, webhook
+- [ ] 7. Razorpay integration — payment intent, checkout, webhook
 - [ ] 8. Order creation and confirmation flow
 - [ ] 9. User account page — order history
 - [ ] 10. Admin panel — manage products, view orders
@@ -241,4 +241,4 @@ chore: add .env.example with required keys
 ---
 
 *Last updated: Phase 2 setup — pre-backend build*
-*Brand: TriAkar | Stack: Node + Supabase + Stripe | Style: Premium minimal dark*
+*Brand: TriAkar | Stack: Node + Supabase + Razorpay | Style: Premium minimal dark*
