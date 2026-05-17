@@ -418,32 +418,105 @@
 </div>
 
 <script>
-const cards=Array.from(document.querySelectorAll('.prod-card'));
-let curFilter='all';
-function applyFilters(){
-  const sort=document.getElementById('sortSel').value;
-  const grid=document.getElementById('prodGrid');
-  let visible=cards.filter(c=>curFilter==='all'||c.dataset.cat===curFilter);
-  if(sort==='asc')visible.sort((a,b)=>+a.dataset.price-+b.dataset.price);
-  else if(sort==='desc')visible.sort((a,b)=>+b.dataset.price-+a.dataset.price);
-  cards.forEach(c=>{c.style.display='none';grid.appendChild(c)});
-  visible.forEach(c=>{c.style.display='';grid.appendChild(c)});
-  const cnt=document.getElementById('fcount');
-  const sc=document.getElementById('shopCount');
-  const n=visible.length+' item'+(visible.length!==1?'s':'');
-  if(cnt)cnt.textContent=n;
-  if(sc)sc.textContent=visible.length+' products';
-  if(!visible.length){
-    let nr=grid.querySelector('.no-results');
-    if(!nr){nr=document.createElement('div');nr.className='no-results';nr.textContent='No products in this category.';grid.appendChild(nr)}
-  }else{const nr=grid.querySelector('.no-results');if(nr)nr.remove()}
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:3000'
+  : '';
+
+const grid = document.getElementById('prodGrid');
+let allCards = [];
+let curFilter = 'all';
+
+grid.innerHTML = '<div style="grid-column:1/-1;padding:80px 0;text-align:center;color:var(--stone);letter-spacing:.08em;font-size:13px">Loading products…</div>';
+document.getElementById('shopCount').textContent = '';
+document.getElementById('fcount').textContent = '';
+
+function fmtPrice(n) {
+  return '₹' + Number(n).toLocaleString('en-IN');
 }
-document.querySelectorAll('.fcat-btn').forEach(btn=>btn.addEventListener('click',()=>{
-  document.querySelectorAll('.fcat-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');curFilter=btn.dataset.filter;applyFilters();
+
+function buildCard(p) {
+  const el = document.createElement('div');
+  el.className = 'prod-card';
+  el.dataset.cat = p.category;
+  el.dataset.price = p.price;
+
+  const img = p.images && p.images.length
+    ? '<img src="' + p.images[0] + '" alt="' + p.name + '" style="width:100%;height:100%;object-fit:cover">'
+    : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;opacity:.25"><svg viewBox="0 0 80 80" fill="none"><rect x="8" y="8" width="64" height="64" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 52l18-18 14 14 10-10 22 22" stroke="currentColor" stroke-width="1.5"/></svg></div>';
+
+  const outOfStock = p.stock_qty === 0;
+
+  el.innerHTML = '<a href="product-detail.html?id=' + p.slug + '"><div class="prod-img">' + img + '</div></a>'
+    + '<div class="prod-body">'
+    + '<div class="prod-name">' + p.name + '</div>'
+    + '<div class="prod-short">' + (p.description || '') + '</div>'
+    + '<div class="prod-foot"><div><span class="prod-price">' + fmtPrice(p.price) + '</span></div>'
+    + (outOfStock
+        ? '<button class="add-btn" disabled style="opacity:.4;cursor:not-allowed" title="Out of stock">—</button>'
+        : '<button class="add-btn">+</button>')
+    + '</div></div>';
+
+  if (!outOfStock) {
+    el.querySelector('.add-btn').addEventListener('click', function() {
+      Cart.add({ id: p.slug, name: p.name, price: p.price, variant: 'Standard' });
+    });
+  }
+
+  return el;
+}
+
+function applyFilters() {
+  const sort = document.getElementById('sortSel').value;
+  let visible = allCards.filter(c => curFilter === 'all' || c.dataset.cat === curFilter);
+  if (sort === 'asc') visible.sort((a, b) => +a.dataset.price - +b.dataset.price);
+  else if (sort === 'desc') visible.sort((a, b) => +b.dataset.price - +a.dataset.price);
+
+  allCards.forEach(c => { c.style.display = 'none'; grid.appendChild(c); });
+  visible.forEach(c => { c.style.display = ''; grid.appendChild(c); });
+
+  const cnt = document.getElementById('fcount');
+  const sc = document.getElementById('shopCount');
+  const label = visible.length + ' item' + (visible.length !== 1 ? 's' : '');
+  if (cnt) cnt.textContent = label;
+  if (sc) sc.textContent = visible.length + ' products';
+
+  const nr = grid.querySelector('.no-results');
+  if (!visible.length) {
+    if (!nr) { const d = document.createElement('div'); d.className = 'no-results'; d.textContent = 'No products in this category.'; grid.appendChild(d); }
+  } else if (nr) nr.remove();
+}
+
+document.querySelectorAll('.fcat-btn').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.fcat-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  curFilter = btn.dataset.filter;
+  applyFilters();
 }));
-const p=new URLSearchParams(window.location.search).get('cat');
-if(p){const b=document.querySelector('[data-filter="'+p+'"]');if(b)b.click();}
+
+async function loadProducts() {
+  grid.innerHTML = '<div style="grid-column:1/-1;padding:80px 0;text-align:center;color:var(--stone);letter-spacing:.08em;font-size:13px">Loading products…</div>';
+  try {
+    const res = await fetch(API_BASE + '/api/products');
+    if (!res.ok) throw new Error('Server error ' + res.status);
+    const { products } = await res.json();
+
+    grid.innerHTML = '';
+    allCards = products.map(buildCard);
+    allCards.forEach(c => grid.appendChild(c));
+
+    const cat = new URLSearchParams(window.location.search).get('cat');
+    const btn = cat ? document.querySelector('[data-filter="' + cat + '"]') : null;
+    if (btn) btn.click(); else applyFilters();
+  } catch (err) {
+    grid.innerHTML = '<div style="grid-column:1/-1;padding:80px 0;text-align:center;color:var(--stone)">'
+      + '<p style="font-size:14px;margin-bottom:8px">Could not load products.</p>'
+      + '<p style="font-size:12px;opacity:.6">' + err.message + '</p>'
+      + '<button onclick="loadProducts()" style="margin-top:16px;background:none;border:1px solid var(--stone-p);color:var(--charcoal);padding:8px 20px;cursor:pointer;font-size:12px;letter-spacing:.08em">Retry</button>'
+      + '</div>';
+  }
+}
+
+loadProducts();
 </script>
 
 <div class="cart-overlay" id="cartOverlay" onclick="closeCart()"></div>
