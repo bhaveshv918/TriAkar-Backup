@@ -969,32 +969,27 @@ let _lockedUntil=0;
 let _formLoadTime=Date.now();
 
 // Check lockout state from Supabase (IP-based — survives cookie clear)
+// Uses SECURITY DEFINER RPC so anon users can check their own lockout
 async function checkIPLockout(){
   if(!_visitorData.ip||_visitorData.ip==='unknown')return;
-  const cutoff=new Date(Date.now()-LOCKOUT_SECONDS*1000).toISOString();
-  // Count recent failed login attempts from this IP
-  const{data,error}=await sb.from('admin_logs')
-    .select('created_at')
-    .eq('ip',_visitorData.ip)
-    .eq('action','login_attempt')
-    .eq('success',false)
-    .gte('created_at',cutoff)
-    .order('created_at',{ascending:false});
-  if(error||!data)return;
-  _failedAttempts=data.length;
+  const{data,error}=await sb.rpc('get_recent_failures',{
+    visitor_ip:_visitorData.ip,
+    lockout_seconds:LOCKOUT_SECONDS
+  });
+  if(error||!data||!data.length)return;
+  const row=data[0];
+  _failedAttempts=row.fail_count||0;
   if(_failedAttempts>0){
     document.getElementById('attemptBar').classList.add('show');
     updateAttemptDots();
   }
-  if(_failedAttempts>=MAX_ATTEMPTS){
-    // Lockout until LOCKOUT_SECONDS after the last failed attempt
-    const lastFail=new Date(data[0].created_at).getTime();
+  if(_failedAttempts>=MAX_ATTEMPTS&&row.last_fail_at){
+    const lastFail=new Date(row.last_fail_at).getTime();
     _lockedUntil=lastFail+LOCKOUT_SECONDS*1000;
     if(_lockedUntil>Date.now())startLockoutTimer();
     else{_failedAttempts=0;updateAttemptDots();document.getElementById('attemptBar').classList.remove('show')}
   }
 }
-// Called after IP is fetched — see captureVisitor
 
 function updateAttemptDots(){
   const dots=document.querySelectorAll('#attemptDots .attempt-dot');

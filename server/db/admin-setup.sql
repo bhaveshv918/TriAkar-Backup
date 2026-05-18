@@ -82,6 +82,19 @@ CREATE POLICY "Anyone can insert admin logs" ON admin_logs FOR INSERT WITH CHECK
 DROP POLICY IF EXISTS "Admin can read admin logs" ON admin_logs;
 CREATE POLICY "Admin can read admin logs" ON admin_logs FOR SELECT TO authenticated USING (true);
 
+-- ── Secure RPC: lets anon check lockout by IP without reading all logs ──
+CREATE OR REPLACE FUNCTION get_recent_failures(visitor_ip TEXT, lockout_seconds INT)
+RETURNS TABLE(fail_count INT, last_fail_at TIMESTAMPTZ) AS $$
+  SELECT
+    COUNT(*)::INT,
+    MAX(created_at)
+  FROM admin_logs
+  WHERE ip = visitor_ip
+    AND action = 'login_attempt'
+    AND success = false
+    AND created_at >= NOW() - (lockout_seconds || ' seconds')::INTERVAL;
+$$ LANGUAGE SQL SECURITY DEFINER;
+
 -- ══════════════════════════════════════════════════════════════════════
 -- STORAGE BUCKET FOR PRODUCT IMAGES
 -- ══════════════════════════════════════════════════════════════════════
