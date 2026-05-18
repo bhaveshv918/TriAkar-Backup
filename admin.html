@@ -561,6 +561,30 @@ td.td-name{color:var(--text);font-weight:500}
 .toast.error{border-color:rgba(248,113,113,.2);color:var(--red)}
 .toast.error::before{content:'✕'}
 
+/* ── Order detail row (expandable) ────────── */
+.order-expand-btn{cursor:pointer;color:var(--text-3);font-size:16px;transition:transform .2s,color .2s;display:inline-block}
+.order-expand-btn:hover{color:var(--accent)}
+.order-expand-btn.open{transform:rotate(90deg);color:var(--accent)}
+tr.order-detail-row{display:none}
+tr.order-detail-row.show{display:table-row}
+tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)}
+.order-detail{padding:16px 20px;background:var(--bg-1);display:grid;grid-template-columns:1fr 1fr;gap:16px 28px}
+.od-section{display:flex;flex-direction:column;gap:6px}
+.od-label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);font-family:var(--mono)}
+.od-value{font-size:13px;color:var(--text);line-height:1.5}
+.od-items{display:flex;flex-direction:column;gap:4px}
+.od-item{display:flex;justify-content:space-between;padding:4px 8px;background:var(--bg-2);border-radius:3px;font-size:12px}
+.od-tracking{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
+.od-tracking input{padding:7px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;font-family:var(--mono);outline:none;transition:border-color .2s}
+.od-tracking input:focus{border-color:var(--accent)}
+.od-tracking .btn-save{padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:11px;font-family:var(--mono);cursor:pointer;transition:background .2s;white-space:nowrap}
+.od-tracking .btn-save:hover{background:var(--accent-h)}
+.od-notes textarea{width:100%;padding:8px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;font-family:var(--sans);outline:none;resize:vertical;min-height:50px;transition:border-color .2s}
+.od-notes textarea:focus{border-color:var(--accent)}
+.od-payment{font-family:var(--mono);font-size:11px;color:var(--text-2)}
+.badge-returned{background:var(--purple);background:rgba(167,139,250,.1);color:var(--purple)}
+.badge-refunded{background:rgba(251,191,36,.1);color:var(--yellow)}
+
 /* ═══════════════════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════════════════ */
@@ -684,6 +708,9 @@ td.td-name{color:var(--text);font-weight:500}
   <div class="panel active" id="panelOrders">
     <div class="p-head">
       <div class="p-title">Orders</div>
+      <div class="p-actions">
+        <button class="btn-secondary" onclick="loadOrders()" title="Refresh orders">⟳ Refresh</button>
+      </div>
     </div>
     <div class="filter-bar">
       <select id="filterStatus" onchange="filterOrders()">
@@ -694,6 +721,8 @@ td.td-name{color:var(--text);font-weight:500}
         <option value="shipped">Shipped</option>
         <option value="delivered">Delivered</option>
         <option value="cancelled">Cancelled</option>
+        <option value="returned">Returned</option>
+        <option value="refunded">Refunded</option>
       </select>
       <select id="filterTime" onchange="filterOrders()">
         <option value="">All Time</option>
@@ -703,14 +732,14 @@ td.td-name{color:var(--text);font-weight:500}
         <option value="3months">Last 3 Months</option>
       </select>
       <div class="filter-sep"></div>
-      <input type="text" id="filterSearch" placeholder="Search customer, order#..." oninput="filterOrders()" style="min-width:180px">
+      <input type="text" id="filterSearch" placeholder="Search customer, order#, tracking..." oninput="filterOrders()" style="min-width:180px">
     </div>
     <div class="tbl-wrap">
       <table>
         <thead><tr>
-          <th>Invoice #</th><th>Date</th><th>Customer</th><th>Location</th><th>Product(s)</th><th>Total</th><th>Status</th>
+          <th style="width:30px"></th><th>Invoice #</th><th>Date</th><th>Customer</th><th>Location</th><th>Product(s)</th><th>Total</th><th>Status</th>
         </tr></thead>
-        <tbody id="ordersBody"><tr><td colspan="7" class="tbl-msg">Loading orders…</td></tr></tbody>
+        <tbody id="ordersBody"><tr><td colspan="8" class="tbl-msg">Loading orders…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1286,12 +1315,14 @@ async function deleteCat(id,name){
 // ═══════════════════════════════════════════════════════════
 // ORDERS
 // ═══════════════════════════════════════════════════════════
-const STATUS_OPTIONS=['pending','confirmed','processing','shipped','delivered','cancelled'];
-const STATUS_BADGE={pending:'badge-yellow',confirmed:'badge-green',processing:'badge-blue',shipped:'badge-accent',delivered:'badge-green',cancelled:'badge-red'};
+const STATUS_OPTIONS=['pending','confirmed','processing','shipped','delivered','cancelled','returned','refunded'];
+const STATUS_BADGE={pending:'badge-yellow',confirmed:'badge-green',processing:'badge-blue',shipped:'badge-accent',delivered:'badge-green',cancelled:'badge-red',returned:'badge-returned',refunded:'badge-refunded'};
 
 async function loadOrders(){
-  const{data,error}=await sb.from('orders').select('*,profiles(email,full_name,phone),order_items(*,products(name))').order('created_at',{ascending:false});
-  if(error){document.getElementById('ordersBody').innerHTML='<tr><td colspan="7" class="tbl-msg">Error: '+error.message+'</td></tr>';return}
+  const{data,error}=await sb.from('orders')
+    .select('*,profiles(email,full_name,phone),order_items(*,products(name,images)),user_addresses(*)')
+    .order('created_at',{ascending:false});
+  if(error){document.getElementById('ordersBody').innerHTML='<tr><td colspan="8" class="tbl-msg">Error: '+error.message+'</td></tr>';return}
   _orders=data||[];
   document.getElementById('orderCount').textContent=_orders.length;
   filterOrders();
@@ -1318,7 +1349,8 @@ function filterOrders(){
       const custName=o.profiles?.full_name||o.profiles?.email||'';
       const custPhone=o.profiles?.phone||'';
       const oid=o.id.slice(0,8).toUpperCase();
-      return custName.toLowerCase().includes(search)||custPhone.includes(search)||oid.includes(search.toUpperCase());
+      const tracking=o.tracking_number||'';
+      return custName.toLowerCase().includes(search)||custPhone.includes(search)||oid.includes(search.toUpperCase())||tracking.toLowerCase().includes(search);
     });
   }
   renderOrders(filtered);
@@ -1326,32 +1358,103 @@ function filterOrders(){
 
 function renderOrders(orders){
   const tbody=document.getElementById('ordersBody');
-  if(!orders.length){tbody.innerHTML='<tr><td colspan="7" class="tbl-msg">No orders found.</td></tr>';return}
+  if(!orders.length){tbody.innerHTML='<tr><td colspan="8" class="tbl-msg">No orders found.</td></tr>';return}
   tbody.innerHTML=orders.map(o=>{
     const inv='INV-'+o.id.slice(0,8).toUpperCase();
     const name=o.profiles?.full_name||o.profiles?.email||'—';
     const phone=o.profiles?.phone?(' ('+o.profiles.phone+')'):'';
-    const addr=o.shipping_address;
-    const loc=addr?(addr.city||addr.state||''):'—';
-    const items=(o.order_items||[]).map(i=>(i.products?.name||'Item')+' ×'+i.quantity).join(', ')||'—';
+    const addr=o.shipping_address||{};
+    const addrObj=o.user_addresses||{};
+    const loc=addr.city||addrObj.city||addr.state||addrObj.state||'—';
+    const items=(o.order_items||[]).map(i=>(i.products?.name||'Item')+' x'+i.quantity).join(', ')||'—';
     const selOpts=STATUS_OPTIONS.map(s=>'<option value="'+s+'"'+(o.status===s?' selected':'')+'>'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>').join('');
-    return '<tr>'
-      +'<td class="td-name" style="font-family:var(--mono);font-size:12px">'+inv+'</td>'
+    const trackTag=o.tracking_number?'<div style="font-size:10px;color:var(--accent);font-family:var(--mono);margin-top:2px">'+o.tracking_vendor+' '+o.tracking_number+'</div>':'';
+
+    // Full address for detail row
+    const fullAddr=[addr.full_name||addrObj.full_name,addr.address_line1||addrObj.address_line1,addr.address_line2||addrObj.address_line2,
+      (addr.city||addrObj.city||'')+' '+(addr.state||addrObj.state||'')+' '+(addr.pincode||addrObj.pincode||''),
+      addr.phone||addrObj.phone].filter(Boolean).join('<br>');
+
+    // Items list for detail
+    const itemsDetail=(o.order_items||[]).map(i=>{
+      const pname=i.products?.name||'Item';
+      const cust=i.customization_notes?'<span style="color:var(--accent);font-size:10px;margin-left:6px">['+i.customization_notes+']</span>':'';
+      return '<div class="od-item"><span>'+pname+cust+'</span><span>x'+i.quantity+' — '+fmtPrice(i.unit_price*i.quantity)+'</span></div>';
+    }).join('');
+
+    // Payment info
+    const payInfo=[o.razorpay_payment_id?'Pay: '+o.razorpay_payment_id:'',o.razorpay_order_id?'Order: '+o.razorpay_order_id:''].filter(Boolean).join(' | ')||'No payment data';
+
+    const esc=s=>(s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+
+    return '<tr onclick="toggleOrderDetail(\''+o.id+'\')" style="cursor:pointer">'
+      +'<td><span class="order-expand-btn" id="exp-'+o.id+'">&#9654;</span></td>'
+      +'<td class="td-name" style="font-family:var(--mono);font-size:12px">'+inv+trackTag+'</td>'
       +'<td>'+fmtDateShort(o.created_at)+'</td>'
       +'<td class="td-name">'+name+'<span style="color:var(--text-3);font-size:11px">'+phone+'</span></td>'
       +'<td>'+loc+'</td>'
       +'<td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+items+'</td>'
       +'<td style="font-weight:600">'+fmtPrice(o.total_amount)+'</td>'
-      +'<td><select class="status-sel" onchange="updateOrderStatus(\''+o.id+'\',this)">'+selOpts+'</select></td>'
-      +'</tr>';
+      +'<td onclick="event.stopPropagation()"><select class="status-sel" onchange="updateOrderStatus(\''+o.id+'\',this)">'+selOpts+'</select></td>'
+      +'</tr>'
+      +'<tr class="order-detail-row" id="detail-'+o.id+'"><td colspan="8"><div class="order-detail">'
+        +'<div class="od-section"><div class="od-label">Shipping Address</div><div class="od-value">'+(fullAddr||'—')+'</div></div>'
+        +'<div class="od-section"><div class="od-label">Order Items</div><div class="od-items">'+(itemsDetail||'<span style="color:var(--text-3)">No items</span>')+'</div></div>'
+        +'<div class="od-section"><div class="od-label">Payment</div><div class="od-payment">'+payInfo+'</div></div>'
+        +'<div class="od-section"><div class="od-label">Tracking (optional)</div>'
+          +'<div class="od-tracking">'
+            +'<input type="text" id="track-num-'+o.id+'" placeholder="Tracking number" value="'+esc(o.tracking_number)+'">'
+            +'<input type="text" id="track-vendor-'+o.id+'" placeholder="Vendor (Delhivery, BlueDart...)" value="'+esc(o.tracking_vendor)+'">'
+            +'<button class="btn-save" onclick="event.stopPropagation();saveTracking(\''+o.id+'\')">Save</button>'
+          +'</div>'
+        +'</div>'
+        +'<div class="od-section" style="grid-column:1/-1"><div class="od-label">Admin Notes</div>'
+          +'<div class="od-notes"><textarea id="notes-'+o.id+'" placeholder="Internal notes about this order..." onblur="saveAdminNotes(\''+o.id+'\')">'+esc(o.admin_notes)+'</textarea></div>'
+        +'</div>'
+      +'</div></td></tr>';
   }).join('');
+}
+
+function toggleOrderDetail(id){
+  const row=document.getElementById('detail-'+id);
+  const btn=document.getElementById('exp-'+id);
+  if(!row)return;
+  row.classList.toggle('show');
+  btn.classList.toggle('open');
 }
 
 async function updateOrderStatus(id,sel){
   sel.disabled=true;
-  const{error}=await sb.from('orders').update({status:sel.value}).eq('id',id);
-  if(error){toast('Error: '+error.message,'error')}else toast('Status updated','success');
+  const{error}=await sb.from('orders').update({status:sel.value,updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error')}
+  else{
+    toast('Status → '+sel.value.charAt(0).toUpperCase()+sel.value.slice(1),'success');
+    // Update local cache
+    const o=_orders.find(x=>x.id===id);
+    if(o)o.status=sel.value;
+  }
   sel.disabled=false;
+}
+
+async function saveTracking(id){
+  const num=document.getElementById('track-num-'+id).value.trim();
+  const vendor=document.getElementById('track-vendor-'+id).value.trim();
+  const{error}=await sb.from('orders').update({tracking_number:num||null,tracking_vendor:vendor||null,updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){toast('Error saving tracking: '+error.message,'error')}
+  else{
+    toast('Tracking info saved','success');
+    const o=_orders.find(x=>x.id===id);
+    if(o){o.tracking_number=num;o.tracking_vendor=vendor}
+  }
+}
+
+async function saveAdminNotes(id){
+  const notes=document.getElementById('notes-'+id).value.trim();
+  const o=_orders.find(x=>x.id===id);
+  if(o&&o.admin_notes===notes)return; // no change
+  const{error}=await sb.from('orders').update({admin_notes:notes||null,updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){toast('Error saving notes: '+error.message,'error')}
+  else{if(o)o.admin_notes=notes}
 }
 
 // ═══════════════════════════════════════════════════════════

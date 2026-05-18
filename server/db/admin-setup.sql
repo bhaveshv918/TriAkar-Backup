@@ -115,9 +115,32 @@ CREATE POLICY "Public read product images" ON storage.objects
   FOR SELECT TO anon USING (bucket_id = 'product-images');
 
 -- ══════════════════════════════════════════════════════════════════════
--- ORDERS — ensure admin can read all
+-- ORDERS — admin full access + tracking columns
 -- ══════════════════════════════════════════════════════════════════════
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_number TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_vendor TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS admin_notes TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
 DROP POLICY IF EXISTS "Admin can read all orders" ON orders;
 CREATE POLICY "Admin can read all orders" ON orders FOR SELECT TO authenticated USING (true);
 DROP POLICY IF EXISTS "Admin can update orders" ON orders;
 CREATE POLICY "Admin can update orders" ON orders FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+-- ══════════════════════════════════════════════════════════════════════
+-- PROFILES — admin can read all (for order customer info)
+-- ══════════════════════════════════════════════════════════════════════
+DROP POLICY IF EXISTS "Admin can read all profiles" ON profiles;
+CREATE POLICY "Admin can read all profiles" ON profiles FOR SELECT TO authenticated USING (true);
+
+-- ══════════════════════════════════════════════════════════════════════
+-- ORDER ITEMS — admin can read all (for order product details)
+-- ══════════════════════════════════════════════════════════════════════
+DROP POLICY IF EXISTS "Admin can read all order items" ON order_items;
+CREATE POLICY "Admin can read all order items" ON order_items FOR SELECT TO authenticated USING (true);
+
+-- ══════════════════════════════════════════════════════════════════════
+-- USER ADDRESSES — admin can read all (for order shipping info)
+-- ══════════════════════════════════════════════════════════════════════
+DROP POLICY IF EXISTS "Admin can read all addresses" ON user_addresses;
+CREATE POLICY "Admin can read all addresses" ON user_addresses FOR SELECT TO authenticated USING (true);
