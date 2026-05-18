@@ -920,6 +920,9 @@ let _visitorData={};
     referrer:_visitorData.referrer,
     extra:{touchPoints:_visitorData.touchPoints,online:_visitorData.online,cookieEnabled:_visitorData.cookieEnabled}
   });
+
+  // Check IP-based lockout from Supabase (survives cookie/browser data clearing)
+  await checkIPLockout();
 })();
 
 // Block copy, right-click, devtools — ONLY on login screen
@@ -957,22 +960,41 @@ document.addEventListener('keydown',function(e){
 })();
 
 // ═══════════════════════════════════════════════════════════
-// LOGIN — with rate limiting, honeypot, lockout
+// LOGIN — with IP-based rate limiting (server-side via Supabase)
 // ═══════════════════════════════════════════════════════════
 const MAX_ATTEMPTS=5;
 const LOCKOUT_SECONDS=120;
-let _failedAttempts=parseInt(sessionStorage.getItem('ta_fails')||'0');
-let _lockedUntil=parseInt(sessionStorage.getItem('ta_locked')||'0');
-let _formLoadTime=Date.now(); // track how fast form is submitted (bot detection)
+let _failedAttempts=0;
+let _lockedUntil=0;
+let _formLoadTime=Date.now();
 
-// Restore attempt dots on reload
-(function(){
+// Check lockout state from Supabase (IP-based — survives cookie clear)
+async function checkIPLockout(){
+  if(!_visitorData.ip||_visitorData.ip==='unknown')return;
+  const cutoff=new Date(Date.now()-LOCKOUT_SECONDS*1000).toISOString();
+  // Count recent failed login attempts from this IP
+  const{data,error}=await sb.from('admin_logs')
+    .select('created_at')
+    .eq('ip',_visitorData.ip)
+    .eq('action','login_attempt')
+    .eq('success',false)
+    .gte('created_at',cutoff)
+    .order('created_at',{ascending:false});
+  if(error||!data)return;
+  _failedAttempts=data.length;
   if(_failedAttempts>0){
     document.getElementById('attemptBar').classList.add('show');
     updateAttemptDots();
   }
-  if(_lockedUntil>Date.now())startLockoutTimer();
-})();
+  if(_failedAttempts>=MAX_ATTEMPTS){
+    // Lockout until LOCKOUT_SECONDS after the last failed attempt
+    const lastFail=new Date(data[0].created_at).getTime();
+    _lockedUntil=lastFail+LOCKOUT_SECONDS*1000;
+    if(_lockedUntil>Date.now())startLockoutTimer();
+    else{_failedAttempts=0;updateAttemptDots();document.getElementById('attemptBar').classList.remove('show')}
+  }
+}
+// Called after IP is fetched — see captureVisitor
 
 function updateAttemptDots(){
   const dots=document.querySelectorAll('#attemptDots .attempt-dot');
@@ -998,8 +1020,7 @@ function startLockoutTimer(){
     if(remaining<=0){
       overlay.classList.remove('show');
       document.getElementById('loginBtn').disabled=false;
-      _failedAttempts=0;sessionStorage.setItem('ta_fails','0');
-      sessionStorage.removeItem('ta_locked');
+      _failedAttempts=0;
       updateAttemptDots();
       document.getElementById('attemptBar').classList.remove('show');
     }else setTimeout(tick,1000);
@@ -1089,15 +1110,13 @@ async function doLogin(){
   });
 
   if(error){
-    _failedAttempts++;
-    sessionStorage.setItem('ta_fails',String(_failedAttempts));
+    // Refresh lockout state from Supabase (IP-based — survives cookie clear)
+    await checkIPLockout();
     document.getElementById('attemptBar').classList.add('show');
-    updateAttemptDots();
 
     // Lockout after MAX_ATTEMPTS
     if(_failedAttempts>=MAX_ATTEMPTS){
       _lockedUntil=Date.now()+LOCKOUT_SECONDS*1000;
-      sessionStorage.setItem('ta_locked',String(_lockedUntil));
       startLockoutTimer();
       // Log lockout
       await sb.from('admin_logs').insert({
@@ -1114,8 +1133,8 @@ async function doLogin(){
     return;
   }
 
-  // Success — reset attempts
-  _failedAttempts=0;sessionStorage.removeItem('ta_fails');sessionStorage.removeItem('ta_locked');
+  // Success — reset attempts (state lives in Supabase, just clear local vars)
+  _failedAttempts=0;_lockedUntil=0;
   _isLoggedIn=true;
   showWelcome(data.user);
 }
