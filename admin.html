@@ -14,7 +14,7 @@
 /* ═══════════════════════════════════════════════════════════
    TRIĀKAR ADMIN v2 — Command Center
    ═══════════════════════════════════════════════════════════ */
-:root{
+:root,html[data-theme="dark"]{
   --bg:#08080A;--bg-1:#0E0E12;--bg-2:#14141A;--bg-3:#1A1A22;
   --border:rgba(255,255,255,.06);--border-h:rgba(255,255,255,.12);
   --text:#E8E8EC;--text-2:#9898A0;--text-3:#606068;
@@ -26,6 +26,19 @@
   --purple:#A78BFA;
   --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
   --radius:6px;
+  --topbar-bg:rgba(8,8,10,.92);
+}
+html[data-theme="light"]{
+  --bg:#F4F4F6;--bg-1:#FFFFFF;--bg-2:#EAEAEE;--bg-3:#DDDDE2;
+  --border:rgba(0,0,0,.08);--border-h:rgba(0,0,0,.15);
+  --text:#1A1A22;--text-2:#5A5A68;--text-3:#8A8A98;
+  --accent:#B8521E;--accent-h:#C4622A;--accent-bg:rgba(184,82,30,.06);
+  --green:#16A34A;--green-bg:rgba(22,163,74,.06);
+  --red:#DC2626;--red-bg:rgba(220,38,38,.06);
+  --yellow:#CA8A04;--yellow-bg:rgba(202,138,4,.06);
+  --blue:#2563EB;--blue-bg:rgba(37,99,235,.06);
+  --purple:#7C3AED;
+  --topbar-bg:rgba(255,255,255,.92);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -38,7 +51,10 @@ body{
   background:var(--bg);color:var(--text);
   font-family:var(--sans);font-size:14px;line-height:1.6;
   overflow-x:hidden;-webkit-font-smoothing:antialiased;
+  transition:background .3s,color .3s;
 }
+/* Login screen always stays dark regardless of theme */
+#loginScreen{background:#08080A!important;color:#E8E8EC!important}
 a{color:inherit;text-decoration:none}
 button{font-family:inherit;cursor:pointer;border:none;background:none}
 img{display:block;max-width:100%}
@@ -260,7 +276,7 @@ img{display:block;max-width:100%}
 /* Top bar */
 .top-bar{
   position:sticky;top:0;z-index:100;
-  background:rgba(8,8,10,.92);backdrop-filter:blur(20px);
+  background:var(--topbar-bg);backdrop-filter:blur(20px);
   border-bottom:1px solid var(--border);
   padding:0 24px;height:56px;
   display:flex;align-items:center;justify-content:space-between;
@@ -283,6 +299,22 @@ img{display:block;max-width:100%}
   transition:all .2s;
 }
 .top-btn:hover{border-color:var(--border-h);color:var(--text)}
+.theme-toggle{
+  width:32px;height:32px;border-radius:50%;
+  border:1px solid var(--border);background:var(--bg-2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;cursor:pointer;transition:all .25s;color:var(--text-2);
+}
+.theme-toggle:hover{border-color:var(--accent);color:var(--accent);transform:rotate(30deg)}
+.top-status{
+  display:flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--green);
+}
+.top-status .pulse{
+  width:6px;height:6px;border-radius:50%;background:var(--green);
+  animation:secPulse 2s ease-in-out infinite;
+}
 
 /* Tab bar */
 .tab-bar{
@@ -691,7 +723,8 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     </div>
     <div class="top-right">
       <div class="top-time" id="topTime"></div>
-      <div class="top-user" id="topUser"></div>
+      <div class="top-status"><span class="pulse"></span> Admin Online</div>
+      <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
       <a href="index.html" class="top-btn">← Site</a>
       <button class="top-btn" onclick="doLogout()">Sign Out</button>
     </div>
@@ -1224,8 +1257,8 @@ function showWelcome(user){
 function showDashboard(user){
   _isLoggedIn=true;
   document.getElementById('adminDash').classList.add('show');
-  document.getElementById('topUser').textContent=user.email||'';
   updateClock();setInterval(updateClock,30000);
+  initTheme();
   loadCategories().then(()=>{loadProducts();loadOrders();loadLogs()});
 }
 
@@ -1238,6 +1271,35 @@ function showDashboard(user){
     showDashboard(session.user);
   }
 })();
+
+// ═══════════════════════════════════════════════════════════
+// THEME — Dark / Light
+// ═══════════════════════════════════════════════════════════
+function initTheme(){
+  const saved=localStorage.getItem('ta_theme')||'dark';
+  applyTheme(saved);
+}
+function toggleTheme(){
+  const current=document.documentElement.getAttribute('data-theme')||'dark';
+  const next=current==='dark'?'light':'dark';
+  applyTheme(next);
+  localStorage.setItem('ta_theme',next);
+}
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme',theme);
+  const btn=document.getElementById('themeToggle');
+  if(btn)btn.textContent=theme==='dark'?'☀️':'🌙';
+}
+
+// ═══════════════════════════════════════════════════════════
+// INVOICE NUMBER — TAINV/2526XXXX (series from 0100)
+// ═══════════════════════════════════════════════════════════
+function getInvoiceNumber(index){
+  // index = 0-based position in the orders array (sorted by created_at desc)
+  // Series: TAINV/2526 + 4-digit running number starting from 0100
+  const num=100+index;
+  return 'TAINV/2526'+String(num).padStart(4,'0');
+}
 
 // ═══════════════════════════════════════════════════════════
 // UTILITY
@@ -1345,14 +1407,19 @@ function filterOrders(){
     filtered=filtered.filter(o=>new Date(o.created_at)>=start);
   }
   if(search){
+    // Build invoice map for search
+    const allSorted=[..._orders].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+    const sInvMap={};
+    allSorted.forEach((o,i)=>{sInvMap[o.id]=getInvoiceNumber(i).toLowerCase()});
+
     filtered=filtered.filter(o=>{
       const p=o.profiles||{};
-      const custName=p.full_name||p.email||'';
+      const custName=(p.full_name||p.email||'').toLowerCase();
       const custPhone=p.phone||'';
-      const custEmail=p.email||'';
-      const oid=o.id.slice(0,8).toUpperCase();
-      const tracking=(o.tracking_number||'')+(o.tracking_vendor||'');
-      return custName.toLowerCase().includes(search)||custPhone.includes(search)||custEmail.toLowerCase().includes(search)||oid.includes(search.toUpperCase())||tracking.toLowerCase().includes(search);
+      const custEmail=(p.email||'').toLowerCase();
+      const invNum=sInvMap[o.id]||'';
+      const tracking=((o.tracking_number||'')+(o.tracking_vendor||'')).toLowerCase();
+      return custName.includes(search)||custPhone.includes(search)||custEmail.includes(search)||invNum.includes(search)||tracking.includes(search);
     });
   }
   renderOrders(filtered);
@@ -1361,8 +1428,13 @@ function filterOrders(){
 function renderOrders(orders){
   const tbody=document.getElementById('ordersBody');
   if(!orders.length){tbody.innerHTML='<tr><td colspan="8" class="tbl-msg">No orders found.</td></tr>';return}
+  // Build invoice map: oldest order = 0100, next = 0101, etc.
+  const allSorted=[..._orders].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+  const invMap={};
+  allSorted.forEach((o,i)=>{invMap[o.id]=getInvoiceNumber(i)});
+
   tbody.innerHTML=orders.map(o=>{
-    const inv='INV-'+o.id.slice(0,8).toUpperCase();
+    const inv=invMap[o.id]||'TAINV/2526----';
     const p=o.profiles||{};
     const name=p.full_name||p.email||'Guest';
     const email=p.email?'<div style="font-size:10px;color:var(--text-3);font-family:var(--mono)">'+p.email+'</div>':'';
