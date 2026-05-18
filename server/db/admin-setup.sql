@@ -133,6 +133,13 @@ CREATE POLICY "Admin can update orders" ON orders FOR UPDATE TO authenticated US
 DROP POLICY IF EXISTS "Admin can read all profiles" ON profiles;
 CREATE POLICY "Admin can read all profiles" ON profiles FOR SELECT TO authenticated USING (true);
 
+-- Direct FK from orders → profiles so Supabase can auto-join them
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_orders_profiles') THEN
+    ALTER TABLE orders ADD CONSTRAINT fk_orders_profiles FOREIGN KEY (user_id) REFERENCES profiles(id);
+  END IF;
+END $$;
+
 -- ══════════════════════════════════════════════════════════════════════
 -- ORDER ITEMS — admin can read all (for order product details)
 -- ══════════════════════════════════════════════════════════════════════

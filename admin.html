@@ -1320,7 +1320,7 @@ const STATUS_BADGE={pending:'badge-yellow',confirmed:'badge-green',processing:'b
 
 async function loadOrders(){
   const{data,error}=await sb.from('orders')
-    .select('*,profiles(email,full_name,phone),order_items(*,products(name,images)),user_addresses(*)')
+    .select('*,profiles!fk_orders_profiles(email,full_name,phone),order_items(*,products(name,images)),user_addresses(*)')
     .order('created_at',{ascending:false});
   if(error){document.getElementById('ordersBody').innerHTML='<tr><td colspan="8" class="tbl-msg">Error: '+error.message+'</td></tr>';return}
   _orders=data||[];
