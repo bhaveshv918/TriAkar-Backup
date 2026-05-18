@@ -1292,13 +1292,10 @@ function applyTheme(theme){
 }
 
 // ═══════════════════════════════════════════════════════════
-// INVOICE NUMBER — TAINV/2627XXXX (series from 0100)
+// INVOICE NUMBER — stored in DB as TAINV/2627XXXX
 // ═══════════════════════════════════════════════════════════
-function getInvoiceNumber(index){
-  // index = 0-based position in the orders array (sorted by created_at desc)
-  // Series: TAINV/2627 + 4-digit running number starting from 0100
-  const num=100+index;
-  return 'TAINV/2627'+String(num).padStart(4,'0');
+function fmtInvoice(o){
+  return o.invoice_number||('TAINV/2627'+String(Math.floor(Math.random()*9000+1000)));
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1407,17 +1404,12 @@ function filterOrders(){
     filtered=filtered.filter(o=>new Date(o.created_at)>=start);
   }
   if(search){
-    // Build invoice map for search
-    const allSorted=[..._orders].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-    const sInvMap={};
-    allSorted.forEach((o,i)=>{sInvMap[o.id]=getInvoiceNumber(i).toLowerCase()});
-
     filtered=filtered.filter(o=>{
       const p=o.profiles||{};
       const custName=(p.full_name||p.email||'').toLowerCase();
       const custPhone=p.phone||'';
       const custEmail=(p.email||'').toLowerCase();
-      const invNum=sInvMap[o.id]||'';
+      const invNum=(o.invoice_number||'').toLowerCase();
       const tracking=((o.tracking_number||'')+(o.tracking_vendor||'')).toLowerCase();
       return custName.includes(search)||custPhone.includes(search)||custEmail.includes(search)||invNum.includes(search)||tracking.includes(search);
     });
@@ -1428,13 +1420,8 @@ function filterOrders(){
 function renderOrders(orders){
   const tbody=document.getElementById('ordersBody');
   if(!orders.length){tbody.innerHTML='<tr><td colspan="8" class="tbl-msg">No orders found.</td></tr>';return}
-  // Build invoice map: oldest order = 0100, next = 0101, etc.
-  const allSorted=[..._orders].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-  const invMap={};
-  allSorted.forEach((o,i)=>{invMap[o.id]=getInvoiceNumber(i)});
-
   tbody.innerHTML=orders.map(o=>{
-    const inv=invMap[o.id]||'TAINV/2627----';
+    const inv=fmtInvoice(o);
     const p=o.profiles||{};
     const name=p.full_name||p.email||'Guest';
     const email=p.email?'<div style="font-size:10px;color:var(--text-3);font-family:var(--mono)">'+p.email+'</div>':'';

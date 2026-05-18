@@ -204,14 +204,13 @@ function buildCheckoutHTML(){
     <div class="ck-step" data-step="3">
       <h3 style="font-size:17px;font-weight:700;margin-bottom:16px">Payment Method</h3>
       <div class="ck-radio-group" id="ckPaymentGroup">
-        <label class="ck-radio selected"><input type="radio" name="ckPay" value="upi" checked><div><div class="ck-radio-label">UPI / GPay / PhonePe</div><div class="ck-radio-desc">Pay via any UPI app</div></div></label>
-        <label class="ck-radio"><input type="radio" name="ckPay" value="cod"><div><div class="ck-radio-label">Cash on Delivery</div><div class="ck-radio-desc">Noida orders only</div></div></label>
-        <label class="ck-radio"><input type="radio" name="ckPay" value="bank"><div><div class="ck-radio-label">Bank Transfer / NEFT</div><div class="ck-radio-desc">Details shared on WhatsApp</div></div></label>
-        <label class="ck-radio"><input type="radio" name="ckPay" value="whatsapp"><div><div class="ck-radio-label">Confirm via WhatsApp</div><div class="ck-radio-desc">We'll message you payment details</div></div></label>
+        <label class="ck-radio selected"><input type="radio" name="ckPay" value="online" checked><div><div class="ck-radio-label">Pay Online</div><div class="ck-radio-desc">Cards, UPI, NetBanking, Wallets</div></div></label>
+        <label class="ck-radio"><input type="radio" name="ckPay" value="cod"><div><div class="ck-radio-label">Cash on Delivery</div><div class="ck-radio-desc">Noida / Greater Noida only</div></div></label>
+        <label class="ck-radio"><input type="radio" name="ckPay" value="whatsapp"><div><div class="ck-radio-label">Confirm via WhatsApp</div><div class="ck-radio-desc">We'll send payment details on WhatsApp</div></div></label>
       </div>
       <div style="display:flex;gap:10px;margin-top:16px">
         <button class="btn btn-outline" onclick="showCheckoutStep(2)">← Back</button>
-        <button class="btn btn-accent" style="flex:1;justify-content:center" onclick="placeOrder()">Place Order →</button>
+        <button class="btn btn-accent" style="flex:1;justify-content:center" id="ckPlaceBtn" onclick="placeOrder()">Checkout →</button>
       </div>
     </div>
 
@@ -274,7 +273,7 @@ function validateAndNext(){
   showCheckoutStep(3);
 }
 
-function placeOrder(){
+async function placeOrder(){
   const items=Cart.getItems();
   const name=document.getElementById('ckName').value.trim();
   const phone=document.getElementById('ckPhone').value.trim();
@@ -283,12 +282,84 @@ function placeOrder(){
   const state=document.getElementById('ckState').value.trim();
   const pin=document.getElementById('ckPincode').value.trim();
   const notes=document.getElementById('ckNotes').value.trim();
-  const payment=document.querySelector('input[name="ckPay"]:checked')?.value||'upi';
+  const payment=document.querySelector('input[name="ckPay"]:checked')?.value||'online';
   const shipping=Cart.total()>=999?0:49;
   const total=Cart.total()+shipping;
+  const btn=document.getElementById('ckPlaceBtn');
 
-  // Build order summary
-  const itemLines=items.map(i=>`${i.name} x${i.quantity} = ₹${(i.price*i.quantity).toLocaleString('en-IN')}`).join('\n');
+  // ── Pay Online — Razorpay ──
+  if(payment==='online'){
+    btn.disabled=true;btn.textContent='Processing...';
+    const API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
+    try{
+      // Get auth token if available
+      const token=localStorage.getItem('ta_token');
+      const headers={'Content-Type':'application/json'};
+      if(token)headers['Authorization']='Bearer '+token;
+
+      const cartItems=items.map(i=>({slug:i.id,quantity:i.qty||i.quantity,customization_notes:notes||null}));
+      const res=await fetch(API+'/api/payments/create-order',{
+        method:'POST',headers,
+        body:JSON.stringify({items:cartItems,customer:{name,phone,email,address:addr,state,pincode:pin}})
+      });
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.error||'Could not initiate payment');
+
+      // Load Razorpay SDK
+      await new Promise(function(resolve,reject){
+        if(window.Razorpay){resolve();return}
+        const s=document.createElement('script');
+        s.src='https://checkout.razorpay.com/v1/checkout.js';
+        s.onload=resolve;
+        s.onerror=function(){reject(new Error('Could not load payment gateway'))};
+        document.head.appendChild(s);
+      });
+
+      const rzp=new window.Razorpay({
+        key:data.key_id,
+        amount:data.amount,
+        currency:data.currency||'INR',
+        name:'TriAkar',
+        description:'Premium 3D Printed Products',
+        order_id:data.razorpay_order_id,
+        prefill:{name,contact:phone,email},
+        theme:{color:'#161614'},
+        handler:async function(response){
+          btn.textContent='Verifying...';
+          try{
+            const vRes=await fetch(API+'/api/payments/verify',{
+              method:'POST',headers,
+              body:JSON.stringify({
+                razorpay_order_id:response.razorpay_order_id,
+                razorpay_payment_id:response.razorpay_payment_id,
+                razorpay_signature:response.razorpay_signature,
+                order_id:data.order_id
+              })
+            });
+            if(!vRes.ok)throw new Error('Payment verification failed');
+            Cart.clear();
+            window.location.href='order-confirmation.html?order_id='+data.order_id;
+          }catch(e){
+            alert('Payment verification issue. Contact us with your order details.');
+            btn.disabled=false;btn.textContent='Checkout →';
+          }
+        },
+        modal:{ondismiss:function(){btn.disabled=false;btn.textContent='Checkout →'}}
+      });
+      rzp.on('payment.failed',function(r){
+        btn.disabled=false;btn.textContent='Checkout →';
+        alert('Payment failed: '+r.error.description);
+      });
+      rzp.open();
+    }catch(err){
+      btn.disabled=false;btn.textContent='Checkout →';
+      alert('Checkout error: '+err.message);
+    }
+    return;
+  }
+
+  // ── COD or WhatsApp — send via WhatsApp ──
+  const itemLines=items.map(i=>`${i.name} x${i.qty||i.quantity} = ₹${(i.price*(i.qty||i.quantity)).toLocaleString('en-IN')}`).join('\n');
   const orderText=`*New Order - TriAkar*\n\n`
     +`*Items:*\n${itemLines}\n`
     +(shipping?`Shipping: ₹${shipping}\n`:'')
@@ -298,15 +369,8 @@ function placeOrder(){
     +(notes?`*Notes:* ${notes}\n`:'')
     +`*Payment:* ${payment.toUpperCase()}`;
 
-  if(payment==='whatsapp'){
-    // Open WhatsApp with order
-    const waUrl='https://wa.me/919217555833?text='+encodeURIComponent(orderText);
-    window.open(waUrl,'_blank');
-  } else {
-    // Send WhatsApp notification to shop
-    const shopUrl='https://wa.me/919217555833?text='+encodeURIComponent(orderText);
-    window.open(shopUrl,'_blank');
-  }
+  const waUrl='https://wa.me/919217555833?text='+encodeURIComponent(orderText);
+  window.open(waUrl,'_blank');
 
   Cart.clear();
   showCheckoutStep(4);

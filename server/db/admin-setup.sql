@@ -121,6 +121,71 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_number TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_vendor TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS admin_notes TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS invoice_number TEXT UNIQUE;
+
+-- ── Invoice number auto-generation: TAINV/2627XXXX starting from 0100 ──
+CREATE SEQUENCE IF NOT EXISTS invoice_seq START 100 INCREMENT 1;
+
+CREATE OR REPLACE FUNCTION set_invoice_number()
+RETURNS trigger AS $$
+BEGIN
+  IF NEW.invoice_number IS NULL THEN
+    NEW.invoice_number := 'TAINV/2627' || LPAD(nextval('invoice_seq')::TEXT, 4, '0');
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_invoice_number ON orders;
+CREATE TRIGGER trg_invoice_number
+  BEFORE INSERT ON orders
+  FOR EACH ROW EXECUTE FUNCTION set_invoice_number();
+
+-- Backfill existing orders that don't have invoice numbers
+WITH numbered AS (
+  SELECT id, ROW_NUMBER() OVER (ORDER BY created_at) + 99 AS num
+  FROM orders WHERE invoice_number IS NULL
+)
+UPDATE orders SET invoice_number = 'TAINV/2627' || LPAD(numbered.num::TEXT, 4, '0')
+FROM numbered WHERE orders.id = numbered.id;
+
+-- Sync the sequence to the max existing number
+SELECT setval('invoice_seq', COALESCE(
+  (SELECT MAX(NULLIF(RIGHT(invoice_number, 4), '')::INT) FROM orders WHERE invoice_number IS NOT NULL),
+  99
+));
+
+-- ── Public RPC: track order by invoice number (no auth required) ──
+CREATE OR REPLACE FUNCTION track_order_by_invoice(inv_number TEXT)
+RETURNS JSON AS $$
+  SELECT json_build_object(
+    'found', true,
+    'invoice_number', o.invoice_number,
+    'status', o.status,
+    'total_amount', o.total_amount,
+    'tracking_number', o.tracking_number,
+    'tracking_vendor', o.tracking_vendor,
+    'created_at', o.created_at,
+    'updated_at', o.updated_at,
+    'shipping_address', json_build_object(
+      'city', COALESCE(o.shipping_address->>'city', ''),
+      'state', COALESCE(o.shipping_address->>'state', '')
+    ),
+    'items', COALESCE((
+      SELECT json_agg(json_build_object(
+        'name', p.name,
+        'quantity', oi.quantity,
+        'unit_price', oi.unit_price
+      ))
+      FROM order_items oi
+      JOIN products p ON p.id = oi.product_id
+      WHERE oi.order_id = o.id
+    ), '[]'::json)
+  )
+  FROM orders o
+  WHERE UPPER(TRIM(o.invoice_number)) = UPPER(TRIM(inv_number))
+  LIMIT 1;
+$$ LANGUAGE SQL SECURITY DEFINER;
 
 DROP POLICY IF EXISTS "Admin can read all orders" ON orders;
 CREATE POLICY "Admin can read all orders" ON orders FOR SELECT TO authenticated USING (true);

@@ -83,11 +83,8 @@
       <div class="t-label" style="margin-bottom:8px">Enter tracking details</div>
       <p class="t-body" style="margin-bottom:0">Your order ID was sent to your email after purchase.</p>
       <div class="track-input-row">
-        <input class="track-input" id="trackInput" type="text" placeholder="e.g. TRK-2025-XXXXX">
-        <button class="track-btn" onclick="trackOrder()">Track</button>
-      </div>
-      <div style="background:rgba(196,98,42,.06);border:1px solid rgba(196,98,42,.2);padding:12px 16px;margin-top:16px;font-size:12px;color:var(--warm);line-height:1.6">
-        <strong style="color:var(--accent)">Live tracking coming soon.</strong> We are integrating with Shiprocket. Until then, tracking updates arrive by email. <a href="contact.html" style="color:var(--accent)">Contact us</a> for order status.
+        <input class="track-input" id="trackInput" type="text" placeholder="e.g. TAINV/26270100">
+        <button class="track-btn" id="trackBtn" onclick="trackOrder()">Track</button>
       </div>
       <div class="track-result" id="trackResult">
         <div class="ts-bar" id="tsBar">
@@ -108,26 +105,82 @@
   </div>
 </section>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const DEMO={
-  'TRK-2025-0001':{status:2,name:'Arc Desk Organizer',date:'12 Jan 2025',eta:'15 to 17 Jan 2025',courier:'Delhivery',awb:'DEL987654321'},
-  'TRK-2025-0002':{status:4,name:'Cable Loop x4',date:'8 Jan 2025',eta:'Delivered 11 Jan 2025',courier:'Blue Dart',awb:'BD123456789'},
-};
-function trackOrder(){
-  const val=document.getElementById('trackInput').value.trim().toUpperCase();
+const sb=supabase.createClient('https://qarjbmogersuaerkhlcu.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs');
+
+const STATUS_MAP={pending:0,confirmed:1,processing:2,shipped:3,delivered:4,cancelled:-1,returned:-2,refunded:-3};
+const STATUS_LABELS=['Confirmed','Processing','Shipped','Out for Delivery','Delivered'];
+
+function fmtDate(iso){return new Date(iso).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}
+
+async function trackOrder(){
+  const input=document.getElementById('trackInput').value.trim();
+  const btn=document.getElementById('trackBtn');
   const res=document.getElementById('trackResult');
   const det=document.getElementById('trackDetail');
-  const order=DEMO[val];
-  res.classList.add('show');
-  for(let i=0;i<5;i++){
-    const d=document.getElementById('ts'+i);
-    d.className='ts-dot'+(i<order?.status?' done':i===order?.status?' active':'');
+
+  if(!input){alert('Please enter your invoice number.');return}
+
+  // Normalize: accept "TAINV/26270100" or just "0100" or "26270100"
+  let invNum=input.toUpperCase();
+  if(!invNum.startsWith('TAINV'))invNum='TAINV/2627'+invNum.replace(/[^0-9]/g,'').slice(-4).padStart(4,'0');
+
+  btn.textContent='Searching...';btn.disabled=true;
+
+  try{
+    const{data,error}=await sb.rpc('track_order_by_invoice',{inv_number:invNum});
+
+    res.classList.add('show');
+
+    if(error||!data||!data.found){
+      // Reset dots
+      for(let i=0;i<5;i++){document.getElementById('ts'+i).className='ts-dot'}
+      det.innerHTML='<div style="text-align:center;padding:24px;font-size:13px;color:var(--stone)">No order found for <strong>'+invNum+'</strong>. Double-check your invoice number or <a href="contact.html" style="color:var(--accent)">contact us</a> for help.</div>';
+      btn.textContent='Track';btn.disabled=false;
+      return;
+    }
+
+    const order=data;
+    const statusIdx=STATUS_MAP[order.status]??-1;
+
+    // Update progress dots
+    for(let i=0;i<5;i++){
+      const d=document.getElementById('ts'+i);
+      if(statusIdx<0) d.className='ts-dot'; // cancelled/returned/refunded
+      else if(i<statusIdx) d.className='ts-dot done';
+      else if(i===statusIdx) d.className='ts-dot active';
+      else d.className='ts-dot';
+    }
+
+    // Items list
+    const items=(order.items||[]).map(function(i){return i.name+' x'+i.quantity}).join(', ')||'—';
+
+    // Build detail
+    let html='<div class="td-row"><span class="td-l">Invoice</span><span class="td-v" style="font-weight:700">'+order.invoice_number+'</span></div>'
+      +'<div class="td-row"><span class="td-l">Items</span><span class="td-v">'+items+'</span></div>'
+      +'<div class="td-row"><span class="td-l">Order Date</span><span class="td-v">'+fmtDate(order.created_at)+'</span></div>'
+      +'<div class="td-row"><span class="td-l">Total</span><span class="td-v" style="font-weight:700">₹'+Number(order.total_amount).toLocaleString('en-IN')+'</span></div>'
+      +'<div class="td-row"><span class="td-l">Status</span><span class="td-v" style="text-transform:capitalize;font-weight:600">'+order.status+'</span></div>';
+
+    if(order.tracking_vendor||order.tracking_number){
+      html+='<div class="td-row"><span class="td-l">Courier</span><span class="td-v">'+(order.tracking_vendor||'—')+'</span></div>';
+      html+='<div class="td-row"><span class="td-l">Tracking #</span><span class="td-v" style="font-family:var(--font-b);letter-spacing:.04em">'+(order.tracking_number||'—')+'</span></div>';
+    }
+
+    if(order.shipping_address){
+      const loc=[order.shipping_address.city,order.shipping_address.state].filter(Boolean).join(', ');
+      if(loc)html+='<div class="td-row"><span class="td-l">Shipping to</span><span class="td-v">'+loc+'</span></div>';
+    }
+
+    det.innerHTML=html;
+  }catch(err){
+    res.classList.add('show');
+    for(let i=0;i<5;i++){document.getElementById('ts'+i).className='ts-dot'}
+    det.innerHTML='<div style="text-align:center;padding:24px;font-size:13px;color:var(--stone)">Something went wrong. Please try again or <a href="contact.html" style="color:var(--accent)">contact us</a>.</div>';
   }
-  if(order){
-    det.innerHTML=`<div class="td-row"><span class="td-l">Order ID</span><span class="td-v">${val}</span></div><div class="td-row"><span class="td-l">Item</span><span class="td-v">${order.name}</span></div><div class="td-row"><span class="td-l">Order date</span><span class="td-v">${order.date}</span></div><div class="td-row"><span class="td-l">Status</span><span class="td-v">${order.eta}</span></div><div class="td-row"><span class="td-l">Courier</span><span class="td-v">${order.courier}</span></div><div class="td-row"><span class="td-l">Tracking</span><span class="td-v">${order.awb}</span></div>`;
-  }else{
-    det.innerHTML='<div style="text-align:center;padding:24px;font-size:13px;color:var(--stone)">No order found for that ID. <a href="contact.html" style="color:var(--accent)">Contact us</a> for help.</div>';
-  }
+
+  btn.textContent='Track';btn.disabled=false;
 }
 document.getElementById('trackInput').addEventListener('keydown',e=>{if(e.key==='Enter')trackOrder()});
 </script>
