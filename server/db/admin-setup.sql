@@ -133,6 +133,29 @@ CREATE POLICY "Admin can update orders" ON orders FOR UPDATE TO authenticated US
 DROP POLICY IF EXISTS "Admin can read all profiles" ON profiles;
 CREATE POLICY "Admin can read all profiles" ON profiles FOR SELECT TO authenticated USING (true);
 
+-- Add email column to profiles (email lives in auth.users, mirror it here for easy joins)
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email TEXT;
+
+-- Backfill email from auth.users into profiles
+UPDATE profiles SET email = u.email
+FROM auth.users u WHERE profiles.id = u.id AND (profiles.email IS NULL OR profiles.email = '');
+
+-- Auto-sync email on new user signup (update the trigger)
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, email)
+  VALUES (new.id, new.raw_user_meta_data->>'full_name', new.email)
+  ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email;
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
 -- Direct FK from orders → profiles so Supabase can auto-join them
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_orders_profiles') THEN

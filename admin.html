@@ -1346,11 +1346,13 @@ function filterOrders(){
   }
   if(search){
     filtered=filtered.filter(o=>{
-      const custName=o.profiles?.full_name||o.profiles?.email||'';
-      const custPhone=o.profiles?.phone||'';
+      const p=o.profiles||{};
+      const custName=p.full_name||p.email||'';
+      const custPhone=p.phone||'';
+      const custEmail=p.email||'';
       const oid=o.id.slice(0,8).toUpperCase();
-      const tracking=o.tracking_number||'';
-      return custName.toLowerCase().includes(search)||custPhone.includes(search)||oid.includes(search.toUpperCase())||tracking.toLowerCase().includes(search);
+      const tracking=(o.tracking_number||'')+(o.tracking_vendor||'');
+      return custName.toLowerCase().includes(search)||custPhone.includes(search)||custEmail.toLowerCase().includes(search)||oid.includes(search.toUpperCase())||tracking.toLowerCase().includes(search);
     });
   }
   renderOrders(filtered);
@@ -1361,26 +1363,29 @@ function renderOrders(orders){
   if(!orders.length){tbody.innerHTML='<tr><td colspan="8" class="tbl-msg">No orders found.</td></tr>';return}
   tbody.innerHTML=orders.map(o=>{
     const inv='INV-'+o.id.slice(0,8).toUpperCase();
-    const name=o.profiles?.full_name||o.profiles?.email||'—';
-    const phone=o.profiles?.phone?(' ('+o.profiles.phone+')'):'';
+    const p=o.profiles||{};
+    const name=p.full_name||p.email||'Guest';
+    const email=p.email?'<div style="font-size:10px;color:var(--text-3);font-family:var(--mono)">'+p.email+'</div>':'';
+    const phone=p.phone?(' ('+p.phone+')'):'';
     const addr=o.shipping_address||{};
     const addrObj=o.user_addresses||{};
     const loc=addr.city||addrObj.city||addr.state||addrObj.state||'—';
-    const items=(o.order_items||[]).map(i=>(i.products?.name||'Item')+' x'+i.quantity).join(', ')||'—';
+    const items=(o.order_items||[]).map(i=>((i.products||{}).name||'Item')+' x'+i.quantity).join(', ')||'—';
     const selOpts=STATUS_OPTIONS.map(s=>'<option value="'+s+'"'+(o.status===s?' selected':'')+'>'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>').join('');
-    const trackTag=o.tracking_number?'<div style="font-size:10px;color:var(--accent);font-family:var(--mono);margin-top:2px">'+o.tracking_vendor+' '+o.tracking_number+'</div>':'';
+    const trackTag=o.tracking_number?'<div style="font-size:10px;color:var(--accent);font-family:var(--mono);margin-top:2px">'+(o.tracking_vendor||'')+' '+o.tracking_number+'</div>':'';
 
     // Full address for detail row
     const fullAddr=[addr.full_name||addrObj.full_name,addr.address_line1||addrObj.address_line1,addr.address_line2||addrObj.address_line2,
-      (addr.city||addrObj.city||'')+' '+(addr.state||addrObj.state||'')+' '+(addr.pincode||addrObj.pincode||''),
-      addr.phone||addrObj.phone].filter(Boolean).join('<br>');
+      [addr.city||addrObj.city,addr.state||addrObj.state,addr.pincode||addrObj.pincode].filter(Boolean).join(', '),
+      addr.country||addrObj.country,
+      (addr.phone||addrObj.phone)?'Ph: '+(addr.phone||addrObj.phone):''].filter(Boolean).join('<br>')||'—';
 
     // Items list for detail
     const itemsDetail=(o.order_items||[]).map(i=>{
-      const pname=i.products?.name||'Item';
+      const pname=(i.products||{}).name||'Item';
       const cust=i.customization_notes?'<span style="color:var(--accent);font-size:10px;margin-left:6px">['+i.customization_notes+']</span>':'';
       return '<div class="od-item"><span>'+pname+cust+'</span><span>x'+i.quantity+' — '+fmtPrice(i.unit_price*i.quantity)+'</span></div>';
-    }).join('');
+    }).join('')||'<span style="color:var(--text-3)">No items</span>';
 
     // Payment info
     const payInfo=[o.razorpay_payment_id?'Pay: '+o.razorpay_payment_id:'',o.razorpay_order_id?'Order: '+o.razorpay_order_id:''].filter(Boolean).join(' | ')||'No payment data';
@@ -1391,15 +1396,16 @@ function renderOrders(orders){
       +'<td><span class="order-expand-btn" id="exp-'+o.id+'">&#9654;</span></td>'
       +'<td class="td-name" style="font-family:var(--mono);font-size:12px">'+inv+trackTag+'</td>'
       +'<td>'+fmtDateShort(o.created_at)+'</td>'
-      +'<td class="td-name">'+name+'<span style="color:var(--text-3);font-size:11px">'+phone+'</span></td>'
+      +'<td class="td-name">'+name+'<span style="color:var(--text-3);font-size:11px">'+phone+'</span>'+email+'</td>'
       +'<td>'+loc+'</td>'
       +'<td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+items+'</td>'
       +'<td style="font-weight:600">'+fmtPrice(o.total_amount)+'</td>'
       +'<td onclick="event.stopPropagation()"><select class="status-sel" onchange="updateOrderStatus(\''+o.id+'\',this)">'+selOpts+'</select></td>'
       +'</tr>'
       +'<tr class="order-detail-row" id="detail-'+o.id+'"><td colspan="8"><div class="order-detail">'
-        +'<div class="od-section"><div class="od-label">Shipping Address</div><div class="od-value">'+(fullAddr||'—')+'</div></div>'
-        +'<div class="od-section"><div class="od-label">Order Items</div><div class="od-items">'+(itemsDetail||'<span style="color:var(--text-3)">No items</span>')+'</div></div>'
+        +'<div class="od-section"><div class="od-label">Customer</div><div class="od-value">'+name+(p.email?'<br><span style="font-family:var(--mono);font-size:11px;color:var(--text-2)">'+p.email+'</span>':'')+(p.phone?'<br>'+p.phone:'')+'</div></div>'
+        +'<div class="od-section"><div class="od-label">Shipping Address</div><div class="od-value">'+fullAddr+'</div></div>'
+        +'<div class="od-section"><div class="od-label">Order Items</div><div class="od-items">'+itemsDetail+'</div></div>'
         +'<div class="od-section"><div class="od-label">Payment</div><div class="od-payment">'+payInfo+'</div></div>'
         +'<div class="od-section"><div class="od-label">Tracking (optional)</div>'
           +'<div class="od-tracking">'
