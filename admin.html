@@ -881,6 +881,7 @@ td.td-name{color:var(--text);font-weight:500}
 const SUPA_URL='https://qarjbmogersuaerkhlcu.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
 const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+const ADMIN_EMAILS=['bhaveshv918@gmail.com']; // Only these emails can access the admin panel
 
 // ── State ──────────────────────────────────────────────────
 let _products=[],_orders=[],_categories=[],_uploadedImages=[],_variants=[],_custFields=[],_dropdowns=[];
@@ -1124,6 +1125,21 @@ async function doLogin(){
     }
 
     showLoginErr('Authentication failed. Invalid credentials.');
+    btn.disabled=false;btn.textContent='Authenticate →';
+    return;
+  }
+
+  // ── Admin email whitelist check — block non-admin users ──
+  if(!ADMIN_EMAILS.includes(data.user.email.toLowerCase())){
+    await sb.auth.signOut();
+    await sb.from('admin_logs').insert({
+      action:'unauthorized_access',ip:_visitorData.ip,user_agent:_visitorData.userAgent,
+      screen_res:_visitorData.screen,timezone:_visitorData.timezone,
+      language:_visitorData.language,platform:_visitorData.platform,
+      referrer:_visitorData.referrer,email_attempted:email,success:false,
+      extra:{reason:'not_admin_email'}
+    });
+    showLoginErr('Access denied. You are not authorized.');
     btn.disabled=false;btn.textContent='Authenticate →';
     return;
   }
