@@ -37,8 +37,14 @@
 /* ══ CART ════════════════════════════════════════════════════ */
 const Cart=(function(){
   const _API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
+  const CART_KEY='triakar_cart';
   let items=[];
-  try{items=JSON.parse(localStorage.getItem('ta_cart')||'[]')}catch(e){items=[]}
+  try{
+    const raw=JSON.parse(localStorage.getItem(CART_KEY)||localStorage.getItem('ta_cart')||'[]');
+    items=raw.map(i=>({id:i.id,name:i.name,price:i.price,quantity:i.quantity||i.qty||1,color:i.color||i.variant||''}));
+    // Migrate old key
+    if(localStorage.getItem('ta_cart')){localStorage.removeItem('ta_cart');try{localStorage.setItem(CART_KEY,JSON.stringify(items))}catch(e){}}
+  }catch(e){items=[]}
 
   function _syncServer(){
     const tok=localStorage.getItem('ta_token');
@@ -46,11 +52,11 @@ const Cart=(function(){
     fetch(_API+'/api/cart',{method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({items})}).catch(()=>{});
   }
 
-  function save(){try{localStorage.setItem('ta_cart',JSON.stringify(items))}catch(e){}badge();_syncServer();}
-  function badge(){const n=items.reduce((s,i)=>s+i.qty,0);document.querySelectorAll('.cart-badge').forEach(b=>{b.textContent=n;b.classList.toggle('on',n>0)})}
-  function add(p){const idx=items.findIndex(i=>i.id===p.id&&i.variant===p.variant);idx>-1?items[idx].qty++:items.push({...p,qty:1});save();render();openCart()}
-  function changeQty(id,variant,d){const idx=items.findIndex(i=>i.id===id&&i.variant===variant);if(idx<0)return;items[idx].qty+=d;if(items[idx].qty<=0)items.splice(idx,1);save();render()}
-  function total(){return items.reduce((s,i)=>s+i.price*i.qty,0)}
+  function save(){try{localStorage.setItem(CART_KEY,JSON.stringify(items))}catch(e){}badge();_syncServer();}
+  function badge(){const n=items.reduce((s,i)=>s+i.quantity,0);document.querySelectorAll('.cart-badge').forEach(b=>{b.textContent=n;b.classList.toggle('on',n>0)})}
+  function add(p){const idx=items.findIndex(i=>i.id===p.id&&i.color===p.color);idx>-1?items[idx].quantity++:items.push({id:p.id,name:p.name,price:p.price,quantity:1,color:p.color||''});save();render();openCart()}
+  function changeQty(id,color,d){const idx=items.findIndex(i=>i.id===id&&i.color===color);if(idx<0)return;items[idx].quantity+=d;if(items[idx].quantity<=0)items.splice(idx,1);save();render()}
+  function total(){return items.reduce((s,i)=>s+i.price*i.quantity,0)}
   function getItems(){return[...items]}
   function clear(){items=[];save();render()}
 
@@ -61,7 +67,7 @@ const Cart=(function(){
       const res=await fetch(_API+'/api/cart',{headers:{'Authorization':'Bearer '+tok}});
       if(!res.ok)return;
       const {items:srv}=await res.json();
-      if(srv&&srv.length){items=srv;try{localStorage.setItem('ta_cart',JSON.stringify(items))}catch(e){}}
+      if(srv&&srv.length){items=srv.map(i=>({id:i.id,name:i.name,price:i.price,quantity:i.quantity||i.qty||1,color:i.color||i.variant||''}));try{localStorage.setItem(CART_KEY,JSON.stringify(items))}catch(e){}}
       badge();render();
     }catch(_){}
   }
@@ -75,14 +81,14 @@ const Cart=(function(){
     el.innerHTML=items.map(item=>`
       <div class="cart-item">
         <div class="ci-img"><svg viewBox="0 0 56 56" fill="none" style="width:32px"><rect x="6" y="6" width="44" height="44" rx="3" fill="#E8E4DC"/></svg></div>
-        <div><div class="ci-name">${item.name}</div><div class="ci-var">${item.variant||''}</div>
+        <div><div class="ci-name">${item.name}</div><div class="ci-var">${item.color||''}</div>
           <div class="ci-qty">
-            <button class="ci-qbtn" onclick="Cart.changeQty('${item.id}','${item.variant||''}',-1)">−</button>
-            <span class="ci-qn">${item.qty}</span>
-            <button class="ci-qbtn" onclick="Cart.changeQty('${item.id}','${item.variant||''}',1)">+</button>
+            <button class="ci-qbtn" onclick="Cart.changeQty('${item.id}','${item.color||''}',-1)">−</button>
+            <span class="ci-qn">${item.quantity}</span>
+            <button class="ci-qbtn" onclick="Cart.changeQty('${item.id}','${item.color||''}',1)">+</button>
           </div>
         </div>
-        <div class="ci-price">₹${(item.price*item.qty).toLocaleString('en-IN')}</div>
+        <div class="ci-price">₹${(item.price*item.quantity).toLocaleString('en-IN')}</div>
       </div>`).join('')
   }
   return{add,changeQty,total,getItems,clear,render,badge,loadFromServer};
@@ -149,6 +155,7 @@ function openCheckoutModal(){
   }
   // Refresh cart display
   renderCheckoutCart();
+  prefillCheckout();
   showCheckoutStep(1);
   overlay.classList.add('open');
 }
@@ -247,7 +254,7 @@ function renderCheckoutCart(){
   const el=document.getElementById('ckCartItems');
   const tot=document.getElementById('ckCartTotal');
   if(!el)return;
-  el.innerHTML=items.map(i=>`<div class="ck-cart-item"><span>${i.name} × ${i.qty}</span><span>₹${(i.price*i.qty).toLocaleString('en-IN')}</span></div>`).join('');
+  el.innerHTML=items.map(i=>`<div class="ck-cart-item"><span>${i.name} × ${i.quantity}</span><span>₹${(i.price*i.quantity).toLocaleString('en-IN')}</span></div>`).join('');
   const shipping=Cart.total()>=999?0:49;
   if(shipping>0) el.innerHTML+=`<div class="ck-cart-item"><span>Shipping</span><span>₹${shipping}</span></div>`;
   if(tot) tot.textContent='₹'+(Cart.total()+shipping).toLocaleString('en-IN');
@@ -281,7 +288,7 @@ function placeOrder(){
   const total=Cart.total()+shipping;
 
   // Build order summary
-  const itemLines=items.map(i=>`${i.name} x${i.qty} = ₹${(i.price*i.qty).toLocaleString('en-IN')}`).join('\n');
+  const itemLines=items.map(i=>`${i.name} x${i.quantity} = ₹${(i.price*i.quantity).toLocaleString('en-IN')}`).join('\n');
   const orderText=`*New Order - TriAkar*\n\n`
     +`*Items:*\n${itemLines}\n`
     +(shipping?`Shipping: ₹${shipping}\n`:'')
@@ -370,5 +377,102 @@ function copyAddress(){
   });
 }
 
+/* ══ NAV AUTH DROPDOWN ═════════════════════════════════════ */
+function updateNavAuth(){
+  // Remove any previously injected auth elements
+  document.querySelectorAll('.nav-auth-wrap,.nav-auth-link').forEach(el=>{
+    const p=el.parentElement;
+    if(p&&p.tagName==='LI')p.remove(); else el.remove();
+  });
+
+  const user=(typeof Auth!=='undefined'&&Auth.getUser)?Auth.getUser():null;
+
+  document.querySelectorAll('.nav-right').forEach(nr=>{
+    // Insert before cart-btn
+    const cartBtn=nr.querySelector('.cart-btn');
+    if(!cartBtn)return;
+
+    if(user){
+      const firstName=(user.user_metadata?.full_name||user.email||'Account').split(' ')[0];
+      const wrap=document.createElement('div');
+      wrap.className='nav-auth-wrap';
+      wrap.innerHTML=`
+        <button class="nav-profile-btn">Hi, ${firstName} ▾</button>
+        <div class="nav-profile-dropdown">
+          <a href="account.html">My Account</a>
+          <a href="account.html#orders">My Orders</a>
+          <button class="nav-logout-btn" id="navLogoutBtn">Logout</button>
+        </div>`;
+      nr.insertBefore(wrap,cartBtn);
+
+      wrap.querySelector('.nav-profile-btn').addEventListener('click',function(e){
+        e.stopPropagation();
+        wrap.classList.toggle('open');
+      });
+      wrap.querySelector('#navLogoutBtn').addEventListener('click',function(){
+        if(typeof Auth!=='undefined'&&Auth.logout)Auth.logout();
+        else{localStorage.removeItem('ta_token');localStorage.removeItem('ta_user');window.location.href='index.html';}
+      });
+    } else {
+      const a=document.createElement('a');
+      a.href='account.html';
+      a.className='nav-login-btn';
+      a.textContent='Login';
+      nr.insertBefore(a,cartBtn);
+    }
+  });
+
+  // Drawer auth + Shop Now
+  document.querySelectorAll('.nav-drawer').forEach(drawer=>{
+    const existing=drawer.querySelector('.nav-auth-link,.drawer-auth,.drawer-shop');
+    if(existing)existing.remove();
+    // Remove old drawer-auth and drawer-shop
+    drawer.querySelectorAll('.drawer-auth,.drawer-shop').forEach(e=>e.remove());
+
+    const a=document.createElement('a');
+    a.className='drawer-auth';
+    if(user){
+      const firstName=(user.user_metadata?.full_name||user.email||'Account').split(' ')[0];
+      a.href='account.html';
+      a.textContent='Hi, '+firstName;
+    } else {
+      a.href='account.html';
+      a.textContent='Login';
+    }
+    drawer.appendChild(a);
+
+    // Shop Now button for mobile drawer
+    if(!drawer.querySelector('.drawer-shop')){
+      const shop=document.createElement('a');
+      shop.href='products.html';
+      shop.className='drawer-shop';
+      shop.textContent='Shop Now';
+      drawer.appendChild(shop);
+    }
+  });
+
+  // Close dropdown on outside click
+  document.addEventListener('click',function(){
+    document.querySelectorAll('.nav-auth-wrap.open').forEach(w=>w.classList.remove('open'));
+  });
+}
+
+/* ══ CHECKOUT PRE-FILL ════════════════════════════════════ */
+function prefillCheckout(){
+  try{
+    const user=JSON.parse(localStorage.getItem('ta_user'));
+    if(!user)return;
+    const nameEl=document.getElementById('ckName');
+    const emailEl=document.getElementById('ckEmail');
+    const phoneEl=document.getElementById('ckPhone');
+    if(nameEl&&!nameEl.value&&user.user_metadata?.full_name)nameEl.value=user.user_metadata.full_name;
+    if(emailEl&&!emailEl.value&&user.email)emailEl.value=user.email;
+    if(phoneEl&&!phoneEl.value&&user.user_metadata?.phone)phoneEl.value=user.user_metadata.phone;
+  }catch(e){}
+}
+
 /* ══ DOM READY ══════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded',()=>{Cart.badge();Cart.render();Cart.loadFromServer();});
+document.addEventListener('DOMContentLoaded',()=>{
+  Cart.badge();Cart.render();Cart.loadFromServer();
+  updateNavAuth();
+});

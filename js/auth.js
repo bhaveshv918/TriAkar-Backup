@@ -71,28 +71,8 @@ const Auth = (function () {
   }
 
   function _updateNav() {
-    document.querySelectorAll('.nav-auth-link').forEach(el => {
-      const parent = el.parentElement;
-      if (parent && parent.tagName === 'LI') parent.remove();
-      else el.remove();
-    });
-
-    const user  = getUser();
-    const label = user
-      ? ((user.user_metadata?.full_name || user.email || 'Account').split(' ')[0])
-      : 'Login';
-
-    document.querySelectorAll('.nav-links').forEach(nav => {
-      const li = document.createElement('li');
-      const a  = document.createElement('a');
-      a.href = 'account.html'; a.textContent = label; a.className = 'nav-auth-link';
-      li.appendChild(a); nav.appendChild(li);
-    });
-    document.querySelectorAll('.nav-drawer').forEach(nav => {
-      const a = document.createElement('a');
-      a.href = 'account.html'; a.textContent = label; a.className = 'nav-auth-link';
-      nav.appendChild(a);
-    });
+    // Delegate to shared.js updateNavAuth if available
+    if (typeof updateNavAuth === 'function') { updateNavAuth(); return; }
   }
 
   function init() { _updateNav(); }
