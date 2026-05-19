@@ -809,8 +809,11 @@ function updateNavAuth(){
   document.querySelectorAll('.nav-right').forEach(nr=>{
     const cartBtn=nr.querySelector('.cart-btn');
     if(!cartBtn)return;
+    const shopBtn=nr.querySelector('.nav-shop');
 
     if(user){
+      // Hide the static Login/Shop button when logged in
+      if(shopBtn) shopBtn.style.display='none';
       // Priority: nickname > first name from full_name > email
       const meta=user.user_metadata||{};
       const displayName=meta.nickname||meta.full_name?.split(' ')[0]||user.email?.split('@')[0]||'Account';
@@ -821,7 +824,6 @@ function updateNavAuth(){
         <div class="nav-profile-dropdown">
           <a href="account.html">My Account</a>
           <a href="account.html#orders">My Orders</a>
-          <a href="track-order.html">Track Order</a>
           <button class="nav-logout-btn" id="navLogoutBtn">Logout</button>
         </div>`;
       nr.insertBefore(wrap,cartBtn);
@@ -834,13 +836,8 @@ function updateNavAuth(){
         if(typeof Auth!=='undefined'&&Auth.logout)Auth.logout();
         else{localStorage.removeItem('ta_token');localStorage.removeItem('ta_user');window.location.href='index.html';}
       });
-    } else {
-      const a=document.createElement('a');
-      a.href='account.html';
-      a.className='nav-login-btn';
-      a.textContent='Login';
-      nr.insertBefore(a,cartBtn);
     }
+    // When not logged in, the static nav-shop Login button is already in HTML — no dynamic button needed
   });
 
   // Drawer auth + Shop Now
