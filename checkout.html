@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Checkout — TriAkar</title>
+<title>Checkout | TriAkar</title>
 <meta name="description" content="Complete your TriAkar order. Free shipping above ₹999. Noida pickup available.">
 <meta name="keywords" content="checkout, order, TriAkar">
 <link rel="canonical" href="https://triakar.in/checkout.html">
-<meta property="og:title" content="Checkout — TriAkar">
+<meta property="og:title" content="Checkout | TriAkar">
 <meta property="og:description" content="Complete your TriAkar order. Free shipping above ₹999. Noida pickup available.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://triakar.in/checkout.html">
@@ -152,7 +152,7 @@
       <form id="ckForm" class="ck-form">
         <div class="ck-row2">
           <div class="ck-field"><label>Full Name *</label><input name="full_name" placeholder="Your full name" required></div>
-          <div class="ck-field"><label>Phone *</label><input name="phone" placeholder="+91 98765 43210" required></div>
+          <div class="ck-field"><label>Phone *</label><input name="phone" id="ckoutPhone" required></div>
         </div>
         <div class="ck-field"><label>Address Line 1 *</label><input name="address_line1" placeholder="House / Flat no., Street, Area" required></div>
         <div class="ck-field"><label>Address Line 2</label><input name="address_line2" placeholder="Landmark (optional)"></div>
@@ -186,8 +186,7 @@
         </div>
         <button class="ck-addr-edit" onclick="showStep(1)">Edit</button>
       </div>
-      <button class="ck-btn" id="ckPayBtn" onclick="placeOrder()">Pay <span id="ckPayAmt"></span> →</button>
-      <div class="ck-secure">🔒 Secured by Razorpay</div>
+      <button class="ck-btn" id="ckPayBtn" onclick="placeOrder()">Checkout · <span id="ckPayAmt"></span> →</button>
     </div>
 
   </div>
@@ -199,7 +198,7 @@
       <div>
         <div class="foot-brand">TRIAKAR</div>
         <div class="foot-hi">त्रिआकार</div>
-        <p class="foot-desc">3D Printing Services, Delhi NCR</p>
+        <p class="foot-desc">3D Printing Services, Greater Noida, Uttar Pradesh</p>
         <div class="foot-phone"><a href="tel:+919217555833">+91 92175 55833</a></div>
         <div class="foot-hours">Open all days, 11 AM to 9 PM</div>
       </div>
@@ -207,7 +206,7 @@
       <div><div class="foot-col-t">Help</div><ul class="foot-links"><li><a href="contact.html">Contact Us</a></li><li><a href="track-order.html">Track Order</a></li><li><a href="refund-policy.html">Refund Policy</a></li><li><a href="about.html">About</a></li></ul></div>
       <div><div class="foot-col-t">Legal</div><ul class="foot-links"><li><a href="terms.html">Terms &amp; Conditions</a></li><li><a href="privacy.html">Privacy Policy</a></li></ul></div>
     </div>
-    <div class="foot-bottom"><p class="foot-copy">© 2025 TriAkar. All rights reserved.</p><p class="foot-tag">Serving Delhi NCR — Noida, Greater Noida, Faridabad, Gurugram, Delhi. Shipping across India.</p></div>
+    <div class="foot-bottom"><p class="foot-copy">© 2025 TriAkar. All rights reserved.</p><p class="foot-tag">Serving Noida & Greater Noida. Shipping across India.</p></div>
   </div>
 </footer>
 
@@ -224,6 +223,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/auth.js"></script>
 <script src="products-data.js"></script>
 <script src="shared.js"></script>
@@ -246,9 +246,12 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   loadSavedAddress();
+  initPhoneField('ckoutPhone');
 
   document.getElementById('ckForm').addEventListener('submit', function(e) {
     e.preventDefault();
+    var phoneInp=document.getElementById('ckoutPhone');
+    if(phoneInp&&phoneInp._validatePhone&&!phoneInp._validatePhone())return;
     submitAddress();
   });
 });
@@ -447,20 +450,20 @@ async function placeOrder() {
       modal: {
         ondismiss: function() {
           btn.disabled = false;
-          btn.innerHTML = 'Pay <span>' + document.getElementById('ckPayAmt').textContent + '</span> →';
+          btn.innerHTML = 'Checkout · <span>' + document.getElementById('ckPayAmt').textContent + '</span> →';
         }
       }
     });
     rzp.on('payment.failed', function(r) {
       btn.disabled = false;
-      btn.innerHTML = 'Pay <span>' + document.getElementById('ckPayAmt').textContent + '</span> →';
+      btn.innerHTML = 'Checkout · <span>' + document.getElementById('ckPayAmt').textContent + '</span> →';
       alert('Payment failed: ' + r.error.description);
     });
     rzp.open();
 
   } catch (err) {
     btn.disabled = false;
-    btn.innerHTML = 'Pay <span>' + document.getElementById('ckPayAmt').textContent + '</span> →';
+    btn.innerHTML = 'Checkout · <span>' + document.getElementById('ckPayAmt').textContent + '</span> →';
     alert('Checkout error: ' + err.message);
   }
 }

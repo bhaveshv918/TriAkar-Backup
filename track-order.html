@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Track Your Order — TriAkar</title>
+<title>Track Your Order | TriAkar</title>
 <meta name="description" content="Track your TriAkar order status. Enter your order ID or contact us on WhatsApp for updates.">
 <meta name="keywords" content="track order, order status, TriAkar delivery">
 <link rel="canonical" href="https://triakar.in/track-order.html">
-<meta property="og:title" content="Track Your Order — TriAkar">
+<meta property="og:title" content="Track Your Order | TriAkar">
 <meta property="og:description" content="Track your TriAkar order status. Enter your order ID or contact us on WhatsApp for updates.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://triakar.in/track-order.html">
@@ -83,11 +83,8 @@
       <div class="t-label" style="margin-bottom:8px">Enter tracking details</div>
       <p class="t-body" style="margin-bottom:0">Your order ID was sent to your email after purchase.</p>
       <div class="track-input-row">
-        <input class="track-input" id="trackInput" type="text" placeholder="e.g. TRK-2025-XXXXX">
-        <button class="track-btn" onclick="trackOrder()">Track</button>
-      </div>
-      <div style="background:rgba(196,98,42,.06);border:1px solid rgba(196,98,42,.2);padding:12px 16px;margin-top:16px;font-size:12px;color:var(--warm);line-height:1.6">
-        <strong style="color:var(--accent)">Live tracking coming soon.</strong> We are integrating with Shiprocket. Until then, tracking updates arrive by email. <a href="contact.html" style="color:var(--accent)">Contact us</a> for order status.
+        <input class="track-input" id="trackInput" type="text" placeholder="e.g. TRK-20260519-1234">
+        <button class="track-btn" id="trackBtn" onclick="trackOrder()">Track</button>
       </div>
       <div class="track-result" id="trackResult">
         <div class="ts-bar" id="tsBar">
@@ -108,27 +105,87 @@
   </div>
 </section>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const DEMO={
-  'TRK-2025-0001':{status:2,name:'Arc Desk Organizer',date:'12 Jan 2025',eta:'15 to 17 Jan 2025',courier:'Delhivery',awb:'DEL987654321'},
-  'TRK-2025-0002':{status:4,name:'Cable Loop x4',date:'8 Jan 2025',eta:'Delivered 11 Jan 2025',courier:'Blue Dart',awb:'BD123456789'},
-};
-function trackOrder(){
-  const val=document.getElementById('trackInput').value.trim().toUpperCase();
+const sb=supabase.createClient('https://qarjbmogersuaerkhlcu.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs');
+
+const STATUS_MAP={placed:0,confirmed:1,processing:2,shipped:3,delivered:4,cancelled:-1,returned:-2,refunded:-3,pending:0};
+const STATUS_LABELS=['Confirmed','Processing','Shipped','Out for Delivery','Delivered'];
+
+function fmtDate(iso){return new Date(iso).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}
+
+async function trackOrder(){
+  const input=document.getElementById('trackInput').value.trim();
+  const btn=document.getElementById('trackBtn');
   const res=document.getElementById('trackResult');
   const det=document.getElementById('trackDetail');
-  const order=DEMO[val];
-  res.classList.add('show');
-  for(let i=0;i<5;i++){
-    const d=document.getElementById('ts'+i);
-    d.className='ts-dot'+(i<order?.status?' done':i===order?.status?' active':'');
+
+  if(!input){alert('Please enter your order ID.');return}
+
+  // Accept TRK-YYYYMMDD-XXXX format directly
+  let orderId=input.toUpperCase().trim();
+
+  btn.textContent='Searching...';btn.disabled=true;
+
+  try{
+    const{data,error}=await sb.rpc('track_order_public',{p_order_id:orderId});
+
+    res.classList.add('show');
+
+    if(error||!data||!data.found){
+      for(let i=0;i<5;i++){document.getElementById('ts'+i).className='ts-dot'}
+      det.innerHTML='<div style="text-align:center;padding:24px;font-size:13px;color:var(--stone)">No order found for <strong>'+orderId+'</strong>. Double-check your order ID or <a href="contact.html" style="color:var(--accent)">contact us</a> for help.</div>';
+      btn.textContent='Track';btn.disabled=false;
+      return;
+    }
+
+    const order=data;
+    const st=order.order_status||'placed';
+    const statusIdx=STATUS_MAP[st]??-1;
+
+    for(let i=0;i<5;i++){
+      const d=document.getElementById('ts'+i);
+      if(statusIdx<0) d.className='ts-dot';
+      else if(i<statusIdx) d.className='ts-dot done';
+      else if(i===statusIdx) d.className='ts-dot active';
+      else d.className='ts-dot';
+    }
+
+    const items=(order.items||[]).map(function(i){return(i.name||'Item')+' x'+i.quantity}).join(', ')||'—';
+
+    let html='<div class="td-row"><span class="td-l">Order ID</span><span class="td-v" style="font-weight:700">'+order.order_id+'</span></div>'
+      +'<div class="td-row"><span class="td-l">Items</span><span class="td-v">'+items+'</span></div>'
+      +'<div class="td-row"><span class="td-l">Order Date</span><span class="td-v">'+fmtDate(order.created_at)+'</span></div>'
+      +'<div class="td-row"><span class="td-l">Total</span><span class="td-v" style="font-weight:700">₹'+Number(order.total_amount).toLocaleString('en-IN')+'</span></div>'
+      +'<div class="td-row"><span class="td-l">Payment</span><span class="td-v" style="text-transform:capitalize">'+order.payment_method+' ('+order.payment_status+')</span></div>'
+      +'<div class="td-row"><span class="td-l">Status</span><span class="td-v" style="text-transform:capitalize;font-weight:600">'+st+'</span></div>';
+
+    if(order.tracking_vendor||order.tracking_number){
+      html+='<div class="td-row"><span class="td-l">Courier</span><span class="td-v">'+(order.tracking_vendor||'—')+'</span></div>';
+      html+='<div class="td-row"><span class="td-l">Tracking #</span><span class="td-v" style="font-family:var(--font-b);letter-spacing:.04em">'+(order.tracking_number||'—')+'</span></div>';
+    }
+
+    if(order.shipping_city||order.shipping_state){
+      const loc=[order.shipping_city,order.shipping_state].filter(Boolean).join(', ');
+      if(loc)html+='<div class="td-row"><span class="td-l">Shipping to</span><span class="td-v">'+loc+'</span></div>';
+    }
+
+    det.innerHTML=html;
+  }catch(err){
+    res.classList.add('show');
+    for(let i=0;i<5;i++){document.getElementById('ts'+i).className='ts-dot'}
+    det.innerHTML='<div style="text-align:center;padding:24px;font-size:13px;color:var(--stone)">Something went wrong. Please try again or <a href="contact.html" style="color:var(--accent)">contact us</a>.</div>';
   }
-  if(order){
-    det.innerHTML=`<div class="td-row"><span class="td-l">Order ID</span><span class="td-v">${val}</span></div><div class="td-row"><span class="td-l">Item</span><span class="td-v">${order.name}</span></div><div class="td-row"><span class="td-l">Order date</span><span class="td-v">${order.date}</span></div><div class="td-row"><span class="td-l">Status</span><span class="td-v">${order.eta}</span></div><div class="td-row"><span class="td-l">Courier</span><span class="td-v">${order.courier}</span></div><div class="td-row"><span class="td-l">Tracking</span><span class="td-v">${order.awb}</span></div>`;
-  }else{
-    det.innerHTML='<div style="text-align:center;padding:24px;font-size:13px;color:var(--stone)">No order found for that ID. <a href="contact.html" style="color:var(--accent)">Contact us</a> for help.</div>';
-  }
+
+  btn.textContent='Track';btn.disabled=false;
 }
+
+// Auto-fill from URL param
+(function(){
+  const p=new URLSearchParams(window.location.search).get('id');
+  if(p){document.getElementById('trackInput').value=p;trackOrder()}
+})();
+
 document.getElementById('trackInput').addEventListener('keydown',e=>{if(e.key==='Enter')trackOrder()});
 </script>
 
@@ -149,7 +206,7 @@ document.getElementById('trackInput').addEventListener('keydown',e=>{if(e.key===
       <div>
         <div class="foot-brand">TRIAKAR</div>
         <div class="foot-hi">त्रिआकार</div>
-        <p class="foot-desc">3D Printing Services, Delhi NCR</p>
+        <p class="foot-desc">3D Printing Services, Greater Noida, Uttar Pradesh</p>
         <div class="foot-phone"><a href="tel:+919217555833">+91 92175 55833</a></div>
         <div class="foot-hours">Open all days, 11 AM to 9 PM</div>
       </div>
@@ -182,7 +239,7 @@ document.getElementById('trackInput').addEventListener('keydown',e=>{if(e.key===
     </div>
     <div class="foot-bottom">
       <p class="foot-copy">© 2025 TriAkar. All rights reserved.</p>
-      <p class="foot-tag">Serving Delhi NCR — Noida, Greater Noida, Faridabad, Gurugram, Delhi. Shipping across India.</p>
+      <p class="foot-tag">Serving Noida &amp; Greater Noida. Shipping across India.</p>
     </div>
   </div>
 </footer>

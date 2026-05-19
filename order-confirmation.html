@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Order Confirmed — TriAkar</title>
+<title>Order Confirmed | TriAkar</title>
 <meta name="description" content="Your TriAkar order has been confirmed. Track your order or contact us for support.">
 <meta name="keywords" content="order confirmed, TriAkar">
 <link rel="canonical" href="https://triakar.in/order-confirmation.html">
-<meta property="og:title" content="Order Confirmed — TriAkar">
+<meta property="og:title" content="Order Confirmed | TriAkar">
 <meta property="og:description" content="Your TriAkar order has been confirmed. Track your order or contact us for support.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://triakar.in/order-confirmation.html">
@@ -120,7 +120,7 @@
       <div>
         <div class="foot-brand">TRIAKAR</div>
         <div class="foot-hi">त्रिआकार</div>
-        <p class="foot-desc">3D Printing Services, Delhi NCR</p>
+        <p class="foot-desc">3D Printing Services, Greater Noida, Uttar Pradesh</p>
         <div class="foot-phone"><a href="tel:+919217555833">+91 92175 55833</a></div>
         <div class="foot-hours">Open all days, 11 AM to 9 PM</div>
       </div>
@@ -153,7 +153,7 @@
     </div>
     <div class="foot-bottom">
       <p class="foot-copy">© 2025 TriAkar. All rights reserved.</p>
-      <p class="foot-tag">Serving Delhi NCR — Noida, Greater Noida, Faridabad, Gurugram, Delhi. Shipping across India.</p>
+      <p class="foot-tag">Serving Noida & Greater Noida. Shipping across India.</p>
     </div>
   </div>
 </footer>
@@ -170,6 +170,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/auth.js"></script>
 <script src="products-data.js"></script>
 <script src="shared.js"></script>
@@ -182,40 +183,43 @@ function fmtDate(iso) {
 }
 
 function renderOrder(order) {
-  const items = order.order_items || [];
-  const shortId = order.id.slice(0, 8).toUpperCase();
+  const items = order.items || order.order_items || [];
+  const orderId = order.order_id || order.invoice_number || ('TRK-' + order.id.slice(0, 8).toUpperCase());
 
   const itemsHtml = items.map(function(item) {
-    const name  = item.products ? item.products.name : 'Product';
-    const price = Number(item.unit_price * item.quantity).toLocaleString('en-IN');
+    const name = item.name || (item.products ? item.products.name : 'Product');
+    const qty = item.quantity || 1;
+    const price = Number((item.unit_price || item.total || 0) * (item.unit_price ? qty : 1)).toLocaleString('en-IN');
     return '<div class="confirm-item">'
       + '<div><div class="confirm-item-name">' + name + '</div>'
-      + '<div class="confirm-item-qty">Qty ' + item.quantity + (item.customization_notes ? ' · ' + item.customization_notes : '') + '</div></div>'
+      + '<div class="confirm-item-qty">Qty ' + qty + '</div></div>'
       + '<div class="confirm-item-price">₹' + price + '</div>'
       + '</div>';
   }).join('');
+
+  const st = order.order_status || order.status || 'placed';
 
   document.getElementById('confirmContent').innerHTML =
     '<div class="confirm-check">'
     + '<svg viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
     + '</div>'
     + '<div class="confirm-title">Order Confirmed</div>'
-    + '<p class="confirm-sub">Thank you! We\'ll start making your items right away.<br>Tracking details will be sent to your email once shipped.</p>'
+    + '<p class="confirm-sub">Thank you! We\'ll start making your items right away.<br>Use your order ID <strong>' + orderId + '</strong> to <a href="track-order.html?id=' + encodeURIComponent(orderId) + '" style="color:var(--accent)">track your order</a>.</p>'
 
     + '<div class="confirm-meta">'
-    + '<div class="confirm-meta-item"><div class="confirm-meta-label">Order ID</div><div class="confirm-meta-value">#' + shortId + '</div></div>'
+    + '<div class="confirm-meta-item"><div class="confirm-meta-label">Order ID</div><div class="confirm-meta-value">' + orderId + '</div></div>'
     + '<div class="confirm-meta-item"><div class="confirm-meta-label">Date</div><div class="confirm-meta-value">' + fmtDate(order.created_at) + '</div></div>'
-    + '<div class="confirm-meta-item"><div class="confirm-meta-label">Status</div><div class="confirm-meta-value"><span class="status-badge">' + order.status + '</span></div></div>'
+    + '<div class="confirm-meta-item"><div class="confirm-meta-label">Status</div><div class="confirm-meta-value"><span class="status-badge">' + st + '</span></div></div>'
     + '</div>'
 
     + '<div class="confirm-divider"></div>'
     + '<div class="confirm-items-title">Items Ordered</div>'
     + itemsHtml
-    + '<div class="confirm-total-row"><div class="confirm-total-label">Total Paid</div><div class="confirm-total-value">₹' + Number(order.total_amount).toLocaleString('en-IN') + '</div></div>'
+    + '<div class="confirm-total-row"><div class="confirm-total-label">Total</div><div class="confirm-total-value">₹' + Number(order.total_amount).toLocaleString('en-IN') + '</div></div>'
 
     + '<div class="confirm-actions">'
     + '<a href="products.html" class="btn btn-dark">Continue Shopping</a>'
-    + '<a href="account.html" class="btn btn-outline">View All Orders</a>'
+    + '<a href="account.html#orders" class="btn btn-outline">View All Orders</a>'
     + '</div>';
 }
 
@@ -231,8 +235,24 @@ async function loadOrder() {
   const orderId = new URLSearchParams(window.location.search).get('order_id');
   if (!orderId) { showError('No order ID found.'); return; }
 
+  // Try Supabase RPC first (works without auth)
+  try {
+    const sb = window.supabase ? window.supabase.createClient(
+      'https://qarjbmogersuaerkhlcu.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs'
+    ) : null;
+    if (sb) {
+      const { data, error } = await sb.rpc('track_order_public', { p_order_id: orderId });
+      if (!error && data && data.found) {
+        renderOrder(data);
+        return;
+      }
+    }
+  } catch (e) {}
+
+  // Fallback to Express API
   const token = localStorage.getItem('ta_token');
-  if (!token) { window.location.href = 'account.html'; return; }
+  if (!token) { showError('Order placed! Your order ID is <strong>' + orderId + '</strong>. Use it to track your order.'); return; }
 
   try {
     const res = await fetch(API_BASE + '/api/orders/' + orderId, {
@@ -242,7 +262,7 @@ async function loadOrder() {
     const { order } = await res.json();
     renderOrder(order);
   } catch (err) {
-    showError('Could not load order details. ' + err.message);
+    showError('Could not load order details. Your order ID: <strong>' + orderId + '</strong>');
   }
 }
 
