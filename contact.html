@@ -7,7 +7,7 @@
 <meta name="description" content="Get in touch with TriAkar. Visit our shop in Greater Noida West or reach us on WhatsApp. Open all days 11 AM to 9 PM.">
 <meta name="keywords" content="contact TriAkar, Greater Noida West, WhatsApp, 3D printing shop">
 <link rel="canonical" href="https://triakar.in/contact.html">
-<meta property="og:title" content="Contact TriAkar — Greater Noida West">
+<meta property="og:title" content="Contact TriAkar | Greater Noida West">
 <meta property="og:description" content="Get in touch with TriAkar. Visit our shop in Greater Noida West or reach us on WhatsApp. Open all days 11 AM to 9 PM.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://triakar.in/contact.html">
@@ -123,7 +123,7 @@
             </div>
             <div class="form-row">
               <label for="cPhone">Phone</label>
-              <input type="tel" id="cPhone" name="phone" required placeholder="+91 XXXXX XXXXX">
+              <input type="tel" id="cPhone" name="phone" required>
             </div>
             <div class="form-row">
               <label for="cSubject">Subject</label>
@@ -163,7 +163,7 @@
             </div>
             <div class="form-row">
               <label for="qPhone">Order Phone Number</label>
-              <input type="tel" id="qPhone" placeholder="Phone used during order">
+              <input type="tel" id="qPhone">
             </div>
             <div class="form-row">
               <label for="qDesc">Description</label>
@@ -197,7 +197,7 @@
       <div>
         <div class="foot-brand">TRIAKAR</div>
         <div class="foot-hi">त्रिआकार</div>
-        <p class="foot-desc">3D Printing Services — Greater Noida, Uttar Pradesh</p>
+        <p class="foot-desc">3D Printing Services, Greater Noida, Uttar Pradesh</p>
         <div class="foot-contact"><a href="tel:+919217555833">+91 92175 55833</a></div>
         <div class="foot-addr">Shop No. 25, Karan Singh Market, Chhoti Milak, Greater Noida West – 201318</div>
         <a href="https://maps.google.com/?q=TRIAKAR+Karan+Singh+Market+Chhoti+Milak+Greater+Noida+West+201318" target="_blank" class="foot-dir">Get Directions →</a>
@@ -231,7 +231,7 @@
     </div>
     <div class="foot-bottom">
       <p class="foot-copy">© 2025 TriAkar. All rights reserved.</p>
-      <p class="foot-eco">Made from PLA+ — corn starch, not petroleum. Less waste, more intention.</p>
+      <p class="foot-eco">Made from PLA+. Corn starch, not petroleum. Less waste, more intention.</p>
     </div>
   </div>
 </footer>
@@ -240,22 +240,66 @@
 <script src="products-data.js"></script>
 <script src="shared.js"></script>
 <script>
-function submitContact(e){
+// Init phone fields
+document.addEventListener('DOMContentLoaded',function(){
+  initPhoneField('cPhone');
+  initPhoneField('qPhone');
+});
+
+async function submitContact(e){
   e.preventDefault();
-  const name=document.getElementById('cName').value;
-  const email=document.getElementById('cEmail').value;
+  const phoneInp=document.getElementById('cPhone');
+  if(phoneInp._validatePhone&&!phoneInp._validatePhone())return;
+  const name=document.getElementById('cName').value.trim();
+  const email=document.getElementById('cEmail').value.trim();
   const phone=document.getElementById('cPhone').value;
   const subject=document.getElementById('cSubject').value;
-  const message=document.getElementById('cMessage').value;
-  const text=`New Contact from TriAkar Website%0A%0AName: ${name}%0AEmail: ${email}%0APhone: ${phone}%0ASubject: ${subject}%0AMessage: ${message}`;
-  window.open('https://wa.me/919217555833?text='+text,'_blank');
-  e.target.reset();
+  const message=document.getElementById('cMessage').value.trim();
+  const now=new Date();
+  const timestamp=formatIST(now);
+  const form=e.target;
+  const btn=form.querySelector('button[type="submit"]');
+  if(btn){btn.textContent='Sending...';btn.disabled=true}
+
+  // Save to Supabase
+  const sb=getSB();
+  if(!sb){
+    console.error('Supabase client not available');
+    if(btn){btn.textContent='Send Message';btn.disabled=false}
+    form.insertAdjacentHTML('afterbegin','<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#991B1B">Could not connect to our server. Please try again or email us at <a href="mailto:hello@triakar.com" style="color:#991B1B;text-decoration:underline">hello@triakar.com</a></div>');
+    return;
+  }
+  try{
+    const {data,error}=await sb.from('contact_submissions').insert([{
+      name:name,email:email,phone:phone,
+      subject:subject,message:message
+    }]).select();
+    if(error){console.error('Supabase insert error:',JSON.stringify(error));throw error;}
+    console.log('Contact saved:',data);
+  }catch(err){
+    console.error('Contact save failed:',err);
+    if(btn){btn.textContent='Send Message';btn.disabled=false}
+    const existing=form.querySelector('.ta-form-err');
+    if(existing)existing.remove();
+    form.insertAdjacentHTML('afterbegin','<div class="ta-form-err" style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#991B1B">Something went wrong. Please try again or email us at <a href="mailto:hello@triakar.com" style="color:#991B1B;text-decoration:underline">hello@triakar.com</a></div>');
+    return;
+  }
+
+  // Show confirmation with timestamp
+  form.innerHTML='<div style="text-align:center;padding:32px 0">'
+    +'<div style="width:48px;height:48px;border-radius:50%;background:var(--charcoal);display:flex;align-items:center;justify-content:center;margin:0 auto 16px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>'
+    +'<div style="font-size:17px;font-weight:700;color:var(--charcoal);margin-bottom:8px">Message Submitted</div>'
+    +'<div style="font-size:13px;color:var(--stone);line-height:1.7">Your message was received on '+timestamp+'.<br>We\'ll get back to you within 24 hours.</div>'
+    +'<a href="contact.html" class="btn btn-outline" style="margin-top:20px;font-size:11px">Send Another Message</a>'
+    +'</div>';
 }
 function raiseQuery(){
+  const phoneInp=document.getElementById('qPhone');
+  if(phoneInp._validatePhone&&!phoneInp._validatePhone())return;
   const type=document.getElementById('qType').value||'General';
   const phone=document.getElementById('qPhone').value||'Not provided';
   const desc=document.getElementById('qDesc').value||'No description';
-  const text=`Customer Query – TriAkar%0A%0AType: ${type}%0AOrder Phone: ${phone}%0AIssue: ${desc}`;
+  const text=`Customer Query, TriAkar%0A%0AType: ${type}%0AOrder Phone: ${phone}%0AIssue: ${desc}`;
   window.open('https://wa.me/919217555833?text='+text,'_blank');
 }
 </script>

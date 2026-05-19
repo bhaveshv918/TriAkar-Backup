@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>My Account — TriAkar</title>
+<title>My Account | TriAkar</title>
 <meta name="description" content="Manage your TriAkar account, view orders, edit profile, and manage addresses.">
 <link rel="canonical" href="https://triakar.in/account.html">
-<meta property="og:title" content="My Account — TriAkar">
+<meta property="og:title" content="My Account | TriAkar">
 <meta property="og:description" content="Manage your TriAkar account, view orders and track deliveries.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://triakar.in/account.html">
@@ -185,7 +185,7 @@
         <p class="auth-form-sub">Join TriAkar to track orders, save addresses, and check out faster.</p>
         <div class="field"><label for="signupName">Full Name</label><input type="text" id="signupName" placeholder="Your full name" required autocomplete="name"></div>
         <div class="field"><label for="signupEmail">Email</label><input type="email" id="signupEmail" placeholder="you@example.com" required autocomplete="email"></div>
-        <div class="field"><label for="signupPhone">Phone <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--stone-l)">(optional)</span></label><input type="tel" id="signupPhone" placeholder="+91 98765 43210" autocomplete="tel"></div>
+        <div class="field"><label for="signupPhone">Phone *</label><input type="tel" id="signupPhone" required autocomplete="tel"></div>
         <div class="field"><label for="signupPassword">Password</label><input type="password" id="signupPassword" placeholder="Min. 8 characters" required minlength="8" autocomplete="new-password"></div>
         <button type="submit" class="btn btn-dark auth-submit" id="signupBtn">Create Account →</button>
         <div class="auth-msg" id="signupMsg"></div>
@@ -224,8 +224,8 @@
           </div>
           <div class="field"><label>Email</label><input type="email" id="profEmail" disabled style="opacity:.6"></div>
           <div class="profile-row">
-            <div class="field"><label>Mobile</label><input type="tel" id="profMobile" placeholder="+91 98765 43210"></div>
-            <div class="field"><label>Alternate Mobile</label><input type="tel" id="profAltMobile" placeholder="Optional"></div>
+            <div class="field"><label>Mobile *</label><input type="tel" id="profMobile" required></div>
+            <div class="field"><label>Alternate Mobile</label><input type="tel" id="profAltMobile"></div>
           </div>
           <div class="profile-row">
             <div class="field"><label>Gender</label>
@@ -259,10 +259,14 @@
           </div>
         </div>
         <div class="settings-section">
-          <div class="settings-title">Danger Zone</div>
+          <div class="settings-title">Support</div>
           <div class="settings-item">
-            <div><div class="settings-label" style="color:#B91C1C">Delete Account</div><div class="settings-desc">Permanently delete your account and all data</div></div>
-            <button class="danger-btn" onclick="requestDeleteAccount()">Delete</button>
+            <div><div class="settings-label">Need Help?</div><div class="settings-desc">Chat with us on WhatsApp or give us a call</div></div>
+            <a href="https://wa.me/919217555833" target="_blank" class="btn btn-outline" style="font-size:10px;padding:8px 16px;text-decoration:none">WhatsApp</a>
+          </div>
+          <div class="settings-item">
+            <div><div class="settings-label">Delete Account</div><div class="settings-desc">Contact us to request account deletion</div></div>
+            <button class="btn btn-outline" style="font-size:10px;padding:8px 16px" onclick="requestDeleteAccount()">Request</button>
           </div>
         </div>
       </div>
@@ -277,7 +281,7 @@
       <div>
         <div class="foot-brand">TRIAKAR</div>
         <div class="foot-hi">त्रिआकार</div>
-        <p class="foot-desc">3D Printing Services — Greater Noida, Uttar Pradesh</p>
+        <p class="foot-desc">3D Printing Services, Greater Noida, Uttar Pradesh</p>
         <div class="foot-phone"><a href="tel:+919217555833">+91 92175 55833</a></div>
         <div class="foot-hours">Open all days, 11 AM to 9 PM</div>
       </div>
@@ -364,6 +368,8 @@ async function handleLogin(e){
 
 async function handleSignup(e){
   e.preventDefault();
+  const phoneInp=document.getElementById('signupPhone');
+  if(phoneInp&&phoneInp._validatePhone&&!phoneInp._validatePhone())return;
   const btn=document.getElementById('signupBtn');
   btn.textContent='Creating account...';btn.disabled=true;
   try{
@@ -443,8 +449,14 @@ async function loadProfile(){
     if(data){
       document.getElementById('profName').value=data.full_name||meta.full_name||'';
       document.getElementById('profNickname').value=data.nickname||'';
-      document.getElementById('profMobile').value=data.mobile||'';
-      document.getElementById('profAltMobile').value=data.alternate_mobile||'';
+      // Set phone values and sync phone components
+      const mobileVal=data.mobile||'';
+      const altMobileVal=data.alternate_mobile||'';
+      document.getElementById('profMobile').value=mobileVal;
+      document.getElementById('profAltMobile').value=altMobileVal;
+      // Sync phone component display
+      if(mobileVal){splitPhoneValue('profMobile',mobileVal)}
+      if(altMobileVal){splitPhoneValue('profAltMobile',altMobileVal)}
       document.getElementById('profGender').value=data.gender||'';
       document.getElementById('profDob').value=data.date_of_birth||'';
       document.getElementById('profAnniversary').value=data.anniversary_date||'';
@@ -454,6 +466,8 @@ async function loadProfile(){
 
 async function saveProfile(e){
   e.preventDefault();
+  const profPhoneInp=document.getElementById('profMobile');
+  if(profPhoneInp&&profPhoneInp._validatePhone&&!profPhoneInp._validatePhone())return;
   if(!sb)return;
   const user=Auth.getUser();
   if(!user)return;
@@ -540,6 +554,8 @@ function showAddressForm(existing){
       <button class="btn btn-dark" style="width:100%;justify-content:center;margin-top:8px" onclick="saveAddress()">Save Address →</button>
     </div>
   `;
+  // Init phone field
+  initPhoneField('addrPhone');
   // Pincode auto-fill
   document.getElementById('addrPincode').addEventListener('input',async function(){
     if(this.value.length===6){
@@ -564,6 +580,8 @@ async function saveAddress(){
   const city=document.getElementById('addrCity').value.trim();
   const state=document.getElementById('addrState').value.trim();
   const pin=document.getElementById('addrPincode').value.trim();
+  const phoneInp=document.getElementById('addrPhone');
+  if(phoneInp&&phoneInp._validatePhone&&!phoneInp._validatePhone())return;
   if(!name||!phone||!line1||!city||!state||!pin){alert('Please fill all required fields.');return}
 
   const rec={
@@ -657,7 +675,21 @@ function showDashboard(){
   else if(hash==='settings')switchDashTab('settings');
 }
 
+function splitPhoneValue(id,val){
+  const ccEl=document.getElementById(id+'_cc');
+  const numEl=document.getElementById(id+'_num');
+  if(!ccEl||!numEl)return;
+  for(const cc of COUNTRY_CODES){
+    if(val.startsWith(cc)){ccEl.value=cc;numEl.value=val.slice(cc.length).replace(/\D/g,'');return}
+  }
+  numEl.value=val.replace(/\D/g,'');
+}
+
 document.addEventListener('DOMContentLoaded',function(){
+  // Init phone fields on auth forms
+  initPhoneField('signupPhone');
+  initPhoneField('profMobile');
+  initPhoneField('profAltMobile');
   if(Auth.isLoggedIn()){showDashboard()}
 });
 </script>

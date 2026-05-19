@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TriAkar — Command Center</title>
+<title>TriAkar | Command Center</title>
 <meta name="robots" content="noindex,nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -333,6 +333,9 @@ img{display:block;max-width:100%}
   font-size:9px;background:var(--bg-3);color:var(--text-3);
   padding:1px 6px;border-radius:10px;margin-left:6px;
 }
+.tab{position:relative}
+.tab-dot{display:none;width:7px;height:7px;border-radius:50%;background:#EF4444;position:absolute;top:8px;right:6px;box-shadow:0 0 0 2px var(--bg-1)}
+.tab-dot.visible{display:block}
 
 /* Panel */
 .panel{display:none;padding:28px 24px 64px;max-width:1400px;margin:0 auto}
@@ -654,14 +657,14 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="terminal-dot r"></div>
       <div class="terminal-dot y"></div>
       <div class="terminal-dot g"></div>
-      <div class="terminal-title">triakar://admin — <span id="terminalStatus">connecting...</span></div>
+      <div class="terminal-title">triakar://admin · <span id="terminalStatus">connecting...</span></div>
     </div>
     <div class="login-box">
       <!-- Fingerprint watermark -->
       <div class="fp-scan"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width=".5"><circle cx="16" cy="16" r="14"/><circle cx="16" cy="16" r="10"/><circle cx="16" cy="16" r="6"/><circle cx="16" cy="16" r="2"/><line x1="16" y1="0" x2="16" y2="32"/><line x1="0" y1="16" x2="32" y2="16"/></svg></div>
       <div class="login-greeting" id="loginGreeting"></div>
       <div class="login-title">Command Center</div>
-      <div class="login-sub">// authorized access only — all activity monitored</div>
+      <div class="login-sub">// authorized access only · all activity monitored</div>
       <!-- Honeypot field — bots will fill this, humans won't see it -->
       <div class="hp-field"><label>Company</label><input type="text" id="hpField" tabindex="-1" autocomplete="off"></div>
       <div class="l-field">
@@ -731,10 +734,11 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
   </div>
 
   <div class="tab-bar">
-    <button class="tab active" data-tab="orders" onclick="switchTab('orders')">Orders <span class="tab-count" id="orderCount">0</span></button>
-    <button class="tab" data-tab="customers" onclick="switchTab('customers')">Customers <span class="tab-count" id="customerCount">0</span></button>
+    <button class="tab active" data-tab="orders" onclick="switchTab('orders')">Orders <span class="tab-count" id="orderCount">0</span><span class="tab-dot" id="dotOrders"></span></button>
+    <button class="tab" data-tab="customers" onclick="switchTab('customers')">Customers <span class="tab-count" id="customerCount">0</span><span class="tab-dot" id="dotCustomers"></span></button>
     <button class="tab" data-tab="products" onclick="switchTab('products')">Products <span class="tab-count" id="productCount">0</span></button>
-    <button class="tab" data-tab="inquiries" onclick="switchTab('inquiries')">Inquiries <span class="tab-count" id="inquiryCount">0</span></button>
+    <button class="tab" data-tab="messages" onclick="switchTab('messages')">Messages <span class="tab-count" id="messageCount">0</span><span class="tab-dot" id="dotMessages"></span></button>
+    <button class="tab" data-tab="inquiries" onclick="switchTab('inquiries')">Inquiries <span class="tab-count" id="inquiryCount">0</span><span class="tab-dot" id="dotInquiries"></span></button>
     <button class="tab" data-tab="categories" onclick="switchTab('categories')">Categories</button>
     <button class="tab" data-tab="logs" onclick="switchTab('logs')">Security Logs</button>
   </div>
@@ -853,7 +857,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <!-- Description & Notes -->
       <div class="form-section">Description & Notes</div>
       <div class="fg fg-full">
-        <div class="ff"><label>Description <span class="hint">(shown to customers)</span></label><textarea id="fDescription" rows="3" placeholder="Describe the product — what it does, why they need it…"></textarea></div>
+        <div class="ff"><label>Description <span class="hint">(shown to customers)</span></label><textarea id="fDescription" rows="3" placeholder="Describe the product. What it does, why they need it…"></textarea></div>
       </div>
       <div class="fg fg-full" style="margin-top:0">
         <div class="ff"><label>Internal Notes <span class="hint">(only visible to you)</span></label><textarea id="fNotes" rows="2" placeholder="Production notes, cost price, supplier info…"></textarea></div>
@@ -863,7 +867,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="form-section">Images <span class="hint">(up to 10)</span></div>
       <div class="img-zone" id="imgZone">
         <div class="img-zone-text">Drop images here or click to browse</div>
-        <div class="img-zone-sub">JPG, PNG, WebP — max 5MB each — up to 10 images</div>
+        <div class="img-zone-sub">JPG, PNG, WebP · Max 5MB each · Up to 10 images</div>
         <input type="file" id="imgFileInput" accept="image/jpeg,image/png,image/webp" multiple>
       </div>
       <div class="img-grid" id="imgGrid"></div>
@@ -922,6 +926,23 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <table>
         <thead><tr><th>Name</th><th>Email</th><th>Mobile</th><th>Orders</th><th>Joined</th></tr></thead>
         <tbody id="customersBody"><tr><td colspan="5" class="tbl-msg">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── MESSAGES PANEL ────────────────────────── -->
+  <div class="panel" id="panelMessages">
+    <div class="p-head">
+      <div class="p-title">Contact Messages</div>
+      <div class="p-actions">
+        <button class="btn-secondary" onclick="loadMessages()">⟳ Refresh</button>
+        <input type="text" id="messageSearch" placeholder="Search name, email, subject..." oninput="filterMessages()" style="min-width:180px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Name</th><th>Email</th><th>Phone</th><th>Subject</th><th>Message</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="messagesBody"><tr><td colspan="8" class="tbl-msg">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1294,7 +1315,7 @@ function showDashboard(user){
   document.getElementById('adminDash').classList.add('show');
   updateClock();setInterval(updateClock,30000);
   initTheme();
-  loadCategories().then(()=>{loadProducts();loadOrders();loadLogs();loadCustomers();loadInquiries()});
+  loadCategories().then(()=>{loadProducts();loadOrders();loadLogs();loadCustomers();loadInquiries();loadMessages()});
 }
 
 // Check existing session on load
@@ -1341,13 +1362,23 @@ function updateClock(){
 }
 function fmtDate(iso){return new Date(iso).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
 function fmtDateShort(iso){return new Date(iso).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}
+function fmtDateTimeIST(iso){return new Date(iso).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true})}
 function fmtPrice(n){return '₹'+Number(n).toLocaleString('en-IN')}
 function toast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type||'')+' show';setTimeout(()=>t.classList.remove('show'),3000)}
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['Orders','Customers','Products','Inquiries','Categories','Logs'].forEach(p=>{
+  ['Orders','Customers','Products','Messages','Inquiries','Categories','Logs'].forEach(p=>{
     document.getElementById('panel'+p).classList.toggle('active',p.toLowerCase()===tab);
   });
+  // Clear notification dot and save seen count
+  const dotMap={orders:'dotOrders',customers:'dotCustomers',messages:'dotMessages',inquiries:'dotInquiries'};
+  const countEls={orders:'orderCount',customers:'customerCount',messages:'messageCount',inquiries:'inquiryCount'};
+  if(dotMap[tab]){
+    const dot=document.getElementById(dotMap[tab]);
+    if(dot)dot.classList.remove('visible');
+    const countEl=document.getElementById(countEls[tab]);
+    if(countEl)localStorage.setItem('ta_seen_'+tab,countEl.textContent);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1419,6 +1450,7 @@ async function loadOrders(){
   if(error){document.getElementById('ordersBody').innerHTML='<tr><td colspan="8" class="tbl-msg">Error: '+error.message+'</td></tr>';return}
   _orders=data||[];
   document.getElementById('orderCount').textContent=_orders.length;
+  checkNewItems('orders','dotOrders',_orders.length);
   filterOrders();
 }
 
@@ -1485,7 +1517,7 @@ function renderOrders(orders){
     const itemsDetail=(o.order_items||[]).map(i=>{
       const pname=(i.products||{}).name||'Item';
       const cust=i.customization_notes?'<span style="color:var(--accent);font-size:10px;margin-left:6px">['+i.customization_notes+']</span>':'';
-      return '<div class="od-item"><span>'+pname+cust+'</span><span>x'+i.quantity+' — '+fmtPrice(i.unit_price*i.quantity)+'</span></div>';
+      return '<div class="od-item"><span>'+pname+cust+'</span><span>x'+i.quantity+' · '+fmtPrice(i.unit_price*i.quantity)+'</span></div>';
     }).join('')||'<span style="color:var(--text-3)">No items</span>';
 
     // Payment info
@@ -1614,7 +1646,7 @@ function toggleUrgencyField(){
   const type=document.getElementById('fUrgencyType').value;
   document.getElementById('urgencyTextWrap').style.display=type?'flex':'none';
   if(type==='limited_time')document.getElementById('fUrgencyText').placeholder='Only available till June 30';
-  else if(type==='last_month')document.getElementById('fUrgencyText').placeholder='Last month — grab it while you can';
+  else if(type==='last_month')document.getElementById('fUrgencyText').placeholder='Last month. Grab it while you can.';
   else if(type==='discontinuing')document.getElementById('fUrgencyText').placeholder='We are discontinuing this soon';
   else document.getElementById('fUrgencyText').placeholder='Your custom urgency message';
 }
@@ -1882,6 +1914,7 @@ async function loadCustomers(){
   if(error){document.getElementById('customersBody').innerHTML='<tr><td colspan="5" class="tbl-msg">Error loading customers</td></tr>';return}
   _customers=data||[];
   document.getElementById('customerCount').textContent=_customers.length;
+  checkNewItems('customers','dotCustomers',_customers.length);
   renderCustomers(_customers);
 }
 
@@ -1919,6 +1952,7 @@ async function loadInquiries(){
   if(error){document.getElementById('inquiriesBody').innerHTML='<tr><td colspan="8" class="tbl-msg">Error loading inquiries</td></tr>';return}
   _inquiries=data||[];
   document.getElementById('inquiryCount').textContent=_inquiries.length;
+  checkNewItems('inquiries','dotInquiries',_inquiries.length);
   renderInquiries(_inquiries);
 }
 
@@ -1929,7 +1963,7 @@ function renderInquiries(list){
     const responded=q.is_responded;
     const badge=responded?'<span class="badge badge-green">Responded</span>':'<span class="badge badge-yellow">Pending</span>';
     return '<tr>'
-      +'<td style="font-size:11px;white-space:nowrap">'+fmtDateShort(q.created_at)+'</td>'
+      +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(q.created_at)+'</td>'
       +'<td class="td-name">'+(q.company_name||'—')+'</td>'
       +'<td>'+(q.contact_name||'—')+'</td>'
       +'<td style="font-family:var(--mono);font-size:11px">'+(q.email||'—')+'</td>'
@@ -1948,6 +1982,74 @@ async function markInquiryResponded(id){
   if(error){toast('Error: '+error.message,'error');return}
   toast('Inquiry marked as responded','success');
   loadInquiries();
+}
+
+/* ═══ NOTIFICATION DOTS ═══════════════════════════ */
+function checkNewItems(key,dotId,currentCount){
+  const seen=parseInt(localStorage.getItem('ta_seen_'+key)||'0',10);
+  const dot=document.getElementById(dotId);
+  if(!dot)return;
+  // Check if this tab is currently active
+  const tabBtn=dot.closest('.tab');
+  const isActive=tabBtn&&tabBtn.classList.contains('active');
+  if(currentCount>seen&&!isActive){
+    dot.classList.add('visible');
+  }else{
+    dot.classList.remove('visible');
+    localStorage.setItem('ta_seen_'+key,currentCount);
+  }
+}
+
+/* ═══ MESSAGES (contact_submissions) ═══════════════ */
+let _messages=[];
+async function loadMessages(){
+  const{data,error}=await sb.from('contact_submissions').select('*').order('created_at',{ascending:false});
+  if(error){document.getElementById('messagesBody').innerHTML='<tr><td colspan="8" class="tbl-msg">Error loading messages</td></tr>';return}
+  _messages=data||[];
+  document.getElementById('messageCount').textContent=_messages.length;
+  checkNewItems('messages','dotMessages',_messages.length);
+  renderMessages(_messages);
+}
+
+function renderMessages(list){
+  const tbody=document.getElementById('messagesBody');
+  if(!list.length){tbody.innerHTML='<tr><td colspan="8" class="tbl-msg">No messages yet.</td></tr>';return}
+  tbody.innerHTML=list.map(m=>{
+    const read=m.is_read;
+    const badge=read?'<span class="badge badge-green">Read</span>':'<span class="badge badge-yellow">New</span>';
+    const rowStyle=read?'':'style="background:rgba(196,98,42,.04)"';
+    return '<tr '+rowStyle+'>'
+      +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(m.created_at)+'</td>'
+      +'<td class="td-name">'+(m.name||'—')+'</td>'
+      +'<td style="font-family:var(--mono);font-size:11px">'+(m.email||'—')+'</td>'
+      +'<td>'+(m.phone||'—')+'</td>'
+      +'<td>'+(m.subject||'—')+'</td>'
+      +'<td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer" title="'+(m.message||'').replace(/"/g,'&quot;')+'">'+(m.message||'—')+'</td>'
+      +'<td>'+badge+'</td>'
+      +'<td onclick="event.stopPropagation()">'
+        +(read?'':'<button class="btn-save" onclick="markMessageRead(\''+m.id+'\')">Mark Read</button>')
+      +'</td>'
+      +'</tr>';
+  }).join('');
+}
+
+function filterMessages(){
+  const q=(document.getElementById('messageSearch').value||'').toLowerCase();
+  if(!q){renderMessages(_messages);return}
+  renderMessages(_messages.filter(m=>{
+    return (m.name||'').toLowerCase().includes(q)
+      ||(m.email||'').toLowerCase().includes(q)
+      ||(m.subject||'').toLowerCase().includes(q)
+      ||(m.message||'').toLowerCase().includes(q)
+      ||(m.phone||'').includes(q);
+  }));
+}
+
+async function markMessageRead(id){
+  const{error}=await sb.from('contact_submissions').update({is_read:true}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return}
+  toast('Message marked as read','success');
+  loadMessages();
 }
 </script>
 </body>

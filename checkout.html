@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Checkout — TriAkar</title>
+<title>Checkout | TriAkar</title>
 <meta name="description" content="Complete your TriAkar order. Free shipping above ₹999. Noida pickup available.">
 <meta name="keywords" content="checkout, order, TriAkar">
 <link rel="canonical" href="https://triakar.in/checkout.html">
-<meta property="og:title" content="Checkout — TriAkar">
+<meta property="og:title" content="Checkout | TriAkar">
 <meta property="og:description" content="Complete your TriAkar order. Free shipping above ₹999. Noida pickup available.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://triakar.in/checkout.html">
@@ -152,7 +152,7 @@
       <form id="ckForm" class="ck-form">
         <div class="ck-row2">
           <div class="ck-field"><label>Full Name *</label><input name="full_name" placeholder="Your full name" required></div>
-          <div class="ck-field"><label>Phone *</label><input name="phone" placeholder="+91 98765 43210" required></div>
+          <div class="ck-field"><label>Phone *</label><input name="phone" id="ckoutPhone" required></div>
         </div>
         <div class="ck-field"><label>Address Line 1 *</label><input name="address_line1" placeholder="House / Flat no., Street, Area" required></div>
         <div class="ck-field"><label>Address Line 2</label><input name="address_line2" placeholder="Landmark (optional)"></div>
@@ -186,7 +186,7 @@
         </div>
         <button class="ck-addr-edit" onclick="showStep(1)">Edit</button>
       </div>
-      <button class="ck-btn" id="ckPayBtn" onclick="placeOrder()">Checkout — <span id="ckPayAmt"></span> →</button>
+      <button class="ck-btn" id="ckPayBtn" onclick="placeOrder()">Checkout · <span id="ckPayAmt"></span> →</button>
     </div>
 
   </div>
@@ -198,7 +198,7 @@
       <div>
         <div class="foot-brand">TRIAKAR</div>
         <div class="foot-hi">त्रिआकार</div>
-        <p class="foot-desc">3D Printing Services — Greater Noida, Uttar Pradesh</p>
+        <p class="foot-desc">3D Printing Services, Greater Noida, Uttar Pradesh</p>
         <div class="foot-phone"><a href="tel:+919217555833">+91 92175 55833</a></div>
         <div class="foot-hours">Open all days, 11 AM to 9 PM</div>
       </div>
@@ -246,9 +246,12 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   loadSavedAddress();
+  initPhoneField('ckoutPhone');
 
   document.getElementById('ckForm').addEventListener('submit', function(e) {
     e.preventDefault();
+    var phoneInp=document.getElementById('ckoutPhone');
+    if(phoneInp&&phoneInp._validatePhone&&!phoneInp._validatePhone())return;
     submitAddress();
   });
 });
@@ -447,20 +450,20 @@ async function placeOrder() {
       modal: {
         ondismiss: function() {
           btn.disabled = false;
-          btn.innerHTML = 'Checkout — <span>' + document.getElementById('ckPayAmt').textContent + '</span> →';
+          btn.innerHTML = 'Checkout · <span>' + document.getElementById('ckPayAmt').textContent + '</span> →';
         }
       }
     });
     rzp.on('payment.failed', function(r) {
       btn.disabled = false;
-      btn.innerHTML = 'Checkout — <span>' + document.getElementById('ckPayAmt').textContent + '</span> →';
+      btn.innerHTML = 'Checkout · <span>' + document.getElementById('ckPayAmt').textContent + '</span> →';
       alert('Payment failed: ' + r.error.description);
     });
     rzp.open();
 
   } catch (err) {
     btn.disabled = false;
-    btn.innerHTML = 'Checkout — <span>' + document.getElementById('ckPayAmt').textContent + '</span> →';
+    btn.innerHTML = 'Checkout · <span>' + document.getElementById('ckPayAmt').textContent + '</span> →';
     alert('Checkout error: ' + err.message);
   }
 }

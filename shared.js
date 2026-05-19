@@ -307,6 +307,7 @@ function buildCheckoutHTML(){
 }
 
 function initCheckoutModal(){
+  initPhoneField('ckPhone');
   const stateWrap=document.getElementById('ckStateWrap');
   if(stateWrap) initSearchableDropdown(stateWrap);
 
@@ -468,6 +469,8 @@ function getCheckoutData(){
 
 function validateAndNext(){
   const d=getCheckoutData();
+  const phoneInp=document.getElementById('ckPhone');
+  if(phoneInp&&phoneInp._validatePhone&&!phoneInp._validatePhone())return;
   if(!d.name||!d.phone||!d.email){alert('Please fill name, phone and email.');return;}
   if(!window._selectedAddress){
     if(!d.address_line1||!d.city||!d.state||!d.pincode){alert('Please fill all required address fields.');return;}
@@ -608,7 +611,7 @@ async function placeOrder(){
     }catch(e){}
     // Build WhatsApp message for customer
     const itemLines=items.map(i=>i.name+' x'+i.quantity+' = ₹'+(i.price*i.quantity).toLocaleString('en-IN')).join('\n');
-    const orderText='*New Order — TriAkar*\n'
+    const orderText='*New Order, TriAkar*\n'
       +'*Order ID:* '+trkId+'\n\n'
       +'*Items:*\n'+itemLines+'\n'
       +(shipping?'Shipping: ₹'+shipping+'\n':'')
@@ -681,7 +684,7 @@ function sendShopWhatsApp(trkId,d,items,total,payLabel){
   const msg='🔔 *New Order!*\n'
     +'*'+trkId+'*\n'
     +itemLines+'\n'
-    +'*₹'+total.toLocaleString('en-IN')+'* — '+payLabel+'\n'
+    +'*₹'+total.toLocaleString('en-IN')+'* · '+payLabel+'\n'
     +d.name+' · '+d.phone+'\n'
     +d.city+', '+d.state;
   // Open in background — user sees their confirmation, shop gets notified
@@ -753,7 +756,7 @@ function openCallbackModal(){
       <button class="cb-close" onclick="closeCallbackModal()">&times;</button>
       <h3 style="font-size:17px;font-weight:700;margin-bottom:16px">Request a Callback</h3>
       <div class="ck-field"><label>Your Name *</label><input type="text" id="cbName"></div>
-      <div class="ck-field"><label>Phone Number *</label><input type="tel" id="cbPhone"></div>
+      <div class="ck-field"><label>Phone Number *</label><input type="tel" id="cbPhone" required></div>
       <div class="ck-field"><label>Topic</label>
         <select id="cbTopic" style="width:100%;padding:10px 12px;border:1px solid var(--stone-p);font-family:var(--font-b);font-size:14px">
           <option>Custom order</option><option>Replacement part</option><option>Corporate gifting</option><option>Other</option>
@@ -769,10 +772,13 @@ function openCallbackModal(){
     document.body.appendChild(ov);
   }
   ov.classList.add('open');
+  setTimeout(function(){initPhoneField('cbPhone')},50);
 }
 function closeCallbackModal(){document.getElementById('cbOverlay')?.classList.remove('open')}
 function submitCallback(){
   const name=document.getElementById('cbName').value.trim();
+  const phoneInp=document.getElementById('cbPhone');
+  if(phoneInp&&phoneInp._validatePhone&&!phoneInp._validatePhone())return;
   const phone=document.getElementById('cbPhone').value.trim();
   const topic=document.getElementById('cbTopic').value;
   const time=document.getElementById('cbTime').value;
@@ -868,6 +874,130 @@ function updateNavAuth(){
   });
 }
 
+/* ══ PHONE VALIDATION ═════════════════════════════════════ */
+const PHONE_RULES={'+91':{len:10,label:'Indian'},'+1':{len:10,label:'US/Canada'},'+44':{len:10,label:'UK'},'+971':{len:9,label:'UAE'},'+61':{len:9,label:'Australia'},'+65':{len:8,label:'Singapore'},'+49':{len:10,label:'Germany'}};
+const COUNTRY_CODES=['+91','+1','+44','+971','+61','+65','+49'];
+
+function initPhoneField(inputId,options){
+  const inp=document.getElementById(inputId);
+  if(!inp||inp.dataset.phoneInit)return;
+  inp.dataset.phoneInit='1';
+  const wrap=inp.parentElement;
+
+  // Create prefix + input layout
+  const container=document.createElement('div');
+  container.className='ta-phone-wrap';
+  const prefix=document.createElement('select');
+  prefix.className='ta-phone-prefix';
+  prefix.id=inputId+'_cc';
+  COUNTRY_CODES.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;prefix.appendChild(o)});
+  const numInp=document.createElement('input');
+  numInp.type='tel';numInp.className='ta-phone-num';
+  numInp.id=inputId+'_num';
+  numInp.placeholder='XXXXXXXXXX';
+  numInp.required=inp.required;
+  numInp.autocomplete='tel-national';
+  numInp.setAttribute('inputmode','numeric');
+  numInp.setAttribute('pattern','[0-9]*');
+
+  const errDiv=document.createElement('div');
+  errDiv.className='ta-phone-err';errDiv.id=inputId+'_err';
+
+  // Hide original input, keep for form value
+  inp.type='hidden';
+  container.appendChild(prefix);
+  container.appendChild(numInp);
+  inp.parentElement.insertBefore(container,inp.nextSibling);
+  inp.parentElement.appendChild(errDiv);
+
+  // Sync hidden field
+  function syncValue(){
+    const cc=prefix.value;
+    const num=numInp.value.replace(/\D/g,'');
+    numInp.value=num;
+    inp.value=num?cc+num:'';
+  }
+
+  // Validate
+  function validate(){
+    const cc=prefix.value;
+    const num=numInp.value.replace(/\D/g,'');
+    const rule=PHONE_RULES[cc]||{len:10};
+    errDiv.textContent='';
+    if(!num&&numInp.required){errDiv.textContent='Phone number is required.';return false}
+    if(num&&num.length!==rule.len){
+      errDiv.textContent=cc==='+91'
+        ?'Please enter a valid 10-digit Indian mobile number.'
+        :'Please enter a valid '+(rule.label||'')+' phone number ('+rule.len+' digits).';
+      return false;
+    }
+    return true;
+  }
+
+  numInp.addEventListener('input',function(){
+    this.value=this.value.replace(/\D/g,'');
+    const cc=prefix.value;const rule=PHONE_RULES[cc]||{len:10};
+    if(this.value.length>rule.len)this.value=this.value.slice(0,rule.len);
+    syncValue();
+    if(errDiv.textContent)validate();
+  });
+  prefix.addEventListener('change',function(){
+    const rule=PHONE_RULES[this.value]||{len:10};
+    numInp.maxLength=rule.len;
+    numInp.placeholder='X'.repeat(rule.len);
+    syncValue();validate();
+  });
+  numInp.addEventListener('blur',function(){if(numInp.value)validate()});
+
+  // Handle autofill: if browser fills +91XXXXXXXXXX format
+  const observer=new MutationObserver(()=>{checkAutofill()});
+  function checkAutofill(){
+    const v=(inp.value||numInp.value||'').trim();
+    if(!v)return;
+    for(const cc of COUNTRY_CODES){
+      if(v.startsWith(cc)){
+        prefix.value=cc;
+        numInp.value=v.slice(cc.length).replace(/\D/g,'');
+        syncValue();return;
+      }
+    }
+    // Try +XX patterns
+    const m=v.match(/^\+(\d{1,3})/);
+    if(m){
+      const found=COUNTRY_CODES.find(c=>v.startsWith(c));
+      if(found){prefix.value=found;numInp.value=v.slice(found.length).replace(/\D/g,'');syncValue()}
+      else{numInp.value=v.replace(/\D/g,'');syncValue()}
+    }else{numInp.value=v.replace(/\D/g,'');syncValue()}
+  }
+  // Pre-populate if value exists
+  if(inp.value)checkAutofill();
+  setTimeout(checkAutofill,500);
+
+  // Expose validate
+  inp._validatePhone=validate;
+  numInp._validatePhone=validate;
+  return{validate,syncValue,prefix,numInp};
+}
+
+function validateAllPhones(container){
+  const root=container||document;
+  let valid=true;
+  root.querySelectorAll('input[data-phone-init]').forEach(inp=>{
+    if(inp._validatePhone&&!inp._validatePhone())valid=false;
+  });
+  return valid;
+}
+
+/* ══ IST TIMESTAMP FORMAT ═════════════════════════════════ */
+function formatIST(date){
+  if(!date)date=new Date();
+  if(typeof date==='string')date=new Date(date);
+  return date.toLocaleString('en-IN',{
+    timeZone:'Asia/Kolkata',day:'numeric',month:'long',year:'numeric',
+    hour:'numeric',minute:'2-digit',hour12:true
+  });
+}
+
 /* ══ CHECKOUT PRE-FILL ════════════════════════════════════ */
 function prefillCheckout(){
   try{
@@ -878,7 +1008,19 @@ function prefillCheckout(){
     const phoneEl=document.getElementById('ckPhone');
     if(nameEl&&!nameEl.value&&user.user_metadata?.full_name)nameEl.value=user.user_metadata.full_name;
     if(emailEl&&!emailEl.value&&user.email)emailEl.value=user.email;
-    if(phoneEl&&!phoneEl.value&&user.user_metadata?.phone)phoneEl.value=user.user_metadata.phone;
+    if(phoneEl&&!phoneEl.value&&user.user_metadata?.phone){
+      phoneEl.value=user.user_metadata.phone;
+      // Trigger phone component autofill split
+      const numEl=document.getElementById('ckPhone_num');
+      const ccEl=document.getElementById('ckPhone_cc');
+      if(numEl&&ccEl){
+        const v=user.user_metadata.phone;
+        for(const cc of COUNTRY_CODES){
+          if(v.startsWith(cc)){ccEl.value=cc;numEl.value=v.slice(cc.length).replace(/\D/g,'');break}
+        }
+        if(!numEl.value)numEl.value=v.replace(/\D/g,'');
+      }
+    }
   }catch(e){}
 }
 
