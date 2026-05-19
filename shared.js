@@ -372,7 +372,7 @@ async function loadAndShowSavedAddresses(){
         ${a.address_line1}${a.address_line2?', '+a.address_line2:''}${a.landmark?', Near '+a.landmark:''}<br>
         ${a.city}, ${a.state} - ${a.pincode}
       </div>
-      <div style="font-size:12px;color:var(--stone);margin-top:2px">${a.mobile}</div>
+      <div style="font-size:12px;color:var(--stone);margin-top:2px">${a.phone||a.mobile||''}</div>
     </div>
   `).join('');
 
@@ -393,7 +393,7 @@ function selectSavedAddress(idx){
   const nameEl=document.getElementById('ckName');
   const phoneEl=document.getElementById('ckPhone');
   if(nameEl)nameEl.value=addr.full_name;
-  if(phoneEl)phoneEl.value=addr.mobile;
+  if(phoneEl)phoneEl.value=addr.phone||addr.mobile||'';
 }
 
 function showNewAddressForm(){
@@ -439,7 +439,7 @@ function getCheckoutData(){
     const user=(typeof Auth!=='undefined'&&Auth.getUser)?Auth.getUser():null;
     return{
       name:a.full_name,
-      phone:a.mobile,
+      phone:a.phone||a.mobile||'',
       email:user?user.email:(document.getElementById('ckEmail')?.value.trim()||''),
       address_line1:a.address_line1,
       address_line2:a.address_line2||'',
