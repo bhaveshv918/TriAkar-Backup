@@ -840,30 +840,9 @@ function updateNavAuth(){
     // When not logged in, the static nav-shop Login button is already in HTML — no dynamic button needed
   });
 
-  // Drawer auth + Shop Now
+  // Drawer = menu links only. Login/account lives in the nav bar, same as desktop.
   document.querySelectorAll('.nav-drawer').forEach(drawer=>{
     drawer.querySelectorAll('.drawer-auth,.drawer-shop').forEach(e=>e.remove());
-
-    const a=document.createElement('a');
-    a.className='drawer-auth';
-    if(user){
-      const meta=user.user_metadata||{};
-      const displayName=meta.nickname||meta.full_name?.split(' ')[0]||'Account';
-      a.href='account.html';
-      a.textContent='Hi, '+displayName;
-    } else {
-      a.href='account.html';
-      a.textContent='Login';
-    }
-    drawer.appendChild(a);
-
-    if(!drawer.querySelector('.drawer-shop')){
-      const shop=document.createElement('a');
-      shop.href='products.html';
-      shop.className='drawer-shop';
-      shop.textContent='Shop Now';
-      drawer.appendChild(shop);
-    }
   });
 
   document.addEventListener('click',function(){
