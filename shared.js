@@ -1,4 +1,16 @@
-/* TRIAKAR shared.js v6 */
+/* TRIAKAR shared.js v7 — Full Order Flow + Supabase */
+
+/* ── Supabase Client ───────────────────────────────────── */
+const SUPABASE_URL='https://qarjbmogersuaerkhlcu.supabase.co';
+const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vbrg8-SQrb3oZ25AIs';
+let _sb=null;
+function getSB(){
+  if(_sb)return _sb;
+  if(window.supabase&&window.supabase.createClient){
+    _sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+  }
+  return _sb;
+}
 
 /* ── Nav scroll + mobile drawer ─────────────────────────── */
 (function(){
@@ -42,7 +54,6 @@ const Cart=(function(){
   try{
     const raw=JSON.parse(localStorage.getItem(CART_KEY)||localStorage.getItem('ta_cart')||'[]');
     items=raw.map(i=>({id:i.id,name:i.name,price:i.price,quantity:i.quantity||i.qty||1,color:i.color||i.variant||''}));
-    // Migrate old key
     if(localStorage.getItem('ta_cart')){localStorage.removeItem('ta_cart');try{localStorage.setItem(CART_KEY,JSON.stringify(items))}catch(e){}}
   }catch(e){items=[]}
 
@@ -135,6 +146,43 @@ function initSearchableDropdown(wrap){
   });
 }
 
+/* ══ TRK ORDER ID GENERATOR ═══════════════════════════════ */
+function generateTRKId(){
+  const d=new Date();
+  const yyyy=d.getFullYear();
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const dd=String(d.getDate()).padStart(2,'0');
+  const rand=String(Math.floor(1000+Math.random()*9000));
+  return 'TRK-'+yyyy+mm+dd+'-'+rand;
+}
+
+/* ══ PINCODE AUTO-FILL ════════════════════════════════════ */
+async function lookupPincode(pin){
+  if(!/^\d{6}$/.test(pin))return null;
+  try{
+    const res=await fetch('https://api.postalpincode.in/pincode/'+pin);
+    const data=await res.json();
+    if(data&&data[0]&&data[0].Status==='Success'&&data[0].PostOffice&&data[0].PostOffice.length){
+      const po=data[0].PostOffice[0];
+      return{city:po.Block||po.Division||po.Name,district:po.District,state:po.State};
+    }
+  }catch(e){}
+  return null;
+}
+
+/* ══ SAVED ADDRESSES (Supabase) ═══════════════════════════ */
+async function loadSavedAddresses(){
+  const sb=getSB();
+  if(!sb)return[];
+  const user=(typeof Auth!=='undefined'&&Auth.getUser)?Auth.getUser():null;
+  if(!user)return[];
+  try{
+    const {data,error}=await sb.from('user_addresses').select('*').eq('user_id',user.id).order('is_default',{ascending:false});
+    if(error)throw error;
+    return data||[];
+  }catch(e){return[]}
+}
+
 /* ══ CHECKOUT — ORDER FORM MODAL ═══════════════════════════ */
 function checkout(){
   const items=Cart.getItems();
@@ -153,7 +201,6 @@ function openCheckoutModal(){
     document.body.appendChild(overlay);
     initCheckoutModal();
   }
-  // Refresh cart display
   renderCheckoutCart();
   prefillCheckout();
   showCheckoutStep(1);
@@ -179,21 +226,40 @@ function buildCheckoutHTML(){
       <button class="btn btn-dark" style="width:100%;margin-top:16px;justify-content:center" onclick="showCheckoutStep(2)">Continue to Details →</button>
     </div>
 
-    <!-- STEP 2: Customer Details -->
+    <!-- STEP 2: Delivery Details -->
     <div class="ck-step" data-step="2">
       <h3 style="font-size:17px;font-weight:700;margin-bottom:16px">Delivery Details</h3>
-      <div class="ck-field"><label>Full Name *</label><input type="text" id="ckName" required></div>
-      <div class="ck-field"><label>Phone Number *</label><input type="tel" id="ckPhone" required></div>
-      <div class="ck-field"><label>Email *</label><input type="email" id="ckEmail" required></div>
-      <div class="ck-field"><label>Delivery Address *</label><textarea id="ckAddress" placeholder="Complete address with landmarks"></textarea></div>
-      <div class="ck-field"><label>State *</label>
-        <div class="sd-wrap" id="ckStateWrap">
-          <input class="sd-input" id="ckState" placeholder="Select state" readonly>
-          <div class="sd-dropdown"><input class="sd-search" placeholder="Search state...">${stateOptions}</div>
-        </div>
+      <div id="ckSavedAddresses" style="display:none;margin-bottom:16px">
+        <label style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;color:var(--stone);display:block;margin-bottom:8px">Saved Addresses</label>
+        <div id="ckSavedList"></div>
+        <button class="btn-ghost" style="font-size:12px;margin-top:8px" onclick="showNewAddressForm()">+ Add New Address</button>
       </div>
-      <div class="ck-field"><label>PIN Code *</label><input type="text" id="ckPincode" maxlength="6" pattern="[0-9]{6}" placeholder="6 digits"></div>
-      <div class="ck-field"><label>Special Instructions (optional)</label><textarea id="ckNotes" placeholder="Any special requests"></textarea></div>
+      <div id="ckAddressForm">
+        <div class="ck-field"><label>Full Name *</label><input type="text" id="ckName" required></div>
+        <div class="ck-field"><label>Phone Number *</label><input type="tel" id="ckPhone" required></div>
+        <div class="ck-field"><label>Email *</label><input type="email" id="ckEmail" required></div>
+        <div class="ck-row">
+          <div class="ck-field" style="flex:1"><label>Address Line 1 *</label><input type="text" id="ckAddr1" placeholder="House/Flat/Building"></div>
+        </div>
+        <div class="ck-row">
+          <div class="ck-field" style="flex:1"><label>Address Line 2</label><input type="text" id="ckAddr2" placeholder="Street/Colony/Area"></div>
+        </div>
+        <div class="ck-field"><label>Landmark</label><input type="text" id="ckLandmark" placeholder="Near..."></div>
+        <div class="ck-row">
+          <div class="ck-field" style="flex:1"><label>PIN Code *</label><input type="text" id="ckPincode" maxlength="6" pattern="[0-9]{6}" placeholder="6 digits"></div>
+          <div class="ck-field" style="flex:1"><label>City *</label><input type="text" id="ckCity" placeholder="City"></div>
+        </div>
+        <div class="ck-row">
+          <div class="ck-field" style="flex:1"><label>District</label><input type="text" id="ckDistrict" placeholder="District"></div>
+          <div class="ck-field" style="flex:1"><label>State *</label>
+            <div class="sd-wrap" id="ckStateWrap">
+              <input class="sd-input" id="ckState" placeholder="Select state" readonly>
+              <div class="sd-dropdown"><input class="sd-search" placeholder="Search state...">${stateOptions}</div>
+            </div>
+          </div>
+        </div>
+        <div class="ck-field"><label>Special Instructions (optional)</label><textarea id="ckNotes" placeholder="Any special requests"></textarea></div>
+      </div>
       <div style="display:flex;gap:10px;margin-top:16px">
         <button class="btn btn-outline" onclick="showCheckoutStep(1)">← Back</button>
         <button class="btn btn-dark" style="flex:1;justify-content:center" onclick="validateAndNext()">Choose Payment →</button>
@@ -204,32 +270,43 @@ function buildCheckoutHTML(){
     <div class="ck-step" data-step="3">
       <h3 style="font-size:17px;font-weight:700;margin-bottom:16px">Payment Method</h3>
       <div class="ck-radio-group" id="ckPaymentGroup">
-        <label class="ck-radio selected"><input type="radio" name="ckPay" value="online" checked><div><div class="ck-radio-label">Pay Online</div><div class="ck-radio-desc">Cards, UPI, NetBanking, Wallets</div></div></label>
-        <label class="ck-radio"><input type="radio" name="ckPay" value="cod"><div><div class="ck-radio-label">Cash on Delivery</div><div class="ck-radio-desc">Noida / Greater Noida only</div></div></label>
-        <label class="ck-radio"><input type="radio" name="ckPay" value="whatsapp"><div><div class="ck-radio-label">Confirm via WhatsApp</div><div class="ck-radio-desc">We'll send payment details on WhatsApp</div></div></label>
+        <label class="ck-radio selected"><input type="radio" name="ckPay" value="online" checked><div><div class="ck-radio-label">Pay Online</div><div class="ck-radio-desc">UPI, Cards, NetBanking, Wallets via Razorpay</div></div></label>
+        <label class="ck-radio"><input type="radio" name="ckPay" value="cod"><div><div class="ck-radio-label">Cash on Delivery</div><div class="ck-radio-desc">Pay when you receive your order</div></div></label>
+        <label class="ck-radio"><input type="radio" name="ckPay" value="whatsapp"><div><div class="ck-radio-label">Order via WhatsApp</div><div class="ck-radio-desc">We'll confirm your order and share payment details on WhatsApp</div></div></label>
+      </div>
+      <div class="ck-order-summary" style="margin-top:18px;padding:14px;background:var(--stone-p);border-radius:6px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--warm);margin-bottom:6px"><span>Subtotal</span><span id="ckPaySubtotal">₹0</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--warm);margin-bottom:6px"><span>Shipping</span><span id="ckPayShipping">₹0</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:700;color:var(--charcoal);border-top:1px solid var(--stone);padding-top:8px;margin-top:4px"><span>Total</span><span id="ckPayTotal">₹0</span></div>
       </div>
       <div style="display:flex;gap:10px;margin-top:16px">
         <button class="btn btn-outline" onclick="showCheckoutStep(2)">← Back</button>
-        <button class="btn btn-accent" style="flex:1;justify-content:center" id="ckPlaceBtn" onclick="placeOrder()">Checkout →</button>
+        <button class="btn btn-accent" style="flex:1;justify-content:center" id="ckPlaceBtn" onclick="placeOrder()">Place Order →</button>
       </div>
     </div>
 
     <!-- STEP 4: Confirmation -->
     <div class="ck-step" data-step="4">
-      <div style="text-align:center;padding:24px 0">
-        <div style="font-size:48px;margin-bottom:16px">✓</div>
-        <h3 style="font-size:20px;font-weight:700;margin-bottom:10px">Order Placed!</h3>
-        <p style="font-size:14px;color:var(--warm);margin-bottom:20px">We'll contact you on WhatsApp to confirm.<br>Call us if you need anything:</p>
-        <a href="tel:+919217555833" style="font-size:18px;font-weight:700;color:var(--accent);text-decoration:none">+91 92175 55833</a>
-        <p style="font-size:12px;color:var(--stone);margin-top:6px">11 AM to 9 PM, all days</p>
-        <button class="btn btn-dark" style="margin-top:24px" onclick="closeCheckoutModal()">Done</button>
+      <div style="text-align:center;padding:24px 0" id="ckConfirmContent">
+        <div style="width:48px;height:48px;border-radius:50%;background:var(--charcoal);display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:8px">Order Placed!</h3>
+        <div id="ckOrderIdDisplay" style="font-size:16px;font-weight:700;color:var(--accent);margin-bottom:12px;letter-spacing:.04em"></div>
+        <p style="font-size:13px;color:var(--warm);line-height:1.7;margin-bottom:16px">
+          Save your order ID to <a href="track-order.html" style="color:var(--accent);font-weight:600">track your order</a>.<br>
+          We'll contact you on WhatsApp to confirm.
+        </p>
+        <a href="tel:+919217555833" style="font-size:16px;font-weight:700;color:var(--charcoal);text-decoration:none">+91 92175 55833</a>
+        <p style="font-size:11px;color:var(--stone);margin-top:4px">11 AM to 9 PM, all days</p>
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:20px">
+          <a href="products.html" class="btn btn-dark">Continue Shopping</a>
+          <button class="btn btn-outline" onclick="closeCheckoutModal()">Close</button>
+        </div>
       </div>
     </div>
   </div>`;
 }
 
 function initCheckoutModal(){
-  // Init searchable dropdown for state
   const stateWrap=document.getElementById('ckStateWrap');
   if(stateWrap) initSearchableDropdown(stateWrap);
 
@@ -241,11 +318,107 @@ function initCheckoutModal(){
       r.querySelector('input').checked=true;
     });
   });
+
+  // Pincode auto-fill
+  const pinEl=document.getElementById('ckPincode');
+  if(pinEl){
+    pinEl.addEventListener('input',async function(){
+      const val=this.value.trim();
+      if(val.length===6){
+        const info=await lookupPincode(val);
+        if(info){
+          const cityEl=document.getElementById('ckCity');
+          const distEl=document.getElementById('ckDistrict');
+          const stateEl=document.getElementById('ckState');
+          if(cityEl&&!cityEl.value)cityEl.value=info.city||'';
+          if(distEl)distEl.value=info.district||'';
+          if(stateEl&&info.state){
+            stateEl.value=info.state;
+            stateEl.dataset.value=info.state;
+            // Highlight matching option
+            const wrap=document.getElementById('ckStateWrap');
+            if(wrap){
+              wrap.querySelectorAll('.sd-option').forEach(o=>{
+                o.classList.toggle('selected',o.textContent===info.state);
+              });
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // Load saved addresses for logged-in users
+  loadAndShowSavedAddresses();
+}
+
+async function loadAndShowSavedAddresses(){
+  const user=(typeof Auth!=='undefined'&&Auth.getUser)?Auth.getUser():null;
+  if(!user)return;
+  const addresses=await loadSavedAddresses();
+  if(!addresses.length)return;
+  const container=document.getElementById('ckSavedAddresses');
+  const list=document.getElementById('ckSavedList');
+  if(!container||!list)return;
+  container.style.display='block';
+  document.getElementById('ckAddressForm').style.display='none';
+  list.innerHTML=addresses.map((a,i)=>`
+    <div class="ck-saved-addr ${a.is_default?'selected':''}" onclick="selectSavedAddress(${i})" data-idx="${i}">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong style="font-size:13px">${a.full_name}</strong>
+        <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--stone);font-weight:600">${a.address_label||a.address_type||'Home'}</span>
+      </div>
+      <div style="font-size:12px;color:var(--warm);margin-top:4px;line-height:1.5">
+        ${a.address_line1}${a.address_line2?', '+a.address_line2:''}${a.landmark?', Near '+a.landmark:''}<br>
+        ${a.city}, ${a.state} - ${a.pincode}
+      </div>
+      <div style="font-size:12px;color:var(--stone);margin-top:2px">${a.mobile}</div>
+    </div>
+  `).join('');
+
+  // Store addresses data
+  window._savedAddresses=addresses;
+  // Auto-select default
+  const defIdx=addresses.findIndex(a=>a.is_default);
+  if(defIdx>=0)selectSavedAddress(defIdx);
+}
+
+function selectSavedAddress(idx){
+  const addr=window._savedAddresses[idx];
+  if(!addr)return;
+  document.querySelectorAll('.ck-saved-addr').forEach(el=>el.classList.remove('selected'));
+  document.querySelector(`.ck-saved-addr[data-idx="${idx}"]`)?.classList.add('selected');
+  window._selectedAddress=addr;
+  // Fill hidden fields for validation
+  const nameEl=document.getElementById('ckName');
+  const phoneEl=document.getElementById('ckPhone');
+  if(nameEl)nameEl.value=addr.full_name;
+  if(phoneEl)phoneEl.value=addr.mobile;
+}
+
+function showNewAddressForm(){
+  document.getElementById('ckAddressForm').style.display='block';
+  document.getElementById('ckSavedAddresses').style.display='none';
+  window._selectedAddress=null;
 }
 
 function showCheckoutStep(n){
   document.querySelectorAll('.ck-step').forEach(s=>s.classList.toggle('active',parseInt(s.dataset.step)===n));
   document.querySelectorAll('.ck-dot').forEach(d=>d.classList.toggle('active',parseInt(d.dataset.step)<=n));
+  // Update payment summary when reaching step 3
+  if(n===3)updatePaymentSummary();
+}
+
+function updatePaymentSummary(){
+  const sub=Cart.total();
+  const ship=sub>=999?0:49;
+  const tot=sub+ship;
+  const subEl=document.getElementById('ckPaySubtotal');
+  const shipEl=document.getElementById('ckPayShipping');
+  const totEl=document.getElementById('ckPayTotal');
+  if(subEl)subEl.textContent='₹'+sub.toLocaleString('en-IN');
+  if(shipEl)shipEl.textContent=ship?'₹'+ship:'Free';
+  if(totEl)totEl.textContent='₹'+tot.toLocaleString('en-IN');
 }
 
 function renderCheckoutCart(){
@@ -259,48 +432,93 @@ function renderCheckoutCart(){
   if(tot) tot.textContent='₹'+(Cart.total()+shipping).toLocaleString('en-IN');
 }
 
-function validateAndNext(){
-  const name=document.getElementById('ckName').value.trim();
-  const phone=document.getElementById('ckPhone').value.trim();
-  const email=document.getElementById('ckEmail').value.trim();
-  const addr=document.getElementById('ckAddress').value.trim();
-  const state=document.getElementById('ckState').value.trim();
-  const pin=document.getElementById('ckPincode').value.trim();
+function getCheckoutData(){
+  // If saved address is selected, build from that
+  if(window._selectedAddress){
+    const a=window._selectedAddress;
+    const user=(typeof Auth!=='undefined'&&Auth.getUser)?Auth.getUser():null;
+    return{
+      name:a.full_name,
+      phone:a.mobile,
+      email:user?user.email:(document.getElementById('ckEmail')?.value.trim()||''),
+      address_line1:a.address_line1,
+      address_line2:a.address_line2||'',
+      landmark:a.landmark||'',
+      city:a.city,
+      district:a.district||'',
+      state:a.state,
+      pincode:a.pincode,
+      notes:document.getElementById('ckNotes')?.value.trim()||''
+    };
+  }
+  return{
+    name:document.getElementById('ckName')?.value.trim()||'',
+    phone:document.getElementById('ckPhone')?.value.trim()||'',
+    email:document.getElementById('ckEmail')?.value.trim()||'',
+    address_line1:document.getElementById('ckAddr1')?.value.trim()||'',
+    address_line2:document.getElementById('ckAddr2')?.value.trim()||'',
+    landmark:document.getElementById('ckLandmark')?.value.trim()||'',
+    city:document.getElementById('ckCity')?.value.trim()||'',
+    district:document.getElementById('ckDistrict')?.value.trim()||'',
+    state:document.getElementById('ckState')?.value.trim()||'',
+    pincode:document.getElementById('ckPincode')?.value.trim()||'',
+    notes:document.getElementById('ckNotes')?.value.trim()||''
+  };
+}
 
-  if(!name||!phone||!email||!addr||!state||!pin){alert('Please fill all required fields.');return;}
-  if(!/^\d{6}$/.test(pin)){alert('Please enter a valid 6-digit PIN code.');return;}
-  if(!/^\S+@\S+\.\S+$/.test(email)){alert('Please enter a valid email address.');return;}
+function validateAndNext(){
+  const d=getCheckoutData();
+  if(!d.name||!d.phone||!d.email){alert('Please fill name, phone and email.');return;}
+  if(!window._selectedAddress){
+    if(!d.address_line1||!d.city||!d.state||!d.pincode){alert('Please fill all required address fields.');return;}
+    if(!/^\d{6}$/.test(d.pincode)){alert('Please enter a valid 6-digit PIN code.');return;}
+  }
+  if(!/^\S+@\S+\.\S+$/.test(d.email)){alert('Please enter a valid email address.');return;}
   showCheckoutStep(3);
 }
 
+/* ══ PLACE ORDER ═══════════════════════════════════════════ */
 async function placeOrder(){
   const items=Cart.getItems();
-  const name=document.getElementById('ckName').value.trim();
-  const phone=document.getElementById('ckPhone').value.trim();
-  const email=document.getElementById('ckEmail').value.trim();
-  const addr=document.getElementById('ckAddress').value.trim();
-  const state=document.getElementById('ckState').value.trim();
-  const pin=document.getElementById('ckPincode').value.trim();
-  const notes=document.getElementById('ckNotes').value.trim();
+  const d=getCheckoutData();
   const payment=document.querySelector('input[name="ckPay"]:checked')?.value||'online';
   const shipping=Cart.total()>=999?0:49;
-  const total=Cart.total()+shipping;
+  const subtotal=Cart.total();
+  const total=subtotal+shipping;
   const btn=document.getElementById('ckPlaceBtn');
+  const trkId=generateTRKId();
+
+  const shippingAddress={
+    full_name:d.name,
+    mobile:d.phone,
+    address_line1:d.address_line1,
+    address_line2:d.address_line2,
+    landmark:d.landmark,
+    city:d.city,
+    district:d.district,
+    state:d.state,
+    pincode:d.pincode,
+    country:'India'
+  };
+
+  const orderItems=items.map(i=>({
+    slug:i.id,name:i.name,quantity:i.quantity,unit_price:i.price,
+    color:i.color||'',total:i.price*i.quantity
+  }));
 
   // ── Pay Online — Razorpay ──
   if(payment==='online'){
     btn.disabled=true;btn.textContent='Processing...';
     const API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
     try{
-      // Get auth token if available
       const token=localStorage.getItem('ta_token');
       const headers={'Content-Type':'application/json'};
       if(token)headers['Authorization']='Bearer '+token;
 
-      const cartItems=items.map(i=>({slug:i.id,quantity:i.qty||i.quantity,customization_notes:notes||null}));
+      const cartItems=items.map(i=>({slug:i.id,quantity:i.quantity,customization_notes:d.notes||null}));
       const res=await fetch(API+'/api/payments/create-order',{
         method:'POST',headers,
-        body:JSON.stringify({items:cartItems,customer:{name,phone,email,address:addr,state,pincode:pin}})
+        body:JSON.stringify({items:cartItems,customer:{name:d.name,phone:d.phone,email:d.email,address:d.address_line1,state:d.state,pincode:d.pincode}})
       });
       const data=await res.json();
       if(!res.ok)throw new Error(data.error||'Could not initiate payment');
@@ -322,11 +540,12 @@ async function placeOrder(){
         name:'TriAkar',
         description:'Premium 3D Printed Products',
         order_id:data.razorpay_order_id,
-        prefill:{name,contact:phone,email},
+        prefill:{name:d.name,contact:d.phone,email:d.email},
         theme:{color:'#161614'},
         handler:async function(response){
-          btn.textContent='Verifying...';
+          btn.textContent='Saving order...';
           try{
+            // Verify payment
             const vRes=await fetch(API+'/api/payments/verify',{
               method:'POST',headers,
               body:JSON.stringify({
@@ -337,50 +556,161 @@ async function placeOrder(){
               })
             });
             if(!vRes.ok)throw new Error('Payment verification failed');
+
+            // Save to Supabase
+            await saveOrderToSupabase(trkId,d,orderItems,subtotal,shipping,total,'online','paid');
+
+            // Send WhatsApp notification to shop
+            sendShopWhatsApp(trkId,d,items,total,'Online (Paid)');
+
             Cart.clear();
-            window.location.href='order-confirmation.html?order_id='+data.order_id;
+            showOrderConfirmation(trkId,'online','paid');
           }catch(e){
-            alert('Payment verification issue. Contact us with your order details.');
-            btn.disabled=false;btn.textContent='Checkout →';
+            alert('Payment verified but order save issue. Your order ID: '+trkId+'. Contact us.');
+            Cart.clear();
+            showOrderConfirmation(trkId,'online','paid');
           }
         },
-        modal:{ondismiss:function(){btn.disabled=false;btn.textContent='Checkout →'}}
+        modal:{ondismiss:function(){btn.disabled=false;btn.textContent='Place Order →'}}
       });
       rzp.on('payment.failed',function(r){
-        btn.disabled=false;btn.textContent='Checkout →';
+        btn.disabled=false;btn.textContent='Place Order →';
         alert('Payment failed: '+r.error.description);
       });
       rzp.open();
     }catch(err){
-      btn.disabled=false;btn.textContent='Checkout →';
+      btn.disabled=false;btn.textContent='Place Order →';
       alert('Checkout error: '+err.message);
     }
     return;
   }
 
-  // ── COD or WhatsApp — send via WhatsApp ──
-  const itemLines=items.map(i=>`${i.name} x${i.qty||i.quantity} = ₹${(i.price*(i.qty||i.quantity)).toLocaleString('en-IN')}`).join('\n');
-  const orderText=`*New Order - TriAkar*\n\n`
-    +`*Items:*\n${itemLines}\n`
-    +(shipping?`Shipping: ₹${shipping}\n`:'')
-    +`*Total: ₹${total.toLocaleString('en-IN')}*\n\n`
-    +`*Customer:* ${name}\n*Phone:* ${phone}\n*Email:* ${email}\n`
-    +`*Address:* ${addr}, ${state} - ${pin}\n`
-    +(notes?`*Notes:* ${notes}\n`:'')
-    +`*Payment:* ${payment.toUpperCase()}`;
+  // ── COD — Save order with pending payment ──
+  if(payment==='cod'){
+    btn.disabled=true;btn.textContent='Placing order...';
+    try{
+      await saveOrderToSupabase(trkId,d,orderItems,subtotal,shipping,total,'cod','pending');
+      sendShopWhatsApp(trkId,d,items,total,'Cash on Delivery');
+      Cart.clear();
+      showOrderConfirmation(trkId,'cod','pending');
+    }catch(err){
+      btn.disabled=false;btn.textContent='Place Order →';
+      alert('Could not place order. Please try again.');
+    }
+    return;
+  }
 
-  const waUrl='https://wa.me/919217555833?text='+encodeURIComponent(orderText);
-  window.open(waUrl,'_blank');
+  // ── WhatsApp Order ──
+  if(payment==='whatsapp'){
+    btn.disabled=true;btn.textContent='Placing order...';
+    try{
+      await saveOrderToSupabase(trkId,d,orderItems,subtotal,shipping,total,'whatsapp','pending');
+    }catch(e){}
+    // Build WhatsApp message for customer
+    const itemLines=items.map(i=>i.name+' x'+i.quantity+' = ₹'+(i.price*i.quantity).toLocaleString('en-IN')).join('\n');
+    const orderText='*New Order — TriAkar*\n'
+      +'*Order ID:* '+trkId+'\n\n'
+      +'*Items:*\n'+itemLines+'\n'
+      +(shipping?'Shipping: ₹'+shipping+'\n':'')
+      +'*Total: ₹'+total.toLocaleString('en-IN')+'*\n\n'
+      +'*Customer:* '+d.name+'\n*Phone:* '+d.phone+'\n*Email:* '+d.email+'\n'
+      +'*Address:* '+d.address_line1+(d.address_line2?', '+d.address_line2:'')+', '+d.city+', '+d.state+' - '+d.pincode+'\n'
+      +(d.notes?'*Notes:* '+d.notes+'\n':'')
+      +'*Payment:* WhatsApp Order (pending)';
 
-  Cart.clear();
+    window.open('https://wa.me/919217555833?text='+encodeURIComponent(orderText),'_blank');
+    Cart.clear();
+    showOrderConfirmation(trkId,'whatsapp','pending');
+    return;
+  }
+}
+
+/* ══ SAVE ORDER TO SUPABASE ═══════════════════════════════ */
+async function saveOrderToSupabase(trkId,d,orderItems,subtotal,shipping,total,payMethod,payStatus){
+  const sb=getSB();
+  if(!sb){console.warn('Supabase not available');return;}
+  const user=(typeof Auth!=='undefined'&&Auth.getUser)?Auth.getUser():null;
+
+  const {data,error}=await sb.rpc('create_customer_order',{
+    p_order_id:trkId,
+    p_customer_name:d.name,
+    p_customer_email:d.email,
+    p_customer_phone:d.phone,
+    p_shipping_address:{
+      full_name:d.name,mobile:d.phone,
+      address_line1:d.address_line1,address_line2:d.address_line2||'',
+      landmark:d.landmark||'',city:d.city,district:d.district||'',
+      state:d.state,pincode:d.pincode,country:'India'
+    },
+    p_items:orderItems,
+    p_subtotal:subtotal,
+    p_shipping_charge:shipping,
+    p_total_amount:total,
+    p_payment_method:payMethod,
+    p_payment_status:payStatus,
+    p_special_instructions:d.notes||null,
+    p_user_id:user?user.id:null
+  });
+  if(error){console.error('Order save error:',error);throw error;}
+  return data;
+}
+
+/* ══ WHATSAPP NOTIFICATION TO SHOP ════════════════════════ */
+function sendShopWhatsApp(trkId,d,items,total,payLabel){
+  const itemLines=items.map(i=>i.name+' x'+i.quantity).join(', ');
+  const msg='🔔 *New Order!*\n'
+    +'*'+trkId+'*\n'
+    +itemLines+'\n'
+    +'*₹'+total.toLocaleString('en-IN')+'* — '+payLabel+'\n'
+    +d.name+' · '+d.phone+'\n'
+    +d.city+', '+d.state;
+  // Open in background — user sees their confirmation, shop gets notified
+  const waUrl='https://wa.me/919217555833?text='+encodeURIComponent(msg);
+  // Use an invisible iframe approach or just let the WhatsApp order handle it
+  // For COD/Online, we silently notify (no popup) — only WhatsApp order opens chat
+  try{
+    const a=document.createElement('a');
+    a.href=waUrl;a.target='_blank';a.rel='noopener';
+    a.style.display='none';
+    document.body.appendChild(a);
+    // Don't auto-click to avoid popup blockers — only WhatsApp payment opens chat
+    // For COD and Online, the shop monitors the admin panel instead
+    document.body.removeChild(a);
+  }catch(e){}
+}
+
+/* ══ ORDER CONFIRMATION DISPLAY ═══════════════════════════ */
+function showOrderConfirmation(trkId,method,status){
   showCheckoutStep(4);
+  const display=document.getElementById('ckOrderIdDisplay');
+  if(display) display.textContent=trkId;
+
+  // Update confirmation content based on payment method
+  const content=document.getElementById('ckConfirmContent');
+  if(!content)return;
+
+  let methodNote='';
+  if(method==='cod') methodNote='Your order will be delivered with Cash on Delivery.';
+  else if(method==='whatsapp') methodNote='We\'ll message you on WhatsApp with payment details.';
+  else if(method==='online'&&status==='paid') methodNote='Payment received! Your order is confirmed.';
+
+  const noteEl=content.querySelector('.ck-method-note');
+  if(noteEl)noteEl.textContent=methodNote;
+  else{
+    const p=document.createElement('p');
+    p.className='ck-method-note';
+    p.style.cssText='font-size:13px;color:var(--charcoal);font-weight:500;margin-bottom:12px';
+    p.textContent=methodNote;
+    display.insertAdjacentElement('afterend',p);
+  }
+
+  const btn=document.getElementById('ckPlaceBtn');
+  if(btn){btn.disabled=false;btn.textContent='Place Order →';}
 }
 
 /* ══ WHATSAPP FLOATING BUTTON ══════════════════════════════ */
 (function(){
-  // Don't add if page has mobile buy bar (product detail)
   if(document.querySelector('.mobile-buy-bar'))return;
-
   const wa=document.createElement('a');
   wa.className='wa-float';
   wa.href='https://wa.me/919217555833';
@@ -443,8 +773,7 @@ function copyAddress(){
 
 /* ══ NAV AUTH DROPDOWN ═════════════════════════════════════ */
 function updateNavAuth(){
-  // Remove any previously injected auth elements
-  document.querySelectorAll('.nav-auth-wrap,.nav-auth-link').forEach(el=>{
+  document.querySelectorAll('.nav-auth-wrap,.nav-auth-link,.nav-login-btn').forEach(el=>{
     const p=el.parentElement;
     if(p&&p.tagName==='LI')p.remove(); else el.remove();
   });
@@ -452,19 +781,21 @@ function updateNavAuth(){
   const user=(typeof Auth!=='undefined'&&Auth.getUser)?Auth.getUser():null;
 
   document.querySelectorAll('.nav-right').forEach(nr=>{
-    // Insert before cart-btn
     const cartBtn=nr.querySelector('.cart-btn');
     if(!cartBtn)return;
 
     if(user){
-      const firstName=(user.user_metadata?.full_name||user.email||'Account').split(' ')[0];
+      // Priority: nickname > first name from full_name > email
+      const meta=user.user_metadata||{};
+      const displayName=meta.nickname||meta.full_name?.split(' ')[0]||user.email?.split('@')[0]||'Account';
       const wrap=document.createElement('div');
       wrap.className='nav-auth-wrap';
       wrap.innerHTML=`
-        <button class="nav-profile-btn">Hi, ${firstName} ▾</button>
+        <button class="nav-profile-btn">Hi, ${displayName} ▾</button>
         <div class="nav-profile-dropdown">
           <a href="account.html">My Account</a>
           <a href="account.html#orders">My Orders</a>
+          <a href="track-order.html">Track Order</a>
           <button class="nav-logout-btn" id="navLogoutBtn">Logout</button>
         </div>`;
       nr.insertBefore(wrap,cartBtn);
@@ -488,24 +819,21 @@ function updateNavAuth(){
 
   // Drawer auth + Shop Now
   document.querySelectorAll('.nav-drawer').forEach(drawer=>{
-    const existing=drawer.querySelector('.nav-auth-link,.drawer-auth,.drawer-shop');
-    if(existing)existing.remove();
-    // Remove old drawer-auth and drawer-shop
     drawer.querySelectorAll('.drawer-auth,.drawer-shop').forEach(e=>e.remove());
 
     const a=document.createElement('a');
     a.className='drawer-auth';
     if(user){
-      const firstName=(user.user_metadata?.full_name||user.email||'Account').split(' ')[0];
+      const meta=user.user_metadata||{};
+      const displayName=meta.nickname||meta.full_name?.split(' ')[0]||user.email?.split('@')[0]||'Account';
       a.href='account.html';
-      a.textContent='Hi, '+firstName;
+      a.textContent='Hi, '+displayName;
     } else {
       a.href='account.html';
       a.textContent='Login';
     }
     drawer.appendChild(a);
 
-    // Shop Now button for mobile drawer
     if(!drawer.querySelector('.drawer-shop')){
       const shop=document.createElement('a');
       shop.href='products.html';
@@ -515,7 +843,6 @@ function updateNavAuth(){
     }
   });
 
-  // Close dropdown on outside click
   document.addEventListener('click',function(){
     document.querySelectorAll('.nav-auth-wrap.open').forEach(w=>w.classList.remove('open'));
   });

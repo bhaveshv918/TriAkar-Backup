@@ -732,7 +732,9 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
 
   <div class="tab-bar">
     <button class="tab active" data-tab="orders" onclick="switchTab('orders')">Orders <span class="tab-count" id="orderCount">0</span></button>
+    <button class="tab" data-tab="customers" onclick="switchTab('customers')">Customers <span class="tab-count" id="customerCount">0</span></button>
     <button class="tab" data-tab="products" onclick="switchTab('products')">Products <span class="tab-count" id="productCount">0</span></button>
+    <button class="tab" data-tab="inquiries" onclick="switchTab('inquiries')">Inquiries <span class="tab-count" id="inquiryCount">0</span></button>
     <button class="tab" data-tab="categories" onclick="switchTab('categories')">Categories</button>
     <button class="tab" data-tab="logs" onclick="switchTab('logs')">Security Logs</button>
   </div>
@@ -903,6 +905,39 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
           <th style="width:50px"></th><th>Product</th><th>Category</th><th>Price</th><th>Badge</th><th>Status</th><th>Actions</th>
         </tr></thead>
         <tbody id="productsBody"><tr><td colspan="7" class="tbl-msg">Loading products…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── CUSTOMERS PANEL ───────────────────────── -->
+  <div class="panel" id="panelCustomers">
+    <div class="p-head">
+      <div class="p-title">Customers</div>
+      <div class="p-actions">
+        <button class="btn-secondary" onclick="loadCustomers()">⟳ Refresh</button>
+        <input type="text" id="customerSearch" placeholder="Search name, email, phone..." oninput="filterCustomers()" style="min-width:180px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Email</th><th>Mobile</th><th>Orders</th><th>Joined</th></tr></thead>
+        <tbody id="customersBody"><tr><td colspan="5" class="tbl-msg">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── INQUIRIES PANEL ──────────────────────── -->
+  <div class="panel" id="panelInquiries">
+    <div class="p-head">
+      <div class="p-title">Corporate Inquiries</div>
+      <div class="p-actions">
+        <button class="btn-secondary" onclick="loadInquiries()">⟳ Refresh</button>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Company</th><th>Contact</th><th>Email</th><th>Phone</th><th>Interest</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="inquiriesBody"><tr><td colspan="8" class="tbl-msg">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1259,7 +1294,7 @@ function showDashboard(user){
   document.getElementById('adminDash').classList.add('show');
   updateClock();setInterval(updateClock,30000);
   initTheme();
-  loadCategories().then(()=>{loadProducts();loadOrders();loadLogs()});
+  loadCategories().then(()=>{loadProducts();loadOrders();loadLogs();loadCustomers();loadInquiries()});
 }
 
 // Check existing session on load
@@ -1295,7 +1330,7 @@ function applyTheme(theme){
 // INVOICE NUMBER — stored in DB as TAINV/2627XXXX
 // ═══════════════════════════════════════════════════════════
 function fmtInvoice(o){
-  return o.invoice_number||('TAINV/2627'+String(Math.floor(Math.random()*9000+1000)));
+  return o.order_id||o.invoice_number||('TRK-'+o.id.slice(0,8).toUpperCase());
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1310,7 +1345,7 @@ function fmtPrice(n){return '₹'+Number(n).toLocaleString('en-IN')}
 function toast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type||'')+' show';setTimeout(()=>t.classList.remove('show'),3000)}
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['Orders','Products','Categories','Logs'].forEach(p=>{
+  ['Orders','Customers','Products','Inquiries','Categories','Logs'].forEach(p=>{
     document.getElementById('panel'+p).classList.toggle('active',p.toLowerCase()===tab);
   });
 }
@@ -1374,7 +1409,7 @@ async function deleteCat(id,name){
 // ═══════════════════════════════════════════════════════════
 // ORDERS
 // ═══════════════════════════════════════════════════════════
-const STATUS_OPTIONS=['pending','confirmed','processing','shipped','delivered','cancelled','returned','refunded'];
+const STATUS_OPTIONS=['placed','pending','confirmed','processing','shipped','delivered','cancelled','returned','refunded'];
 const STATUS_BADGE={pending:'badge-yellow',confirmed:'badge-green',processing:'badge-blue',shipped:'badge-accent',delivered:'badge-green',cancelled:'badge-red',returned:'badge-returned',refunded:'badge-refunded'};
 
 async function loadOrders(){
@@ -1393,7 +1428,7 @@ function filterOrders(){
   const search=document.getElementById('filterSearch').value.toLowerCase();
   let filtered=[..._orders];
 
-  if(status)filtered=filtered.filter(o=>o.status===status);
+  if(status)filtered=filtered.filter(o=>(o.order_status||o.status)===status);
   if(time){
     const now=new Date();
     const start=new Date();
@@ -1406,12 +1441,12 @@ function filterOrders(){
   if(search){
     filtered=filtered.filter(o=>{
       const p=o.profiles||{};
-      const custName=(p.full_name||p.email||'').toLowerCase();
-      const custPhone=p.phone||'';
-      const custEmail=(p.email||'').toLowerCase();
-      const invNum=(o.invoice_number||'').toLowerCase();
+      const custName=(o.customer_name||p.full_name||p.email||'').toLowerCase();
+      const custPhone=o.customer_phone||p.phone||'';
+      const custEmail=(o.customer_email||p.email||'').toLowerCase();
+      const ordId=(o.order_id||o.invoice_number||'').toLowerCase();
       const tracking=((o.tracking_number||'')+(o.tracking_vendor||'')).toLowerCase();
-      return custName.includes(search)||custPhone.includes(search)||custEmail.includes(search)||invNum.includes(search)||tracking.includes(search);
+      return custName.includes(search)||custPhone.includes(search)||custEmail.includes(search)||ordId.includes(search)||tracking.includes(search);
     });
   }
   renderOrders(filtered);
@@ -1423,14 +1458,21 @@ function renderOrders(orders){
   tbody.innerHTML=orders.map(o=>{
     const inv=fmtInvoice(o);
     const p=o.profiles||{};
-    const name=p.full_name||p.email||'Guest';
-    const email=p.email?'<div style="font-size:10px;color:var(--text-3);font-family:var(--mono)">'+p.email+'</div>':'';
-    const phone=p.phone?(' ('+p.phone+')'):'';
+    const name=o.customer_name||p.full_name||p.email||'Guest';
+    const custEmail=o.customer_email||p.email||'';
+    const email=custEmail?'<div style="font-size:10px;color:var(--text-3);font-family:var(--mono)">'+custEmail+'</div>':'';
+    const custPhone=o.customer_phone||p.phone||'';
+    const phone=custPhone?(' ('+custPhone+')'):'';
     const addr=o.shipping_address||{};
     const addrObj=o.user_addresses||{};
     const loc=addr.city||addrObj.city||addr.state||addrObj.state||'—';
-    const items=(o.order_items||[]).map(i=>((i.products||{}).name||'Item')+' x'+i.quantity).join(', ')||'—';
-    const selOpts=STATUS_OPTIONS.map(s=>'<option value="'+s+'"'+(o.status===s?' selected':'')+'>'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>').join('');
+    // Support both order_items (old) and items JSONB (new)
+    const orderItems=o.order_items||[];
+    const jsonItems=o.items||[];
+    const itemsList=orderItems.length?orderItems.map(i=>((i.products||{}).name||'Item')+' x'+i.quantity).join(', '):jsonItems.map(i=>(i.name||'Item')+' x'+i.quantity).join(', ')||'—';
+    const items=itemsList;
+    const curStatus=o.order_status||o.status||'placed';
+    const selOpts=STATUS_OPTIONS.map(s=>'<option value="'+s+'"'+(curStatus===s?' selected':'')+'>'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>').join('');
     const trackTag=o.tracking_number?'<div style="font-size:10px;color:var(--accent);font-family:var(--mono);margin-top:2px">'+(o.tracking_vendor||'')+' '+o.tracking_number+'</div>':'';
 
     // Full address for detail row
@@ -1490,13 +1532,12 @@ function toggleOrderDetail(id){
 
 async function updateOrderStatus(id,sel){
   sel.disabled=true;
-  const{error}=await sb.from('orders').update({status:sel.value,updated_at:new Date().toISOString()}).eq('id',id);
+  const{error}=await sb.from('orders').update({status:sel.value,order_status:sel.value,updated_at:new Date().toISOString()}).eq('id',id);
   if(error){toast('Error: '+error.message,'error')}
   else{
     toast('Status → '+sel.value.charAt(0).toUpperCase()+sel.value.slice(1),'success');
-    // Update local cache
     const o=_orders.find(x=>x.id===id);
-    if(o)o.status=sel.value;
+    if(o){o.status=sel.value;o.order_status=sel.value;}
   }
   sel.disabled=false;
 }
@@ -1832,6 +1873,81 @@ async function loadLogs(){
       +'<td>'+resultBadge+'</td>'
       +'</tr>';
   }).join('');
+}
+
+/* ═══ CUSTOMERS ═══════════════════════════════════ */
+let _customers=[];
+async function loadCustomers(){
+  const{data,error}=await sb.from('profiles').select('*').order('created_at',{ascending:false});
+  if(error){document.getElementById('customersBody').innerHTML='<tr><td colspan="5" class="tbl-msg">Error loading customers</td></tr>';return}
+  _customers=data||[];
+  document.getElementById('customerCount').textContent=_customers.length;
+  renderCustomers(_customers);
+}
+
+function renderCustomers(list){
+  const tbody=document.getElementById('customersBody');
+  if(!list.length){tbody.innerHTML='<tr><td colspan="5" class="tbl-msg">No customers yet.</td></tr>';return}
+  tbody.innerHTML=list.map(c=>{
+    const joined=c.created_at?fmtDateShort(c.created_at):'—';
+    return '<tr>'
+      +'<td class="td-name">'+(c.full_name||'—')+(c.nickname?'<div style="font-size:10px;color:var(--text-3)">aka '+c.nickname+'</div>':'')+'</td>'
+      +'<td style="font-family:var(--mono);font-size:11px">'+(c.email||'—')+'</td>'
+      +'<td>'+(c.mobile||'—')+'</td>'
+      +'<td>—</td>'
+      +'<td>'+joined+'</td>'
+      +'</tr>';
+  }).join('');
+}
+
+function filterCustomers(){
+  const q=(document.getElementById('customerSearch').value||'').toLowerCase();
+  if(!q){renderCustomers(_customers);return}
+  const filtered=_customers.filter(c=>{
+    return(c.full_name||'').toLowerCase().includes(q)
+      ||(c.email||'').toLowerCase().includes(q)
+      ||(c.mobile||'').toLowerCase().includes(q)
+      ||(c.nickname||'').toLowerCase().includes(q);
+  });
+  renderCustomers(filtered);
+}
+
+/* ═══ INQUIRIES ═══════════════════════════════════ */
+let _inquiries=[];
+async function loadInquiries(){
+  const{data,error}=await sb.from('corporate_inquiries').select('*').order('created_at',{ascending:false});
+  if(error){document.getElementById('inquiriesBody').innerHTML='<tr><td colspan="8" class="tbl-msg">Error loading inquiries</td></tr>';return}
+  _inquiries=data||[];
+  document.getElementById('inquiryCount').textContent=_inquiries.length;
+  renderInquiries(_inquiries);
+}
+
+function renderInquiries(list){
+  const tbody=document.getElementById('inquiriesBody');
+  if(!list.length){tbody.innerHTML='<tr><td colspan="8" class="tbl-msg">No inquiries yet.</td></tr>';return}
+  tbody.innerHTML=list.map(q=>{
+    const responded=q.is_responded;
+    const badge=responded?'<span class="badge badge-green">Responded</span>':'<span class="badge badge-yellow">Pending</span>';
+    return '<tr>'
+      +'<td style="font-size:11px;white-space:nowrap">'+fmtDateShort(q.created_at)+'</td>'
+      +'<td class="td-name">'+(q.company_name||'—')+'</td>'
+      +'<td>'+(q.contact_name||'—')+'</td>'
+      +'<td style="font-family:var(--mono);font-size:11px">'+(q.email||'—')+'</td>'
+      +'<td>'+(q.phone||'—')+'</td>'
+      +'<td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(q.product_interest||q.message||'—')+'</td>'
+      +'<td>'+badge+'</td>'
+      +'<td onclick="event.stopPropagation()">'
+        +(responded?'':'<button class="btn-save" onclick="markInquiryResponded(\''+q.id+'\')">Mark Done</button>')
+      +'</td>'
+      +'</tr>';
+  }).join('');
+}
+
+async function markInquiryResponded(id){
+  const{error}=await sb.from('corporate_inquiries').update({is_responded:true}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return}
+  toast('Inquiry marked as responded','success');
+  loadInquiries();
 }
 </script>
 </body>
