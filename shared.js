@@ -458,24 +458,27 @@ async function loadAndShowSavedAddresses(){
   container.style.display='block';
   document.getElementById('ckAddressForm').style.display='none';
   list.innerHTML=addresses.map((a,i)=>`
-    <div class="ck-saved-addr ${a.is_default?'selected':''}" onclick="selectSavedAddress(${i})" data-idx="${i}">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <strong style="font-size:13px">${a.full_name}</strong>
-        <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--stone);font-weight:600">${a.address_label||a.address_type||'Home'}</span>
+    <div class="ck-saved-addr" onclick="selectSavedAddress(${i})" data-idx="${i}">
+      <div class="ck-sa-radio"></div>
+      <div class="ck-sa-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <strong style="font-size:13px">${a.full_name}</strong>
+          <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--stone);font-weight:600">${a.address_label||a.address_type||'Home'}</span>
+        </div>
+        <div style="font-size:12px;color:var(--warm);margin-top:4px;line-height:1.5">
+          ${a.address_line1}${a.address_line2?', '+a.address_line2:''}${a.landmark?', Near '+a.landmark:''}<br>
+          ${a.city}, ${a.state} - ${a.pincode}
+        </div>
+        <div style="font-size:12px;color:var(--stone);margin-top:2px">${a.phone||a.mobile||''}</div>
       </div>
-      <div style="font-size:12px;color:var(--warm);margin-top:4px;line-height:1.5">
-        ${a.address_line1}${a.address_line2?', '+a.address_line2:''}${a.landmark?', Near '+a.landmark:''}<br>
-        ${a.city}, ${a.state} - ${a.pincode}
-      </div>
-      <div style="font-size:12px;color:var(--stone);margin-top:2px">${a.phone||a.mobile||''}</div>
     </div>
   `).join('');
 
   // Store addresses data
   window._savedAddresses=addresses;
-  // Auto-select default
+  // Auto-select the default address, or the first one so a choice is always made
   const defIdx=addresses.findIndex(a=>a.is_default);
-  if(defIdx>=0)selectSavedAddress(defIdx);
+  selectSavedAddress(defIdx>=0?defIdx:0);
 }
 
 function selectSavedAddress(idx){
@@ -563,13 +566,17 @@ function getCheckoutData(){
 
 function validateAndNext(){
   const d=getCheckoutData();
-  const phoneInp=document.getElementById('ckPhone');
-  if(phoneInp&&phoneInp._validatePhone&&!phoneInp._validatePhone())return;
-  if(!d.name||!d.phone||!d.email){alert('Please fill name, phone and email.');return;}
+  // Only validate the address-form fields when the customer is entering a NEW address.
+  // A chosen saved address already carries a verified phone + full address.
   if(!window._selectedAddress){
+    const phoneInp=document.getElementById('ckPhone');
+    if(phoneInp&&phoneInp._validatePhone&&!phoneInp._validatePhone())return;
     if(!d.address_line1||!d.city||!d.state||!d.pincode){alert('Please fill all required address fields.');return;}
     if(!/^\d{6}$/.test(d.pincode)){alert('Please enter a valid 6-digit PIN code.');return;}
   }
+  if(!d.name||!d.phone){alert('A delivery name and phone number are required.');return;}
+  if(!d.address_line1||!d.city||!d.state||!d.pincode){alert('Please choose or enter a delivery address.');return;}
+  if(!d.email){alert('Please enter your email address.');return;}
   if(!/^\S+@\S+\.\S+$/.test(d.email)){alert('Please enter a valid email address.');return;}
   showCheckoutStep(3);
 }
