@@ -54,7 +54,8 @@
 .dash-logout:hover{border-color:var(--charcoal);color:var(--charcoal)}
 
 /* TABS */
-.dash-tabs{display:flex;gap:0;border-bottom:1px solid var(--stone-p);margin-bottom:32px;overflow-x:auto}
+.dash-tabs{display:flex;gap:0;border-bottom:1px solid var(--stone-p);margin-bottom:32px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.dash-tabs::-webkit-scrollbar{display:none}
 .dash-tab{padding:16px 20px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--stone);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap;transition:color .2s}
 .dash-tab.active{color:var(--charcoal);border-bottom-color:var(--accent)}
 .dash-tab:hover{color:var(--charcoal)}
@@ -462,6 +463,9 @@ async function loadProfile(){
       document.getElementById('profGender').value=data.gender||'';
       document.getElementById('profDob').value=data.date_of_birth||'';
       document.getElementById('profAnniversary').value=data.anniversary_date||'';
+      // Keep nav + greeting in sync with the loaded profile
+      syncUserMeta(data.full_name||meta.full_name||'',data.nickname||'');
+      if(typeof updateNavAuth==='function')updateNavAuth();
     }
   }catch(e){}
 }
@@ -491,6 +495,12 @@ async function saveProfile(e){
   try{
     const {error}=await sb.from('profiles').update(updates).eq('id',user.id);
     if(error)throw error;
+    // Sync name/nickname so the top-right nav + greeting update immediately
+    syncUserMeta(updates.full_name,updates.nickname);
+    const dn=pickDisplayName(updates.full_name,updates.nickname);
+    const greetEl=document.getElementById('dashGreeting');
+    if(greetEl)greetEl.textContent='Welcome back, '+(dn||'there');
+    if(typeof updateNavAuth==='function')updateNavAuth();
     msgEl.textContent='Profile saved!';msgEl.className='profile-msg show auth-msg ok';
     setTimeout(()=>{msgEl.className='profile-msg'},3000);
   }catch(err){
@@ -657,16 +667,46 @@ function requestDeleteAccount(){
   alert('To delete your account, please contact us at +91 92175 55833 or email hello@triakar.in');
 }
 
+/* ── Keep localStorage user metadata in sync so nav + greeting show real name ── */
+function syncUserMeta(full_name,nickname){
+  try{
+    const u=JSON.parse(localStorage.getItem('ta_user'));
+    if(u){
+      u.user_metadata=u.user_metadata||{};
+      if(full_name)u.user_metadata.full_name=full_name;
+      u.user_metadata.nickname=nickname||'';
+      localStorage.setItem('ta_user',JSON.stringify(u));
+    }
+  }catch(e){}
+}
+function pickDisplayName(full_name,nickname){
+  if(nickname&&nickname.trim())return nickname.trim();
+  if(full_name&&full_name.trim())return full_name.trim().split(' ')[0];
+  return '';
+}
+
 /* ── Dashboard Init ── */
-function showDashboard(){
+async function showDashboard(){
   const user=Auth.getUser();
   if(!user)return;
-  const meta=user.user_metadata||{};
-  const displayName=meta.nickname||meta.full_name?.split(' ')[0]||'there';
-  document.getElementById('dashGreeting').textContent='Welcome back, '+displayName;
   document.getElementById('dashEmail').textContent=user.email||'';
   document.getElementById('authCard').style.display='none';
   document.getElementById('dashboard').classList.add('active');
+
+  // Resolve real name/nickname — prefer profiles table, fall back to metadata
+  const meta=user.user_metadata||{};
+  let fullName=meta.full_name||'';
+  let nickname=meta.nickname||'';
+  if(sb){
+    try{
+      const {data}=await sb.from('profiles').select('full_name,nickname').eq('id',user.id).single();
+      if(data){fullName=data.full_name||fullName;nickname=data.nickname||'';}
+    }catch(e){}
+  }
+  syncUserMeta(fullName,nickname);
+  document.getElementById('dashGreeting').textContent='Welcome back, '+(pickDisplayName(fullName,nickname)||'there');
+  if(typeof updateNavAuth==='function')updateNavAuth();
+
   loadOrders();
 
   // Check hash for direct tab navigation

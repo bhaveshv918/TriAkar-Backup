@@ -8,9 +8,17 @@ CREATE TABLE IF NOT EXISTS contact_submissions (
   phone TEXT,
   subject TEXT,
   message TEXT NOT NULL,
+  reference_id TEXT,
+  is_existing_customer BOOLEAN DEFAULT false,
+  order_id TEXT,
   is_read BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- ── MIGRATION (run this if the table already exists without the new columns) ──
+ALTER TABLE contact_submissions ADD COLUMN IF NOT EXISTS reference_id TEXT;
+ALTER TABLE contact_submissions ADD COLUMN IF NOT EXISTS is_existing_customer BOOLEAN DEFAULT false;
+ALTER TABLE contact_submissions ADD COLUMN IF NOT EXISTS order_id TEXT;
 
 -- Enable RLS
 ALTER TABLE contact_submissions ENABLE ROW LEVEL SECURITY;
@@ -33,3 +41,6 @@ CREATE INDEX IF NOT EXISTS idx_contact_submissions_created_at
 
 CREATE INDEX IF NOT EXISTS idx_contact_submissions_is_read
   ON contact_submissions (is_read);
+
+CREATE INDEX IF NOT EXISTS idx_contact_submissions_reference_id
+  ON contact_submissions (reference_id);

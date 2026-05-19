@@ -816,7 +816,7 @@ function updateNavAuth(){
       if(shopBtn) shopBtn.style.display='none';
       // Priority: nickname > first name from full_name > email
       const meta=user.user_metadata||{};
-      const displayName=meta.nickname||meta.full_name?.split(' ')[0]||user.email?.split('@')[0]||'Account';
+      const displayName=meta.nickname||meta.full_name?.split(' ')[0]||'Account';
       const wrap=document.createElement('div');
       wrap.className='nav-auth-wrap';
       wrap.innerHTML=`
@@ -848,7 +848,7 @@ function updateNavAuth(){
     a.className='drawer-auth';
     if(user){
       const meta=user.user_metadata||{};
-      const displayName=meta.nickname||meta.full_name?.split(' ')[0]||user.email?.split('@')[0]||'Account';
+      const displayName=meta.nickname||meta.full_name?.split(' ')[0]||'Account';
       a.href='account.html';
       a.textContent='Hi, '+displayName;
     } else {

@@ -936,13 +936,13 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="p-title">Contact Messages</div>
       <div class="p-actions">
         <button class="btn-secondary" onclick="loadMessages()">⟳ Refresh</button>
-        <input type="text" id="messageSearch" placeholder="Search name, email, subject..." oninput="filterMessages()" style="min-width:180px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
+        <input type="text" id="messageSearch" placeholder="Search name, email, subject, ref no..." oninput="filterMessages()" style="min-width:180px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
       </div>
     </div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Name</th><th>Email</th><th>Phone</th><th>Subject</th><th>Message</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody id="messagesBody"><tr><td colspan="8" class="tbl-msg">Loading...</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Ref No.</th><th>Name</th><th>Email</th><th>Phone</th><th>Subject</th><th>Message</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="messagesBody"><tr><td colspan="9" class="tbl-msg">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2004,7 +2004,7 @@ function checkNewItems(key,dotId,currentCount){
 let _messages=[];
 async function loadMessages(){
   const{data,error}=await sb.from('contact_submissions').select('*').order('created_at',{ascending:false});
-  if(error){document.getElementById('messagesBody').innerHTML='<tr><td colspan="8" class="tbl-msg">Error loading messages</td></tr>';return}
+  if(error){document.getElementById('messagesBody').innerHTML='<tr><td colspan="9" class="tbl-msg">Error loading messages</td></tr>';return}
   _messages=data||[];
   document.getElementById('messageCount').textContent=_messages.length;
   checkNewItems('messages','dotMessages',_messages.length);
@@ -2013,13 +2013,16 @@ async function loadMessages(){
 
 function renderMessages(list){
   const tbody=document.getElementById('messagesBody');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="8" class="tbl-msg">No messages yet.</td></tr>';return}
+  if(!list.length){tbody.innerHTML='<tr><td colspan="9" class="tbl-msg">No messages yet.</td></tr>';return}
   tbody.innerHTML=list.map(m=>{
     const read=m.is_read;
     const badge=read?'<span class="badge badge-green">Read</span>':'<span class="badge badge-yellow">New</span>';
     const rowStyle=read?'':'style="background:rgba(196,98,42,.04)"';
+    let ref=m.reference_id||'';
+    if(!ref){const mm=(m.message||'').match(/Reference No:\s*(\d{6,})/);if(mm)ref=mm[1];}
     return '<tr '+rowStyle+'>'
       +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(m.created_at)+'</td>'
+      +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+(ref||'—')+'</td>'
       +'<td class="td-name">'+(m.name||'—')+'</td>'
       +'<td style="font-family:var(--mono);font-size:11px">'+(m.email||'—')+'</td>'
       +'<td>'+(m.phone||'—')+'</td>'
@@ -2041,6 +2044,7 @@ function filterMessages(){
       ||(m.email||'').toLowerCase().includes(q)
       ||(m.subject||'').toLowerCase().includes(q)
       ||(m.message||'').toLowerCase().includes(q)
+      ||(m.reference_id||'').toLowerCase().includes(q)
       ||(m.phone||'').includes(q);
   }));
 }

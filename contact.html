@@ -60,12 +60,11 @@
   <div style="max-width:var(--max-w);margin:0 auto">
     <div class="t-label" style="color:var(--stone-l);margin-bottom:12px">Get In Touch</div>
     <h1 style="font-family:var(--font-g);font-size:clamp(36px,5vw,64px);font-weight:400;color:var(--ivory);line-height:1.04;margin-bottom:14px">Contact Us</h1>
-    <p style="font-size:14px;color:var(--stone-l);font-weight:300;max-width:440px;margin:0 auto">We'd love to hear from you. Call, WhatsApp, or visit us in Delhi NCR.</p>
+    <p style="font-size:14px;color:var(--stone-l);font-weight:300;max-width:440px;margin:0 auto">We'd love to hear from you. Call or visit us at our studio in Greater Noida West.</p>
   </div>
 </div>
-<div style="text-align:center;padding:20px var(--pad) 0;font-size:15px;color:var(--stone);font-weight:300">Visit us at our studio in Greater Noida West</div>
 
-<section class="section" style="background:var(--ivory)">
+<section class="section" style="background:var(--ivory);padding-top:40px">
   <div class="mw">
     <div class="contact-grid">
       <!-- LEFT COLUMN: Contact Info -->
@@ -165,10 +164,23 @@
               <label for="cMessage">Message</label>
               <textarea id="cMessage" name="message" required placeholder="Tell us how we can help..."></textarea>
             </div>
+            <div class="form-row" id="contactErrRow" style="display:none;margin-bottom:0">
+              <div style="background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA;padding:12px 14px;font-size:12.5px;line-height:1.6"></div>
+            </div>
             <div class="form-submit">
               <button type="submit" class="btn btn-dark" style="width:100%;justify-content:center">Send Message</button>
             </div>
           </form>
+          <div id="contactSuccess" style="display:none;text-align:center;padding:14px 0 6px">
+            <div style="width:46px;height:46px;border-radius:50%;background:var(--accent);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px">✓</div>
+            <div style="font-family:var(--font-g);font-size:22px;color:var(--charcoal);margin-bottom:8px">Message received</div>
+            <p style="font-size:13px;color:var(--warm);line-height:1.7;margin-bottom:16px">Thank you for reaching out. We'll reply within one business day.</p>
+            <div style="background:var(--ivory);border:1.5px dashed var(--accent);padding:16px">
+              <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);margin-bottom:7px">Your Reference Number</div>
+              <div id="contactRefId" style="font-family:var(--font-g);font-size:26px;letter-spacing:.06em;color:var(--accent);font-weight:600"></div>
+            </div>
+            <p style="font-size:12.5px;color:var(--warm);line-height:1.7;margin-top:14px">📸 Please <strong>take a screenshot of this reference number</strong> and keep it safe — quote it in any future communication about this query.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -267,6 +279,18 @@ document.addEventListener('DOMContentLoaded',function(){
   initPhoneField('cPhone');
 });
 
+function genRefId(){
+  let n='';
+  for(let i=0;i<12;i++)n+=Math.floor(Math.random()*10);
+  return n;
+}
+function showContactError(msg){
+  const row=document.getElementById('contactErrRow');
+  if(!row)return;
+  row.querySelector('div').textContent=msg;
+  row.style.display='block';
+}
+
 async function submitContact(e){
   e.preventDefault();
   const phoneInp=document.getElementById('cPhone');
@@ -277,29 +301,48 @@ async function submitContact(e){
   const existingCustomer=document.querySelector('input[name="existing_customer"]:checked');
   const isExisting=existingCustomer?existingCustomer.value==='yes':false;
   const orderId=isExisting?document.getElementById('cOrderId').value.trim():'';
-  const subject=document.getElementById('cSubject').value;
-  const message=document.getElementById('cMessage').value.trim();
+  const subjSel=document.getElementById('cSubject');
+  const subject=subjSel.options[subjSel.selectedIndex]?subjSel.options[subjSel.selectedIndex].text:subjSel.value;
+  const userMsg=document.getElementById('cMessage').value.trim();
   const form=e.target;
   const btn=form.querySelector('button[type="submit"]');
+  document.getElementById('contactErrRow').style.display='none';
   if(btn){btn.textContent='Sending...';btn.disabled=true}
+
+  const refId=genRefId();
+  // The message always carries every detail, so the query is complete in the admin panel
+  // regardless of whether the optional structured columns exist on the table.
+  const fullMessage=
+    'Reference No: '+refId+'\n'+
+    'Existing customer: '+(isExisting?'Yes':'No')+'\n'+
+    (orderId?('Order ID: '+orderId+'\n'):'')+
+    '\nMessage:\n'+userMsg;
 
   const sb=getSB();
   if(!sb){
-    alert('Please email us at hello@triakar.com');
+    showContactError("Couldn't reach our servers. Please email us at hello@triakar.com or call +91 9217 555 833.");
     if(btn){btn.textContent='Send Message';btn.disabled=false}
     return;
   }
   try{
-    const payload={name:name,email:email,phone:phone,subject:subject,message:message,existing_customer:isExisting};
-    if(orderId) payload.order_id=orderId;
-    const {data,error}=await sb.from('contact_submissions').insert([payload]).select();
-    if(error) throw error;
-    form.reset();
-    document.getElementById('orderIdRow').style.display='none';
-    if(btn){btn.textContent='Sent ✓';btn.disabled=true}
+    const base={name:name,email:email,phone:phone,subject:subject,message:fullMessage};
+    // Try to also store the structured columns; if they don't exist yet, retry with base columns only.
+    let res=await sb.from('contact_submissions')
+      .insert([Object.assign({reference_id:refId,is_existing_customer:isExisting,order_id:orderId||null},base)])
+      .select();
+    if(res.error){
+      res=await sb.from('contact_submissions').insert([base]).select();
+    }
+    if(res.error) throw res.error;
+    // Success — no popup, inline confirmation with the reference number
+    document.getElementById('contactRefId').textContent=refId.replace(/(\d{4})(\d{4})(\d{4})/,'$1 $2 $3');
+    form.style.display='none';
+    const sx=document.getElementById('contactSuccess');
+    sx.style.display='block';
+    sx.scrollIntoView({behavior:'smooth',block:'center'});
   }catch(err){
     console.error('Contact save failed:',err);
-    alert('Please email us at hello@triakar.com');
+    showContactError("Something went wrong saving your message. Please email us at hello@triakar.com or call +91 9217 555 833.");
     if(btn){btn.textContent='Send Message';btn.disabled=false}
   }
 }
