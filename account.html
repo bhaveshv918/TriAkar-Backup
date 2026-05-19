@@ -3,14 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>My Account | TriAkar</title>
-<meta name="description" content="Manage your TriAkar account, view orders, edit profile, and manage addresses.">
+<title>My Account — TriAkar</title>
+<meta name="description" content="Manage your TriAkar account, view orders and track deliveries.">
+<meta name="keywords" content="TriAkar account, orders, login">
 <link rel="canonical" href="https://triakar.in/account.html">
-<meta property="og:title" content="My Account | TriAkar">
+<meta property="og:title" content="My Account — TriAkar">
 <meta property="og:description" content="Manage your TriAkar account, view orders and track deliveries.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://triakar.in/account.html">
 <meta property="og:site_name" content="TriAkar">
+<meta name="description" content="Sign in or create your TriAkar account to track orders and manage your profile.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -18,109 +20,80 @@
 <link rel="shortcut icon" href="favicon.svg">
 <link rel="stylesheet" href="shared.css">
 <style>
+/* ── PAGE LAYOUT ─────────────────────────────────── */
 .account-wrap{min-height:calc(100vh - var(--total-h));background:var(--ivory);padding:64px var(--pad) 80px}
-.account-inner{max-width:680px;margin:0 auto}
+.account-inner{max-width:520px;margin:0 auto}
 
-/* AUTH CARD */
-.auth-card{background:var(--white);border:1px solid var(--stone-p);max-width:480px;margin:0 auto}
+/* ── AUTH CARD ───────────────────────────────────── */
+.auth-card{background:var(--white);border:1px solid var(--stone-p)}
+
+/* tabs */
 .auth-tabs{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--stone-p)}
 .auth-tab{padding:18px 0;font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;
   color:var(--stone);background:none;border:none;cursor:pointer;transition:color .2s;
   border-bottom:2px solid transparent;margin-bottom:-1px}
 .auth-tab.active{color:var(--charcoal);border-bottom-color:var(--accent)}
+
+/* form */
 .auth-form{display:none;padding:36px 40px 40px}
 .auth-form.active{display:block}
 .auth-form-title{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px;color:var(--charcoal)}
 .auth-form-sub{font-size:13px;color:var(--stone);margin-bottom:28px;line-height:1.6}
+
 .field{margin-bottom:18px}
-.field label{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--warm);margin-bottom:7px}
-.field input,.field select,.field textarea{width:100%;padding:12px 14px;border:1px solid var(--stone-p);background:var(--ivory);font-family:var(--font-b);font-size:14px;color:var(--charcoal);outline:none;transition:border-color .2s}
-.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--charcoal)}
+.field label{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  font-weight:600;color:var(--warm);margin-bottom:7px}
+.field input{width:100%;padding:12px 14px;border:1px solid var(--stone-p);background:var(--ivory);
+  font-family:var(--font-b);font-size:14px;color:var(--charcoal);outline:none;
+  transition:border-color .2s}
+.field input:focus{border-color:var(--charcoal)}
 .field input::placeholder{color:var(--stone-l)}
+
 .auth-submit{width:100%;margin-top:8px}
 .auth-msg{margin-top:14px;font-size:12.5px;padding:12px 14px;display:none}
 .auth-msg.err{background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA}
 .auth-msg.ok{background:#F0FDF4;color:#166534;border:1px solid #BBF7D0}
 .auth-msg.show{display:block}
 
-/* DASHBOARD */
+/* ── DASHBOARD ───────────────────────────────────── */
 .dash{display:none}
 .dash.active{display:block}
-.dash-header{padding:40px 0 28px;border-bottom:1px solid var(--stone-p);margin-bottom:0}
+
+.dash-header{padding:40px 0 32px;border-bottom:1px solid var(--stone-p);margin-bottom:36px}
 .dash-greeting{font-size:28px;font-weight:700;letter-spacing:-.02em;color:var(--charcoal);margin-bottom:4px}
 .dash-email{font-size:13px;color:var(--stone)}
 .dash-actions{margin-top:20px;display:flex;gap:12px;align-items:center}
-.dash-logout{background:none;border:1px solid var(--stone-p);color:var(--stone);font-family:var(--font-b);font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;padding:9px 18px;cursor:pointer;transition:all .2s}
+.dash-logout{background:none;border:1px solid var(--stone-p);color:var(--stone);
+  font-family:var(--font-b);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  font-weight:600;padding:9px 18px;cursor:pointer;transition:all .2s}
 .dash-logout:hover{border-color:var(--charcoal);color:var(--charcoal)}
 
-/* TABS */
-.dash-tabs{display:flex;gap:0;border-bottom:1px solid var(--stone-p);margin-bottom:32px;overflow-x:auto}
-.dash-tab{padding:16px 20px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--stone);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap;transition:color .2s}
-.dash-tab.active{color:var(--charcoal);border-bottom-color:var(--accent)}
-.dash-tab:hover{color:var(--charcoal)}
-.tab-panel{display:none}
-.tab-panel.active{display:block}
-
-/* ORDERS */
-.orders-title{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:var(--stone);margin-bottom:20px}
+/* orders */
+.orders-title{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;
+  color:var(--stone);margin-bottom:20px}
 .order-card{border:1px solid var(--stone-p);padding:20px 24px;margin-bottom:12px;background:var(--white)}
 .order-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.order-id{font-size:13px;letter-spacing:.04em;color:var(--charcoal);font-weight:700}
-.order-date{font-size:12px;color:var(--stone);margin-top:2px}
+.order-id{font-size:11px;letter-spacing:.08em;color:var(--stone);font-weight:500}
+.order-date{font-size:12px;color:var(--stone)}
 .order-total{font-size:15px;font-weight:700;color:var(--charcoal)}
-.order-status{display:inline-block;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:4px 10px;border-radius:2px}
+.order-status{display:inline-block;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  font-weight:700;padding:4px 10px;border-radius:2px}
 .status-pending{background:#FEF9C3;color:#854D0E}
-.status-placed{background:#FEF9C3;color:#854D0E}
 .status-confirmed{background:#DCFCE7;color:#14532D}
 .status-processing{background:#DBEAFE;color:#1E3A5F}
 .status-shipped{background:#E0E7FF;color:#312E81}
 .status-delivered{background:#F0FDF4;color:#166534}
-.status-cancelled{background:#FEE2E2;color:#991B1B}
 .order-items-preview{margin-top:10px;font-size:12px;color:var(--warm);border-top:1px solid var(--stone-p);padding-top:10px}
-.order-track{margin-top:8px;font-size:11px}
-.order-track a{color:var(--accent);font-weight:600;text-decoration:none}
+
 .orders-empty{padding:48px 0;text-align:center}
 .orders-empty p{font-size:14px;color:var(--stone);margin-bottom:16px}
+
 .orders-loading{padding:40px 0;text-align:center;font-size:13px;color:var(--stone);letter-spacing:.06em}
-
-/* PROFILE */
-.profile-form{max-width:480px}
-.profile-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.profile-save{margin-top:20px}
-.profile-msg{margin-top:12px;font-size:12.5px;padding:10px 14px;display:none}
-.profile-msg.show{display:block}
-
-/* ADDRESSES */
-.addr-card{border:1px solid var(--stone-p);padding:18px 22px;margin-bottom:12px;background:var(--white);position:relative}
-.addr-card.default{border-color:var(--accent)}
-.addr-label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--stone);margin-bottom:6px}
-.addr-default-badge{position:absolute;top:12px;right:14px;font-size:9px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;padding:3px 8px;background:var(--accent);color:white;border-radius:2px}
-.addr-name{font-size:14px;font-weight:600;color:var(--charcoal)}
-.addr-detail{font-size:13px;color:var(--warm);line-height:1.6;margin-top:4px}
-.addr-phone{font-size:12px;color:var(--stone);margin-top:4px}
-.addr-actions{margin-top:10px;display:flex;gap:10px}
-.addr-actions button{background:none;border:none;font-family:var(--font-b);font-size:11px;color:var(--accent);cursor:pointer;padding:0;font-weight:600}
-.addr-actions button.del{color:#B91C1C}
-.addr-form{border:1px solid var(--stone-p);padding:24px;background:var(--white);margin-bottom:16px}
-.addr-form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.addr-empty{padding:36px 0;text-align:center;font-size:14px;color:var(--stone)}
-
-/* SETTINGS */
-.settings-section{margin-bottom:32px}
-.settings-title{font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--stone);margin-bottom:16px}
-.settings-item{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--stone-p)}
-.settings-item:last-child{border-bottom:none}
-.settings-label{font-size:14px;color:var(--charcoal);font-weight:500}
-.settings-desc{font-size:12px;color:var(--stone);margin-top:2px}
-.danger-btn{background:none;border:1px solid #FCA5A5;color:#B91C1C;font-family:var(--font-b);font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;padding:8px 16px;cursor:pointer;transition:all .2s}
-.danger-btn:hover{background:#FEF2F2;border-color:#B91C1C}
 
 @media(max-width:600px){
   .account-wrap{padding:40px var(--pad) 60px}
   .auth-form{padding:28px 20px 32px}
-  .profile-row,.addr-form-row{grid-template-columns:1fr}
-  .dash-tabs{gap:0}
-  .dash-tab{padding:14px 14px;font-size:9px}
+  .auth-tabs .auth-tab{font-size:9px;padding:16px 0}
 }
 </style>
 </head>
@@ -166,33 +139,55 @@
 <div class="account-wrap">
   <div class="account-inner">
 
-    <!-- AUTH CARD -->
+    <!-- AUTH CARD (shown when logged out) -->
     <div class="auth-card" id="authCard">
       <div class="auth-tabs">
         <button class="auth-tab active" data-tab="login" onclick="switchTab('login')">Sign In</button>
         <button class="auth-tab" data-tab="signup" onclick="switchTab('signup')">Create Account</button>
       </div>
+
+      <!-- Sign In -->
       <form class="auth-form active" id="loginForm" onsubmit="handleLogin(event)">
         <div class="auth-form-title">Welcome back</div>
         <p class="auth-form-sub">Sign in to view your orders and manage your account.</p>
-        <div class="field"><label for="loginEmail">Email</label><input type="email" id="loginEmail" placeholder="you@example.com" required autocomplete="email"></div>
-        <div class="field"><label for="loginPassword">Password</label><input type="password" id="loginPassword" placeholder="Your password" required autocomplete="current-password"></div>
+        <div class="field">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" placeholder="you@example.com" required autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" placeholder="Your password" required autocomplete="current-password">
+        </div>
         <button type="submit" class="btn btn-dark auth-submit" id="loginBtn">Sign In →</button>
         <div class="auth-msg" id="loginMsg"></div>
       </form>
+
+      <!-- Create Account -->
       <form class="auth-form" id="signupForm" onsubmit="handleSignup(event)">
         <div class="auth-form-title">Create account</div>
         <p class="auth-form-sub">Join TriAkar to track orders, save addresses, and check out faster.</p>
-        <div class="field"><label for="signupName">Full Name</label><input type="text" id="signupName" placeholder="Your full name" required autocomplete="name"></div>
-        <div class="field"><label for="signupEmail">Email</label><input type="email" id="signupEmail" placeholder="you@example.com" required autocomplete="email"></div>
-        <div class="field"><label for="signupPhone">Phone *</label><input type="tel" id="signupPhone" required autocomplete="tel"></div>
-        <div class="field"><label for="signupPassword">Password</label><input type="password" id="signupPassword" placeholder="Min. 8 characters" required minlength="8" autocomplete="new-password"></div>
+        <div class="field">
+          <label for="signupName">Full Name</label>
+          <input type="text" id="signupName" placeholder="Your full name" required autocomplete="name">
+        </div>
+        <div class="field">
+          <label for="signupEmail">Email</label>
+          <input type="email" id="signupEmail" placeholder="you@example.com" required autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="signupPhone">Phone <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--stone-l)">(optional)</span></label>
+          <input type="tel" id="signupPhone" placeholder="+91 98765 43210" autocomplete="tel">
+        </div>
+        <div class="field">
+          <label for="signupPassword">Password</label>
+          <input type="password" id="signupPassword" placeholder="Min. 8 characters" required minlength="8" autocomplete="new-password">
+        </div>
         <button type="submit" class="btn btn-dark auth-submit" id="signupBtn">Create Account →</button>
         <div class="auth-msg" id="signupMsg"></div>
       </form>
     </div>
 
-    <!-- DASHBOARD -->
+    <!-- DASHBOARD (shown when logged in) -->
     <div class="dash" id="dashboard">
       <div class="dash-header">
         <div class="dash-greeting" id="dashGreeting">Welcome back</div>
@@ -203,73 +198,8 @@
         </div>
       </div>
 
-      <div class="dash-tabs">
-        <button class="dash-tab active" data-panel="orders" onclick="switchDashTab('orders')">My Orders</button>
-        <button class="dash-tab" data-panel="profile" onclick="switchDashTab('profile')">Personal Details</button>
-        <button class="dash-tab" data-panel="addresses" onclick="switchDashTab('addresses')">Saved Addresses</button>
-        <button class="dash-tab" data-panel="settings" onclick="switchDashTab('settings')">Settings</button>
-      </div>
-
-      <!-- TAB: Orders -->
-      <div class="tab-panel active" id="panelOrders" data-panel="orders">
-        <div id="ordersContainer"><div class="orders-loading">Loading orders...</div></div>
-      </div>
-
-      <!-- TAB: Personal Details -->
-      <div class="tab-panel" id="panelProfile" data-panel="profile">
-        <form class="profile-form" id="profileForm" onsubmit="saveProfile(event)">
-          <div class="profile-row">
-            <div class="field"><label>Full Name</label><input type="text" id="profName" placeholder="Full name"></div>
-            <div class="field"><label>Nickname</label><input type="text" id="profNickname" placeholder="What should we call you?"></div>
-          </div>
-          <div class="field"><label>Email</label><input type="email" id="profEmail" disabled style="opacity:.6"></div>
-          <div class="profile-row">
-            <div class="field"><label>Mobile *</label><input type="tel" id="profMobile" required></div>
-            <div class="field"><label>Alternate Mobile</label><input type="tel" id="profAltMobile"></div>
-          </div>
-          <div class="profile-row">
-            <div class="field"><label>Gender</label>
-              <select id="profGender"><option value="">Select</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option><option value="prefer_not">Prefer not to say</option></select>
-            </div>
-            <div class="field"><label>Date of Birth</label><input type="date" id="profDob"></div>
-          </div>
-          <div class="field"><label>Anniversary Date <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--stone-l)">(optional)</span></label><input type="date" id="profAnniversary"></div>
-          <button type="submit" class="btn btn-dark profile-save" id="profSaveBtn">Save Changes →</button>
-          <div class="profile-msg" id="profMsg"></div>
-        </form>
-      </div>
-
-      <!-- TAB: Addresses -->
-      <div class="tab-panel" id="panelAddresses" data-panel="addresses">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-          <div class="orders-title" style="margin-bottom:0">Saved Addresses</div>
-          <button class="btn btn-outline" style="font-size:10px;padding:8px 16px" onclick="showAddressForm()">+ Add Address</button>
-        </div>
-        <div id="addrFormWrap" style="display:none"></div>
-        <div id="addrList"><div class="orders-loading">Loading...</div></div>
-      </div>
-
-      <!-- TAB: Settings -->
-      <div class="tab-panel" id="panelSettings" data-panel="settings">
-        <div class="settings-section">
-          <div class="settings-title">Account</div>
-          <div class="settings-item">
-            <div><div class="settings-label">Change Password</div><div class="settings-desc">Update your login password</div></div>
-            <button class="btn btn-outline" style="font-size:10px;padding:8px 16px" onclick="changePassword()">Change</button>
-          </div>
-        </div>
-        <div class="settings-section">
-          <div class="settings-title">Support</div>
-          <div class="settings-item">
-            <div><div class="settings-label">Need Help?</div><div class="settings-desc">Chat with us on WhatsApp or give us a call</div></div>
-            <a href="https://wa.me/919217555833" target="_blank" class="btn btn-outline" style="font-size:10px;padding:8px 16px;text-decoration:none">WhatsApp</a>
-          </div>
-          <div class="settings-item">
-            <div><div class="settings-label">Delete Account</div><div class="settings-desc">Contact us to request account deletion</div></div>
-            <button class="btn btn-outline" style="font-size:10px;padding:8px 16px" onclick="requestDeleteAccount()">Request</button>
-          </div>
-        </div>
-      </div>
+      <div class="orders-title">Your Orders</div>
+      <div id="ordersContainer"><div class="orders-loading">Loading orders…</div></div>
     </div>
 
   </div>
@@ -281,7 +211,7 @@
       <div>
         <div class="foot-brand">TRIAKAR</div>
         <div class="foot-hi">त्रिआकार</div>
-        <p class="foot-desc">3D Printing Services, Greater Noida, Uttar Pradesh</p>
+        <p class="foot-desc">3D Printing Services, Delhi NCR</p>
         <div class="foot-phone"><a href="tel:+919217555833">+91 92175 55833</a></div>
         <div class="foot-hours">Open all days, 11 AM to 9 PM</div>
       </div>
@@ -314,7 +244,7 @@
     </div>
     <div class="foot-bottom">
       <p class="foot-copy">© 2025 TriAkar. All rights reserved.</p>
-      <p class="foot-tag">Serving Noida & Greater Noida. Shipping across India.</p>
+      <p class="foot-tag">Serving Delhi NCR — Noida, Greater Noida, Faridabad, Gurugram, Delhi. Shipping across India.</p>
     </div>
   </div>
 </footer>
@@ -331,366 +261,125 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/auth.js"></script>
 <script src="products-data.js"></script>
 <script src="shared.js"></script>
 <script>
-const SB_URL='https://qarjbmogersuaerkhlcu.supabase.co';
-const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
-let sb;
-try{sb=window.supabase.createClient(SB_URL,SB_KEY)}catch(e){sb=null}
+const STATUS_CLASS = {
+  pending:     'status-pending',
+  confirmed:   'status-confirmed',
+  processing:  'status-processing',
+  shipped:     'status-shipped',
+  delivered:   'status-delivered',
+};
 
-const STATUS_CLASS={pending:'status-pending',placed:'status-placed',confirmed:'status-confirmed',processing:'status-processing',shipped:'status-shipped',delivered:'status-delivered',cancelled:'status-cancelled'};
-
-/* ── Auth Tabs ── */
-function switchTab(tab){
-  document.querySelectorAll('.auth-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  document.getElementById('loginForm').classList.toggle('active',tab==='login');
-  document.getElementById('signupForm').classList.toggle('active',tab==='signup');
+function switchTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('loginForm').classList.toggle('active', tab === 'login');
+  document.getElementById('signupForm').classList.toggle('active', tab === 'signup');
 }
 
-function showMsg(id,text,type){
-  const el=document.getElementById(id);
-  el.textContent=text;el.className='auth-msg show '+type;
+function showMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'auth-msg show ' + type;
 }
 
-async function handleLogin(e){
+async function handleLogin(e) {
   e.preventDefault();
-  const btn=document.getElementById('loginBtn');
-  btn.textContent='Signing in...';btn.disabled=true;
-  try{
-    await Auth.login(document.getElementById('loginEmail').value.trim(),document.getElementById('loginPassword').value);
+  const btn = document.getElementById('loginBtn');
+  btn.textContent = 'Signing in…'; btn.disabled = true;
+  try {
+    await Auth.login(
+      document.getElementById('loginEmail').value.trim(),
+      document.getElementById('loginPassword').value
+    );
     showDashboard();
-  }catch(err){showMsg('loginMsg',err.message,'err')}
-  finally{btn.textContent='Sign In →';btn.disabled=false}
+  } catch (err) {
+    showMsg('loginMsg', err.message, 'err');
+  } finally {
+    btn.textContent = 'Sign In →'; btn.disabled = false;
+  }
 }
 
-async function handleSignup(e){
+async function handleSignup(e) {
   e.preventDefault();
-  const phoneInp=document.getElementById('signupPhone');
-  if(phoneInp&&phoneInp._validatePhone&&!phoneInp._validatePhone())return;
-  const btn=document.getElementById('signupBtn');
-  btn.textContent='Creating account...';btn.disabled=true;
-  try{
-    await Auth.signup(document.getElementById('signupEmail').value.trim(),document.getElementById('signupPassword').value,document.getElementById('signupName').value.trim(),document.getElementById('signupPhone').value.trim()||null);
-    showMsg('signupMsg','Account created! Check your email to verify, then sign in.','ok');
+  const btn = document.getElementById('signupBtn');
+  btn.textContent = 'Creating account…'; btn.disabled = true;
+  try {
+    await Auth.signup(
+      document.getElementById('signupEmail').value.trim(),
+      document.getElementById('signupPassword').value,
+      document.getElementById('signupName').value.trim(),
+      document.getElementById('signupPhone').value.trim() || null
+    );
+    showMsg('signupMsg', 'Account created! Please check your email to verify, then sign in.', 'ok');
     document.getElementById('signupForm').reset();
-  }catch(err){showMsg('signupMsg',err.message,'err')}
-  finally{btn.textContent='Create Account →';btn.disabled=false}
+  } catch (err) {
+    showMsg('signupMsg', err.message, 'err');
+  } finally {
+    btn.textContent = 'Create Account →'; btn.disabled = false;
+  }
 }
 
-/* ── Dashboard Tabs ── */
-function switchDashTab(panel){
-  document.querySelectorAll('.dash-tab').forEach(t=>t.classList.toggle('active',t.dataset.panel===panel));
-  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.dataset.panel===panel));
-  if(panel==='profile')loadProfile();
-  if(panel==='addresses')loadAddresses();
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-/* ── Orders ── */
-function fmtDate(iso){return new Date(iso).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}
-
-function renderOrders(orders){
-  const el=document.getElementById('ordersContainer');
-  if(!orders||!orders.length){el.innerHTML='<div class="orders-empty"><p>No orders yet.</p><a href="products.html" class="btn btn-dark">Start Shopping</a></div>';return}
-  el.innerHTML=orders.map(function(o){
-    const st=o.order_status||o.status||'placed';
-    const sc=STATUS_CLASS[st]||'status-pending';
-    const items=o.items||[];
-    const preview=items.slice(0,3).map(function(i){return(i.name||'Item')+' x'+i.quantity}).join(', ')+(items.length>3?' +'+(items.length-3)+' more':'');
-    const orderId=o.order_id||('Order #'+(o.id||'').slice(0,8).toUpperCase());
+function renderOrders(orders) {
+  const el = document.getElementById('ordersContainer');
+  if (!orders.length) {
+    el.innerHTML = '<div class="orders-empty"><p>No orders yet.</p><a href="products.html" class="btn btn-dark">Start Shopping</a></div>';
+    return;
+  }
+  el.innerHTML = orders.map(function(o) {
+    const statusClass = STATUS_CLASS[o.status] || 'status-pending';
+    const items = (o.order_items || []);
+    const preview = items.slice(0, 3).map(function(i) {
+      return (i.products && i.products.name ? i.products.name : 'Item') + ' × ' + i.quantity;
+    }).join(', ') + (items.length > 3 ? ' +' + (items.length - 3) + ' more' : '');
     return '<div class="order-card">'
-      +'<div class="order-row">'
-      +'<div><div class="order-id">'+orderId+'</div><div class="order-date">'+fmtDate(o.created_at)+'</div></div>'
-      +'<div style="display:flex;align-items:center;gap:12px"><span class="order-status '+sc+'">'+st+'</span><div class="order-total">₹'+Number(o.total_amount).toLocaleString('en-IN')+'</div></div>'
-      +'</div>'
-      +(preview?'<div class="order-items-preview">'+preview+'</div>':'')
-      +'<div class="order-track"><a href="track-order.html?id='+encodeURIComponent(orderId)+'">Track Order →</a></div>'
-      +'</div>';
+      + '<div class="order-row">'
+      + '<div><div class="order-id">Order #' + o.id.slice(0, 8).toUpperCase() + '</div><div class="order-date">' + fmtDate(o.created_at) + '</div></div>'
+      + '<div style="display:flex;align-items:center;gap:12px"><span class="order-status ' + statusClass + '">' + o.status + '</span><div class="order-total">₹' + Number(o.total_amount).toLocaleString('en-IN') + '</div></div>'
+      + '</div>'
+      + (preview ? '<div class="order-items-preview">' + preview + '</div>' : '')
+      + '</div>';
   }).join('');
 }
 
-async function loadOrders(){
-  const el=document.getElementById('ordersContainer');
-  el.innerHTML='<div class="orders-loading">Loading orders...</div>';
-  const user=Auth.getUser();
-  if(!user||!sb){el.innerHTML='<div class="orders-empty"><p>Could not load orders.</p></div>';return}
-  try{
-    const {data,error}=await sb.rpc('get_my_orders',{p_email:user.email});
-    if(error)throw error;
-    renderOrders(data||[]);
-  }catch(err){
-    // Fallback to Express API
-    try{
-      const API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
-      const res=await fetch(API+'/api/orders',{headers:Object.assign({'Content-Type':'application/json'},Auth.authHeader())});
-      if(!res.ok)throw new Error('Could not load orders');
-      const {orders}=await res.json();
-      renderOrders(orders);
-    }catch(e2){el.innerHTML='<div class="orders-empty"><p>'+e2.message+'</p></div>'}
+async function loadOrders() {
+  const container = document.getElementById('ordersContainer');
+  container.innerHTML = '<div class="orders-loading">Loading orders…</div>';
+  try {
+    const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://triakar.onrender.com';
+    const res = await fetch(API_BASE + '/api/orders', {
+      headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader())
+    });
+    if (!res.ok) throw new Error('Could not load orders');
+    const { orders } = await res.json();
+    renderOrders(orders);
+  } catch (err) {
+    container.innerHTML = '<div class="orders-empty"><p style="color:var(--stone)">' + err.message + '</p></div>';
   }
 }
 
-/* ── Profile ── */
-async function loadProfile(){
-  if(!sb)return;
-  const user=Auth.getUser();
-  if(!user)return;
-  // Set email (read-only)
-  document.getElementById('profEmail').value=user.email||'';
-  // Pre-fill from user_metadata
-  const meta=user.user_metadata||{};
-  document.getElementById('profName').value=meta.full_name||'';
-
-  // Load from profiles table
-  try{
-    const {data,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
-    if(data){
-      document.getElementById('profName').value=data.full_name||meta.full_name||'';
-      document.getElementById('profNickname').value=data.nickname||'';
-      // Set phone values and sync phone components
-      const mobileVal=data.mobile||'';
-      const altMobileVal=data.alternate_mobile||'';
-      document.getElementById('profMobile').value=mobileVal;
-      document.getElementById('profAltMobile').value=altMobileVal;
-      // Sync phone component display
-      if(mobileVal){splitPhoneValue('profMobile',mobileVal)}
-      if(altMobileVal){splitPhoneValue('profAltMobile',altMobileVal)}
-      document.getElementById('profGender').value=data.gender||'';
-      document.getElementById('profDob').value=data.date_of_birth||'';
-      document.getElementById('profAnniversary').value=data.anniversary_date||'';
-    }
-  }catch(e){}
-}
-
-async function saveProfile(e){
-  e.preventDefault();
-  const profPhoneInp=document.getElementById('profMobile');
-  if(profPhoneInp&&profPhoneInp._validatePhone&&!profPhoneInp._validatePhone())return;
-  if(!sb)return;
-  const user=Auth.getUser();
-  if(!user)return;
-  const btn=document.getElementById('profSaveBtn');
-  btn.textContent='Saving...';btn.disabled=true;
-  const msgEl=document.getElementById('profMsg');
-
-  const updates={
-    full_name:document.getElementById('profName').value.trim(),
-    nickname:document.getElementById('profNickname').value.trim()||null,
-    mobile:document.getElementById('profMobile').value.trim()||null,
-    alternate_mobile:document.getElementById('profAltMobile').value.trim()||null,
-    gender:document.getElementById('profGender').value||null,
-    date_of_birth:document.getElementById('profDob').value||null,
-    anniversary_date:document.getElementById('profAnniversary').value||null,
-    updated_at:new Date().toISOString()
-  };
-
-  try{
-    const {error}=await sb.from('profiles').update(updates).eq('id',user.id);
-    if(error)throw error;
-    msgEl.textContent='Profile saved!';msgEl.className='profile-msg show auth-msg ok';
-    setTimeout(()=>{msgEl.className='profile-msg'},3000);
-  }catch(err){
-    msgEl.textContent='Error: '+err.message;msgEl.className='profile-msg show auth-msg err';
-  }finally{btn.textContent='Save Changes →';btn.disabled=false}
-}
-
-/* ── Addresses ── */
-async function loadAddresses(){
-  if(!sb)return;
-  const user=Auth.getUser();
-  if(!user)return;
-  const list=document.getElementById('addrList');
-  list.innerHTML='<div class="orders-loading">Loading...</div>';
-  try{
-    const {data,error}=await sb.from('user_addresses').select('*').eq('user_id',user.id).order('is_default',{ascending:false});
-    if(error)throw error;
-    if(!data||!data.length){list.innerHTML='<div class="addr-empty">No saved addresses yet.</div>';return}
-    list.innerHTML=data.map(a=>`
-      <div class="addr-card ${a.is_default?'default':''}">
-        ${a.is_default?'<div class="addr-default-badge">Default</div>':''}
-        <div class="addr-label">Address</div>
-        <div class="addr-name">${a.full_name}</div>
-        <div class="addr-detail">${a.address_line1}${a.address_line2?', '+a.address_line2:''}<br>${a.city}, ${a.state} - ${a.pincode}</div>
-        <div class="addr-phone">${a.phone||''}</div>
-        <div class="addr-actions">
-          ${!a.is_default?'<button onclick="setDefaultAddr(\''+a.id+'\')">Set Default</button>':''}
-          <button onclick="editAddress('${a.id}')">Edit</button>
-          <button class="del" onclick="deleteAddress('${a.id}')">Delete</button>
-        </div>
-      </div>
-    `).join('');
-  }catch(e){list.innerHTML='<div class="addr-empty">Could not load addresses.</div>'}
-}
-
-function showAddressForm(existing){
-  const wrap=document.getElementById('addrFormWrap');
-  const a=existing||{};
-  wrap.style.display='block';
-  wrap.innerHTML=`
-    <div class="addr-form">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <div style="font-size:15px;font-weight:700;color:var(--charcoal)">${a.id?'Edit':'Add New'} Address</div>
-        <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--stone)" onclick="document.getElementById('addrFormWrap').style.display='none'">&times;</button>
-      </div>
-      <input type="hidden" id="addrEditId" value="${a.id||''}">
-      <div class="addr-form-row">
-        <div class="field"><label>Full Name *</label><input type="text" id="addrName" value="${a.full_name||''}" required></div>
-        <div class="field"><label>Phone *</label><input type="tel" id="addrPhone" value="${a.phone||''}" required></div>
-      </div>
-      <div class="field"><label>Address Line 1 *</label><input type="text" id="addrLine1" value="${a.address_line1||''}" placeholder="House/Flat/Building" required></div>
-      <div class="field"><label>Address Line 2</label><input type="text" id="addrLine2" value="${a.address_line2||''}" placeholder="Street/Colony/Area"></div>
-      <div class="addr-form-row">
-        <div class="field"><label>PIN Code *</label><input type="text" id="addrPincode" value="${a.pincode||''}" maxlength="6" required></div>
-        <div class="field"><label>City *</label><input type="text" id="addrCity" value="${a.city||''}" required></div>
-      </div>
-      <div class="addr-form-row">
-        <div class="field"><label>State *</label><input type="text" id="addrState" value="${a.state||''}" required></div>
-        <div class="field" style="display:flex;align-items:flex-end;padding-bottom:12px">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="addrDefault" ${a.is_default?'checked':''}> Set as default</label>
-        </div>
-      </div>
-      <button class="btn btn-dark" style="width:100%;justify-content:center;margin-top:8px" onclick="saveAddress()">Save Address →</button>
-    </div>
-  `;
-  // Init phone field
-  initPhoneField('addrPhone');
-  // Pincode auto-fill
-  document.getElementById('addrPincode').addEventListener('input',async function(){
-    if(this.value.length===6){
-      const info=await lookupPincode(this.value);
-      if(info){
-        if(!document.getElementById('addrCity').value)document.getElementById('addrCity').value=info.city||'';
-        document.getElementById('addrState').value=info.state||'';
-      }
-    }
-  });
-  wrap.scrollIntoView({behavior:'smooth',block:'start'});
-}
-
-async function saveAddress(){
-  if(!sb)return;
-  const user=Auth.getUser();
-  if(!user)return;
-  const editId=document.getElementById('addrEditId').value;
-  const name=document.getElementById('addrName').value.trim();
-  const phone=document.getElementById('addrPhone').value.trim();
-  const line1=document.getElementById('addrLine1').value.trim();
-  const city=document.getElementById('addrCity').value.trim();
-  const state=document.getElementById('addrState').value.trim();
-  const pin=document.getElementById('addrPincode').value.trim();
-  const phoneInp=document.getElementById('addrPhone');
-  if(phoneInp&&phoneInp._validatePhone&&!phoneInp._validatePhone())return;
-  if(!name||!phone||!line1||!city||!state||!pin){alert('Please fill all required fields.');return}
-
-  const rec={
-    user_id:user.id,full_name:name,phone:phone,
-    address_line1:line1,address_line2:document.getElementById('addrLine2').value.trim()||null,
-    city:city,state:state,pincode:pin,
-    is_default:document.getElementById('addrDefault').checked
-  };
-
-  try{
-    // If setting as default, unset others first
-    if(rec.is_default){
-      await sb.from('user_addresses').update({is_default:false}).eq('user_id',user.id);
-    }
-    if(editId){
-      const {error}=await sb.from('user_addresses').update(rec).eq('id',editId);
-      if(error)throw error;
-    }else{
-      const {error}=await sb.from('user_addresses').insert(rec);
-      if(error)throw error;
-    }
-    document.getElementById('addrFormWrap').style.display='none';
-    loadAddresses();
-  }catch(err){alert('Error saving address: '+err.message)}
-}
-
-async function editAddress(id){
-  if(!sb)return;
-  const {data}=await sb.from('user_addresses').select('*').eq('id',id).single();
-  if(data)showAddressForm(data);
-}
-
-async function deleteAddress(id){
-  if(!confirm('Delete this address?'))return;
-  if(!sb)return;
-  try{
-    const {error}=await sb.from('user_addresses').delete().eq('id',id);
-    if(error)throw error;
-    loadAddresses();
-  }catch(err){alert('Error: '+err.message)}
-}
-
-async function setDefaultAddr(id){
-  if(!sb)return;
-  const user=Auth.getUser();
-  if(!user)return;
-  try{
-    await sb.from('user_addresses').update({is_default:false}).eq('user_id',user.id);
-    await sb.from('user_addresses').update({is_default:true}).eq('id',id);
-    loadAddresses();
-  }catch(err){alert('Error: '+err.message)}
-}
-
-/* ── Settings ── */
-async function changePassword(){
-  const newPass=prompt('Enter new password (min 8 characters):');
-  if(!newPass||newPass.length<8){if(newPass!==null)alert('Password must be at least 8 characters.');return}
-  const API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
-  try{
-    const res=await fetch(API+'/api/auth/change-password',{
-      method:'POST',headers:Object.assign({'Content-Type':'application/json'},Auth.authHeader()),
-      body:JSON.stringify({newPassword:newPass})
-    });
-    if(!res.ok){const d=await res.json();throw new Error(d.error||'Failed')}
-    alert('Password updated!');
-  }catch(err){alert('Error: '+err.message)}
-}
-
-function requestDeleteAccount(){
-  if(!confirm('Are you sure? This will permanently delete your account and all data. This cannot be undone.'))return;
-  alert('To delete your account, please contact us at +91 92175 55833 or email hello@triakar.in');
-}
-
-/* ── Dashboard Init ── */
-function showDashboard(){
-  const user=Auth.getUser();
-  if(!user)return;
-  const meta=user.user_metadata||{};
-  const displayName=meta.nickname||meta.full_name?.split(' ')[0]||'there';
-  document.getElementById('dashGreeting').textContent='Welcome back, '+displayName;
-  document.getElementById('dashEmail').textContent=user.email||'';
-  document.getElementById('authCard').style.display='none';
+function showDashboard() {
+  const user = Auth.getUser();
+  if (!user) return;
+  const name = (user.user_metadata && user.user_metadata.full_name) ? user.user_metadata.full_name.split(' ')[0] : 'there';
+  document.getElementById('dashGreeting').textContent = 'Welcome back, ' + name;
+  document.getElementById('dashEmail').textContent = user.email || '';
+  document.getElementById('authCard').style.display = 'none';
   document.getElementById('dashboard').classList.add('active');
   loadOrders();
-
-  // Check hash for direct tab navigation
-  const hash=window.location.hash.replace('#','');
-  if(hash==='orders')switchDashTab('orders');
-  else if(hash==='profile')switchDashTab('profile');
-  else if(hash==='addresses')switchDashTab('addresses');
-  else if(hash==='settings')switchDashTab('settings');
 }
 
-function splitPhoneValue(id,val){
-  const ccEl=document.getElementById(id+'_cc');
-  const numEl=document.getElementById(id+'_num');
-  if(!ccEl||!numEl)return;
-  for(const cc of COUNTRY_CODES){
-    if(val.startsWith(cc)){ccEl.value=cc;numEl.value=val.slice(cc.length).replace(/\D/g,'');return}
+// On load: show dashboard if already logged in
+document.addEventListener('DOMContentLoaded', function() {
+  if (Auth.isLoggedIn()) {
+    showDashboard();
   }
-  numEl.value=val.replace(/\D/g,'');
-}
-
-document.addEventListener('DOMContentLoaded',function(){
-  // Init phone fields on auth forms
-  initPhoneField('signupPhone');
-  initPhoneField('profMobile');
-  initPhoneField('profAltMobile');
-  if(Auth.isLoggedIn()){showDashboard()}
 });
 </script>
 </body>
