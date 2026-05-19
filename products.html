@@ -448,7 +448,6 @@ const grid = document.getElementById('prodGrid');
 let allCards = [];
 let curFilter = 'all';
 
-grid.innerHTML = '<div style="grid-column:1/-1;padding:80px 0;text-align:center;color:var(--stone);letter-spacing:.08em;font-size:13px">Loading products…</div>';
 document.getElementById('shopCount').textContent = '';
 document.getElementById('fcount').textContent = '';
 
@@ -529,27 +528,31 @@ function loadFromLocal() {
   if (btn) btn.click(); else applyFilters();
 }
 
-async function loadProducts() {
-  grid.innerHTML = '<div style="grid-column:1/-1;padding:80px 0;text-align:center;color:var(--stone);letter-spacing:.08em;font-size:13px">Loading products…</div>';
-  try {
-    const res = await fetch(API_BASE + '/api/products');
-    if (!res.ok) throw new Error('Server error ' + res.status);
-    const { products } = await res.json();
-
-    grid.innerHTML = '';
-    allCards = products.map(buildCard);
-    allCards.forEach(c => grid.appendChild(c));
-
-    const cat = new URLSearchParams(window.location.search).get('cat');
-    const btn = cat ? document.querySelector('[data-filter="' + cat + '"]') : null;
-    if (btn) btn.click(); else applyFilters();
-  } catch (err) {
-    // Fallback to products-data.js local data
-    loadFromLocal();
-  }
+// LAYER 2 — background sync from API: 3s timeout, silent fallback to local data
+function syncFromAPI() {
+  const ctrl = new AbortController();
+  const timer = setTimeout(function() { ctrl.abort(); }, 3000);
+  fetch(API_BASE + '/api/products', { signal: ctrl.signal })
+    .then(function(res) { if (!res.ok) throw new Error('server'); return res.json(); })
+    .then(function(data) {
+      clearTimeout(timer);
+      const products = data && data.products;
+      if (!products || !products.length) return; // keep local data
+      grid.innerHTML = '';
+      allCards = products.map(buildCard);
+      allCards.forEach(function(c) { grid.appendChild(c); });
+      const cat = new URLSearchParams(window.location.search).get('cat');
+      const btn = cat ? document.querySelector('[data-filter="' + cat + '"]') : null;
+      if (btn) btn.click(); else applyFilters();
+    })
+    .catch(function() { clearTimeout(timer); /* keep local data — no error shown */ });
 }
 
-loadProducts();
+// LAYER 1 — render instantly from local products-data.js, then sync in background
+document.addEventListener('DOMContentLoaded', function() {
+  loadFromLocal();
+  syncFromAPI();
+});
 </script>
 
 <div class="cart-overlay" id="cartOverlay" onclick="closeCart()"></div>

@@ -364,6 +364,13 @@ async function handleLogin(e){
   btn.textContent='Signing in...';btn.disabled=true;
   try{
     await Auth.login(document.getElementById('loginEmail').value.trim(),document.getElementById('loginPassword').value);
+    // If the user was sent here to finish checkout, return and resume it
+    const params=new URLSearchParams(window.location.search);
+    if(sessionStorage.getItem('after_login')==='checkout'||params.get('next')==='checkout'){
+      sessionStorage.setItem('after_login','checkout');
+      window.location.href='index.html';
+      return;
+    }
     showDashboard();
   }catch(err){showMsg('loginMsg',err.message,'err')}
   finally{btn.textContent='Sign In →';btn.disabled=false}

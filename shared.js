@@ -227,14 +227,45 @@ async function loadSavedAddresses(){
 }
 
 /* ══ CHECKOUT — ORDER FORM MODAL ═══════════════════════════ */
+/* Strict login gate — no login = no checkout */
+function isLoggedInStrict(){
+  const token=localStorage.getItem('ta_token');
+  const user=localStorage.getItem('ta_user');
+  if(!token||!user)return false;
+  if(token.trim()===''||user.trim()===''||user==='null'||token==='null')return false;
+  return true;
+}
+
 function checkout(){
   const items=Cart.getItems();
   if(!items.length)return;
+
+  if(!isLoggedInStrict()){
+    closeCart();
+    document.body.style.overflow='';
+    sessionStorage.setItem('after_login','checkout');
+    const msg=document.createElement('div');
+    msg.textContent='Please login to continue checkout';
+    msg.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#161614;color:#fff;padding:16px 28px;border-radius:8px;font-size:15px;z-index:99999;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,.3)';
+    document.body.appendChild(msg);
+    setTimeout(function(){
+      msg.remove();
+      window.location.href='account.html?next=checkout';
+    },1200);
+    return;
+  }
+
   closeCart();
   openCheckoutModal();
 }
 
 function openCheckoutModal(){
+  // Second-layer guard — belt and suspenders
+  if(!isLoggedInStrict()){
+    sessionStorage.setItem('after_login','checkout');
+    window.location.href='account.html?next=checkout';
+    return;
+  }
   let overlay=document.getElementById('ckOverlay');
   if(!overlay){
     overlay=document.createElement('div');
@@ -243,6 +274,10 @@ function openCheckoutModal(){
     overlay.innerHTML=buildCheckoutHTML();
     document.body.appendChild(overlay);
     initCheckoutModal();
+    // Close when clicking the dark backdrop (but not the modal content)
+    overlay.addEventListener('click',function(e){
+      if(e.target===overlay)closeCheckoutModal();
+    });
   }
   renderCheckoutCart();
   prefillCheckout();
@@ -253,6 +288,23 @@ function openCheckoutModal(){
 function closeCheckoutModal(){
   document.getElementById('ckOverlay')?.classList.remove('open');
 }
+
+/* Resume checkout after login redirect */
+document.addEventListener('DOMContentLoaded',function(){
+  if(sessionStorage.getItem('after_login')==='checkout'){
+    if(isLoggedInStrict()&&Cart.getItems().length){
+      sessionStorage.removeItem('after_login');
+      setTimeout(openCheckoutModal,250);
+    }else if(isLoggedInStrict()){
+      // logged in but cart empty — just clear the flag
+      sessionStorage.removeItem('after_login');
+    }
+  }
+  // Close checkout on Escape key
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape')closeCheckoutModal();
+  });
+});
 
 function buildCheckoutHTML(){
   const stateOptions=INDIAN_STATES.map(s=>`<div class="sd-option" data-value="${s}">${s}</div>`).join('');
