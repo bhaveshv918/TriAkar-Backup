@@ -28,15 +28,39 @@ function getSB(){
       drawer.classList.remove('open');toggle.classList.remove('open');
     }));
   }
-  // Active page highlight
-  const path=window.location.pathname.split('/').pop()||'index.html';
+})();
+
+/* ── Nav active state (single source of truth) ──────────── */
+function applyNavActiveState(){
+  // Page filename → substring expected in the matching anchor's href
+  const path=window.location.pathname.toLowerCase();
+  const file=path.split('/').pop()||'';
+  let match='';
+  if(file.indexOf('products.html')===0||file==='products'||/\/products\/?$/.test(path)){
+    match='products.html';
+  }else if(file.indexOf('custom.html')===0){
+    match='custom.html';
+  }else if(file.indexOf('stories.html')===0){
+    match='stories.html';
+  }else if(file.indexOf('about.html')===0){
+    match='about.html';
+  }else if(file.indexOf('contact.html')===0){
+    match='contact.html';
+  }else if(file.indexOf('track-order.html')===0){
+    match='track-order.html';
+  }
+  // index.html / "/" → no active item
+
   document.querySelectorAll('.nav-links a,.nav-drawer a').forEach(a=>{
-    if(a.getAttribute('href')===path){
-      a.classList.add('active');
-      a.style.cssText='color:var(--accent);font-weight:700';
+    // Strip any stale active state first
+    a.classList.remove('active','nav-active');
+    if(!match)return;
+    const href=(a.getAttribute('href')||'').toLowerCase();
+    if(href.indexOf(match)!==-1){
+      a.classList.add('nav-active');
     }
   });
-})();
+}
 
 /* ── Scroll reveal ──────────────────────────────────────── */
 (function(){
@@ -107,6 +131,25 @@ const Cart=(function(){
 
 function openCart(){document.getElementById('cartSidebar')?.classList.add('open');document.getElementById('cartOverlay')?.classList.add('open');Cart.render()}
 function closeCart(){document.getElementById('cartSidebar')?.classList.remove('open');document.getElementById('cartOverlay')?.classList.remove('open')}
+
+/* ══ ADD TO CART BUTTON HELPER ═════════════════════════════ */
+function addToCartBtn(btnEl,product){
+  if(!product)return;
+  Cart.add({id:product.id,name:product.name,price:product.price,color:product.color||''});
+  if(!btnEl)return;
+  // Guard against re-trigger while in "Added" state
+  if(btnEl.dataset.adding==='1')return;
+  btnEl.dataset.adding='1';
+  const original=btnEl.dataset.label||btnEl.textContent||'Add to Cart';
+  btnEl.dataset.label=original;
+  btnEl.textContent='Added ✓';
+  btnEl.classList.add('added');
+  setTimeout(function(){
+    btnEl.textContent=btnEl.dataset.label||'Add to Cart';
+    btnEl.classList.remove('added');
+    btnEl.dataset.adding='0';
+  },1500);
+}
 
 /* ══ INDIAN STATES LIST ════════════════════════════════════ */
 const INDIAN_STATES=[
@@ -271,7 +314,6 @@ function buildCheckoutHTML(){
       <h3 style="font-size:17px;font-weight:700;margin-bottom:16px">Payment Method</h3>
       <div class="ck-radio-group" id="ckPaymentGroup">
         <label class="ck-radio selected"><input type="radio" name="ckPay" value="online" checked><div><div class="ck-radio-label">Pay Online</div><div class="ck-radio-desc">UPI, Cards, NetBanking, Wallets via Razorpay</div></div></label>
-        <label class="ck-radio"><input type="radio" name="ckPay" value="cod"><div><div class="ck-radio-label">Cash on Delivery</div><div class="ck-radio-desc">Pay when you receive your order</div></div></label>
         <label class="ck-radio"><input type="radio" name="ckPay" value="whatsapp"><div><div class="ck-radio-label">Order via WhatsApp</div><div class="ck-radio-desc">We'll confirm your order and share payment details on WhatsApp</div></div></label>
       </div>
       <div class="ck-order-summary" style="margin-top:18px;padding:14px;background:var(--stone-p);border-radius:6px">
@@ -588,21 +630,6 @@ async function placeOrder(){
     return;
   }
 
-  // ── COD — Save order with pending payment ──
-  if(payment==='cod'){
-    btn.disabled=true;btn.textContent='Placing order...';
-    try{
-      await saveOrderToSupabase(trkId,d,orderItems,subtotal,shipping,total,'cod','pending');
-      sendShopWhatsApp(trkId,d,items,total,'Cash on Delivery');
-      Cart.clear();
-      showOrderConfirmation(trkId,'cod','pending');
-    }catch(err){
-      btn.disabled=false;btn.textContent='Place Order →';
-      alert('Could not place order. Please try again.');
-    }
-    return;
-  }
-
   // ── WhatsApp Order ──
   if(payment==='whatsapp'){
     btn.disabled=true;btn.textContent='Placing order...';
@@ -690,14 +717,14 @@ function sendShopWhatsApp(trkId,d,items,total,payLabel){
   // Open in background — user sees their confirmation, shop gets notified
   const waUrl='https://wa.me/919217555833?text='+encodeURIComponent(msg);
   // Use an invisible iframe approach or just let the WhatsApp order handle it
-  // For COD/Online, we silently notify (no popup) — only WhatsApp order opens chat
+  // For online orders, we silently notify (no popup) — only WhatsApp order opens chat
   try{
     const a=document.createElement('a');
     a.href=waUrl;a.target='_blank';a.rel='noopener';
     a.style.display='none';
     document.body.appendChild(a);
     // Don't auto-click to avoid popup blockers — only WhatsApp payment opens chat
-    // For COD and Online, the shop monitors the admin panel instead
+    // For online orders, the shop monitors the admin panel instead
     document.body.removeChild(a);
   }catch(e){}
 }
@@ -713,8 +740,7 @@ function showOrderConfirmation(trkId,method,status){
   if(!content)return;
 
   let methodNote='';
-  if(method==='cod') methodNote='Your order will be delivered with Cash on Delivery.';
-  else if(method==='whatsapp') methodNote='We\'ll message you on WhatsApp with payment details.';
+  if(method==='whatsapp') methodNote='We\'ll message you on WhatsApp with payment details.';
   else if(method==='online'&&status==='paid') methodNote='Payment received! Your order is confirmed.';
 
   const noteEl=content.querySelector('.ck-method-note');
@@ -1004,4 +1030,5 @@ function prefillCheckout(){
 document.addEventListener('DOMContentLoaded',()=>{
   Cart.badge();Cart.render();Cart.loadFromServer();
   updateNavAuth();
+  applyNavActiveState();
 });
