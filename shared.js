@@ -652,6 +652,26 @@ async function saveOrderToSupabase(trkId,d,orderItems,subtotal,shipping,total,pa
     p_user_id:user?user.id:null
   });
   if(error){console.error('Order save error:',error);throw error;}
+
+  // Auto-save address for logged-in users (if not using a saved address)
+  if(user&&!window._selectedAddress&&d.address_line1){
+    try{
+      // Check if this address already exists
+      const {data:existing}=await sb.from('user_addresses').select('id').eq('user_id',user.id).eq('pincode',d.pincode).eq('address_line1',d.address_line1);
+      if(!existing||!existing.length){
+        // Check if user has any addresses — if not, make this default
+        const {data:allAddr}=await sb.from('user_addresses').select('id').eq('user_id',user.id);
+        const isFirst=!allAddr||!allAddr.length;
+        await sb.from('user_addresses').insert({
+          user_id:user.id,full_name:d.name,phone:d.phone,
+          address_line1:d.address_line1,address_line2:d.address_line2||null,
+          city:d.city,state:d.state,pincode:d.pincode,
+          is_default:isFirst
+        });
+      }
+    }catch(e){console.warn('Address auto-save skipped:',e)}
+  }
+
   return data;
 }
 
