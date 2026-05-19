@@ -32,27 +32,21 @@ function getSB(){
 
 /* ── Nav active state (single source of truth) ──────────── */
 function applyNavActiveState(){
-  // Page filename → substring expected in the matching anchor's href
+  // Works for both clean URLs (/about) and .html URLs (/about.html)
   const path=window.location.pathname.toLowerCase();
-  const file=path.split('/').pop()||'';
-  let match='';
-  if(file.indexOf('products.html')===0||file==='products'||/\/products\/?$/.test(path)){
-    match='products.html';
-  }else if(file.indexOf('custom.html')===0){
-    match='custom.html';
-  }else if(file.indexOf('stories.html')===0){
-    match='stories.html';
-  }else if(file.indexOf('about.html')===0){
-    match='about.html';
-  }else if(file.indexOf('contact.html')===0){
-    match='contact.html';
-  }else if(file.indexOf('track-order.html')===0){
-    match='track-order.html';
-  }
-  // index.html / "/" → no active item
+  let file=(path.split('/').pop()||'').replace(/\.html$/,'');
+  const PAGES={
+    'products':'products.html',
+    'product-detail':'products.html',
+    'custom':'custom.html',
+    'stories':'stories.html',
+    'about':'about.html',
+    'contact':'contact.html',
+    'track-order':'track-order.html'
+  };
+  const match=PAGES[file]||'';   // '' for index / home → no active item
 
   document.querySelectorAll('.nav-links a,.nav-drawer a').forEach(a=>{
-    // Strip any stale active state first
     a.classList.remove('active','nav-active');
     if(!match)return;
     const href=(a.getAttribute('href')||'').toLowerCase();
