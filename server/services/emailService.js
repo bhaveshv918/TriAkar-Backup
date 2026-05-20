@@ -1,8 +1,8 @@
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL  = 'TriAkar <hello@triakar.in>';
-const ADMIN_EMAIL = 'hello@triakar.in';
+const FROM_EMAIL  = 'TriAkar <hello@triakar.com>';
+const ADMIN_EMAIL = 'hello@triakar.com';
 const ADMIN_LINK  = 'https://triakar.com/admin.html';
 const ACCENT      = '#C4622A';
 
