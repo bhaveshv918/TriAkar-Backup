@@ -1,0 +1,41 @@
+RENDER ENVIRONMENT — DO THIS MANUALLY
+=======================================
+
+Add one environment variable to your Render service so the backend
+runs in production mode (hides internal error messages / stack traces
+from API responses).
+
+1. Go to https://dashboard.render.com
+2. Open the "triakar-api" service.
+3. Left sidebar -> Environment.
+4. Click "Add Environment Variable" and add:
+       Key:    NODE_ENV
+       Value:  production
+5. Click "Save Changes". Render will redeploy automatically.
+
+(render.yaml already declares NODE_ENV=production, so a fresh deploy
+from this repo will set it too — but adding it manually guarantees it
+on the currently running service.)
+
+WHAT CHANGED IN THE BACKEND (server/)
+=======================================
+- Helmet security headers + Content-Security-Policy
+- Strict CORS allow-list (triakar.in, www, vercel, localhost only)
+- Rate limiting:
+    all routes        100 / 15 min
+    /api/auth          10 / 15 min
+    /api/payments      20 / hour
+    /api/inquiries      5 / hour
+    /api/addresses      5 / hour
+- Input sanitization: xss-clean, express-mongo-sanitize, hpp
+- Request size capped at 10kb; 30s request timeout
+- x-powered-by header removed
+- Extra headers: X-Content-Type-Options, X-Frame-Options,
+  X-XSS-Protection, Referrer-Policy, Permissions-Policy
+- Startup fails fast if required env vars are missing
+- 404 handler + production-safe global error handler
+- trust proxy enabled (correct client IPs behind Render)
+
+New backend dependencies (installed automatically by `npm install`
+during Render's build): express-rate-limit, hpp, connect-timeout,
+xss-clean, express-mongo-sanitize.
