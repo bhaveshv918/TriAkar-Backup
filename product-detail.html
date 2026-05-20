@@ -47,8 +47,12 @@
 .detail-breadcrumb a{color:var(--stone);transition:color .2s}
 .detail-breadcrumb a:hover{color:var(--charcoal)}
 .detail-name{font-size:clamp(22px,3vw,32px);font-weight:700;color:var(--charcoal);line-height:1.2;margin-bottom:8px}
-.price-row{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+.price-row{display:flex;align-items:baseline;gap:10px;margin-bottom:4px;flex-wrap:wrap}
 .detail-price{font-size:26px;font-weight:800;color:var(--charcoal)}
+.detail-mrp{font-size:16px;color:var(--stone);text-decoration:line-through}
+.detail-off{font-size:13px;font-weight:700;color:#2D8A4E;letter-spacing:.02em}
+.cvar-note{font-size:12px;color:var(--warm);line-height:1.6;margin:-6px 0 18px;max-width:440px}
+.cvar-note a{color:var(--accent);font-weight:600}
 .detail-desc{font-size:14px;color:var(--warm);font-weight:300;line-height:1.85;margin:14px 0 22px;max-width:440px}
 
 /* TRUST STRIP — Amazon style (FIX #1 annotation) */
@@ -162,6 +166,8 @@
       <h1 class="detail-name" id="prodName">Loading...</h1>
       <div class="price-row">
         <span class="detail-price" id="prodPrice">₹0</span>
+        <span class="detail-mrp" id="prodMrp"></span>
+        <span class="detail-off" id="prodOff"></span>
       </div>
       <p class="detail-desc" id="prodDesc"></p>
 
@@ -183,6 +189,7 @@
 
       <div class="variant-label" id="variantLabel">Colour</div>
       <div class="variant-row" id="variantRow"></div>
+      <div id="variantExtraWrap"></div>
 
       <div class="qty-label">Quantity</div>
       <div class="qty-row">
@@ -255,6 +262,7 @@ const PRODS = {
   'cable-loop':{name:'Cable Loop',price:490,badge:'',desc:'Adhesive cable management clips. Pack of 4. Attaches to any surface and holds cables up to 6mm.',variants:['Pack of 4','Pack of 8'],specs:[['Material','Flexible PLA'],['Pack size','4 clips'],['Adhesive','3M removable'],['Cable width','Up to 6mm'],['Production','1 to 2 business days']],views:['#D0CCC4','#C8C4BC','#D8D4CC','#E0DCD8']},
   'lean-stand':{name:'Lean Stand',price:890,badge:'New',desc:'Single-piece phone and tablet stand. Lightweight with a non-slip base. Works with any phone or 7 to 11 inch tablet.',variants:['Ivory White','Stone Grey','Matte Black'],specs:[['Material','PLA+'],['Angle','60 degrees'],['Compatible','Phone, 7 to 11 inch tablet'],['Weight','110g'],['Production','2 to 3 business days']],views:['#D4D0C8','#C4C0B8','#BCBAB0','#E4E0D8']},
   'facet-vase':{name:'Facet Vase',price:1290,badge:'',desc:'Geometric table vase with a faceted exterior. Lined inside and fully waterproof for fresh or dry arrangements.',variants:['Sand','White','Charcoal'],specs:[['Material','PLA with waterproof liner'],['Height','180mm'],['Top diameter','90mm'],['Waterproof','Yes'],['Production','2 to 3 business days']],views:['#D0CCC4','#C4C0B8','#D8D4CC','#C8C4BC']},
+  'name-letters':{name:'Custom 3D Name Letters',badge:'New',mrp:1430,desc:'Freestanding 3D-printed letters that spell any name or word. Perfect for desks, shelves, nurseries, weddings and personalised gifts. Tell us the exact name, font and colour and we print it fresh.',priceVariants:[{label:'1 Name',price:499},{label:'2 Names',price:799},{label:'With Logo / Custom Design',price:1199}],colours:['Matte Black','Ivory White','Stone Grey','Wood Finish','Any custom colour'],specs:[['Material','PLA+'],['Letter height','~60mm (custom sizes on request)'],['Finish','Smooth matte'],['Personalisation','Any name, word or font'],['Logo / emblem','Available (With Logo option)'],['Production','3 to 4 business days']],views:['#E8E4DC','#161614','#D4D0C8','#C9A227']},
 };
 // colour swatches for thumbnails
 const THUMB_SVGS = {
@@ -262,9 +270,10 @@ const THUMB_SVGS = {
   'cable-loop': ['<rect x="18" y="68" width="164" height="80" rx="40" fill="#D0CCC4" stroke="#B4B0A8" stroke-width="1.5"/><circle cx="100" cy="108" r="28" fill="#E8E4DC" stroke="#C0BCB4" stroke-width="1.5"/>','<rect x="18" y="68" width="164" height="80" rx="40" fill="#C0BCB4" stroke="#A4A09C" stroke-width="1.5"/><circle cx="100" cy="108" r="28" fill="#D8D4CC" stroke="#B0ACA4" stroke-width="1.5"/>','<rect x="18" y="68" width="164" height="80" rx="40" fill="#484440" stroke="#282420" stroke-width="1.5"/><circle cx="100" cy="108" r="28" fill="#383430" stroke="#181410" stroke-width="1.5"/>','<rect x="30" y="78" width="140" height="64" rx="30" fill="#E4E0D8" stroke="#C8C4BC" stroke-width="1" stroke-dasharray="4 3"/>'],
   'lean-stand': ['<path d="M48 170L88 78L112 78L152 170Z" fill="#D4D0C8" stroke="#B8B4AA" stroke-width="1.5"/><rect x="80" y="28" width="40" height="58" rx="4" fill="#C4C0B8" stroke="#A8A49C" stroke-width="1.5"/>','<path d="M48 170L88 78L112 78L152 170Z" fill="#5A5852" stroke="#3A3830" stroke-width="1.5"/><rect x="80" y="28" width="40" height="58" rx="4" fill="#4A4840" stroke="#2A2820" stroke-width="1.5"/>','<path d="M48 170L88 78L112 78L152 170Z" fill="#E8E4DC" stroke="#C8C4BC" stroke-width="1.5"/><rect x="80" y="28" width="40" height="58" rx="4" fill="#E4E0D8" stroke="#D0CCC4" stroke-width="1.5"/>','<path d="M48 170L88 78L112 78L152 170Z" fill="#E2DED6" stroke="#C8C4BC" stroke-width="1" stroke-dasharray="4 3"/>'],
   'facet-vase': ['<path d="M68 182L56 122L46 78L100 18L154 78L144 122L132 182Z" fill="#D0CCC4" stroke="#B4B0A8" stroke-width="1.5"/><path d="M56 122L144 122" stroke="#C0BCB4" stroke-width="1"/><ellipse cx="100" cy="182" rx="32" ry="7" fill="#C4C0B8"/>','<path d="M68 182L56 122L46 78L100 18L154 78L144 122L132 182Z" fill="#E4E0D8" stroke="#C8C4BC" stroke-width="1.5"/><path d="M56 122L144 122" stroke="#D4D0C8" stroke-width="1"/><ellipse cx="100" cy="182" rx="32" ry="7" fill="#D8D4CC"/>','<path d="M68 182L56 122L46 78L100 18L154 78L144 122L132 182Z" fill="#3A3830" stroke="#1A1810" stroke-width="1.5"/><path d="M56 122L144 122" stroke="#2A2820" stroke-width="1"/><ellipse cx="100" cy="182" rx="32" ry="7" fill="#2A2820"/>','<path d="M68 182L56 122L46 78L100 18L154 78L144 122L132 182Z" fill="#E2DED6" stroke="#C8C4BC" stroke-width="1" stroke-dasharray="4 3"/>'],
+  'name-letters': ['<g fill="#D4D0C8" stroke="#B8B4AA" stroke-width="1.5"><rect x="34" y="84" width="26" height="52" rx="2"/><rect x="68" y="84" width="26" height="52" rx="2"/><rect x="102" y="84" width="26" height="52" rx="2"/><rect x="136" y="84" width="26" height="52" rx="2"/></g><rect x="28" y="136" width="144" height="6" rx="2" fill="#C4C0B8"/>'],
 };
 
-let qty=1, selVariant='', curProduct=null;
+let qty=1, selVariant='', curProduct=null, selOption=null, selColour='', curPrice=0;
 
 function init(){
   const id=new URLSearchParams(window.location.search).get('id')||'arc-desk';
@@ -272,15 +281,29 @@ function init(){
   curProduct={...p, id};
   document.getElementById('prodName').textContent=p.name;
   document.getElementById('breadProd').textContent=p.name;
-  document.getElementById('prodPrice').textContent='₹'+p.price.toLocaleString('en-IN');
   document.getElementById('prodDesc').textContent=p.desc;
   // badge
   const badge=document.getElementById('prodBadge');
   if(p.badge){badge.style.display='';badge.textContent=p.badge;badge.className='img-badge '+(p.badge==='Bestseller'?'badge-best':'badge-new')}
   // variants
-  selVariant=p.variants[0];
-  document.getElementById('variantLabel').textContent=id.includes('loop')||id.includes('bookmark')?'Pack Size':'Colour';
-  document.getElementById('variantRow').innerHTML=p.variants.map((v,i)=>`<button class="variant-btn${i===0?' active':''}" onclick="selectVariant(this,'${v}')">${v}</button>`).join('');
+  const extra=document.getElementById('variantExtraWrap');
+  if(p.priceVariants){
+    selOption=p.priceVariants[0];
+    selColour=(p.colours&&p.colours[0])||'';
+    document.getElementById('variantLabel').textContent='Option';
+    document.getElementById('variantRow').innerHTML=p.priceVariants.map((v,i)=>`<button class="variant-btn${i===0?' active':''}" onclick="selectOption(this,${i})">${v.label} · ₹${v.price.toLocaleString('en-IN')}</button>`).join('');
+    let ex='';
+    if(p.colours&&p.colours.length){ ex+='<div class="variant-label">Colour</div><div class="variant-row">'+p.colours.map((c,i)=>`<button class="variant-btn cvar-btn${i===0?' active':''}" onclick="selectColour(this,${i})">${c}</button>`).join('')+'</div>'; }
+    ex+='<div class="cvar-note">Tell us the exact name, word and font at checkout or on WhatsApp. Need a logo or special design? Pick the <strong>With Logo</strong> option or start a <a href="custom.html">custom order</a>.</div>';
+    extra.innerHTML=ex;
+    updateDetailPrice(selOption.price);
+  } else {
+    selVariant=p.variants[0];
+    document.getElementById('variantLabel').textContent=id.includes('loop')||id.includes('bookmark')?'Pack Size':'Colour';
+    document.getElementById('variantRow').innerHTML=p.variants.map((v,i)=>`<button class="variant-btn${i===0?' active':''}" onclick="selectVariant(this,'${v}')">${v}</button>`).join('');
+    if(extra)extra.innerHTML='';
+    updateDetailPrice(p.price);
+  }
   // specs
   document.getElementById('specTable').innerHTML=p.specs.map(s=>`<div class="spec-row"><span class="spec-key">${s[0]}</span><span class="spec-val">${s[1]}</span></div>`).join('');
   // thumbnails
@@ -292,7 +315,22 @@ function init(){
   window._prodId=id;
 }
 
-function selectVariant(btn,v){document.querySelectorAll('.variant-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selVariant=v}
+function selectVariant(btn,v){document.querySelectorAll('#variantRow .variant-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selVariant=v}
+function updateDetailPrice(price){
+  curPrice=price;
+  const mrp=(curProduct&&curProduct.mrp)||Math.round(price/0.35/10)*10;
+  const off=Math.round((1-price/mrp)*100);
+  document.getElementById('prodPrice').textContent='₹'+price.toLocaleString('en-IN');
+  const mrpEl=document.getElementById('prodMrp'),offEl=document.getElementById('prodOff');
+  if(mrpEl)mrpEl.textContent='₹'+mrp.toLocaleString('en-IN');
+  if(offEl)offEl.textContent=off+'% OFF';
+}
+function selectOption(btn,i){document.querySelectorAll('#variantRow .variant-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selOption=curProduct.priceVariants[i];updateDetailPrice(selOption.price);}
+function selectColour(btn,i){document.querySelectorAll('.cvar-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selColour=(curProduct.colours&&curProduct.colours[i])||'';}
+function _detailItem(){
+  if(curProduct&&curProduct.priceVariants){return {id:window._prodId,name:curProduct.name,price:selOption.price,color:selOption.label+(selColour?' / '+selColour:'')};}
+  return {id:window._prodId,name:curProduct.name,price:curProduct.price,color:selVariant};
+}
 function changeQty(d){qty=Math.max(1,qty+d);document.getElementById('qtyNum').textContent=qty}
 function switchImg(thumb,bg,svg){
   document.querySelectorAll('.thumb').forEach(t=>t.classList.remove('active'));
@@ -302,11 +340,11 @@ function switchImg(thumb,bg,svg){
   document.getElementById('mainSvg').innerHTML=svg;
 }
 function addToCartFromDetail(btn){
-  const item={id:window._prodId,name:curProduct.name,price:curProduct.price,color:selVariant};
+  const item=_detailItem();
   if(btn && typeof addToCartBtn==='function'){addToCartBtn(btn,item);}
   else{Cart.add(item);openCart();}
 }
-function buyNow(){Cart.add({id:window._prodId,name:curProduct.name,price:curProduct.price,color:selVariant});checkout()}
+function buyNow(){Cart.add(_detailItem());checkout()}
 function toggleAcc(id){
   const item=document.getElementById('acc-'+id);
   const body=document.getElementById('acc-body-'+id);
