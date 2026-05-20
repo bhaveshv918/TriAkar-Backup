@@ -756,7 +756,6 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     <button class="tab" data-tab="products" onclick="switchTab('products')">Products <span class="tab-count" id="productCount">0</span></button>
     <button class="tab" data-tab="messages" onclick="switchTab('messages')">Messages <span class="tab-count" id="messageCount">0</span><span class="tab-dot" id="dotMessages"></span></button>
     <button class="tab" data-tab="enquiries" onclick="switchTab('enquiries')">Custom Enquiries <span class="tab-count" id="enquiryCount">0</span><span class="tab-dot" id="dotEnquiries"></span></button>
-    <button class="tab" data-tab="inquiries" onclick="switchTab('inquiries')">Inquiries <span class="tab-count" id="inquiryCount">0</span><span class="tab-dot" id="dotInquiries"></span></button>
     <button class="tab" data-tab="categories" onclick="switchTab('categories')">Categories</button>
     <button class="tab" data-tab="logs" onclick="switchTab('logs')">Security Logs</button>
   </div>
@@ -1000,21 +999,6 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
   </div>
 
   <!-- ── INQUIRIES PANEL ──────────────────────── -->
-  <div class="panel" id="panelInquiries">
-    <div class="p-head">
-      <div class="p-title">Corporate Inquiries</div>
-      <div class="p-actions">
-        <button class="btn-secondary" onclick="loadInquiries()">⟳ Refresh</button>
-      </div>
-    </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr><th>Date</th><th>Company</th><th>Contact</th><th>Email</th><th>Phone</th><th>Interest</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody id="inquiriesBody"><tr><td colspan="8" class="tbl-msg">Loading...</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
   <!-- ── CATEGORIES PANEL ──────────────────────── -->
   <div class="panel" id="panelCategories">
     <div class="p-head">
@@ -1367,7 +1351,7 @@ function showDashboard(user){
   document.getElementById('adminDash').classList.add('show');
   updateClock();setInterval(updateClock,30000);
   initTheme();
-  loadCategories().then(()=>{loadProducts();loadOrders();loadLogs();loadCustomers();loadInquiries();loadMessages();loadCustomEnquiries();loadCallbacks()});
+  loadCategories().then(()=>{loadProducts();loadOrders();loadLogs();loadCustomers();loadMessages();loadCustomEnquiries();loadCallbacks()});
 }
 
 // Check existing session on load
@@ -1419,12 +1403,12 @@ function fmtPrice(n){return '₹'+Number(n).toLocaleString('en-IN')}
 function toast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type||'')+' show';setTimeout(()=>t.classList.remove('show'),3000)}
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['Callbacks','Orders','Customers','Products','Messages','Enquiries','Inquiries','Categories','Logs'].forEach(p=>{
+  ['Callbacks','Orders','Customers','Products','Messages','Enquiries','Categories','Logs'].forEach(p=>{
     document.getElementById('panel'+p).classList.toggle('active',p.toLowerCase()===tab);
   });
   // Clear notification dot and save seen count
-  const dotMap={orders:'dotOrders',customers:'dotCustomers',messages:'dotMessages',enquiries:'dotEnquiries',inquiries:'dotInquiries',callbacks:'dotCallbacks'};
-  const countEls={orders:'orderCount',customers:'customerCount',messages:'messageCount',enquiries:'enquiryCount',inquiries:'inquiryCount',callbacks:'callbackCount'};
+  const dotMap={orders:'dotOrders',customers:'dotCustomers',messages:'dotMessages',enquiries:'dotEnquiries',callbacks:'dotCallbacks'};
+  const countEls={orders:'orderCount',customers:'customerCount',messages:'messageCount',enquiries:'enquiryCount',callbacks:'callbackCount'};
   if(dotMap[tab]){
     const dot=document.getElementById(dotMap[tab]);
     if(dot)dot.classList.remove('visible');
@@ -1997,44 +1981,6 @@ function filterCustomers(){
   renderCustomers(filtered);
 }
 
-/* ═══ INQUIRIES ═══════════════════════════════════ */
-let _inquiries=[];
-async function loadInquiries(){
-  const{data,error}=await sb.from('corporate_inquiries').select('*').order('created_at',{ascending:false});
-  if(error){document.getElementById('inquiriesBody').innerHTML='<tr><td colspan="8" class="tbl-msg">Error loading inquiries</td></tr>';return}
-  _inquiries=data||[];
-  document.getElementById('inquiryCount').textContent=_inquiries.length;
-  checkNewItems('inquiries','dotInquiries',_inquiries.length);
-  renderInquiries(_inquiries);
-}
-
-function renderInquiries(list){
-  const tbody=document.getElementById('inquiriesBody');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="8" class="tbl-msg">No inquiries yet.</td></tr>';return}
-  tbody.innerHTML=list.map(q=>{
-    const responded=q.is_responded;
-    const badge=responded?'<span class="badge badge-green">Responded</span>':'<span class="badge badge-yellow">Pending</span>';
-    return '<tr>'
-      +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(q.created_at)+'</td>'
-      +'<td class="td-name">'+(q.company_name||'—')+'</td>'
-      +'<td>'+(q.contact_name||'—')+'</td>'
-      +'<td style="font-family:var(--mono);font-size:11px">'+(q.email||'—')+'</td>'
-      +'<td>'+(q.phone||'—')+'</td>'
-      +'<td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(q.product_interest||q.message||'—')+'</td>'
-      +'<td>'+badge+'</td>'
-      +'<td onclick="event.stopPropagation()">'
-        +(responded?'':'<button class="btn-save" onclick="markInquiryResponded(\''+q.id+'\')">Mark Done</button>')
-      +'</td>'
-      +'</tr>';
-  }).join('');
-}
-
-async function markInquiryResponded(id){
-  const{error}=await sb.from('corporate_inquiries').update({is_responded:true}).eq('id',id);
-  if(error){toast('Error: '+error.message,'error');return}
-  toast('Inquiry marked as responded','success');
-  loadInquiries();
-}
 
 /* ═══ NOTIFICATION DOTS ═══════════════════════════ */
 function checkNewItems(key,dotId,currentCount){
