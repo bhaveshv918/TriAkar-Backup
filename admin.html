@@ -758,6 +758,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     <button class="tab" data-tab="enquiries" onclick="switchTab('enquiries')">Custom Enquiries <span class="tab-count" id="enquiryCount">0</span><span class="tab-dot" id="dotEnquiries"></span></button>
     <button class="tab" data-tab="categories" onclick="switchTab('categories')">Categories</button>
     <button class="tab" data-tab="logs" onclick="switchTab('logs')">Security Logs</button>
+    <button class="tab" data-tab="recyclebin" onclick="switchTab('recyclebin')">Recycle Bin <span class="tab-count" id="binCount">0</span></button>
   </div>
 
   <!-- ── CALLBACKS PANEL ───────────────────────── -->
@@ -766,13 +767,14 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="p-title">Callback Requests</div>
       <div class="p-actions">
         <button class="btn-secondary" onclick="loadCallbacks()">⟳ Refresh</button>
+        <button class="btn-secondary" onclick="bulkSoftDelete('callback_requests','callbacksBody','loadCallbacks')">🗑 Delete selected</button>
         <input type="text" id="callbackSearch" placeholder="Search name, phone, topic, ref..." oninput="filterCallbacks()" style="min-width:180px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
       </div>
     </div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Source</th><th>Ref ID</th><th>Name</th><th>Phone</th><th>Topic</th><th>Best Time</th><th>Received</th><th>Status</th><th>Action</th><th></th></tr></thead>
-        <tbody id="callbacksBody"><tr><td colspan="10" class="tbl-msg">Loading...</td></tr></tbody>
+        <thead><tr><th style="width:34px"><input type="checkbox" onclick="toggleAllChecks('callbacksBody',this.checked)"></th><th>Source</th><th>Ref ID</th><th>Name</th><th>Phone</th><th>Topic</th><th>Best Time</th><th>Received</th><th>Status</th><th>Action</th><th></th></tr></thead>
+        <tbody id="callbacksBody"><tr><td colspan="11" class="tbl-msg">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -783,6 +785,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="p-title">Orders</div>
       <div class="p-actions">
         <button class="btn-secondary" onclick="loadOrders()" title="Refresh orders">⟳ Refresh</button>
+        <button class="btn-secondary" onclick="bulkSoftDelete('orders','ordersBody','loadOrders')">🗑 Delete selected</button>
       </div>
     </div>
     <div class="filter-bar">
@@ -810,9 +813,9 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     <div class="tbl-wrap">
       <table>
         <thead><tr>
-          <th style="width:30px"></th><th>Invoice #</th><th>Date</th><th>Customer</th><th>Location</th><th>Product(s)</th><th>Total</th><th>Status</th>
+          <th style="width:34px"><input type="checkbox" onclick="toggleAllChecks('ordersBody',this.checked)"></th><th style="width:30px"></th><th>Invoice #</th><th>Date</th><th>Customer</th><th>Location</th><th>Product(s)</th><th>Total</th><th>Status</th>
         </tr></thead>
-        <tbody id="ordersBody"><tr><td colspan="8" class="tbl-msg">Loading orders…</td></tr></tbody>
+        <tbody id="ordersBody"><tr><td colspan="9" class="tbl-msg">Loading orders…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -970,13 +973,14 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="p-title">Contact Messages</div>
       <div class="p-actions">
         <button class="btn-secondary" onclick="loadMessages()">⟳ Refresh</button>
+        <button class="btn-secondary" onclick="bulkSoftDelete('contact_submissions','messagesBody','loadMessages')">🗑 Delete selected</button>
         <input type="text" id="messageSearch" placeholder="Search name, email, subject, ref no..." oninput="filterMessages()" style="min-width:180px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
       </div>
     </div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Source</th><th>Date</th><th>Ref No.</th><th>Name</th><th>Email</th><th>Phone</th><th>Subject</th><th>Message</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody id="messagesBody"><tr><td colspan="10" class="tbl-msg">Loading...</td></tr></tbody>
+        <thead><tr><th style="width:34px"><input type="checkbox" onclick="toggleAllChecks('messagesBody',this.checked)"></th><th>Source</th><th>Date</th><th>Ref No.</th><th>Name</th><th>Email</th><th>Phone</th><th>Subject</th><th>Message</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="messagesBody"><tr><td colspan="11" class="tbl-msg">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -987,13 +991,14 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="p-title">Custom Enquiries</div>
       <div class="p-actions">
         <button class="btn-secondary" onclick="loadCustomEnquiries()">⟳ Refresh</button>
+        <button class="btn-secondary" onclick="bulkSoftDelete('custom_enquiries','enquiriesBody','loadCustomEnquiries')">🗑 Delete selected</button>
         <input type="text" id="enquirySearch" placeholder="Search name, email, ref no, need..." oninput="filterCustomEnquiries()" style="min-width:180px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
       </div>
     </div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Source</th><th>Reference ID</th><th>Name</th><th>Phone</th><th>Need</th><th>Budget</th><th>Material</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody id="enquiriesBody"><tr><td colspan="10" class="tbl-msg">Loading...</td></tr></tbody>
+        <thead><tr><th style="width:34px"><input type="checkbox" onclick="toggleAllChecks('enquiriesBody',this.checked)"></th><th>Source</th><th>Reference ID</th><th>Name</th><th>Phone</th><th>Need</th><th>Budget</th><th>Material</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="enquiriesBody"><tr><td colspan="11" class="tbl-msg">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1019,6 +1024,27 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <table>
         <thead><tr><th>Time</th><th>Action</th><th>Email</th><th>IP</th><th>Device</th><th>Location Data</th><th>Result</th></tr></thead>
         <tbody id="logsBody"><tr><td colspan="7" class="tbl-msg">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── RECYCLE BIN PANEL ──────────────────────── -->
+  <div class="panel" id="panelRecyclebin">
+    <div class="p-head">
+      <div class="p-title">Recycle Bin</div>
+      <div class="p-actions">
+        <button class="btn-secondary" onclick="loadRecycleBin()">⟳ Refresh</button>
+        <button class="btn-secondary" onclick="bulkRestore()">♻ Restore selected</button>
+        <button class="btn-secondary" onclick="bulkDeleteForever()">✕ Delete forever selected</button>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th style="width:34px"><input type="checkbox" onclick="document.querySelectorAll('#recycleBody input.bin-check').forEach(c=>c.checked=this.checked)"></th>
+          <th>Source</th><th>Reference / ID</th><th>Summary</th><th>Deleted At</th><th>Deleted By</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="recycleBody"><tr><td colspan="7" class="tbl-msg">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1351,7 +1377,7 @@ function showDashboard(user){
   document.getElementById('adminDash').classList.add('show');
   updateClock();setInterval(updateClock,30000);
   initTheme();
-  loadCategories().then(()=>{loadProducts();loadOrders();loadLogs();loadCustomers();loadMessages();loadCustomEnquiries();loadCallbacks()});
+  loadCategories().then(()=>{loadProducts();loadOrders();loadLogs();loadCustomers();loadMessages();loadCustomEnquiries();loadCallbacks();loadRecycleBin()});
 }
 
 // Check existing session on load
@@ -1403,7 +1429,7 @@ function fmtPrice(n){return '₹'+Number(n).toLocaleString('en-IN')}
 function toast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type||'')+' show';setTimeout(()=>t.classList.remove('show'),3000)}
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['Callbacks','Orders','Customers','Products','Messages','Enquiries','Categories','Logs'].forEach(p=>{
+  ['Callbacks','Orders','Customers','Products','Messages','Enquiries','Categories','Logs','Recyclebin'].forEach(p=>{
     document.getElementById('panel'+p).classList.toggle('active',p.toLowerCase()===tab);
   });
   // Clear notification dot and save seen count
@@ -1482,8 +1508,9 @@ const STATUS_BADGE={pending:'badge-yellow',confirmed:'badge-green',processing:'b
 async function loadOrders(){
   const{data,error}=await sb.from('orders')
     .select('*,profiles!fk_orders_profiles(email,full_name,phone),order_items(*,products(name,images)),user_addresses(*)')
+    .is('deleted_at',null)
     .order('created_at',{ascending:false});
-  if(error){document.getElementById('ordersBody').innerHTML='<tr><td colspan="8" class="tbl-msg">Error: '+error.message+'</td></tr>';return}
+  if(error){document.getElementById('ordersBody').innerHTML='<tr><td colspan="9" class="tbl-msg">Error: '+error.message+'</td></tr>';return}
   _orders=data||[];
   document.getElementById('orderCount').textContent=_orders.length;
   checkNewItems('orders','dotOrders',_orders.length);
@@ -1522,7 +1549,7 @@ function filterOrders(){
 
 function renderOrders(orders){
   const tbody=document.getElementById('ordersBody');
-  if(!orders.length){tbody.innerHTML='<tr><td colspan="8" class="tbl-msg">No orders found.</td></tr>';return}
+  if(!orders.length){tbody.innerHTML='<tr><td colspan="9" class="tbl-msg">No orders found.</td></tr>';return}
   tbody.innerHTML=orders.map(o=>{
     const inv=fmtInvoice(o);
     const p=o.profiles||{};
@@ -1562,6 +1589,7 @@ function renderOrders(orders){
     const esc=s=>(s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
 
     return '<tr onclick="toggleOrderDetail(\''+o.id+'\')" style="cursor:pointer">'
+      +'<td onclick="event.stopPropagation()"><input type="checkbox" class="row-check" data-id="'+o.id+'"></td>'
       +'<td><span class="order-expand-btn" id="exp-'+o.id+'">&#9654;</span></td>'
       +'<td class="td-name" style="font-family:var(--mono);font-size:12px">'+inv+trackTag+'</td>'
       +'<td>'+fmtDateShort(o.created_at)+'</td>'
@@ -1569,9 +1597,10 @@ function renderOrders(orders){
       +'<td>'+loc+'</td>'
       +'<td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+items+'</td>'
       +'<td style="font-weight:600">'+fmtPrice(o.total_amount)+'</td>'
-      +'<td onclick="event.stopPropagation()"><select class="status-sel" onchange="updateOrderStatus(\''+o.id+'\',this)">'+selOpts+'</select></td>'
+      +'<td onclick="event.stopPropagation()"><select class="status-sel" onchange="updateOrderStatus(\''+o.id+'\',this)">'+selOpts+'</select>'
+        +' <button class="btn-secondary" onclick="softDeleteOne(\'orders\',\''+o.id+'\',\'loadOrders\')">Delete</button></td>'
       +'</tr>'
-      +'<tr class="order-detail-row" id="detail-'+o.id+'"><td colspan="8"><div class="order-detail">'
+      +'<tr class="order-detail-row" id="detail-'+o.id+'"><td colspan="9"><div class="order-detail">'
         +'<div class="od-section"><div class="od-label">Customer</div><div class="od-value">'+name+(p.email?'<br><span style="font-family:var(--mono);font-size:11px;color:var(--text-2)">'+p.email+'</span>':'')+(p.phone?'<br>'+p.phone:'')+'</div></div>'
         +'<div class="od-section"><div class="od-label">Shipping Address</div><div class="od-value">'+fullAddr+'</div></div>'
         +'<div class="od-section"><div class="od-label">Order Items</div><div class="od-items">'+itemsDetail+'</div></div>'
@@ -2001,8 +2030,8 @@ function checkNewItems(key,dotId,currentCount){
 /* ═══ MESSAGES (contact_submissions) ═══════════════ */
 let _messages=[];
 async function loadMessages(){
-  const{data,error}=await sb.from('contact_submissions').select('*').order('created_at',{ascending:false});
-  if(error){document.getElementById('messagesBody').innerHTML='<tr><td colspan="10" class="tbl-msg">Error loading messages</td></tr>';return}
+  const{data,error}=await sb.from('contact_submissions').select('*').is('deleted_at',null).order('created_at',{ascending:false});
+  if(error){document.getElementById('messagesBody').innerHTML='<tr><td colspan="11" class="tbl-msg">Error loading messages</td></tr>';return}
   _messages=data||[];
   document.getElementById('messageCount').textContent=_messages.length;
   checkNewItems('messages','dotMessages',_messages.length);
@@ -2011,7 +2040,7 @@ async function loadMessages(){
 
 function renderMessages(list){
   const tbody=document.getElementById('messagesBody');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="10" class="tbl-msg">No messages yet.</td></tr>';return}
+  if(!list.length){tbody.innerHTML='<tr><td colspan="11" class="tbl-msg">No messages yet.</td></tr>';return}
   tbody.innerHTML=list.map(m=>{
     const read=m.is_read;
     const badge=read?'<span class="badge badge-green">Read</span>':'<span class="badge badge-yellow">New</span>';
@@ -2019,6 +2048,7 @@ function renderMessages(list){
     let ref=m.reference_id||'';
     if(!ref){const mm=(m.message||'').match(/Reference No:\s*(\d{6,})/);if(mm)ref=mm[1];}
     return '<tr '+rowStyle+'>'
+      +'<td><input type="checkbox" class="row-check" data-id="'+m.id+'"></td>'
       +'<td><span class="src-badge src-contact">Contact</span></td>'
       +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(m.created_at)+'</td>'
       +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+(ref||'—')+'</td>'
@@ -2031,6 +2061,7 @@ function renderMessages(list){
       +'<td onclick="event.stopPropagation()">'
         +'<button class="btn-secondary" onclick="viewMessage(\''+m.id+'\')" style="margin-right:6px">View</button>'
         +(read?'':'<button class="btn-save" onclick="markMessageRead(\''+m.id+'\')">Mark Read</button>')
+        +' <button class="btn-secondary" onclick="softDeleteOne(\'contact_submissions\',\''+m.id+'\',\'loadMessages\')">Delete</button>'
       +'</td>'
       +'</tr>';
   }).join('');
@@ -2103,8 +2134,8 @@ function viewEnquiry(id){
 /* ═══ CUSTOM ENQUIRIES (custom_enquiries) ══════════ */
 let _enquiries=[];
 async function loadCustomEnquiries(){
-  const{data,error}=await sb.from('custom_enquiries').select('*').order('created_at',{ascending:false});
-  if(error){document.getElementById('enquiriesBody').innerHTML='<tr><td colspan="10" class="tbl-msg">Error loading enquiries</td></tr>';return}
+  const{data,error}=await sb.from('custom_enquiries').select('*').is('deleted_at',null).order('created_at',{ascending:false});
+  if(error){document.getElementById('enquiriesBody').innerHTML='<tr><td colspan="11" class="tbl-msg">Error loading enquiries</td></tr>';return}
   _enquiries=data||[];
   document.getElementById('enquiryCount').textContent=_enquiries.length;
   checkNewItems('enquiries','dotEnquiries',_enquiries.length);
@@ -2113,13 +2144,14 @@ async function loadCustomEnquiries(){
 
 function renderCustomEnquiries(list){
   const tbody=document.getElementById('enquiriesBody');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="10" class="tbl-msg">No enquiries yet.</td></tr>';return}
+  if(!list.length){tbody.innerHTML='<tr><td colspan="11" class="tbl-msg">No enquiries yet.</td></tr>';return}
   tbody.innerHTML=list.map(e=>{
     const read=e.is_read;
     const badge=read?'<span class="badge badge-green">Read</span>':'<span class="badge badge-yellow">New</span>';
     const rowStyle=read?'':'style="background:rgba(196,98,42,.04)"';
     const need=e.what_needed||'—';
     return '<tr '+rowStyle+'>'
+      +'<td><input type="checkbox" class="row-check" data-id="'+e.id+'"></td>'
       +'<td><span class="src-badge src-custom">Custom Order</span></td>'
       +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+(e.reference_id||'—')+'</td>'
       +'<td class="td-name">'+(e.name||'—')+'</td>'
@@ -2132,6 +2164,7 @@ function renderCustomEnquiries(list){
       +'<td onclick="event.stopPropagation()">'
         +'<button class="btn-secondary" onclick="viewEnquiry(\''+e.id+'\')" style="margin-right:6px">View</button>'
         +(read?'':'<button class="btn-save" onclick="markEnquiryRead(\''+e.id+'\')">Mark Read</button>')
+        +' <button class="btn-secondary" onclick="softDeleteOne(\'custom_enquiries\',\''+e.id+'\',\'loadCustomEnquiries\')">Delete</button>'
       +'</td>'
       +'</tr>';
   }).join('');
@@ -2161,8 +2194,8 @@ async function markEnquiryRead(id){
 /* ═══ CALLBACK REQUESTS (callback_requests) ═══════ */
 let _callbacks=[];
 async function loadCallbacks(){
-  const{data,error}=await sb.from('callback_requests').select('*').order('created_at',{ascending:false});
-  if(error){document.getElementById('callbacksBody').innerHTML='<tr><td colspan="10" class="tbl-msg">Error loading callbacks</td></tr>';return}
+  const{data,error}=await sb.from('callback_requests').select('*').is('deleted_at',null).order('created_at',{ascending:false});
+  if(error){document.getElementById('callbacksBody').innerHTML='<tr><td colspan="11" class="tbl-msg">Error loading callbacks</td></tr>';return}
   _callbacks=data||[];
   const uncalled=_callbacks.filter(c=>!c.is_called).length;
   const badge=document.getElementById('callbackCount');
@@ -2178,7 +2211,7 @@ async function loadCallbacks(){
 
 function renderCallbacks(list){
   const tbody=document.getElementById('callbacksBody');
-  if(!list||!list.length){tbody.innerHTML='<tr><td colspan="10" class="tbl-msg">No callback requests yet.</td></tr>';return}
+  if(!list||!list.length){tbody.innerHTML='<tr><td colspan="11" class="tbl-msg">No callback requests yet.</td></tr>';return}
   tbody.innerHTML=list.map(c=>{
     const called=c.is_called;
     const statusBadge=called
@@ -2189,6 +2222,7 @@ function renderCallbacks(list){
       ?'<span style="color:var(--text-3);font-family:var(--mono);font-size:10px">—</span>'
       :'<button class="btn-sm" onclick="markCallbackCalled(\''+c.id+'\')">Mark as Called</button>';
     return '<tr '+rowStyle+'>'
+      +'<td><input type="checkbox" class="row-check" data-id="'+c.id+'"></td>'
       +'<td><span class="src-badge src-callback">Callback</span></td>'
       +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+(c.reference_id||'—')+'</td>'
       +'<td class="td-name">'+(c.name||'—')+'</td>'
@@ -2198,7 +2232,7 @@ function renderCallbacks(list){
       +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(c.created_at)+'</td>'
       +'<td>'+statusBadge+'</td>'
       +'<td onclick="event.stopPropagation()">'+action+'</td>'
-      +'<td></td>'
+      +'<td onclick="event.stopPropagation()"><button class="btn-secondary" onclick="softDeleteOne(\'callback_requests\',\''+c.id+'\',\'loadCallbacks\')">Delete</button></td>'
       +'</tr>';
   }).join('');
 }
@@ -2219,6 +2253,102 @@ async function markCallbackCalled(id){
   if(error){toast('Error: '+error.message,'error');return}
   if(typeof toast==='function')toast('Marked as called','success');
   loadCallbacks();
+}
+
+// ═══════════════════════════════════════════════════════════
+// RECYCLE BIN / SOFT DELETE
+// ═══════════════════════════════════════════════════════════
+async function _adminEmail(){ try{ const {data}=await sb.auth.getUser(); return data?.user?.email||'admin'; }catch(_){ return 'admin'; } }
+
+function toggleAllChecks(tbodyId, checked){ document.querySelectorAll('#'+tbodyId+' input.row-check').forEach(c=>{c.checked=checked;}); }
+function _checkedIds(tbodyId){ return Array.from(document.querySelectorAll('#'+tbodyId+' input.row-check:checked')).map(c=>c.dataset.id); }
+
+async function bulkSoftDelete(table, tbodyId, loadFnName){
+  const ids=_checkedIds(tbodyId);
+  if(!ids.length){ toast('Select at least one row first','error'); return; }
+  if(!confirm('Move '+ids.length+' item(s) to the Recycle Bin?')) return;
+  const by=await _adminEmail();
+  const {error}=await sb.from(table).update({deleted_at:new Date().toISOString(), deleted_by:by}).in('id',ids);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast(ids.length+' moved to Recycle Bin','success');
+  window[loadFnName]&&window[loadFnName]();
+  if(typeof loadRecycleBin==='function') loadRecycleBin();
+}
+
+async function softDeleteOne(table, id, loadFnName){
+  if(!confirm('Move this item to the Recycle Bin?')) return;
+  const by=await _adminEmail();
+  const {error}=await sb.from(table).update({deleted_at:new Date().toISOString(), deleted_by:by}).eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Moved to Recycle Bin','success');
+  window[loadFnName]&&window[loadFnName]();
+  if(typeof loadRecycleBin==='function') loadRecycleBin();
+}
+
+let _binItems=[];
+const BIN_SOURCES=[
+  {table:'contact_submissions', label:'Contact',       canHardDelete:true,  ref:r=>r.reference_id||'—', summary:r=>(r.subject||'')+' — '+(r.name||'')},
+  {table:'custom_enquiries',    label:'Custom Order',  canHardDelete:true,  ref:r=>r.reference_id||'—', summary:r=>(r.name||'')+': '+(r.what_needed||'')},
+  {table:'callback_requests',   label:'Callback',      canHardDelete:true,  ref:r=>r.reference_id||'—', summary:r=>(r.name||'')+' — '+(r.topic||'')},
+  {table:'orders',              label:'Order',         canHardDelete:false, ref:r=>r.order_id||r.id,     summary:r=>(r.customer_name||'')+' — ₹'+(r.total_amount||0)},
+];
+async function loadRecycleBin(){
+  const tbody=document.getElementById('recycleBody');
+  let rows=[];
+  for(const src of BIN_SOURCES){
+    const {data,error}=await sb.from(src.table).select('*').not('deleted_at','is',null).order('deleted_at',{ascending:false});
+    if(!error && data) data.forEach(r=> rows.push({src, row:r}));
+  }
+  rows.sort((a,b)=> new Date(b.row.deleted_at)-new Date(a.row.deleted_at));
+  _binItems=rows;
+  const bc=document.getElementById('binCount'); if(bc) bc.textContent=rows.length;
+  renderRecycleBin(rows);
+}
+function renderRecycleBin(rows){
+  const tbody=document.getElementById('recycleBody');
+  if(!rows.length){ tbody.innerHTML='<tr><td colspan="7" class="tbl-msg">Recycle Bin is empty.</td></tr>'; return; }
+  tbody.innerHTML=rows.map(item=>{
+    const {src,row}=item;
+    const cid=src.table+'|'+row.id;
+    return '<tr>'
+      +'<td><input type="checkbox" class="bin-check" data-cid="'+cid+'"></td>'
+      +'<td><span class="src-badge '+(src.table==='contact_submissions'?'src-contact':src.table==='custom_enquiries'?'src-custom':src.table==='callback_requests'?'src-callback':'')+'">'+src.label+'</span></td>'
+      +'<td style="font-family:var(--mono);font-size:11px">'+src.ref(row)+'</td>'
+      +'<td style="font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(src.summary(row)||'—')+'</td>'
+      +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(row.deleted_at)+'</td>'
+      +'<td style="font-size:11px">'+(row.deleted_by||'—')+'</td>'
+      +'<td onclick="event.stopPropagation()">'
+        +'<button class="btn-save" onclick="restoreOne(\''+src.table+'\',\''+row.id+'\')">Restore</button>'
+        +(src.canHardDelete?' <button class="btn-secondary" onclick="hardDeleteOne(\''+src.table+'\',\''+row.id+'\')">Delete forever</button>':'')
+      +'</td>'
+      +'</tr>';
+  }).join('');
+}
+async function restoreOne(table,id){
+  const {error}=await sb.from(table).update({deleted_at:null,deleted_by:null}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast('Restored','success'); loadRecycleBin();
+  // refresh the source tab if its loader exists
+  ({contact_submissions:loadMessages,custom_enquiries:loadCustomEnquiries,callback_requests:loadCallbacks,orders:loadOrders}[table]||function(){})();
+}
+async function hardDeleteOne(table,id){
+  if(!confirm('Permanently delete this item? This cannot be undone.')) return;
+  const {error}=await sb.from(table).delete().eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast('Permanently deleted','success'); loadRecycleBin();
+}
+async function bulkRestore(){
+  const ids=Array.from(document.querySelectorAll('#recycleBody input.bin-check:checked')).map(c=>c.dataset.cid);
+  if(!ids.length){toast('Select at least one row first','error');return;}
+  for(const cid of ids){ const [t,id]=cid.split('|'); await sb.from(t).update({deleted_at:null,deleted_by:null}).eq('id',id); }
+  toast(ids.length+' restored','success'); loadRecycleBin(); loadMessages();loadCustomEnquiries();loadCallbacks();loadOrders();
+}
+async function bulkDeleteForever(){
+  const items=Array.from(document.querySelectorAll('#recycleBody input.bin-check:checked')).map(c=>c.dataset.cid);
+  if(!items.length){toast('Select at least one row first','error');return;}
+  if(!confirm('Permanently delete '+items.length+' item(s)? This cannot be undone.')) return;
+  for(const cid of items){ const [t,id]=cid.split('|'); if(t!=='orders'){ await sb.from(t).delete().eq('id',id); } }
+  toast('Deleted forever','success'); loadRecycleBin();
 }
 </script>
 </body>
