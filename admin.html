@@ -428,6 +428,9 @@ td.td-name{color:var(--text);font-weight:500}
 .src-badge{display:inline-block;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:3px;white-space:nowrap}
 .src-contact{background:#2563EB;color:#fff}
 .src-custom{background:#C4622A;color:#fff}
+.src-callback{background:#7C3AED;color:#fff}
+.callback-count{display:none;font-family:var(--mono);font-size:9px;font-weight:700;background:#DC2626;color:#fff;padding:1px 6px;border-radius:10px;margin-left:6px;letter-spacing:.04em}
+.callback-count.visible{display:inline-block}
 .dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:6px}
 .dot-green{background:var(--green)}.dot-red{background:var(--red)}.dot-yellow{background:var(--yellow)}
 .td-img{width:44px;height:44px;background:var(--bg-2);border-radius:4px;overflow:hidden;flex-shrink:0}
@@ -737,6 +740,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
   </div>
 
   <div class="tab-bar">
+    <button class="tab" data-tab="callbacks" onclick="switchTab('callbacks')">Callbacks<span class="callback-count" id="callbackCount">0</span><span class="tab-dot" id="dotCallbacks"></span></button>
     <button class="tab active" data-tab="orders" onclick="switchTab('orders')">Orders <span class="tab-count" id="orderCount">0</span><span class="tab-dot" id="dotOrders"></span></button>
     <button class="tab" data-tab="customers" onclick="switchTab('customers')">Customers <span class="tab-count" id="customerCount">0</span><span class="tab-dot" id="dotCustomers"></span></button>
     <button class="tab" data-tab="products" onclick="switchTab('products')">Products <span class="tab-count" id="productCount">0</span></button>
@@ -745,6 +749,23 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     <button class="tab" data-tab="inquiries" onclick="switchTab('inquiries')">Inquiries <span class="tab-count" id="inquiryCount">0</span><span class="tab-dot" id="dotInquiries"></span></button>
     <button class="tab" data-tab="categories" onclick="switchTab('categories')">Categories</button>
     <button class="tab" data-tab="logs" onclick="switchTab('logs')">Security Logs</button>
+  </div>
+
+  <!-- ── CALLBACKS PANEL ───────────────────────── -->
+  <div class="panel" id="panelCallbacks">
+    <div class="p-head">
+      <div class="p-title">Callback Requests</div>
+      <div class="p-actions">
+        <button class="btn-secondary" onclick="loadCallbacks()">⟳ Refresh</button>
+        <input type="text" id="callbackSearch" placeholder="Search name, phone, topic, ref..." oninput="filterCallbacks()" style="min-width:180px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Source</th><th>Ref ID</th><th>Name</th><th>Phone</th><th>Topic</th><th>Best Time</th><th>Received</th><th>Status</th><th>Action</th><th></th></tr></thead>
+        <tbody id="callbacksBody"><tr><td colspan="10" class="tbl-msg">Loading...</td></tr></tbody>
+      </table>
+    </div>
   </div>
 
   <!-- ── ORDERS PANEL ──────────────────────────── -->
@@ -1336,7 +1357,7 @@ function showDashboard(user){
   document.getElementById('adminDash').classList.add('show');
   updateClock();setInterval(updateClock,30000);
   initTheme();
-  loadCategories().then(()=>{loadProducts();loadOrders();loadLogs();loadCustomers();loadInquiries();loadMessages();loadCustomEnquiries()});
+  loadCategories().then(()=>{loadProducts();loadOrders();loadLogs();loadCustomers();loadInquiries();loadMessages();loadCustomEnquiries();loadCallbacks()});
 }
 
 // Check existing session on load
@@ -1388,12 +1409,12 @@ function fmtPrice(n){return '₹'+Number(n).toLocaleString('en-IN')}
 function toast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type||'')+' show';setTimeout(()=>t.classList.remove('show'),3000)}
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['Orders','Customers','Products','Messages','Enquiries','Inquiries','Categories','Logs'].forEach(p=>{
+  ['Callbacks','Orders','Customers','Products','Messages','Enquiries','Inquiries','Categories','Logs'].forEach(p=>{
     document.getElementById('panel'+p).classList.toggle('active',p.toLowerCase()===tab);
   });
   // Clear notification dot and save seen count
-  const dotMap={orders:'dotOrders',customers:'dotCustomers',messages:'dotMessages',enquiries:'dotEnquiries',inquiries:'dotInquiries'};
-  const countEls={orders:'orderCount',customers:'customerCount',messages:'messageCount',enquiries:'enquiryCount',inquiries:'inquiryCount'};
+  const dotMap={orders:'dotOrders',customers:'dotCustomers',messages:'dotMessages',enquiries:'dotEnquiries',inquiries:'dotInquiries',callbacks:'dotCallbacks'};
+  const countEls={orders:'orderCount',customers:'customerCount',messages:'messageCount',enquiries:'enquiryCount',inquiries:'inquiryCount',callbacks:'callbackCount'};
   if(dotMap[tab]){
     const dot=document.getElementById(dotMap[tab]);
     if(dot)dot.classList.remove('visible');
@@ -2133,6 +2154,69 @@ async function markEnquiryRead(id){
   if(error){toast('Error: '+error.message,'error');return}
   toast('Enquiry marked as read','success');
   loadCustomEnquiries();
+}
+
+/* ═══ CALLBACK REQUESTS (callback_requests) ═══════ */
+let _callbacks=[];
+async function loadCallbacks(){
+  const{data,error}=await sb.from('callback_requests').select('*').order('created_at',{ascending:false});
+  if(error){document.getElementById('callbacksBody').innerHTML='<tr><td colspan="10" class="tbl-msg">Error loading callbacks</td></tr>';return}
+  _callbacks=data||[];
+  const uncalled=_callbacks.filter(c=>!c.is_called).length;
+  const badge=document.getElementById('callbackCount');
+  if(badge){
+    badge.textContent=uncalled;
+    badge.classList.toggle('visible',uncalled>0);
+  }
+  if(typeof checkNewItems==='function'){
+    try{checkNewItems('callbacks','dotCallbacks',_callbacks.length)}catch(e){}
+  }
+  renderCallbacks(_callbacks);
+}
+
+function renderCallbacks(list){
+  const tbody=document.getElementById('callbacksBody');
+  if(!list||!list.length){tbody.innerHTML='<tr><td colspan="10" class="tbl-msg">No callback requests yet.</td></tr>';return}
+  tbody.innerHTML=list.map(c=>{
+    const called=c.is_called;
+    const statusBadge=called
+      ?'<span class="badge badge-green">Called ✓</span>'
+      :'<span class="badge badge-yellow">Pending</span>';
+    const rowStyle=called?'':'style="background:rgba(124,58,237,.04)"';
+    const action=called
+      ?'<span style="color:var(--text-3);font-family:var(--mono);font-size:10px">—</span>'
+      :'<button class="btn-sm" onclick="markCallbackCalled(\''+c.id+'\')">Mark as Called</button>';
+    return '<tr '+rowStyle+'>'
+      +'<td><span class="src-badge src-callback">Callback</span></td>'
+      +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+(c.reference_id||'—')+'</td>'
+      +'<td class="td-name">'+(c.name||'—')+'</td>'
+      +'<td>'+(c.phone||'—')+'</td>'
+      +'<td style="font-size:12px">'+(c.topic||'—')+'</td>'
+      +'<td style="font-size:11px">'+(c.preferred_time||'—')+'</td>'
+      +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(c.created_at)+'</td>'
+      +'<td>'+statusBadge+'</td>'
+      +'<td onclick="event.stopPropagation()">'+action+'</td>'
+      +'<td></td>'
+      +'</tr>';
+  }).join('');
+}
+
+function filterCallbacks(){
+  const q=(document.getElementById('callbackSearch').value||'').toLowerCase();
+  if(!q){renderCallbacks(_callbacks);return}
+  renderCallbacks(_callbacks.filter(c=>{
+    return (c.name||'').toLowerCase().includes(q)
+      ||(c.topic||'').toLowerCase().includes(q)
+      ||(c.reference_id||'').toLowerCase().includes(q)
+      ||(c.phone||'').includes(q);
+  }));
+}
+
+async function markCallbackCalled(id){
+  const{error}=await sb.from('callback_requests').update({is_called:true}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return}
+  if(typeof toast==='function')toast('Marked as called','success');
+  loadCallbacks();
 }
 </script>
 </body>

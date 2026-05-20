@@ -889,7 +889,8 @@ function openCallbackModal(){
           <option>Morning 11 AM – 1 PM</option><option>Afternoon 1 PM – 5 PM</option><option>Evening 5 PM – 9 PM</option>
         </select>
       </div>
-      <button class="btn btn-accent" style="width:100%;margin-top:14px;justify-content:center" onclick="submitCallback()">Send Request →</button>
+      <div id="cbInlineMsg" style="display:none;margin-top:12px"></div>
+      <button class="btn btn-magnetic" id="cbSubmitBtn" style="width:100%;margin-top:14px" onclick="submitCallback()">Send Request →</button>
     </div>`;
     document.body.appendChild(ov);
   }
@@ -897,17 +898,113 @@ function openCallbackModal(){
   setTimeout(function(){initPhoneField('cbPhone')},50);
 }
 function closeCallbackModal(){document.getElementById('cbOverlay')?.classList.remove('open')}
-function submitCallback(){
+
+/* Generate a 12-char-style callback reference id: TRK-CALL-YYYYMMDD-XXXX */
+function generateCallbackRef(){
+  const d=new Date();
+  const yyyy=d.getFullYear();
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const dd=String(d.getDate()).padStart(2,'0');
+  const rand=String(Math.floor(1000+Math.random()*9000));
+  return 'TRK-CALL-'+yyyy+mm+dd+'-'+rand;
+}
+
+/* Resilient Supabase insert for callback_requests — retries with minimal columns
+   if the full row fails (e.g. missing columns in schema). */
+async function _insertCallbackResilient(payload){
+  const sb=getSB();
+  if(!sb)return{ok:false,error:'Supabase unavailable'};
+  try{
+    const {error}=await sb.from('callback_requests').insert([payload]);
+    if(!error)return{ok:true};
+    // Retry with minimum viable columns (name + phone only)
+    const minimal={name:payload.name,phone:payload.phone};
+    const r2=await sb.from('callback_requests').insert([minimal]);
+    if(!r2.error)return{ok:true,degraded:true};
+    return{ok:false,error:r2.error.message||error.message||'Insert failed'};
+  }catch(e){
+    return{ok:false,error:e&&e.message||'Insert threw'};
+  }
+}
+
+/* Show inline success/error card inside the callback modal (no popup) */
+function _renderCallbackInline(html,kind){
+  const box=document.getElementById('cbInlineMsg');
+  if(!box)return;
+  const bg=kind==='error'?'rgba(185,28,28,.06)':'rgba(45,138,78,.06)';
+  const border=kind==='error'?'#B91C1C':'#2D8A4E';
+  box.style.cssText='display:block;margin-top:14px;padding:16px;border-radius:6px;background:'+bg+';border:1px solid '+border+';font-size:13px;line-height:1.6;color:var(--charcoal)';
+  box.innerHTML=html;
+}
+
+/* Shared async submit — usable from anywhere (custom.html etc.) */
+async function submitCallbackRequest(formData){
+  const data=formData||{};
+  const name=(data.name||'').trim();
+  const phone=(data.phone||'').trim();
+  const topic=(data.topic||'').trim();
+  const preferred_time=(data.preferred_time||data.time||'').trim();
+  if(!name||!phone)return{ok:false,error:'Name and phone required'};
+
+  const reference_id=generateCallbackRef();
+  const dbResult=await _insertCallbackResilient({
+    reference_id,name,phone,topic,preferred_time,is_called:false
+  });
+
+  // WhatsApp pre-filled message — KEEP existing behaviour
+  const waMsg='*Callback Request*\n'
+    +'*Ref:* '+reference_id+'\n'
+    +'Name: '+name+'\n'
+    +'Phone: '+phone+'\n'
+    +(topic?'Topic: '+topic+'\n':'')
+    +(preferred_time?'Best time: '+preferred_time+'\n':'');
+  let waOpened=false;
+  try{
+    const win=window.open('https://wa.me/919217555833?text='+encodeURIComponent(waMsg),'_blank');
+    waOpened=!!win;
+  }catch(_){waOpened=false}
+
+  return{
+    ok:dbResult.ok||waOpened,
+    saved:dbResult.ok,
+    waOpened,
+    reference_id,
+    error:(!dbResult.ok&&!waOpened)?(dbResult.error||'Both Supabase save and WhatsApp failed'):null
+  };
+}
+
+async function submitCallback(){
   const name=document.getElementById('cbName').value.trim();
   const phoneInp=document.getElementById('cbPhone');
   if(phoneInp&&phoneInp._validatePhone&&!phoneInp._validatePhone())return;
   const phone=document.getElementById('cbPhone').value.trim();
   const topic=document.getElementById('cbTopic').value;
   const time=document.getElementById('cbTime').value;
-  if(!name||!phone){alert('Please enter your name and phone number.');return;}
-  const msg=`*Callback Request*\nName: ${name}\nPhone: ${phone}\nTopic: ${topic}\nBest time: ${time}`;
-  window.open('https://wa.me/919217555833?text='+encodeURIComponent(msg),'_blank');
-  closeCallbackModal();
+  if(!name||!phone){
+    _renderCallbackInline('Please enter your name and phone number.','error');
+    return;
+  }
+  const btn=document.getElementById('cbSubmitBtn');
+  if(btn){btn.disabled=true;btn.textContent='Sending...'}
+  const result=await submitCallbackRequest({name,phone,topic,preferred_time:time});
+  if(btn){btn.disabled=false;btn.textContent='Send Request →'}
+
+  if(result.ok){
+    _renderCallbackInline(
+      '<div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:#2D8A4E;margin-bottom:6px">Request received</div>'
+      +'<div style="font-size:18px;font-weight:700;color:var(--charcoal);letter-spacing:.04em;margin-bottom:8px">'+result.reference_id+'</div>'
+      +'<div style="color:var(--warm)">Your callback request <strong>'+result.reference_id+'</strong> has been received. We will call you within business hours.</div>'
+      +'<div style="margin-top:10px;font-size:12px;color:var(--stone)">📸 Take a screenshot of this number for future reference.</div>',
+      'success'
+    );
+    if(btn)btn.style.display='none';
+  }else{
+    _renderCallbackInline(
+      '<strong>We could not submit your request.</strong><br>'
+      +(result.error||'Please try again, or call us directly at +91 92175 55833.'),
+      'error'
+    );
+  }
 }
 
 /* ══ COPY TO CLIPBOARD ═════════════════════════════════════ */

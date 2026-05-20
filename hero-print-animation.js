@@ -103,19 +103,6 @@
 
       </div><!-- /.tpa-cabinet -->
 
-      <!-- Info panel — BELOW the cabinet, never inside -->
-      <div class="tpa-info">
-        <span class="tpa-info-layers">
-          <span class="tpa-info-value" id="tpaLayerCount">0</span>
-          <span class="tpa-info-key">LAYERS</span>
-        </span>
-        <span class="tpa-info-sep"></span>
-        <span class="tpa-info-material">
-          <span class="tpa-info-value">PLA+</span>
-          <span class="tpa-info-key">MATERIAL</span>
-        </span>
-      </div>
-
     </div>`;
 
   /* ── Refs ───────────────────────────────────────────────── */
@@ -125,7 +112,7 @@
   const objWrap      = document.getElementById('tpaObject');
   const drip         = document.getElementById('tapDrip');
   const glow         = document.getElementById('tpaGlow');
-  const layerCountEl = document.getElementById('tpaLayerCount');
+  const layerCountEl = null;
 
   /* ── State ──────────────────────────────────────────────── */
   let layerIndex    = 0;
@@ -206,7 +193,7 @@
 
     depositEffect();
     layerIndex++;
-    layerCountEl.textContent = layerIndex;
+    if (layerCountEl) layerCountEl.textContent = layerIndex;
   }
 
   /* ── Single pass ────────────────────────────────────────── */
@@ -263,7 +250,7 @@
       objWrap.innerHTML = '';
       objWrap.classList.remove('resetting');
       layerIndex = 0;
-      layerCountEl.textContent = '0';
+      if (layerCountEl) layerCountEl.textContent = '0';
       setTimeout(start, 300);
     }, CFG.RESET_MS);
   }
