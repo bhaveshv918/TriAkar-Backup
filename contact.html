@@ -2,6 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-FDM00KSRD5"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-FDM00KSRD5', { page_title: document.title, page_location: window.location.href });
+</script>
+<!-- Sentry Error Monitoring -->
+<script src="https://js-de.sentry-cdn.com/4f9ce894558c957a725b20eee4dd58eb.min.js" crossorigin="anonymous"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Contact TriAkar | 3D Printing Shop, Greater Noida West</title>
 <meta name="description" content="Visit our 3D printing shop in Greater Noida West or reach us on WhatsApp. Open all days 11AM to 9PM. Call +91 92175 55833.">
@@ -333,6 +343,12 @@ async function submitContact(e){
       res=await sb.from('contact_submissions').insert([base]).select();
     }
     if(res.error) throw res.error;
+    // Analytics + admin email notification (best-effort, non-blocking)
+    try{ if(typeof window.gtag==='function'){ window.gtag('event','generate_lead',{currency:'INR',value:0,lead_source:'contact_form'}); } }catch(_){}
+    try{
+      const API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
+      fetch(API+'/api/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'contact',data:{name:name,email:email,phone:phone,subject:subject,message:userMsg,reference_id:refId}})}).catch(function(){});
+    }catch(_){}
     // Success — no popup, inline confirmation with the reference number
     document.getElementById('contactRefId').textContent=refId.replace(/(\d{4})(\d{4})(\d{4})/,'$1 $2 $3');
     form.style.display='none';

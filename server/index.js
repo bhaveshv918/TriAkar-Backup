@@ -16,6 +16,7 @@ import cartRoutes     from './routes/cart.js';
 import adminRoutes    from './routes/admin.js';
 import inquiryRoutes  from './routes/inquiries.js';
 import addressRoutes  from './routes/addresses.js';
+import notifyRoutes   from './routes/notify.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 /* ── ENV VALIDATION (fail fast on missing secrets) ────────── */
@@ -145,6 +146,15 @@ const contactLimiter = rateLimit({
 app.use('/api/inquiries', contactLimiter);
 app.use('/api/addresses', contactLimiter);
 
+const notifyLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many submissions. Try again in an hour.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/notify', notifyLimiter);
+
 /* ── 5. BODY PARSING (size-limited) ───────────────────────── */
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
@@ -165,6 +175,7 @@ app.use('/api/cart',       cartRoutes);
 app.use('/api/admin',      adminRoutes);
 app.use('/api/inquiries',  inquiryRoutes);
 app.use('/api/addresses',  addressRoutes);
+app.use('/api/notify',     notifyRoutes);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', brand: 'TriAkar' }));
 

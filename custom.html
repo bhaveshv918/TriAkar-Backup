@@ -2,6 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-FDM00KSRD5"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-FDM00KSRD5', { page_title: document.title, page_location: window.location.href });
+</script>
+<!-- Sentry Error Monitoring -->
+<script src="https://js-de.sentry-cdn.com/4f9ce894558c957a725b20eee4dd58eb.min.js" crossorigin="anonymous"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Custom 3D Printing | Replacement Parts, Prototypes, Corporate Gifts | TriAkar Noida</title>
 <meta name="description" content="Can't find a replacement part? Need a custom gift or prototype? TriAkar 3D prints it in Noida and ships across India. Share a photo — get a quote in 24 hours.">
@@ -370,6 +380,13 @@ async function submitEnquiry(e){
       res=await sb.from('custom_enquiries').insert([base]).select();
     }
     if(res.error) throw res.error;
+
+    // Analytics + admin/customer email notification (best-effort, non-blocking)
+    try{ if(typeof window.gtag==='function'){ window.gtag('event','generate_lead',{currency:'INR',value:0,lead_source:'custom_order'}); } }catch(_){}
+    try{
+      const API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
+      fetch(API+'/api/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'enquiry',data:{reference_id:refId,name:name,email:email,phone:phone,what_needed:need,budget_range:budget,material_preference:material}})}).catch(function(){});
+    }catch(_){}
 
     // Success — no popup, inline confirmation card
     document.getElementById('enquiryRefId').textContent=refId;

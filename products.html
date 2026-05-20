@@ -2,6 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-FDM00KSRD5"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-FDM00KSRD5', { page_title: document.title, page_location: window.location.href });
+</script>
+<!-- Sentry Error Monitoring -->
+<script src="https://js-de.sentry-cdn.com/4f9ce894558c957a725b20eee4dd58eb.min.js" crossorigin="anonymous"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Shop 3D Printed Products | Desk, Home, Gifting | TriAkar Delhi NCR</title>
 <meta name="description" content="Browse 3D printed desk organizers, home decor, planters and personalised gifts. Made fresh in Noida. Free shipping above ₹999. 7-day returns.">
@@ -518,7 +528,9 @@ document.querySelectorAll('.fcat-btn').forEach(btn => btn.addEventListener('clic
 function loadFromLocal() {
   if (typeof PRODUCTS === 'undefined') return;
   const products = Object.entries(PRODUCTS).map(function([slug, p]) {
-    return { slug: slug, name: p.name, price: p.price, description: p.description, category: p.category, images: p.image ? [p.image] : [], stock_qty: 1, badge: p.badge };
+    const cdn = (typeof window.getProductImage === 'function') ? window.getProductImage(p) : null;
+    const imgs = cdn ? [cdn] : (p.image ? [p.image] : []);
+    return { slug: slug, name: p.name, price: p.price, description: p.description, category: p.category, images: imgs, stock_qty: 1, badge: p.badge };
   });
   grid.innerHTML = '';
   allCards = products.map(buildCard);

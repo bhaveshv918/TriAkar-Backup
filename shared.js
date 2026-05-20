@@ -12,6 +12,9 @@ function getSB(){
   return _sb;
 }
 
+/* ── Safe GA4 analytics helper ──────────────────────────── */
+function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof window.gtag==='function'){ window.gtag('event', name, params||{}); } }catch(_){} }
+
 /* ── Nav scroll + mobile drawer ─────────────────────────── */
 (function(){
   const nav=document.querySelector('.main-nav');
@@ -130,6 +133,7 @@ function closeCart(){document.getElementById('cartSidebar')?.classList.remove('o
 function addToCartBtn(btnEl,product){
   if(!product)return;
   Cart.add({id:product.id,name:product.name,price:product.price,color:product.color||''});
+  gtagEvent('add_to_cart',{currency:'INR',value:product.price,items:[{item_id:product.id,item_name:product.name,price:product.price}]});
   if(!btnEl)return;
   // Guard against re-trigger while in "Added" state
   if(btnEl.dataset.adding==='1')return;
@@ -250,6 +254,7 @@ function checkout(){
   }
 
   closeCart();
+  gtagEvent('begin_checkout',{currency:'INR',value:Cart.total()});
   openCheckoutModal();
 }
 
@@ -705,6 +710,7 @@ async function placeOrder(){
             sendShopWhatsApp(trkId,d,items,total,'Online (Paid)');
 
             Cart.clear();
+            gtagEvent('purchase',{transaction_id:trkId,currency:'INR',value:total});
             showOrderConfirmation(trkId,'online','paid');
           }catch(e){
             alert('Payment received. Your order ID: '+trkId+'. We will confirm shortly.');
@@ -746,6 +752,7 @@ async function placeOrder(){
 
     window.open('https://wa.me/919217555833?text='+encodeURIComponent(orderText),'_blank');
     Cart.clear();
+    gtagEvent('purchase',{transaction_id:trkId,currency:'INR',value:total});
     showOrderConfirmation(trkId,'whatsapp','pending');
     return;
   }
@@ -950,6 +957,15 @@ async function submitCallbackRequest(formData){
   const dbResult=await _insertCallbackResilient({
     reference_id,name,phone,topic,preferred_time,is_called:false
   });
+
+  if(dbResult.ok){
+    gtagEvent('generate_lead',{currency:'INR',value:0,lead_source:'callback'});
+    // Best-effort, fire-and-forget owner notification — never blocks the WA + inline flow.
+    try {
+      const API = window.location.hostname==='localhost' ? 'http://localhost:3000' : 'https://triakar.onrender.com';
+      fetch(API+'/api/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'callback',data:{reference_id:reference_id,name:name,phone:phone,topic:topic,preferred_time:preferred_time}})}).catch(function(){});
+    } catch(_){}
+  }
 
   // WhatsApp pre-filled message — KEEP existing behaviour
   const waMsg='*Callback Request*\n'
@@ -1224,4 +1240,16 @@ document.addEventListener('DOMContentLoaded',()=>{
   Cart.badge();Cart.render();Cart.loadFromServer();
   updateNavAuth();
   applyNavActiveState();
+});
+
+/* ══ SENTRY INIT (lazy onLoad) ══════════════════════════════ */
+document.addEventListener('DOMContentLoaded', function(){
+  if (window.Sentry && typeof window.Sentry.onLoad === 'function') {
+    window.Sentry.onLoad(function(){
+      window.Sentry.init({
+        environment: window.location.hostname === 'localhost' ? 'development' : 'production',
+        tracesSampleRate: 0.2,
+      });
+    });
+  }
 });

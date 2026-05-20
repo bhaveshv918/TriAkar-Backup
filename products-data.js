@@ -1,3 +1,9 @@
+// To add a real product photo:
+// 1. Upload photo to Cloudinary dashboard
+// 2. Copy the public ID shown after upload
+// 3. Add cloudinaryId: 'your-public-id' to the product
+// Example: cloudinaryId: 'triakar/arc-desk-organizer'
+
 /* TRIAKAR products-data.js v6 */
 const PRODUCTS = {
   'arc-desk': {
@@ -196,3 +202,13 @@ const PRODUCTS = {
     customizable: true
   }
 };
+
+/* ── Cloudinary image resolver ──────────────────────────── */
+var CLOUDINARY_BASE = 'https://res.cloudinary.com/dtpibsruo/image/upload';
+function getProductImage(product){
+  if (product && product.cloudinaryId) {
+    return CLOUDINARY_BASE + '/q_auto,f_auto,w_600,h_600,c_fill/' + product.cloudinaryId;
+  }
+  return null; // null => caller shows the existing SVG placeholder
+}
+if (typeof window !== 'undefined') { window.getProductImage = getProductImage; }

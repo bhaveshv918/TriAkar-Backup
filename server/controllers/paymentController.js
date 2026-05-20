@@ -133,6 +133,32 @@ export async function verifyPayment(req, res, next) {
       });
     }
 
+    /* Best-effort confirmation emails — must never break the response */
+    try {
+      const { data: ord } = await supabase
+        .from('orders')
+        .select('*, order_items(quantity, unit_price, products(name))')
+        .eq('id', order_id).single();
+      if (ord) {
+        const items = (ord.order_items || []).map(it => ({
+          name: it.products?.name || 'Item', quantity: it.quantity, unit_price: it.unit_price,
+        }));
+        const orderData = {
+          order_id: ord.order_id || ord.id,
+          customer_name: ord.customer_name || ord.shipping_address?.full_name || 'Customer',
+          customer_email: ord.customer_email,
+          customer_phone: ord.customer_phone || ord.shipping_address?.mobile || ord.shipping_address?.phone || '',
+          total_amount: ord.total_amount,
+          payment_method: ord.payment_method || 'online',
+          items,
+          shipping_address: ord.shipping_address || {},
+        };
+        const { sendOrderConfirmation, sendAdminOrderAlert } = await import('../services/emailService.js');
+        if (orderData.customer_email) { try { await sendOrderConfirmation(orderData); } catch (e) { console.error('Email error:', e.message); } }
+        try { await sendAdminOrderAlert(orderData); } catch (e) { console.error('Email error:', e.message); }
+      }
+    } catch (e) { console.error('Order email lookup failed:', e.message); }
+
     res.json({ ok: true, order_id });
   } catch (err) { next(err); }
 }
