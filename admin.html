@@ -2080,9 +2080,10 @@ function renderMessages(list){
       +'<td style="font-family:var(--mono);font-size:11px">'+(m.email||'—')+'</td>'
       +'<td>'+(m.phone||'—')+'</td>'
       +'<td>'+(m.subject||'—')+'</td>'
-      +'<td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer" title="'+(m.message||'').replace(/"/g,'&quot;')+'">'+(m.message||'—')+'</td>'
+      +'<td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;color:var(--accent)" onclick="viewMessage(\''+m.id+'\')" title="Click to view full message">'+(m.message||'—')+'</td>'
       +'<td>'+badge+'</td>'
       +'<td onclick="event.stopPropagation()">'
+        +'<button class="btn-secondary" onclick="viewMessage(\''+m.id+'\')" style="margin-right:6px">View</button>'
         +(read?'':'<button class="btn-save" onclick="markMessageRead(\''+m.id+'\')">Mark Read</button>')
       +'</td>'
       +'</tr>';
@@ -2109,6 +2110,50 @@ async function markMessageRead(id){
   loadMessages();
 }
 
+/* ═══ FULL-RECORD VIEWER (contact / custom enquiry) ═══ */
+function _ensureRecordModal(){
+  let ov=document.getElementById('recordModal');
+  if(ov)return ov;
+  ov=document.createElement('div');
+  ov.id='recordModal';
+  ov.style.cssText='position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div id="recordModalBox" style="background:var(--bg-1,#14141a);color:var(--text,#e8e8ec);max-width:560px;width:100%;max-height:85vh;overflow-y:auto;border:1px solid var(--border,rgba(255,255,255,.14));border-radius:10px;padding:26px;position:relative"></div>';
+  ov.addEventListener('click',function(ev){if(ev.target===ov)ov.style.display='none';});
+  document.addEventListener('keydown',function(ev){if(ev.key==='Escape')ov.style.display='none';});
+  document.body.appendChild(ov);
+  return ov;
+}
+function _esc(v){return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function _recRow(label,val){
+  if(val===undefined||val===null||val==='')return '';
+  return '<div style="margin-bottom:14px"><div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-2,#9a9a9a);margin-bottom:4px">'+label+'</div><div style="font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word">'+_esc(val)+'</div></div>';
+}
+function showRecordModal(title,bodyHtml){
+  const ov=_ensureRecordModal();
+  document.getElementById('recordModalBox').innerHTML=
+    '<button onclick="document.getElementById(\'recordModal\').style.display=\'none\'" style="position:absolute;top:12px;right:14px;background:none;border:none;color:inherit;font-size:24px;line-height:1;cursor:pointer;opacity:.7">&times;</button>'
+    +'<h3 style="margin:0 0 20px;font-size:18px;padding-right:24px">'+title+'</h3>'+bodyHtml;
+  ov.style.display='flex';
+}
+function viewMessage(id){
+  const m=(_messages||[]).find(x=>String(x.id)===String(id));
+  if(!m)return;
+  showRecordModal('Contact Message',
+    _recRow('Reference No.',m.reference_id)+_recRow('Name',m.name)+_recRow('Email',m.email)
+    +_recRow('Phone',m.phone)+_recRow('Subject',m.subject)+_recRow('Message',m.message)
+    +_recRow('Received',fmtDateTimeIST(m.created_at)));
+  if(!m.is_read){markMessageRead(m.id);}
+}
+function viewEnquiry(id){
+  const e=(_enquiries||[]).find(x=>String(x.id)===String(id));
+  if(!e)return;
+  showRecordModal('Custom Enquiry',
+    _recRow('Reference No.',e.reference_id)+_recRow('Name',e.name)+_recRow('Email',e.email)
+    +_recRow('Phone',e.phone)+_recRow('What they need',e.what_needed)+_recRow('Budget',e.budget_range)
+    +_recRow('Material',e.material_preference)+_recRow('Received',fmtDateTimeIST(e.created_at)));
+  if(!e.is_read){markEnquiryRead(e.id);}
+}
+
 /* ═══ CUSTOM ENQUIRIES (custom_enquiries) ══════════ */
 let _enquiries=[];
 async function loadCustomEnquiries(){
@@ -2133,12 +2178,13 @@ function renderCustomEnquiries(list){
       +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+(e.reference_id||'—')+'</td>'
       +'<td class="td-name">'+(e.name||'—')+'</td>'
       +'<td>'+(e.phone||'—')+'</td>'
-      +'<td style="font-size:11px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer" title="'+need.replace(/"/g,'&quot;')+'">'+need+'</td>'
+      +'<td style="font-size:11px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;color:var(--accent)" onclick="viewEnquiry(\''+e.id+'\')" title="Click to view full enquiry">'+need+'</td>'
       +'<td style="font-size:11px;white-space:nowrap">'+(e.budget_range||'—')+'</td>'
       +'<td style="font-size:11px">'+(e.material_preference||'—')+'</td>'
       +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(e.created_at)+'</td>'
       +'<td>'+badge+'</td>'
       +'<td onclick="event.stopPropagation()">'
+        +'<button class="btn-secondary" onclick="viewEnquiry(\''+e.id+'\')" style="margin-right:6px">View</button>'
         +(read?'':'<button class="btn-save" onclick="markEnquiryRead(\''+e.id+'\')">Mark Read</button>')
       +'</td>'
       +'</tr>';

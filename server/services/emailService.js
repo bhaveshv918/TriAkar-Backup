@@ -46,8 +46,7 @@ function shell(title, bodyHtml) {
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;">
         <tr>
           <td style="background:#0e0e0e;padding:28px 32px;border-bottom:3px solid ${ACCENT};">
-            <span style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:2px;">TRI<span style="color:${ACCENT};">AKAR</span></span>
-            <div style="color:#9a9a9a;font-size:11px;letter-spacing:1px;margin-top:4px;">DESIGNED GLOBALLY. MADE RESPONSIBLY IN INDIA.</div>
+            <span style="font-family:Georgia,'Times New Roman',serif;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:3px;">TRI<span style="color:${ACCENT};">AKAR</span></span>
           </td>
         </tr>
         <tr><td style="padding:32px;">
@@ -164,7 +163,7 @@ export async function sendAdminOrderAlert(order) {
 export async function sendEnquiryConfirmation(enquiry) {
   const body = `
     <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 20px;">
-      Thank you for reaching out to TriAkar. We have received your custom enquiry and our design team will get back to you shortly.
+      Thank you for reaching out to TriAkar. We have received your custom enquiry and our team will get back to you shortly.
     </p>
     <table role="presentation" cellpadding="0" cellspacing="0">
       ${row('Reference ID', enquiry.reference_id)}
@@ -173,7 +172,7 @@ export async function sendEnquiryConfirmation(enquiry) {
     <p style="font-size:14px;color:#444;line-height:1.6;margin:24px 0 16px;">
       Need to speak with us sooner? Call our team and quote your reference ID.
     </p>
-    ${btn('Call +91 90000 00000', 'tel:+919000000000')}
+    ${btn('Call +91 92175 55833', 'tel:+919217555833')}
   `;
   return send({
     to: enquiry.email,
