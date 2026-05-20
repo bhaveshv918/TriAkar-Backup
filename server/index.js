@@ -84,6 +84,8 @@ app.use((req, res, next) => {
 
 /* ── 3. CORS (strict allow-list) ──────────────────────────── */
 const allowedOrigins = [
+  'https://triakar.com',
+  'https://www.triakar.com',
   'https://triakar.in',
   'https://www.triakar.in',
   'https://triakar.vercel.app',
