@@ -543,13 +543,15 @@ async function handleForgot(e){
   const btn=document.getElementById('forgotBtn');
   const sb2=(typeof getSB==='function')?getSB():sb;
   btn.textContent='Sending...';btn.disabled=true;
+  // Security: never reveal whether an account exists for this email.
+  // Fire the request and always show the same neutral message.
   try{
-    if(!sb2)throw new Error('Service unavailable. Please try again.');
-    const {error}=await sb2.auth.resetPasswordForEmail(email,{redirectTo:'https://triakar.in/account.html?reset=true'});
-    if(error)throw error;
-    showMsg('forgotMsg','Reset link sent to '+email+'. Check your inbox and spam folder.','ok');
-  }catch(err){showMsg('forgotMsg',err.message||'Could not send reset link.','err')}
-  finally{btn.textContent='Send Reset Link →';btn.disabled=false}
+    if(sb2){
+      await sb2.auth.resetPasswordForEmail(email,{redirectTo:'https://triakar.in/account.html?reset=true'});
+    }
+  }catch(_){/* swallow — do not leak account existence */}
+  showMsg('forgotMsg','If an account exists with this email, a reset link has been sent. Please check your inbox and spam folder.','ok');
+  btn.textContent='Send Reset Link →';btn.disabled=false;
 }
 
 async function handleReset(e){

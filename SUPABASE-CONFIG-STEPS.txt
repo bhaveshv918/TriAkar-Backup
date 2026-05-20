@@ -1,0 +1,35 @@
+SUPABASE URL CONFIGURATION — DO THIS MANUALLY
+=================================================
+
+This fixes the password-reset email link opening "localhost:3000"
+instead of triakar.in. The link uses your project's Site URL, so it
+must be set in the Supabase dashboard (it cannot be fixed in code).
+
+1. Go to https://supabase.com and sign in.
+2. Open your TriAkar project.
+3. In the left sidebar: Authentication  ->  URL Configuration.
+4. Set "Site URL" to:
+       https://triakar.in
+5. Under "Redirect URLs", click "Add URL" and add each of these
+   (one at a time):
+       https://triakar.in/account.html
+       https://triakar.in/account.html?reset=true
+       https://triakar.vercel.app/account.html
+       https://triakar.vercel.app/account.html?reset=true
+6. Click "Save".
+7. Test: on the live site, use "Forgot password?" and request a reset.
+   The email link should now open triakar.in (not localhost).
+
+
+WHILE YOU ARE IN SUPABASE — ALSO RUN THE PENDING SQL
+=================================================
+Open: SQL Editor  ->  New query, then paste & RUN each of these files
+(found in this project under  server/db/ ):
+
+  1. fix-trigger.sql            (saves mobile number on every signup)
+  2. callbacks-schema.sql       (callback_requests table for the admin)
+  3. custom-enquiries-schema.sql(custom_enquiries table for the admin)
+  4. contact-schema.sql         (adds reference_id columns — safe to re-run)
+
+After running fix-trigger.sql, sign up a new test user and confirm the
+mobile number appears in the admin panel -> Customers tab.
