@@ -127,6 +127,17 @@ const PRODUCTS = {
     badge: null,
     customizable: true
   },
+  'name-letters': {
+    name: 'Custom 3D Name Letters',
+    price: 499,
+    category: 'gifting',
+    description: 'Freestanding 3D-printed letters spelling any name or word. Great for desks, shelves, kids’ rooms and personalised gifts. Choose your name, size and colour.',
+    material: 'PLA+',
+    colors: ['Matte Black', 'Ivory White', 'Stone Grey', 'Any custom color'],
+    image: null,
+    badge: 'new',
+    customizable: true
+  },
   'gift-box': {
     name: 'Signature Gift Box',
     price: 1490,
