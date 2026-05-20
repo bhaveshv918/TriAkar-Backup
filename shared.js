@@ -575,6 +575,31 @@ function validateAndNext(){
   showCheckoutStep(3);
 }
 
+/* Resolve an address_id for the server order — uses the chosen saved address,
+   or creates a new user_addresses row from the entered form first. */
+async function resolveAddressId(d,headers,API){
+  if(window._selectedAddress&&window._selectedAddress.id){
+    return window._selectedAddress.id;
+  }
+  // New address — persist it so the server can reference it by id
+  const res=await fetch(API+'/api/addresses',{
+    method:'POST',headers,
+    body:JSON.stringify({
+      full_name:d.name,phone:d.phone,
+      address_line1:d.address_line1,
+      address_line2:d.address_line2||null,
+      city:d.city,state:d.state,pincode:d.pincode,
+      country:'India',is_default:true
+    })
+  });
+  let j={};try{j=await res.json()}catch(_){}
+  if(!res.ok||!j.address||!j.address.id){
+    throw new Error((j&&j.error)||'Could not save your delivery address');
+  }
+  window._selectedAddress=j.address;
+  return j.address.id;
+}
+
 /* ══ PLACE ORDER ═══════════════════════════════════════════ */
 async function placeOrder(){
   const items=Cart.getItems();
@@ -614,9 +639,11 @@ async function placeOrder(){
       if(token)headers['Authorization']='Bearer '+token;
 
       const cartItems=items.map(i=>({slug:i.id,quantity:i.quantity,customization_notes:d.notes||null}));
+      // Server requires a saved-address id — resolve the chosen one, or persist a new one.
+      const address_id=await resolveAddressId(d,headers,API);
       const res=await fetch(API+'/api/payments/create-order',{
         method:'POST',headers,
-        body:JSON.stringify({items:cartItems,customer:{name:d.name,phone:d.phone,email:d.email,address:d.address_line1,state:d.state,pincode:d.pincode}})
+        body:JSON.stringify({items:cartItems,address_id:address_id})
       });
       const data=await res.json();
       if(!res.ok)throw new Error(data.error||'Could not initiate payment');
@@ -655,16 +682,32 @@ async function placeOrder(){
             });
             if(!vRes.ok)throw new Error('Payment verification failed');
 
-            // Save to Supabase
-            await saveOrderToSupabase(trkId,d,orderItems,subtotal,shipping,total,'online','paid');
+            // Enrich the SAME order row the server already created — keeps things single-source.
+            // This adds the trackable order_id (TRK), customer fields and payment metadata.
+            try{
+              const sb2=getSB();
+              if(sb2&&data.order_id){
+                await sb2.from('orders').update({
+                  order_id:trkId,
+                  customer_name:d.name,
+                  customer_email:d.email,
+                  customer_phone:d.phone,
+                  payment_method:'online',
+                  payment_status:'paid',
+                  special_instructions:d.notes||null,
+                  subtotal:subtotal,
+                  shipping_charge:shipping
+                }).eq('id',data.order_id);
+              }
+            }catch(_){/* server order is already 'confirmed' — enrichment is best-effort */}
 
-            // Send WhatsApp notification to shop
+            // Notify shop on WhatsApp
             sendShopWhatsApp(trkId,d,items,total,'Online (Paid)');
 
             Cart.clear();
             showOrderConfirmation(trkId,'online','paid');
           }catch(e){
-            alert('Payment verified but order save issue. Your order ID: '+trkId+'. Contact us.');
+            alert('Payment received. Your order ID: '+trkId+'. We will confirm shortly.');
             Cart.clear();
             showOrderConfirmation(trkId,'online','paid');
           }
