@@ -88,23 +88,8 @@ router.post('/signup', async (req, res, next) => {
       return res.status(400).json({ error: 'email, password, and full_name are required' });
     }
 
-    // Verify phone was OTP-confirmed if provided
-    if (phone) {
-      const digits = phone.replace(/\D/g, '');
-      const mobile = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
-      const since = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-      const { data: otpRec } = await supabase
-        .from('phone_otps')
-        .select('id')
-        .eq('phone', mobile)
-        .eq('verified', true)
-        .gte('created_at', since)
-        .limit(1)
-        .single();
-      if (!otpRec) {
-        return res.status(400).json({ error: 'Phone number must be verified with OTP before creating an account.' });
-      }
-    }
+    // OTP check paused — re-enable after DLT registration
+    // if (phone) { ... }
 
     const { data, error } = await supabase.auth.admin.createUser({
       email,
