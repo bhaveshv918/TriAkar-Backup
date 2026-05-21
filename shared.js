@@ -1,5 +1,11 @@
 /* TRIAKAR shared.js v7 — Full Order Flow + Supabase */
 
+/* ── FIX #12: HTML escape helper — use for all user-supplied data in innerHTML ── */
+function _esc(s){
+  if(s===null||s===undefined)return'';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 /* ── Auto-load address-autocomplete.js if not already present ── */
 (function(){
   if(typeof window.AddressAC!=='undefined')return;
@@ -146,14 +152,15 @@ const Cart=(function(){
     if(!el)return;
     if(tot)tot.textContent='₹'+total().toLocaleString('en-IN');
     if(!items.length){el.innerHTML='<div class="cart-empty">Your cart is empty.</div>';return}
+    // FIX #12: escape all user-supplied data before inserting into innerHTML
     el.innerHTML=items.map(item=>`
       <div class="cart-item">
         <div class="ci-img"><svg viewBox="0 0 56 56" fill="none" style="width:32px"><rect x="6" y="6" width="44" height="44" rx="3" fill="#E8E4DC"/></svg></div>
-        <div><div class="ci-name">${item.name}</div><div class="ci-var">${item.color||''}</div>
+        <div><div class="ci-name">${_esc(item.name)}</div><div class="ci-var">${_esc(item.color||'')}</div>
           <div class="ci-qty">
-            <button class="ci-qbtn" onclick="Cart.changeQty('${item.id}','${item.color||''}',-1)">−</button>
-            <span class="ci-qn">${item.quantity}</span>
-            <button class="ci-qbtn" onclick="Cart.changeQty('${item.id}','${item.color||''}',1)">+</button>
+            <button class="ci-qbtn" onclick="Cart.changeQty('${_esc(item.id)}','${_esc(item.color||'')}',-1)">−</button>
+            <span class="ci-qn">${_esc(item.quantity)}</span>
+            <button class="ci-qbtn" onclick="Cart.changeQty('${_esc(item.id)}','${_esc(item.color||'')}',1)">+</button>
           </div>
         </div>
         <div class="ci-price">₹${(item.price*item.quantity).toLocaleString('en-IN')}</div>
@@ -224,13 +231,17 @@ function initSearchableDropdown(wrap){
 }
 
 /* ══ TRK ORDER ID GENERATOR ═══════════════════════════════ */
+// FIX #21: added millisecond timestamp + 4 more random hex chars to drastically reduce collision risk
 function generateTRKId(){
   const d=new Date();
   const yyyy=d.getFullYear();
   const mm=String(d.getMonth()+1).padStart(2,'0');
   const dd=String(d.getDate()).padStart(2,'0');
-  const rand=String(Math.floor(1000+Math.random()*9000));
-  return 'TRK-'+yyyy+mm+dd+'-'+rand;
+  // ms since midnight (0–86399999) encoded as base-36 (up to 5 chars) + 4 random hex chars
+  const ms=d.getHours()*3600000+d.getMinutes()*60000+d.getSeconds()*1000+d.getMilliseconds();
+  const msPart=ms.toString(36).toUpperCase().padStart(5,'0');
+  const rndPart=Math.floor(Math.random()*0x10000).toString(16).toUpperCase().padStart(4,'0');
+  return 'TRK-'+yyyy+mm+dd+'-'+msPart+rndPart;
 }
 
 /* ══ PINCODE AUTO-FILL ════════════════════════════════════ */
@@ -526,19 +537,20 @@ async function loadAndShowSavedAddresses(){
   if(!container||!list)return;
   container.style.display='block';
   document.getElementById('ckAddressForm').style.display='none';
+  // FIX #12: escape address fields before injecting into innerHTML
   list.innerHTML=addresses.map((a,i)=>`
     <div class="ck-saved-addr" onclick="selectSavedAddress(${i})" data-idx="${i}">
       <div class="ck-sa-radio"></div>
       <div class="ck-sa-body">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-          <strong style="font-size:13px">${a.full_name}</strong>
-          <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--stone);font-weight:600">${a.address_label||a.address_type||'Home'}</span>
+          <strong style="font-size:13px">${_esc(a.full_name)}</strong>
+          <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--stone);font-weight:600">${_esc(a.address_label||a.address_type||'Home')}</span>
         </div>
         <div style="font-size:12px;color:var(--warm);margin-top:4px;line-height:1.5">
-          ${a.address_line1}${a.address_line2?', '+a.address_line2:''}${a.landmark?', Near '+a.landmark:''}<br>
-          ${a.city}, ${a.state} - ${a.pincode}
+          ${_esc(a.address_line1)}${a.address_line2?', '+_esc(a.address_line2):''}${a.landmark?', Near '+_esc(a.landmark):''}<br>
+          ${_esc(a.city)}, ${_esc(a.state)} - ${_esc(a.pincode)}
         </div>
-        <div style="font-size:12px;color:var(--stone);margin-top:2px">${a.phone||a.mobile||''}</div>
+        <div style="font-size:12px;color:var(--stone);margin-top:2px">${_esc(a.phone||a.mobile||'')}</div>
       </div>
     </div>
   `).join('');
@@ -735,9 +747,17 @@ async function placeOrder(){
       const cartItems=items.map(i=>({slug:i.id,quantity:i.quantity,customization_notes:d.notes||null}));
       // Server requires a saved-address id — resolve the chosen one, or persist a new one.
       const address_id=await resolveAddressId(d,headers,API);
+      // FIX #13/#18: send TRK ID + customer fields upfront — no post-payment enrichment needed
       const res=await fetch(API+'/api/payments/create-order',{
         method:'POST',headers,
-        body:JSON.stringify({items:cartItems,address_id:address_id})
+        body:JSON.stringify({
+          items:cartItems,address_id,
+          trk_id:trkId,
+          customer_name:d.name,
+          customer_email:d.email,
+          customer_phone:d.phone,
+          special_instructions:d.notes||null
+        })
       });
       const data=await res.json();
       if(!res.ok)throw new Error(data.error||'Could not initiate payment');
@@ -776,27 +796,8 @@ async function placeOrder(){
             });
             if(!vRes.ok)throw new Error('Payment verification failed');
 
-            // Enrich the SAME order row the server already created — keeps things single-source.
-            // This adds the trackable order_id (TRK), customer fields and payment metadata.
-            try{
-              const sb2=getSB();
-              if(sb2&&data.order_id){
-                await sb2.from('orders').update({
-                  order_id:trkId,
-                  customer_name:d.name,
-                  customer_email:d.email,
-                  customer_phone:d.phone,
-                  payment_method:'online',
-                  payment_status:'paid',
-                  special_instructions:d.notes||null,
-                  subtotal:subtotal,
-                  shipping_charge:shipping
-                }).eq('id',data.order_id);
-              }
-            }catch(_){/* server order is already 'confirmed' — enrichment is best-effort */}
-
-            // Notify shop on WhatsApp
-            sendShopWhatsApp(trkId,d,items,total,'Online (Paid)');
+            // TRK ID + customer data were already saved at create-order time (FIX #13/#18).
+            // No additional enrichment needed — server handles everything.
 
             Cart.clear();
             gtagEvent('purchase',{transaction_id:trkId,currency:'INR',value:total});
@@ -824,9 +825,10 @@ async function placeOrder(){
   // ── WhatsApp Order ──
   if(payment==='whatsapp'){
     btn.disabled=true;btn.textContent='Placing order...';
+    // FIX #6: log save errors so they're visible in the console for debugging
     try{
       await saveOrderToSupabase(trkId,d,orderItems,subtotal,shipping,total,'whatsapp','pending');
-    }catch(e){}
+    }catch(e){console.warn('[TriAkar] WhatsApp order DB save failed — proceeding with WhatsApp fallback:',e);}
     // Build WhatsApp message for customer
     const itemLines=items.map(i=>i.name+' x'+i.quantity+' = ₹'+(i.price*i.quantity).toLocaleString('en-IN')).join('\n');
     const orderText='*New Order, TriAkar*\n'
@@ -898,27 +900,11 @@ async function saveOrderToSupabase(trkId,d,orderItems,subtotal,shipping,total,pa
 }
 
 /* ══ WHATSAPP NOTIFICATION TO SHOP ════════════════════════ */
+// FIX #20: For online (Razorpay) orders the server sends an admin email alert automatically.
+// Shop monitors the admin panel — no client-side WhatsApp popup needed.
+// This function is kept only for WhatsApp order path, which calls window.open() directly.
 function sendShopWhatsApp(trkId,d,items,total,payLabel){
-  const itemLines=items.map(i=>i.name+' x'+i.quantity).join(', ');
-  const msg='🔔 *New Order!*\n'
-    +'*'+trkId+'*\n'
-    +itemLines+'\n'
-    +'*₹'+total.toLocaleString('en-IN')+'* · '+payLabel+'\n'
-    +d.name+' · '+d.phone+'\n'
-    +d.city+', '+d.state;
-  // Open in background — user sees their confirmation, shop gets notified
-  const waUrl='https://wa.me/919217555833?text='+encodeURIComponent(msg);
-  // Use an invisible iframe approach or just let the WhatsApp order handle it
-  // For online orders, we silently notify (no popup) — only WhatsApp order opens chat
-  try{
-    const a=document.createElement('a');
-    a.href=waUrl;a.target='_blank';a.rel='noopener';
-    a.style.display='none';
-    document.body.appendChild(a);
-    // Don't auto-click to avoid popup blockers — only WhatsApp payment opens chat
-    // For online orders, the shop monitors the admin panel instead
-    document.body.removeChild(a);
-  }catch(e){}
+  // No-op for online orders. WhatsApp orders open wa.me directly in their own flow.
 }
 
 /* ══ ORDER CONFIRMATION DISPLAY ═══════════════════════════ */
@@ -1338,27 +1324,35 @@ function formatIST(date){
 }
 
 /* ══ CHECKOUT PRE-FILL ════════════════════════════════════ */
+// FIX #17: handle bare 10-digit numbers and sync visible phone component correctly
 function prefillCheckout(){
   try{
     const user=JSON.parse(localStorage.getItem('ta_user'));
     if(!user)return;
     const nameEl=document.getElementById('ckName');
     const emailEl=document.getElementById('ckEmail');
-    const phoneEl=document.getElementById('ckPhone');
+    const phoneEl=document.getElementById('ckPhone'); // hidden after initPhoneField
     if(nameEl&&!nameEl.value&&user.user_metadata?.full_name)nameEl.value=user.user_metadata.full_name;
     if(emailEl&&!emailEl.value&&user.email)emailEl.value=user.email;
-    if(phoneEl&&!phoneEl.value&&user.user_metadata?.phone){
-      phoneEl.value=user.user_metadata.phone;
-      // Trigger phone component autofill split
-      const numEl=document.getElementById('ckPhone_num');
-      const ccEl=document.getElementById('ckPhone_cc');
-      if(numEl&&ccEl){
-        const v=user.user_metadata.phone;
-        for(const cc of COUNTRY_CODES){
-          if(v.startsWith(cc)){ccEl.value=cc;numEl.value=v.slice(cc.length).replace(/\D/g,'');break}
-        }
-        if(!numEl.value)numEl.value=v.replace(/\D/g,'');
+    // Only prefill if the visible number field is empty
+    const numEl=document.getElementById('ckPhone_num');
+    const ccEl=document.getElementById('ckPhone_cc');
+    if(numEl&&!numEl.value&&user.user_metadata?.phone){
+      let raw=String(user.user_metadata.phone).trim();
+      // Normalise: strip leading zeros, detect country code
+      let matched=false;
+      for(const cc of COUNTRY_CODES){
+        if(raw.startsWith(cc)){ccEl.value=cc;numEl.value=raw.slice(cc.length).replace(/\D/g,'');matched=true;break}
       }
+      if(!matched){
+        // Bare digits (e.g. Indian 10-digit stored without +91)
+        const digits=raw.replace(/\D/g,'');
+        if(digits.length===10){ccEl.value='+91';numEl.value=digits;}
+        else if(digits.length===12&&digits.startsWith('91')){ccEl.value='+91';numEl.value=digits.slice(2);}
+        else{numEl.value=digits;}
+      }
+      // Sync hidden field so getCheckoutData() reads the correct value
+      if(phoneEl)phoneEl.value=(ccEl?ccEl.value:'+91')+(numEl.value||'');
     }
   }catch(e){}
 }

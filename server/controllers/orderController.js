@@ -8,8 +8,9 @@ export async function createOrder(req, res, next) {
     if (!items?.length) return res.status(400).json({ error: 'items are required' });
 
     const productIds = items.map(i => i.product_id);
+    // FIX #5: filter inactive/deleted products so they can't be ordered
     const { data: products, error: pErr } = await supabase
-      .from('products').select('id, price, stock_qty, name').in('id', productIds);
+      .from('products').select('id, price, stock_qty, name').in('id', productIds).eq('is_active', true);
     if (pErr) throw pErr;
 
     let total_amount = 0;

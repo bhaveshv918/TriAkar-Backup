@@ -31,7 +31,7 @@ export async function createProduct(req, res, next) {
         price: Number(price),
         category,
         stock_qty: Number(stock_qty) || 0,
-        images: images ? [images] : [],
+        images: Array.isArray(images) ? images : (images ? [images] : []), // FIX #10
         is_customizable: Boolean(is_customizable),
         is_active: is_active !== false,
       })
@@ -104,11 +104,11 @@ export async function getAdminOrders(req, res, next) {
 
     // Batch-fetch profiles — no direct FK from orders→profiles in PostgREST,
     // so we resolve manually with a second query.
-    const userIds = [...new Set(orders.map(o => o.user_id))];
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, email, full_name')
-      .in('id', userIds);
+    // FIX #22: filter out nulls (WhatsApp/guest orders have no user_id)
+    const userIds = [...new Set(orders.map(o => o.user_id).filter(Boolean))];
+    const { data: profiles } = userIds.length
+      ? await supabase.from('profiles').select('id, email, full_name').in('id', userIds)
+      : { data: [] };
 
     const profileMap = {};
     (profiles || []).forEach(p => { profileMap[p.id] = p; });

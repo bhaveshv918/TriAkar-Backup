@@ -10,7 +10,8 @@ const razorpay = new Razorpay({
 /* ── POST /api/payments/create-order ──────────────────────── */
 export async function createOrder(req, res, next) {
   try {
-    const { items, address_id } = req.body;
+    // FIX #13/#18: accept trk_id + customer fields upfront so no post-payment enrichment needed
+    const { items, address_id, trk_id, customer_name, customer_email, customer_phone, special_instructions } = req.body;
     const user_id = req.user.id;
 
     if (!items?.length) return res.status(400).json({ error: 'Cart is empty' });
@@ -57,10 +58,19 @@ export async function createOrder(req, res, next) {
       city: addr.city, state: addr.state, pincode: addr.pincode, country: addr.country,
     };
 
-    /* 4. Create DB order */
+    /* 4. Create DB order — include TRK ID + customer fields now so tracking always works */
+    const orderInsert = {
+      user_id, address_id, status: 'pending', total_amount, subtotal, shipping_charge, shipping_address,
+    };
+    if (trk_id)             orderInsert.order_id            = trk_id;
+    if (customer_name)      orderInsert.customer_name       = customer_name;
+    if (customer_email)     orderInsert.customer_email      = customer_email;
+    if (customer_phone)     orderInsert.customer_phone      = customer_phone;
+    if (special_instructions) orderInsert.special_instructions = special_instructions;
+
     const { data: order, error: oErr } = await supabase
       .from('orders')
-      .insert({ user_id, address_id, status: 'pending', total_amount, subtotal, shipping_charge, shipping_address })
+      .insert(orderInsert)
       .select()
       .single();
     if (oErr) throw oErr;
@@ -117,8 +127,25 @@ export async function verifyPayment(req, res, next) {
       return res.status(400).json({ error: 'Signature mismatch — payment verification failed' });
     }
 
-    /* Update order status + payment fields */
-    await supabase.from('orders')
+    // FIX #1: verify this order belongs to the authenticated user
+    const { data: existingOrder, error: fetchErr } = await supabase
+      .from('orders')
+      .select('id, user_id, status')
+      .eq('id', order_id)
+      .single();
+    if (fetchErr || !existingOrder) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    if (existingOrder.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Forbidden — order does not belong to you' });
+    }
+    // Idempotency: if already confirmed, return success without re-processing
+    if (existingOrder.status === 'confirmed') {
+      return res.json({ ok: true, order_id });
+    }
+
+    // FIX #7: check that the DB update actually succeeds before decrementing stock
+    const { data: updatedOrder, error: oErr } = await supabase.from('orders')
       .update({
         status:             'confirmed',
         order_status:       'confirmed',
@@ -129,9 +156,14 @@ export async function verifyPayment(req, res, next) {
         advance_received:   false,
         advance_amount:     0,
       })
-      .eq('id', order_id);
+      .eq('id', order_id)
+      .eq('user_id', req.user.id)   // extra safety: ownership enforced at DB level too
+      .select()
+      .single();
+    // FIX #7: throw if update failed — stock must NOT be touched
+    if (oErr || !updatedOrder) throw oErr || new Error('Order update failed');
 
-    /* Decrement stock */
+    // FIX #8: decrement stock ONLY after confirmed order update
     const { data: orderItems } = await supabase
       .from('order_items')
       .select('product_id, quantity')

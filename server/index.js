@@ -47,6 +47,8 @@ app.disable('x-powered-by');
 /* ── 1. REQUEST TIMEOUT ───────────────────────────────────── */
 app.use(timeout('30s'));
 function haltOnTimedout(req, _res, next) { if (!req.timedout) next(); }
+// FIX #9: halt immediately after timeout — before any body parsing or processing
+app.use(haltOnTimedout);
 
 /* ── 2. HELMET (security headers + CSP) ───────────────────── */
 app.use(helmet({
@@ -57,9 +59,12 @@ app.use(helmet({
         "'self'",
         'https://checkout.razorpay.com',
         'https://cdn.razorpay.com',
+        'https://www.googletagmanager.com',  // FIX #23: GA4
+        'https://www.google-analytics.com',
+        'https://cdn.jsdelivr.net',
         "'unsafe-inline'",
       ],
-      styleSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       imgSrc: ["'self'", 'data:', 'https:'],
       connectSrc: [
         "'self'",
@@ -67,9 +72,13 @@ app.use(helmet({
         'https://*.supabase.co',
         'https://api.razorpay.com',
         'https://api.postalpincode.in',
+        'https://nominatim.openstreetmap.org',  // address autocomplete
+        'https://www.google-analytics.com',
+        'https://analytics.google.com',
+        'https://region1.analytics.google.com',
       ],
       frameSrc: ['https://api.razorpay.com', 'https://checkout.razorpay.com'],
-      fontSrc: ["'self'", 'data:'],
+      fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
     },
   },
   crossOriginEmbedderPolicy: false,
@@ -168,8 +177,7 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(xss());
 app.use(mongoSanitize());
 app.use(hpp());
-
-app.use(haltOnTimedout);
+// haltOnTimedout already registered at line 50 (right after timeout())
 
 /* ── 9. ROUTES ────────────────────────────────────────────── */
 app.use('/api/products',   productRoutes);

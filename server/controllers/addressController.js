@@ -31,7 +31,8 @@ export async function getDefaultAddress(req, res, next) {
 /* POST /api/addresses */
 export async function createAddress(req, res, next) {
   try {
-    const { full_name, phone, address_line1, address_line2, city, state, pincode, country = 'India', is_default = true } = req.body;
+    // FIX #16: default is_default to false — caller must explicitly opt in to avoid silently overwriting existing default
+  const { full_name, phone, address_line1, address_line2, city, state, pincode, country = 'India', is_default = false } = req.body;
     if (!full_name || !phone || !address_line1 || !city || !state || !pincode) {
       return res.status(400).json({ error: 'full_name, phone, address_line1, city, state, pincode are required' });
     }
@@ -56,11 +57,14 @@ export async function updateAddress(req, res, next) {
       .from('user_addresses')
       .update({ full_name, phone, address_line1, address_line2, city, state, pincode, country })
       .eq('id', req.params.id)
-      .eq('user_id', req.user.id)
+      .eq('user_id', req.user.id)  // ownership check
       .select()
       .single();
-    if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Address not found' });
+    // FIX #15: .single() throws PGRST116 when no row found — catch it as 404, not 500
+    if (error) {
+      if (error.code === 'PGRST116') return res.status(404).json({ error: 'Address not found' });
+      throw error;
+    }
     res.json({ address: data });
   } catch (err) { next(err); }
 }

@@ -67,7 +67,9 @@ function shell(title, bodyHtml) {
 }
 
 function btn(label, href) {
-  return `<a href="${esc(href)}" style="display:inline-block;background:${ACCENT};color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">${esc(label)}</a>`;
+  // FIX #24: href must NOT be HTML-escaped — URLs with & params become broken &amp; links
+  // Only escape the label text, leave the URL raw (it's a trusted server-generated URL)
+  return `<a href="${href}" style="display:inline-block;background:${ACCENT};color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">${esc(label)}</a>`;
 }
 
 function row(label, value) {

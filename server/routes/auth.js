@@ -32,9 +32,10 @@ router.post('/send-otp', async (req, res, next) => {
     // Send via Fast2SMS
     const apiKey = process.env.FAST2SMS_API_KEY;
     if (!apiKey) {
-      // Dev mode: return OTP in response (remove in production)
+      // FIX #19: only return dev_otp when explicitly in 'development' mode, never in staging/unset envs
       console.log(`[DEV] OTP for ${mobile}: ${otp}`);
-      return res.json({ sent: true, dev_otp: process.env.NODE_ENV === 'production' ? undefined : otp });
+      const isDev = process.env.NODE_ENV === 'development';
+      return res.json({ sent: true, ...(isDev && { dev_otp: otp }) });
     }
 
     const smsRes = await fetch('https://www.fast2sms.com/dev/bulkV2', {
@@ -177,12 +178,23 @@ router.get('/profile', requireAuth, async (req, res, next) => {
 /* ── PUT /api/profile — update logged-in user's profile ──── */
 router.put('/profile', requireAuth, async (req, res, next) => {
   try {
-    const { full_name, nickname, gender, date_of_birth } = req.body;
+    const { full_name, nickname, gender, date_of_birth, phone, mobile } = req.body;
     const updates = {};
-    if (full_name    !== undefined) updates.full_name    = full_name;
-    if (nickname     !== undefined) updates.nickname     = nickname;
-    if (gender       !== undefined) updates.gender       = gender;
-    if (date_of_birth!== undefined) updates.date_of_birth = date_of_birth;
+    if (full_name     !== undefined) updates.full_name     = full_name;
+    if (nickname      !== undefined) updates.nickname      = nickname;
+    if (gender        !== undefined) updates.gender        = gender;
+    if (date_of_birth !== undefined) updates.date_of_birth = date_of_birth;
+    // FIX #25: allow phone/mobile update
+    if (phone  !== undefined) {
+      const digits = String(phone).replace(/\D/g, '');
+      const mobile10 = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
+      if (mobile10.length === 10) {
+        updates.phone  = phone;
+        updates.mobile = `+91${mobile10}`;
+      }
+    }
+    if (mobile !== undefined && !phone) updates.mobile = mobile;
+
     const { data, error } = await supabase
       .from('profiles').update(updates).eq('id', req.user.id).select().single();
     if (error) throw error;
