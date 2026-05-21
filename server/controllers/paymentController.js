@@ -31,14 +31,16 @@ export async function createOrder(req, res, next) {
       .eq('is_active', true);
     if (pErr) throw pErr;
 
-    let total_amount = 0;
+    let subtotal = 0;
     for (const item of items) {
       const p = products.find(x => x.slug === item.slug);
       if (!p) return res.status(400).json({ error: `Product "${item.slug}" not found` });
       if (p.stock_qty < item.quantity)
         return res.status(400).json({ error: `Insufficient stock for "${p.name}"` });
-      total_amount += p.price * item.quantity;
+      subtotal += p.price * item.quantity;
     }
+    const shipping_charge = subtotal >= 999 ? 0 : 49;
+    const total_amount    = subtotal + shipping_charge;
 
     /* 3. Fetch shipping address */
     const { data: addr, error: aErr } = await supabase
@@ -58,7 +60,7 @@ export async function createOrder(req, res, next) {
     /* 4. Create DB order */
     const { data: order, error: oErr } = await supabase
       .from('orders')
-      .insert({ user_id, address_id, status: 'pending', total_amount, shipping_address })
+      .insert({ user_id, address_id, status: 'pending', total_amount, subtotal, shipping_charge, shipping_address })
       .select()
       .single();
     if (oErr) throw oErr;
@@ -123,6 +125,7 @@ export async function verifyPayment(req, res, next) {
         razorpay_payment_id,
         payment_received:   true,
         payment_status:     'paid',
+        paid_at:            new Date().toISOString(),
         advance_received:   false,
         advance_amount:     0,
       })
@@ -152,12 +155,14 @@ export async function verifyPayment(req, res, next) {
           name: it.products?.name || 'Item', quantity: it.quantity, unit_price: it.unit_price,
         }));
         const orderData = {
-          order_id: ord.order_id || ord.id,
-          customer_name: ord.customer_name || ord.shipping_address?.full_name || 'Customer',
-          customer_email: ord.customer_email,
-          customer_phone: ord.customer_phone || ord.shipping_address?.mobile || ord.shipping_address?.phone || '',
-          total_amount: ord.total_amount,
-          payment_method: ord.payment_method || 'online',
+          order_id:        ord.invoice_number || ord.order_id || ord.id,
+          customer_name:   ord.customer_name || ord.shipping_address?.full_name || 'Customer',
+          customer_email:  ord.customer_email,
+          customer_phone:  ord.customer_phone || ord.shipping_address?.mobile || ord.shipping_address?.phone || '',
+          total_amount:    ord.total_amount,
+          subtotal:        ord.subtotal,
+          shipping_charge: ord.shipping_charge,
+          payment_method:  ord.payment_method || 'online',
           items,
           shipping_address: ord.shipping_address || {},
         };

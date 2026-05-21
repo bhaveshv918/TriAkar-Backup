@@ -4,11 +4,106 @@ import { requireAuth } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
+/* ── POST /api/auth/send-otp ─────────────────────────────── */
+router.post('/send-otp', async (req, res, next) => {
+  try {
+    let { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: 'phone is required' });
+
+    // Normalise: strip non-digits, ensure 10-digit Indian number
+    const digits = phone.replace(/\D/g, '');
+    const mobile = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
+    if (mobile.length !== 10) return res.status(400).json({ error: 'Enter a valid 10-digit Indian mobile number' });
+
+    // Rate-limit: allow max 3 OTPs per phone per 10 minutes
+    const windowStart = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { count } = await supabase
+      .from('phone_otps')
+      .select('*', { count: 'exact', head: true })
+      .eq('phone', mobile)
+      .gte('created_at', windowStart);
+    if (count >= 3) return res.status(429).json({ error: 'Too many OTP requests. Please wait 10 minutes.' });
+
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const expires_at = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 min expiry
+
+    await supabase.from('phone_otps').insert({ phone: mobile, otp, expires_at });
+
+    // Send via Fast2SMS
+    const apiKey = process.env.FAST2SMS_API_KEY;
+    if (!apiKey) {
+      // Dev mode: return OTP in response (remove in production)
+      console.log(`[DEV] OTP for ${mobile}: ${otp}`);
+      return res.json({ sent: true, dev_otp: process.env.NODE_ENV === 'production' ? undefined : otp });
+    }
+
+    const smsRes = await fetch('https://www.fast2sms.com/dev/bulkV2', {
+      method: 'POST',
+      headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ route: 'otp', variables_values: otp, numbers: mobile }),
+    });
+    const smsData = await smsRes.json();
+    if (!smsData.return) {
+      console.error('Fast2SMS error:', smsData);
+      return res.status(500).json({ error: 'Failed to send OTP. Please try again.' });
+    }
+
+    res.json({ sent: true });
+  } catch (err) { next(err); }
+});
+
+/* ── POST /api/auth/verify-otp ───────────────────────────── */
+router.post('/verify-otp', async (req, res, next) => {
+  try {
+    let { phone, otp } = req.body;
+    if (!phone || !otp) return res.status(400).json({ error: 'phone and otp are required' });
+
+    const digits = phone.replace(/\D/g, '');
+    const mobile = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
+
+    const { data: record } = await supabase
+      .from('phone_otps')
+      .select('*')
+      .eq('phone', mobile)
+      .eq('otp', String(otp).trim())
+      .eq('verified', false)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!record) return res.status(400).json({ error: 'Invalid or expired OTP. Please try again.' });
+
+    // Mark as verified
+    await supabase.from('phone_otps').update({ verified: true }).eq('id', record.id);
+
+    res.json({ verified: true, phone: mobile });
+  } catch (err) { next(err); }
+});
+
 router.post('/signup', async (req, res, next) => {
   try {
-    const { email, password, full_name, phone } = req.body;
+    const { email, password, full_name, phone, phone_verified } = req.body;
     if (!email || !password || !full_name) {
       return res.status(400).json({ error: 'email, password, and full_name are required' });
+    }
+
+    // Verify phone was OTP-confirmed if provided
+    if (phone) {
+      const digits = phone.replace(/\D/g, '');
+      const mobile = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
+      const since = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const { data: otpRec } = await supabase
+        .from('phone_otps')
+        .select('id')
+        .eq('phone', mobile)
+        .eq('verified', true)
+        .gte('created_at', since)
+        .limit(1)
+        .single();
+      if (!otpRec) {
+        return res.status(400).json({ error: 'Phone number must be verified with OTP before creating an account.' });
+      }
     }
 
     const { data, error } = await supabase.auth.admin.createUser({
@@ -20,8 +115,10 @@ router.post('/signup', async (req, res, next) => {
     if (error) return res.status(400).json({ error: error.message });
 
     // Ensure profile row exists (trigger should handle this, but belt-and-suspenders)
+    const digits = phone ? phone.replace(/\D/g, '') : null;
+    const mobile = digits && digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
     await supabase.from('profiles').upsert(
-      { id: data.user.id, full_name, phone: phone || null },
+      { id: data.user.id, full_name, phone: phone || null, mobile: mobile ? `+91${mobile}` : null, phone_verified: !!phone },
       { onConflict: 'id' },
     );
 
@@ -50,12 +147,41 @@ router.post('/logout', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+/* ── POST /api/auth/forgot-password — send reset email via Resend ── */
+router.post('/forgot-password', async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'email is required' });
+
+    // Generate a Supabase magic-link/recovery link via admin API
+    const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: {
+        redirectTo: (process.env.FRONTEND_URL || 'https://triakar.com') + '/account.html?reset=true',
+      },
+    });
+
+    // Always respond successfully — do not leak whether the email exists
+    if (!linkErr && linkData?.properties?.action_link) {
+      try {
+        const { sendPasswordReset } = await import('../services/emailService.js');
+        await sendPasswordReset({ email, reset_link: linkData.properties.action_link });
+      } catch (mailErr) {
+        console.error('Password reset email failed:', mailErr.message);
+      }
+    }
+
+    res.json({ message: 'If an account exists with this email, a reset link has been sent.' });
+  } catch (err) { next(err); }
+});
+
 /* ── GET /api/profile — fetch logged-in user's profile ──── */
 router.get('/profile', requireAuth, async (req, res, next) => {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, nickname, email, mobile, phone, gender, date_of_birth')
+      .select('id, full_name, nickname, email, mobile, phone, gender, date_of_birth, phone_verified')
       .eq('id', req.user.id)
       .single();
     if (error || !data) return res.status(404).json({ error: 'Profile not found' });

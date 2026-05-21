@@ -247,7 +247,21 @@
         <p class="auth-form-sub">Join TriAkar to track orders, save addresses, and check out faster.</p>
         <div class="field"><label for="signupName">Full Name</label><input type="text" id="signupName" placeholder="Your full name" required autocomplete="name" minlength="2"></div>
         <div class="field"><label for="signupEmail">Email</label><input type="email" id="signupEmail" placeholder="you@example.com" required autocomplete="email"></div>
-        <div class="field"><label for="signupPhone">Mobile *</label><input type="tel" id="signupPhone" required autocomplete="tel"></div>
+        <div class="field">
+          <label for="signupPhone">Mobile *</label>
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <input type="tel" id="signupPhone" required autocomplete="tel" style="flex:1" placeholder="+91 98765 43210">
+            <button type="button" id="sendOtpBtn" class="btn btn-dark" style="padding:10px 14px;font-size:12px;white-space:nowrap;flex-shrink:0" onclick="sendOtp()">Send OTP</button>
+          </div>
+          <div id="otpRow" style="display:none;margin-top:8px">
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="text" id="otpInput" placeholder="Enter 6-digit OTP" maxlength="6" inputmode="numeric" style="flex:1;padding:10px 12px;background:var(--bg-1);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;font-family:var(--mono);letter-spacing:3px">
+              <button type="button" id="verifyOtpBtn" class="btn btn-dark" style="padding:10px 14px;font-size:12px;white-space:nowrap;flex-shrink:0" onclick="verifyOtp()">Verify</button>
+            </div>
+            <div id="otpMsg" style="font-size:12px;margin-top:6px"></div>
+          </div>
+          <div id="phoneVerifiedBadge" style="display:none;margin-top:6px;font-size:12px;color:#16a34a;font-weight:600">✓ Phone Verified</div>
+        </div>
         <div class="field"><label for="signupPassword">Password</label>
           <div class="pw-wrap">
             <input type="password" id="signupPassword" placeholder="Create a password" required autocomplete="new-password">
@@ -301,19 +315,19 @@
       </div>
 
       <div class="dash-tabs">
-        <button class="dash-tab active" data-panel="orders" onclick="switchDashTab('orders')">My Orders</button>
-        <button class="dash-tab" data-panel="profile" onclick="switchDashTab('profile')">Personal Details</button>
+        <button class="dash-tab" data-panel="orders" onclick="switchDashTab('orders')">My Orders</button>
+        <button class="dash-tab active" data-panel="profile" onclick="switchDashTab('profile')">Personal Details</button>
         <button class="dash-tab" data-panel="addresses" onclick="switchDashTab('addresses')">Saved Addresses</button>
         <button class="dash-tab" data-panel="settings" onclick="switchDashTab('settings')">Settings</button>
       </div>
 
       <!-- TAB: Orders -->
-      <div class="tab-panel active" id="panelOrders" data-panel="orders">
+      <div class="tab-panel" id="panelOrders" data-panel="orders">
         <div id="ordersContainer"><div class="orders-loading">Loading orders...</div></div>
       </div>
 
       <!-- TAB: Personal Details -->
-      <div class="tab-panel" id="panelProfile" data-panel="profile">
+      <div class="tab-panel active" id="panelProfile" data-panel="profile">
         <form class="profile-form" id="profileForm" onsubmit="saveProfile(event)">
           <div class="profile-row">
             <div class="field"><label>Full Name</label><input type="text" id="profName" placeholder="Full name"></div>
@@ -554,13 +568,13 @@ async function handleForgot(e){
   const btn=document.getElementById('forgotBtn');
   const sb2=(typeof getSB==='function')?getSB():sb;
   btn.textContent='Sending...';btn.disabled=true;
-  // Security: never reveal whether an account exists for this email.
-  // Fire the request and always show the same neutral message.
+  // Route through our API so the email comes from hello@triakar.com via Resend
   try{
-    if(sb2){
-      await sb2.auth.resetPasswordForEmail(email,{redirectTo:'https://triakar.com/account.html?reset=true'});
-    }
-  }catch(_){/* swallow — do not leak account existence */}
+    await fetch(Auth.API_BASE+'/api/auth/forgot-password',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email})
+    });
+  }catch(_){/* swallow — always show neutral message */}
   showMsg('forgotMsg','If an account exists with this email, a reset link has been sent. Please check your inbox and spam folder.','ok');
   btn.textContent='Send Reset Link →';btn.disabled=false;
 }
@@ -594,6 +608,61 @@ function showMsg(id,text,type){
   el.textContent=text;el.className='auth-msg show '+type;
 }
 
+/* ── Phone OTP helpers ──────────────────────────────────── */
+let _phoneVerified=false;
+
+async function sendOtp(){
+  const phone=document.getElementById('signupPhone').value.trim();
+  if(!phone){showMsg('signupMsg','Please enter your mobile number.','err');return}
+  const btn=document.getElementById('sendOtpBtn');
+  btn.textContent='Sending…';btn.disabled=true;
+  try{
+    const r=await fetch(Auth.API_BASE+'/api/auth/send-otp',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({phone})
+    });
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Failed to send OTP');
+    document.getElementById('otpRow').style.display='';
+    document.getElementById('otpMsg').textContent='OTP sent to your number. Valid for 10 minutes.';
+    document.getElementById('otpMsg').style.color='#16a34a';
+    // In dev mode, pre-fill OTP
+    if(d.dev_otp){document.getElementById('otpInput').value=d.dev_otp;document.getElementById('otpMsg').textContent='[DEV] OTP pre-filled: '+d.dev_otp;}
+    // Resend countdown
+    let secs=60;const orig='Resend OTP';
+    const iv=setInterval(()=>{btn.textContent='Resend ('+secs+'s)';if(--secs<0){clearInterval(iv);btn.textContent=orig;btn.disabled=false;}},1000);
+  }catch(err){
+    showMsg('signupMsg',err.message,'err');
+    btn.textContent='Send OTP';btn.disabled=false;
+  }
+}
+
+async function verifyOtp(){
+  const phone=document.getElementById('signupPhone').value.trim();
+  const otp=document.getElementById('otpInput').value.trim();
+  if(!otp||otp.length!==6){document.getElementById('otpMsg').textContent='Enter the 6-digit OTP.';document.getElementById('otpMsg').style.color='#dc2626';return}
+  const btn=document.getElementById('verifyOtpBtn');
+  btn.textContent='Verifying…';btn.disabled=true;
+  try{
+    const r=await fetch(Auth.API_BASE+'/api/auth/verify-otp',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({phone,otp})
+    });
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Invalid OTP');
+    _phoneVerified=true;
+    document.getElementById('otpRow').style.display='none';
+    document.getElementById('phoneVerifiedBadge').style.display='';
+    document.getElementById('signupPhone').readOnly=true;
+    document.getElementById('signupPhone').style.opacity='0.7';
+    document.getElementById('sendOtpBtn').style.display='none';
+  }catch(err){
+    document.getElementById('otpMsg').textContent=err.message;
+    document.getElementById('otpMsg').style.color='#dc2626';
+    btn.textContent='Verify';btn.disabled=false;
+  }
+}
+
 async function handleLogin(e){
   e.preventDefault();
   const btn=document.getElementById('loginBtn');
@@ -614,6 +683,12 @@ async function handleLogin(e){
 
 async function handleSignup(e){
   e.preventDefault();
+  // Phone OTP verification is required
+  if(!_phoneVerified){
+    showMsg('signupMsg','Please verify your mobile number with OTP before creating an account.','err');
+    document.getElementById('signupPhone').focus();
+    return;
+  }
   const phoneInp=document.getElementById('signupPhone');
   if(phoneInp&&phoneInp._validatePhone&&!phoneInp._validatePhone())return;
   // Password rules
@@ -736,7 +811,19 @@ async function loadProfile(){
       document.getElementById('profNickname').value=data.nickname||'';
       const mobileVal=data.mobile||'';
       const mDisp=document.getElementById('mobileDisplayInput');
-      if(mDisp)mDisp.value=mobileVal||'Not set';
+      if(mDisp){
+        mDisp.value=mobileVal||'Not set';
+        // Show verified badge next to mobile
+        const existingBadge=document.getElementById('profileVerifiedBadge');
+        if(existingBadge)existingBadge.remove();
+        if(mobileVal && data.phone_verified){
+          const badge=document.createElement('span');
+          badge.id='profileVerifiedBadge';
+          badge.textContent='✓ Verified';
+          badge.style.cssText='display:inline-block;background:#dcfce7;color:#16a34a;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;margin-left:8px;vertical-align:middle';
+          mDisp.insertAdjacentElement('afterend',badge);
+        }
+      }
       document.getElementById('profGender').value=data.gender||'';
       document.getElementById('profDob').value=data.date_of_birth||'';
       document.getElementById('profAnniversary').value=data.anniversary_date||'';
@@ -1109,12 +1196,12 @@ async function showDashboard(){
 
   loadOrders();
 
-  // Check hash for direct tab navigation
+  // Hash-based tab routing: #profile → details, #orders → orders, default → profile
   const hash=window.location.hash.replace('#','');
   if(hash==='orders')switchDashTab('orders');
-  else if(hash==='profile')switchDashTab('profile');
   else if(hash==='addresses')switchDashTab('addresses');
   else if(hash==='settings')switchDashTab('settings');
+  else switchDashTab('profile'); // default: My Account shows personal details
 }
 
 function splitPhoneValue(id,val){

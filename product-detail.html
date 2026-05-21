@@ -260,7 +260,7 @@
 
 <script>
 const PRODS = {
-  'arc-desk':{name:'Arc Desk Organizer',price:1890,badge:'Bestseller',desc:'Multi-compartment desk organiser designed for pens, cards, cables and whatever accumulates on your desk.',variants:['Stone Grey','Ivory White','Matte Black'],specs:[['Material','PLA+'],['Dimensions','220 x 110 x 85mm'],['Compartments','3'],['Base','Non-slip rubber'],['Layer height','0.2mm'],['Production','2 to 3 business days']],views:['#D4D0C8','#BEBAB0','#C8C4BC','#E2DED8']},
+  'arc-desk':{name:'Arc Desk Organizer',price:1890,badge:'Bestseller',desc:'Multi-compartment desk organiser designed for pens, cards, cables and whatever accumulates on your desk.',variants:['Stone Grey','Ivory White','Matte Black'],specs:[['Material','PLA+'],['Dimensions','220 x 110 x 85mm'],['Compartments','3'],['Base','Non-slip rubber'],['Production','2 to 3 business days']],views:['#D4D0C8','#BEBAB0','#C8C4BC','#E2DED8']},
   'cable-loop':{name:'Cable Loop',price:490,badge:'',desc:'Adhesive cable management clips. Pack of 4. Attaches to any surface and holds cables up to 6mm.',variants:['Pack of 4','Pack of 8'],specs:[['Material','Flexible PLA'],['Pack size','4 clips'],['Adhesive','3M removable'],['Cable width','Up to 6mm'],['Production','1 to 2 business days']],views:['#D0CCC4','#C8C4BC','#D8D4CC','#E0DCD8']},
   'lean-stand':{name:'Lean Stand',price:890,badge:'New',desc:'Single-piece phone and tablet stand. Lightweight with a non-slip base. Works with any phone or 7 to 11 inch tablet.',variants:['Ivory White','Stone Grey','Matte Black'],specs:[['Material','PLA+'],['Angle','60 degrees'],['Compatible','Phone, 7 to 11 inch tablet'],['Weight','110g'],['Production','2 to 3 business days']],views:['#D4D0C8','#C4C0B8','#BCBAB0','#E4E0D8']},
   'facet-vase':{name:'Facet Vase',price:1290,badge:'',desc:'Geometric table vase with a faceted exterior. Lined inside and fully waterproof for fresh or dry arrangements.',variants:['Sand','White','Charcoal'],specs:[['Material','PLA with waterproof liner'],['Height','180mm'],['Top diameter','90mm'],['Waterproof','Yes'],['Production','2 to 3 business days']],views:['#D0CCC4','#C4C0B8','#D8D4CC','#C8C4BC']},
@@ -316,16 +316,27 @@ function init(){
           backBtn.href='products.html';backBtn.className='btn btn-dark';backBtn.textContent='← Back to Shop';
           document.querySelector('.product-main')?.prepend(backBtn);
         }
-      }).catch(()=>{});
-    // Show fallback while loading
-    p=PRODS['arc-desk'];
+      }).catch(()=>{
+        document.getElementById('prodName').textContent='Product not found';
+        document.getElementById('breadProd').textContent='Not found';
+      });
+    // Show loading state while API responds — do NOT fall back to arc-desk
+    document.getElementById('prodName').textContent='Loading…';
+    document.getElementById('breadProd').textContent='Loading…';
+    return; // renderProduct() will be called from API callback above
   }
 
+  renderProduct(p, id);
+}
+
+function renderProduct(p, id){
   if(!p) return;
+  if(!id) id=window._prodId||(new URLSearchParams(window.location.search).get('slug')||new URLSearchParams(window.location.search).get('id')||'');
   curProduct={...p, id};
+  window._prodId=id;
   document.getElementById('prodName').textContent=p.name;
   document.getElementById('breadProd').textContent=p.name;
-  document.getElementById('prodDesc').textContent=p.desc;
+  document.getElementById('prodDesc').textContent=p.desc||p.description||'';
   // badge
   const badge=document.getElementById('prodBadge');
   if(p.badge){badge.style.display='';badge.textContent=p.badge;badge.className='img-badge '+(p.badge==='Bestseller'?'badge-best':'badge-new')}
@@ -342,21 +353,26 @@ function init(){
     extra.innerHTML=ex;
     updateDetailPrice(selOption.price);
   } else {
-    selVariant=p.variants[0];
+    selVariant=(p.variants&&p.variants[0])||'';
     document.getElementById('variantLabel').textContent=id.includes('loop')||id.includes('bookmark')?'Pack Size':'Colour';
-    document.getElementById('variantRow').innerHTML=p.variants.map((v,i)=>`<button class="variant-btn${i===0?' active':''}" onclick="selectVariant(this,'${v}')">${v}</button>`).join('');
+    document.getElementById('variantRow').innerHTML=(p.variants||[]).map((v,i)=>`<button class="variant-btn${i===0?' active':''}" onclick="selectVariant(this,'${v}')">${v}</button>`).join('');
     if(extra)extra.innerHTML='';
     updateDetailPrice(p.price);
   }
   // specs
-  document.getElementById('specTable').innerHTML=p.specs.map(s=>`<div class="spec-row"><span class="spec-key">${s[0]}</span><span class="spec-val">${s[1]}</span></div>`).join('');
-  // thumbnails
-  const thumbs=THUMB_SVGS[id]||[];
-  const bgs=['#F0EDE6','#EDEAE3','#161614','#F8F6F0'];
-  const thumbAlt=p.name+' — 3D printed by TriAkar, Greater Noida';
-  document.getElementById('thumbRow').innerHTML=thumbs.map((svg,i)=>`<div class="thumb${i===0?' active':''}" onclick="switchImg(this,'${bgs[i]||'#F0EDE6'}','${svg.replace(/'/g,"\'")}')"><svg viewBox="0 0 200 200" fill="none" role="img" aria-label="${thumbAlt}">${svg}</svg></div>`).join('');
-  document.getElementById('mainSvg').setAttribute('aria-label',thumbAlt);
-  window._prodId=id;
+  document.getElementById('specTable').innerHTML=(p.specs||[]).map(s=>`<div class="spec-row"><span class="spec-key">${s[0]}</span><span class="spec-val">${s[1]}</span></div>`).join('');
+  // thumbnails — use DB images if available, fall back to SVG thumbnails
+  if(p.images&&p.images.length){
+    const thumbAlt=p.name+' — 3D printed by TriAkar, Greater Noida';
+    document.getElementById('thumbRow').innerHTML=p.images.slice(0,4).map((src,i)=>`<div class="thumb${i===0?' active':''}" onclick="switchImgUrl(this,'${src}')"><img src="${src}" alt="${thumbAlt}" style="width:100%;height:100%;object-fit:contain;"></div>`).join('');
+    if(p.images[0]) document.getElementById('mainImg').innerHTML='<img src="'+p.images[0]+'" alt="'+thumbAlt+'" style="width:100%;height:100%;object-fit:contain;padding:16px;">';
+  } else {
+    const thumbs=THUMB_SVGS[id]||[];
+    const bgs=['#F0EDE6','#EDEAE3','#161614','#F8F6F0'];
+    const thumbAlt=p.name+' — 3D printed by TriAkar, Greater Noida';
+    document.getElementById('thumbRow').innerHTML=thumbs.map((svg,i)=>`<div class="thumb${i===0?' active':''}" onclick="switchImg(this,'${bgs[i]||'#F0EDE6'}','${svg.replace(/'/g,"\'")}')"><svg viewBox="0 0 200 200" fill="none" role="img" aria-label="${thumbAlt}">${svg}</svg></div>`).join('');
+    document.getElementById('mainSvg').setAttribute('aria-label',thumbAlt);
+  }
 }
 
 function selectVariant(btn,v){document.querySelectorAll('#variantRow .variant-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selVariant=v}
@@ -382,6 +398,12 @@ function switchImg(thumb,bg,svg){
   const wrap=document.getElementById('mainImg');
   wrap.style.background=bg;
   document.getElementById('mainSvg').innerHTML=svg;
+}
+function switchImgUrl(thumb,src){
+  document.querySelectorAll('.thumb').forEach(t=>t.classList.remove('active'));
+  thumb.classList.add('active');
+  const wrap=document.getElementById('mainImg');
+  wrap.innerHTML='<img src="'+src+'" alt="" style="width:100%;height:100%;object-fit:contain;padding:16px;">';
 }
 function addToCartFromDetail(btn){
   const item=_detailItem();

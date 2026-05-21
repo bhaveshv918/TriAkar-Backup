@@ -109,53 +109,103 @@ async function send({ to, subject, html }) {
 
 /* ── ORDER CONFIRMATION (to customer) ─────────────────────── */
 export async function sendOrderConfirmation(order) {
+  const subtotalRow = order.subtotal != null
+    ? `<tr><td style="padding:6px 0;font-size:13px;color:#666;">Subtotal</td><td style="padding:6px 0;font-size:13px;color:#1a1a1a;text-align:right;">${inr(order.subtotal)}</td></tr>`
+    : '';
+  const shippingRow = order.shipping_charge != null
+    ? `<tr><td style="padding:6px 0;font-size:13px;color:#666;">Shipping</td><td style="padding:6px 0;font-size:13px;color:#1a1a1a;text-align:right;">${order.shipping_charge === 0 ? 'FREE' : inr(order.shipping_charge)}</td></tr>`
+    : '';
+  const trackingUrl = `https://triakar.com/track-order.html`;
   const body = `
     <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 20px;">
       Thank you for your order. We have received your payment and your TriAkar pieces are now in our hands.
     </p>
-    <table role="presentation" cellpadding="0" cellspacing="0">
-      ${row('Order ID', order.order_id)}
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
+      ${row('Invoice No.', order.order_id)}
+      ${row('Payment', (order.payment_method || 'online').replace('online', 'Razorpay'))}
     </table>
     ${itemsTable(order.items)}
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 24px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border-top:1px solid #eee;padding-top:8px;">
+      ${subtotalRow}
+      ${shippingRow}
       <tr>
-        <td style="font-size:15px;font-weight:600;color:#0e0e0e;">Total</td>
-        <td style="font-size:18px;font-weight:700;color:${ACCENT};text-align:right;">${inr(order.total_amount)}</td>
+        <td style="padding:10px 0 6px;font-size:15px;font-weight:700;color:#0e0e0e;border-top:2px solid #0e0e0e;">Total Paid</td>
+        <td style="padding:10px 0 6px;font-size:18px;font-weight:700;color:${ACCENT};text-align:right;border-top:2px solid #0e0e0e;">${inr(order.total_amount)}</td>
       </tr>
     </table>
     <h2 style="font-size:14px;color:#0e0e0e;margin:0 0 8px;text-transform:uppercase;letter-spacing:1px;">Shipping To</h2>
-    <p style="font-size:14px;color:#444;line-height:1.7;margin:0 0 24px;">${formatAddress(order.shipping_address)}</p>
-    ${btn('View Your Account', 'https://triakar.com/account.html')}
+    <p style="font-size:14px;color:#444;line-height:1.7;margin:0 0 28px;">${formatAddress(order.shipping_address)}</p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      ${btn('Track Your Order', trackingUrl)}
+      &nbsp;&nbsp;
+      <a href="https://triakar.com/account.html#orders" style="display:inline-block;color:${ACCENT};text-decoration:none;padding:12px 0;font-weight:600;font-size:14px;">View Account →</a>
+    </div>
+    <p style="font-size:12px;color:#888;margin:28px 0 0;line-height:1.6;">
+      Questions? Email us at <a href="mailto:hello@triakar.com" style="color:${ACCENT};text-decoration:none;">hello@triakar.com</a>
+    </p>
   `;
   return send({
     to: order.customer_email,
-    subject: `Order Confirmed: ${order.order_id} — TriAkar`,
-    html: shell('Your order is confirmed', body),
+    subject: `Order Confirmed — ${order.order_id} | TriAkar`,
+    html: shell('Your order is confirmed ✓', body),
   });
 }
 
 /* ── ADMIN ORDER ALERT ────────────────────────────────────── */
 export async function sendAdminOrderAlert(order) {
+  const subtotalRow = order.subtotal != null
+    ? `<tr><td style="padding:6px 0;font-size:13px;color:#666;">Subtotal</td><td style="padding:6px 0;font-size:13px;color:#1a1a1a;text-align:right;">${inr(order.subtotal)}</td></tr>`
+    : '';
+  const shippingRow = order.shipping_charge != null
+    ? `<tr><td style="padding:6px 0;font-size:13px;color:#666;">Shipping</td><td style="padding:6px 0;font-size:13px;color:#1a1a1a;text-align:right;">${order.shipping_charge === 0 ? 'FREE' : inr(order.shipping_charge)}</td></tr>`
+    : '';
   const body = `
-    <p style="font-size:15px;color:#444;margin:0 0 20px;">A new order has been placed and paid.</p>
+    <p style="font-size:15px;color:#444;margin:0 0 20px;">A new order has been placed and payment received.</p>
     <table role="presentation" cellpadding="0" cellspacing="0">
-      ${row('Order ID', order.order_id)}
+      ${row('Invoice No.', order.order_id)}
       ${row('Customer', order.customer_name)}
       ${row('Phone', order.customer_phone)}
       ${row('Email', order.customer_email)}
-      ${row('Payment', order.payment_method)}
-      ${row('Total', inr(order.total_amount))}
+      ${row('Payment', (order.payment_method || 'online').replace('online', 'Razorpay'))}
     </table>
-    <h2 style="font-size:14px;color:#0e0e0e;margin:24px 0 8px;text-transform:uppercase;letter-spacing:1px;">Items</h2>
-    <ul style="margin:0 0 20px;padding-left:18px;">${itemsList(order.items)}</ul>
+    ${itemsTable(order.items)}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border-top:1px solid #eee;padding-top:8px;">
+      ${subtotalRow}
+      ${shippingRow}
+      <tr>
+        <td style="padding:10px 0 6px;font-size:15px;font-weight:700;color:#0e0e0e;border-top:2px solid #0e0e0e;">Total Received</td>
+        <td style="padding:10px 0 6px;font-size:18px;font-weight:700;color:${ACCENT};text-align:right;border-top:2px solid #0e0e0e;">${inr(order.total_amount)}</td>
+      </tr>
+    </table>
     <h2 style="font-size:14px;color:#0e0e0e;margin:0 0 8px;text-transform:uppercase;letter-spacing:1px;">Ship To</h2>
     <p style="font-size:14px;color:#444;line-height:1.7;margin:0 0 24px;">${formatAddress(order.shipping_address)}</p>
     ${btn('Open Admin Panel', ADMIN_LINK)}
   `;
   return send({
     to: ADMIN_EMAIL,
-    subject: `New Order: ${order.order_id} — ${inr(order.total_amount)}`,
+    subject: `New Order ${order.order_id} — ${inr(order.total_amount)} | TriAkar`,
     html: shell('New order received', body),
+  });
+}
+
+/* ── PASSWORD RESET (to customer) ────────────────────────── */
+export async function sendPasswordReset({ email, reset_link, name }) {
+  const body = `
+    <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 20px;">
+      We received a request to reset the password for your TriAkar account. Click the button below to set a new password.
+    </p>
+    <p style="margin:0 0 28px;">${btn('Reset My Password', reset_link)}</p>
+    <p style="font-size:13px;color:#888;margin:0 0 16px;line-height:1.6;">
+      This link expires in 1 hour. If you did not request a password reset, you can safely ignore this email — your password will remain unchanged.
+    </p>
+    <p style="font-size:12px;color:#aaa;margin:0;line-height:1.6;">
+      Questions? Email us at <a href="mailto:hello@triakar.com" style="color:${ACCENT};text-decoration:none;">hello@triakar.com</a>
+    </p>
+  `;
+  return send({
+    to: email,
+    subject: 'Reset your TriAkar password',
+    html: shell('Password reset requested', body),
   });
 }
 

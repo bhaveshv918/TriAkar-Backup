@@ -577,23 +577,43 @@ td.td-name{color:var(--text);font-weight:500}
 /* ═══════════════════════════════════════════════════════════
    CATEGORY MANAGER
    ═══════════════════════════════════════════════════════════ */
-.cat-list{display:flex;flex-direction:column;gap:6px}
-.cat-row{
-  display:flex;align-items:center;gap:12px;
-  padding:12px 16px;background:var(--bg-1);
-  border:1px solid var(--border);border-radius:var(--radius);
-  transition:background .15s;
+#catList tr{transition:background .15s}
+#catList tr:hover{background:var(--bg-2)}
+#catList td{vertical-align:middle;padding:10px 12px}
+#catList input[type="text"],#catList input:not([type="number"]){
+  background:var(--bg-2);border:1px solid var(--border);color:var(--text);
+  padding:5px 8px;border-radius:4px;font-size:12px;width:100%;
+  transition:border-color .2s;
 }
-.cat-row:hover{background:var(--bg-2)}
-.cat-icon-edit{font-size:20px;cursor:pointer;width:32px;text-align:center}
-.cat-name-edit{
-  flex:1;background:transparent;border:1px solid transparent;
-  color:var(--text);font-size:14px;font-weight:500;padding:4px 8px;
-  border-radius:var(--radius);transition:border-color .2s;
+#catList input[type="text"]:focus,#catList input:not([type="number"]):focus{
+  border-color:var(--border-h);outline:none;
 }
-.cat-name-edit:focus{border-color:var(--border-h);background:var(--bg)}
-.cat-slug{font-family:var(--mono);font-size:10px;color:var(--text-3)}
-.cat-order{font-family:var(--mono);font-size:11px;color:var(--text-3);width:40px;text-align:center}
+#catList input[type="number"]{
+  background:var(--bg-2);border:1px solid var(--border);color:var(--text);
+  padding:5px 8px;border-radius:4px;font-size:12px;width:60px;text-align:center;
+}
+#catList .cat-actions{display:flex;gap:6px;flex-wrap:nowrap}
+
+/* ═══════════════════════════════════════════════════════════
+   ANALYTICS
+   ═══════════════════════════════════════════════════════════ */
+.analytics-loading{color:var(--text-3);font-size:13px;padding:12px 0}
+.kpi-card{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px}
+.kpi-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);margin-bottom:6px}
+.kpi-value{font-size:24px;font-weight:700;color:var(--text);font-family:var(--mono)}
+.kpi-sub{font-size:11px;color:var(--text-3);margin-top:4px}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.bar-label{font-size:12px;color:var(--text-2);width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-track{flex:1;height:8px;background:var(--bg-2);border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;background:var(--accent);transition:width .4s}
+.bar-val{font-size:11px;font-family:var(--mono);color:var(--text-3);width:60px;text-align:right}
+.rev-bar-wrap{display:flex;align-items:flex-end;gap:3px;height:100px;margin-top:8px}
+.rev-bar{flex:1;background:var(--accent);border-radius:2px 2px 0 0;min-height:2px;cursor:default;transition:opacity .2s}
+.rev-bar:hover{opacity:.75}
+.rev-bar-date{font-size:9px;color:var(--text-3);text-align:center;margin-top:4px;white-space:nowrap}
+.status-pill-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.status-pill-label{font-size:12px;color:var(--text-2);width:120px}
+.status-pill-count{font-size:12px;font-family:var(--mono);color:var(--text-3)}
 
 /* ═══════════════════════════════════════════════════════════
    TOAST
@@ -756,6 +776,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     <button class="tab" data-tab="products" onclick="switchTab('products')">Products <span class="tab-count" id="productCount">0</span></button>
     <button class="tab" data-tab="messages" onclick="switchTab('messages')">Messages <span class="tab-count" id="messageCount">0</span><span class="tab-dot" id="dotMessages"></span></button>
     <button class="tab" data-tab="enquiries" onclick="switchTab('enquiries')">Custom Enquiries <span class="tab-count" id="enquiryCount">0</span><span class="tab-dot" id="dotEnquiries"></span></button>
+    <button class="tab" data-tab="analytics" onclick="switchTab('analytics')">Analytics</button>
     <button class="tab" data-tab="categories" onclick="switchTab('categories')">Categories</button>
     <button class="tab" data-tab="logs" onclick="switchTab('logs')">Security Logs</button>
     <button class="tab" data-tab="recyclebin" onclick="switchTab('recyclebin')">Recycle Bin <span class="tab-count" id="binCount">0</span></button>
@@ -1046,6 +1067,42 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
   </div>
 
   <!-- ── INQUIRIES PANEL ──────────────────────── -->
+  <!-- ── ANALYTICS PANEL ──────────────────────── -->
+  <div class="panel" id="panelAnalytics">
+    <div class="p-head">
+      <div class="p-title">Analytics</div>
+      <div class="p-actions">
+        <button class="btn-secondary" onclick="loadAnalytics()">⟳ Refresh</button>
+        <a href="https://analytics.google.com" target="_blank" rel="noopener" class="btn-secondary" style="text-decoration:none">Open Google Analytics ↗</a>
+      </div>
+    </div>
+    <!-- KPI row -->
+    <div id="analyticsKpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px">
+      <div class="analytics-loading">Loading…</div>
+    </div>
+    <!-- Charts row -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+      <div class="od-section" style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
+        <div class="od-label" style="margin-bottom:12px">Top Products (by revenue)</div>
+        <div id="analyticsTopProducts"><div class="analytics-loading">Loading…</div></div>
+      </div>
+      <div class="od-section" style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
+        <div class="od-label" style="margin-bottom:12px">Orders by Status</div>
+        <div id="analyticsStatus"><div class="analytics-loading">Loading…</div></div>
+      </div>
+    </div>
+    <!-- Revenue trend -->
+    <div class="od-section" style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:24px">
+      <div class="od-label" style="margin-bottom:12px">Revenue — Last 30 Days</div>
+      <div id="analyticsRevTrend" style="overflow-x:auto"><div class="analytics-loading">Loading…</div></div>
+    </div>
+    <!-- Referrers from admin_logs -->
+    <div class="od-section" style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
+      <div class="od-label" style="margin-bottom:8px">Recent Admin Referrers</div>
+      <div id="analyticsReferrers"><div class="analytics-loading">Loading…</div></div>
+    </div>
+  </div>
+
   <!-- ── CATEGORIES PANEL ──────────────────────── -->
   <div class="panel" id="panelCategories">
     <div class="p-head">
@@ -1055,7 +1112,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     <div class="tbl-wrap">
       <table>
         <thead><tr><th>Name</th><th>Slug</th><th>Description</th><th>Order</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody class="cat-list" id="catList">
+        <tbody id="catList">
           <tr><td colspan="6" class="tbl-msg">Loading categories…</td></tr>
         </tbody>
       </table>
@@ -1477,10 +1534,11 @@ function fmtPrice(n){return '₹'+Number(n).toLocaleString('en-IN')}
 function toast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type||'')+' show';setTimeout(()=>t.classList.remove('show'),3000)}
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['Callbacks','Orders','Customers','Products','Messages','Enquiries','Categories','Logs','Recyclebin'].forEach(p=>{
+  ['Callbacks','Orders','Customers','Products','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin'].forEach(p=>{
     document.getElementById('panel'+p).classList.toggle('active',p.toLowerCase()===tab);
   });
   // Clear notification dot and save seen count
+  if(tab==='analytics')loadAnalytics();
   const dotMap={orders:'dotOrders',customers:'dotCustomers',messages:'dotMessages',enquiries:'dotEnquiries',callbacks:'dotCallbacks'};
   const countEls={orders:'orderCount',customers:'customerCount',messages:'messageCount',enquiries:'enquiryCount',callbacks:'callbackCount'};
   if(dotMap[tab]){
@@ -1489,6 +1547,72 @@ function switchTab(tab){
     const countEl=document.getElementById(countEls[tab]);
     if(countEl)localStorage.setItem('ta_seen_'+tab,countEl.textContent);
   }
+}
+
+// ═══════════════════════════════════════════════════════════
+// ANALYTICS
+// ═══════════════════════════════════════════════════════════
+async function loadAnalytics(){
+  // 1. KPIs: total revenue, total orders, avg order value, paid orders
+  const since30=new Date(Date.now()-30*24*60*60*1000).toISOString();
+  const[ordAll,ordPaid,ordMonth,itemsAll,logsAll]=await Promise.all([
+    sb.from('orders').select('id,total_amount,status,created_at',{count:'exact'}).is('deleted_at',null),
+    sb.from('orders').select('id,total_amount').eq('payment_received',true).is('deleted_at',null),
+    sb.from('orders').select('id,total_amount,created_at').is('deleted_at',null).gte('created_at',since30),
+    sb.from('order_items').select('product_id,quantity,unit_price,products(name)',{head:false}),
+    sb.from('admin_logs').select('referrer,created_at').order('created_at',{ascending:false}).limit(200),
+  ]);
+
+  // KPI values
+  const totalOrders=(ordAll.data||[]).length;
+  const totalRevenue=(ordPaid.data||[]).reduce((s,o)=>s+Number(o.total_amount||0),0);
+  const avgOrder=totalOrders>0?totalRevenue/totalOrders:0;
+  const monthOrders=(ordMonth.data||[]).length;
+  const monthRevenue=(ordMonth.data||[]).filter(o=>o.total_amount).reduce((s,o)=>s+Number(o.total_amount),0);
+
+  document.getElementById('analyticsKpis').innerHTML=[
+    {label:'Total Revenue (Paid)',value:'₹'+totalRevenue.toLocaleString('en-IN'),sub:totalOrders+' total orders'},
+    {label:'Revenue — Last 30 Days',value:'₹'+monthRevenue.toLocaleString('en-IN'),sub:monthOrders+' orders'},
+    {label:'Avg Order Value',value:'₹'+Math.round(avgOrder).toLocaleString('en-IN'),sub:'all paid orders'},
+    {label:'Paid Orders',value:(ordPaid.data||[]).length,sub:'payment received'},
+  ].map(k=>`<div class="kpi-card"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
+
+  // 2. Top products by revenue
+  const prodRev={};
+  for(const it of(itemsAll.data||[])){
+    const name=it.products?.name||'Unknown';
+    prodRev[name]=(prodRev[name]||0)+Number(it.unit_price||0)*Number(it.quantity||0);
+  }
+  const topProds=Object.entries(prodRev).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const maxRev=topProds[0]?.[1]||1;
+  document.getElementById('analyticsTopProducts').innerHTML=topProds.length
+    ?topProds.map(([name,rev])=>`<div class="bar-row"><span class="bar-label" title="${name}">${name}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(rev/maxRev*100)}%"></div></div><span class="bar-val">₹${Math.round(rev/1000)}k</span></div>`).join('')
+    :'<div class="analytics-loading">No data yet.</div>';
+
+  // 3. Orders by status
+  const statusCount={};
+  for(const o of(ordAll.data||[])){const s=o.status||'pending';statusCount[s]=(statusCount[s]||0)+1;}
+  const statusOrder=['placed','pending','confirmed','processing','shipped','delivered','cancelled','returned','refunded'];
+  document.getElementById('analyticsStatus').innerHTML=statusOrder.filter(s=>statusCount[s]).map(s=>`<div class="status-pill-row"><span class="status-pill-label">${s.charAt(0).toUpperCase()+s.slice(1)}</span><div class="bar-track" style="flex:1"><div class="bar-fill" style="width:${Math.round(statusCount[s]/totalOrders*100)}%;background:${s==='delivered'?'#16a34a':s==='cancelled'?'#dc2626':s==='shipped'?'#2563eb':'var(--accent)'}"></div></div><span class="status-pill-count">${statusCount[s]}</span></div>`).join('')||'<div class="analytics-loading">No orders yet.</div>';
+
+  // 4. Revenue trend — last 30 days (group by date)
+  const days={};
+  for(let i=29;i>=0;i--){const d=new Date(Date.now()-i*86400000);days[d.toISOString().slice(0,10)]=0;}
+  for(const o of(ordMonth.data||[])){
+    const d=o.created_at?.slice(0,10);
+    if(d&&days[d]!==undefined)days[d]+=Number(o.total_amount||0);
+  }
+  const dayArr=Object.entries(days);
+  const maxDay=Math.max(...dayArr.map(d=>d[1]),1);
+  document.getElementById('analyticsRevTrend').innerHTML=`<div class="rev-bar-wrap">${dayArr.map(([date,val])=>`<div title="${date}: ₹${val.toLocaleString('en-IN')}"><div class="rev-bar" style="height:${Math.max(4,Math.round(val/maxDay*100))}%"></div><div class="rev-bar-date">${date.slice(5)}</div></div>`).join('')}</div>`;
+
+  // 5. Top referrers from admin_logs
+  const refCount={};
+  for(const l of(logsAll.data||[])){const r=l.referrer||'direct';refCount[r]=(refCount[r]||0)+1;}
+  const topRefs=Object.entries(refCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  document.getElementById('analyticsReferrers').innerHTML=topRefs.length
+    ?`<table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:4px 8px;color:var(--text-3);font-weight:500">Source</th><th style="text-align:right;padding:4px 8px;color:var(--text-3);font-weight:500">Visits</th></tr></thead><tbody>${topRefs.map(([ref,cnt])=>`<tr><td style="padding:6px 8px;color:var(--text-2);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ref==='direct'?'Direct / Bookmark':ref}</td><td style="padding:6px 8px;text-align:right;font-family:var(--mono);color:var(--text-3)">${cnt}</td></tr>`).join('')}</tbody></table>`
+    :'<div class="analytics-loading">No referrer data yet.</div>';
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1512,7 +1636,7 @@ function renderCategories(){
       <td><input value="${(c.description||'').replace(/"/g,'&quot;')}" placeholder="Optional description…" style="background:var(--bg-2);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-size:12px;width:100%" onchange="updateCat('${c.id}',{description:this.value})"></td>
       <td><input type="number" value="${c.display_order||0}" min="0" style="background:var(--bg-2);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-size:12px;width:60px" onchange="updateCat('${c.id}',{display_order:parseInt(this.value)||0})"></td>
       <td><span class="badge ${c.is_active?'badge-green':'badge-red'}">${c.is_active?'Active':'Hidden'}</span></td>
-      <td style="display:flex;gap:6px">
+      <td class="cat-actions">
         <button class="btn-sm" onclick="updateCat('${c.id}',{is_active:${!c.is_active}})">${c.is_active?'Hide':'Show'}</button>
         <button class="btn-danger" onclick="deleteCat('${c.id}','${c.name.replace(/'/g,"\\'")}')">Delete</button>
       </td>
@@ -1662,7 +1786,7 @@ function renderOrders(orders){
       +'<td onclick="event.stopPropagation()"><input type="checkbox" class="row-check" data-id="'+o.id+'"></td>'
       +'<td><span class="order-expand-btn" id="exp-'+o.id+'">&#9654;</span></td>'
       +'<td class="td-name" style="font-family:var(--mono);font-size:12px">'+inv+trackTag+'</td>'
-      +'<td>'+fmtDateShort(o.created_at)+'</td>'
+      +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(o.created_at)+'</td>'
       +'<td class="td-name">'+name+'<span style="color:var(--text-3);font-size:11px">'+phone+'</span>'+email+'</td>'
       +'<td>'+loc+'</td>'
       +'<td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+items+'</td>'
@@ -1689,6 +1813,8 @@ function renderOrders(orders){
         +'<div class="od-section" style="grid-column:1/-1"><div class="od-label">Order Items</div><div class="od-items">'+itemsDetail+'</div></div>'
 
         // ── Section 4: Payment Status (full panel)
+        +'<div class="od-section"><div class="od-label">Order Placed</div><div class="od-value" style="font-family:var(--mono);font-size:12px">'+fmtDateTimeIST(o.created_at)+'</div></div>'
+        +(o.paid_at?'<div class="od-section"><div class="od-label">Payment Received</div><div class="od-value" style="font-family:var(--mono);font-size:12px;color:var(--green)">'+fmtDateTimeIST(o.paid_at)+'</div></div>':'<div class="od-section"><div class="od-label">Payment Received</div><div class="od-value" style="color:var(--text-3)">—</div></div>')
         +'<div class="od-section"><div class="od-label">Payment Method</div><div class="od-value">'+payMethod+'</div></div>'
         +'<div class="od-section"><div class="od-label">Razorpay Payment ID</div><div class="od-value">'+rzpLink+'</div></div>'
         +'<div class="od-section" style="grid-column:1/-1"><div class="od-label">Payment Status — '+payStatusLabel+'</div>'
