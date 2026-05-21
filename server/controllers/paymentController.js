@@ -115,9 +115,17 @@ export async function verifyPayment(req, res, next) {
       return res.status(400).json({ error: 'Signature mismatch — payment verification failed' });
     }
 
-    /* Update order status */
+    /* Update order status + payment fields */
     await supabase.from('orders')
-      .update({ status: 'confirmed', razorpay_payment_id })
+      .update({
+        status:             'confirmed',
+        order_status:       'confirmed',
+        razorpay_payment_id,
+        payment_received:   true,
+        payment_status:     'paid',
+        advance_received:   false,
+        advance_amount:     0,
+      })
       .eq('id', order_id);
 
     /* Decrement stock */

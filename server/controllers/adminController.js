@@ -126,14 +126,14 @@ export async function updateOrderStatus(req, res, next) {
     const { id } = req.params;
     const { status } = req.body;
 
-    const valid = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+    const valid = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned', 'refunded'];
     if (!valid.includes(status)) {
       return res.status(400).json({ error: 'Invalid status value' });
     }
 
     const { data, error } = await supabase
       .from('orders')
-      .update({ status })
+      .update({ status, order_status: status })
       .eq('id', id)
       .select()
       .single();
@@ -143,4 +143,23 @@ export async function updateOrderStatus(req, res, next) {
   } catch (err) {
     next(err);
   }
+}
+
+/* ── PUT /api/admin/orders/:id/payment — update payment status ── */
+export async function updateOrderPayment(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { payment_received, advance_amount, advance_received, payment_notes } = req.body;
+
+    const updates = {};
+    if (payment_received  !== undefined) updates.payment_received  = Boolean(payment_received);
+    if (advance_amount    !== undefined) updates.advance_amount    = Number(advance_amount) || 0;
+    if (advance_received  !== undefined) updates.advance_received  = Boolean(advance_received);
+    if (payment_notes     !== undefined) updates.payment_notes     = payment_notes || null;
+
+    const { data, error } = await supabase
+      .from('orders').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    res.json({ order: data });
+  } catch (err) { next(err); }
 }

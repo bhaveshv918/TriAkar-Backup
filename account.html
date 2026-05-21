@@ -806,8 +806,14 @@ async function saveProfile(e){
     const dn=pickDisplayName(updates.full_name,updates.nickname);
     const greetEl=document.getElementById('dashGreeting');
     if(greetEl)greetEl.textContent='Welcome back, '+(dn||'there');
+    // Update ta_profile cache so nav shows new nickname on all pages immediately
+    try{
+      const cached=JSON.parse(localStorage.getItem('ta_profile')||'{}');
+      Object.assign(cached,{full_name:updates.full_name,nickname:updates.nickname||''});
+      localStorage.setItem('ta_profile',JSON.stringify(cached));
+    }catch(_){}
     if(typeof updateNavAuth==='function')updateNavAuth();
-    msgEl.textContent='Profile saved!';msgEl.className='profile-msg show auth-msg ok';
+    msgEl.textContent='Profile saved! Nav will show your new name.';msgEl.className='profile-msg show auth-msg ok';
     setTimeout(()=>{msgEl.className='profile-msg'},3000);
   }catch(err){
     msgEl.textContent='Error: '+err.message;msgEl.className='profile-msg show auth-msg err';

@@ -352,6 +352,11 @@ function buildCheckoutHTML(){
             </div>
           </div>
         </div>
+        <div class="ck-field">
+          <label>Who should the courier call? *</label>
+          <input type="tel" id="ckContactPhone" required placeholder="10-digit mobile number">
+          <div style="font-size:11px;color:var(--stone);margin-top:3px">This number will be shared with the delivery partner</div>
+        </div>
         <div class="ck-field"><label>Special Instructions (optional)</label><textarea id="ckNotes" placeholder="Any special requests"></textarea></div>
       </div>
       <div style="display:flex;gap:10px;margin-top:16px">
@@ -401,6 +406,16 @@ function buildCheckoutHTML(){
 
 function initCheckoutModal(){
   initPhoneField('ckPhone');
+  initPhoneField('ckContactPhone');
+  // Pre-fill contact phone from saved profile
+  const profileCache=getProfileCache();
+  const cpEl=document.getElementById('ckContactPhone_num')||document.getElementById('ckContactPhone');
+  if(cpEl&&profileCache&&profileCache.mobile){
+    const mob=String(profileCache.mobile).replace(/^\+91/,'').replace(/\D/g,'');
+    if(cpEl.id.endsWith('_num'))cpEl.value=mob;
+    else cpEl.value='+91'+mob;
+    if(document.getElementById('ckContactPhone'))document.getElementById('ckContactPhone').value='+91'+mob;
+  }
   const stateWrap=document.getElementById('ckStateWrap');
   if(stateWrap) initSearchableDropdown(stateWrap);
 
@@ -530,6 +545,7 @@ function renderCheckoutCart(){
 }
 
 function getCheckoutData(){
+  const contactPhone=document.getElementById('ckContactPhone')?.value.trim()||'';
   // If saved address is selected, build from that
   if(window._selectedAddress){
     const a=window._selectedAddress;
@@ -537,6 +553,7 @@ function getCheckoutData(){
     return{
       name:a.full_name,
       phone:a.phone||a.mobile||'',
+      contact_phone:contactPhone||a.phone||a.mobile||'',
       email:user?user.email:(document.getElementById('ckEmail')?.value.trim()||''),
       address_line1:a.address_line1,
       address_line2:a.address_line2||'',
@@ -551,6 +568,7 @@ function getCheckoutData(){
   return{
     name:document.getElementById('ckName')?.value.trim()||'',
     phone:document.getElementById('ckPhone')?.value.trim()||'',
+    contact_phone:contactPhone,
     email:document.getElementById('ckEmail')?.value.trim()||'',
     address_line1:document.getElementById('ckAddr1')?.value.trim()||'',
     address_line2:document.getElementById('ckAddr2')?.value.trim()||'',
@@ -619,6 +637,7 @@ async function placeOrder(){
   const shippingAddress={
     full_name:d.name,
     mobile:d.phone,
+    contact_phone:d.contact_phone||d.phone,
     address_line1:d.address_line1,
     address_line2:d.address_line2,
     landmark:d.landmark,
@@ -1032,6 +1051,39 @@ function copyAddress(){
   });
 }
 
+/* ══ PROFILE CACHE HELPERS ═════════════════════════════════ */
+/* Fetch fresh profile from API and store in localStorage ta_profile */
+async function refreshProfileCache(){
+  const token=localStorage.getItem('ta_token');
+  if(!token)return null;
+  const API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
+  try{
+    const res=await fetch(API+'/api/auth/profile',{headers:{'Authorization':'Bearer '+token}});
+    if(!res.ok)return null;
+    const {profile}=await res.json();
+    if(profile){
+      localStorage.setItem('ta_profile',JSON.stringify(profile));
+      return profile;
+    }
+  }catch(_){}
+  return null;
+}
+
+function getProfileCache(){
+  try{return JSON.parse(localStorage.getItem('ta_profile')||'null')}catch(_){return null}
+}
+
+/* Resolve best display name — priority: profile.nickname > first word of full_name > email prefix */
+function resolveDisplayName(user,profile){
+  if(profile&&profile.nickname&&profile.nickname.trim())return profile.nickname.trim();
+  if(profile&&profile.full_name&&profile.full_name.trim())return profile.full_name.trim().split(' ')[0];
+  const meta=user&&user.user_metadata||{};
+  if(meta.nickname&&meta.nickname.trim())return meta.nickname.trim();
+  if(meta.full_name&&meta.full_name.trim())return meta.full_name.trim().split(' ')[0];
+  const email=user&&user.email||'';
+  return email.split('@')[0]||'Account';
+}
+
 /* ══ NAV AUTH DROPDOWN ═════════════════════════════════════ */
 function updateNavAuth(){
   document.querySelectorAll('.nav-auth-wrap,.nav-auth-link,.nav-login-btn').forEach(el=>{
@@ -1047,15 +1099,14 @@ function updateNavAuth(){
     const shopBtn=nr.querySelector('.nav-shop');
 
     if(user){
-      // Hide the static Login/Shop button when logged in
       if(shopBtn) shopBtn.style.display='none';
-      // Priority: nickname > first name from full_name > email
-      const meta=user.user_metadata||{};
-      const displayName=meta.nickname||meta.full_name?.split(' ')[0]||'Account';
+      // Use cached profile for nickname — refresh happens async after render
+      const profile=getProfileCache();
+      const displayName=resolveDisplayName(user,profile);
       const wrap=document.createElement('div');
       wrap.className='nav-auth-wrap';
       wrap.innerHTML=`
-        <button class="nav-profile-btn">Hi, ${displayName} ▾</button>
+        <button class="nav-profile-btn" id="navProfileBtn">Hi, ${displayName} ▾</button>
         <div class="nav-profile-dropdown">
           <a href="account.html">My Account</a>
           <a href="account.html#orders">My Orders</a>
@@ -1068,14 +1119,21 @@ function updateNavAuth(){
         wrap.classList.toggle('open');
       });
       wrap.querySelector('#navLogoutBtn').addEventListener('click',function(){
+        localStorage.removeItem('ta_profile');
         if(typeof Auth!=='undefined'&&Auth.logout)Auth.logout();
         else{localStorage.removeItem('ta_token');localStorage.removeItem('ta_user');window.location.href='index.html';}
       });
+
+      // Async refresh profile — updates name if nickname changed
+      refreshProfileCache().then(function(fresh){
+        if(!fresh)return;
+        const freshName=resolveDisplayName(user,fresh);
+        const btn=document.getElementById('navProfileBtn');
+        if(btn)btn.textContent='Hi, '+freshName+' ▾';
+      });
     }
-    // When not logged in, the static nav-shop Login button is already in HTML — no dynamic button needed
   });
 
-  // Drawer = menu links only. Login/account lives in the nav bar, same as desktop.
   document.querySelectorAll('.nav-drawer').forEach(drawer=>{
     drawer.querySelectorAll('.drawer-auth,.drawer-shop').forEach(e=>e.remove());
   });
@@ -1240,6 +1298,21 @@ document.addEventListener('DOMContentLoaded',()=>{
   Cart.badge();Cart.render();Cart.loadFromServer();
   updateNavAuth();
   applyNavActiveState();
+});
+
+/* ══ IMAGE PROTECTION (prevent casual right-click / drag copy) ══ */
+/* Note: determined users can still screenshot. True signed-URL protection
+   available via Cloudinary — add signed delivery profile for full DRM. */
+document.addEventListener('contextmenu',function(e){
+  if(e.target.tagName==='IMG'&&(
+    e.target.closest('.prod-img')||
+    e.target.closest('.product-img')||
+    e.target.classList.contains('product-img')||
+    e.target.classList.contains('prod-img')
+  )){e.preventDefault();return false}
+});
+document.addEventListener('dragstart',function(e){
+  if(e.target.tagName==='IMG')e.preventDefault();
 });
 
 /* ══ SENTRY INIT (lazy onLoad) ══════════════════════════════ */

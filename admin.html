@@ -826,7 +826,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="p-title">Products</div>
       <div class="p-actions">
         <button class="btn-primary" onclick="openProductForm()">+ Add Product</button>
-        <button class="btn-secondary" onclick="importLocalProducts()">Import products from local data</button>
+        <button class="btn-secondary" onclick="importLocalProducts()">Import NEW products only (safe — won't overwrite)</button>
         <span id="importStatus" style="margin-left:10px;font-size:12px;color:var(--text-2)"></span>
       </div>
     </div>
@@ -894,10 +894,50 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       </div>
 
       <!-- Description & Notes -->
-      <div class="form-section">Description & Notes</div>
+      <div class="form-section">Description &amp; Notes</div>
+
+      <!-- Short Description (card) -->
       <div class="fg fg-full">
-        <div class="ff"><label>Description <span class="hint">(shown to customers)</span></label><textarea id="fDescription" rows="3" placeholder="Describe the product. What it does, why they need it…"></textarea></div>
+        <div class="ff">
+          <label>Short Description <span class="hint">(shown on product cards — max 120 chars)</span></label>
+          <input type="text" id="fShortDesc" maxlength="120" placeholder="Three compartments. Clean desk, clear mind."
+            oninput="document.getElementById('fShortDescCount').textContent=this.value.length">
+          <div style="font-size:10px;color:var(--text-3);margin-top:3px"><span id="fShortDescCount">0</span>/120 chars · Shows on product listing card</div>
+        </div>
       </div>
+
+      <!-- Long Description (detail page) -->
+      <div class="fg fg-full" style="margin-top:0">
+        <div class="ff">
+          <label>Long Description <span class="hint">(shown on product detail page)</span></label>
+          <textarea id="fDescription" rows="4" placeholder="Full paragraph description for the product detail page. Can be as long as needed."></textarea>
+        </div>
+      </div>
+
+      <!-- Bullet Points -->
+      <div class="fg fg-full" style="margin-top:0">
+        <div class="ff">
+          <label>Bullet Points <span class="hint">(shown on product detail page — max 8)</span></label>
+          <div id="fBulletsWrap" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+          <button type="button" class="btn-secondary" style="font-size:11px" onclick="addBulletPoint()">+ Add Point</button>
+        </div>
+      </div>
+
+      <!-- Display Mode -->
+      <div class="fg fg-full" style="margin-top:0">
+        <div class="ff">
+          <label>Display Mode <span class="hint">(what shows on the website)</span></label>
+          <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:12px">
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="radio" name="fDisplayMode" value="short_only"> Card only</label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="radio" name="fDisplayMode" value="long_only"> Detail only</label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="radio" name="fDisplayMode" value="bullets_only"> Bullets only</label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="radio" name="fDisplayMode" value="both"> Short + Long</label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="radio" name="fDisplayMode" value="all" checked> All (recommended)</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Internal Notes -->
       <div class="fg fg-full" style="margin-top:0">
         <div class="ff"><label>Internal Notes <span class="hint">(only visible to you)</span></label><textarea id="fNotes" rows="2" placeholder="Production notes, cost price, supplier info…"></textarea></div>
       </div>
@@ -906,7 +946,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="form-section">Images <span class="hint">(up to 10)</span></div>
       <div class="img-zone" id="imgZone">
         <div class="img-zone-text">Drop images here or click to browse</div>
-        <div class="img-zone-sub">JPG, PNG, WebP · Max 5MB each · Up to 10 images</div>
+        <div class="img-zone-sub">JPG, PNG, WebP · Max 15MB each (auto-compressed to WebP) · Up to 10 images</div>
         <input type="file" id="imgFileInput" accept="image/jpeg,image/png,image/webp" multiple>
       </div>
       <div class="img-grid" id="imgGrid"></div>
@@ -963,8 +1003,8 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     </div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Name</th><th>Email</th><th>Mobile</th><th>Orders</th><th>Joined</th></tr></thead>
-        <tbody id="customersBody"><tr><td colspan="5" class="tbl-msg">Loading...</td></tr></tbody>
+        <thead><tr><th>Name</th><th>Email</th><th>Mobile</th><th>Orders</th><th>Total Spent</th><th>Joined</th></tr></thead>
+        <tbody id="customersBody"><tr><td colspan="6" class="tbl-msg">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1012,8 +1052,13 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="p-title">Categories</div>
       <button class="btn-primary" onclick="addCategory()">+ Add Category</button>
     </div>
-    <div class="cat-list" id="catList">
-      <div class="tbl-msg">Loading categories…</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Slug</th><th>Description</th><th>Order</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody class="cat-list" id="catList">
+          <tr><td colspan="6" class="tbl-msg">Loading categories…</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 
@@ -1067,7 +1112,7 @@ const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
 const ADMIN_EMAILS=['bhaveshv918@gmail.com']; // Only these emails can access the admin panel
 
 // ── State ──────────────────────────────────────────────────
-let _products=[],_orders=[],_categories=[],_uploadedImages=[],_variants=[],_custFields=[],_dropdowns=[];
+let _products=[],_orders=[],_categories=[],_uploadedImages=[],_variants=[],_custFields=[],_dropdowns=[],_bulletPoints=[];
 let _visitorData={};
 
 // ═══════════════════════════════════════════════════════════
@@ -1459,16 +1504,19 @@ async function loadCategories(){
 
 function renderCategories(){
   const el=document.getElementById('catList');
-  if(!_categories.length){el.innerHTML='<div class="tbl-msg">No categories. Add one.</div>';return}
+  if(!_categories.length){el.innerHTML='<tr><td colspan="6" class="tbl-msg">No categories. Add one.</td></tr>';return}
   el.innerHTML=_categories.map(c=>`
-    <div class="cat-row" data-id="${c.id}">
-      <input class="cat-icon-edit" value="${c.icon||'📦'}" maxlength="4" style="width:40px;border:none;background:transparent;font-size:20px;text-align:center;cursor:pointer" onchange="updateCat('${c.id}',{icon:this.value})">
-      <input class="cat-name-edit" value="${c.name}" onchange="updateCat('${c.id}',{name:this.value,slug:this.value.toLowerCase().replace(/[^a-z0-9]+/g,'-')})">
-      <span class="cat-slug">/${c.slug}</span>
-      <span class="badge ${c.is_active?'badge-green':'badge-red'}">${c.is_active?'Active':'Hidden'}</span>
-      <button class="btn-sm" onclick="updateCat('${c.id}',{is_active:${!c.is_active}})">${c.is_active?'Hide':'Show'}</button>
-      <button class="btn-danger" onclick="deleteCat('${c.id}','${c.name.replace(/'/g,"\\'")}')">Delete</button>
-    </div>
+    <tr>
+      <td><input value="${(c.name||'').replace(/"/g,'&quot;')}" style="background:var(--bg-2);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-size:12px;width:100%" onchange="updateCat('${c.id}',{name:this.value})"></td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--text-2)">${c.slug}</td>
+      <td><input value="${(c.description||'').replace(/"/g,'&quot;')}" placeholder="Optional description…" style="background:var(--bg-2);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-size:12px;width:100%" onchange="updateCat('${c.id}',{description:this.value})"></td>
+      <td><input type="number" value="${c.display_order||0}" min="0" style="background:var(--bg-2);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-size:12px;width:60px" onchange="updateCat('${c.id}',{display_order:parseInt(this.value)||0})"></td>
+      <td><span class="badge ${c.is_active?'badge-green':'badge-red'}">${c.is_active?'Active':'Hidden'}</span></td>
+      <td style="display:flex;gap:6px">
+        <button class="btn-sm" onclick="updateCat('${c.id}',{is_active:${!c.is_active}})">${c.is_active?'Hide':'Show'}</button>
+        <button class="btn-danger" onclick="deleteCat('${c.id}','${c.name.replace(/'/g,"\\'")}')">Delete</button>
+      </td>
+    </tr>
   `).join('');
 }
 
@@ -1480,11 +1528,16 @@ function populateCategorySelect(){
 }
 
 async function addCategory(){
-  const name=prompt('Category name:');
-  if(!name)return;
-  const slug=name.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-');
-  const icon=prompt('Emoji icon:','📦')||'📦';
-  const{error}=await sb.from('categories').insert({name:name.trim(),slug,icon,display_order:_categories.length+1});
+  const name=prompt('Category name (plain text, no symbols):');
+  if(!name||!name.trim())return;
+  const slug=name.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  const description=prompt('Short description (optional — shown on products page):','')||null;
+  const{error}=await sb.from('categories').insert({
+    name:name.trim(),slug,
+    description:description||null,
+    display_order:_categories.length+1,
+    is_active:true
+  });
   if(error){toast('Error: '+error.message,'error');return}
   toast('Category added','success');loadCategories();
 }
@@ -1579,15 +1632,29 @@ function renderOrders(orders){
       addr.country||addrObj.country,
       (addr.phone||addrObj.phone)?'Ph: '+(addr.phone||addrObj.phone):''].filter(Boolean).join('<br>')||'—';
 
-    // Items list for detail
-    const itemsDetail=(o.order_items||[]).map(i=>{
-      const pname=(i.products||{}).name||'Item';
-      const cust=i.customization_notes?'<span style="color:var(--accent);font-size:10px;margin-left:6px">['+i.customization_notes+']</span>':'';
-      return '<div class="od-item"><span>'+pname+cust+'</span><span>x'+i.quantity+' · '+fmtPrice(i.unit_price*i.quantity)+'</span></div>';
-    }).join('')||'<span style="color:var(--text-3)">No items</span>';
+    // Items list for detail — join from order_items + fallback to items JSONB
+    const rawItems=o.order_items&&o.order_items.length?o.order_items:(o.items||[]);
+    const itemsDetail=rawItems.length?rawItems.map(i=>{
+      const pname=(i.products||{}).name||i.name||'Item';
+      const cat=(i.products||{}).category||'';
+      const catBadge=cat?'<span style="font-size:9px;background:var(--bg-3);padding:2px 6px;border-radius:3px;margin-left:6px;color:var(--text-3)">'+cat+'</span>':'';
+      const cust=i.customization_notes?'<div style="margin-top:4px;padding:4px 8px;background:var(--accent-bg);border-left:2px solid var(--accent);border-radius:2px;font-size:11px;color:var(--accent)">Customization: '+i.customization_notes+'</div>':'';
+      const unitP=i.unit_price||i.price||0;
+      return '<div class="od-item" style="flex-direction:column;gap:2px;padding:6px 8px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center">'
+        +'<span style="font-weight:600">'+pname+catBadge+'</span>'
+        +'<span>x'+i.quantity+' · '+fmtPrice(unitP*i.quantity)+'</span>'
+        +'</div>'+cust
+        +'</div>';
+    }).join(''):'<span style="color:var(--text-3);font-size:12px">No items recorded — may be a legacy order</span>';
 
-    // Payment info
-    const payInfo=[o.razorpay_payment_id?'Pay: '+o.razorpay_payment_id:'',o.razorpay_order_id?'Order: '+o.razorpay_order_id:''].filter(Boolean).join(' | ')||'No payment data';
+    // Payment status UI
+    const isPaid=o.payment_received===true;
+    const isAdv=o.advance_received===true;
+    const rzpId=o.razorpay_payment_id||'';
+    const rzpLink=rzpId?'<a href="https://dashboard.razorpay.com/app/payments/'+rzpId+'" target="_blank" rel="noopener" style="color:var(--blue);font-family:var(--mono);font-size:11px;text-decoration:underline">'+rzpId+' ↗</a>':'<span style="color:var(--text-3);font-size:11px">—</span>';
+    const payMethod=(o.payment_method||'—').replace('online','Razorpay').replace('whatsapp','WhatsApp');
+    const payStatusLabel=isPaid?'<span style="color:var(--green);font-weight:600">Received</span>':isAdv?'<span style="color:var(--yellow);font-weight:600">50% Advance</span>':'<span style="color:var(--text-3)">Pending</span>';
 
     const esc=s=>(s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
 
@@ -1604,20 +1671,62 @@ function renderOrders(orders){
         +' <button class="btn-secondary" onclick="softDeleteOne(\'orders\',\''+o.id+'\',\'loadOrders\')">Delete</button></td>'
       +'</tr>'
       +'<tr class="order-detail-row" id="detail-'+o.id+'"><td colspan="9"><div class="order-detail">'
-        +'<div class="od-section"><div class="od-label">Customer</div><div class="od-value">'+name+(p.email?'<br><span style="font-family:var(--mono);font-size:11px;color:var(--text-2)">'+p.email+'</span>':'')+(p.phone?'<br>'+p.phone:'')+'</div></div>'
-        +'<div class="od-section"><div class="od-label">Shipping Address</div><div class="od-value">'+fullAddr+'</div></div>'
-        +'<div class="od-section"><div class="od-label">Order Items</div><div class="od-items">'+itemsDetail+'</div></div>'
-        +'<div class="od-section"><div class="od-label">Payment</div><div class="od-payment">'+payInfo+'</div></div>'
+
+        // ── Section 1: Customer Info
+        +'<div class="od-section"><div class="od-label">Customer</div><div class="od-value">'
+        +name
+        +(custEmail?'<br><span style="font-family:var(--mono);font-size:11px;color:var(--text-2)">'+custEmail+'</span>':'')
+        +(custPhone?'<br>'+custPhone:'')
+        +'</div></div>'
+
+        // ── Section 2: Shipping Address
+        +'<div class="od-section"><div class="od-label">Shipping Address</div><div class="od-value">'
+        +fullAddr
+        +((o.shipping_address||{}).contact_phone?'<br><span style="font-size:11px;color:var(--text-2)">Delivery contact: '+(o.shipping_address.contact_phone)+'</span>':'')
+        +'</div></div>'
+
+        // ── Section 3: Order Items
+        +'<div class="od-section" style="grid-column:1/-1"><div class="od-label">Order Items</div><div class="od-items">'+itemsDetail+'</div></div>'
+
+        // ── Section 4: Payment Status (full panel)
+        +'<div class="od-section"><div class="od-label">Payment Method</div><div class="od-value">'+payMethod+'</div></div>'
+        +'<div class="od-section"><div class="od-label">Razorpay Payment ID</div><div class="od-value">'+rzpLink+'</div></div>'
+        +'<div class="od-section" style="grid-column:1/-1"><div class="od-label">Payment Status — '+payStatusLabel+'</div>'
+        +'<div style="display:flex;gap:10px;margin-top:6px;flex-wrap:wrap">'
+        +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">'
+        +'<input type="radio" name="pay-'+o.id+'" value="full" '+(isPaid?'checked':'')+' onchange="updatePaymentStatus(\''+o.id+'\',this.value)"> Full payment received</label>'
+        +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">'
+        +'<input type="radio" name="pay-'+o.id+'" value="advance" '+(isAdv&&!isPaid?'checked':'')+' onchange="updatePaymentStatus(\''+o.id+'\',this.value)"> 50% advance received</label>'
+        +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">'
+        +'<input type="radio" name="pay-'+o.id+'" value="pending" '+(!isPaid&&!isAdv?'checked':'')+' onchange="updatePaymentStatus(\''+o.id+'\',this.value)"> Pending</label>'
+        +'</div>'
+        +'<div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">'
+        +'<input type="number" id="adv-amt-'+o.id+'" placeholder="Advance amount ₹" value="'+(o.advance_amount||'')+'" style="width:160px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px">'
+        +'<input type="text" id="pay-notes-'+o.id+'" placeholder="Payment notes (optional)" value="'+esc(o.payment_notes)+'" style="flex:1;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px">'
+        +'<button class="btn-save" onclick="event.stopPropagation();savePaymentFields(\''+o.id+'\')">Save Payment</button>'
+        +'</div></div>'
+
+        // ── Section 5: Tracking
         +'<div class="od-section"><div class="od-label">Tracking (optional)</div>'
-          +'<div class="od-tracking">'
-            +'<input type="text" id="track-num-'+o.id+'" placeholder="Tracking number" value="'+esc(o.tracking_number)+'">'
-            +'<input type="text" id="track-vendor-'+o.id+'" placeholder="Vendor (Delhivery, BlueDart...)" value="'+esc(o.tracking_vendor)+'">'
-            +'<button class="btn-save" onclick="event.stopPropagation();saveTracking(\''+o.id+'\')">Save</button>'
-          +'</div>'
-        +'</div>'
+        +'<div class="od-tracking">'
+        +'<input type="text" id="track-num-'+o.id+'" placeholder="Tracking number" value="'+esc(o.tracking_number)+'">'
+        +'<input type="text" id="track-vendor-'+o.id+'" placeholder="Vendor (Delhivery, BlueDart...)" value="'+esc(o.tracking_vendor)+'">'
+        +'<button class="btn-save" onclick="event.stopPropagation();saveTracking(\''+o.id+'\')">Save</button>'
+        +'</div></div>'
+
+        // ── Section 6: Admin Actions
+        +'<div class="od-section"><div class="od-label">Quick Actions</div>'
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">'
+        +(custPhone?'<a href="tel:'+custPhone+'" class="btn-sm" style="text-decoration:none">Call Customer</a>':'')
+        +(custPhone?'<a href="https://wa.me/'+custPhone.replace(/\D/g,'')+'" target="_blank" rel="noopener" class="btn-sm" style="text-decoration:none">WhatsApp</a>':'')
+        +'<button class="btn-sm" onclick="window.print()">Print Order</button>'
+        +'</div></div>'
+
+        // ── Section 7: Admin Notes
         +'<div class="od-section" style="grid-column:1/-1"><div class="od-label">Admin Notes</div>'
-          +'<div class="od-notes"><textarea id="notes-'+o.id+'" placeholder="Internal notes about this order..." onblur="saveAdminNotes(\''+o.id+'\')">'+esc(o.admin_notes)+'</textarea></div>'
+        +'<div class="od-notes"><textarea id="notes-'+o.id+'" placeholder="Internal notes about this order..." onblur="saveAdminNotes(\''+o.id+'\')">'+esc(o.admin_notes)+'</textarea></div>'
         +'</div>'
+
       +'</div></td></tr>';
   }).join('');
 }
@@ -1661,6 +1770,34 @@ async function saveAdminNotes(id){
   const{error}=await sb.from('orders').update({admin_notes:notes||null,updated_at:new Date().toISOString()}).eq('id',id);
   if(error){toast('Error saving notes: '+error.message,'error')}
   else{if(o)o.admin_notes=notes}
+}
+
+/* ── updatePaymentStatus — radio button handler ── */
+function updatePaymentStatus(id,val){
+  // Just visually marks selection; actual save happens via savePaymentFields
+  const advAmt=document.getElementById('adv-amt-'+id);
+  if(advAmt) advAmt.style.display=val==='advance'?'':'none';
+}
+
+/* ── savePaymentFields — saves payment_received, advance_received, advance_amount, payment_notes ── */
+async function savePaymentFields(id){
+  const selected=document.querySelector('input[name="pay-'+id+'"]:checked');
+  if(!selected){toast('Select a payment status first','error');return}
+  const val=selected.value;
+  const advAmt=parseFloat(document.getElementById('adv-amt-'+id).value)||0;
+  const notes=(document.getElementById('pay-notes-'+id).value||'').trim();
+  const updates={
+    payment_received: val==='full',
+    advance_received: val==='advance',
+    advance_amount:   val==='advance'?advAmt:0,
+    payment_notes:    notes||null,
+  };
+  const{error}=await sb.from('orders').update(updates).eq('id',id);
+  if(error){toast('Error saving payment: '+error.message,'error');return}
+  // Update local cache
+  const o=_orders.find(x=>x.id===id);
+  if(o) Object.assign(o,updates);
+  toast('Payment status saved','success');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1728,7 +1865,7 @@ function openProductForm(id){
   wrap.classList.add('open');
   wrap.scrollIntoView({behavior:'smooth',block:'nearest'});
   document.getElementById('formErr').textContent='';
-  _uploadedImages=[];_variants=[];_custFields=[];_dropdowns=[];
+  _uploadedImages=[];_variants=[];_custFields=[];_dropdowns=[];_bulletPoints=[];
 
   if(id){
     const p=_products.find(x=>x.id===id);
@@ -1752,17 +1889,29 @@ function openProductForm(id){
     document.getElementById('fFeatured').checked=!!p.is_featured;
     document.getElementById('fActive').checked=p.is_active!==false;
     document.getElementById('fDescription').value=p.description||'';
+    document.getElementById('fShortDesc').value=p.short_description||'';
+    document.getElementById('fShortDescCount').textContent=(p.short_description||'').length;
     document.getElementById('fNotes').value=p.notes||'';
     document.getElementById('fCustomizable').checked=!!p.is_customizable;
+    // Display mode
+    const dm=p.description_display_mode||'all';
+    const dmR=document.querySelector('input[name="fDisplayMode"][value="'+dm+'"]');
+    if(dmR)dmR.checked=true;
     toggleCustSection();
     _uploadedImages=(p.images||[]).slice();
+    _bulletPoints=Array.isArray(p.bullet_points)?[...p.bullet_points]:[];
+    renderBulletPoints();
     _variants=(p.variants||[]).map(v=>({...v}));
     _custFields=(p.customization_fields||[]).map(f=>({...f}));
     _dropdowns=(p.product_dropdowns||[]).map(d=>({...d,options:[...(d.options||[])]}));
   }else{
     document.getElementById('formTitle').textContent='Add Product';
     document.getElementById('editingId').value='';
-    ['fName','fSlug','fPrice','fDiscountValue','fDescription','fNotes','fUrgencyText'].forEach(id=>document.getElementById(id).value='');
+    ['fName','fSlug','fPrice','fDiscountValue','fDescription','fShortDesc','fNotes','fUrgencyText'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('fShortDescCount').textContent='0';
+    const defDm=document.querySelector('input[name="fDisplayMode"][value="all"]');
+    if(defDm)defDm.checked=true;
+    _bulletPoints=[];renderBulletPoints();
     document.getElementById('fCategory').value='';
     document.getElementById('fMaterial').value='PLA+';
     document.getElementById('fDiscountType').value='';
@@ -1779,6 +1928,27 @@ function openProductForm(id){
 }
 
 function closeProductForm(){document.getElementById('productFormWrap').classList.remove('open')}
+
+/* ── Bullet Points ──────────────────────────────────────── */
+function addBulletPoint(){
+  if(_bulletPoints.length>=8){toast('Max 8 bullet points','error');return}
+  _bulletPoints.push('');renderBulletPoints();
+}
+function removeBulletPoint(i){_bulletPoints.splice(i,1);renderBulletPoints()}
+function renderBulletPoints(){
+  const wrap=document.getElementById('fBulletsWrap');
+  if(!wrap)return;
+  if(!_bulletPoints.length){wrap.innerHTML='<div style="font-size:11px;color:var(--text-3)">No bullet points yet. Click Add Point.</div>';return}
+  wrap.innerHTML=_bulletPoints.map((b,i)=>`
+    <div style="display:flex;gap:6px;align-items:center">
+      <span style="color:var(--accent);font-size:12px;flex-shrink:0">✓</span>
+      <input value="${(b||'').replace(/"/g,'&quot;')}" placeholder="e.g. Non-slip rubber base"
+        style="flex:1;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px"
+        oninput="_bulletPoints[${i}]=this.value">
+      <button type="button" style="color:var(--red);background:none;border:none;cursor:pointer;font-size:16px;line-height:1" onclick="removeBulletPoint(${i})">×</button>
+    </div>
+  `).join('');
+}
 
 // Auto-slug
 document.getElementById('fName').addEventListener('input',function(){
@@ -1808,6 +1978,10 @@ async function submitProductForm(){
     is_active:document.getElementById('fActive').checked,
     is_customizable:document.getElementById('fCustomizable').checked,
     description:document.getElementById('fDescription').value.trim()||null,
+    short_description:document.getElementById('fShortDesc').value.trim()||null,
+    long_description:document.getElementById('fDescription').value.trim()||null,
+    bullet_points:_bulletPoints.filter(b=>b.trim()),
+    description_display_mode:(document.querySelector('input[name="fDisplayMode"]:checked')||{}).value||'all',
     notes:document.getElementById('fNotes').value.trim()||null,
     images:_uploadedImages,
     variants:_variants,
@@ -1839,32 +2013,56 @@ async function deleteProduct(id,name){
   loadProducts();toast('Product deleted','success');
 }
 
-// ── One-time import: push local products-data.js catalog into Supabase ──
+// ── Safe import: only adds products NOT already in Supabase (never overwrites) ──
 async function importLocalProducts(){
   if(typeof PRODUCTS==='undefined'){ toast('products-data.js not loaded','error'); return; }
+
+  if(!confirm('Import new products from local data?\n\nThis is safe — existing products will NOT be changed.\nOnly products missing from the database will be added.')) return;
+
   const API = (location.hostname==='localhost') ? 'http://localhost:3000' : 'https://triakar.onrender.com';
   const { data: sess } = await sb.auth.getSession();
   const token = sess && sess.session && sess.session.access_token;
   if(!token){ toast('Not authenticated','error'); return; }
-  const entries = Object.entries(PRODUCTS);
+
   const statusEl = document.getElementById('importStatus');
-  let done=0, failed=0;
+  statusEl.textContent='Checking existing products…';
+
+  // 1. Fetch existing slugs from Supabase
+  const{data:existing}=await sb.from('products').select('slug');
+  const existingSlugs=new Set((existing||[]).map(p=>p.slug));
+
+  const entries = Object.entries(PRODUCTS);
+  let added=0, skipped=0, failed=0, errors=[];
+
   for(let i=0;i<entries.length;i++){
     const [slug,p]=entries[i];
-    statusEl.textContent='Syncing '+(i+1)+' of '+entries.length+'...';
+
+    // 2. Skip if already exists
+    if(existingSlugs.has(slug)){ skipped++; continue; }
+
+    statusEl.textContent='Adding '+(i+1)+' of '+entries.length+': '+slug+'…';
     const body={
-      slug:slug, name:p.name, description:p.description||'', price:p.price||0,
-      category:p.category||'gifting', stock_qty:99,
-      images: (p.cloudinaryId? [ 'https://res.cloudinary.com/dtpibsruo/image/upload/q_auto,f_auto,w_600,h_600,c_fill/'+p.cloudinaryId ] : (p.image? [p.image] : [])),
+      slug, name:p.name, description:p.description||'',
+      short_description:p.description?p.description.slice(0,120):null,
+      price:p.price||0, category:p.category||'gifting', stock_qty:99,
+      material:p.material||'PLA+',
+      images: (p.cloudinaryId
+        ? ['https://res.cloudinary.com/dtpibsruo/image/upload/q_auto,f_auto,w_600,h_600,c_fill/'+p.cloudinaryId]
+        : (p.image?[p.image]:[])),
       is_customizable: !!p.customizable, is_active:true
     };
     try{
-      const res=await fetch(API+'/api/products/upsert',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
-      if(res.ok) done++; else failed++;
-    }catch(e){ failed++; }
+      const res=await fetch(API+'/api/products/upsert',{method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body:JSON.stringify(body)});
+      if(res.ok){ added++; existingSlugs.add(slug); }
+      else{ failed++; errors.push(slug); }
+    }catch(e){ failed++; errors.push(slug); }
   }
-  statusEl.textContent = done+' products synced to database'+(failed?(' ('+failed+' failed)'):'');
-  toast(done+' products synced'+(failed?(', '+failed+' failed'):''), failed?'error':'success');
+
+  const report='Import complete:\n• '+added+' new products added\n• '+skipped+' skipped (already in database)\n• '+failed+' errors'+(errors.length?' ('+errors.join(', ')+')':'');
+  statusEl.textContent=added+' added · '+skipped+' skipped'+(failed?' · '+failed+' errors':'');
+  toast(report, failed?'error':'success');
   if(typeof loadProducts==='function') loadProducts();
 }
 
@@ -1881,7 +2079,7 @@ async function handleImgFiles(files){
   const upl=document.getElementById('imgUploading');upl.style.display='block';
   for(const file of files){
     if(_uploadedImages.length>=10)break;
-    if(file.size>5*1024*1024){toast(file.name+' too large','error');continue}
+    if(file.size>15*1024*1024){toast(file.name+' too large (max 15MB)','error');continue}
     if(!['image/jpeg','image/png','image/webp'].includes(file.type)){toast(file.name+' bad format','error');continue}
     const ext=file.name.split('.').pop().toLowerCase();
     const fname=Date.now()+'-'+Math.random().toString(36).substr(2,6)+'.'+ext;
@@ -2007,9 +2205,26 @@ async function loadLogs(){
 /* ═══ CUSTOMERS ═══════════════════════════════════ */
 let _customers=[];
 async function loadCustomers(){
-  const{data,error}=await sb.from('profiles').select('*').order('created_at',{ascending:false});
-  if(error){document.getElementById('customersBody').innerHTML='<tr><td colspan="5" class="tbl-msg">Error loading customers</td></tr>';return}
-  _customers=data||[];
+  // Fetch profiles
+  const{data:profiles,error:pErr}=await sb.from('profiles').select('*').order('created_at',{ascending:false});
+  if(pErr){document.getElementById('customersBody').innerHTML='<tr><td colspan="6" class="tbl-msg">Error loading customers</td></tr>';return}
+
+  // Fetch order aggregates per user (total orders + total spent)
+  const{data:orderAgg}=await sb.from('orders')
+    .select('user_id,total_amount')
+    .is('deleted_at',null);
+
+  // Build a map: user_id → {count, spent}
+  const aggMap={};
+  (orderAgg||[]).forEach(o=>{
+    if(!o.user_id)return;
+    if(!aggMap[o.user_id])aggMap[o.user_id]={count:0,spent:0};
+    aggMap[o.user_id].count++;
+    aggMap[o.user_id].spent+=Number(o.total_amount)||0;
+  });
+
+  // Merge into profiles
+  _customers=(profiles||[]).map(c=>({...c,_orders:aggMap[c.id]?.count||0,_spent:aggMap[c.id]?.spent||0}));
   document.getElementById('customerCount').textContent=_customers.length;
   checkNewItems('customers','dotCustomers',_customers.length);
   renderCustomers(_customers);
@@ -2017,14 +2232,18 @@ async function loadCustomers(){
 
 function renderCustomers(list){
   const tbody=document.getElementById('customersBody');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="5" class="tbl-msg">No customers yet.</td></tr>';return}
+  if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="tbl-msg">No customers yet.</td></tr>';return}
   tbody.innerHTML=list.map(c=>{
     const joined=c.created_at?fmtDateShort(c.created_at):'—';
+    const orderCount=c._orders||0;
+    const spent=c._spent||0;
+    const spentFmt=spent?fmtPrice(spent):'₹0';
     return '<tr>'
       +'<td class="td-name">'+(c.full_name||'—')+(c.nickname?'<div style="font-size:10px;color:var(--text-3)">aka '+c.nickname+'</div>':'')+'</td>'
       +'<td style="font-family:var(--mono);font-size:11px">'+(c.email||'—')+'</td>'
       +'<td>'+(c.mobile||'—')+'</td>'
-      +'<td>—</td>'
+      +'<td style="font-weight:600;color:'+(orderCount?'var(--text)':'var(--text-3)')+'">'+orderCount+'</td>'
+      +'<td style="font-weight:600;color:'+(spent?'var(--green)':'var(--text-3)')+'">'+spentFmt+'</td>'
       +'<td>'+joined+'</td>'
       +'</tr>';
   }).join('');

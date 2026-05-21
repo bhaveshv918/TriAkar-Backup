@@ -165,7 +165,19 @@ async function trackOrder(){
       +'<div class="td-row"><span class="td-l">Items</span><span class="td-v">'+items+'</span></div>'
       +'<div class="td-row"><span class="td-l">Order Date</span><span class="td-v">'+fmtDate(order.created_at)+'</span></div>'
       +'<div class="td-row"><span class="td-l">Total</span><span class="td-v" style="font-weight:700">₹'+Number(order.total_amount).toLocaleString('en-IN')+'</span></div>'
-      +'<div class="td-row"><span class="td-l">Payment</span><span class="td-v" style="text-transform:capitalize">'+order.payment_method+' ('+order.payment_status+')</span></div>'
+      +(function(){
+        // Payment status display (no payment ID shown to customer — admin only)
+        const isPaid=order.payment_received===true;
+        const isAdv=order.advance_received===true;
+        const advAmt=order.advance_amount;
+        let payLabel,payColor;
+        if(isPaid){payLabel='Received ✓';payColor='#2D8A4E';}
+        else if(isAdv){payLabel='50% Advance Received'+(advAmt?' (₹'+Number(advAmt).toLocaleString('en-IN')+')':'');payColor='#C4622A';}
+        else{payLabel='Pending';payColor='#88847E';}
+        const method=(order.payment_method||'—').replace('online','Razorpay').replace('whatsapp','WhatsApp');
+        return '<div class="td-row"><span class="td-l">Payment Method</span><span class="td-v" style="text-transform:capitalize">'+method+'</span></div>'
+          +'<div class="td-row"><span class="td-l">Payment Status</span><span class="td-v" style="font-weight:600;color:'+payColor+'">'+payLabel+'</span></div>';
+      })()
       +'<div class="td-row"><span class="td-l">Status</span><span class="td-v" style="text-transform:capitalize;font-weight:600">'+st+'</span></div>';
 
     if(order.tracking_vendor||order.tracking_number){
@@ -176,6 +188,13 @@ async function trackOrder(){
     if(order.shipping_city||order.shipping_state){
       const loc=[order.shipping_city,order.shipping_state].filter(Boolean).join(', ');
       if(loc)html+='<div class="td-row"><span class="td-l">Shipping to</span><span class="td-v">'+loc+'</span></div>';
+    }
+    // Show masked delivery contact phone (from shipping_address.contact_phone)
+    const cp=(order.shipping_address||{}).contact_phone||'';
+    if(cp){
+      const digits=cp.replace(/\D/g,'');
+      const masked=digits.length>=4?'+91 XXXXX X'+digits.slice(-4):'—';
+      html+='<div class="td-row"><span class="td-l">Delivery Contact</span><span class="td-v" style="font-family:monospace">'+masked+'</span></div>';
     }
 
     det.innerHTML=html;

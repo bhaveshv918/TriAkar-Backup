@@ -6,7 +6,7 @@ export async function getAllProducts(req, res, next) {
 
     let query = supabase
       .from('products')
-      .select('id, name, slug, description, price, category, stock_qty, images, is_customizable')
+      .select('id, name, slug, description, short_description, price, compare_at_price, category, stock_qty, images, is_customizable, material, badge')
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
@@ -55,15 +55,29 @@ export async function upsertProduct(req, res, next) {
     const b = req.body || {};
     if (!b.slug || !b.name) return res.status(400).json({ error: 'slug and name are required' });
     const row = {
-      slug: String(b.slug),
-      name: String(b.name),
-      description: b.description || '',
-      price: Number(b.price) || 0,
-      category: b.category || 'gifting',
-      stock_qty: (b.stock_qty === undefined || b.stock_qty === null) ? 99 : Number(b.stock_qty),
-      images: Array.isArray(b.images) ? b.images : [],
-      is_customizable: !!b.is_customizable,
-      is_active: b.is_active === undefined ? true : !!b.is_active,
+      slug:                    String(b.slug),
+      name:                    String(b.name),
+      description:             b.description || '',
+      short_description:       b.short_description || null,
+      long_description:        b.long_description  || null,
+      bullet_points:           Array.isArray(b.bullet_points) ? b.bullet_points : [],
+      description_display_mode:b.description_display_mode || 'both',
+      price:                   Number(b.price) || 0,
+      compare_at_price:        b.compare_at_price ? Number(b.compare_at_price) : null,
+      category:                b.category || 'gifting',
+      stock_qty:               (b.stock_qty === undefined || b.stock_qty === null) ? 99 : Number(b.stock_qty),
+      images:                  Array.isArray(b.images) ? b.images : [],
+      is_customizable:         !!b.is_customizable,
+      is_active:               b.is_active === undefined ? true : !!b.is_active,
+      material:                b.material || 'PLA+',
+      customization_prompt:    b.customization_prompt || null,
+      available_colors:        Array.isArray(b.available_colors) ? b.available_colors : [],
+      available_materials:     Array.isArray(b.available_materials) ? b.available_materials : [],
+      production_days:         b.production_days ? Number(b.production_days) : 3,
+      tags:                    Array.isArray(b.tags) ? b.tags : [],
+      sku:                     b.sku || null,
+      meta_title:              b.meta_title || null,
+      meta_description:        b.meta_description || null,
     };
     const { data, error } = await supabase
       .from('products')

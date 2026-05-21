@@ -276,8 +276,50 @@ const THUMB_SVGS = {
 let qty=1, selVariant='', curProduct=null, selOption=null, selColour='', curPrice=0;
 
 function init(){
-  const id=new URLSearchParams(window.location.search).get('id')||'arc-desk';
-  const p=PRODS[id]||PRODS['arc-desk'];
+  // Support both ?slug=arc-desk (new) and ?id=arc-desk (legacy) — both point to the same key
+  const params=new URLSearchParams(window.location.search);
+  const id=params.get('slug')||params.get('id')||'arc-desk';
+
+  // 1. Try PRODS local map first (instant)
+  let p=PRODS[id];
+
+  // 2. If not in local map — show placeholder and fetch from API
+  if(!p){
+    // Try to fetch from API by slug
+    const API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
+    fetch(API+'/api/products/'+encodeURIComponent(id))
+      .then(r=>r.ok?r.json():null)
+      .then(data=>{
+        if(data&&data.product){
+          const ap=data.product;
+          const mapped={
+            name:ap.name,price:ap.price,badge:ap.badge||'',
+            desc:ap.short_description||ap.description||'',
+            variants:(ap.available_colors||[]),
+            specs:[['Material',ap.material||'PLA+'],['Production',(ap.production_days||3)+' to '+(ap.production_days?ap.production_days+1:4)+' business days']],
+            views:['#D4D0C8','#BEBAB0','#C8C4BC','#E2DED8'],
+            images:ap.images||[],
+            is_customizable:ap.is_customizable,
+            long_description:ap.long_description||ap.description||'',
+            bullet_points:Array.isArray(ap.bullet_points)?ap.bullet_points:[],
+          };
+          PRODS[id]=mapped;
+          curProduct={...mapped,id};
+          renderProduct(curProduct);
+        }else{
+          // Product truly not found
+          document.getElementById('prodName').textContent='Product not found';
+          document.getElementById('breadProd').textContent='Not found';
+          const backBtn=document.createElement('a');
+          backBtn.href='products.html';backBtn.className='btn btn-dark';backBtn.textContent='← Back to Shop';
+          document.querySelector('.product-main')?.prepend(backBtn);
+        }
+      }).catch(()=>{});
+    // Show fallback while loading
+    p=PRODS['arc-desk'];
+  }
+
+  if(!p) return;
   curProduct={...p, id};
   document.getElementById('prodName').textContent=p.name;
   document.getElementById('breadProd').textContent=p.name;

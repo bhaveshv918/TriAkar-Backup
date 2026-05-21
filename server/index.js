@@ -16,7 +16,8 @@ import cartRoutes     from './routes/cart.js';
 import adminRoutes    from './routes/admin.js';
 import inquiryRoutes  from './routes/inquiries.js';
 import addressRoutes  from './routes/addresses.js';
-import notifyRoutes   from './routes/notify.js';
+import notifyRoutes      from './routes/notify.js';
+import categoryRoutes    from './routes/categories.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 /* ── ENV VALIDATION (fail fast on missing secrets) ────────── */
@@ -158,6 +159,8 @@ const notifyLimiter = rateLimit({
 app.use('/api/notify', notifyLimiter);
 
 /* ── 5. BODY PARSING (size-limited) ───────────────────────── */
+// Image upload routes allow up to 15 MB (multipart handled by multer, not express.json)
+// All other JSON routes stay at 10 kb for security
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
@@ -178,6 +181,9 @@ app.use('/api/admin',      adminRoutes);
 app.use('/api/inquiries',  inquiryRoutes);
 app.use('/api/addresses',  addressRoutes);
 app.use('/api/notify',     notifyRoutes);
+app.use('/api/categories', categoryRoutes);
+
+/* /api/profile — see server/routes/auth.js handlers; also accessible at /api/auth/profile */
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', brand: 'TriAkar' }));
 
