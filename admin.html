@@ -1006,9 +1006,9 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     <div class="tbl-wrap">
       <table>
         <thead><tr>
-          <th style="width:50px"></th><th>Product</th><th>Category</th><th>Price</th><th>Badge</th><th>Status</th><th>Actions</th>
+          <th style="width:50px"></th><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Badge</th><th>Status</th><th>Actions</th>
         </tr></thead>
-        <tbody id="productsBody"><tr><td colspan="7" class="tbl-msg">Loading products…</td></tr></tbody>
+        <tbody id="productsBody"><tr><td colspan="8" class="tbl-msg">Loading products…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1939,23 +1939,52 @@ async function loadProducts(){
 
 function renderProductsTable(){
   const tbody=document.getElementById('productsBody');
-  if(!_products.length){tbody.innerHTML='<tr><td colspan="7" class="tbl-msg">No products yet. Add one above.</td></tr>';return}
+  if(!_products.length){tbody.innerHTML='<tr><td colspan="8" class="tbl-msg">No products yet. Add one above.</td></tr>';return}
   tbody.innerHTML=_products.map(p=>{
     const img=p.images&&p.images[0]?'<div class="td-img"><img src="'+p.images[0]+'" loading="lazy"></div>':'<div class="td-img" style="display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--text-3)">—</div>';
     const badgeHtml=p.badge?'<span class="badge badge-accent">'+p.badge+'</span>':'<span style="color:var(--text-3)">—</span>';
     const priceHtml=p.discount_type?'<span style="text-decoration:line-through;color:var(--text-3);font-size:11px">'+fmtPrice(p.price)+'</span> <span style="color:var(--green)">'+fmtPrice(getDiscountedPrice(p))+'</span>':fmtPrice(p.price);
     const safe=p.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    const qty=p.stock_qty??0;
+    const stockColor=qty===0?'var(--red)':qty<=5?'var(--yellow)':'var(--green)';
+    const stockCell='<td style="text-align:center">'
+      +'<div style="display:flex;align-items:center;gap:6px;justify-content:center">'
+      +'<input type="number" min="0" value="'+qty+'" data-id="'+p.id+'" '
+      +'style="width:58px;padding:4px 6px;background:var(--bg-2);border:1px solid var(--border);'
+      +'border-radius:4px;color:'+stockColor+';font-family:var(--mono);font-size:12px;font-weight:600;text-align:center" '
+      +'onkeydown="if(event.key===\'Enter\')this.blur()" '
+      +'onblur="updateProductStock(this)">'
+      +'<span style="font-size:9px;color:'+stockColor+';font-weight:600">'+(qty===0?'OUT':qty<=5?'LOW':'')+'</span>'
+      +'</div></td>';
     return '<tr>'
       +'<td>'+img+'</td>'
       +'<td class="td-name">'+p.name+'<div style="font-family:var(--mono);font-size:10px;color:var(--text-3);margin-top:2px">/'+p.slug+'</div></td>'
       +'<td><span class="badge badge-cat">'+p.category+'</span></td>'
       +'<td>'+priceHtml+'</td>'
+      +stockCell
       +'<td>'+badgeHtml+'</td>'
       +'<td><span class="dot '+(p.is_active?'dot-green':'dot-red')+'"></span>'+(p.is_active?'Active':'Hidden')+'</td>'
       +'<td><button class="btn-sm" onclick="openProductForm(\''+p.id+'\')" style="margin-right:4px">Edit</button>'
       +'<button class="btn-danger" onclick="deleteProduct(\''+p.id+'\',\''+safe+'\')">Del</button></td>'
       +'</tr>';
   }).join('');
+}
+
+async function updateProductStock(inp){
+  const id=inp.dataset.id;
+  const qty=parseInt(inp.value);
+  if(isNaN(qty)||qty<0){inp.value=0;return}
+  const{error}=await sb.from('products').update({stock_qty:qty}).eq('id',id);
+  if(error){toast('Stock update failed: '+error.message,'error');return}
+  // Update local state
+  const p=_products.find(x=>x.id===id);
+  if(p)p.stock_qty=qty;
+  // Re-colour the input
+  const c=qty===0?'var(--red)':qty<=5?'var(--yellow)':'var(--green)';
+  inp.style.color=c;
+  const lbl=inp.nextElementSibling;
+  if(lbl){lbl.style.color=c;lbl.textContent=qty===0?'OUT':qty<=5?'LOW':'';}
+  toast('Stock updated','success');
 }
 
 function getDiscountedPrice(p){
