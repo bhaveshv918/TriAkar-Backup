@@ -166,12 +166,18 @@
         <span id="breadProd">Product</span>
       </div>
       <h1 class="detail-name" id="prodName">Loading...</h1>
+      <!-- Urgency banner — filled by renderProduct -->
+      <div id="prodUrgency" style="display:none;margin-bottom:10px;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;letter-spacing:.03em"></div>
       <div class="price-row">
         <span class="detail-price" id="prodPrice">₹0</span>
         <span class="detail-mrp" id="prodMrp"></span>
         <span class="detail-off" id="prodOff"></span>
       </div>
       <p class="detail-desc" id="prodDesc"></p>
+      <!-- Bullet points — filled by renderProduct -->
+      <ul id="prodBullets" style="display:none;margin:10px 0 0;padding-left:0;list-style:none"></ul>
+      <!-- Long description — filled by renderProduct -->
+      <p id="prodLongDesc" style="display:none;font-size:13px;color:var(--warm,#666);line-height:1.8;margin-top:12px"></p>
 
       <!-- TRUST ICONS — Amazon style (FIX annotation PDF p7) -->
       <div class="trust-strip-product">
@@ -278,55 +284,56 @@ const THUMB_SVGS = {
 let qty=1, selVariant='', curProduct=null, selOption=null, selColour='', curPrice=0;
 
 function init(){
-  // Support both ?slug=arc-desk (new) and ?id=arc-desk (legacy) — both point to the same key
   const params=new URLSearchParams(window.location.search);
   const id=params.get('slug')||params.get('id')||'arc-desk';
 
-  // 1. Try PRODS local map first (instant)
-  let p=PRODS[id];
-
-  // 2. If not in local map — show placeholder and fetch from API
-  if(!p){
-    // Try to fetch from API by slug
-    const API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
-    fetch(API+'/api/products/'+encodeURIComponent(id))
-      .then(r=>r.ok?r.json():null)
-      .then(data=>{
-        if(data&&data.product){
-          const ap=data.product;
-          const mapped={
-            name:ap.name,price:ap.price,badge:ap.badge||'',
-            desc:ap.short_description||ap.description||'',
-            variants:(ap.available_colors||[]),
-            specs:[['Material',ap.material||'PLA+'],['Production',(ap.production_days||3)+' to '+(ap.production_days?ap.production_days+1:4)+' business days']],
-            views:['#D4D0C8','#BEBAB0','#C8C4BC','#E2DED8'],
-            images:ap.images||[],
-            is_customizable:ap.is_customizable,
-            long_description:ap.long_description||ap.description||'',
-            bullet_points:Array.isArray(ap.bullet_points)?ap.bullet_points:[],
-          };
-          PRODS[id]=mapped;
-          curProduct={...mapped,id};
-          renderProduct(curProduct);
-        }else{
-          // Product truly not found
-          document.getElementById('prodName').textContent='Product not found';
-          document.getElementById('breadProd').textContent='Not found';
-          const backBtn=document.createElement('a');
-          backBtn.href='products.html';backBtn.className='btn btn-dark';backBtn.textContent='← Back to Shop';
-          document.querySelector('.product-main')?.prepend(backBtn);
-        }
-      }).catch(()=>{
-        document.getElementById('prodName').textContent='Product not found';
-        document.getElementById('breadProd').textContent='Not found';
-      });
-    // Show loading state while API responds — do NOT fall back to arc-desk
+  // Show local data instantly if available (skeleton render)
+  const local=PRODS[id];
+  if(local) renderProduct(local, id);
+  else {
     document.getElementById('prodName').textContent='Loading…';
     document.getElementById('breadProd').textContent='Loading…';
-    return; // renderProduct() will be called from API callback above
   }
 
-  renderProduct(p, id);
+  // ALWAYS fetch from API — gets latest admin-updated data (badge, urgency, bullets etc.)
+  const API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
+  fetch(API+'/api/products/'+encodeURIComponent(id))
+    .then(r=>r.ok?r.json():null)
+    .then(data=>{
+      if(data&&data.product){
+        const ap=data.product;
+        const mapped={
+          name:         ap.name,
+          price:        ap.price,
+          badge:        ap.badge||'',
+          desc:         ap.short_description||ap.description||'',
+          long_description: ap.long_description||'',
+          bullet_points:Array.isArray(ap.bullet_points)?ap.bullet_points:[],
+          display_mode: ap.description_display_mode||'all',
+          urgency_type: ap.urgency_type||'',
+          urgency_text: ap.urgency_text||'',
+          variants:     ap.available_colors||[],
+          specs:[
+            ['Material', ap.material||'PLA+'],
+            ['Production', (ap.production_days||3)+' to '+((ap.production_days||3)+1)+' business days'],
+          ],
+          views:  ['#D4D0C8','#BEBAB0','#C8C4BC','#E2DED8'],
+          images: ap.images||[],
+          is_customizable: ap.is_customizable,
+          stock_qty: ap.stock_qty,
+        };
+        PRODS[id]=mapped;
+        curProduct={...mapped,id};
+        renderProduct(curProduct, id);
+      } else if(!local){
+        document.getElementById('prodName').textContent='Product not found';
+        document.getElementById('breadProd').textContent='Not found';
+        const backBtn=document.createElement('a');
+        backBtn.href='products.html';backBtn.className='btn btn-dark';backBtn.textContent='← Back to Shop';
+        document.querySelector('.product-main')?.prepend(backBtn);
+      }
+    })
+    .catch(()=>{/* keep local skeleton if API fails */});
 }
 
 function renderProduct(p, id){
@@ -336,10 +343,58 @@ function renderProduct(p, id){
   window._prodId=id;
   document.getElementById('prodName').textContent=p.name;
   document.getElementById('breadProd').textContent=p.name;
-  document.getElementById('prodDesc').textContent=p.desc||p.description||'';
+
+  // ── Urgency banner ─────────────────────────────
+  const urgEl=document.getElementById('prodUrgency');
+  if(urgEl){
+    if(p.urgency_type&&p.urgency_text){
+      const colors={limited_time:'background:#FEF3C7;color:#92400E;border:1px solid #FDE68A',last_month:'background:#FEE2E2;color:#991B1B;border:1px solid #FCA5A5',discontinuing:'background:#F3F4F6;color:#374151;border:1px solid #D1D5DB',custom:'background:#EFF6FF;color:#1E40AF;border:1px solid #BFDBFE'};
+      const style=colors[p.urgency_type]||colors.custom;
+      const icons={limited_time:'⏳ ',last_month:'🔥 ',discontinuing:'⚠️ ',custom:'ℹ️ '};
+      urgEl.style.cssText='display:block;margin-bottom:10px;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;letter-spacing:.03em;'+style;
+      urgEl.textContent=(icons[p.urgency_type]||'')+p.urgency_text;
+    } else {
+      urgEl.style.display='none';
+    }
+  }
+
+  // ── Short description ──────────────────────────
+  const mode=p.display_mode||'all';
+  const showShort=(mode==='all'||mode==='short_long'||mode==='card');
+  const showBullets=(mode==='all'||mode==='bullets');
+  const showLong=(mode==='all'||mode==='short_long'||mode==='detail');
+  const shortText=p.desc||p.description||'';
+  document.getElementById('prodDesc').textContent=showShort?shortText:'';
+  document.getElementById('prodDesc').style.display=showShort&&shortText?'':'none';
+
+  // ── Bullet points ──────────────────────────────
+  const bullEl=document.getElementById('prodBullets');
+  if(bullEl){
+    const bullets=Array.isArray(p.bullet_points)?p.bullet_points.filter(b=>b&&b.trim()):[];
+    if(showBullets&&bullets.length){
+      bullEl.style.display='';
+      bullEl.innerHTML=bullets.map(b=>`<li style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;font-size:13px;color:var(--charcoal,#1a1a1a);line-height:1.6"><span style="color:var(--accent,#C4622A);font-size:14px;flex-shrink:0">✓</span>${b}</li>`).join('');
+    } else {
+      bullEl.style.display='none';
+    }
+  }
+
+  // ── Long description ───────────────────────────
+  const longEl=document.getElementById('prodLongDesc');
+  if(longEl){
+    const longText=p.long_description||'';
+    if(showLong&&longText&&longText!==shortText){
+      longEl.style.display='';
+      longEl.textContent=longText;
+    } else {
+      longEl.style.display='none';
+    }
+  }
+
   // badge
   const badge=document.getElementById('prodBadge');
   if(p.badge){badge.style.display='';badge.textContent=p.badge;badge.className='img-badge '+(p.badge==='Bestseller'?'badge-best':'badge-new')}
+  else{badge.style.display='none';}
   // variants
   const extra=document.getElementById('variantExtraWrap');
   if(p.priceVariants){
