@@ -15,6 +15,16 @@ function getSB(){
 /* ── Safe GA4 analytics helper ──────────────────────────── */
 function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof window.gtag==='function'){ window.gtag('event', name, params||{}); } }catch(_){} }
 
+/* ── Scroll-to-top button ────────────────────────────────── */
+(function(){
+  const btn=document.createElement('button');
+  btn.className='scroll-top';btn.setAttribute('aria-label','Back to top');
+  btn.innerHTML='<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11V3M3 7l4-4 4 4"/></svg>';
+  document.body.appendChild(btn);
+  window.addEventListener('scroll',()=>btn.classList.toggle('show',window.scrollY>300),{passive:true});
+  btn.addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
+})();
+
 /* ── Nav scroll + mobile drawer ─────────────────────────── */
 (function(){
   const nav=document.querySelector('.main-nav');
@@ -340,7 +350,7 @@ function buildCheckoutHTML(){
         </div>
         <div class="ck-field"><label>Landmark</label><input type="text" id="ckLandmark" placeholder="Near..."></div>
         <div class="ck-row">
-          <div class="ck-field" style="flex:1"><label>PIN Code *</label><input type="text" id="ckPincode" maxlength="6" pattern="[0-9]{6}" placeholder="6 digits"></div>
+          <div class="ck-field" style="flex:1"><label>PIN Code *</label><input type="text" id="ckPincode" maxlength="6" pattern="[0-9]{6}" placeholder="6 digits"><span id="ckPincodeErr" style="display:block;font-size:11px;color:#B91C1C;margin-top:4px;min-height:0;line-height:1.4"></span></div>
           <div class="ck-field" style="flex:1"><label>City *</label><input type="text" id="ckCity" placeholder="City"></div>
         </div>
         <div class="ck-row">
@@ -368,6 +378,9 @@ function buildCheckoutHTML(){
     <!-- STEP 3: Payment -->
     <div class="ck-step" data-step="3">
       <h3 style="font-size:17px;font-weight:700;margin-bottom:16px">Payment Method</h3>
+      <div style="font-size:11px;color:var(--warm);background:rgba(196,98,42,.07);border:1px solid rgba(196,98,42,.2);padding:9px 13px;border-radius:4px;margin-bottom:14px;line-height:1.5">
+        ⚠ We do not accept Cash on Delivery. All products are made to order — prepayment required.
+      </div>
       <div class="ck-radio-group" id="ckPaymentGroup">
         <label class="ck-radio selected"><input type="radio" name="ckPay" value="online" checked><div><div class="ck-radio-label">Pay Online</div><div class="ck-radio-desc">UPI, Cards, NetBanking, Wallets via Razorpay</div></div></label>
         <label class="ck-radio"><input type="radio" name="ckPay" value="whatsapp"><div><div class="ck-radio-label">Order via WhatsApp</div><div class="ck-radio-desc">We'll confirm your order and share payment details on WhatsApp</div></div></label>
@@ -581,15 +594,30 @@ function getCheckoutData(){
   };
 }
 
-function validateAndNext(){
+async function validateAndNext(){
   const d=getCheckoutData();
-  // Only validate the address-form fields when the customer is entering a NEW address.
-  // A chosen saved address already carries a verified phone + full address.
   if(!window._selectedAddress){
     const phoneInp=document.getElementById('ckPhone');
     if(phoneInp&&phoneInp._validatePhone&&!phoneInp._validatePhone())return;
     if(!d.address_line1||!d.city||!d.state||!d.pincode){alert('Please fill all required address fields.');return;}
     if(!/^\d{6}$/.test(d.pincode)){alert('Please enter a valid 6-digit PIN code.');return;}
+    // Pincode ↔ State validation
+    const pinfo=await lookupPincode(d.pincode);
+    if(!pinfo){
+      const pinErr=document.getElementById('ckPincodeErr');
+      if(pinErr)pinErr.textContent='Invalid PIN code — not found in India Post records.';
+      document.getElementById('ckPincode')?.focus();
+      return;
+    }
+    const normalize=s=>(s||'').toLowerCase().replace(/[\s\-]/g,'');
+    if(normalize(pinfo.state)!==normalize(d.state)){
+      const pinErr=document.getElementById('ckPincodeErr');
+      if(pinErr)pinErr.textContent='PIN code does not match the selected state ('+pinfo.state+'). Please check.';
+      document.getElementById('ckPincode')?.focus();
+      return;
+    }
+    const pinErr=document.getElementById('ckPincodeErr');
+    if(pinErr)pinErr.textContent='';
   }
   if(!d.name||!d.phone){alert('A delivery name and phone number are required.');return;}
   if(!d.address_line1||!d.city||!d.state||!d.pincode){alert('Please choose or enter a delivery address.');return;}
@@ -1108,7 +1136,7 @@ function updateNavAuth(){
       wrap.innerHTML=`
         <button class="nav-profile-btn" id="navProfileBtn">Hi, ${displayName} ▾</button>
         <div class="nav-profile-dropdown">
-          <a href="account.html">My Account</a>
+          <a href="account.html#profile">My Account</a>
           <a href="account.html#orders">My Orders</a>
           <button class="nav-logout-btn" id="navLogoutBtn">Logout</button>
         </div>`;
