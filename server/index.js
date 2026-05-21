@@ -33,6 +33,8 @@ if (missingVars.length > 0) {
   process.exit(1);
 }
 console.log('All environment variables verified.');
+// Optional (not required to boot): NODE_ENV, PORT, RENDER_EXTERNAL_URL,
+// RESEND_API_KEY, CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -188,3 +190,18 @@ app.use((_req, res) => {
 app.use(errorHandler);
 
 app.listen(PORT, () => console.log(`TriAkar server running on port ${PORT}`));
+
+/* ── KEEPALIVE — prevents Render free tier from sleeping ──── */
+// Optional env var: RENDER_EXTERNAL_URL (Render sets this automatically;
+// falls back to the known production URL). Not required for boot.
+if (process.env.NODE_ENV === 'production') {
+  const RENDER_URL = process.env.RENDER_EXTERNAL_URL || 'https://triakar.onrender.com';
+
+  setInterval(() => {
+    fetch(RENDER_URL + '/health')
+      .then(() => console.log('Keepalive ping sent'))
+      .catch(err => console.log('Keepalive failed:', err.message));
+  }, 14 * 60 * 1000); // ping every 14 minutes (before the 15-min sleep)
+
+  console.log('Keepalive scheduler started');
+}
