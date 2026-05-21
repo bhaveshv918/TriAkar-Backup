@@ -34,7 +34,21 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
   btn.innerHTML='<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11V3M3 7l4-4 4 4"/></svg>';
   document.body.appendChild(btn);
   window.addEventListener('scroll',()=>btn.classList.toggle('show',window.scrollY>300),{passive:true});
-  btn.addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
+
+  // Fast eased scroll — 320ms ease-out (much snappier than native smooth)
+  btn.addEventListener('click',function(){
+    const start=window.scrollY;
+    const startTime=performance.now();
+    const duration=Math.min(320, Math.max(160, start*0.18)); // scales with distance
+    function easeOut(t){return 1-(1-t)*(1-t);}
+    function step(now){
+      const elapsed=now-startTime;
+      const progress=Math.min(elapsed/duration,1);
+      window.scrollTo(0, start*(1-easeOut(progress)));
+      if(progress<1)requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  });
 })();
 
 /* ── Nav scroll + mobile drawer ─────────────────────────── */
