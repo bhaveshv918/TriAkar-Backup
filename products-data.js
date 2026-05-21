@@ -1,3 +1,12 @@
+// NOTE: This file is the LOCAL FALLBACK only.
+// Source of truth for the live site = Supabase DB (products table).
+// To add products to the live site:
+//   Option 1: Use the admin panel at /admin.html (Products tab)
+//   Option 2: Add the product here, then click
+//             "Import products from local data" in the admin Products tab
+// Products listed here show INSTANTLY on page load, while the live
+// Supabase data loads in the background and replaces them when ready.
+//
 // To add a real product photo:
 // 1. Upload photo to Cloudinary dashboard
 // 2. Copy the public ID shown after upload

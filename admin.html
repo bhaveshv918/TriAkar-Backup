@@ -826,6 +826,8 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="p-title">Products</div>
       <div class="p-actions">
         <button class="btn-primary" onclick="openProductForm()">+ Add Product</button>
+        <button class="btn-secondary" onclick="importLocalProducts()">Import products from local data</button>
+        <span id="importStatus" style="margin-left:10px;font-size:12px;color:var(--text-2)"></span>
       </div>
     </div>
 
@@ -1054,6 +1056,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<script src="/products-data.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════
    TRIĀKAR ADMIN v2 — JavaScript
@@ -1834,6 +1837,35 @@ async function deleteProduct(id,name){
   const{error}=await sb.from('products').delete().eq('id',id);
   if(error){toast('Error: '+error.message,'error');return}
   loadProducts();toast('Product deleted','success');
+}
+
+// ── One-time import: push local products-data.js catalog into Supabase ──
+async function importLocalProducts(){
+  if(typeof PRODUCTS==='undefined'){ toast('products-data.js not loaded','error'); return; }
+  const API = (location.hostname==='localhost') ? 'http://localhost:3000' : 'https://triakar.onrender.com';
+  const { data: sess } = await sb.auth.getSession();
+  const token = sess && sess.session && sess.session.access_token;
+  if(!token){ toast('Not authenticated','error'); return; }
+  const entries = Object.entries(PRODUCTS);
+  const statusEl = document.getElementById('importStatus');
+  let done=0, failed=0;
+  for(let i=0;i<entries.length;i++){
+    const [slug,p]=entries[i];
+    statusEl.textContent='Syncing '+(i+1)+' of '+entries.length+'...';
+    const body={
+      slug:slug, name:p.name, description:p.description||'', price:p.price||0,
+      category:p.category||'gifting', stock_qty:99,
+      images: (p.cloudinaryId? [ 'https://res.cloudinary.com/dtpibsruo/image/upload/q_auto,f_auto,w_600,h_600,c_fill/'+p.cloudinaryId ] : (p.image? [p.image] : [])),
+      is_customizable: !!p.customizable, is_active:true
+    };
+    try{
+      const res=await fetch(API+'/api/products/upsert',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+      if(res.ok) done++; else failed++;
+    }catch(e){ failed++; }
+  }
+  statusEl.textContent = done+' products synced to database'+(failed?(' ('+failed+' failed)'):'');
+  toast(done+' products synced'+(failed?(', '+failed+' failed'):''), failed?'error':'success');
+  if(typeof loadProducts==='function') loadProducts();
 }
 
 // ── Image Upload ───────────────────────────────────────────
