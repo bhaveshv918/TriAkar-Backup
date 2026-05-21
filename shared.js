@@ -1,5 +1,17 @@
 /* TRIAKAR shared.js v7 — Full Order Flow + Supabase */
 
+/* ── Auto-load address-autocomplete.js if not already present ── */
+(function(){
+  if(typeof window.AddressAC!=='undefined')return;
+  const s=document.createElement('script');
+  // derive base path relative to this script tag
+  const scripts=[...document.querySelectorAll('script[src]')];
+  const self=scripts.find(sc=>sc.src.includes('shared.js'));
+  const base=self?self.src.replace(/shared\.js.*/,''):(window.location.origin+'/');
+  s.src=base+'js/address-autocomplete.js';
+  document.head.appendChild(s);
+})();
+
 /* ── Supabase Client ───────────────────────────────────── */
 const SUPABASE_URL='https://qarjbmogersuaerkhlcu.supabase.co';
 const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
@@ -466,6 +478,22 @@ function initCheckoutModal(){
             }
           }
         }
+      }
+    });
+  }
+
+  // Address autocomplete (map search) for the modal form
+  const ckAddressForm=document.getElementById('ckAddressForm');
+  if(ckAddressForm&&typeof AddressAC!=='undefined'){
+    AddressAC.init({
+      container: ckAddressForm,
+      fields:{
+        line1:   'ckAddr1',
+        line2:   'ckAddr2',
+        city:    'ckCity',
+        district:'ckDistrict',
+        state:   'ckState',
+        pincode: 'ckPincode',
       }
     });
   }
