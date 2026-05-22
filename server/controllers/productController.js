@@ -82,10 +82,23 @@ export async function upsertProduct(req, res, next) {
       available_materials:     Array.isArray(b.available_materials) ? b.available_materials : [],
       production_days:         b.production_days ? Number(b.production_days) : 3,
       notes:                   b.notes || null,
-      tags:                    Array.isArray(b.tags) ? b.tags : [],
+      // tags — accept string (comma-sep) or array
+      tags:                    Array.isArray(b.tags) ? b.tags.join(', ') : (b.tags || null),
       sku:                     b.sku || null,
       meta_title:              b.meta_title || null,
       meta_description:        b.meta_description || null,
+      // Excel / product listing fields
+      designer:                b.designer || null,
+      stock_status:            b.stock_status || 'Made to Order',
+      key_features:            b.key_features || null,
+      customization_options:   b.customization_options || null,
+      dimensions:              b.dimensions || null,
+      target_audience:         b.target_audience || null,
+      use_case:                b.use_case || null,
+      variants:                Array.isArray(b.variants) ? b.variants : [],
+      customization_fields:    Array.isArray(b.customization_fields) ? b.customization_fields : [],
+      product_dropdowns:       Array.isArray(b.product_dropdowns) ? b.product_dropdowns : [],
+      colors:                  Array.isArray(b.colors) ? b.colors : [],
     };
     const { data, error } = await supabase
       .from('products')

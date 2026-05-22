@@ -2473,23 +2473,36 @@ async function replaceAllFromExcel(){
       if(softErr)throw softErr;
     }
 
-    // ── 4. Insert all 10 new products (upsert by slug handles re-runs) ────
+    // ── 4. Insert all 10 new products via server API (bypasses RLS) ─────
+    statusEl.textContent='Getting auth token…';
+    const {data:sessData}=await sb.auth.getSession();
+    const token=sessData?.session?.access_token;
+    if(!token){toast('Not authenticated — please log in again','error');return;}
+
+    const API=(location.hostname==='localhost')?'http://localhost:3000':'https://triakar.onrender.com';
     statusEl.textContent='Inserting 10 new products…';
     let added=0,failed=0,errors=[];
 
     for(let i=0;i<_EXCEL_PRODUCTS.length;i++){
       const p=_EXCEL_PRODUCTS[i];
       statusEl.textContent='Inserting '+(i+1)+'/'+_EXCEL_PRODUCTS.length+': '+p.name+'…';
-      const {error:insErr}=await sb.from('products').upsert({
-        ...p,
-        images:[],variants:[],customization_fields:[],product_dropdowns:[],
-        bullet_points:[],colors:[],
-        description_display_mode:'all',
-        stock_qty:0,
-        long_description:p.description,
-      },{onConflict:'slug'});
-      if(insErr){failed++;errors.push(p.name+': '+insErr.message);}
-      else added++;
+      try{
+        const res=await fetch(API+'/api/products/upsert',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+          body:JSON.stringify({
+            ...p,
+            images:[],variants:[],customization_fields:[],product_dropdowns:[],
+            bullet_points:[],colors:[],
+            description_display_mode:'all',
+            stock_qty:0,
+            long_description:p.description,
+          })
+        });
+        const json=await res.json().catch(()=>({}));
+        if(res.ok&&json.ok){added++;}
+        else{failed++;errors.push(p.name+': '+(json.error||res.status));}
+      }catch(e){failed++;errors.push(p.name+': '+e.message);}
     }
 
     // ── 5. Done ───────────────────────────────────────────────────────────
