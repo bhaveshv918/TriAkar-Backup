@@ -18,19 +18,22 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg"><link rel="shortcut icon" href="favicon.svg">
 <link rel="stylesheet" href="shared.css">
 <style>
-.detail-layout{display:grid;grid-template-columns:1fr 1fr;gap:0;background:var(--stone-p)}
+.detail-layout{display:grid;grid-template-columns:52fr 48fr;gap:0}
+.detail-left{display:flex;flex-direction:column;background:#fff}
 
-/* IMAGE GALLERY (FIX #1) */
-.detail-gallery{background:var(--white);position:sticky;top:calc(var(--notice-h)+var(--nav-h));align-self:start}
-.main-img-wrap{aspect-ratio:1;background:var(--ivory);display:flex;align-items:center;justify-content:center;padding:52px;overflow:hidden;cursor:zoom-in;position:relative}
-.main-img-wrap svg{width:72%;transition:transform .4s cubic-bezier(.22,1,.36,1)}
-.main-img-wrap:hover svg{transform:scale(1.08)}
-.img-badge{position:absolute;top:16px;left:16px;font-size:9px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;padding:4px 10px}
-.thumb-row{display:flex;gap:1px;background:var(--stone-p)}
-.thumb{flex:1;aspect-ratio:1;background:var(--white);display:flex;align-items:center;justify-content:center;padding:12px;cursor:pointer;transition:background .2s;border-bottom:2px solid transparent}
-.thumb.active{border-bottom-color:var(--accent);background:#F8F5EE}
-.thumb:hover{background:#F8F5EE}
-.thumb svg{width:70%}
+/* IMAGE GALLERY — Amazon style: vertical thumbs left + big image right */
+.detail-gallery{background:#fff}
+.gallery-sticky{position:sticky;top:calc(var(--notice-h)+var(--nav-h));display:flex;flex-direction:row;gap:10px;padding:16px 16px 16px 20px;user-select:none}
+.thumb-col{display:flex;flex-direction:column;gap:6px;width:64px;flex-shrink:0}
+.thumb{width:64px;height:64px;border-radius:8px;overflow:hidden;background:var(--ivory);cursor:pointer;flex-shrink:0;border:2px solid transparent;transition:border-color .2s,opacity .2s;display:flex;align-items:center;justify-content:center}
+.thumb.active{border-color:var(--accent)}
+.thumb:hover{opacity:.8}
+.thumb svg{width:80%;height:80%}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.main-img-box{flex:1;background:#fff;border-radius:14px;overflow:hidden;min-height:460px;display:flex;align-items:center;justify-content:center;padding:28px;box-sizing:border-box}
+.main-img-box svg{width:72%;max-width:340px;transition:transform .4s cubic-bezier(.22,1,.36,1)}
+.main-img-box:hover svg{transform:scale(1.05)}
+.main-img-box img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;-webkit-user-drag:none;border-radius:6px}
 
 /* INFO PANEL */
 .detail-info{background:var(--white);padding:44px 40px}
@@ -80,6 +83,7 @@
 .acc-body-inner{padding-bottom:16px;font-size:13px;color:var(--warm);line-height:1.8;font-weight:300}
 
 .detail-discount{font-size:15px;font-weight:800;color:#2D8A4E}
+.prod-tag{display:inline-block;font-size:9px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;padding:5px 12px;border-radius:4px;background:var(--accent);color:#fff;margin-bottom:10px;line-height:1}
 .dispatch-note{background:#f0fdf4;border-left:3px solid #2D8A4E;font-size:12px;padding:10px 14px;border-radius:6px;margin-bottom:16px;color:#166534}
 .key-features-list{list-style:none;padding:0;margin:16px 0 0}
 .key-features-list li{font-size:13px;color:var(--warm);line-height:1.6;padding:3px 0 3px 22px;position:relative}
@@ -118,7 +122,7 @@
 
 @media(max-width:1100px){
   .detail-layout{grid-template-columns:1fr}
-  .detail-gallery{position:relative;top:0}
+  .gallery-sticky{position:relative;top:0}
   .related-grid{grid-template-columns:repeat(2,1fr)}
   .trust-strip-product{grid-template-columns:1fr}
 }
@@ -127,6 +131,9 @@
   .detail-actions{grid-template-columns:1fr}
   .related-grid{grid-template-columns:1fr}
   .trust-strip-product{grid-template-columns:1fr}
+  .gallery-sticky{flex-direction:column}
+  .thumb-col{flex-direction:row;width:auto;height:64px}
+  .thumb{width:56px;height:56px}
 }
 </style>
 </head>
@@ -155,20 +162,23 @@
 
 <div class="">
   <div class="detail-layout">
-    <!-- GALLERY -->
-    <div class="detail-gallery">
-      <div class="main-img-wrap" id="mainImg">
-        <span class="img-badge badge-best" id="prodBadge" style="display:none"></span>
-        <svg id="mainSvg" viewBox="0 0 300 300" fill="none">
-          <rect x="35" y="55" width="230" height="190" rx="3" fill="#D4D0C8" stroke="#B8B4AA" stroke-width="1.5"/>
-          <rect x="65" y="12" width="70" height="160" rx="2" fill="#BEBAB0" stroke="#A8A49C" stroke-width="1.5"/>
-          <rect x="160" y="36" width="70" height="138" rx="2" fill="#C8C4BC" stroke="#B0ACA4" stroke-width="1.5"/>
-        </svg>
+    <!-- LEFT COLUMN: gallery + dropdowns -->
+    <div class="detail-left">
+      <div class="detail-gallery" oncontextmenu="return false">
+        <div class="gallery-sticky">
+          <div class="thumb-col" id="thumbRow"></div>
+          <div class="main-img-box" id="mainImg">
+            <svg id="mainSvg" viewBox="0 0 300 300" fill="none">
+              <rect x="35" y="55" width="230" height="190" rx="3" fill="#D4D0C8" stroke="#B8B4AA" stroke-width="1.5"/>
+              <rect x="65" y="12" width="70" height="160" rx="2" fill="#BEBAB0" stroke="#A8A49C" stroke-width="1.5"/>
+              <rect x="160" y="36" width="70" height="138" rx="2" fill="#C8C4BC" stroke="#B0ACA4" stroke-width="1.5"/>
+            </svg>
+          </div>
+        </div>
       </div>
-      <div class="thumb-row" id="thumbRow"></div>
-    </div>
-    <div class="gallery-dropdowns" id="galleryDropdowns">
-      <!-- Dropdowns rendered by renderDropdowns(p) -->
+      <div class="gallery-dropdowns" id="galleryDropdowns">
+        <!-- Dropdowns rendered by renderDropdowns(p) -->
+      </div>
     </div>
 
     <!-- INFO -->
@@ -303,12 +313,9 @@ function init(){
   // discount %
   const discEl=document.getElementById('prodDiscount');
   if(discEl){if(p.discount_pct){discEl.textContent=p.discount_pct+'% off';discEl.style.display='';}else{discEl.style.display='none';}}
-  // prod-tag
+  // prod-tag (pill above title — shows badge or tag)
   const tagEl=document.getElementById('prodTag');
-  if(tagEl){if(p.tag){tagEl.textContent=p.tag;tagEl.style.display='';}else{tagEl.style.display='none';}}
-  // badge
-  const badge=document.getElementById('prodBadge');
-  if(p.badge){badge.style.display='';badge.textContent=p.badge;badge.className='img-badge '+(p.badge==='Bestseller'?'badge-best':'badge-new')}
+  if(tagEl){const label=p.badge||p.tag;if(label){tagEl.textContent=label;tagEl.style.display='';}else{tagEl.style.display='none';}}
   // variants
   selVariant=p.variants[0];
   document.getElementById('variantLabel').textContent=id.includes('loop')||id.includes('bookmark')?'Pack Size':'Colour';
@@ -338,9 +345,14 @@ function changeQty(d){qty=Math.max(1,qty+d);document.getElementById('qtyNum').te
 function switchImg(thumb,bg,svg){
   document.querySelectorAll('.thumb').forEach(t=>t.classList.remove('active'));
   thumb.classList.add('active');
-  const wrap=document.getElementById('mainImg');
-  wrap.style.background=bg;
-  document.getElementById('mainSvg').innerHTML=svg;
+  const box=document.getElementById('mainImg');
+  if(box){box.style.background=bg||'#fff';box.innerHTML='<svg id="mainSvg" viewBox="0 0 200 200" fill="none" style="width:72%;max-width:340px;transition:transform .4s cubic-bezier(.22,1,.36,1)">'+svg+'</svg>';}
+}
+function switchImgUrl(thumb,src){
+  document.querySelectorAll('.thumb').forEach(t=>t.classList.remove('active'));
+  thumb.classList.add('active');
+  const box=document.getElementById('mainImg');
+  if(box){box.style.background='#fff';box.innerHTML='<img src="'+src+'" alt="" draggable="false" style="width:100%;height:100%;object-fit:contain;display:block;">';}
 }
 function addToCartFromDetail(){Cart.add({id:window._prodId,name:curProduct.name,price:curProduct.price,color:selVariant});openCart()}
 function buyNow(){Cart.add({id:window._prodId,name:curProduct.name,price:curProduct.price,color:selVariant});checkout()}
