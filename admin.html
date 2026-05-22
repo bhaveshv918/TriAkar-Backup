@@ -848,6 +848,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="p-actions">
         <button class="btn-primary" onclick="openProductForm()">+ Add Product</button>
         <button class="btn-secondary" onclick="importLocalProducts()">Import NEW products only (safe — won't overwrite)</button>
+        <button class="btn-secondary" style="border-color:#B91C1C;color:#B91C1C" onclick="replaceAllFromExcel()">⚠ Replace All &amp; Import from Excel</button>
         <span id="importStatus" style="margin-left:10px;font-size:12px;color:var(--text-2)"></span>
       </div>
     </div>
@@ -863,6 +864,16 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
         <div class="ff"><label>Slug * <span class="hint">(auto)</span></label><input type="text" id="fSlug" placeholder="arc-desk-organizer"></div>
         <div class="ff"><label>Category *</label><select id="fCategory"><option value="">Select…</option></select></div>
         <div class="ff"><label>Material</label><input type="text" id="fMaterial" placeholder="PLA+" value="PLA+"></div>
+        <div class="ff"><label>SKU / Product ID</label><input type="text" id="fSku" placeholder="TRK-001"></div>
+        <div class="ff"><label>Designer / Creator</label><input type="text" id="fDesigner" placeholder="MakerWorld username or creator name"></div>
+        <div class="ff"><label>Stock Status</label>
+          <select id="fStockStatus">
+            <option value="Made to Order">Made to Order</option>
+            <option value="In Stock">In Stock</option>
+            <option value="Out of Stock">Out of Stock</option>
+            <option value="Coming Soon">Coming Soon</option>
+          </select>
+        </div>
       </div>
 
       <!-- Pricing & Discount -->
@@ -958,6 +969,30 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
             <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="radio" name="fDisplayMode" value="both"> Short + Long</label>
             <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="radio" name="fDisplayMode" value="all" checked> All (recommended)</label>
           </div>
+        </div>
+      </div>
+
+      <!-- Product Details (from listings) -->
+      <div class="form-section">Product Details</div>
+
+      <div class="fg fg-full">
+        <div class="ff">
+          <label>Key Features <span class="hint">(bullet-point style — one per line)</span></label>
+          <textarea id="fKeyFeatures" rows="4" placeholder="• Customizable text on four sides&#10;• Compatible with multi-color printing&#10;• Lightweight and durable"></textarea>
+        </div>
+      </div>
+      <div class="fg">
+        <div class="ff"><label>Customization Options</label><input type="text" id="fCustomizationOptions" placeholder="Name / text, color, size"></div>
+        <div class="ff"><label>Dimensions / Size</label><input type="text" id="fDimensions" placeholder="~116–160mm x 155–160mm"></div>
+      </div>
+      <div class="fg">
+        <div class="ff"><label>Target Audience</label><input type="text" id="fTargetAudience" placeholder="All ages, gift buyers"></div>
+        <div class="ff"><label>Use Case / Occasion</label><input type="text" id="fUseCase" placeholder="Birthdays, gifts, personal use"></div>
+      </div>
+      <div class="fg fg-full">
+        <div class="ff">
+          <label>Tags / Keywords <span class="hint">(comma-separated)</span></label>
+          <input type="text" id="fTags" placeholder="keychain, custom keychain, personalized, gift">
         </div>
       </div>
 
@@ -2055,9 +2090,18 @@ function openProductForm(id){
     document.getElementById('fBestseller').checked=!!p.is_bestseller;
     document.getElementById('fFeatured').checked=!!p.is_featured;
     document.getElementById('fActive').checked=p.is_active!==false;
+    document.getElementById('fSku').value=p.sku||'';
+    document.getElementById('fDesigner').value=p.designer||'';
+    document.getElementById('fStockStatus').value=p.stock_status||'Made to Order';
     document.getElementById('fDescription').value=p.description||'';
     document.getElementById('fShortDesc').value=p.short_description||'';
     document.getElementById('fShortDescCount').textContent=(p.short_description||'').length;
+    document.getElementById('fKeyFeatures').value=p.key_features||'';
+    document.getElementById('fCustomizationOptions').value=p.customization_options||'';
+    document.getElementById('fDimensions').value=p.dimensions||'';
+    document.getElementById('fTargetAudience').value=p.target_audience||'';
+    document.getElementById('fUseCase').value=p.use_case||'';
+    document.getElementById('fTags').value=p.tags||'';
     document.getElementById('fNotes').value=p.notes||'';
     document.getElementById('fCustomizable').checked=!!p.is_customizable;
     // Display mode
@@ -2074,7 +2118,10 @@ function openProductForm(id){
   }else{
     document.getElementById('formTitle').textContent='Add Product';
     document.getElementById('editingId').value='';
-    ['fName','fSlug','fPrice','fDiscountValue','fDescription','fShortDesc','fNotes','fUrgencyText'].forEach(id=>document.getElementById(id).value='');
+    ['fName','fSlug','fPrice','fDiscountValue','fDescription','fShortDesc','fNotes','fUrgencyText',
+     'fSku','fDesigner','fKeyFeatures','fCustomizationOptions','fDimensions','fTargetAudience','fUseCase','fTags'
+    ].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('fStockStatus').value='Made to Order';
     document.getElementById('fShortDescCount').textContent='0';
     const defDm=document.querySelector('input[name="fDisplayMode"][value="all"]');
     if(defDm)defDm.checked=true;
@@ -2145,6 +2192,9 @@ async function submitProductForm(){
   const productData={
     name,slug,price:Number(price),category,
     material:document.getElementById('fMaterial').value.trim()||'PLA+',
+    sku:document.getElementById('fSku').value.trim()||null,
+    designer:document.getElementById('fDesigner').value.trim()||null,
+    stock_status:document.getElementById('fStockStatus').value||'Made to Order',
     discount_type:document.getElementById('fDiscountType').value||null,
     discount_value:Number(document.getElementById('fDiscountValue').value)||0,
     badge:document.getElementById('fBadge').value||null,
@@ -2159,6 +2209,12 @@ async function submitProductForm(){
     long_description:document.getElementById('fDescription').value.trim()||null,
     bullet_points:_bulletPoints.filter(b=>b.trim()),
     description_display_mode:(document.querySelector('input[name="fDisplayMode"]:checked')||{}).value||'all',
+    key_features:document.getElementById('fKeyFeatures').value.trim()||null,
+    customization_options:document.getElementById('fCustomizationOptions').value.trim()||null,
+    dimensions:document.getElementById('fDimensions').value.trim()||null,
+    target_audience:document.getElementById('fTargetAudience').value.trim()||null,
+    use_case:document.getElementById('fUseCase').value.trim()||null,
+    tags:document.getElementById('fTags').value.trim()||null,
     notes:document.getElementById('fNotes').value.trim()||null,
     images:_uploadedImages,
     variants:_variants,
@@ -2241,6 +2297,189 @@ async function importLocalProducts(){
   statusEl.textContent=added+' added · '+skipped+' skipped'+(failed?' · '+failed+' errors':'');
   toast(report, failed?'error':'success');
   if(typeof loadProducts==='function') loadProducts();
+}
+
+// ── Replace All & Import from Excel ───────────────────────
+const _EXCEL_PRODUCTS = [
+  {
+    name:'Custom Keychain',slug:'custom-keychain',
+    category:'Keychains & Accessories',
+    short_description:'Fully customizable 3D-printed keychain with personalized name or text on four sides.',
+    description:'A customizable keychain designed for personalization with a name or custom text. The design is editable via Tinkercad and can be exported as STL for printing. Compatible with multi-color AMS printing.',
+    key_features:'• Customizable text on four sides\n• Compatible with AMS (multi-color) and single-color printing\n• Editable via Tinkercad\n• Compact and lightweight',
+    customization_options:'Name / text, color',
+    dimensions:'',target_audience:'All ages, gift buyers',use_case:'Birthdays, gifts, personal use',
+    tags:'keychain, custom keychain, name keychain, personalized, gift',
+    designer:'',sku:'TRK-001',price:999,stock_status:'Made to Order',
+    is_customizable:true,is_active:true,material:'PLA+',
+    notes:'Customized via Tinkercad link; export STL before printing'
+  },
+  {
+    name:'Map My Memories – Create Custom Maps',slug:'map-my-memories',
+    category:'Home Décor / Wall Art',
+    short_description:'Interactive tool to turn real map locations into 3D-printable custom map tiles or wall art.',
+    description:'Map My Memories lets customers create meaningful, printable maps of places that matter most — where they grew up, traveled, or met someone special. Uses real street map data to generate 3D-printable map tiles fully compatible with AMS. The tool talks to six global map servers for fast reliability.',
+    key_features:'• Real street map data used for generation\n• Export in .3MF format (AMS compatible)\n• Choose any location in the world\n• Ideal for wall art or personalized gifts\n• Six-server global reliability upgrade',
+    customization_options:'Location, shape (rectangle/circle/polygon), area size',
+    dimensions:'Customizable per area selected',target_audience:'Home decorators, travel lovers, couples',
+    use_case:'Anniversaries, housewarming, wedding gifts',
+    tags:'map, custom map, 3D map, wall art, personalized map, city map, travel gift',
+    designer:'ozarkexpeditions',sku:'TRK-002',price:999,stock_status:'Made to Order',
+    is_customizable:true,is_active:true,material:'PLA+',
+    notes:'Commercial use requires MakerWorld/Patreon subscription'
+  },
+  {
+    name:'Easy to Personalize Puzzle – 100pcs Set',slug:'personalize-puzzle-100pcs',
+    category:'Puzzles & Games',
+    short_description:'100-piece customizable 3D-printed puzzle set with frame and display stand, personalized using HueForge.',
+    description:'A fully customizable 100-piece puzzle set that includes a frame and a display stand. Assembly time ranges from 30 minutes to 2 hours depending on skill level. Requires HueForge software for image customization. The puzzle dimensions are set in HueForge (Width: 116–160, Height: 155–160) and the model is then exported for printing.',
+    key_features:'• 100-piece puzzle with frame and display stand\n• Personalized with any image via HueForge\n• Assembly time: 30 min – 2 hrs\n• Includes PDF instructions\n• Great for display after completion',
+    customization_options:'Custom image/photo (via HueForge software), colors',
+    dimensions:'~116–160mm x 155–160mm',target_audience:'All ages, families, gift buyers',
+    use_case:'Birthdays, Christmas, family gifts',
+    tags:'puzzle, custom puzzle, personalized puzzle, photo puzzle, 100 piece, gift, HueForge',
+    designer:'Tansky',sku:'TRK-003',price:999,stock_status:'Made to Order',
+    is_customizable:true,is_active:true,material:'PLA+',
+    notes:'Requires HueForge software for image upload and customization'
+  },
+  {
+    name:'Custom QR Code Luggage / Bag Tag',slug:'custom-qr-luggage-tag',
+    category:'Travel Accessories',
+    short_description:'Parametric 3D-printed luggage tag with a custom QR code for easy bag identification during travel.',
+    description:'A parametric script-based luggage tag with a fully custom QR code. The QR code can be linked to contact info, a website, or any action. Extensive customization options include tag size (Small, Medium, Large, QR Only), text lines, QR code content, text alignment, and SVG graphics. Ideal for identifying luggage and recovering lost baggage.',
+    key_features:'• Custom QR code embedded in tag\n• 4 tag size options: Small, Medium, Large, QR Only\n• Text lines with on/off toggle\n• Supports SVG graphics\n• Tag size, thickness and QR options fully adjustable',
+    customization_options:'QR code content (URL/contact), tag size, text lines, font, graphics',
+    dimensions:'Small / Medium / Large / QR Only (selectable)',target_audience:'Travelers, frequent flyers, students',
+    use_case:'Travel, gifting, personal use',
+    tags:'luggage tag, bag tag, QR code, travel, personalized, custom tag',
+    designer:'vlycser',sku:'TRK-004',price:999,stock_status:'Made to Order',
+    is_customizable:true,is_active:true,material:'PLA+',
+    notes:'Commercial selling requires creator\'s MakerWorld membership/license'
+  },
+  {
+    name:'Sweeping 2-Line Name Plate – Customizable',slug:'sweeping-nameplate-2line',
+    category:'Desk Décor / Name Plates',
+    short_description:'A circular sweeping desktop nameplate with 2 customizable text lines — names, quotes, or any text.',
+    description:'A distinctive desktop nameplate that sweeps text around in a circle. Supports two lines of text. Over 600 pre-made first names available as STL files. Fully customizable with any text or name via the MakerWorld customizer or OpenSCAD. Supports emoji, logos (Bilibili, TikTok), and multiple fonts including Hebrew. Regularly updated with new features.',
+    key_features:'• Circular sweeping text design\n• 600+ pre-made first names as STL\n• Supports 2 text lines\n• Emoji and social logo support\n• Multiple font options\n• OpenSCAD / MakerWorld customizer compatible',
+    customization_options:'Name / text (2 lines), font, emoji, special characters, alignment',
+    dimensions:'Approx. circular base; compact desktop size',target_audience:'Professionals, students, gift buyers',
+    use_case:'Office gifts, birthdays, back-to-school, desk setup',
+    tags:'nameplate, desk sign, name plate, customizable, sweeping, office, desk décor, gift',
+    designer:'Makkuro',sku:'TRK-005',price:999,stock_status:'Made to Order',
+    is_customizable:true,is_active:true,material:'PLA+',
+    notes:'600+ pre-made STL names available; custom names via MakerWorld customizer'
+  },
+  {
+    name:'Custom Chess Set',slug:'custom-chess-set',
+    category:'Games & Toys',
+    short_description:'A fully customizable 3D-printed chess set with personalized pieces, board design, and color options.',
+    description:'A custom-designed 3D-printable chess set allowing personalization of piece styles, colors, and board elements. Ideal for chess enthusiasts and gift buyers who want a unique handcrafted-feel set. All 32 pieces printable, with multi-color AMS compatibility for two-tone pieces.',
+    key_features:'• Full chess set: 32 pieces\n• Multi-color printing compatible\n• Customizable piece style and color\n• Great gift for chess players\n• Printable without supports (design dependent)',
+    customization_options:'Piece color, board color, style',
+    dimensions:'Standard chess piece proportions',target_audience:'Chess enthusiasts, game lovers, gift buyers',
+    use_case:'Birthdays, Christmas, game nights',
+    tags:'chess, chess set, custom chess, board game, 3D printed chess, gift',
+    designer:'',sku:'TRK-006',price:999,stock_status:'Made to Order',
+    is_customizable:true,is_active:true,material:'PLA+',notes:''
+  },
+  {
+    name:'Fully Customizable Name Keychain – Adjustable Shape',slug:'name-keychain-adjustable',
+    category:'Keychains & Accessories',
+    short_description:'Parametric name keychain with adjustable shape, font, color, and keyring position.',
+    description:'A fully parametric name keychain built in OpenSCAD. Supports first and last name, individual size adjustment per name, custom positioning, multiple colors, and adjustable thickness. The layout auto-adapts to name length. Ideal for multi-color printing with strong contrast and a solid base for durability. Perfect for school bags, sports gear, work keys, and gifts.',
+    key_features:'• First + last name support\n• Adjustable size per name\n• Custom positioning (stacked, centered, offset)\n• Multiple color options\n• Adjustable thickness\n• Auto-adapts layout to name length',
+    customization_options:'Name text, font, color, shape, tab/ring position, size',
+    dimensions:'Adjustable (parametric)',target_audience:'All ages, students, gift buyers',
+    use_case:'Birthdays, back-to-school, personal use',
+    tags:'keychain, name keychain, custom keychain, personalized, adjustable, gift, bag tag',
+    designer:'',sku:'TRK-007',price:999,stock_status:'Made to Order',
+    is_customizable:true,is_active:true,material:'PLA+',notes:''
+  },
+  {
+    name:'Personalized 3D Map',slug:'personalized-3d-map',
+    category:'Home Décor / Wall Art',
+    short_description:'Convert any real-world map area into a 3D-printable model using the Map2Model tool.',
+    description:'Built on the Map2Model web tool, this model lets customers generate a 3D-printable mesh of any real map area — a city center, neighborhood, or landmark. Models are exported in .3MF format, fully compatible with AMS multi-color printing. Ideal for wall art, gifts, or architectural models. The tool supports rectangle, circle, and polygon selection on any location.',
+    key_features:'• Convert any map area into a 3D print\n• .3MF export — AMS compatible\n• Rectangle, circle, or polygon selection\n• Real street/terrain data\n• Suitable for wall display or gifts',
+    customization_options:'Location (any worldwide), area shape, size',
+    dimensions:'Customizable based on selected area',target_audience:'Home decorators, travel enthusiasts, architecture lovers',
+    use_case:'Housewarming, anniversaries, travel memories',
+    tags:'3D map, personalized map, map art, city map, wall art, topographic, custom map',
+    designer:'',sku:'TRK-008',price:999,stock_status:'Made to Order',
+    is_customizable:true,is_active:true,material:'PLA+',
+    notes:'Uses Map2Model (map2model.com) for mesh generation'
+  },
+  {
+    name:'Layered Initial and Name Sign',slug:'layered-initial-name-sign',
+    category:'Home Décor / Personalized Signs',
+    short_description:'Elegant layered decorative sign with a large serif initial letter and a script-style name on top.',
+    description:'A layered decorative name sign combining a large serif initial letter with a script-style name placed on top. Clean, elegant, and easy to print. Designed for nursery rooms, kids\' bedrooms, gifts, birthdays, or custom home decoration. Supports compound names (e.g. \'Emma Rose\') with v4.0 update. No AMS required, no glue required (optional). 600+ pre-made names available.',
+    key_features:'• Large serif initial + script name layered design\n• No AMS required\n• No glue needed (optional dots)\n• Compound name support (v4.0+)\n• 600+ pre-made names available\n• Parametric Model Maker compatible',
+    customization_options:'Name text, initial letter, font, size, color',
+    dimensions:'Varies by name length; wall-mount ready',target_audience:'Parents, home decorators, gift buyers',
+    use_case:'Baby showers, birthdays, nursery setup, home décor',
+    tags:'name sign, initial sign, layered sign, nursery decor, kids room, personalized, wall art, gift',
+    designer:'JCGil',sku:'TRK-009',price:999,stock_status:'Made to Order',
+    is_customizable:true,is_active:true,material:'PLA+',
+    notes:'Request custom name in comments or use Parametric Model Maker for instant generation'
+  },
+  {
+    name:'Customizable Office Desk Nameplate',slug:'office-desk-nameplate',
+    category:'Desk Décor / Office Accessories',
+    short_description:'Professional 2-color 3D-printed office desk nameplate, fully customizable text via Bambu Studio.',
+    description:'A professional desk nameplate designed for office use. Prints in two colors with a color change at layer 26, eliminating filament waste. Fully customizable text (name, title, or logo) directly in Bambu Studio. The holder has a rail that detaches on impact to prevent breakage. Assembly is simple — slide the nameplate onto the holder\'s rail. Optional glue for extra rigidity.',
+    key_features:'• 2-color print with smart color change at layer 26\n• Zero filament waste design\n• Text customizable directly in Bambu Studio\n• Snap-release rail holder (impact-safe)\n• Company logo addition possible (1mm height)\n• Simple slide assembly',
+    customization_options:'Name, title, logo (1mm height limit), colors',
+    dimensions:'Standard desk nameplate size',target_audience:'Professionals, office workers, corporate gifts',
+    use_case:'Office setup, corporate gifting, promotions',
+    tags:'nameplate, desk nameplate, office, name plate, customizable, professional, Bambu Studio, desk décor',
+    designer:'Kal3Do',sku:'TRK-010',price:999,stock_status:'Made to Order',
+    is_customizable:true,is_active:true,material:'PLA+',
+    notes:'Logos must be 1mm height; use glue for extra rail rigidity if needed'
+  }
+];
+
+async function replaceAllFromExcel(){
+  if(!confirm('⚠ WARNING: This will DELETE ALL existing products and replace them with the 10 products from your Excel file.\n\nThis cannot be undone. Are you sure?'))return;
+  if(!confirm('Second confirmation: DELETE all products and import 10 new ones?'))return;
+
+  const statusEl=document.getElementById('importStatus');
+  statusEl.textContent='Deleting all existing products…';
+
+  try{
+    // 1. Delete all existing products
+    const {error:delErr}=await sb.from('products').delete().neq('id','00000000-0000-0000-0000-000000000000');
+    if(delErr)throw delErr;
+
+    statusEl.textContent='Inserting 10 new products…';
+
+    // 2. Insert all 10 new products
+    let added=0,failed=0,errors=[];
+    for(let i=0;i<_EXCEL_PRODUCTS.length;i++){
+      const p=_EXCEL_PRODUCTS[i];
+      statusEl.textContent='Inserting '+(i+1)+'/'+_EXCEL_PRODUCTS.length+': '+p.name+'…';
+      const {error:insErr}=await sb.from('products').insert({
+        ...p,
+        images:[],variants:[],customization_fields:[],product_dropdowns:[],
+        bullet_points:[],colors:[],
+        description_display_mode:'all',
+        stock_qty:0,
+        long_description:p.description,
+      });
+      if(insErr){failed++;errors.push(p.slug+': '+insErr.message);}
+      else added++;
+    }
+
+    const msg=added+' products imported'+( failed?' · '+failed+' errors':'');
+    statusEl.textContent=msg;
+    if(errors.length)console.error('Import errors:',errors);
+    toast('Done! '+msg, failed?'error':'success');
+    loadProducts();
+  }catch(err){
+    statusEl.textContent='Error: '+err.message;
+    toast('Import failed: '+err.message,'error');
+  }
 }
 
 // ── Image Upload ───────────────────────────────────────────

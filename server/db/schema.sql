@@ -59,20 +59,75 @@ CREATE POLICY "Users manage own addresses" ON user_addresses FOR ALL USING (auth
 -- 4. PRODUCTS
 -- ════════════════════════════════════════════════════════════════════════
 CREATE TABLE products (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name            TEXT NOT NULL,
-  slug            TEXT NOT NULL UNIQUE,
-  description     TEXT,
-  price           NUMERIC(10,2) NOT NULL,
-  category        TEXT NOT NULL,
-  stock_qty       INTEGER NOT NULL DEFAULT 0,
-  images          TEXT[] DEFAULT '{}',
-  is_customizable BOOLEAN DEFAULT false,
-  is_active       BOOLEAN DEFAULT true,
-  created_at      TIMESTAMPTZ DEFAULT now()
+  id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name                     TEXT NOT NULL,
+  slug                     TEXT NOT NULL UNIQUE,
+  description              TEXT,
+  short_description        TEXT,
+  long_description         TEXT,
+  price                    NUMERIC(10,2) NOT NULL,
+  category                 TEXT NOT NULL,
+  material                 TEXT DEFAULT 'PLA+',
+  sku                      TEXT,
+  designer                 TEXT,
+  stock_qty                INTEGER NOT NULL DEFAULT 0,
+  stock_status             TEXT DEFAULT 'Made to Order',
+  images                   TEXT[] DEFAULT '{}',
+  is_customizable          BOOLEAN DEFAULT false,
+  is_active                BOOLEAN DEFAULT true,
+  is_bestseller            BOOLEAN DEFAULT false,
+  is_featured              BOOLEAN DEFAULT false,
+  badge                    TEXT,
+  urgency_type             TEXT,
+  urgency_text             TEXT,
+  bullet_points            JSONB DEFAULT '[]',
+  key_features             TEXT,
+  customization_options    TEXT,
+  customization_fields     JSONB DEFAULT '[]',
+  dimensions               TEXT,
+  target_audience          TEXT,
+  use_case                 TEXT,
+  tags                     TEXT,
+  discount_type            TEXT,
+  discount_value           NUMERIC(10,2) DEFAULT 0,
+  description_display_mode TEXT DEFAULT 'all',
+  notes                    TEXT,
+  variants                 JSONB DEFAULT '[]',
+  product_dropdowns        JSONB DEFAULT '[]',
+  colors                   TEXT[] DEFAULT '{}',
+  created_at               TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone reads active products" ON products FOR SELECT USING (is_active = true);
+
+-- Migration helper: add new columns to an existing products table without full re-create.
+-- Run these in Supabase SQL Editor if the table already exists:
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS short_description TEXT;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS long_description TEXT;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS material TEXT DEFAULT 'PLA+';
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS sku TEXT;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS designer TEXT;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_status TEXT DEFAULT 'Made to Order';
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS is_bestseller BOOLEAN DEFAULT false;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT false;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS badge TEXT;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS urgency_type TEXT;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS urgency_text TEXT;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS bullet_points JSONB DEFAULT '[]';
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS key_features TEXT;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS customization_options TEXT;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS customization_fields JSONB DEFAULT '[]';
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS dimensions TEXT;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS target_audience TEXT;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS use_case TEXT;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS tags TEXT;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_type TEXT;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_value NUMERIC(10,2) DEFAULT 0;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS description_display_mode TEXT DEFAULT 'all';
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS notes TEXT;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS variants JSONB DEFAULT '[]';
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS product_dropdowns JSONB DEFAULT '[]';
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS colors TEXT[] DEFAULT '{}';
 
 -- ════════════════════════════════════════════════════════════════════════
 -- 5. ORDERS
