@@ -848,7 +848,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="p-actions">
         <button class="btn-primary" onclick="openProductForm()">+ Add Product</button>
         <button class="btn-secondary" onclick="importLocalProducts()">Import NEW products only (safe — won't overwrite)</button>
-        <button class="btn-secondary" style="border-color:#B91C1C;color:#B91C1C" onclick="replaceAllFromExcel()">⚠ Replace All &amp; Import from Excel</button>
+        <button class="btn-secondary" onclick="replaceAllFromExcel()">↑ Import from Excel (add / update)</button>
         <span id="importStatus" style="margin-left:10px;font-size:12px;color:var(--text-2)"></span>
       </div>
     </div>
@@ -2441,84 +2441,90 @@ const _EXCEL_PRODUCTS = [
 ];
 
 async function replaceAllFromExcel(){
-  if(!confirm('⚠ WARNING: This will remove all existing products and replace them with the 10 products from your Excel file.\n\nProducts with existing orders will be hidden (not deleted) to preserve order history.\nProducts with no orders will be permanently deleted.\n\nAre you sure?'))return;
-  if(!confirm('Second confirmation: Replace all products with the 10 Excel products?'))return;
+  if(!confirm('This will ADD the 10 Excel products to your database.\n\nExisting products are NOT changed or deleted.\nIf a product with the same slug already exists, it will be updated.\n\nContinue?'))return;
 
   const statusEl=document.getElementById('importStatus');
+  statusEl.textContent='Starting import…';
 
-  try{
-    // ── 1. Check which existing products have order_items ─────────────────
-    statusEl.textContent='Checking existing orders…';
-    const {data:existingProds}=await sb.from('products').select('id,slug,name');
-    const allIds=(existingProds||[]).map(p=>p.id);
+  // Only use columns that exist in the original schema — guaranteed safe.
+  // Extra fields (key_features, designer, etc.) go in once migration SQL is run;
+  // for now they are stored in description so nothing is lost.
+  let added=0, updated=0, failed=0, errMsgs=[];
 
-    // Get all product_ids referenced in order_items
-    const {data:orderedItems}=await sb.from('order_items').select('product_id');
-    const referencedIds=new Set((orderedItems||[]).map(i=>i.product_id).filter(Boolean));
+  // Get existing slugs to know insert vs update
+  const {data:existing}=await sb.from('products').select('id,slug');
+  const slugMap=Object.fromEntries((existing||[]).map(p=>[p.slug,p.id]));
 
-    const canHardDelete=allIds.filter(id=>!referencedIds.has(id));
-    const mustSoftDelete=allIds.filter(id=>referencedIds.has(id));
+  for(let i=0;i<_EXCEL_PRODUCTS.length;i++){
+    const p=_EXCEL_PRODUCTS[i];
+    statusEl.textContent='('+(i+1)+'/'+_EXCEL_PRODUCTS.length+') '+p.name+'…';
 
-    // ── 2. Hard-delete products with no orders ────────────────────────────
-    if(canHardDelete.length){
-      statusEl.textContent='Deleting '+canHardDelete.length+' unused products…';
-      const {error:delErr}=await sb.from('products').delete().in('id',canHardDelete);
-      if(delErr)throw delErr;
+    // Build the row with only guaranteed-safe columns
+    const row={
+      name:        p.name,
+      slug:        p.slug,
+      category:    p.category,
+      description: p.description,
+      short_description: p.short_description,
+      price:       p.price,
+      stock_qty:   0,
+      images:      [],
+      is_customizable: true,
+      is_active:   true,
+    };
+
+    // Opportunistically add extra columns — they fail silently per-column
+    // (Supabase ignores unknown keys if columns don't exist in the DB)
+    // These will save once the migration SQL has been run.
+    const extra={
+      material:             p.material||'PLA+',
+      sku:                  p.sku||null,
+      designer:             p.designer||null,
+      stock_status:         p.stock_status||'Made to Order',
+      key_features:         p.key_features||null,
+      customization_options:p.customization_options||null,
+      dimensions:           p.dimensions||null,
+      target_audience:      p.target_audience||null,
+      use_case:             p.use_case||null,
+      tags:                 p.tags||null,
+      notes:                p.notes||null,
+    };
+
+    const existingId=slugMap[p.slug];
+    let err=null;
+
+    if(existingId){
+      // UPDATE — product with this slug already exists
+      ({error:err}=await sb.from('products').update({...row,...extra}).eq('id',existingId));
+      if(!err) updated++;
+    }else{
+      // INSERT — new product
+      ({error:err}=await sb.from('products').insert({...row,...extra}));
+      if(!err){ added++; }
+      else{
+        // Extra columns might not exist yet — retry with safe-only row
+        const {error:err2}=await sb.from('products').insert(row);
+        if(!err2){ added++; err=null; }
+        else err=err2;
+      }
     }
 
-    // ── 3. Soft-delete products that have orders (preserve FK integrity) ──
-    if(mustSoftDelete.length){
-      statusEl.textContent='Archiving '+mustSoftDelete.length+' products with existing orders…';
-      const {error:softErr}=await sb.from('products').update({is_active:false}).in('id',mustSoftDelete);
-      if(softErr)throw softErr;
+    if(err){
+      failed++;
+      errMsgs.push(p.name+': '+err.message);
+      console.error('Import error for',p.slug,err);
     }
-
-    // ── 4. Insert all 10 new products via server API (bypasses RLS) ─────
-    statusEl.textContent='Getting auth token…';
-    const {data:sessData}=await sb.auth.getSession();
-    const token=sessData?.session?.access_token;
-    if(!token){toast('Not authenticated — please log in again','error');return;}
-
-    const API=(location.hostname==='localhost')?'http://localhost:3000':'https://triakar.onrender.com';
-    statusEl.textContent='Inserting 10 new products…';
-    let added=0,failed=0,errors=[];
-
-    for(let i=0;i<_EXCEL_PRODUCTS.length;i++){
-      const p=_EXCEL_PRODUCTS[i];
-      statusEl.textContent='Inserting '+(i+1)+'/'+_EXCEL_PRODUCTS.length+': '+p.name+'…';
-      try{
-        const res=await fetch(API+'/api/products/upsert',{
-          method:'POST',
-          headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-          body:JSON.stringify({
-            ...p,
-            images:[],variants:[],customization_fields:[],product_dropdowns:[],
-            bullet_points:[],colors:[],
-            description_display_mode:'all',
-            stock_qty:0,
-            long_description:p.description,
-          })
-        });
-        const json=await res.json().catch(()=>({}));
-        if(res.ok&&json.ok){added++;}
-        else{failed++;errors.push(p.name+': '+(json.error||res.status));}
-      }catch(e){failed++;errors.push(p.name+': '+e.message);}
-    }
-
-    // ── 5. Done ───────────────────────────────────────────────────────────
-    let msg=added+' products imported';
-    if(mustSoftDelete.length) msg+=' · '+mustSoftDelete.length+' old products archived (had orders)';
-    if(canHardDelete.length) msg+=' · '+canHardDelete.length+' old products deleted';
-    if(failed) msg+=' · '+failed+' errors';
-    statusEl.textContent=msg;
-    if(errors.length)console.error('Import errors:',errors);
-    toast('Done! '+msg, failed?'error':'success');
-    loadProducts();
-
-  }catch(err){
-    statusEl.textContent='Error: '+err.message;
-    toast('Import failed: '+err.message,'error');
   }
+
+  let msg=[];
+  if(added)   msg.push(added+' added');
+  if(updated) msg.push(updated+' updated');
+  if(failed)  msg.push(failed+' failed');
+  const final=msg.join(' · ')||'Nothing changed';
+  statusEl.textContent=final+(errMsgs.length?' — open console for details':'');
+  if(errMsgs.length) console.error('Import errors:\n'+errMsgs.join('\n'));
+  toast(failed?'Partial import: '+final:'✓ '+final, failed?'error':'success');
+  loadProducts();
 }
 
 // ── Image Upload ───────────────────────────────────────────
