@@ -245,28 +245,38 @@ function generateTRKId(){
 }
 
 /* ══ PINCODE AUTO-FILL ════════════════════════════════════ */
-// api.postalpincode.in is an unofficial, unreliable API — it incorrectly rejects many
-// valid Indian pincodes (e.g. 201306 Greater Noida). We use it ONLY for best-effort
-// city/state auto-fill. We NEVER block the user based on its response.
-// Returns: {city,district,state}  — auto-fill data available
-//          {unavailable:true}      — API failure or pincode not in its DB (both treated the same)
+// Uses Nominatim (OpenStreetMap) — free, no API key, works for ALL Indian pincodes.
+// api.postalpincode.in was unreliable and often completely down, so replaced entirely.
+// Returns: {city,district,state}  — data available
+//          {unavailable:true}      — network error / no result (never blocks user)
 async function lookupPincode(pin){
   if(!/^\d{6}$/.test(pin))return{unavailable:true};
   try{
     const ctrl=new AbortController();
-    const t=setTimeout(()=>ctrl.abort(),4000); // 4s timeout
-    const res=await fetch('https://api.postalpincode.in/pincode/'+pin,{signal:ctrl.signal});
+    const t=setTimeout(()=>ctrl.abort(),5000);
+    const res=await fetch(
+      'https://nominatim.openstreetmap.org/search?q='+pin+'&countrycodes=in&format=jsonv2&addressdetails=1&limit=1',
+      {signal:ctrl.signal,headers:{'Accept-Language':'en'}}
+    );
     clearTimeout(t);
     const data=await res.json();
-    if(data&&data[0]&&data[0].Status==='Success'&&data[0].PostOffice&&data[0].PostOffice.length){
-      const po=data[0].PostOffice[0];
-      return{city:po.Block||po.Division||po.Taluk||po.Name,district:po.District,state:po.State};
-    }
-    // Any non-Success response — treat as unavailable, not as "invalid pincode"
-    return{unavailable:true};
+    if(!data||!data[0])return{unavailable:true};
+    const a=data[0].address||{};
+    const state=_normaliseState(a.state||a.state_district||'');
+    if(!state)return{unavailable:true};
+    const district=a.county||a.city_district||a.state_district||'';
+    const city=a.city||a.town||a.village||district||'';
+    return{city,district,state};
   }catch(e){
     return{unavailable:true};
   }
+}
+
+// State name normaliser (reused from address-autocomplete.js logic)
+function _normaliseState(raw){
+  if(!raw)return'';
+  const map={'andhra pradesh':'Andhra Pradesh','arunachal pradesh':'Arunachal Pradesh','assam':'Assam','bihar':'Bihar','chhattisgarh':'Chhattisgarh','goa':'Goa','gujarat':'Gujarat','haryana':'Haryana','himachal pradesh':'Himachal Pradesh','jharkhand':'Jharkhand','karnataka':'Karnataka','kerala':'Kerala','madhya pradesh':'Madhya Pradesh','maharashtra':'Maharashtra','manipur':'Manipur','meghalaya':'Meghalaya','mizoram':'Mizoram','nagaland':'Nagaland','odisha':'Odisha','orissa':'Odisha','punjab':'Punjab','rajasthan':'Rajasthan','sikkim':'Sikkim','tamil nadu':'Tamil Nadu','telangana':'Telangana','tripura':'Tripura','uttar pradesh':'Uttar Pradesh','uttarakhand':'Uttarakhand','west bengal':'West Bengal','delhi':'Delhi','national capital territory of delhi':'Delhi','new delhi':'Delhi','jammu & kashmir':'Jammu & Kashmir','jammu and kashmir':'Jammu & Kashmir','ladakh':'Ladakh','chandigarh':'Chandigarh','puducherry':'Puducherry','pondicherry':'Puducherry','goa':'Goa','lakshadweep':'Lakshadweep'};
+  return map[raw.toLowerCase().trim()]||raw;
 }
 
 /* ══ PIN CODE AUTOFILL HELPER ═════════════════════════════ */
