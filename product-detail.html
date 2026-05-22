@@ -18,8 +18,20 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg"><link rel="shortcut icon" href="favicon.svg">
 <link rel="stylesheet" href="shared.css">
 <style>
-.detail-layout{display:grid;grid-template-columns:52fr 48fr;gap:0}
-.detail-left{display:flex;flex-direction:column;background:#fff}
+.detail-layout{display:grid;grid-template-columns:52fr 48fr;gap:0;grid-template-rows:auto 1fr auto}
+.detail-gallery-col{grid-column:1;grid-row:1/3;display:flex;flex-direction:column;background:#fff}
+.detail-breadcrumb{grid-column:2;grid-row:1;display:flex;gap:8px;font-size:11px;color:var(--stone);padding:22px 40px 0;flex-wrap:wrap;align-items:center}
+.detail-breadcrumb a{color:var(--stone);transition:color .2s}
+.detail-breadcrumb a:hover{color:var(--charcoal)}
+.detail-breadcrumb span{color:var(--stone)}
+.gallery-dropdowns{grid-column:1;grid-row:3}
+/* GALLERY NAV ARROWS */
+.main-img-box{position:relative}
+.gallery-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.88);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(0,0,0,.08);width:36px;height:36px;border-radius:50%;font-size:20px;line-height:1;cursor:pointer;z-index:4;opacity:0;transition:opacity .2s,box-shadow .2s;display:flex;align-items:center;justify-content:center;color:var(--charcoal);box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.gallery-nav:hover{box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.detail-gallery:hover .gallery-nav,.main-img-box:hover .gallery-nav{opacity:1}
+.gallery-prev{left:10px}
+.gallery-next{right:10px}
 
 /* IMAGE GALLERY — Amazon style: vertical thumbs left + big image right */
 .detail-gallery{background:#fff}
@@ -34,9 +46,10 @@
 .main-img-box svg{width:72%;max-width:340px;transition:transform .4s cubic-bezier(.22,1,.36,1)}
 .main-img-box:hover svg{transform:scale(1.05)}
 .main-img-box img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;-webkit-user-drag:none;border-radius:6px}
+.main-img-inner{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
 
 /* INFO PANEL */
-.detail-info{background:var(--white);padding:44px 40px}
+.detail-info{background:var(--white);padding:44px 40px;grid-column:2;grid-row:2/4}
 .detail-breadcrumb{display:flex;gap:8px;font-size:11px;color:var(--stone);margin-bottom:20px;flex-wrap:wrap}
 .detail-breadcrumb a{color:var(--stone);transition:color .2s}
 .detail-breadcrumb a:hover{color:var(--charcoal)}
@@ -125,19 +138,29 @@
 .add-btn:hover{background:var(--accent)}
 
 @media(max-width:1100px){
-  .detail-layout{grid-template-columns:1fr}
+  .detail-layout{display:flex;flex-direction:column}
+  .detail-gallery-col{order:2}
+  .detail-breadcrumb{order:1;padding:16px var(--pad) 6px}
+  .detail-info{order:3;padding-top:20px}
+  .gallery-dropdowns{order:4;margin-left:0;margin-right:0}
   .gallery-sticky{position:relative;top:0}
   .related-grid{grid-template-columns:repeat(2,1fr)}
   .trust-strip-product{grid-template-columns:1fr}
+  .gallery-nav{display:none}
+}
+@media(max-width:767px){
+  .gallery-sticky{flex-direction:column-reverse;padding:12px}
+  .thumb-col{flex-direction:row;width:100%;height:auto;overflow-x:auto;gap:6px;padding:8px 0 4px;scrollbar-width:none}
+  .thumb-col::-webkit-scrollbar{display:none}
+  .thumb{width:60px;height:60px;flex-shrink:0}
+  .main-img-box{min-height:300px}
 }
 @media(max-width:600px){
-  .detail-info{padding:28px var(--pad)}
+  .detail-info{padding:20px var(--pad)}
+  .detail-breadcrumb{padding:12px var(--pad) 4px}
   .detail-actions{grid-template-columns:1fr}
   .related-grid{grid-template-columns:1fr}
   .trust-strip-product{grid-template-columns:1fr}
-  .gallery-sticky{flex-direction:column}
-  .thumb-col{flex-direction:row;width:auto;height:64px}
-  .thumb{width:56px;height:56px}
 }
 </style>
 </head>
@@ -166,32 +189,35 @@
 
 <div class="">
   <div class="detail-layout">
-    <!-- LEFT COLUMN: gallery + dropdowns -->
-    <div class="detail-left">
+    <!-- BREADCRUMB: direct grid child so mobile can reorder it first -->
+    <div class="detail-breadcrumb">
+      <a href="index.html">Home</a><span>›</span>
+      <a href="products.html">Products</a><span>›</span>
+      <span id="breadProd">Product</span>
+    </div>
+
+    <!-- GALLERY COLUMN: no dropdowns inside -->
+    <div class="detail-gallery-col">
       <div class="detail-gallery" oncontextmenu="return false">
         <div class="gallery-sticky">
           <div class="thumb-col" id="thumbRow"></div>
           <div class="main-img-box" id="mainImg">
-            <svg id="mainSvg" viewBox="0 0 300 300" fill="none">
-              <rect x="35" y="55" width="230" height="190" rx="3" fill="#D4D0C8" stroke="#B8B4AA" stroke-width="1.5"/>
-              <rect x="65" y="12" width="70" height="160" rx="2" fill="#BEBAB0" stroke="#A8A49C" stroke-width="1.5"/>
-              <rect x="160" y="36" width="70" height="138" rx="2" fill="#C8C4BC" stroke="#B0ACA4" stroke-width="1.5"/>
-            </svg>
+            <button class="gallery-nav gallery-prev" onclick="prevImage()" aria-label="Previous">&#8249;</button>
+            <div class="main-img-inner" id="mainImgContent">
+              <svg id="mainSvg" viewBox="0 0 300 300" fill="none">
+                <rect x="35" y="55" width="230" height="190" rx="3" fill="#D4D0C8" stroke="#B8B4AA" stroke-width="1.5"/>
+                <rect x="65" y="12" width="70" height="160" rx="2" fill="#BEBAB0" stroke="#A8A49C" stroke-width="1.5"/>
+                <rect x="160" y="36" width="70" height="138" rx="2" fill="#C8C4BC" stroke="#B0ACA4" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <button class="gallery-nav gallery-next" onclick="nextImage()" aria-label="Next">&#8250;</button>
           </div>
         </div>
       </div>
-      <div class="gallery-dropdowns" id="galleryDropdowns">
-        <!-- Dropdowns rendered by renderDropdowns(p) -->
-      </div>
     </div>
 
-    <!-- INFO -->
+    <!-- INFO: breadcrumb removed (now above) -->
     <div class="detail-info">
-      <div class="detail-breadcrumb">
-        <a href="index.html">Home</a><span>›</span>
-        <a href="products.html">Products</a><span>›</span>
-        <span id="breadProd">Product</span>
-      </div>
       <div class="prod-tag" id="prodTag" style="display:none"></div>
       <h1 class="detail-name" id="prodName">Loading...</h1>
       <div class="price-row">
@@ -210,7 +236,7 @@
         </div>
         <div class="tsp-item">
           <div class="tsp-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--accent)" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2" stroke-linecap="round"/></svg></div>
-          <div><div class="tsp-t">Printed Fresh For You</div><div class="tsp-s">Printed fresh for you</div></div>
+          <div><div class="tsp-t">Printed Fresh For You</div><div class="tsp-s">Made when you order</div></div>
         </div>
         <div class="tsp-item">
           <div class="tsp-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M2 8l4 4 8-8"/></svg></div>
@@ -242,8 +268,12 @@
 
       <div class="spec-table" id="specTable"></div>
 
-    </div>
-  </div>
+    </div><!-- /detail-info -->
+
+    <!-- DROPDOWNS: direct grid child — last on mobile via order:4 -->
+    <div class="gallery-dropdowns" id="galleryDropdowns"></div>
+
+  </div><!-- /detail-layout -->
 </div>
 
 <section class="reviews-section section" id="reviewsSection" style="background:var(--ivory)">
@@ -295,7 +325,29 @@ const THUMB_SVGS = {
   'facet-vase': ['<path d="M68 182L56 122L46 78L100 18L154 78L144 122L132 182Z" fill="#D0CCC4" stroke="#B4B0A8" stroke-width="1.5"/><path d="M56 122L144 122" stroke="#C0BCB4" stroke-width="1"/><ellipse cx="100" cy="182" rx="32" ry="7" fill="#C4C0B8"/>','<path d="M68 182L56 122L46 78L100 18L154 78L144 122L132 182Z" fill="#E4E0D8" stroke="#C8C4BC" stroke-width="1.5"/><path d="M56 122L144 122" stroke="#D4D0C8" stroke-width="1"/><ellipse cx="100" cy="182" rx="32" ry="7" fill="#D8D4CC"/>','<path d="M68 182L56 122L46 78L100 18L154 78L144 122L132 182Z" fill="#3A3830" stroke="#1A1810" stroke-width="1.5"/><path d="M56 122L144 122" stroke="#2A2820" stroke-width="1"/><ellipse cx="100" cy="182" rx="32" ry="7" fill="#2A2820"/>','<path d="M68 182L56 122L46 78L100 18L154 78L144 122L132 182Z" fill="#E2DED6" stroke="#C8C4BC" stroke-width="1" stroke-dasharray="4 3"/>'],
 };
 
-let qty=1, selVariant='', curProduct=null;
+let qty=1, selVariant='', curProduct=null, currentImgIdx=0;
+
+function prevImage(){
+  const total=(window._thumbData||[]).length;
+  if(!total)return;
+  currentImgIdx=(currentImgIdx-1+total)%total;
+  const t=document.querySelectorAll('.thumb')[currentImgIdx];
+  if(t)switchThumb(t,currentImgIdx);
+}
+function nextImage(){
+  const total=(window._thumbData||[]).length;
+  if(!total)return;
+  currentImgIdx=(currentImgIdx+1)%total;
+  const t=document.querySelectorAll('.thumb')[currentImgIdx];
+  if(t)switchThumb(t,currentImgIdx);
+}
+function initSwipe(){
+  const box=document.getElementById('mainImg');
+  if(!box)return;
+  let sx=0;
+  box.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;},{passive:true});
+  box.addEventListener('touchend',e=>{const dx=sx-e.changedTouches[0].clientX;if(Math.abs(dx)>40){dx>0?nextImage():prevImage();}});
+}
 
 function init(){
   const params=new URLSearchParams(window.location.search);
@@ -375,13 +427,13 @@ function renderProduct(ap){
   if(p.images&&p.images.length){
     window._thumbData=p.images.map(src=>({type:'url',src}));
     thumbRow.innerHTML=p.images.map((src,i)=>`<div class="thumb${i===0?' active':''}" onclick="switchThumb(this,${i})"><img src="${src}" alt="" loading="lazy"></div>`).join('');
-    if(mainBox){mainBox.style.background='#fff';mainBox.innerHTML='<img src="'+p.images[0]+'" alt="" draggable="false" style="width:100%;height:100%;object-fit:contain;display:block;">';}
+    const mainInner=document.getElementById('mainImgContent');const mainTarget=mainInner||mainBox;if(mainTarget){if(mainBox)mainBox.style.background='#fff';mainTarget.innerHTML='<img src="'+p.images[0]+'" alt="" draggable="false" style="width:100%;height:100%;object-fit:contain;display:block;">';}
   } else {
     const thumbs=THUMB_SVGS[id]||[];
     const bgs=['#F0EDE6','#EDEAE3','#161614','#F8F6F0'];
     window._thumbData=thumbs.map((svg,i)=>({type:'svg',svg,bg:bgs[i]||'#F0EDE6'}));
     thumbRow.innerHTML=thumbs.map((svg,i)=>`<div class="thumb${i===0?' active':''}" onclick="switchThumb(this,${i})"><svg viewBox="0 0 200 200" fill="none">${svg}</svg></div>`).join('');
-    if(window._thumbData.length&&mainBox){const d=window._thumbData[0];mainBox.style.background=d.bg;mainBox.innerHTML='<svg id="mainSvg" viewBox="0 0 200 200" fill="none" style="width:72%;max-width:340px">'+d.svg+'</svg>';}
+    if(window._thumbData.length){const d=window._thumbData[0];const mi=document.getElementById('mainImgContent');const mt=mi||mainBox;if(mt){if(mainBox)mainBox.style.background=d.bg;mt.innerHTML='<svg id="mainSvg" viewBox="0 0 200 200" fill="none" style="width:72%;max-width:340px">'+d.svg+'</svg>';}}
   }
   // dispatch note
   const dispEl=document.getElementById('dispatchNote');
@@ -394,22 +446,26 @@ function renderProduct(ap){
   renderDropdowns(p);
   loadReviews(id);
   loadRelated(id);
+  initSwipe();
 }
 function selectVariant(btn,v){document.querySelectorAll('.variant-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selVariant=v}
 function changeQty(d){qty=Math.max(1,qty+d);document.getElementById('qtyNum').textContent=qty}
 function switchThumb(thumb,idx){
+  currentImgIdx=idx;
   document.querySelectorAll('.thumb').forEach(t=>t.classList.remove('active'));
   thumb.classList.add('active');
   const d=(window._thumbData||[])[idx];
   if(!d)return;
   const box=document.getElementById('mainImg');
-  if(!box)return;
+  const inner=document.getElementById('mainImgContent');
+  const target=inner||box;
+  if(!target)return;
   if(d.type==='url'){
-    box.style.background='#fff';
-    box.innerHTML='<img src="'+d.src+'" alt="" draggable="false" style="width:100%;height:100%;object-fit:contain;display:block;">';
+    if(box)box.style.background='#fff';
+    target.innerHTML='<img src="'+d.src+'" alt="" draggable="false" style="width:100%;height:100%;object-fit:contain;display:block;">';
   } else {
-    box.style.background=d.bg||'#fff';
-    box.innerHTML='<svg id="mainSvg" viewBox="0 0 200 200" fill="none" style="width:72%;max-width:340px;transition:transform .4s cubic-bezier(.22,1,.36,1)">'+d.svg+'</svg>';
+    if(box)box.style.background=d.bg||'#fff';
+    target.innerHTML='<svg id="mainSvg" viewBox="0 0 200 200" fill="none" style="width:72%;max-width:340px;transition:transform .4s cubic-bezier(.22,1,.36,1)">'+d.svg+'</svg>';
   }
 }
 function switchImgUrl(thumb,src){
@@ -470,24 +526,29 @@ function loadRelated(currentSlug){
 }
 
 function loadReviews(slug){
+  const section=document.getElementById('reviewsSection');
+  const grid=document.getElementById('reviewsGrid');
+  const summary=document.getElementById('reviewsSummary');
   const API='https://triakar.onrender.com';
+  const showEmpty=()=>{
+    if(grid)grid.innerHTML='<p style="color:var(--stone);font-size:14px;grid-column:1/-1;text-align:center;padding:24px 0">No reviews yet. Be the first to share your experience!</p>';
+    if(section)section.style.display='';
+  };
   fetch(API+'/api/reviews/'+encodeURIComponent(slug))
     .then(r=>r.json())
     .then(data=>{
       const reviews=data.reviews||[];
-      const section=document.getElementById('reviewsSection');
-      if(!reviews.length){if(section)section.style.display='none';return;}
+      if(!reviews.length){showEmpty();return;}
       const avg=reviews.reduce((a,r)=>a+Number(r.rating||0),0)/reviews.length;
-      const summary=document.getElementById('reviewsSummary');
-      if(summary)summary.innerHTML='<span style="font-size:22px;font-weight:800;color:var(--charcoal)">'+avg.toFixed(1)+'</span> <span style="color:#e46a2e;font-size:16px">'+'\u2605'.repeat(Math.round(avg))+'</span> <span style="color:var(--stone);font-size:13px">('+reviews.length+' reviews)</span>';
-      const grid=document.getElementById('reviewsGrid');
+      if(summary)summary.innerHTML='<span style="font-size:22px;font-weight:800;color:var(--charcoal)">'+avg.toFixed(1)+'</span> <span style="color:#e46a2e;font-size:16px">'+'★'.repeat(Math.round(avg))+'</span> <span style="color:var(--stone);font-size:13px">('+reviews.length+' reviews)</span>';
       if(grid)grid.innerHTML=reviews.map(r=>{
-        const stars='\u2605'.repeat(Math.min(5,Math.max(0,Number(r.rating||5))))+'\u2606'.repeat(5-Math.min(5,Number(r.rating||5)));
-        const imgs=(r.images||[]).map(img=>`<img src="${img}" class="review-img" alt="Review image">`).join('');
-        return `<div class="review-card"><div class="review-stars">${stars}</div>${imgs?`<div class="review-imgs">${imgs}</div>`:''}<p class="review-text">${r.review||r.content||''}</p><div style="display:flex;align-items:center;flex-wrap:wrap"><span class="review-author">${r.author_name||r.name||'Customer'}</span>${r.verified_purchase?'<span class="review-verified">\u2713 Verified Purchase</span>':''}<span class="review-date">${r.created_at?new Date(r.created_at).toLocaleDateString('en-IN',{month:'short',year:'numeric'}):''}</span></div></div>`;
+        const stars='★'.repeat(Math.min(5,Math.max(0,Number(r.rating||5))))+'☆'.repeat(5-Math.min(5,Number(r.rating||5)));
+        const imgs=(r.images||[]).map(img=>`<img src="${img}" class="review-img" alt="">`).join('');
+        return `<div class="review-card"><div class="review-stars">${stars}</div>${imgs?`<div class="review-imgs">${imgs}</div>`:''}<p class="review-text">${r.review||r.content||''}</p><div style="display:flex;align-items:center;flex-wrap:wrap"><span class="review-author">${r.author_name||r.name||'Customer'}</span>${r.verified_purchase?'<span class="review-verified">✓ Verified</span>':''}<span class="review-date">${r.created_at?new Date(r.created_at).toLocaleDateString('en-IN',{month:'short',year:'numeric'}):''}</span></div></div>`;
       }).join('');
+      if(section)section.style.display='';
     })
-    .catch(()=>{const s=document.getElementById('reviewsSection');if(s)s.style.display='none';});
+    .catch(()=>showEmpty());
 }
 
 function openWriteReview(){
