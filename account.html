@@ -137,6 +137,16 @@
 .orders-empty{padding:48px 0;text-align:center}
 .orders-empty p{font-size:14px;color:var(--stone);margin-bottom:16px}
 .orders-loading{padding:40px 0;text-align:center;font-size:13px;color:var(--stone);letter-spacing:.06em}
+/* ORDER DETAIL PANEL */
+.order-detail{border-top:1px solid var(--stone-p);margin-top:12px;padding-top:14px;display:none}
+.order-detail.open{display:block}
+.od-section{margin-bottom:14px}
+.od-label{font-size:9px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--stone);margin-bottom:6px}
+.od-line{display:flex;justify-content:space-between;font-size:12px;color:var(--warm);line-height:1.5;gap:12px}
+.od-line span:last-child{text-align:right;color:var(--charcoal);font-weight:500}
+.od-addr{font-size:12px;color:var(--warm);line-height:1.65}
+.od-toggle{font-size:11px;font-weight:600;color:var(--accent);background:none;border:none;padding:0;cursor:pointer;font-family:inherit;letter-spacing:.04em;margin-left:16px}
+.od-toggle:hover{color:var(--charcoal)}
 
 /* PROFILE */
 .profile-form{max-width:480px}
@@ -670,11 +680,18 @@ async function handleLogin(e){
   btn.textContent='Signing in...';btn.disabled=true;
   try{
     await Auth.login(document.getElementById('loginEmail').value.trim(),document.getElementById('loginPassword').value);
-    // If the user was sent here to finish checkout, return and resume it
+    // If sent here to finish checkout, return and resume it
     const params=new URLSearchParams(window.location.search);
     if(sessionStorage.getItem('after_login')==='checkout'||params.get('next')==='checkout'){
       sessionStorage.setItem('after_login','checkout');
       window.location.href='index.html';
+      return;
+    }
+    // FIX: redirect back to the page they came from (products, stories, etc.)
+    const returnUrl=sessionStorage.getItem('ta_return_url');
+    if(returnUrl&&!returnUrl.includes('account.html')){
+      sessionStorage.removeItem('ta_return_url');
+      window.location.href=returnUrl;
       return;
     }
     showDashboard();
@@ -751,22 +768,72 @@ function switchDashTab(panel){
 /* ── Orders ── */
 function fmtDate(iso){return new Date(iso).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}
 
+function _esc2(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function buildOrderDetail(o,uid){
+  const items=o.items||[];
+  const addr=o.shipping_address||{};
+  const isPaid=o.payment_received===true||o.payment_status==='paid';
+  const method=(o.payment_method||'online').replace('online','Razorpay').replace('whatsapp','WhatsApp');
+  const addrParts=[addr.full_name,addr.address_line1,addr.address_line2,addr.landmark,addr.city,addr.state,addr.pincode].filter(Boolean);
+  const addrPhone=addr.phone||addr.mobile||'';
+
+  let html='<div class="order-detail" id="od-'+uid+'">';
+
+  // Items
+  if(items.length){
+    html+='<div class="od-section"><div class="od-label">Items</div>';
+    items.forEach(function(i){
+      html+='<div class="od-line"><span>'+_esc2(i.name||'Item')+' × '+i.quantity+'</span><span>₹'+Number((i.unit_price||0)*i.quantity).toLocaleString('en-IN')+'</span></div>';
+    });
+    html+='</div>';
+  }
+
+  // Delivery address
+  if(addrParts.length){
+    html+='<div class="od-section"><div class="od-label">Delivery Address</div>'
+      +'<div class="od-addr">'+_esc2(addrParts.join(', '))+(addrPhone?'<br>'+_esc2(addrPhone):'')+'</div></div>';
+  }
+
+  // Payment
+  html+='<div class="od-section"><div class="od-label">Payment</div>'
+    +'<div class="od-line"><span>Method</span><span>'+_esc2(method)+'</span></div>'
+    +'<div class="od-line"><span>Amount</span><span>₹'+Number(o.total_amount||0).toLocaleString('en-IN')+'</span></div>'
+    +'<div class="od-line"><span>Status</span><span style="color:'+(isPaid?'#166534':'#88847E')+'">'+(isPaid?'Paid':'Awaiting payment')+'</span></div>'
+    +'</div>';
+
+  html+='</div>';
+  return html;
+}
+
+function toggleOrderDetail(uid){
+  const el=document.getElementById('od-'+uid);
+  if(el)el.classList.toggle('open');
+  const btn=document.getElementById('odt-'+uid);
+  if(btn)btn.textContent=el&&el.classList.contains('open')?'Hide ↑':'Details ↓';
+}
+
 function renderOrders(orders){
   const el=document.getElementById('ordersContainer');
   if(!orders||!orders.length){el.innerHTML='<div class="orders-empty"><p>No orders yet.</p><a href="products.html" class="btn btn-dark">Start Shopping</a></div>';return}
-  el.innerHTML=orders.map(function(o){
+  el.innerHTML=orders.map(function(o,idx){
     const st=o.order_status||o.status||'placed';
     const sc=STATUS_CLASS[st]||'status-pending';
     const items=o.items||[];
     const preview=items.slice(0,3).map(function(i){return(i.name||'Item')+' x'+i.quantity}).join(', ')+(items.length>3?' +'+(items.length-3)+' more':'');
     const orderId=o.order_id||('Order #'+(o.id||'').slice(0,8).toUpperCase());
+    const uid='ord'+idx;
     return '<div class="order-card">'
       +'<div class="order-row">'
       +'<div><div class="order-id">'+orderId+'</div><div class="order-date">'+fmtDate(o.created_at)+'</div></div>'
       +'<div style="display:flex;align-items:center;gap:12px"><span class="order-status '+sc+'">'+st+'</span><div class="order-total">₹'+Number(o.total_amount).toLocaleString('en-IN')+'</div></div>'
       +'</div>'
       +(preview?'<div class="order-items-preview">'+preview+'</div>':'')
-      +'<div class="order-track"><a href="track-order.html?id='+encodeURIComponent(orderId)+'">Track Order →</a></div>'
+      +'<div class="order-track">'
+      +'<a href="track-order.html?id='+encodeURIComponent(orderId)+'">Track Order →</a>'
+      +'<button class="od-toggle" id="odt-'+uid+'" onclick="toggleOrderDetail(\''+uid+'\')">Details ↓</button>'
+      +'</div>'
+      +buildOrderDetail(o,uid)
       +'</div>';
   }).join('');
 }

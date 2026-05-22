@@ -1165,6 +1165,15 @@ function updateNavAuth(){
     if(!cartBtn)return;
     const shopBtn=nr.querySelector('.nav-shop');
 
+    // FIX: save return URL so login can redirect back to this page
+    if(!user&&shopBtn&&!shopBtn._retListenerAdded){
+      shopBtn._retListenerAdded=true;
+      shopBtn.addEventListener('click',function(){
+        if(!location.href.includes('account.html'))
+          sessionStorage.setItem('ta_return_url',location.href);
+      });
+    }
+
     if(user){
       if(shopBtn) shopBtn.style.display='none';
       // Use cached profile for nickname — refresh happens async after render
@@ -1175,8 +1184,8 @@ function updateNavAuth(){
       wrap.innerHTML=`
         <button class="nav-profile-btn" id="navProfileBtn">Hi, ${displayName} ▾</button>
         <div class="nav-profile-dropdown">
-          <a href="account.html#profile">My Account</a>
           <a href="account.html#orders">My Orders</a>
+          <a href="account.html#profile">My Account</a>
           <button class="nav-logout-btn" id="navLogoutBtn">Logout</button>
         </div>`;
       nr.insertBefore(wrap,cartBtn);
