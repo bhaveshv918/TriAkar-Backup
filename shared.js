@@ -116,7 +116,7 @@ const Cart=(function(){
   let items=[];
   try{
     const raw=JSON.parse(localStorage.getItem(CART_KEY)||localStorage.getItem('ta_cart')||'[]');
-    items=raw.map(i=>({id:i.id,name:i.name,price:i.price,quantity:i.quantity||i.qty||1,color:i.color||i.variant||''}));
+    items=raw.map(i=>({id:i.id,name:i.name,price:i.price,quantity:i.quantity||i.qty||1,color:i.color||i.variant||'',image:i.image||i.img||''}));
     if(localStorage.getItem('ta_cart')){localStorage.removeItem('ta_cart');try{localStorage.setItem(CART_KEY,JSON.stringify(items))}catch(e){}}
   }catch(e){items=[]}
 
@@ -128,7 +128,17 @@ const Cart=(function(){
 
   function save(){try{localStorage.setItem(CART_KEY,JSON.stringify(items))}catch(e){}badge();_syncServer();}
   function badge(){const n=items.reduce((s,i)=>s+i.quantity,0);document.querySelectorAll('.cart-badge').forEach(b=>{b.textContent=n;b.classList.toggle('on',n>0)})}
-  function add(p){const idx=items.findIndex(i=>i.id===p.id&&i.color===p.color);idx>-1?items[idx].quantity++:items.push({id:p.id,name:p.name,price:p.price,quantity:1,color:p.color||''});save();render();openCart()}
+  function add(p){
+    const idx=items.findIndex(i=>i.id===p.id&&i.color===p.color);
+    if(idx>-1){
+      items[idx].quantity++;
+      // Update image if this item was stored without one (e.g. added in a previous session)
+      if(!items[idx].image&&p.image)items[idx].image=p.image;
+    }else{
+      items.push({id:p.id,name:p.name,price:p.price,quantity:1,color:p.color||'',image:p.image||''});
+    }
+    save();render();openCart();
+  }
   function changeQty(id,color,d){const idx=items.findIndex(i=>i.id===id&&i.color===color);if(idx<0)return;items[idx].quantity+=d;if(items[idx].quantity<=0)items.splice(idx,1);save();render()}
   function total(){return items.reduce((s,i)=>s+i.price*i.quantity,0)}
   function getItems(){return[...items]}
@@ -141,21 +151,47 @@ const Cart=(function(){
       const res=await fetch(_API+'/api/cart',{headers:{'Authorization':'Bearer '+tok}});
       if(!res.ok)return;
       const {items:srv}=await res.json();
-      if(srv&&srv.length){items=srv.map(i=>({id:i.id,name:i.name,price:i.price,quantity:i.quantity||i.qty||1,color:i.color||i.variant||''}));try{localStorage.setItem(CART_KEY,JSON.stringify(items))}catch(e){}}
+      if(srv&&srv.length){items=srv.map(i=>({id:i.id,name:i.name,price:i.price,quantity:i.quantity||i.qty||1,color:i.color||i.variant||'',image:i.image||i.img||''}));try{localStorage.setItem(CART_KEY,JSON.stringify(items))}catch(e){}}
       badge();render();
     }catch(_){}
   }
 
-  function render(){
-    const el=document.getElementById('cartItemsList');
-    const tot=document.getElementById('cartTotal');
-    if(!el)return;
-    if(tot)tot.textContent='₹'+total().toLocaleString('en-IN');
-    if(!items.length){el.innerHTML='<div class="cart-empty">Your cart is empty.</div>';return}
-    // FIX #12: escape all user-supplied data before inserting into innerHTML
+  async function _enrichImages(){
+    const missing=items.filter(function(i){return !i.image;});
+    if(!missing.length)return false;
+    try{
+      console.log('[TriAkar] enrichImages: fetching products for',missing.length,'items without image. IDs:',missing.map(function(i){return i.id;}));
+      const res=await fetch(_API+'/api/products');
+      console.log('[TriAkar] enrichImages: API status',res.status);
+      if(!res.ok)return false;
+      const json=await res.json();
+      const prods=json.products||json;
+      console.log('[TriAkar] enrichImages: got',prods&&prods.length,'products,',prods&&prods.filter(function(p){return p.images&&p.images.length;}).length,'have images');
+      if(!prods||!prods.length)return false;
+      const imgMap={};
+      prods.forEach(function(p){if(p.images&&p.images.length)imgMap[p.slug]=p.images[0];});
+      console.log('[TriAkar] enrichImages: imgMap slugs:',Object.keys(imgMap));
+      let changed=false;
+      items.forEach(function(i){
+        if(!i.image&&imgMap[i.id]){
+          console.log('[TriAkar] enrichImages: matched',i.id,'→',imgMap[i.id]);
+          i.image=imgMap[i.id];changed=true;
+        } else if(!i.image){
+          console.warn('[TriAkar] enrichImages: NO match for cart item id:',i.id);
+        }
+      });
+      if(changed){try{localStorage.setItem(CART_KEY,JSON.stringify(items));}catch(e){}}
+      console.log('[TriAkar] enrichImages done, changed:',changed);
+      return changed;
+    }catch(e){console.error('[TriAkar] enrichImages error:',e);return false;}
+  }
+
+  function _renderCartItems(el){
     el.innerHTML=items.map(item=>`
       <div class="cart-item">
-        <div class="ci-img"><svg viewBox="0 0 56 56" fill="none" style="width:32px"><rect x="6" y="6" width="44" height="44" rx="3" fill="#E8E4DC"/></svg></div>
+        <div class="ci-img">${item.image
+          ?`<img src="${_esc(item.image)}" alt="${_esc(item.name)}" width="56" height="56" loading="eager" decoding="sync" style="width:56px;height:56px;object-fit:cover;border-radius:3px;display:block">`
+          :`<svg viewBox="0 0 56 56" fill="none" style="width:32px"><rect x="6" y="6" width="44" height="44" rx="3" fill="#E8E4DC"/></svg>`}</div>
         <div><div class="ci-name">${_esc(item.name)}</div><div class="ci-var">${_esc(item.color||'')}</div>
           <div class="ci-qty">
             <button class="ci-qbtn" onclick="Cart.changeQty('${_esc(item.id)}','${_esc(item.color||'')}',-1)">−</button>
@@ -166,16 +202,40 @@ const Cart=(function(){
         <div class="ci-price">₹${(item.price*item.quantity).toLocaleString('en-IN')}</div>
       </div>`).join('')
   }
-  return{add,changeQty,total,getItems,clear,render,badge,loadFromServer};
+
+  function render(){
+    const el=document.getElementById('cartItemsList');
+    const tot=document.getElementById('cartTotal');
+    if(!el)return;
+    if(tot)tot.textContent='₹'+total().toLocaleString('en-IN');
+    if(!items.length){el.innerHTML='<div class="cart-empty">Your cart is empty.</div>';return}
+    _renderCartItems(el);
+    // Async-enrich any items missing images, then re-render
+    if(items.some(i=>!i.image)){
+      _enrichImages().then(changed=>{if(changed)_renderCartItems(el);});
+    }
+  }
+  return{add,changeQty,total,getItems,clear,render,badge,loadFromServer,_enrichImages};
 })();
 
-function openCart(){document.getElementById('cartSidebar')?.classList.add('open');document.getElementById('cartOverlay')?.classList.add('open');Cart.render()}
+function openCart(){
+  document.getElementById('cartSidebar')?.classList.add('open');
+  document.getElementById('cartOverlay')?.classList.add('open');
+  Cart.render();
+  // Always try to enrich images when cart opens — catches items loaded from localStorage
+  Cart._enrichImages().then(changed=>{
+    if(changed){
+      const el=document.getElementById('cartItemsList');
+      if(el)Cart.render();
+    }
+  });
+}
 function closeCart(){document.getElementById('cartSidebar')?.classList.remove('open');document.getElementById('cartOverlay')?.classList.remove('open')}
 
 /* ══ ADD TO CART BUTTON HELPER ═════════════════════════════ */
 function addToCartBtn(btnEl,product){
   if(!product)return;
-  Cart.add({id:product.id,name:product.name,price:product.price,color:product.color||''});
+  Cart.add({id:product.id,name:product.name,price:product.price,color:product.color||'',image:product.image||product.img||''});
   gtagEvent('add_to_cart',{currency:'INR',value:product.price,items:[{item_id:product.id,item_name:product.name,price:product.price}]});
   if(!btnEl)return;
   // Guard against re-trigger while in "Added" state
@@ -726,15 +786,40 @@ function updatePaymentSummary(){
   if(totEl)totEl.textContent='₹'+tot.toLocaleString('en-IN');
 }
 
+function _renderCkCartItems(el,items){
+  const shipping=Cart.total()>=999?0:49;
+  el.innerHTML=items.map(i=>`
+    <div class="ck-cart-item" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--stone-p)">
+      <div style="flex-shrink:0;width:48px;height:48px;border-radius:4px;overflow:hidden;background:#F5F4F2">
+        ${i.image
+          ?`<img src="${_esc(i.image)}" alt="${_esc(i.name)}" width="48" height="48" loading="eager" decoding="sync" style="width:48px;height:48px;object-fit:cover;display:block">`
+          :`<svg viewBox="0 0 48 48" fill="none" style="width:48px;height:48px"><rect x="5" y="5" width="38" height="38" rx="3" fill="#E8E4DC"/></svg>`}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--charcoal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(i.name)}</div>
+        ${i.color?`<div style="font-size:11px;color:var(--stone);margin-top:2px">${_esc(i.color)}</div>`:''}
+        <div style="font-size:11px;color:var(--warm);margin-top:2px">Qty: ${i.quantity}</div>
+      </div>
+      <div style="font-size:13px;font-weight:600;color:var(--charcoal);flex-shrink:0">₹${(i.price*i.quantity).toLocaleString('en-IN')}</div>
+    </div>`).join('');
+  if(shipping>0) el.innerHTML+=`<div class="ck-cart-item" style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;color:var(--warm)"><span>Shipping</span><span>₹${shipping}</span></div>`;
+}
+
 function renderCheckoutCart(){
   const items=Cart.getItems();
   const el=document.getElementById('ckCartItems');
   const tot=document.getElementById('ckCartTotal');
   if(!el)return;
-  el.innerHTML=items.map(i=>`<div class="ck-cart-item"><span>${i.name} × ${i.quantity}</span><span>₹${(i.price*i.quantity).toLocaleString('en-IN')}</span></div>`).join('');
-  const shipping=Cart.total()>=999?0:49;
-  if(shipping>0) el.innerHTML+=`<div class="ck-cart-item"><span>Shipping</span><span>₹${shipping}</span></div>`;
-  if(tot) tot.textContent='₹'+(Cart.total()+shipping).toLocaleString('en-IN');
+  _renderCkCartItems(el,items);
+  if(tot) tot.textContent='₹'+(Cart.total()+(Cart.total()>=999?0:49)).toLocaleString('en-IN');
+  // Async-enrich any items missing images, then re-render
+  if(items.some(i=>!i.image)){
+    Cart._enrichImages().then(changed=>{
+      if(changed){
+        _renderCkCartItems(el,Cart.getItems());
+      }
+    });
+  }
 }
 
 function getCheckoutData(){
@@ -1483,10 +1568,15 @@ function prefillCheckout(){
 }
 
 /* ══ DOM READY ══════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded',()=>{
+document.addEventListener('DOMContentLoaded',function(){
   Cart.badge();Cart.render();Cart.loadFromServer();
   updateNavAuth();
   applyNavActiveState();
+  // Eagerly enrich images for any cart items missing them — runs in background
+  // so images are ready before the user opens the cart
+  if(Cart.getItems().some(function(i){return !i.image;})){
+    Cart._enrichImages().then(function(changed){if(changed)Cart.render();});
+  }
 });
 
 /* ══ IMAGE PROTECTION (prevent casual right-click / drag copy) ══ */
