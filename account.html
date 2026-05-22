@@ -1010,30 +1010,37 @@ function showAddressForm(existing){
     const v=this.value.trim();
     const info_el=document.getElementById('addrPincodeInfo');
     if(v.length===6&&/^\d{6}$/.test(v)){
+      info_el.style.color='var(--stone,#888)';
       info_el.textContent='Checking…';
       const info=await lookupPincode(v);
-      if(info){
+      if(info&&!info.unavailable){
         if(!document.getElementById('addrCity').value){
           document.getElementById('addrCity').value=info.city||info.district||'';
         }
-        /* Set state in dropdown */
         const sEl=document.getElementById('addrState');
         if(sEl&&info.state){
           sEl.value=info.state;
           sEl.dataset.value=info.state;
           if(stateWrap){
+            const sdInp=stateWrap.querySelector('.sd-input');
+            if(sdInp)sdInp.value=info.state;
             stateWrap.querySelectorAll('.sd-option').forEach(o=>{
-              o.classList.toggle('selected',o.textContent.trim()===info.state);
+              o.classList.toggle('selected',o.textContent.trim()===info.state||o.dataset.value===info.state);
             });
           }
         }
         info_el.style.color='var(--accent)';
         info_el.textContent='✓ '+(info.district||info.city||'')+', '+(info.state||'');
-      } else {
+      } else if(info===null){
+        // Confirmed not found
         info_el.style.color='#B91C1C';
-        info_el.textContent='PIN not found — fill city/state manually';
+        info_el.textContent='PIN not found — please verify and fill city/state manually';
+      } else {
+        // API unavailable — let user fill manually, no error shown
+        info_el.style.color='var(--stone,#888)';
+        info_el.textContent='Enter city and state manually';
       }
-    } else if(v.length>0 && v.length<6){
+    } else if(v.length>0&&v.length<6){
       info_el.textContent='';
     }
   });
