@@ -957,23 +957,31 @@ function showAddressForm(existing){
         <div class="field"><label>Phone *</label><input type="tel" id="addrPhone" value="${a.phone||''}" placeholder="10-digit mobile" required></div>
       </div>
       <div class="field">
-        <label>Address Line 1 * <span style="font-weight:400;color:var(--stone);font-size:11px">(House/Flat no., Building name)</span></label>
-        <input type="text" id="addrLine1" value="${a.address_line1||''}" placeholder="e.g. Flat 402, Tower B, Greenarch Society" required minlength="8">
+        <label>PIN Code *</label>
+        <input type="text" id="addrPincode" value="${a.pincode||''}" maxlength="6" pattern="[0-9]{6}" placeholder="Enter 6-digit PIN — city &amp; state will auto-fill" required inputmode="numeric" autocomplete="postal-code">
+        <div id="addrPincodeInfo" style="font-size:11px;margin-top:4px;min-height:16px"></div>
+      </div>
+      <div class="field">
+        <label>Address Line 1 * <span style="font-weight:400;color:var(--stone);font-size:11px">(House/Flat No., Building/Society Name)</span></label>
+        <input type="text" id="addrLine1" value="${a.address_line1||''}" placeholder="e.g. B1103, Greenarch Society" required minlength="8" autocomplete="address-line1">
         <div id="addrLine1Err" style="font-size:11px;color:#B91C1C;margin-top:3px;display:none"></div>
       </div>
       <div class="field">
         <label>Address Line 2 <span style="font-weight:400;color:var(--stone);font-size:11px">(Street/Colony/Sector)</span></label>
-        <input type="text" id="addrLine2" value="${a.address_line2||''}" placeholder="e.g. Sector 12, Greater Noida West">
+        <input type="text" id="addrLine2" value="${a.address_line2||''}" placeholder="e.g. Ek Murti Chowk Road, Sector 4" autocomplete="address-line2">
+      </div>
+      <div class="field">
+        <label>Landmark <span style="font-weight:400;color:var(--stone);font-size:11px">(optional)</span></label>
+        <input type="text" id="addrLandmark" value="${a.landmark||''}" placeholder="Near, Opposite, Behind…">
       </div>
       <div class="addr-form-row">
         <div class="field">
-          <label>PIN Code *</label>
-          <input type="text" id="addrPincode" value="${a.pincode||''}" maxlength="6" pattern="[0-9]{6}" placeholder="6-digit PIN" required inputmode="numeric">
-          <div id="addrPincodeInfo" style="font-size:11px;color:var(--accent);margin-top:3px;min-height:16px"></div>
+          <label>City *</label>
+          <input type="text" id="addrCity" value="${a.city||''}" placeholder="City / Town" required autocomplete="address-level2">
         </div>
         <div class="field">
-          <label>City *</label>
-          <input type="text" id="addrCity" value="${a.city||''}" placeholder="City / Town" required>
+          <label>District</label>
+          <input type="text" id="addrDistrict" value="${a.district||''}" placeholder="District">
         </div>
       </div>
       <div class="addr-form-row">
@@ -998,82 +1006,22 @@ function showAddressForm(existing){
     </div>
   `;
 
-  /* ── State searchable dropdown ─────────────────── */
   const stateWrap=document.getElementById('addrStateWrap');
   if(stateWrap) initSearchableDropdown(stateWrap);
-
-  /* ── Phone field ────────────────────────────────── */
   initPhoneField('addrPhone');
 
-  /* ── Pincode → city/state auto-fill ─────────────── */
-  document.getElementById('addrPincode').addEventListener('input',async function(){
-    const v=this.value.trim();
-    const info_el=document.getElementById('addrPincodeInfo');
-    if(v.length===6&&/^\d{6}$/.test(v)){
-      info_el.style.color='var(--stone,#888)';
-      info_el.textContent='Checking…';
-      const info=await lookupPincode(v);
-      if(info&&!info.unavailable){
-        if(!document.getElementById('addrCity').value){
-          document.getElementById('addrCity').value=info.city||info.district||'';
-        }
-        const sEl=document.getElementById('addrState');
-        if(sEl&&info.state){
-          sEl.value=info.state;
-          sEl.dataset.value=info.state;
-          if(stateWrap){
-            const sdInp=stateWrap.querySelector('.sd-input');
-            if(sdInp)sdInp.value=info.state;
-            stateWrap.querySelectorAll('.sd-option').forEach(o=>{
-              o.classList.toggle('selected',o.textContent.trim()===info.state||o.dataset.value===info.state);
-            });
-          }
-        }
-        info_el.style.color='var(--accent)';
-        info_el.textContent='✓ '+(info.district||info.city||'')+', '+(info.state||'');
-      } else {
-        // API unavailable or pincode not in its DB — never show an error
-        // The India Post API incorrectly rejects many valid pincodes; user fills manually
-        info_el.style.color='var(--stone,#888)';
-        info_el.textContent='';
-      }
-    } else if(v.length>0&&v.length<6){
-      info_el.textContent='';
-    }
-  });
+  // Smart PIN autofill — shared helper from shared.js
+  attachPincodeAutofill('addrPincode','addrPincodeInfo','addrCity','addrDistrict','addrState','addrStateWrap');
 
-  /* ── Address Line 1 validation hint ──────────────── */
+  // Address Line 1 length hint
   document.getElementById('addrLine1').addEventListener('blur',function(){
     const v=this.value.trim();
     const errEl=document.getElementById('addrLine1Err');
-    if(v.length>0 && v.length<8){
+    if(v.length>0&&v.length<8){
       errEl.textContent='Please enter a more complete address (house no. + building/street)';
       errEl.style.display='block';
-    } else {
-      errEl.style.display='none';
-    }
+    } else { errEl.style.display='none'; }
   });
-
-  /* ── Address autocomplete (map search) ────────────── */
-  if(typeof AddressAC!=='undefined'){
-    AddressAC.init({
-      container: document.getElementById('addrFormInner'),
-      fields:{
-        line1:   'addrLine1',
-        line2:   'addrLine2',
-        city:    'addrCity',
-        state:   'addrState',
-        pincode: 'addrPincode',
-      }
-    });
-    /* After autocomplete fills state, re-sync dropdown display value */
-    document.getElementById('addrState').addEventListener('change',function(){
-      const sw=document.getElementById('addrStateWrap');
-      if(sw) sw.querySelectorAll('.sd-option').forEach(o=>{
-        o.classList.toggle('selected',o.textContent.trim()===this.value);
-      });
-    });
-  }
 
   wrap.scrollIntoView({behavior:'smooth',block:'start'});
 }

@@ -269,6 +269,52 @@ async function lookupPincode(pin){
   }
 }
 
+/* ══ PIN CODE AUTOFILL HELPER ═════════════════════════════ */
+// Attaches smart PIN autofill to any pincode input.
+// Shows: ✓ green (auto-filled) | ⚠ yellow (API down, fill manually) | nothing for < 6 digits
+// NEVER blocks the user — format check (6 digits, no leading 0) is the only gate.
+function attachPincodeAutofill(pinId, infoId, cityId, districtId, stateId, stateWrapId){
+  const pinEl=document.getElementById(pinId);
+  if(!pinEl)return;
+  let _lastPin='';
+  pinEl.addEventListener('input',async function(){
+    const val=this.value.replace(/\D/g,'').slice(0,6);
+    this.value=val; // strip non-digits live
+    const infoEl=document.getElementById(infoId);
+    if(!infoEl)return;
+    if(val.length<6){infoEl.innerHTML='';_lastPin='';return;}
+    if(val===_lastPin)return;
+    _lastPin=val;
+    // Show spinner
+    infoEl.innerHTML='<span style="color:var(--stone,#888)">⟳ Looking up PIN…</span>';
+    const info=await lookupPincode(val);
+    if(info&&!info.unavailable){
+      // Success — auto-fill fields (only overwrite if empty)
+      const cityEl=document.getElementById(cityId);
+      const distEl=document.getElementById(districtId);
+      const stateEl=document.getElementById(stateId);
+      if(cityEl&&!cityEl.value)cityEl.value=info.city||'';
+      if(distEl&&info.district)distEl.value=info.district;
+      if(stateEl&&info.state){
+        stateEl.value=info.state;
+        stateEl.dataset.value=info.state;
+        const wrap=document.getElementById(stateWrapId);
+        if(wrap){
+          const sdInp=wrap.querySelector('.sd-input');
+          if(sdInp)sdInp.value=info.state;
+          wrap.querySelectorAll('.sd-option').forEach(o=>{
+            o.classList.toggle('selected',o.textContent.trim()===info.state||o.dataset.value===info.state);
+          });
+        }
+      }
+      infoEl.innerHTML='<span style="color:#15803d">✓ '+(info.district||info.city||'')+', '+info.state+'</span>';
+    } else {
+      // API down or PIN not in its DB — never an error, just let user fill
+      infoEl.innerHTML='<span style="color:var(--stone,#888)">⚠ Could not auto-fill — please enter city &amp; state manually</span>';
+    }
+  });
+}
+
 /* ══ SAVED ADDRESSES (Supabase) ═══════════════════════════ */
 async function loadSavedAddresses(){
   const sb=getSB();
@@ -390,32 +436,31 @@ function buildCheckoutHTML(){
         <div class="ck-field"><label>Full Name *</label><input type="text" id="ckName" required></div>
         <div class="ck-field"><label>Phone Number *</label><input type="tel" id="ckPhone" required></div>
         <div class="ck-field"><label>Email *</label><input type="email" id="ckEmail" required></div>
-        <div class="ck-row">
-          <div class="ck-field" style="flex:1"><label>Address Line 1 *</label><input type="text" id="ckAddr1" placeholder="House/Flat/Building"></div>
+        <div class="ck-field">
+          <label>PIN Code *</label>
+          <input type="text" id="ckPincode" maxlength="6" pattern="[0-9]{6}" placeholder="6-digit PIN code" inputmode="numeric" autocomplete="postal-code">
+          <div id="ckPincodeInfo" style="font-size:11px;margin-top:4px;min-height:16px;line-height:1.4"></div>
+          <span id="ckPincodeErr" style="display:block;font-size:11px;color:#B91C1C;margin-top:2px;min-height:0;line-height:1.4"></span>
         </div>
+        <div class="ck-field"><label>Address Line 1 *</label><input type="text" id="ckAddr1" placeholder="House/Flat No., Society/Building Name" autocomplete="address-line1"></div>
+        <div class="ck-field"><label>Address Line 2</label><input type="text" id="ckAddr2" placeholder="Street/Colony/Sector/Area" autocomplete="address-line2"></div>
+        <div class="ck-field"><label>Landmark <span style="font-weight:400;color:var(--stone)">(optional)</span></label><input type="text" id="ckLandmark" placeholder="Near, Opposite, Behind…"></div>
         <div class="ck-row">
-          <div class="ck-field" style="flex:1"><label>Address Line 2</label><input type="text" id="ckAddr2" placeholder="Street/Colony/Area"></div>
-        </div>
-        <div class="ck-field"><label>Landmark</label><input type="text" id="ckLandmark" placeholder="Near..."></div>
-        <div class="ck-row">
-          <div class="ck-field" style="flex:1"><label>PIN Code *</label><input type="text" id="ckPincode" maxlength="6" pattern="[0-9]{6}" placeholder="6 digits"><span id="ckPincodeErr" style="display:block;font-size:11px;color:#B91C1C;margin-top:4px;min-height:0;line-height:1.4"></span></div>
-          <div class="ck-field" style="flex:1"><label>City *</label><input type="text" id="ckCity" placeholder="City"></div>
-        </div>
-        <div class="ck-row">
+          <div class="ck-field" style="flex:1"><label>City *</label><input type="text" id="ckCity" placeholder="City / Town" autocomplete="address-level2"></div>
           <div class="ck-field" style="flex:1"><label>District</label><input type="text" id="ckDistrict" placeholder="District"></div>
-          <div class="ck-field" style="flex:1"><label>State *</label>
-            <div class="sd-wrap" id="ckStateWrap">
-              <input class="sd-input" id="ckState" placeholder="Select state" readonly>
-              <div class="sd-dropdown"><input class="sd-search" placeholder="Search state...">${stateOptions}</div>
-            </div>
+        </div>
+        <div class="ck-field"><label>State *</label>
+          <div class="sd-wrap" id="ckStateWrap">
+            <input class="sd-input" id="ckState" placeholder="Select state" readonly>
+            <div class="sd-dropdown"><input class="sd-search" placeholder="Search state...">${stateOptions}</div>
           </div>
         </div>
         <div class="ck-field">
-          <label>Who should the courier call? *</label>
+          <label>Courier Contact Number *</label>
           <input type="tel" id="ckContactPhone" required placeholder="10-digit mobile number">
-          <div style="font-size:11px;color:var(--stone);margin-top:3px">This number will be shared with the delivery partner</div>
+          <div style="font-size:11px;color:var(--stone);margin-top:3px">Shared with delivery partner for coordination</div>
         </div>
-        <div class="ck-field"><label>Special Instructions (optional)</label><textarea id="ckNotes" placeholder="Any special requests"></textarea></div>
+        <div class="ck-field"><label>Special Instructions <span style="font-weight:400;color:var(--stone)">(optional)</span></label><textarea id="ckNotes" placeholder="Any special requests for packing or delivery"></textarea></div>
       </div>
       <div style="display:flex;gap:10px;margin-top:16px">
         <button class="btn btn-outline" onclick="showCheckoutStep(1)">← Back</button>
@@ -489,55 +534,8 @@ function initCheckoutModal(){
     });
   });
 
-  // Pincode auto-fill — gracefully handles API unavailability
-  const pinEl=document.getElementById('ckPincode');
-  if(pinEl){
-    pinEl.addEventListener('input',async function(){
-      const val=this.value.trim();
-      const errEl=document.getElementById('ckPincodeErr');
-      if(errEl)errEl.textContent='';
-      if(val.length===6&&/^\d{6}$/.test(val)){
-        const info=await lookupPincode(val);
-        if(info&&!info.unavailable){
-          const cityEl=document.getElementById('ckCity');
-          const distEl=document.getElementById('ckDistrict');
-          const stateEl=document.getElementById('ckState');
-          if(cityEl&&!cityEl.value)cityEl.value=info.city||'';
-          if(distEl&&info.district)distEl.value=info.district;
-          if(stateEl&&info.state){
-            stateEl.value=info.state;
-            stateEl.dataset.value=info.state;
-            const wrap=document.getElementById('ckStateWrap');
-            if(wrap){
-              const display=wrap.querySelector('.sd-input');
-              if(display)display.value=info.state;
-              wrap.querySelectorAll('.sd-option').forEach(o=>{
-                o.classList.toggle('selected',o.textContent.trim()===info.state||o.dataset.value===info.state);
-              });
-            }
-          }
-          if(errEl)errEl.textContent='';
-        }
-        // API unavailable or pincode not in DB — never show an error, user fills manually
-      }
-    });
-  }
-
-  // Address autocomplete (map search) for the modal form
-  const ckAddressForm=document.getElementById('ckAddressForm');
-  if(ckAddressForm&&typeof AddressAC!=='undefined'){
-    AddressAC.init({
-      container: ckAddressForm,
-      fields:{
-        line1:   'ckAddr1',
-        line2:   'ckAddr2',
-        city:    'ckCity',
-        district:'ckDistrict',
-        state:   'ckState',
-        pincode: 'ckPincode',
-      }
-    });
-  }
+  // PIN Code — smart auto-fill: city/district/state from India Post API
+  attachPincodeAutofill('ckPincode','ckPincodeInfo','ckCity','ckDistrict','ckState','ckStateWrap');
 
   // Load saved addresses for logged-in users
   loadAndShowSavedAddresses();

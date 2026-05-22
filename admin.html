@@ -922,8 +922,9 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
         <div class="ff">
           <label>Short Description <span class="hint">(shown on product cards — max 120 chars)</span></label>
           <input type="text" id="fShortDesc" maxlength="120" placeholder="Three compartments. Clean desk, clear mind."
-            oninput="document.getElementById('fShortDescCount').textContent=this.value.length">
+            oninput="document.getElementById('fShortDescCount').textContent=this.value.length;checkDescSQL(this,'fShortDescErr')">
           <div style="font-size:10px;color:var(--text-3);margin-top:3px"><span id="fShortDescCount">0</span>/120 chars · Shows on product listing card</div>
+          <div id="fShortDescErr" style="font-size:11px;color:#B91C1C;margin-top:3px;display:none"></div>
         </div>
       </div>
 
@@ -931,7 +932,9 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="fg fg-full" style="margin-top:0">
         <div class="ff">
           <label>Long Description <span class="hint">(shown on product detail page)</span></label>
-          <textarea id="fDescription" rows="4" placeholder="Full paragraph description for the product detail page. Can be as long as needed."></textarea>
+          <textarea id="fDescription" rows="4" placeholder="Full paragraph description for the product detail page. Can be as long as needed."
+            oninput="checkDescSQL(this,'fDescErr')"></textarea>
+          <div id="fDescErr" style="font-size:11px;color:#B91C1C;margin-top:3px;display:none"></div>
         </div>
       </div>
 
@@ -1250,6 +1253,15 @@ document.addEventListener('keydown',function(e){
 // ═══════════════════════════════════════════════════════════
 const MAX_ATTEMPTS=5;
 const LOCKOUT_SECONDS=120;
+const _SQL_RE=/\b(ALTER|CREATE|DROP|SELECT|INSERT|UPDATE|DELETE|TRUNCATE|GRANT|REVOKE|EXEC|EXECUTE)\b/i;
+function checkDescSQL(el,errId){
+  const errEl=document.getElementById(errId);
+  if(!errEl)return;
+  if(_SQL_RE.test(el.value)){
+    errEl.textContent='⚠ This looks like SQL code, not a description. Please enter proper product text.';
+    errEl.style.display='block';
+  } else { errEl.style.display='none'; }
+}
 let _failedAttempts=0;
 let _lockedUntil=0;
 let _formLoadTime=Date.now();
@@ -2119,6 +2131,16 @@ async function submitProductForm(){
   const price=document.getElementById('fPrice').value;
   const category=document.getElementById('fCategory').value;
   if(!name||!slug||!price||!category){document.getElementById('formErr').textContent='Name, slug, price, and category are required.';return}
+
+  // SQL injection guard — warn if description fields contain raw SQL keywords
+  const SQL_RE=/\b(ALTER|CREATE|DROP|SELECT|INSERT|UPDATE|DELETE|TRUNCATE|GRANT|REVOKE|EXEC|EXECUTE)\b/i;
+  const shortDesc=document.getElementById('fShortDesc').value.trim();
+  const longDesc=document.getElementById('fDescription').value.trim();
+  if(SQL_RE.test(shortDesc)||SQL_RE.test(longDesc)){
+    document.getElementById('formErr').textContent='⚠ Description appears to contain SQL code. Please enter a proper product description.';
+    document.getElementById(SQL_RE.test(shortDesc)?'fShortDesc':'fDescription').focus();
+    return;
+  }
 
   const productData={
     name,slug,price:Number(price),category,
