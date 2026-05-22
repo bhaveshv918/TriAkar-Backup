@@ -1404,6 +1404,14 @@ function updateNavAuth(){
     drawer.querySelectorAll('.drawer-auth,.drawer-shop').forEach(e=>e.remove());
   });
 
+  // Always keep Cart as the last item before the hamburger toggle
+  // so Login/Profile is always to the LEFT of Cart on every page
+  document.querySelectorAll('.nav-right').forEach(function(nr){
+    var toggle=nr.querySelector('.nav-toggle');
+    var cart=nr.querySelector('.cart-btn');
+    if(toggle&&cart)nr.insertBefore(cart,toggle);
+  });
+
   document.addEventListener('click',function(){
     document.querySelectorAll('.nav-auth-wrap.open').forEach(w=>w.classList.remove('open'));
   });
