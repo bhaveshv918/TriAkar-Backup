@@ -95,6 +95,7 @@ CREATE TABLE products (
   variants                 JSONB DEFAULT '[]',
   product_dropdowns        JSONB DEFAULT '[]',
   colors                   TEXT[] DEFAULT '{}',
+  homepage_order           INTEGER,
   created_at               TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
@@ -128,6 +129,7 @@ CREATE POLICY "Anyone reads active products" ON products FOR SELECT USING (is_ac
 -- ALTER TABLE products ADD COLUMN IF NOT EXISTS variants JSONB DEFAULT '[]';
 -- ALTER TABLE products ADD COLUMN IF NOT EXISTS product_dropdowns JSONB DEFAULT '[]';
 -- ALTER TABLE products ADD COLUMN IF NOT EXISTS colors TEXT[] DEFAULT '{}';
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS homepage_order INTEGER;
 
 -- ════════════════════════════════════════════════════════════════════════
 -- 5. ORDERS

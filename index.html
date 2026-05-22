@@ -123,6 +123,19 @@
 
 /* PRODUCTS GRID */
 .prod-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--stone-p)}
+
+/* HOMEPAGE DYNAMIC PRODUCT GRID */
+.hp-prod-grid{display:grid;gap:1px;background:var(--stone-p)}
+.hp-prod-grid .prod-card .prod-img img{width:100%;height:100%;object-fit:cover}
+.hp-prod-loading{padding:48px;text-align:center;color:var(--stone);font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+
+/* STORIES: 1 row only on homepage */
+.work-grid.one-row{grid-template-columns:repeat(3,1fr)}
+.work-grid.one-row .work-card:nth-child(n+4){display:none}
+
+/* WHATSAPP: 50% smaller on homepage */
+.wa-float{width:28px!important;height:28px!important;bottom:72px!important}
+.wa-float svg{width:14px!important;height:14px!important}
 .prod-card{background:rgba(250,250,248,.82);backdrop-filter:blur(10px) saturate(140%);-webkit-backdrop-filter:blur(10px) saturate(140%);border:0;position:relative;overflow:hidden;transition:background .25s,box-shadow .25s}
 .prod-card:hover{background:rgba(250,250,248,.97);box-shadow:0 8px 28px rgba(0,0,0,.09)}
 .prod-img{aspect-ratio:1;background:var(--ivory);display:flex;align-items:center;justify-content:center;overflow:hidden}
@@ -311,14 +324,14 @@
 
     </div>
 
-    <!-- Featured products -->
-    <div style="margin-top:36px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px" class="r"><div class="t-label">Featured Products</div><a href="products.html" class="btn-ghost">See all →</a></div>
-      <div class="prod-grid r">
-        <div class="prod-card"><span class="prod-badge badge-best">Bestseller</span><a href="product-detail.html?slug=arc-desk"><div class="prod-img" style="background:#F0EDE6"><svg viewBox="0 0 200 200" fill="none" role="img" aria-label="Arc Desk Organizer — 3D printed by TriAkar, Greater Noida"><rect x="25" y="38" width="150" height="124" rx="3" fill="#D4D0C8" stroke="#B8B4AA" stroke-width="1.5"/><rect x="45" y="8" width="46" height="104" rx="2" fill="#BEBAB0" stroke="#A8A49C" stroke-width="1.5"/><rect x="105" y="24" width="46" height="90" rx="2" fill="#C8C4BC" stroke="#B0ACA4" stroke-width="1.5"/></svg></div></a><div class="prod-body"><div class="prod-name">Arc Desk Organizer</div><div class="prod-short">Three compartments. Clean desk, clear mind.</div><div class="prod-foot"><div><span class="prod-price">₹1,890</span></div><button class="add-to-cart-btn" onclick="addToCartBtn(this,{id:'arc-desk',name:'Arc Desk Organizer',price:1890,color:'Stone Grey'})">Add to Cart</button></div></div></div>
-        <div class="prod-card"><a href="product-detail.html?slug=cable-loop"><div class="prod-img" style="background:#EDEAE3"><svg viewBox="0 0 200 200" fill="none" role="img" aria-label="Cable Loop — 3D printed by TriAkar, Greater Noida"><rect x="18" y="68" width="164" height="80" rx="40" fill="#D0CCC4" stroke="#B4B0A8" stroke-width="1.5"/><circle cx="100" cy="108" r="28" fill="#E8E4DC" stroke="#C0BCB4" stroke-width="1.5"/></svg></div></a><div class="prod-body"><div class="prod-name">Cable Loop</div><div class="prod-short">Adhesive cable clips. Pack of 4.</div><div class="prod-foot"><div><span class="prod-price">₹490</span></div><button class="add-to-cart-btn" onclick="addToCartBtn(this,{id:'cable-loop',name:'Cable Loop',price:490,color:'Pack of 4'})">Add to Cart</button></div></div></div>
-        <div class="prod-card"><span class="prod-badge badge-new">New</span><a href="product-detail.html?slug=lean-stand"><div class="prod-img" style="background:#F4F1EA"><svg viewBox="0 0 200 200" fill="none" role="img" aria-label="Lean Stand — 3D printed by TriAkar, Greater Noida"><path d="M48 170L88 78L112 78L152 170Z" fill="#D4D0C8" stroke="#B8B4AA" stroke-width="1.5"/><rect x="80" y="28" width="40" height="58" rx="4" fill="#C4C0B8" stroke="#A8A49C" stroke-width="1.5"/><line x1="48" y1="170" x2="152" y2="170" stroke="#A8A49C" stroke-width="2"/></svg></div></a><div class="prod-body"><div class="prod-name">Lean Stand</div><div class="prod-short">Phone and tablet stand. Single-piece form.</div><div class="prod-foot"><div><span class="prod-price">₹890</span></div><button class="add-to-cart-btn" onclick="addToCartBtn(this,{id:'lean-stand',name:'Lean Stand',price:890,color:'Ivory White'})">Add to Cart</button></div></div></div>
-        <div class="prod-card"><a href="product-detail.html?slug=facet-vase"><div class="prod-img" style="background:#EBE8E0"><svg viewBox="0 0 200 200" fill="none" role="img" aria-label="Facet Vase — 3D printed by TriAkar, Greater Noida"><path d="M68 182L56 122L46 78L100 18L154 78L144 122L132 182Z" fill="#D0CCC4" stroke="#B4B0A8" stroke-width="1.5"/><path d="M56 122L144 122" stroke="#C0BCB4" stroke-width="1"/><ellipse cx="100" cy="182" rx="32" ry="7" fill="#C4C0B8"/></svg></div></a><div class="prod-body"><div class="prod-name">Facet Vase</div><div class="prod-short">Geometric table vase. Waterproof inside.</div><div class="prod-foot"><div><span class="prod-price">₹1,290</span></div><button class="add-to-cart-btn" onclick="addToCartBtn(this,{id:'facet-vase',name:'Facet Vase',price:1290,color:'Sand'})">Add to Cart</button></div></div></div>
+    <!-- Featured products — loaded dynamically from Supabase -->
+    <div style="margin-top:36px" id="hpProductsSection">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px" class="r">
+        <div class="t-label">Featured Products</div>
+        <a href="products.html" class="btn-ghost">See all →</a>
+      </div>
+      <div id="hpProdGrid" class="hp-prod-grid r">
+        <div class="hp-prod-loading">Loading products…</div>
       </div>
     </div>
   </div>
@@ -346,7 +359,7 @@
 
 <section class="section" style="background:var(--ivory-2)">
   <div class="mw"><div class="section-head r"><div><div class="t-label" style="margin-bottom:9px">Recent Work</div><h2 class="t-h2">Problems we've solved</h2></div><a href="stories.html" class="btn-ghost">See all stories →</a></div>
-    <div class="work-grid r"><a href="stories.html#bracket" class="work-card">
+    <div class="work-grid one-row r"><a href="stories.html#bracket" class="work-card">
   <div class="work-svg-wrap" style="background:#111"><svg viewBox="0 0 360 202" fill="none" style="width:68%"><circle cx="180" cy="101" r="58" stroke="#C4622A" stroke-width="1.5" fill="none"/><circle cx="180" cy="101" r="32" fill="rgba(196,98,42,.07)"/><circle cx="180" cy="101" r="10" fill="#C4622A"/><path d="M122 101h26M212 101h26M180 43v26M180 135v26" stroke="#C4622A" stroke-width="2.5" stroke-linecap="round"/></svg></div>
   <div class="work-body">
     <div class="work-meta"><span class="tag tag-accent">Replacement Part</span></div>
@@ -508,5 +521,67 @@
 <script src="js/auth.js"></script>
 <script src="products-data.js"></script>
 <script src="shared.js"></script>
+
+<script>
+/* ── Homepage: load products marked with homepage_order ── */
+(async function loadHpProducts(){
+  const grid=document.getElementById('hpProdGrid');
+  const section=document.getElementById('hpProductsSection');
+  if(!grid)return;
+
+  try{
+    const SB_URL='https://qarjbmogersuaerkhlcu.supabase.co';
+    const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
+    const sb2=(window.supabase?.createClient||window.__sb_create__)?supabase.createClient(SB_URL,SB_KEY):null;
+    if(!sb2){grid.innerHTML='';return;}
+
+    const {data:prods,error}=await sb2
+      .from('products')
+      .select('id,name,slug,price,images,short_description,badge,is_customizable,homepage_order')
+      .eq('is_active',true)
+      .not('homepage_order','is',null)
+      .order('homepage_order',{ascending:true})
+      .limit(10);
+
+    if(error||!prods||!prods.length){
+      // No homepage products configured — hide section entirely
+      if(section) section.style.display='none';
+      return;
+    }
+
+    // Auto-calculate columns: max 5/row, max 2 rows
+    const n=prods.length;
+    const cols=n<=5?n:Math.min(Math.ceil(n/2),5);
+    grid.style.gridTemplateColumns='repeat('+cols+',1fr)';
+
+    grid.innerHTML=prods.map(p=>{
+      const imgHtml=(p.images&&p.images.length)
+        ?'<img src="'+_hesc(p.images[0])+'" alt="'+_hesc(p.name)+'" loading="lazy" style="width:100%;height:100%;object-fit:cover">'
+        :'<svg viewBox="0 0 200 200" fill="none"><rect x="50" y="50" width="100" height="100" rx="6" fill="#D4D0C8"/><rect x="75" y="30" width="50" height="65" rx="3" fill="#C0BCB4"/></svg>';
+      const badge=p.badge
+        ?'<span class="prod-badge '+(p.badge.toLowerCase()==='bestseller'?'badge-best':'badge-new')+'">'+_hesc(p.badge)+'</span>':'' ;
+      const short=p.short_description||'';
+      const price=p.price?'₹'+Number(p.price).toLocaleString('en-IN'):'';
+      return '<div class="prod-card">'
+        +badge
+        +'<a href="product-detail.html?slug='+_hesc(p.slug)+'">'
+        +'<div class="prod-img">'+imgHtml+'</div></a>'
+        +'<div class="prod-body">'
+        +'<div class="prod-name">'+_hesc(p.name)+'</div>'
+        +(short?'<div class="prod-short">'+_hesc(short)+'</div>':'')
+        +'<div class="prod-foot">'
+        +'<span class="prod-price">'+price+'</span>'
+        +'<button class="add-to-cart-btn" onclick="addToCartBtn(this,{id:\''+_hesc(p.slug)+'\',name:\''+_hesc(p.name)+'\',price:'+(p.price||0)+'})">Add to Cart</button>'
+        +'</div></div></div>';
+    }).join('');
+
+  }catch(e){
+    console.warn('HP products load error:',e.message);
+    if(section) section.style.display='none';
+  }
+})();
+
+function _hesc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+</script>
 </body>
 </html>

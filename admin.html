@@ -919,10 +919,22 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
           <input type="text" id="fUrgencyText" placeholder="Only available till June 30">
         </div>
       </div>
-      <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:4px">
-        <label class="fcheck"><input type="checkbox" id="fBestseller"> Bestseller (show on homepage)</label>
-        <label class="fcheck"><input type="checkbox" id="fFeatured"> Featured</label>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:4px;align-items:center">
+        <label class="fcheck"><input type="checkbox" id="fBestseller"> Bestseller</label>
         <label class="fcheck"><input type="checkbox" id="fActive" checked> Active (visible in shop)</label>
+      </div>
+      <!-- Homepage Showcase -->
+      <div style="margin-top:12px;padding:12px 14px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius)">
+        <label class="fcheck" style="margin-bottom:8px;font-weight:600">
+          <input type="checkbox" id="fHomepage" onchange="toggleHomepageOrder()"> Show on Homepage
+        </label>
+        <div id="homepageOrderWrap" style="display:none;margin-top:8px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <label style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);font-weight:600">Position (1–10)</label>
+            <input type="number" id="fHomepageOrder" min="1" max="10" step="1" placeholder="1" style="width:70px;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:13px">
+            <span style="font-size:11px;color:var(--text-3)">Lower number = shown first. Max 10 products total.</span>
+          </div>
+        </div>
       </div>
 
       <!-- Description & Notes -->
@@ -1044,7 +1056,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     <div class="tbl-wrap">
       <table>
         <thead><tr>
-          <th style="width:50px"></th><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Badge</th><th>Status</th><th>Actions</th>
+          <th style="width:50px"></th><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Badge</th><th style="width:70px;text-align:center">Home</th><th>Status</th><th>Actions</th>
         </tr></thead>
         <tbody id="productsBody"><tr><td colspan="8" class="tbl-msg">Loading products…</td></tr></tbody>
       </table>
@@ -1986,7 +1998,7 @@ async function loadProducts(){
 
 function renderProductsTable(){
   const tbody=document.getElementById('productsBody');
-  if(!_products.length){tbody.innerHTML='<tr><td colspan="8" class="tbl-msg">No products yet. Add one above.</td></tr>';return}
+  if(!_products.length){tbody.innerHTML='<tr><td colspan="9" class="tbl-msg">No products yet. Add one above.</td></tr>';return}
   tbody.innerHTML=_products.map(p=>{
     const img=p.images&&p.images[0]?'<div class="td-img"><img src="'+p.images[0]+'" loading="lazy"></div>':'<div class="td-img" style="display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--text-3)">—</div>';
     const badgeHtml=p.badge?'<span class="badge badge-accent">'+p.badge+'</span>':'<span style="color:var(--text-3)">—</span>';
@@ -2003,6 +2015,13 @@ function renderProductsTable(){
       +'onblur="updateProductStock(this)">'
       +'<span style="font-size:9px;color:'+stockColor+';font-weight:600">'+(qty===0?'OUT':qty<=5?'LOW':'')+'</span>'
       +'</div></td>';
+    // Homepage cell — show order badge + quick-toggle button
+    const hp=p.homepage_order;
+    const hpCell='<td style="text-align:center">'
+      +(hp!=null
+        ?'<span style="display:inline-block;background:var(--accent);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:3px;cursor:pointer" title="Click to remove from homepage" onclick="quickToggleHomepage(\''+p.id+'\','+hp+')">★ #'+hp+'</span>'
+        :'<span style="font-size:11px;color:var(--text-3);cursor:pointer" title="Click to add to homepage" onclick="quickToggleHomepage(\''+p.id+'\',null)">+</span>')
+      +'</td>';
     return '<tr>'
       +'<td>'+img+'</td>'
       +'<td class="td-name">'+p.name+'<div style="font-family:var(--mono);font-size:10px;color:var(--text-3);margin-top:2px">/'+p.slug+'</div></td>'
@@ -2010,11 +2029,37 @@ function renderProductsTable(){
       +'<td>'+priceHtml+'</td>'
       +stockCell
       +'<td>'+badgeHtml+'</td>'
+      +hpCell
       +'<td><span class="dot '+(p.is_active?'dot-green':'dot-red')+'"></span>'+(p.is_active?'Active':'Hidden')+'</td>'
       +'<td><button class="btn-sm" onclick="openProductForm(\''+p.id+'\')" style="margin-right:4px">Edit</button>'
       +'<button class="btn-danger" onclick="deleteProduct(\''+p.id+'\',\''+safe+'\')">Del</button></td>'
       +'</tr>';
   }).join('');
+}
+
+// Quick-toggle homepage directly from table row
+async function quickToggleHomepage(id, current){
+  if(current!=null){
+    // Remove from homepage
+    const{error}=await sb.from('products').update({homepage_order:null}).eq('id',id);
+    if(error){toast('Error: '+error.message,'error');return;}
+    const p=_products.find(x=>x.id===id);if(p)p.homepage_order=null;
+    renderProductsTable();toast('Removed from homepage','success');
+  }else{
+    // Find next available slot (1-10)
+    const used=new Set(_products.filter(x=>x.homepage_order!=null).map(x=>x.homepage_order));
+    let slot=1;while(used.has(slot)&&slot<=10)slot++;
+    if(slot>10){toast('Homepage is full (10 products max). Remove one first.','error');return;}
+    const{error}=await sb.from('products').update({homepage_order:slot}).eq('id',id);
+    if(error){toast('Error: '+error.message,'error');return;}
+    const p=_products.find(x=>x.id===id);if(p)p.homepage_order=slot;
+    renderProductsTable();toast('Added to homepage at position #'+slot,'success');
+  }
+}
+
+function toggleHomepageOrder(){
+  const show=document.getElementById('fHomepage').checked;
+  document.getElementById('homepageOrderWrap').style.display=show?'block':'none';
 }
 
 async function updateProductStock(inp){
@@ -2088,8 +2133,11 @@ function openProductForm(id){
     document.getElementById('fUrgencyText').value=p.urgency_text||'';
     toggleUrgencyField();
     document.getElementById('fBestseller').checked=!!p.is_bestseller;
-    document.getElementById('fFeatured').checked=!!p.is_featured;
     document.getElementById('fActive').checked=p.is_active!==false;
+    const hp=p.homepage_order!=null;
+    document.getElementById('fHomepage').checked=hp;
+    document.getElementById('fHomepageOrder').value=p.homepage_order||1;
+    document.getElementById('homepageOrderWrap').style.display=hp?'block':'none';
     document.getElementById('fSku').value=p.sku||'';
     document.getElementById('fDesigner').value=p.designer||'';
     document.getElementById('fStockStatus').value=p.stock_status||'Made to Order';
@@ -2132,8 +2180,10 @@ function openProductForm(id){
     document.getElementById('fBadge').value='';
     document.getElementById('fUrgencyType').value='';
     document.getElementById('fBestseller').checked=false;
-    document.getElementById('fFeatured').checked=false;
     document.getElementById('fActive').checked=true;
+    document.getElementById('fHomepage').checked=false;
+    document.getElementById('fHomepageOrder').value='';
+    document.getElementById('homepageOrderWrap').style.display='none';
     document.getElementById('fCustomizable').checked=false;
     document.getElementById('fSlug')._manual=false;
     toggleDiscountField();toggleUrgencyField();toggleCustSection();
@@ -2201,8 +2251,10 @@ async function submitProductForm(){
     urgency_type:document.getElementById('fUrgencyType').value||null,
     urgency_text:document.getElementById('fUrgencyText').value.trim()||null,
     is_bestseller:document.getElementById('fBestseller').checked,
-    is_featured:document.getElementById('fFeatured').checked,
     is_active:document.getElementById('fActive').checked,
+    homepage_order:document.getElementById('fHomepage').checked
+      ?(parseInt(document.getElementById('fHomepageOrder').value)||1)
+      :null,
     is_customizable:document.getElementById('fCustomizable').checked,
     description:document.getElementById('fDescription').value.trim()||null,
     short_description:document.getElementById('fShortDesc').value.trim()||null,
