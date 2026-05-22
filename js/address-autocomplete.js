@@ -248,8 +248,9 @@
     /* ─ City ─ */
     const city = a.city || a.town || a.village || a.municipality || a.county || '';
 
-    /* ─ District ─ */
-    const district = a.county || a.city_district || a.state_district || '';
+    /* ─ District — filter out OSM abbreviations (< 3 chars) ─ */
+    const rawDistrict = a.county || a.city_district || a.state_district || '';
+    const district = rawDistrict.length >= 3 ? rawDistrict : '';
 
     /* ─ State ─ */
     const state = normaliseState(a.state || a.state_district || '');

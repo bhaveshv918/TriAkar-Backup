@@ -245,29 +245,26 @@ function generateTRKId(){
 }
 
 /* ══ PINCODE AUTO-FILL ════════════════════════════════════ */
-// Returns: {city,district,state}  — found
-//          {unavailable:true}      — API down / network error (do NOT block user)
-//          null                    — API responded but pincode does not exist
+// api.postalpincode.in is an unofficial, unreliable API — it incorrectly rejects many
+// valid Indian pincodes (e.g. 201306 Greater Noida). We use it ONLY for best-effort
+// city/state auto-fill. We NEVER block the user based on its response.
+// Returns: {city,district,state}  — auto-fill data available
+//          {unavailable:true}      — API failure or pincode not in its DB (both treated the same)
 async function lookupPincode(pin){
-  if(!/^\d{6}$/.test(pin))return null;
+  if(!/^\d{6}$/.test(pin))return{unavailable:true};
   try{
     const ctrl=new AbortController();
-    const t=setTimeout(()=>ctrl.abort(),5000); // 5s timeout
+    const t=setTimeout(()=>ctrl.abort(),4000); // 4s timeout
     const res=await fetch('https://api.postalpincode.in/pincode/'+pin,{signal:ctrl.signal});
     clearTimeout(t);
     const data=await res.json();
-    if(data&&data[0]){
-      if(data[0].Status==='Success'&&data[0].PostOffice&&data[0].PostOffice.length){
-        const po=data[0].PostOffice[0];
-        return{city:po.Block||po.Division||po.Taluk||po.Name,district:po.District,state:po.State};
-      }
-      // API said "Error" or empty — pincode truly not found in India Post database
-      if(data[0].Status==='Error'||data[0].Status==='404')return null;
+    if(data&&data[0]&&data[0].Status==='Success'&&data[0].PostOffice&&data[0].PostOffice.length){
+      const po=data[0].PostOffice[0];
+      return{city:po.Block||po.Division||po.Taluk||po.Name,district:po.District,state:po.State};
     }
-    // Unexpected response shape — treat as unavailable
+    // Any non-Success response — treat as unavailable, not as "invalid pincode"
     return{unavailable:true};
   }catch(e){
-    // Network error, timeout, CORS etc — do not block the user
     return{unavailable:true};
   }
 }
@@ -506,7 +503,7 @@ function initCheckoutModal(){
           const distEl=document.getElementById('ckDistrict');
           const stateEl=document.getElementById('ckState');
           if(cityEl&&!cityEl.value)cityEl.value=info.city||'';
-          if(distEl)distEl.value=info.district||'';
+          if(distEl&&info.district)distEl.value=info.district;
           if(stateEl&&info.state){
             stateEl.value=info.state;
             stateEl.dataset.value=info.state;
@@ -520,10 +517,8 @@ function initCheckoutModal(){
             }
           }
           if(errEl)errEl.textContent='';
-        } else if(info===null){
-          if(errEl)errEl.textContent='PIN code not found — please check the number.';
         }
-        // info.unavailable → silent (API down, user still fills manually)
+        // API unavailable or pincode not in DB — never show an error, user fills manually
       }
     });
   }
@@ -676,31 +671,9 @@ async function validateAndNext(){
     if(phoneInp&&phoneInp._validatePhone&&!phoneInp._validatePhone())return;
     if(!d.address_line1||!d.city||!d.state||!d.pincode){alert('Please fill all required address fields.');return;}
     if(!/^\d{6}$/.test(d.pincode)){alert('Please enter a valid 6-digit PIN code.');return;}
-    // Pincode ↔ State soft-validation (never block if API is unavailable)
-    const pinfo=await lookupPincode(d.pincode);
+    // Pincode: format is already validated above (6-digit). No external API blocking.
+    // lookupPincode is used only for auto-fill — never for blocking validation.
     const pinErr=document.getElementById('ckPincodeErr');
-    if(pinfo===null){
-      // Confirmed not found by India Post API
-      if(pinErr)pinErr.textContent='This PIN code was not found in India Post records. Please double-check.';
-      document.getElementById('ckPincode')?.focus();
-      return;
-    }
-    if(pinfo&&!pinfo.unavailable){
-      // Found — cross-check state
-      const normalize=s=>(s||'').toLowerCase().replace(/[\s\-]/g,'');
-      if(d.state&&normalize(pinfo.state)!==normalize(d.state)){
-        if(pinErr)pinErr.textContent='PIN code belongs to '+pinfo.state+', not '+d.state+'. Please check.';
-        document.getElementById('ckPincode')?.focus();
-        return;
-      }
-      // Auto-fill city if blank
-      if(!d.city){
-        const cityEl=document.getElementById('ckCity');
-        if(cityEl&&pinfo.city){cityEl.value=pinfo.city;}
-      }
-    }
-    // pinfo.unavailable → API was down — let the user through, warn in console only
-    if(pinfo&&pinfo.unavailable)console.info('[TriAkar] Pincode API unavailable — skipping validation for',d.pincode);
     if(pinErr)pinErr.textContent='';
   }
   if(!d.name||!d.phone){alert('A delivery name and phone number are required.');return;}
