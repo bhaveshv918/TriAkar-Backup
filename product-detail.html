@@ -306,7 +306,7 @@ function init(){
     // API path: fetch live product data by slug
     fetch('https://triakar.onrender.com/api/products/'+encodeURIComponent(slug))
       .then(r=>r.json())
-      .then(ap=>renderProduct(ap))
+      .then(data=>renderProduct(data.product||data))
       .catch(()=>{const p=PRODS['arc-desk'];renderProduct({...p,slug:'arc-desk'});});
   } else {
     // Local fallback: use PRODS data by id
@@ -318,18 +318,27 @@ function init(){
 
 function renderProduct(ap){
   const id=ap.slug||ap.id||'arc-desk';
+  // compute discount % from API fields
+  let discountPct=null;
+  if(ap.discount_value&&ap.discount_type==='percentage'){discountPct=ap.discount_value;}
+  else if(ap.discount_pct){discountPct=ap.discount_pct;}
+  else if(ap.compare_at_price&&ap.price&&ap.compare_at_price>ap.price){discountPct=Math.round((1-ap.price/ap.compare_at_price)*100);}
+  // badge label
+  const badgeLabel=ap.badge||(ap.is_bestseller?'Bestseller':null)||ap.tag||null;
+  // variants: use colors array, or variants array (extract names), or available_colors
+  const rawVariants=ap.colors?.length?ap.colors:ap.available_colors?.length?ap.available_colors:(ap.variants||[]).map(v=>typeof v==='object'?v.name:v);
   const p={
     name:ap.name||'Product',
     price:ap.price||0,
     usd:ap.usd||'',
     desc:ap.short_description||ap.description||ap.desc||'',
     long_desc:ap.long_description||ap.long_desc||'',
-    discount_pct:ap.discount_pct||null,
-    badge:ap.badge||null,
-    tag:ap.tag||null,
-    variants:ap.colors||ap.available_colors||(ap.variants||[]).map(v=>typeof v==='object'?v.name:v)||['Default'],
+    discount_pct:discountPct,
+    badge:badgeLabel,
+    tag:null,
+    variants:rawVariants.length?rawVariants:['Default'],
     specs:ap.specifications||ap.specs||[],
-    key_features:ap.key_features||[],
+    key_features:ap.key_features||ap.bullet_points||[],
     urgency_type:ap.urgency_type||null,
     urgency_text:ap.urgency_text||null,
     images:ap.images||[],
@@ -347,7 +356,7 @@ function renderProduct(ap){
   if(ldEl){if(p.long_desc){ldEl.textContent=p.long_desc;ldEl.style.display='';}else{ldEl.style.display='none';}}
   // discount %
   const discEl=document.getElementById('prodDiscount');
-  if(discEl){if(p.discount_pct){discEl.textContent=p.discount_pct+'% off';discEl.style.display='';}else{discEl.style.display='none';}}
+  if(discEl){if(p.discount_pct){discEl.textContent='-'+p.discount_pct+'%';discEl.style.display='';}else{discEl.style.display='none';}}
   // prod-tag pill above title
   const tagEl=document.getElementById('prodTag');
   if(tagEl){const label=p.badge||p.tag;if(label){tagEl.textContent=label;tagEl.style.display='';}else{tagEl.style.display='none';}}
