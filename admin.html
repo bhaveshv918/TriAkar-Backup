@@ -2441,41 +2441,67 @@ const _EXCEL_PRODUCTS = [
 ];
 
 async function replaceAllFromExcel(){
-  if(!confirm('⚠ WARNING: This will DELETE ALL existing products and replace them with the 10 products from your Excel file.\n\nThis cannot be undone. Are you sure?'))return;
-  if(!confirm('Second confirmation: DELETE all products and import 10 new ones?'))return;
+  if(!confirm('⚠ WARNING: This will remove all existing products and replace them with the 10 products from your Excel file.\n\nProducts with existing orders will be hidden (not deleted) to preserve order history.\nProducts with no orders will be permanently deleted.\n\nAre you sure?'))return;
+  if(!confirm('Second confirmation: Replace all products with the 10 Excel products?'))return;
 
   const statusEl=document.getElementById('importStatus');
-  statusEl.textContent='Deleting all existing products…';
 
   try{
-    // 1. Delete all existing products
-    const {error:delErr}=await sb.from('products').delete().neq('id','00000000-0000-0000-0000-000000000000');
-    if(delErr)throw delErr;
+    // ── 1. Check which existing products have order_items ─────────────────
+    statusEl.textContent='Checking existing orders…';
+    const {data:existingProds}=await sb.from('products').select('id,slug,name');
+    const allIds=(existingProds||[]).map(p=>p.id);
 
+    // Get all product_ids referenced in order_items
+    const {data:orderedItems}=await sb.from('order_items').select('product_id');
+    const referencedIds=new Set((orderedItems||[]).map(i=>i.product_id).filter(Boolean));
+
+    const canHardDelete=allIds.filter(id=>!referencedIds.has(id));
+    const mustSoftDelete=allIds.filter(id=>referencedIds.has(id));
+
+    // ── 2. Hard-delete products with no orders ────────────────────────────
+    if(canHardDelete.length){
+      statusEl.textContent='Deleting '+canHardDelete.length+' unused products…';
+      const {error:delErr}=await sb.from('products').delete().in('id',canHardDelete);
+      if(delErr)throw delErr;
+    }
+
+    // ── 3. Soft-delete products that have orders (preserve FK integrity) ──
+    if(mustSoftDelete.length){
+      statusEl.textContent='Archiving '+mustSoftDelete.length+' products with existing orders…';
+      const {error:softErr}=await sb.from('products').update({is_active:false}).in('id',mustSoftDelete);
+      if(softErr)throw softErr;
+    }
+
+    // ── 4. Insert all 10 new products (upsert by slug handles re-runs) ────
     statusEl.textContent='Inserting 10 new products…';
-
-    // 2. Insert all 10 new products
     let added=0,failed=0,errors=[];
+
     for(let i=0;i<_EXCEL_PRODUCTS.length;i++){
       const p=_EXCEL_PRODUCTS[i];
       statusEl.textContent='Inserting '+(i+1)+'/'+_EXCEL_PRODUCTS.length+': '+p.name+'…';
-      const {error:insErr}=await sb.from('products').insert({
+      const {error:insErr}=await sb.from('products').upsert({
         ...p,
         images:[],variants:[],customization_fields:[],product_dropdowns:[],
         bullet_points:[],colors:[],
         description_display_mode:'all',
         stock_qty:0,
         long_description:p.description,
-      });
-      if(insErr){failed++;errors.push(p.slug+': '+insErr.message);}
+      },{onConflict:'slug'});
+      if(insErr){failed++;errors.push(p.name+': '+insErr.message);}
       else added++;
     }
 
-    const msg=added+' products imported'+( failed?' · '+failed+' errors':'');
+    // ── 5. Done ───────────────────────────────────────────────────────────
+    let msg=added+' products imported';
+    if(mustSoftDelete.length) msg+=' · '+mustSoftDelete.length+' old products archived (had orders)';
+    if(canHardDelete.length) msg+=' · '+canHardDelete.length+' old products deleted';
+    if(failed) msg+=' · '+failed+' errors';
     statusEl.textContent=msg;
     if(errors.length)console.error('Import errors:',errors);
     toast('Done! '+msg, failed?'error':'success');
     loadProducts();
+
   }catch(err){
     statusEl.textContent='Error: '+err.message;
     toast('Import failed: '+err.message,'error');
