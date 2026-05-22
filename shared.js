@@ -245,37 +245,117 @@ function generateTRKId(){
 }
 
 /* ══ PINCODE AUTO-FILL ════════════════════════════════════ */
-// Uses Nominatim (OpenStreetMap) — free, no API key, works for ALL Indian pincodes.
-// api.postalpincode.in was unreliable and often completely down, so replaced entirely.
+// Strategy (in order):
+//   1. Nominatim postalcode= query — proper OSM postcode endpoint, works across India
+//   2. India Post API fallback — postalpincode.in, works for most PINs
+//   3. Return {unavailable:true} — never blocks the user
 // Returns: {city,district,state}  — data available
 //          {unavailable:true}      — network error / no result (never blocks user)
 async function lookupPincode(pin){
   if(!/^\d{6}$/.test(pin))return{unavailable:true};
+
+  // ── 1. Nominatim postalcode= (correct postcode endpoint) ──
   try{
     const ctrl=new AbortController();
-    const t=setTimeout(()=>ctrl.abort(),5000);
+    const t=setTimeout(()=>ctrl.abort(),6000);
     const res=await fetch(
-      'https://nominatim.openstreetmap.org/search?q='+pin+'&countrycodes=in&format=jsonv2&addressdetails=1&limit=1',
-      {signal:ctrl.signal,headers:{'Accept-Language':'en'}}
+      'https://nominatim.openstreetmap.org/search?postalcode='+pin+'&countrycodes=in&format=jsonv2&addressdetails=1&limit=5',
+      {signal:ctrl.signal,headers:{'Accept-Language':'en','User-Agent':'TriAkar-PincodeSearch/2.1'}}
     );
     clearTimeout(t);
-    const data=await res.json();
-    if(!data||!data[0])return{unavailable:true};
-    const a=data[0].address||{};
-    const state=_normaliseState(a.state||a.state_district||'');
-    if(!state)return{unavailable:true};
-    const district=a.county||a.city_district||a.state_district||'';
-    const city=a.city||a.town||a.village||district||'';
-    return{city,district,state};
-  }catch(e){
-    return{unavailable:true};
-  }
+    if(res.ok){
+      const data=await res.json();
+      if(data&&data[0]){
+        const a=data[0].address||{};
+        const state=_normaliseState(a.state||a.state_district||'');
+        if(state){
+          const district=a.county||a.city_district||a.state_district||'';
+          const city=a.city||a.town||a.village||a.municipality||district||'';
+          return{city,district,state};
+        }
+      }
+    }
+  }catch(e){/* fall through to India Post */}
+
+  // ── 2. India Post API fallback ──
+  try{
+    const ctrl2=new AbortController();
+    const t2=setTimeout(()=>ctrl2.abort(),6000);
+    const res2=await fetch('https://api.postalpincode.in/pincode/'+pin,{signal:ctrl2.signal});
+    clearTimeout(t2);
+    if(res2.ok){
+      const data2=await res2.json();
+      if(data2&&data2[0]&&data2[0].Status==='Success'&&data2[0].PostOffice&&data2[0].PostOffice.length){
+        const po=data2[0].PostOffice[0];
+        const state=_normaliseState(po.State||'');
+        if(state){
+          const district=po.District||'';
+          // India Post: Block or Division is the closest to city/town
+          const city=po.Block||po.Division||po.Name||district||'';
+          return{city,district,state};
+        }
+      }
+    }
+  }catch(e){/* both APIs failed */}
+
+  return{unavailable:true};
 }
 
-// State name normaliser (reused from address-autocomplete.js logic)
+// State name normaliser — handles all Indian states/UTs plus common OSM/India Post variants
 function _normaliseState(raw){
   if(!raw)return'';
-  const map={'andhra pradesh':'Andhra Pradesh','arunachal pradesh':'Arunachal Pradesh','assam':'Assam','bihar':'Bihar','chhattisgarh':'Chhattisgarh','goa':'Goa','gujarat':'Gujarat','haryana':'Haryana','himachal pradesh':'Himachal Pradesh','jharkhand':'Jharkhand','karnataka':'Karnataka','kerala':'Kerala','madhya pradesh':'Madhya Pradesh','maharashtra':'Maharashtra','manipur':'Manipur','meghalaya':'Meghalaya','mizoram':'Mizoram','nagaland':'Nagaland','odisha':'Odisha','orissa':'Odisha','punjab':'Punjab','rajasthan':'Rajasthan','sikkim':'Sikkim','tamil nadu':'Tamil Nadu','telangana':'Telangana','tripura':'Tripura','uttar pradesh':'Uttar Pradesh','uttarakhand':'Uttarakhand','west bengal':'West Bengal','delhi':'Delhi','national capital territory of delhi':'Delhi','new delhi':'Delhi','jammu & kashmir':'Jammu & Kashmir','jammu and kashmir':'Jammu & Kashmir','ladakh':'Ladakh','chandigarh':'Chandigarh','puducherry':'Puducherry','pondicherry':'Puducherry','goa':'Goa','lakshadweep':'Lakshadweep'};
+  const map={
+    // 28 States
+    'andhra pradesh':'Andhra Pradesh',
+    'arunachal pradesh':'Arunachal Pradesh',
+    'assam':'Assam',
+    'bihar':'Bihar',
+    'chhattisgarh':'Chhattisgarh','chattisgarh':'Chhattisgarh',
+    'goa':'Goa',
+    'gujarat':'Gujarat',
+    'haryana':'Haryana',
+    'himachal pradesh':'Himachal Pradesh',
+    'jharkhand':'Jharkhand',
+    'karnataka':'Karnataka','karnataka state':'Karnataka',
+    'kerala':'Kerala',
+    'madhya pradesh':'Madhya Pradesh',
+    'maharashtra':'Maharashtra',
+    'manipur':'Manipur',
+    'meghalaya':'Meghalaya',
+    'mizoram':'Mizoram',
+    'nagaland':'Nagaland',
+    'odisha':'Odisha','orissa':'Odisha',
+    'punjab':'Punjab',
+    'rajasthan':'Rajasthan',
+    'sikkim':'Sikkim',
+    'tamil nadu':'Tamil Nadu','tamilnadu':'Tamil Nadu',
+    'telangana':'Telangana','telegana':'Telangana',
+    'tripura':'Tripura',
+    'uttar pradesh':'Uttar Pradesh','u.p.':'Uttar Pradesh','up':'Uttar Pradesh',
+    'uttarakhand':'Uttarakhand','uttaranchal':'Uttarakhand',
+    'west bengal':'West Bengal',
+    // 8 UTs
+    'andaman & nicobar':'Andaman & Nicobar',
+    'andaman and nicobar':'Andaman & Nicobar',
+    'andaman and nicobar islands':'Andaman & Nicobar',
+    'andaman & nicobar islands':'Andaman & Nicobar',
+    'chandigarh':'Chandigarh',
+    'dadra & nagar haveli':'Dadra & Nagar Haveli',
+    'dadra and nagar haveli':'Dadra & Nagar Haveli',
+    'dadra & nagar haveli and daman & diu':'Dadra & Nagar Haveli',
+    'dadra and nagar haveli and daman and diu':'Dadra & Nagar Haveli',
+    'daman & diu':'Daman & Diu','daman and diu':'Daman & Diu','daman':'Daman & Diu',
+    'delhi':'Delhi',
+    'national capital territory of delhi':'Delhi',
+    'nct of delhi':'Delhi','nct':'Delhi',
+    'new delhi':'Delhi',
+    'jammu & kashmir':'Jammu & Kashmir',
+    'jammu and kashmir':'Jammu & Kashmir',
+    'j&k':'Jammu & Kashmir','j & k':'Jammu & Kashmir',
+    'ladakh':'Ladakh',
+    'lakshadweep':'Lakshadweep',
+    'puducherry':'Puducherry','pondicherry':'Puducherry','pudducherry':'Puducherry',
+  };
   return map[raw.toLowerCase().trim()]||raw;
 }
 
@@ -299,15 +379,16 @@ function attachPincodeAutofill(pinId, infoId, cityId, districtId, stateId, state
     infoEl.innerHTML='<span style="color:var(--stone,#888)">⟳ Looking up PIN…</span>';
     const info=await lookupPincode(val);
     if(info&&!info.unavailable){
-      // Success — auto-fill fields (only overwrite if empty)
+      // Success — always overwrite city, district, state from fresh PIN lookup
       const cityEl=document.getElementById(cityId);
       const distEl=document.getElementById(districtId);
       const stateEl=document.getElementById(stateId);
-      if(cityEl&&!cityEl.value)cityEl.value=info.city||'';
+      if(cityEl&&info.city)cityEl.value=info.city;
       if(distEl&&info.district)distEl.value=info.district;
       if(stateEl&&info.state){
         stateEl.value=info.state;
         stateEl.dataset.value=info.state;
+        // Sync the searchable dropdown visible input and selection
         const wrap=document.getElementById(stateWrapId);
         if(wrap){
           const sdInp=wrap.querySelector('.sd-input');
@@ -316,6 +397,8 @@ function attachPincodeAutofill(pinId, infoId, cityId, districtId, stateId, state
             o.classList.toggle('selected',o.textContent.trim()===info.state||o.dataset.value===info.state);
           });
         }
+        // Fire change so any listeners (validation, etc.) pick up the new value
+        stateEl.dispatchEvent(new Event('change',{bubbles:true}));
       }
       infoEl.innerHTML='<span style="color:#15803d">✓ '+(info.district||info.city||'')+', '+info.state+'</span>';
     } else {
@@ -704,6 +787,8 @@ async function resolveAddressId(d,headers,API){
       full_name:d.name,phone:d.phone,
       address_line1:d.address_line1,
       address_line2:d.address_line2||null,
+      landmark:d.landmark||null,
+      district:d.district||null,
       city:d.city,state:d.state,pincode:d.pincode,
       country:'India',is_default:true
     })
@@ -900,6 +985,7 @@ async function saveOrderToSupabase(trkId,d,orderItems,subtotal,shipping,total,pa
         await sb.from('user_addresses').insert({
           user_id:user.id,full_name:d.name,phone:d.phone,
           address_line1:d.address_line1,address_line2:d.address_line2||null,
+          landmark:d.landmark||null,district:d.district||null,
           city:d.city,state:d.state,pincode:d.pincode,
           is_default:isFirst
         });

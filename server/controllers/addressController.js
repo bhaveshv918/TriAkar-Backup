@@ -32,7 +32,7 @@ export async function getDefaultAddress(req, res, next) {
 export async function createAddress(req, res, next) {
   try {
     // FIX #16: default is_default to false — caller must explicitly opt in to avoid silently overwriting existing default
-  const { full_name, phone, address_line1, address_line2, city, state, pincode, country = 'India', is_default = false } = req.body;
+  const { full_name, phone, address_line1, address_line2, landmark, district, city, state, pincode, country = 'India', is_default = false } = req.body;
     if (!full_name || !phone || !address_line1 || !city || !state || !pincode) {
       return res.status(400).json({ error: 'full_name, phone, address_line1, city, state, pincode are required' });
     }
@@ -41,7 +41,7 @@ export async function createAddress(req, res, next) {
     }
     const { data, error } = await supabase
       .from('user_addresses')
-      .insert({ user_id: req.user.id, full_name, phone, address_line1, address_line2: address_line2 || null, city, state, pincode, country, is_default })
+      .insert({ user_id: req.user.id, full_name, phone, address_line1, address_line2: address_line2 || null, landmark: landmark || null, district: district || null, city, state, pincode, country, is_default })
       .select()
       .single();
     if (error) throw error;
@@ -52,10 +52,10 @@ export async function createAddress(req, res, next) {
 /* PUT /api/addresses/:id */
 export async function updateAddress(req, res, next) {
   try {
-    const { full_name, phone, address_line1, address_line2, city, state, pincode, country } = req.body;
+    const { full_name, phone, address_line1, address_line2, landmark, district, city, state, pincode, country } = req.body;
     const { data, error } = await supabase
       .from('user_addresses')
-      .update({ full_name, phone, address_line1, address_line2, city, state, pincode, country })
+      .update({ full_name, phone, address_line1, address_line2, landmark: landmark ?? null, district: district ?? null, city, state, pincode, country })
       .eq('id', req.params.id)
       .eq('user_id', req.user.id)  // ownership check
       .select()

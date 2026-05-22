@@ -38,6 +38,8 @@ CREATE TABLE user_addresses (
   phone         TEXT NOT NULL,
   address_line1 TEXT NOT NULL,
   address_line2 TEXT,
+  landmark      TEXT,
+  district      TEXT,
   city          TEXT NOT NULL,
   state         TEXT NOT NULL,
   pincode       TEXT NOT NULL,
@@ -45,6 +47,11 @@ CREATE TABLE user_addresses (
   is_default    BOOLEAN DEFAULT false,
   created_at    TIMESTAMPTZ DEFAULT now()
 );
+
+-- Migration helper: add landmark/district to existing deployments without full re-create
+-- Run these two lines in Supabase SQL Editor if the table already exists:
+-- ALTER TABLE user_addresses ADD COLUMN IF NOT EXISTS landmark TEXT;
+-- ALTER TABLE user_addresses ADD COLUMN IF NOT EXISTS district TEXT;
 ALTER TABLE user_addresses ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users manage own addresses" ON user_addresses FOR ALL USING (auth.uid() = user_id);
 

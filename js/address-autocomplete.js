@@ -22,28 +22,56 @@
 
   /* ── Indian states normalisation ─────────────────────────── */
   const STATE_MAP = {
-    'andhra pradesh':'Andhra Pradesh','arunachal pradesh':'Arunachal Pradesh',
-    'assam':'Assam','bihar':'Bihar','chhattisgarh':'Chhattisgarh','goa':'Goa',
-    'gujarat':'Gujarat','haryana':'Haryana','himachal pradesh':'Himachal Pradesh',
-    'jharkhand':'Jharkhand','karnataka':'Karnataka','kerala':'Kerala',
-    'madhya pradesh':'Madhya Pradesh','maharashtra':'Maharashtra','manipur':'Manipur',
-    'meghalaya':'Meghalaya','mizoram':'Mizoram','nagaland':'Nagaland',
+    // 28 States
+    'andhra pradesh':'Andhra Pradesh',
+    'arunachal pradesh':'Arunachal Pradesh',
+    'assam':'Assam',
+    'bihar':'Bihar',
+    'chhattisgarh':'Chhattisgarh','chattisgarh':'Chhattisgarh',
+    'goa':'Goa',
+    'gujarat':'Gujarat',
+    'haryana':'Haryana',
+    'himachal pradesh':'Himachal Pradesh',
+    'jharkhand':'Jharkhand',
+    'karnataka':'Karnataka','karnataka state':'Karnataka',
+    'kerala':'Kerala',
+    'madhya pradesh':'Madhya Pradesh',
+    'maharashtra':'Maharashtra',
+    'manipur':'Manipur',
+    'meghalaya':'Meghalaya',
+    'mizoram':'Mizoram',
+    'nagaland':'Nagaland',
     'odisha':'Odisha','orissa':'Odisha',
-    'punjab':'Punjab','rajasthan':'Rajasthan','sikkim':'Sikkim',
-    'tamil nadu':'Tamil Nadu','telangana':'Telangana','tripura':'Tripura',
-    'uttar pradesh':'Uttar Pradesh','uttarakhand':'Uttarakhand',
+    'punjab':'Punjab',
+    'rajasthan':'Rajasthan',
+    'sikkim':'Sikkim',
+    'tamil nadu':'Tamil Nadu','tamilnadu':'Tamil Nadu',
+    'telangana':'Telangana','telegana':'Telangana',
+    'tripura':'Tripura',
+    'uttar pradesh':'Uttar Pradesh','u.p.':'Uttar Pradesh',
+    'uttarakhand':'Uttarakhand','uttaranchal':'Uttarakhand',
     'west bengal':'West Bengal',
+    // 8 UTs
     'andaman & nicobar':'Andaman & Nicobar',
+    'andaman and nicobar':'Andaman & Nicobar',
     'andaman and nicobar islands':'Andaman & Nicobar',
+    'andaman & nicobar islands':'Andaman & Nicobar',
     'chandigarh':'Chandigarh',
     'dadra & nagar haveli':'Dadra & Nagar Haveli',
+    'dadra and nagar haveli':'Dadra & Nagar Haveli',
+    'dadra & nagar haveli and daman & diu':'Dadra & Nagar Haveli',
     'dadra and nagar haveli and daman and diu':'Dadra & Nagar Haveli',
-    'daman & diu':'Daman & Diu','daman and diu':'Daman & Diu',
-    'delhi':'Delhi','national capital territory of delhi':'Delhi',
+    'daman & diu':'Daman & Diu','daman and diu':'Daman & Diu','daman':'Daman & Diu',
+    'delhi':'Delhi',
+    'national capital territory of delhi':'Delhi',
+    'nct of delhi':'Delhi','nct':'Delhi',
     'new delhi':'Delhi',
-    'jammu & kashmir':'Jammu & Kashmir','jammu and kashmir':'Jammu & Kashmir',
-    'ladakh':'Ladakh','lakshadweep':'Lakshadweep',
-    'puducherry':'Puducherry','pondicherry':'Puducherry',
+    'jammu & kashmir':'Jammu & Kashmir',
+    'jammu and kashmir':'Jammu & Kashmir',
+    'j&k':'Jammu & Kashmir','j & k':'Jammu & Kashmir',
+    'ladakh':'Ladakh',
+    'lakshadweep':'Lakshadweep',
+    'puducherry':'Puducherry','pondicherry':'Puducherry','pudducherry':'Puducherry',
   };
 
   function normaliseState(raw) {
@@ -303,8 +331,6 @@
       const el = document.getElementById(key) || document.querySelector('[name="' + key + '"]');
       if (!el) return;
       el.value = val;
-      el.dispatchEvent(new Event('input',  { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
 
       /* Sync searchable dropdown (sd-wrap) if state field is inside one */
       const sdWrap = el.closest('.sd-wrap');
@@ -317,6 +343,9 @@
           o.classList.toggle('selected', match);
         });
       }
+
+      el.dispatchEvent(new Event('input',  { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
     if (fields.line1)    fill(fields.line1,    p.line1);
