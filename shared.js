@@ -246,28 +246,54 @@ function generateTRKId(){
 
 /* ══ PINCODE AUTO-FILL ════════════════════════════════════ */
 // Strategy (in order):
-//   1. Nominatim postalcode= query — proper OSM postcode endpoint, works across India
-//   2. India Post API fallback — postalpincode.in, works for most PINs
-//   3. Return {unavailable:true} — never blocks the user
-// Returns: {city,district,state}  — data available
-//          {unavailable:true}      — network error / no result (never blocks user)
+//   1. Nominatim postalcode= — OSM postcode endpoint. Parses ISO3166-2-lvl4
+//      because postalcode= responses never include address.state directly.
+//   2. /api/pincode/:pin — our own server proxy to India Post
+//      (api.postalpincode.in SSL cert expired; server bypasses it).
+//   3. {unavailable:true} — soft warning, user fills manually. Never blocks.
+
+// ISO 3166-2 India → canonical state name
+const _ISO_STATE={
+  'IN-AP':'Andhra Pradesh','IN-AR':'Arunachal Pradesh','IN-AS':'Assam',
+  'IN-BR':'Bihar','IN-CT':'Chhattisgarh','IN-GA':'Goa','IN-GJ':'Gujarat',
+  'IN-HR':'Haryana','IN-HP':'Himachal Pradesh','IN-JH':'Jharkhand',
+  'IN-KA':'Karnataka','IN-KL':'Kerala','IN-MP':'Madhya Pradesh',
+  'IN-MH':'Maharashtra','IN-MN':'Manipur','IN-ML':'Meghalaya',
+  'IN-MZ':'Mizoram','IN-NL':'Nagaland','IN-OD':'Odisha','IN-OR':'Odisha',
+  'IN-PB':'Punjab','IN-RJ':'Rajasthan','IN-SK':'Sikkim','IN-TN':'Tamil Nadu',
+  'IN-TG':'Telangana','IN-TR':'Tripura','IN-UP':'Uttar Pradesh',
+  'IN-UT':'Uttarakhand','IN-WB':'West Bengal',
+  'IN-AN':'Andaman & Nicobar','IN-CH':'Chandigarh',
+  'IN-DH':'Dadra & Nagar Haveli','IN-DN':'Dadra & Nagar Haveli',
+  'IN-DD':'Daman & Diu','IN-DL':'Delhi','IN-JK':'Jammu & Kashmir',
+  'IN-LA':'Ladakh','IN-LD':'Lakshadweep','IN-PY':'Puducherry',
+};
+
+const _PIN_API=window.location.hostname==='localhost'
+  ?'http://localhost:3000'
+  :'https://triakar.onrender.com';
+
 async function lookupPincode(pin){
   if(!/^\d{6}$/.test(pin))return{unavailable:true};
 
-  // ── 1. Nominatim postalcode= (correct postcode endpoint) ──
+  // ── 1. Nominatim postalcode= ──
+  // NOTE: postalcode= responses return ISO3166-2-lvl4 (e.g. "IN-DL"), NOT address.state.
   try{
     const ctrl=new AbortController();
     const t=setTimeout(()=>ctrl.abort(),6000);
     const res=await fetch(
       'https://nominatim.openstreetmap.org/search?postalcode='+pin+'&countrycodes=in&format=jsonv2&addressdetails=1&limit=5',
-      {signal:ctrl.signal,headers:{'Accept-Language':'en','User-Agent':'TriAkar-PincodeSearch/2.1'}}
+      {signal:ctrl.signal,headers:{'Accept-Language':'en'}}
     );
     clearTimeout(t);
     if(res.ok){
       const data=await res.json();
       if(data&&data[0]){
         const a=data[0].address||{};
-        const state=_normaliseState(a.state||a.state_district||'');
+        // postalcode= endpoint: state comes via ISO3166-2-lvl4, not address.state
+        const isoCode=a['ISO3166-2-lvl4']||a['ISO3166-2-lvl6']||'';
+        const stateRaw=a.state||a.state_district||_ISO_STATE[isoCode]||'';
+        const state=_normaliseState(stateRaw);
         if(state){
           const district=a.county||a.city_district||a.state_district||'';
           const city=a.city||a.town||a.village||a.municipality||district||'';
@@ -275,28 +301,21 @@ async function lookupPincode(pin){
         }
       }
     }
-  }catch(e){/* fall through to India Post */}
+  }catch(e){/* fall through to server proxy */}
 
-  // ── 2. India Post API fallback ──
+  // ── 2. Our server proxy → India Post (bypasses expired SSL cert) ──
   try{
     const ctrl2=new AbortController();
-    const t2=setTimeout(()=>ctrl2.abort(),6000);
-    const res2=await fetch('https://api.postalpincode.in/pincode/'+pin,{signal:ctrl2.signal});
+    const t2=setTimeout(()=>ctrl2.abort(),7000);
+    const res2=await fetch(_PIN_API+'/api/pincode/'+pin,{signal:ctrl2.signal});
     clearTimeout(t2);
     if(res2.ok){
-      const data2=await res2.json();
-      if(data2&&data2[0]&&data2[0].Status==='Success'&&data2[0].PostOffice&&data2[0].PostOffice.length){
-        const po=data2[0].PostOffice[0];
-        const state=_normaliseState(po.State||'');
-        if(state){
-          const district=po.District||'';
-          // India Post: Block or Division is the closest to city/town
-          const city=po.Block||po.Division||po.Name||district||'';
-          return{city,district,state};
-        }
+      const d=await res2.json();
+      if(d&&d.state){
+        return{city:d.city||'',district:d.district||'',state:_normaliseState(d.state)};
       }
     }
-  }catch(e){/* both APIs failed */}
+  }catch(e){/* both failed */}
 
   return{unavailable:true};
 }

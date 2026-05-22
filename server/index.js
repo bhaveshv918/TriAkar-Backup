@@ -18,6 +18,7 @@ import inquiryRoutes  from './routes/inquiries.js';
 import addressRoutes  from './routes/addresses.js';
 import notifyRoutes      from './routes/notify.js';
 import categoryRoutes    from './routes/categories.js';
+import pincodeRoutes     from './routes/pincode.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 /* ── ENV VALIDATION (fail fast on missing secrets) ────────── */
@@ -190,6 +191,7 @@ app.use('/api/inquiries',  inquiryRoutes);
 app.use('/api/addresses',  addressRoutes);
 app.use('/api/notify',     notifyRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/pincode',    pincodeRoutes);   // India Post proxy — bypasses expired cert
 
 /* /api/profile — see server/routes/auth.js handlers; also accessible at /api/auth/profile */
 
