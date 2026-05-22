@@ -75,7 +75,7 @@
 
 /* ACCORDION with animation (FIX from PDF p6) */
 .acc-item{border-top:1px solid var(--stone-p)}
-.acc-trigger{display:flex;justify-content:space-between;align-items:center;padding:15px 0;cursor:pointer;font-size:14px;font-weight:700;color:var(--charcoal);background:none;border:none;width:100%;text-align:left;gap:12px}
+.acc-trigger{display:flex;justify-content:space-between;align-items:center;padding:15px 4px;cursor:pointer;font-size:14px;font-weight:600;color:var(--charcoal);background:none;border:none;width:100%;text-align:left;gap:12px}
 .acc-icon{flex-shrink:0;width:20px;height:20px;border:1.5px solid var(--stone-p);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--stone);transition:all .3s}
 .acc-item.open .acc-icon{background:var(--charcoal);border-color:var(--charcoal);color:white;transform:rotate(45deg)}
 .acc-body{max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(.22,1,.36,1)}
@@ -88,7 +88,7 @@
 .key-features-list{list-style:none;padding:0;margin:16px 0 0}
 .key-features-list li{font-size:13px;color:var(--warm);line-height:1.6;padding:3px 0 3px 22px;position:relative}
 .key-features-list li::before{content:✓;position:absolute;left:0;color:var(--accent);font-weight:700}
-.gallery-dropdowns{padding:0 16px 32px}
+.gallery-dropdowns{padding:0 20px 32px;border-top:1px solid var(--stone-p)}
 .reviews-section{padding:60px 0}
 .reviews-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px}
 .reviews-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
@@ -269,15 +269,10 @@
   </div>
 </section>
 
-<section class="section" style="background:var(--ivory)">
+<section class="section" id="relatedSection" style="background:var(--ivory);display:none">
   <div class="mw">
     <div class="section-head r"><div><div class="t-label" style="margin-bottom:10px">You may also like</div><h2 class="t-h2">Related products</h2></div><a href="products.html" class="btn-ghost">All products →</a></div>
-    <div class="related-grid r">
-      <div class="prod-card"><a href="product-detail.html?id=cable-loop"><div class="prod-img" style="background:#EDEAE3"><svg viewBox="0 0 200 200" fill="none"><rect x="18" y="68" width="164" height="80" rx="40" fill="#D0CCC4" stroke="#B4B0A8" stroke-width="1.5"/><circle cx="100" cy="108" r="28" fill="#E8E4DC" stroke="#C0BCB4" stroke-width="1.5"/></svg></div></a><div class="prod-body"><div class="prod-name">Cable Loop</div><div class="prod-foot"><span class="prod-price">₹490</span><button class="add-btn" onclick="Cart.add({id:'cable-loop',name:'Cable Loop',price:490,color:'Pack of 4'})">+</button></div></div></div>
-      <div class="prod-card"><a href="product-detail.html?id=lean-stand"><div class="prod-img" style="background:#F4F1EA"><svg viewBox="0 0 200 200" fill="none"><path d="M48 170L88 78L112 78L152 170Z" fill="#D4D0C8" stroke="#B8B4AA" stroke-width="1.5"/></svg></div></a><div class="prod-body"><div class="prod-name">Lean Stand</div><div class="prod-foot"><span class="prod-price">₹890</span><button class="add-btn" onclick="Cart.add({id:'lean-stand',name:'Lean Stand',price:890,color:'Ivory White'})">+</button></div></div></div>
-      <div class="prod-card"><a href="product-detail.html?id=stack-card"><div class="prod-img" style="background:#EBE8E0"><svg viewBox="0 0 200 200" fill="none"><rect x="40" y="60" width="120" height="80" rx="3" fill="#D8D4CC" stroke="#B8B4AA" stroke-width="1.5"/><rect x="50" y="50" width="120" height="80" rx="3" fill="#E0DCD4" stroke="#C4C0B8" stroke-width="1.5"/></svg></div></a><div class="prod-body"><div class="prod-name">Stack Cardholder</div><div class="prod-foot"><span class="prod-price">₹690</span><button class="add-btn" onclick="Cart.add({id:'stack-card',name:'Stack Cardholder',price:690,color:'Standard'})">+</button></div></div></div>
-      <div class="prod-card"><a href="product-detail.html?id=facet-vase"><div class="prod-img" style="background:#EBE8E0"><svg viewBox="0 0 200 200" fill="none"><path d="M68 182L56 122L46 78L100 18L154 78L144 122L132 182Z" fill="#D0CCC4" stroke="#B4B0A8" stroke-width="1.5"/></svg></div></a><div class="prod-body"><div class="prod-name">Facet Vase</div><div class="prod-foot"><span class="prod-price">₹1,290</span><button class="add-btn" onclick="Cart.add({id:'facet-vase',name:'Facet Vase',price:1290,color:'Sand'})">+</button></div></div></div>
-    </div>
+    <div class="related-grid" id="relatedGrid"></div>
   </div>
 </section>
 
@@ -394,6 +389,7 @@ function renderProduct(ap){
   // dropdowns in gallery column
   renderDropdowns(p);
   loadReviews(id);
+  loadRelated(id);
 }
 function selectVariant(btn,v){document.querySelectorAll('.variant-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selVariant=v}
 function changeQty(d){qty=Math.max(1,qty+d);document.getElementById('qtyNum').textContent=qty}
@@ -448,6 +444,26 @@ function renderDropdowns(p){
 }
 
 let _reviewRating=0;
+
+function loadRelated(currentSlug){
+  const grid=document.getElementById('relatedGrid');
+  const section=document.getElementById('relatedSection');
+  if(!grid||!section)return;
+  fetch('https://triakar.onrender.com/api/products')
+    .then(r=>r.json())
+    .then(data=>{
+      const all=(data.products||[]).filter(p=>p.is_active!==false&&p.slug!==currentSlug);
+      const picks=all.sort(()=>Math.random()-.5).slice(0,4);
+      if(!picks.length){section.style.display='none';return;}
+      grid.innerHTML=picks.map(p=>{
+        const img=p.images&&p.images[0]?`<img src="${p.images[0]}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover">`:`<svg viewBox="0 0 200 200" fill="none" style="width:65%"><rect x="40" y="40" width="120" height="120" rx="8" fill="#D4D0C8" stroke="#B8B4AA" stroke-width="1.5"/></svg>`;
+        const href=`product-detail.html?slug=${p.slug}`;
+        return `<div class="prod-card"><a href="${href}"><div class="prod-img">${img}</div></a><div class="prod-body"><div class="prod-name">${p.name}</div><div class="prod-foot"><span class="prod-price">₹${(p.price||0).toLocaleString('en-IN')}</span><button class="add-btn" onclick="Cart.add({id:'${p.slug}',name:'${p.name.replace(/'/g,"\\'")}',price:${p.price||0},color:'Default'})">+</button></div></div></div>`;
+      }).join('');
+      section.style.display='';
+    })
+    .catch(()=>{section.style.display='none';});
+}
 
 function loadReviews(slug){
   const API='https://triakar.onrender.com';
