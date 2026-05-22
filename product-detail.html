@@ -299,9 +299,44 @@ const THUMB_SVGS = {
 let qty=1, selVariant='', curProduct=null;
 
 function init(){
-  const id=new URLSearchParams(window.location.search).get('id')||'arc-desk';
-  const p=PRODS[id]||PRODS['arc-desk'];
-  curProduct={...p, id};
+  const params=new URLSearchParams(window.location.search);
+  const slug=params.get('slug');
+  const localId=params.get('id');
+  if(slug){
+    // API path: fetch live product data by slug
+    fetch('https://triakar.onrender.com/api/products/'+encodeURIComponent(slug))
+      .then(r=>r.json())
+      .then(ap=>renderProduct(ap))
+      .catch(()=>{const p=PRODS['arc-desk'];renderProduct({...p,slug:'arc-desk'});});
+  } else {
+    // Local fallback: use PRODS data by id
+    const id=localId||'arc-desk';
+    const p=PRODS[id]||PRODS['arc-desk'];
+    renderProduct({...p, slug:id});
+  }
+}
+
+function renderProduct(ap){
+  const id=ap.slug||ap.id||'arc-desk';
+  const p={
+    name:ap.name||'Product',
+    price:ap.price||0,
+    usd:ap.usd||'',
+    desc:ap.short_description||ap.description||ap.desc||'',
+    long_desc:ap.long_description||ap.long_desc||'',
+    discount_pct:ap.discount_pct||null,
+    badge:ap.badge||null,
+    tag:ap.tag||null,
+    variants:ap.colors||ap.available_colors||(ap.variants||[]).map(v=>typeof v==='object'?v.name:v)||['Default'],
+    specs:ap.specifications||ap.specs||[],
+    key_features:ap.key_features||[],
+    urgency_type:ap.urgency_type||null,
+    urgency_text:ap.urgency_text||null,
+    images:ap.images||[],
+    product_dropdowns:ap.product_dropdowns||[],
+  };
+  curProduct={...p, id, slug:id};
+  window._prodId=id;
   document.getElementById('prodName').textContent=p.name;
   document.getElementById('breadProd').textContent=p.name;
   document.getElementById('prodPrice').textContent='₹'+p.price.toLocaleString('en-IN');
@@ -313,21 +348,33 @@ function init(){
   // discount %
   const discEl=document.getElementById('prodDiscount');
   if(discEl){if(p.discount_pct){discEl.textContent=p.discount_pct+'% off';discEl.style.display='';}else{discEl.style.display='none';}}
-  // prod-tag (pill above title — shows badge or tag)
+  // prod-tag pill above title
   const tagEl=document.getElementById('prodTag');
   if(tagEl){const label=p.badge||p.tag;if(label){tagEl.textContent=label;tagEl.style.display='';}else{tagEl.style.display='none';}}
   // variants
-  selVariant=p.variants[0];
-  document.getElementById('variantLabel').textContent=id.includes('loop')||id.includes('bookmark')?'Pack Size':'Colour';
-  document.getElementById('variantRow').innerHTML=p.variants.map((v,i)=>`<button class="variant-btn${i===0?' active':''}" onclick="selectVariant(this,'${v}')">${v}</button>`).join('');
+  const vArr=p.variants.length?p.variants:['Default'];
+  selVariant=typeof vArr[0]==='object'?vArr[0].name:vArr[0];
+  const isSize=id.includes('loop')||id.includes('bookmark');
+  document.getElementById('variantLabel').textContent=isSize?'Pack Size':'Colour';
+  document.getElementById('variantRow').innerHTML=vArr.map((v,i)=>{const vn=typeof v==='object'?v.name:v;return `<button class="variant-btn${i===0?' active':''}" onclick="selectVariant(this,'${vn}')">${vn}</button>`;}).join('');
   // specs — filter out Material and Production rows
   const filteredSpecs=(p.specs||[]).filter(s=>!['Material','Production'].includes(s[0]));
   const specTableEl=document.getElementById('specTable');
   if(filteredSpecs.length){specTableEl.innerHTML=filteredSpecs.map(s=>`<div class="spec-row"><span class="spec-key">${s[0]}</span><span class="spec-val">${s[1]}</span></div>`).join('');specTableEl.style.display='';}else{specTableEl.style.display='none';}
-  // thumbnails
-  const thumbs=THUMB_SVGS[id]||[];
-  const bgs=['#F0EDE6','#EDEAE3','#161614','#F8F6F0'];
-  document.getElementById('thumbRow').innerHTML=thumbs.map((svg,i)=>`<div class="thumb${i===0?' active':''}" onclick="switchImg(this,'${bgs[i]||'#F0EDE6'}','${svg.replace(/'/g,"\'")}')"><svg viewBox="0 0 200 200" fill="none">${svg}</svg></div>`).join('');
+  // thumbnails: API images take priority, else use THUMB_SVGS
+  const thumbRow=document.getElementById('thumbRow');
+  const mainBox=document.getElementById('mainImg');
+  if(p.images&&p.images.length){
+    window._thumbData=p.images.map(src=>({type:'url',src}));
+    thumbRow.innerHTML=p.images.map((src,i)=>`<div class="thumb${i===0?' active':''}" onclick="switchThumb(this,${i})"><img src="${src}" alt="" loading="lazy"></div>`).join('');
+    if(mainBox){mainBox.style.background='#fff';mainBox.innerHTML='<img src="'+p.images[0]+'" alt="" draggable="false" style="width:100%;height:100%;object-fit:contain;display:block;">';}
+  } else {
+    const thumbs=THUMB_SVGS[id]||[];
+    const bgs=['#F0EDE6','#EDEAE3','#161614','#F8F6F0'];
+    window._thumbData=thumbs.map((svg,i)=>({type:'svg',svg,bg:bgs[i]||'#F0EDE6'}));
+    thumbRow.innerHTML=thumbs.map((svg,i)=>`<div class="thumb${i===0?' active':''}" onclick="switchThumb(this,${i})"><svg viewBox="0 0 200 200" fill="none">${svg}</svg></div>`).join('');
+    if(window._thumbData.length&&mainBox){const d=window._thumbData[0];mainBox.style.background=d.bg;mainBox.innerHTML='<svg id="mainSvg" viewBox="0 0 200 200" fill="none" style="width:72%;max-width:340px">'+d.svg+'</svg>';}
+  }
   // dispatch note
   const dispEl=document.getElementById('dispatchNote');
   if(dispEl){if(p.urgency_type==='next_day'||(p.urgency_text&&p.urgency_text.toLowerCase().includes('dispatch'))){dispEl.textContent=p.urgency_text||'';dispEl.style.display='';}else{dispEl.style.display='none';}}
@@ -337,16 +384,24 @@ function init(){
   if(kfWrap&&kfList){if(p.key_features&&p.key_features.length){kfList.innerHTML=p.key_features.map(f=>`<li>${f}</li>`).join('');kfWrap.style.display='';}else{kfWrap.style.display='none';}}
   // dropdowns in gallery column
   renderDropdowns(p);
-  window._prodId=id;
   loadReviews(id);
 }
 function selectVariant(btn,v){document.querySelectorAll('.variant-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selVariant=v}
 function changeQty(d){qty=Math.max(1,qty+d);document.getElementById('qtyNum').textContent=qty}
-function switchImg(thumb,bg,svg){
+function switchThumb(thumb,idx){
   document.querySelectorAll('.thumb').forEach(t=>t.classList.remove('active'));
   thumb.classList.add('active');
+  const d=(window._thumbData||[])[idx];
+  if(!d)return;
   const box=document.getElementById('mainImg');
-  if(box){box.style.background=bg||'#fff';box.innerHTML='<svg id="mainSvg" viewBox="0 0 200 200" fill="none" style="width:72%;max-width:340px;transition:transform .4s cubic-bezier(.22,1,.36,1)">'+svg+'</svg>';}
+  if(!box)return;
+  if(d.type==='url'){
+    box.style.background='#fff';
+    box.innerHTML='<img src="'+d.src+'" alt="" draggable="false" style="width:100%;height:100%;object-fit:contain;display:block;">';
+  } else {
+    box.style.background=d.bg||'#fff';
+    box.innerHTML='<svg id="mainSvg" viewBox="0 0 200 200" fill="none" style="width:72%;max-width:340px;transition:transform .4s cubic-bezier(.22,1,.36,1)">'+d.svg+'</svg>';
+  }
 }
 function switchImgUrl(thumb,src){
   document.querySelectorAll('.thumb').forEach(t=>t.classList.remove('active'));
