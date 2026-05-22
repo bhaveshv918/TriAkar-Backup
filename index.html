@@ -523,65 +523,108 @@
 <script src="shared.js"></script>
 
 <script>
-/* ── Homepage: load products marked with homepage_order ── */
+function _hesc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+function _renderHpGrid(prods){
+  const grid=document.getElementById('hpProdGrid');
+  if(!grid||!prods||!prods.length)return false;
+  const n=prods.length;
+  // ≤5 products = 1 row; 6-10 = 2 rows, max 5 columns
+  const cols=n<=5?n:Math.min(Math.ceil(n/2),5);
+  grid.style.gridTemplateColumns='repeat('+cols+',1fr)';
+  grid.innerHTML=prods.map(function(p){
+    const imgHtml=(p.images&&p.images.length)
+      ?'<img src="'+_hesc(p.images[0])+'" alt="'+_hesc(p.name)+'" loading="lazy" style="width:100%;height:100%;object-fit:cover">'
+      :'<svg viewBox="0 0 200 200" fill="none"><rect x="50" y="50" width="100" height="100" rx="6" fill="#D4D0C8"/><rect x="75" y="30" width="50" height="65" rx="3" fill="#C0BCB4"/></svg>';
+    const badgeHtml=p.badge
+      ?'<span class="prod-badge '+(p.badge.toLowerCase().includes('best')?'badge-best':'badge-new')+'">'+_hesc(p.badge)+'</span>':'';
+    const short=p.short_description||'';
+    const price=p.price?'₹'+Number(p.price).toLocaleString('en-IN'):'';
+    return '<div class="prod-card">'
+      +badgeHtml
+      +'<a href="product-detail.html?slug='+_hesc(p.slug)+'">'
+      +'<div class="prod-img">'+imgHtml+'</div></a>'
+      +'<div class="prod-body">'
+      +'<div class="prod-name">'+_hesc(p.name)+'</div>'
+      +(short?'<div class="prod-short">'+_hesc(short)+'</div>':'')
+      +'<div class="prod-foot">'
+      +'<span class="prod-price">'+price+'</span>'
+      +'<button class="add-to-cart-btn" onclick="addToCartBtn(this,{id:\''+_hesc(p.slug)+'\',name:\''+_hesc(p.name).replace(/'/g,"\\'")+'\',price:'+(p.price||0)+'})">Add to Cart</button>'
+      +'</div></div></div>';
+  }).join('');
+  return true;
+}
+
+/* ── Homepage featured products — loaded from Supabase ── */
 (async function loadHpProducts(){
   const grid=document.getElementById('hpProdGrid');
   const section=document.getElementById('hpProductsSection');
   if(!grid)return;
 
-  try{
-    const SB_URL='https://qarjbmogersuaerkhlcu.supabase.co';
-    const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
-    const sb2=(window.supabase?.createClient||window.__sb_create__)?supabase.createClient(SB_URL,SB_KEY):null;
-    if(!sb2){grid.innerHTML='';return;}
+  // Wait for getSB() to be available (shared.js might still be executing)
+  let sb=null;
+  for(let i=0;i<30;i++){
+    try{ sb=typeof getSB==='function'?getSB():null; }catch(_){}
+    if(sb)break;
+    await new Promise(function(r){setTimeout(r,100);});
+  }
+  if(!sb){
+    // Last-resort: create client directly
+    try{
+      sb=window.supabase&&window.supabase.createClient
+        ?window.supabase.createClient(
+            'https://qarjbmogersuaerkhlcu.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs'
+          )
+        :null;
+    }catch(_){}
+  }
+  if(!sb){if(section)section.style.display='none';return;}
 
-    const {data:prods,error}=await sb2
-      .from('products')
-      .select('id,name,slug,price,images,short_description,badge,is_customizable,homepage_order')
+  try{
+    var prods=null;
+
+    // ── Stage 1: homepage_order column (set from admin) ──────────────────
+    var r1=await sb.from('products')
+      .select('id,name,slug,price,images,short_description,badge,homepage_order')
       .eq('is_active',true)
       .not('homepage_order','is',null)
       .order('homepage_order',{ascending:true})
       .limit(10);
-
-    if(error||!prods||!prods.length){
-      // No homepage products configured — hide section entirely
-      if(section) section.style.display='none';
-      return;
+    if(!r1.error&&r1.data&&r1.data.length){
+      prods=r1.data;
     }
 
-    // Auto-calculate columns: max 5/row, max 2 rows
-    const n=prods.length;
-    const cols=n<=5?n:Math.min(Math.ceil(n/2),5);
-    grid.style.gridTemplateColumns='repeat('+cols+',1fr)';
+    // ── Stage 2: fallback — is_featured flag ─────────────────────────────
+    if(!prods){
+      var r2=await sb.from('products')
+        .select('id,name,slug,price,images,short_description,badge')
+        .eq('is_active',true)
+        .eq('is_featured',true)
+        .order('created_at',{ascending:false})
+        .limit(10);
+      if(!r2.error&&r2.data&&r2.data.length)prods=r2.data;
+    }
 
-    grid.innerHTML=prods.map(p=>{
-      const imgHtml=(p.images&&p.images.length)
-        ?'<img src="'+_hesc(p.images[0])+'" alt="'+_hesc(p.name)+'" loading="lazy" style="width:100%;height:100%;object-fit:cover">'
-        :'<svg viewBox="0 0 200 200" fill="none"><rect x="50" y="50" width="100" height="100" rx="6" fill="#D4D0C8"/><rect x="75" y="30" width="50" height="65" rx="3" fill="#C0BCB4"/></svg>';
-      const badge=p.badge
-        ?'<span class="prod-badge '+(p.badge.toLowerCase()==='bestseller'?'badge-best':'badge-new')+'">'+_hesc(p.badge)+'</span>':'' ;
-      const short=p.short_description||'';
-      const price=p.price?'₹'+Number(p.price).toLocaleString('en-IN'):'';
-      return '<div class="prod-card">'
-        +badge
-        +'<a href="product-detail.html?slug='+_hesc(p.slug)+'">'
-        +'<div class="prod-img">'+imgHtml+'</div></a>'
-        +'<div class="prod-body">'
-        +'<div class="prod-name">'+_hesc(p.name)+'</div>'
-        +(short?'<div class="prod-short">'+_hesc(short)+'</div>':'')
-        +'<div class="prod-foot">'
-        +'<span class="prod-price">'+price+'</span>'
-        +'<button class="add-to-cart-btn" onclick="addToCartBtn(this,{id:\''+_hesc(p.slug)+'\',name:\''+_hesc(p.name)+'\',price:'+(p.price||0)+'})">Add to Cart</button>'
-        +'</div></div></div>';
-    }).join('');
+    // ── Stage 3: fallback — show latest active products ──────────────────
+    if(!prods){
+      var r3=await sb.from('products')
+        .select('id,name,slug,price,images,short_description,badge')
+        .eq('is_active',true)
+        .order('created_at',{ascending:false})
+        .limit(5);
+      if(!r3.error&&r3.data&&r3.data.length)prods=r3.data;
+    }
+
+    if(!_renderHpGrid(prods)){
+      if(section)section.style.display='none';
+    }
 
   }catch(e){
-    console.warn('HP products load error:',e.message);
-    if(section) section.style.display='none';
+    console.warn('HP products:',e.message);
+    if(section)section.style.display='none';
   }
 })();
-
-function _hesc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 </script>
 </body>
 </html>
