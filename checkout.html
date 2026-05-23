@@ -553,8 +553,8 @@ function renderReview() {
   document.getElementById('ckItems').innerHTML = items.map(function(i) {
     return '<div class="ck-item">'
       + '<div><div class="ck-item-name">' + i.name + '</div>'
-      + '<div class="ck-item-qty">Qty ' + i.qty + (i.variant ? ' · ' + i.variant : '') + '</div></div>'
-      + '<div class="ck-item-price">₹' + (i.price * i.qty).toLocaleString('en-IN') + '</div>'
+      + '<div class="ck-item-qty">Qty ' + i.quantity + (i.color ? ' · ' + i.color : '') + '</div></div>'
+      + '<div class="ck-item-price">₹' + (i.price * i.quantity).toLocaleString('en-IN') + '</div>'
       + '</div>';
   }).join('');
 
@@ -589,7 +589,7 @@ async function ckPlaceOrder() {
   /* ── WhatsApp order ── */
   if (payMethod === 'whatsapp') {
     btn.disabled = true; btn.textContent = 'Opening WhatsApp…';
-    var itemLines = items.map(function(i) { return i.name + ' x' + i.qty + ' = ₹' + (i.price * i.qty).toLocaleString('en-IN'); }).join('\n');
+    var itemLines = items.map(function(i) { return i.name + ' x' + i.quantity + ' = ₹' + (i.price * i.quantity).toLocaleString('en-IN'); }).join('\n');
     var msg = '*New Order – TriAkar*\n'
       + '*Order ID:* ' + trkId + '\n\n'
       + '*Items:*\n' + itemLines + '\n'
@@ -621,7 +621,7 @@ async function ckPlaceOrder() {
 
   try {
     var cartItems = items.map(function(i) {
-      return { slug: i.id, quantity: i.qty, customization_notes: i.customization_notes || null };
+      return { slug: i.id, quantity: i.quantity, customization_notes: i.customization_notes || null };
     });
 
     var res = await fetch(CK_API + '/api/payments/create-order', {
