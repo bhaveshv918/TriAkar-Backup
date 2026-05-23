@@ -160,30 +160,20 @@ const Cart=(function(){
     const missing=items.filter(function(i){return !i.image;});
     if(!missing.length)return false;
     try{
-      console.log('[TriAkar] enrichImages: fetching products for',missing.length,'items without image. IDs:',missing.map(function(i){return i.id;}));
       const res=await fetch(_API+'/api/products');
-      console.log('[TriAkar] enrichImages: API status',res.status);
       if(!res.ok)return false;
       const json=await res.json();
       const prods=json.products||json;
-      console.log('[TriAkar] enrichImages: got',prods&&prods.length,'products,',prods&&prods.filter(function(p){return p.images&&p.images.length;}).length,'have images');
       if(!prods||!prods.length)return false;
       const imgMap={};
       prods.forEach(function(p){if(p.images&&p.images.length)imgMap[p.slug]=p.images[0];});
-      console.log('[TriAkar] enrichImages: imgMap slugs:',Object.keys(imgMap));
       let changed=false;
       items.forEach(function(i){
-        if(!i.image&&imgMap[i.id]){
-          console.log('[TriAkar] enrichImages: matched',i.id,'→',imgMap[i.id]);
-          i.image=imgMap[i.id];changed=true;
-        } else if(!i.image){
-          console.warn('[TriAkar] enrichImages: NO match for cart item id:',i.id);
-        }
+        if(!i.image&&imgMap[i.id]){i.image=imgMap[i.id];changed=true;}
       });
       if(changed){try{localStorage.setItem(CART_KEY,JSON.stringify(items));}catch(e){}}
-      console.log('[TriAkar] enrichImages done, changed:',changed);
       return changed;
-    }catch(e){console.error('[TriAkar] enrichImages error:',e);return false;}
+    }catch(e){return false;}
   }
 
   function _renderCartItems(el){
