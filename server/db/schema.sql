@@ -254,3 +254,40 @@ INSERT INTO products (name, slug, description, price, category, stock_qty, is_cu
   ('Bulk Custom Order',   'bulk-gifting',  'Bulk corporate gifting with custom branding',              180, 'gifting', 999,  true),
   ('Mini Keychain',        'mini-keychain','Compact 3D-printed keychain with minimal geometric design', 119, 'decor',  200,  false)
 ON CONFLICT (slug) DO NOTHING;
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 13. ORDERS — MIGRATION: add columns added after initial deploy
+-- Run these in Supabase SQL Editor if the table already exists:
+-- ALTER TABLE orders ADD COLUMN IF NOT EXISTS subtotal NUMERIC(10,2);
+-- ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_charge NUMERIC(10,2);
+-- ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_name TEXT;
+-- ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_email TEXT;
+-- ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_phone TEXT;
+-- ALTER TABLE orders ADD COLUMN IF NOT EXISTS special_instructions TEXT;
+-- ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_id TEXT;
+-- ALTER TABLE orders ADD COLUMN IF NOT EXISTS promo_code TEXT;
+-- ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(10,2) DEFAULT 0;
+-- ════════════════════════════════════════════════════════════════════════
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 14. PROMO CODES
+-- ════════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS promo_codes (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code             TEXT UNIQUE NOT NULL,
+  description      TEXT,
+  discount_type    TEXT NOT NULL CHECK (discount_type IN ('free_shipping','percent','fixed')),
+  discount_value   NUMERIC(10,2) DEFAULT 0,
+  min_order_amount NUMERIC(10,2) DEFAULT 0,
+  max_uses         INTEGER,
+  current_uses     INTEGER DEFAULT 0,
+  product_slug     TEXT,
+  is_active        BOOLEAN DEFAULT true,
+  expires_at       TIMESTAMPTZ,
+  created_at       TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE promo_codes ENABLE ROW LEVEL SECURITY;
+-- Authenticated users can read active codes for validation
+CREATE POLICY "Auth users read active promos" ON promo_codes
+  FOR SELECT USING (auth.role() = 'authenticated');
+-- Service role (backend) has full access via service key — no policy needed

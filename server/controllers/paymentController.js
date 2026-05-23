@@ -11,7 +11,7 @@ const razorpay = new Razorpay({
 export async function createOrder(req, res, next) {
   try {
     // FIX #13/#18: accept trk_id + customer fields upfront so no post-payment enrichment needed
-    const { items, address_id, trk_id, customer_name, customer_email, customer_phone, special_instructions } = req.body;
+    const { items, address_id, trk_id, customer_name, customer_email, customer_phone, special_instructions, promo_code } = req.body;
     const user_id = req.user.id;
 
     if (!items?.length) return res.status(400).json({ error: 'Cart is empty' });
@@ -41,7 +41,29 @@ export async function createOrder(req, res, next) {
       subtotal += p.price * item.quantity;
     }
     const shipping_charge = subtotal >= 999 ? 0 : 49;
-    const total_amount    = subtotal + shipping_charge;
+
+    /* Validate promo code server-side (never trust client discount) */
+    let discount_amount = 0;
+    let applied_promo   = null;
+    if (promo_code) {
+      const { data: promo } = await supabase
+        .from('promo_codes')
+        .select('*')
+        .eq('code', promo_code.toUpperCase().trim())
+        .single();
+      if (promo && promo.is_active &&
+          (!promo.expires_at || new Date(promo.expires_at) > new Date()) &&
+          (!promo.max_uses   || promo.current_uses < promo.max_uses) &&
+          (!promo.min_order_amount || subtotal >= promo.min_order_amount) &&
+          (!promo.product_slug || items.some(i => i.slug === promo.product_slug))) {
+        applied_promo = promo;
+        if (promo.discount_type === 'free_shipping')       discount_amount = shipping_charge;
+        else if (promo.discount_type === 'percent')        discount_amount = Math.round(subtotal * promo.discount_value / 100);
+        else if (promo.discount_type === 'fixed')          discount_amount = Math.min(promo.discount_value, subtotal);
+      }
+    }
+
+    const total_amount = Math.max(0, subtotal + shipping_charge - discount_amount);
 
     /* 3. Fetch shipping address */
     const { data: addr, error: aErr } = await supabase
@@ -67,6 +89,10 @@ export async function createOrder(req, res, next) {
     if (customer_email)     orderInsert.customer_email      = customer_email;
     if (customer_phone)     orderInsert.customer_phone      = customer_phone;
     if (special_instructions) orderInsert.special_instructions = special_instructions;
+    if (applied_promo) {
+      orderInsert.promo_code      = applied_promo.code;
+      orderInsert.discount_amount = discount_amount;
+    }
 
     const { data: order, error: oErr } = await supabase
       .from('orders')
@@ -86,6 +112,13 @@ export async function createOrder(req, res, next) {
     });
     const { error: iErr } = await supabase.from('order_items').insert(rows);
     if (iErr) throw iErr;
+
+    /* Increment promo usage counter */
+    if (applied_promo) {
+      await supabase.from('promo_codes')
+        .update({ current_uses: applied_promo.current_uses + 1 })
+        .eq('id', applied_promo.id);
+    }
 
     /* 6. Create Razorpay order (amount in paise) */
     const rzpOrder = await razorpay.orders.create({

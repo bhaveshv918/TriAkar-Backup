@@ -781,6 +781,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     <button class="tab" data-tab="categories" onclick="switchTab('categories')">Categories</button>
     <button class="tab" data-tab="logs" onclick="switchTab('logs')">Security Logs</button>
     <button class="tab" data-tab="recyclebin" onclick="switchTab('recyclebin')">Recycle Bin <span class="tab-count" id="binCount">0</span></button>
+    <button class="tab" data-tab="promo" onclick="switchTab('promo')">Promo Codes</button>
   </div>
 
   <!-- ── CALLBACKS PANEL ───────────────────────── -->
@@ -1179,6 +1180,22 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <table>
         <thead><tr><th>Time</th><th>Action</th><th>Email</th><th>IP</th><th>Device</th><th>Location Data</th><th>Result</th></tr></thead>
         <tbody id="logsBody"><tr><td colspan="7" class="tbl-msg">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── PROMO CODES PANEL ────────────────────────── -->
+  <div class="panel" id="panelPromo">
+    <div class="p-head">
+      <div class="p-title">Promo Codes</div>
+      <button class="btn-primary" onclick="openPromoModal()">+ New Code</button>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Code</th><th>Type</th><th>Value</th><th>Min Order</th><th>Uses</th><th>Product</th><th>Expires</th><th>Status</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="promoList"><tr><td colspan="9" class="tbl-msg">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1596,11 +1613,12 @@ function fmtPrice(n){return '₹'+Number(n).toLocaleString('en-IN')}
 function toast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type||'')+' show';setTimeout(()=>t.classList.remove('show'),3000)}
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['Callbacks','Orders','Customers','Products','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin'].forEach(p=>{
+  ['Callbacks','Orders','Customers','Products','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo'].forEach(p=>{
     document.getElementById('panel'+p).classList.toggle('active',p.toLowerCase()===tab);
   });
   // Clear notification dot and save seen count
   if(tab==='analytics')loadAnalytics();
+  if(tab==='promo')loadPromoCodes();
   const dotMap={orders:'dotOrders',customers:'dotCustomers',messages:'dotMessages',enquiries:'dotEnquiries',callbacks:'dotCallbacks'};
   const countEls={orders:'orderCount',customers:'customerCount',messages:'messageCount',enquiries:'enquiryCount',callbacks:'callbackCount'};
   if(dotMap[tab]){
@@ -3107,6 +3125,150 @@ async function bulkDeleteForever(){
   for(const cid of items){ const [t,id]=cid.split('|'); if(t!=='orders'){ await sb.from(t).delete().eq('id',id); } }
   toast('Deleted forever','success'); loadRecycleBin();
 }
+
+// ═══════════════════════════════════════════════════════════
+// PROMO CODES
+// ═══════════════════════════════════════════════════════════
+let _editingPromoId = null;
+
+async function loadPromoCodes(){
+  document.getElementById('promoList').innerHTML='<tr><td colspan="9" class="tbl-msg">Loading…</td></tr>';
+  try{
+    const token=localStorage.getItem('ta_token');
+    const res=await fetch(API+'/api/promo',{headers:{'Authorization':'Bearer '+token}});
+    const data=await res.json();
+    const rows=data.promo_codes||[];
+    if(!rows.length){ document.getElementById('promoList').innerHTML='<tr><td colspan="9" class="tbl-msg">No promo codes yet</td></tr>'; return; }
+    document.getElementById('promoList').innerHTML=rows.map(p=>{
+      const typeLabel=p.discount_type==='free_shipping'?'Free Shipping':p.discount_type==='percent'?'Percent':'Fixed ₹';
+      const valLabel=p.discount_type==='free_shipping'?'—':p.discount_type==='percent'?p.discount_value+'%':'₹'+p.discount_value;
+      const minLabel=p.min_order_amount>0?'₹'+p.min_order_amount:'—';
+      const usesLabel=(p.current_uses||0)+(p.max_uses?' / '+p.max_uses:' / ∞');
+      const exp=p.expires_at?new Date(p.expires_at).toLocaleDateString('en-IN'):'—';
+      const statusBadge=p.is_active?'<span style="color:#15803D;font-weight:700">Active</span>':'<span style="color:#B91C1C;font-weight:700">Inactive</span>';
+      return`<tr>
+        <td><strong>${p.code}</strong>${p.description?'<br><small style="color:var(--stone)">'+p.description+'</small>':''}</td>
+        <td>${typeLabel}</td><td>${valLabel}</td><td>${minLabel}</td>
+        <td>${usesLabel}</td>
+        <td>${p.product_slug||'All products'}</td>
+        <td>${exp}</td>
+        <td>${statusBadge}</td>
+        <td>
+          <button class="btn-secondary" onclick='openPromoModal(${JSON.stringify(p)})' style="margin-right:4px">Edit</button>
+          <button class="btn-secondary" style="color:#B91C1C" onclick="deletePromoCode('${p.id}')">Delete</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }catch(e){ document.getElementById('promoList').innerHTML='<tr><td colspan="9" class="tbl-msg">Error loading promo codes</td></tr>'; }
+}
+
+function openPromoModal(promo){
+  _editingPromoId = promo ? promo.id : null;
+  document.getElementById('promoModalTitle').textContent = promo ? 'Edit Promo Code' : 'New Promo Code';
+  document.getElementById('promoCode').value       = promo ? promo.code : '';
+  document.getElementById('promoDesc').value       = promo ? (promo.description||'') : '';
+  document.getElementById('promoType').value       = promo ? promo.discount_type : 'percent';
+  document.getElementById('promoValue').value      = promo ? (promo.discount_value||0) : '';
+  document.getElementById('promoMin').value        = promo ? (promo.min_order_amount||0) : 0;
+  document.getElementById('promoMax').value        = promo ? (promo.max_uses||'') : '';
+  document.getElementById('promoSlug').value       = promo ? (promo.product_slug||'') : '';
+  document.getElementById('promoActive').checked   = promo ? promo.is_active : true;
+  document.getElementById('promoExpiry').value     = promo && promo.expires_at ? promo.expires_at.slice(0,10) : '';
+  updatePromoValueLabel();
+  document.getElementById('promoModal').style.display='flex';
+}
+
+function closePromoModal(){
+  document.getElementById('promoModal').style.display='none';
+  _editingPromoId=null;
+}
+
+function updatePromoValueLabel(){
+  const t=document.getElementById('promoType').value;
+  const lbl=document.getElementById('promoValueLabel');
+  const wrap=document.getElementById('promoValueWrap');
+  if(t==='free_shipping'){ wrap.style.display='none'; }
+  else { wrap.style.display=''; lbl.textContent=t==='percent'?'Discount %':'Discount ₹'; }
+}
+
+async function savePromoCode(){
+  const token=localStorage.getItem('ta_token');
+  const code=document.getElementById('promoCode').value.trim().toUpperCase();
+  const type=document.getElementById('promoType').value;
+  if(!code){toast('Code is required','error');return;}
+  const body={
+    code,
+    description: document.getElementById('promoDesc').value.trim()||null,
+    discount_type: type,
+    discount_value: type==='free_shipping'?0:Number(document.getElementById('promoValue').value)||0,
+    min_order_amount: Number(document.getElementById('promoMin').value)||0,
+    max_uses: document.getElementById('promoMax').value?Number(document.getElementById('promoMax').value):null,
+    product_slug: document.getElementById('promoSlug').value.trim()||null,
+    is_active: document.getElementById('promoActive').checked,
+    expires_at: document.getElementById('promoExpiry').value||null,
+  };
+  try{
+    const url=_editingPromoId?API+'/api/promo/'+_editingPromoId:API+'/api/promo';
+    const method=_editingPromoId?'PUT':'POST';
+    const res=await fetch(url,{method,headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+    if(!res.ok){ const d=await res.json(); throw new Error(d.error||'Failed'); }
+    toast(_editingPromoId?'Promo code updated':'Promo code created','success');
+    closePromoModal();
+    loadPromoCodes();
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+async function deletePromoCode(id){
+  if(!confirm('Delete this promo code?')) return;
+  const token=localStorage.getItem('ta_token');
+  try{
+    await fetch(API+'/api/promo/'+id,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+    toast('Promo code deleted','success');
+    loadPromoCodes();
+  }catch(e){ toast('Error deleting promo code','error'); }
+}
 </script>
+
+<!-- ── PROMO CODE MODAL ────────────────────────────────── -->
+<div id="promoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);padding:28px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div class="p-title" id="promoModalTitle">New Promo Code</div>
+      <button onclick="closePromoModal()" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;line-height:1">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div><label class="form-label">Code *</label>
+        <input id="promoCode" class="form-input" placeholder="e.g. SAVE10" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+      <div><label class="form-label">Description</label>
+        <input id="promoDesc" class="form-input" placeholder="e.g. 10% off for summer sale"></div>
+      <div><label class="form-label">Discount Type *</label>
+        <select id="promoType" class="form-input" onchange="updatePromoValueLabel()">
+          <option value="percent">Percentage off (e.g. 10%)</option>
+          <option value="fixed">Fixed amount off (e.g. ₹50)</option>
+          <option value="free_shipping">Free Shipping</option>
+        </select></div>
+      <div id="promoValueWrap"><label class="form-label" id="promoValueLabel">Discount %</label>
+        <input id="promoValue" class="form-input" type="number" min="0" placeholder="e.g. 10"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div><label class="form-label">Min Order ₹</label>
+          <input id="promoMin" class="form-input" type="number" min="0" value="0" placeholder="0 = no minimum"></div>
+        <div><label class="form-label">Max Uses</label>
+          <input id="promoMax" class="form-input" type="number" min="1" placeholder="Leave blank = unlimited"></div>
+      </div>
+      <div><label class="form-label">Product Slug (leave blank for all products)</label>
+        <input id="promoSlug" class="form-input" placeholder="e.g. arc-desk (or leave blank)"></div>
+      <div><label class="form-label">Expiry Date (optional)</label>
+        <input id="promoExpiry" class="form-input" type="date"></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="promoActive" checked style="width:16px;height:16px;accent-color:var(--accent)">
+        <label for="promoActive" style="font-size:13px;cursor:pointer">Active (visible to customers)</label>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button class="btn-primary" onclick="savePromoCode()" style="flex:1">Save Promo Code</button>
+        <button class="btn-secondary" onclick="closePromoModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>

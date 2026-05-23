@@ -168,7 +168,6 @@
       </div>
 
       <form id="ckForm" class="ck-form">
-        <!-- Address search bar injected here by AddressAC.init() -->
         <div class="ck-row2">
           <div class="ck-field"><label>Full Name *</label><input name="full_name" id="ckFullName" placeholder="As on ID / for courier" required></div>
           <div class="ck-field"><label>Phone *</label><input name="phone" id="ckoutPhone" required></div>
@@ -221,9 +220,25 @@
     <div id="ckStep2" style="display:none">
       <div class="ck-title">Review &amp; Pay</div>
       <div class="ck-items" id="ckItems"></div>
+      <!-- Promo code -->
+      <div id="ckPromoRow" style="margin-bottom:18px">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--stone);margin-bottom:8px">Promo Code</div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="ckPromoInput" placeholder="Enter code (e.g. SAVE10)" maxlength="32"
+            style="flex:1;padding:10px 13px;border:1.5px solid var(--stone-p);background:var(--white);font-family:var(--font-b);font-size:13px;color:var(--charcoal);outline:none;transition:border-color .2s;text-transform:uppercase;letter-spacing:.05em"
+            oninput="this.value=this.value.toUpperCase()"
+            onfocus="this.style.borderColor='var(--charcoal)'" onblur="this.style.borderColor='var(--stone-p)'">
+          <button type="button" onclick="applyPromo()" id="ckPromoBtn"
+            style="padding:10px 16px;background:var(--charcoal);color:var(--white);border:none;cursor:pointer;font-family:var(--font-b);font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;white-space:nowrap;transition:background .2s"
+            onmouseover="this.style.background='var(--char-2)'" onmouseout="this.style.background='var(--charcoal)'">Apply</button>
+        </div>
+        <div id="ckPromoMsg" style="font-size:11px;margin-top:5px;min-height:16px"></div>
+      </div>
+
       <div class="ck-summary">
         <div class="ck-summary-row"><span>Subtotal</span><span id="ckSubtotal"></span></div>
         <div class="ck-summary-row"><span>Shipping</span><span id="ckShipping"></span></div>
+        <div class="ck-summary-row" id="ckDiscountRow" style="display:none;color:var(--accent)"><span id="ckDiscountLabel">Discount</span><span id="ckDiscount" style="color:#15803D"></span></div>
         <div class="ck-summary-total"><span>Total</span><span id="ckTotal"></span></div>
       </div>
       <div class="ck-addr-review">
@@ -321,14 +336,15 @@
 <script defer src="js/auth.js"></script>
 <script defer src="products-data.js"></script>
 <script defer src="shared.js"></script>
-<script defer src="js/address-autocomplete.js"></script>
 <script>
 var CK_API = window.location.hostname === 'localhost'
   ? 'http://localhost:3000'
   : 'https://triakar.onrender.com';
 
-var savedAddr  = null;
-var chosenAddr = null;
+var savedAddr           = null;
+var chosenAddr          = null;
+var pincodeExpectedState = null;  // set after successful pincode lookup
+var ckPromo             = null;   // applied promo code data
 
 /* ── Radio payment group styling ─────────────────────────── */
 function initPaymentRadios() {
@@ -364,7 +380,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (stateWrap) initSearchableDropdown(stateWrap);
   }
 
-  /* Pincode auto-fill */
+  /* Pincode auto-fill + state validation */
   var pinEl  = document.getElementById('ckPincode');
   var pinInfo = document.getElementById('ckPincodeInfo');
   if (pinEl) {
@@ -373,7 +389,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (v.length === 6 && /^\d{6}$/.test(v)) {
         if (pinInfo) pinInfo.textContent = 'Checking…';
         var info = await lookupPincode(v);
-        if (info) {
+        if (info && !info.unavailable) {
           var cityEl = document.getElementById('ckCity');
           var stEl2  = document.getElementById('ckState');
           var stWrap = document.getElementById('ckStateWrap');
@@ -384,11 +400,16 @@ document.addEventListener('DOMContentLoaded', function() {
               o.classList.toggle('selected', o.textContent.trim() === info.state);
             });
           }
-          if (pinInfo) { pinInfo.style.color = 'var(--accent)'; pinInfo.textContent = '✓ ' + (info.district || info.city || '') + ', ' + (info.state || ''); }
+          pincodeExpectedState = info.state || null;
+          if (pinInfo) { pinInfo.style.color = '#15803D'; pinInfo.textContent = '✓ ' + (info.district || info.city || '') + ', ' + (info.state || ''); }
         } else {
+          pincodeExpectedState = null;
           if (pinInfo) { pinInfo.style.color = '#B91C1C'; pinInfo.textContent = 'PIN not found — fill city/state manually'; }
         }
-      } else if (v.length > 0 && v.length < 6 && pinInfo) { pinInfo.textContent = ''; }
+      } else {
+        pincodeExpectedState = null;
+        if (pinInfo) pinInfo.textContent = '';
+      }
     });
   }
 
@@ -402,21 +423,6 @@ document.addEventListener('DOMContentLoaded', function() {
           errEl.textContent = 'Please enter a more complete address'; errEl.style.display = 'block';
         } else { errEl.style.display = 'none'; }
       }
-    });
-  }
-
-  /* Address autocomplete */
-  if (typeof AddressAC !== 'undefined') {
-    AddressAC.init({
-      container: document.getElementById('ckForm'),
-      fields: { line1:'ckAddrLine1', line2:'ckAddrLine2', city:'ckCity', state:'ckState', pincode:'ckPincode' }
-    });
-    var stEl = document.getElementById('ckState');
-    if (stEl) stEl.addEventListener('change', function() {
-      var sw = document.getElementById('ckStateWrap');
-      if (sw) sw.querySelectorAll('.sd-option').forEach(function(o) {
-        o.classList.toggle('selected', o.textContent.trim() === stEl.value);
-      });
     });
   }
 
@@ -445,6 +451,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (pin && !/^\d{6}$/.test(pin.value.trim())) { pin.focus(); alert('Please enter a valid 6-digit PIN code.'); return; }
     var st = document.getElementById('ckState');
     if (st && !st.value.trim()) { alert('Please select a state.'); return; }
+    if (pincodeExpectedState && st && st.value.trim() && st.value.trim() !== pincodeExpectedState) {
+      var errEl = document.getElementById('ckPincodeInfo');
+      if (errEl) { errEl.style.color = '#B91C1C'; errEl.textContent = '⚠ State doesn\'t match PIN code (' + pincodeExpectedState + ')'; }
+      st.focus(); return;
+    }
     var em = document.getElementById('ckEmail');
     if (em && !em.value.trim()) { em.focus(); alert('Please enter your email address.'); return; }
     submitAddress();
@@ -571,7 +582,8 @@ function renderReview() {
   var items    = Cart.getItems();
   var subtotal = Cart.total();
   var shipping = subtotal >= 999 ? 0 : 49;
-  var total    = subtotal + shipping;
+  var discount = ckPromo ? ckPromo.discount_amount : 0;
+  var total    = Math.max(0, subtotal + shipping - discount);
 
   document.getElementById('ckItems').innerHTML = items.map(function(i) {
     return '<div class="ck-item">'
@@ -582,9 +594,26 @@ function renderReview() {
   }).join('');
 
   document.getElementById('ckSubtotal').textContent = '₹' + subtotal.toLocaleString('en-IN');
-  document.getElementById('ckShipping').textContent = shipping === 0 ? 'Free' : '₹' + shipping;
+  document.getElementById('ckShipping').textContent = (shipping === 0 ? 'Free' : '₹' + shipping)
+    + (ckPromo && ckPromo.discount_type === 'free_shipping' ? ' → Free' : '');
   document.getElementById('ckTotal').textContent    = '₹' + total.toLocaleString('en-IN');
   document.getElementById('ckPayAmt').textContent   = '₹' + total.toLocaleString('en-IN');
+
+  /* Show/hide discount row */
+  var discRow   = document.getElementById('ckDiscountRow');
+  var discLabel = document.getElementById('ckDiscountLabel');
+  var discVal   = document.getElementById('ckDiscount');
+  if (ckPromo && discount > 0) {
+    discRow.style.display = '';
+    discLabel.textContent = 'Discount (' + ckPromo.code + ')';
+    discVal.textContent   = '−₹' + discount.toLocaleString('en-IN');
+  } else if (ckPromo && ckPromo.discount_type === 'free_shipping') {
+    discRow.style.display = '';
+    discLabel.textContent = 'Promo (' + ckPromo.code + ')';
+    discVal.textContent   = 'Free shipping';
+  } else {
+    discRow.style.display = 'none';
+  }
 
   if (chosenAddr) {
     document.getElementById('ckAddrSummary').innerHTML =
@@ -593,6 +622,53 @@ function renderReview() {
       + chosenAddr.city + ', ' + chosenAddr.state + ' ' + chosenAddr.pincode + '<br>'
       + chosenAddr.phone;
   }
+}
+
+/* ── Apply promo code ───────────────────────────────────── */
+async function applyPromo() {
+  var input = document.getElementById('ckPromoInput');
+  var btn   = document.getElementById('ckPromoBtn');
+  var msg   = document.getElementById('ckPromoMsg');
+  var code  = input ? input.value.trim().toUpperCase() : '';
+
+  if (!code) { if (msg) { msg.style.color = '#B91C1C'; msg.textContent = 'Please enter a promo code.'; } return; }
+
+  btn.disabled = true; btn.textContent = 'Checking…';
+
+  try {
+    var items   = Cart.getItems();
+    var subtotal = Cart.total();
+    var res = await fetch(CK_API + '/api/promo/validate', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
+      body: JSON.stringify({
+        code,
+        subtotal,
+        items: items.map(function(i) { return { slug: i.id }; }),
+      }),
+    });
+    var data = await res.json();
+    if (data.valid) {
+      ckPromo = data;
+      if (msg) {
+        msg.style.color = '#15803D';
+        var desc = data.discount_type === 'free_shipping'
+          ? 'Free shipping applied!'
+          : data.discount_type === 'percent'
+            ? data.discount_value + '% off — saving ₹' + data.discount_amount.toLocaleString('en-IN') + '!'
+            : 'Saving ₹' + data.discount_amount.toLocaleString('en-IN') + '!';
+        msg.textContent = '✓ ' + data.code + ' — ' + desc;
+      }
+      renderReview();
+    } else {
+      ckPromo = null;
+      if (msg) { msg.style.color = '#B91C1C'; msg.textContent = '✕ ' + (data.error || 'Invalid code'); }
+      renderReview();
+    }
+  } catch (e) {
+    if (msg) { msg.style.color = '#B91C1C'; msg.textContent = 'Could not validate code. Please try again.'; }
+  }
+  btn.disabled = false; btn.textContent = 'Apply';
 }
 
 /* ── Place order ────────────────────────────────────────── */
@@ -606,7 +682,8 @@ async function ckPlaceOrder() {
 
   var subtotal = Cart.total();
   var shipping = subtotal >= 999 ? 0 : 49;
-  var total    = subtotal + shipping;
+  var discount = ckPromo ? ckPromo.discount_amount : 0;
+  var total    = Math.max(0, subtotal + shipping - discount);
   var trkId    = typeof generateTRKId === 'function' ? generateTRKId() : ('TRK-' + Date.now().toString(36).toUpperCase());
 
   /* ── WhatsApp order ── */
@@ -617,6 +694,7 @@ async function ckPlaceOrder() {
       + '*Order ID:* ' + trkId + '\n\n'
       + '*Items:*\n' + itemLines + '\n'
       + (shipping ? 'Shipping: ₹' + shipping + '\n' : '')
+      + (discount > 0 ? '*Promo (' + ckPromo.code + '):* −₹' + discount.toLocaleString('en-IN') + '\n' : '')
       + '*Total: ₹' + total.toLocaleString('en-IN') + '*\n\n'
       + '*Customer:* ' + chosenAddr.full_name + '\n'
       + '*Phone:* ' + chosenAddr.phone + '\n'
@@ -657,6 +735,7 @@ async function ckPlaceOrder() {
         customer_email: chosenAddr.email || '',
         customer_phone: chosenAddr.phone,
         special_instructions: chosenAddr.notes || null,
+        promo_code: ckPromo ? ckPromo.code : null,
       }),
     });
     var data = await res.json();
