@@ -108,7 +108,7 @@
 .tac-wrap{margin-bottom:20px;position:relative}
 .tac-label{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--stone,#888);margin-bottom:7px}
 .tac-input-row{position:relative}
-.tac-input{width:100%;padding:11px 40px 11px 38px;border:1.5px solid var(--accent,#C4622A);border-radius:6px;font-size:13.5px;font-family:inherit;background:var(--ivory,#fafaf8);color:var(--charcoal,#1a1a18);box-sizing:border-box;outline:none;transition:box-shadow .15s,border-color .15s}
+.tac-input{width:100%;padding:11px 40px 11px 38px;border:1.5px solid var(--accent,#C4622A);border-radius:6px;font-size:13.5px;font-family:inherit;background:var(--ivory,#f4f2ec);color:var(--charcoal,#1a1a18);box-sizing:border-box;outline:none;transition:box-shadow .15s,border-color .15s}
 .tac-input::placeholder{color:var(--stone,#aaa);font-size:13px}
 .tac-input:focus{box-shadow:0 0 0 3px rgba(196,98,42,.13)}
 .tac-icon-search{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--accent,#C4622A);pointer-events:none}
@@ -128,7 +128,7 @@
 .tac-badge{display:none;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;padding:4px 9px;margin-top:6px}
 .tac-badge.show{display:inline-flex}
 .tac-divider{height:1px;background:var(--stone-p,#e8e4dc);margin:0 0 18px;position:relative}
-.tac-divider::after{content:"OR FILL MANUALLY BELOW";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--ivory,#fafaf8);padding:0 10px;font-size:9px;letter-spacing:.12em;color:var(--stone,#ccc);white-space:nowrap}
+.tac-divider::after{content:"OR FILL MANUALLY BELOW";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--ivory,#f4f2ec);padding:0 10px;font-size:9px;letter-spacing:.12em;color:var(--stone,#ccc);white-space:nowrap}
   `;
 
   let _cssInj = false;
