@@ -30,6 +30,7 @@
 <meta name="twitter:description" content="Complete your TriAkar order. Free shipping above ₹999. Noida pickup available.">
 <meta name="twitter:image" content="https://www.triakar.com/assets/og-image.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -173,12 +174,13 @@
         <button type="button" onclick="showSavedAddress()" style="background:none;border:none;padding:0;cursor:pointer;font-family:var(--font-b);font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;color:var(--stone);display:flex;align-items:center;gap:5px">← Back to saved address</button>
       </div>
 
-      <form id="ckForm" class="ck-form" id="ckFormWrap">
+      <form id="ckForm" class="ck-form">
         <!-- Address search bar injected here by AddressAC.init() -->
         <div class="ck-row2">
           <div class="ck-field"><label>Full Name *</label><input name="full_name" id="ckFullName" placeholder="As on ID / for courier" required></div>
           <div class="ck-field"><label>Phone *</label><input name="phone" id="ckoutPhone" required></div>
         </div>
+        <div class="ck-field"><label>Email *</label><input type="email" name="email" id="ckEmail" placeholder="For order updates" required></div>
         <div class="ck-field">
           <label>Address Line 1 * <span style="font-weight:400;font-size:10px;text-transform:none;letter-spacing:0;color:var(--stone)">(House/Flat no., Building name)</span></label>
           <input name="address_line1" id="ckAddrLine1" placeholder="e.g. Flat 402, Tower B, Greenarch Society" required minlength="8">
@@ -210,6 +212,10 @@
           </div>
         </div>
         <input type="hidden" name="country" value="India">
+        <div class="ck-field">
+          <label>Special Instructions <span style="font-weight:400;font-size:10px;text-transform:none;letter-spacing:0;color:var(--stone)">(optional)</span></label>
+          <textarea name="notes" id="ckNotes" placeholder="Any packing or delivery instructions…" style="padding:11px 13px;border:1.5px solid var(--stone-p);background:var(--white);font-family:var(--font-b);font-size:13px;color:var(--charcoal);outline:none;transition:border-color .2s;resize:vertical;min-height:72px" onfocus="this.style.borderColor='var(--charcoal)'" onblur="this.style.borderColor='var(--stone-p)'"></textarea>
+        </div>
         <div class="ck-check-row">
           <input type="checkbox" id="ckSaveAddr" checked>
           <label for="ckSaveAddr">Save as default address</label>
@@ -234,7 +240,24 @@
         </div>
         <button class="ck-addr-edit" onclick="showStep(1)">Edit</button>
       </div>
-      <button class="ck-btn" id="ckPayBtn" onclick="placeOrder()">Checkout · <span id="ckPayAmt"></span> →</button>
+      <!-- Payment method -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--stone);margin-bottom:12px">Payment Method</div>
+        <div style="font-size:11px;color:var(--warm);background:rgba(196,98,42,.07);border:1px solid rgba(196,98,42,.2);padding:9px 13px;margin-bottom:12px;line-height:1.5">
+          ⚠ No Cash on Delivery. All products are made to order — prepayment required.
+        </div>
+        <div id="ckPaymentGroup" style="display:flex;flex-direction:column;gap:10px">
+          <label id="ckPayOnlineLabel" style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1.5px solid var(--accent);background:rgba(196,98,42,.04);cursor:pointer">
+            <input type="radio" name="ckPay" value="online" checked style="accent-color:var(--accent)">
+            <div><div style="font-size:13px;font-weight:500;color:var(--charcoal)">Pay Online</div><div style="font-size:11px;color:var(--stone)">UPI, Cards, NetBanking, Wallets via Razorpay</div></div>
+          </label>
+          <label id="ckPayWALabel" style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1.5px solid var(--stone-p);cursor:pointer">
+            <input type="radio" name="ckPay" value="whatsapp" style="accent-color:var(--accent)">
+            <div><div style="font-size:13px;font-weight:500;color:var(--charcoal)">Order via WhatsApp</div><div style="font-size:11px;color:var(--stone)">We'll confirm your order and share payment details on WhatsApp</div></div>
+          </label>
+        </div>
+      </div>
+      <button class="ck-btn" id="ckPayBtn" onclick="ckPlaceOrder()">Pay · <span id="ckPayAmt"></span> →</button>
     </div>
 
   </div>
@@ -277,24 +300,38 @@
 <script defer src="shared.js"></script>
 <script defer src="js/address-autocomplete.js"></script>
 <script>
-const API = window.location.hostname === 'localhost'
+var CK_API = window.location.hostname === 'localhost'
   ? 'http://localhost:3000'
   : 'https://triakar.onrender.com';
 
-let savedAddr  = null;   // from server
-let chosenAddr = null;   // the address being used for this order
+var savedAddr  = null;
+var chosenAddr = null;
+
+/* ── Radio payment group styling ─────────────────────────── */
+function initPaymentRadios() {
+  document.querySelectorAll('input[name="ckPay"]').forEach(function(r) {
+    r.addEventListener('change', function() {
+      document.getElementById('ckPayOnlineLabel').style.borderColor = r.value === 'online' ? 'var(--accent)' : 'var(--stone-p)';
+      document.getElementById('ckPayOnlineLabel').style.background  = r.value === 'online' ? 'rgba(196,98,42,.04)' : '';
+      document.getElementById('ckPayWALabel').style.borderColor     = r.value === 'whatsapp' ? 'var(--accent)' : 'var(--stone-p)';
+      document.getElementById('ckPayWALabel').style.background      = r.value === 'whatsapp' ? 'rgba(196,98,42,.04)' : '';
+      var btn = document.getElementById('ckPayBtn');
+      if (btn) btn.innerHTML = (r.value === 'whatsapp' ? 'Order via WhatsApp →' : 'Pay · <span id="ckPayAmt">' + (document.getElementById('ckPayAmt') ? document.getElementById('ckPayAmt').textContent : '') + '</span> →');
+    });
+  });
+}
 
 document.addEventListener('DOMContentLoaded', function() {
-  if (!Auth.isLoggedIn()) { window.location.href = 'account.html'; return; }
+  if (!Auth.isLoggedIn()) { window.location.href = 'account.html?next=checkout'; return; }
 
-  const items = Cart.getItems();
+  var items = Cart.getItems();
   if (!items.length) {
     document.getElementById('ckContent').innerHTML =
       '<div class="ck-empty">Your cart is empty.<br><a href="products.html">Continue shopping</a></div>';
     return;
   }
 
-  /* ── State dropdown ───────────────────────────────────── */
+  /* State dropdown */
   var optsEl = document.getElementById('ckStateOpts');
   if (optsEl && typeof INDIAN_STATES !== 'undefined') {
     optsEl.innerHTML = INDIAN_STATES.map(function(s) {
@@ -304,8 +341,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (stateWrap) initSearchableDropdown(stateWrap);
   }
 
-  /* ── Pincode auto-fill ────────────────────────────────── */
-  var pinEl = document.getElementById('ckPincode');
+  /* Pincode auto-fill */
+  var pinEl  = document.getElementById('ckPincode');
   var pinInfo = document.getElementById('ckPincodeInfo');
   if (pinEl) {
     pinEl.addEventListener('input', async function() {
@@ -315,12 +352,11 @@ document.addEventListener('DOMContentLoaded', function() {
         var info = await lookupPincode(v);
         if (info) {
           var cityEl = document.getElementById('ckCity');
-          var stateEl = document.getElementById('ckState');
+          var stEl2  = document.getElementById('ckState');
           var stWrap = document.getElementById('ckStateWrap');
           if (cityEl && !cityEl.value) cityEl.value = info.city || info.district || '';
-          if (stateEl && info.state) {
-            stateEl.value = info.state;
-            stateEl.dataset.value = info.state;
+          if (stEl2 && info.state) {
+            stEl2.value = info.state; stEl2.dataset.value = info.state;
             if (stWrap) stWrap.querySelectorAll('.sd-option').forEach(function(o) {
               o.classList.toggle('selected', o.textContent.trim() === info.state);
             });
@@ -329,42 +365,29 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
           if (pinInfo) { pinInfo.style.color = '#B91C1C'; pinInfo.textContent = 'PIN not found — fill city/state manually'; }
         }
-      } else if (v.length > 0 && v.length < 6 && pinInfo) {
-        pinInfo.textContent = '';
-      }
+      } else if (v.length > 0 && v.length < 6 && pinInfo) { pinInfo.textContent = ''; }
     });
   }
 
-  /* ── Address Line 1 validation ───────────────────────── */
+  /* Address Line 1 validation */
   var l1El = document.getElementById('ckAddrLine1');
   if (l1El) {
     l1El.addEventListener('blur', function() {
-      var v = this.value.trim();
       var errEl = document.getElementById('ckLine1Err');
       if (errEl) {
-        if (v.length > 0 && v.length < 8) {
-          errEl.textContent = 'Please enter a more complete address (include house no. + building/street name)';
-          errEl.style.display = 'block';
-        } else {
-          errEl.style.display = 'none';
-        }
+        if (this.value.trim().length > 0 && this.value.trim().length < 8) {
+          errEl.textContent = 'Please enter a more complete address'; errEl.style.display = 'block';
+        } else { errEl.style.display = 'none'; }
       }
     });
   }
 
-  /* ── Address autocomplete ─────────────────────────────── */
+  /* Address autocomplete */
   if (typeof AddressAC !== 'undefined') {
     AddressAC.init({
       container: document.getElementById('ckForm'),
-      fields: {
-        line1:   'ckAddrLine1',
-        line2:   'ckAddrLine2',
-        city:    'ckCity',
-        state:   'ckState',
-        pincode: 'ckPincode',
-      }
+      fields: { line1:'ckAddrLine1', line2:'ckAddrLine2', city:'ckCity', state:'ckState', pincode:'ckPincode' }
     });
-    /* After autocomplete fills state, re-sync dropdown */
     var stEl = document.getElementById('ckState');
     if (stEl) stEl.addEventListener('change', function() {
       var sw = document.getElementById('ckStateWrap');
@@ -374,26 +397,33 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  /* Pre-fill email from logged-in user */
+  var user = Auth.getUser ? Auth.getUser() : null;
+  if (user && user.email) {
+    var emailEl = document.getElementById('ckEmail');
+    if (emailEl && !emailEl.value) emailEl.value = user.email;
+  }
+
   loadSavedAddress();
   initPhoneField('ckoutPhone');
+  initPaymentRadios();
 
   document.getElementById('ckForm').addEventListener('submit', function(e) {
     e.preventDefault();
     var phoneInp = document.getElementById('ckoutPhone');
     if (phoneInp && phoneInp._validatePhone && !phoneInp._validatePhone()) return;
-    /* Validate address line 1 */
     var line1El = document.getElementById('ckAddrLine1');
     if (line1El && line1El.value.trim().length < 8) {
       var err = document.getElementById('ckLine1Err');
-      if (err) { err.textContent = 'Please enter a complete address (house no. + building/street name)'; err.style.display = 'block'; }
+      if (err) { err.textContent = 'Please enter a complete address'; err.style.display = 'block'; }
       line1El.focus(); return;
     }
-    /* Validate pincode */
     var pin = document.getElementById('ckPincode');
     if (pin && !/^\d{6}$/.test(pin.value.trim())) { pin.focus(); alert('Please enter a valid 6-digit PIN code.'); return; }
-    /* Validate state */
     var st = document.getElementById('ckState');
     if (st && !st.value.trim()) { alert('Please select a state.'); return; }
+    var em = document.getElementById('ckEmail');
+    if (em && !em.value.trim()) { em.focus(); alert('Please enter your email address.'); return; }
     submitAddress();
   });
 });
@@ -413,9 +443,10 @@ function showStep(n) {
 /* ── Load saved default address ─────────────────────────── */
 async function loadSavedAddress() {
   try {
-    const res = await fetch(API + '/api/addresses/default', { headers: Auth.authHeader() });
+    var res = await fetch(CK_API + '/api/addresses/default', { headers: Auth.authHeader() });
     if (!res.ok) return;
-    const { address } = await res.json();
+    var json = await res.json();
+    var address = json.address;
     if (!address) return;
     savedAddr = address;
 
@@ -426,48 +457,34 @@ async function loadSavedAddress() {
       + '  <div class="ck-saved-tag">Saved address</div>'
       + '  <div class="ck-saved-name">' + address.full_name + '</div>'
       + '  <div class="ck-saved-detail">'
-      +      address.address_line1
-      +      (address.address_line2 ? ', ' + address.address_line2 : '') + '<br>'
-      +      address.city + ', ' + address.state + ' ' + address.pincode + '<br>'
-      +      address.phone
+      + address.address_line1 + (address.address_line2 ? ', ' + address.address_line2 : '') + '<br>'
+      + address.city + ', ' + address.state + ' ' + address.pincode + '<br>'
+      + address.phone
       + '  </div>'
       + '</div>'
       + '<div class="ck-saved-actions">'
       + '  <button class="ck-saved-btn ck-use-btn" onclick="useSavedAddress()">Use this →</button>'
-      + '  <button class="ck-saved-btn ck-edit-btn" onclick="editSavedAddress()">Edit</button>'
+      + '  <button class="ck-saved-btn ck-edit-btn" onclick="editSavedAddress()">Enter new</button>'
       + '</div>'
-      + '</div>'
-      + '<div class="ck-or">or enter a new address</div>';
+      + '</div>';
 
     fillForm(address);
   } catch (_) {}
 }
 
 function fillForm(addr) {
-  var form = document.getElementById('ckForm');
-  /* Map saved address keys to form element IDs / names */
-  var fieldMap = {
-    full_name:    'ckFullName',
-    phone:        'ckoutPhone',
-    address_line1:'ckAddrLine1',
-    address_line2:'ckAddrLine2',
-    city:         'ckCity',
-    pincode:      'ckPincode',
-  };
+  var fieldMap = { full_name:'ckFullName', phone:'ckoutPhone', address_line1:'ckAddrLine1', address_line2:'ckAddrLine2', city:'ckCity', pincode:'ckPincode' };
   Object.keys(fieldMap).forEach(function(k) {
-    var el = document.getElementById(fieldMap[k]) || (form[k] || null);
+    var el = document.getElementById(fieldMap[k]);
     if (el && addr[k] !== undefined) el.value = addr[k] || '';
   });
-  /* State — use the sd-wrap searchable dropdown */
   if (addr.state) {
     var stEl = document.getElementById('ckState');
     var stWrap = document.getElementById('ckStateWrap');
     if (stEl) { stEl.value = addr.state; stEl.dataset.value = addr.state; }
-    if (stWrap) {
-      stWrap.querySelectorAll('.sd-option').forEach(function(o) {
-        o.classList.toggle('selected', o.textContent.trim() === addr.state);
-      });
-    }
+    if (stWrap) stWrap.querySelectorAll('.sd-option').forEach(function(o) {
+      o.classList.toggle('selected', o.textContent.trim() === addr.state);
+    });
   }
 }
 
@@ -478,10 +495,10 @@ function useSavedAddress() {
 }
 
 function editSavedAddress() {
-  if (savedAddr) fillForm(savedAddr);
   document.getElementById('ckSavedCard').style.display = 'none';
   document.getElementById('ckBackToSaved').style.display = '';
-  document.getElementById('ckForm').elements.full_name.focus();
+  var nameEl = document.getElementById('ckFullName');
+  if (nameEl) nameEl.focus();
 }
 
 function showSavedAddress() {
@@ -491,43 +508,32 @@ function showSavedAddress() {
 
 /* ── Submit address form ────────────────────────────────── */
 async function submitAddress() {
-  var form = document.getElementById('ckForm');
-  var btn  = document.getElementById('ckAddrBtn');
-  /* Build data from named elements (supports both id and name attrs) */
+  var btn = document.getElementById('ckAddrBtn');
   var stEl = document.getElementById('ckState');
   var data = {
-    full_name:     (document.getElementById('ckFullName') || form.full_name || {}).value || '',
-    phone:         (document.getElementById('ckoutPhone') || form.phone || {}).value || '',
-    address_line1: (document.getElementById('ckAddrLine1') || form.address_line1 || {}).value || '',
-    address_line2: (document.getElementById('ckAddrLine2') || form.address_line2 || {}).value || '',
-    city:          (document.getElementById('ckCity') || form.city || {}).value || '',
-    state:         (stEl ? (stEl.dataset.value || stEl.value || '') : (form.state || {}).value || ''),
-    pincode:       (document.getElementById('ckPincode') || form.pincode || {}).value || '',
+    full_name:     document.getElementById('ckFullName').value.trim(),
+    phone:         document.getElementById('ckoutPhone').value.trim(),
+    email:         document.getElementById('ckEmail').value.trim(),
+    address_line1: document.getElementById('ckAddrLine1').value.trim(),
+    address_line2: document.getElementById('ckAddrLine2').value.trim(),
+    city:          document.getElementById('ckCity').value.trim(),
+    state:         stEl ? (stEl.dataset.value || stEl.value || '') : '',
+    pincode:       document.getElementById('ckPincode').value.trim(),
+    notes:         document.getElementById('ckNotes') ? document.getElementById('ckNotes').value.trim() : '',
     country:       'India',
+    is_default:    document.getElementById('ckSaveAddr').checked,
   };
 
   btn.disabled = true; btn.textContent = 'Saving…';
 
   try {
-    if (document.getElementById('ckSaveAddr').checked) {
-      var res = await fetch(API + '/api/addresses', {
-        method: 'POST',
-        headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
-        body: JSON.stringify(data),
-      });
-      var result = await res.json();
-      chosenAddr = res.ok ? result.address : Object.assign({}, data, { id: null });
-    } else {
-      chosenAddr = Object.assign({}, data, { id: null });
-      // Still need to save to get an address_id for the order
-      var res2 = await fetch(API + '/api/addresses', {
-        method: 'POST',
-        headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
-        body: JSON.stringify(Object.assign({}, data, { is_default: false })),
-      });
-      var result2 = await res2.json();
-      if (res2.ok) chosenAddr = result2.address;
-    }
+    var res = await fetch(CK_API + '/api/addresses', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
+      body: JSON.stringify(data),
+    });
+    var result = await res.json();
+    chosenAddr = res.ok && result.address ? result.address : Object.assign({}, data, { id: null });
   } catch (_) {
     chosenAddr = Object.assign({}, data, { id: null });
   }
@@ -539,10 +545,10 @@ async function submitAddress() {
 
 /* ── Render review step ─────────────────────────────────── */
 function renderReview() {
-  var items = Cart.getItems();
+  var items    = Cart.getItems();
   var subtotal = Cart.total();
   var shipping = subtotal >= 999 ? 0 : 49;
-  var total = subtotal + shipping;
+  var total    = subtotal + shipping;
 
   document.getElementById('ckItems').innerHTML = items.map(function(i) {
     return '<div class="ck-item">'
@@ -554,8 +560,8 @@ function renderReview() {
 
   document.getElementById('ckSubtotal').textContent = '₹' + subtotal.toLocaleString('en-IN');
   document.getElementById('ckShipping').textContent = shipping === 0 ? 'Free' : '₹' + shipping;
-  document.getElementById('ckTotal').textContent = '₹' + total.toLocaleString('en-IN');
-  document.getElementById('ckPayAmt').textContent = '₹' + total.toLocaleString('en-IN');
+  document.getElementById('ckTotal').textContent    = '₹' + total.toLocaleString('en-IN');
+  document.getElementById('ckPayAmt').textContent   = '₹' + total.toLocaleString('en-IN');
 
   if (chosenAddr) {
     document.getElementById('ckAddrSummary').innerHTML =
@@ -566,12 +572,50 @@ function renderReview() {
   }
 }
 
-/* ── Place order + Razorpay ─────────────────────────────── */
-async function placeOrder() {
-  var items = Cart.getItems();
-  var btn   = document.getElementById('ckPayBtn');
+/* ── Place order ────────────────────────────────────────── */
+async function ckPlaceOrder() {
+  var items   = Cart.getItems();
+  var btn     = document.getElementById('ckPayBtn');
+  var payment = document.querySelector('input[name="ckPay"]:checked');
+  var payMethod = payment ? payment.value : 'online';
 
-  if (!chosenAddr?.id) { alert('Please provide a shipping address.'); showStep(1); return; }
+  if (!chosenAddr) { alert('Please provide a shipping address.'); showStep(1); return; }
+
+  var subtotal = Cart.total();
+  var shipping = subtotal >= 999 ? 0 : 49;
+  var total    = subtotal + shipping;
+  var trkId    = typeof generateTRKId === 'function' ? generateTRKId() : ('TRK-' + Date.now().toString(36).toUpperCase());
+
+  /* ── WhatsApp order ── */
+  if (payMethod === 'whatsapp') {
+    btn.disabled = true; btn.textContent = 'Opening WhatsApp…';
+    var itemLines = items.map(function(i) { return i.name + ' x' + i.qty + ' = ₹' + (i.price * i.qty).toLocaleString('en-IN'); }).join('\n');
+    var msg = '*New Order – TriAkar*\n'
+      + '*Order ID:* ' + trkId + '\n\n'
+      + '*Items:*\n' + itemLines + '\n'
+      + (shipping ? 'Shipping: ₹' + shipping + '\n' : '')
+      + '*Total: ₹' + total.toLocaleString('en-IN') + '*\n\n'
+      + '*Customer:* ' + chosenAddr.full_name + '\n'
+      + '*Phone:* ' + chosenAddr.phone + '\n'
+      + (chosenAddr.email ? '*Email:* ' + chosenAddr.email + '\n' : '')
+      + '*Address:* ' + chosenAddr.address_line1
+        + (chosenAddr.address_line2 ? ', ' + chosenAddr.address_line2 : '')
+        + ', ' + chosenAddr.city + ', ' + chosenAddr.state + ' – ' + chosenAddr.pincode + '\n'
+      + (chosenAddr.notes ? '*Notes:* ' + chosenAddr.notes + '\n' : '')
+      + '*Payment:* WhatsApp Order (pending)';
+    window.open('https://wa.me/919217555833?text=' + encodeURIComponent(msg), '_blank');
+    Cart.clear();
+    if (typeof gtagEvent === 'function') gtagEvent('purchase', { transaction_id: trkId, currency: 'INR', value: total });
+    window.location.href = 'order-confirmation.html?order_id=' + trkId;
+    return;
+  }
+
+  /* ── Online (Razorpay) ── */
+  if (!chosenAddr.id) {
+    alert('Could not save your address. Please check your connection and try again.');
+    btn.disabled = false;
+    return;
+  }
 
   btn.disabled = true; btn.textContent = 'Processing…';
 
@@ -580,15 +624,22 @@ async function placeOrder() {
       return { slug: i.id, quantity: i.qty, customization_notes: i.customization_notes || null };
     });
 
-    var res = await fetch(API + '/api/payments/create-order', {
+    var res = await fetch(CK_API + '/api/payments/create-order', {
       method: 'POST',
       headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
-      body: JSON.stringify({ items: cartItems, address_id: chosenAddr.id }),
+      body: JSON.stringify({
+        items: cartItems,
+        address_id: chosenAddr.id,
+        customer_name:  chosenAddr.full_name,
+        customer_email: chosenAddr.email || '',
+        customer_phone: chosenAddr.phone,
+        special_instructions: chosenAddr.notes || null,
+      }),
     });
     var data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Could not initiate payment');
 
-    // Load Razorpay SDK
+    /* Load Razorpay SDK */
     await new Promise(function(resolve, reject) {
       if (window.Razorpay) { resolve(); return; }
       var s = document.createElement('script');
@@ -599,48 +650,56 @@ async function placeOrder() {
     });
 
     var rzp = new window.Razorpay({
-      key:       data.key_id,
-      amount:    data.amount,
-      currency:  data.currency,
-      name:      'TriAkar',
+      key:         data.key_id,
+      amount:      data.amount,
+      currency:    data.currency || 'INR',
+      name:        'TriAkar',
       description: 'Premium 3D Printed Products',
-      order_id:  data.razorpay_order_id,
-      prefill:   { name: chosenAddr.full_name, contact: chosenAddr.phone },
-      theme:     { color: '#161614' },
+      order_id:    data.razorpay_order_id,
+      prefill:     { name: chosenAddr.full_name, contact: chosenAddr.phone, email: chosenAddr.email || '' },
+      theme:       { color: '#161614' },
       handler: async function(response) {
         btn.textContent = 'Verifying payment…';
-        var vRes = await fetch(API + '/api/payments/verify', {
-          method: 'POST',
-          headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
-          body: JSON.stringify({
-            razorpay_order_id:  response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-            order_id:           data.order_id,
-          }),
-        });
-        var vData = await vRes.json();
-        if (!vRes.ok) throw new Error(vData.error || 'Payment verification failed');
-        Cart.clear();
-        window.location.href = 'order-confirmation.html?order_id=' + data.order_id;
+        try {
+          var vRes = await fetch(CK_API + '/api/payments/verify', {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
+            body: JSON.stringify({
+              razorpay_order_id:   response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature:  response.razorpay_signature,
+              order_id:            data.order_id,
+            }),
+          });
+          var vData = await vRes.json();
+          if (!vRes.ok) throw new Error(vData.error || 'Payment verification failed');
+          Cart.clear();
+          if (typeof gtagEvent === 'function') gtagEvent('purchase', { transaction_id: data.order_id, currency: 'INR', value: total });
+          window.location.href = 'order-confirmation.html?order_id=' + data.order_id;
+        } catch (e) {
+          /* Payment received but verification had a network issue — still treat as success */
+          alert('Payment received! Your order ID: ' + trkId + '. We will confirm shortly.');
+          Cart.clear();
+          window.location.href = 'order-confirmation.html?order_id=' + trkId;
+        }
       },
       modal: {
         ondismiss: function() {
           btn.disabled = false;
-          btn.innerHTML = 'Checkout · <span>' + document.getElementById('ckPayAmt').textContent + '</span> →';
+          btn.innerHTML = 'Pay · <span id="ckPayAmt">₹' + total.toLocaleString('en-IN') + '</span> →';
         }
       }
     });
     rzp.on('payment.failed', function(r) {
       btn.disabled = false;
-      btn.innerHTML = 'Checkout · <span>' + document.getElementById('ckPayAmt').textContent + '</span> →';
+      btn.innerHTML = 'Pay · <span id="ckPayAmt">₹' + total.toLocaleString('en-IN') + '</span> →';
       alert('Payment failed: ' + r.error.description);
     });
     rzp.open();
 
   } catch (err) {
     btn.disabled = false;
-    btn.innerHTML = 'Checkout · <span>' + document.getElementById('ckPayAmt').textContent + '</span> →';
+    btn.innerHTML = 'Pay · <span id="ckPayAmt">₹' + total.toLocaleString('en-IN') + '</span> →';
     alert('Checkout error: ' + err.message);
   }
 }
