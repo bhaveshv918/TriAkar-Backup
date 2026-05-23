@@ -659,16 +659,58 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
    RESPONSIVE
    ═══════════════════════════════════════════════════════════ */
 @media(max-width:768px){
+  /* Top bar */
   .top-time,.top-user{display:none}
-  .tab{padding:12px 14px;font-size:10px}
-  .panel{padding:20px 16px 48px}
+  .top-bar{padding:0 14px;height:50px}
+  .top-logo{font-size:12px;letter-spacing:.12em}
+  .top-right{gap:6px}
+  .top-btn{padding:5px 9px;font-size:9px}
+  .top-status{display:none}
+
+  /* Tab bar — horizontal scroll */
+  .tab-bar{padding:0 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tab-bar::-webkit-scrollbar{display:none}
+  .tab{padding:12px 12px;font-size:9px;letter-spacing:.06em;flex-shrink:0}
+
+  /* Panels */
+  .panel{padding:16px 12px 64px}
+  .p-head{flex-direction:column;align-items:flex-start;gap:10px;margin-bottom:16px}
+  .p-title{font-size:15px}
+  .p-actions{width:100%;gap:6px}
+  .p-actions button,.p-actions a,.p-actions input{font-size:10px;padding:7px 10px}
+  .p-actions input[type=text]{width:100%;min-width:unset!important;box-sizing:border-box}
+
+  /* Tables */
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tbl-wrap table{min-width:520px}
+  .tbl-msg{min-width:unset!important}
+
+  /* Form grids */
   .fg{grid-template-columns:1fr}
   .fg-2{grid-template-columns:1fr}
+  .fg-3{grid-template-columns:1fr}
   .variant-row{grid-template-columns:1fr;gap:6px}
   .cust-row{grid-template-columns:1fr;gap:6px}
+
+  /* Filter bar */
   .filter-bar{flex-direction:column;align-items:stretch}
   .filter-sep{display:none}
-  .login-box{padding:28px 20px 24px}
+
+  /* Login */
+  .login-box{padding:24px 16px 20px}
+
+  /* Stat cards — stack 2 per row */
+  .stat-grid{grid-template-columns:1fr 1fr!important}
+
+  /* Analytics */
+  .analytics-grid{grid-template-columns:1fr!important}
+  .chart-card{padding:16px 12px!important}
+
+  /* Button groups */
+  .btn-primary,.btn-secondary{padding:9px 14px}
+
+  /* Record/promo modals */
+  #recordModal>div,#promoModal>div{padding:18px 14px!important;border-radius:8px!important}
 }
 </style>
 <script defer src="/_vercel/insights/script.js"></script>
@@ -1236,6 +1278,7 @@ const SUPA_URL='https://qarjbmogersuaerkhlcu.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
 const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
 const ADMIN_EMAILS=['bhaveshv918@gmail.com']; // Only these emails can access the admin panel
+const API=(location.hostname==='localhost')?'http://localhost:3000':'https://triakar.onrender.com';
 
 // ── State ──────────────────────────────────────────────────
 let _products=[],_orders=[],_categories=[],_uploadedImages=[],_variants=[],_custFields=[],_dropdowns=[],_bulletPoints=[];
@@ -1578,7 +1621,7 @@ function showDashboard(user){
 // THEME — Dark / Light
 // ═══════════════════════════════════════════════════════════
 function initTheme(){
-  const saved=localStorage.getItem('ta_theme')||'dark';
+  const saved=localStorage.getItem('ta_theme')||'light';
   applyTheme(saved);
 }
 function toggleTheme(){
@@ -2315,7 +2358,6 @@ async function importLocalProducts(){
 
   if(!confirm('Import new products from local data?\n\nThis is safe — existing products will NOT be changed.\nOnly products missing from the database will be added.')) return;
 
-  const API = (location.hostname==='localhost') ? 'http://localhost:3000' : 'https://triakar.onrender.com';
   const { data: sess } = await sb.auth.getSession();
   const token = sess && sess.session && sess.session.access_token;
   if(!token){ toast('Not authenticated','error'); return; }
