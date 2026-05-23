@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="shared.css">
 <style>
 .detail-layout{display:grid;grid-template-columns:52fr 48fr;gap:0;grid-template-rows:auto 1fr auto}
-.detail-gallery-col{grid-column:1;grid-row:1/3;display:flex;flex-direction:column;background:#fff}
+.detail-gallery-col{grid-column:1;grid-row:1/3;display:flex;flex-direction:column;background:var(--white)}
 .detail-breadcrumb{grid-column:2;grid-row:1;display:flex;gap:8px;font-size:11px;color:var(--stone);padding:22px 40px 0;flex-wrap:wrap;align-items:center;background:var(--white)}
 .detail-breadcrumb a{color:var(--stone);transition:color .2s}
 .detail-breadcrumb a:hover{color:var(--charcoal)}
@@ -336,10 +336,10 @@
 
 <script>
 const PRODS = {
-  'arc-desk':{name:'Arc Desk Organizer',price:1890,usd:'$22',badge:'Bestseller',desc:'Multi-compartment desk organiser designed for pens, cards, cables and whatever accumulates on your desk.',variants:['Stone Grey','Ivory White','Matte Black'],specs:[['Material','PLA+'],['Dimensions','220 x 110 x 85mm'],['Compartments','3'],['Base','Non-slip rubber'],['Layer height','0.2mm'],['Production','2 to 3 business days']],views:['#D4D0C8','#BEBAB0','#C8C4BC','#E2DED8']},
-  'cable-loop':{name:'Cable Loop',price:490,usd:'$6',badge:'',desc:'Adhesive cable management clips. Pack of 4. Attaches to any surface and holds cables up to 6mm.',variants:['Pack of 4','Pack of 8'],specs:[['Material','Flexible PLA'],['Pack size','4 clips'],['Adhesive','3M removable'],['Cable width','Up to 6mm'],['Production','1 to 2 business days']],views:['#D0CCC4','#C8C4BC','#D8D4CC','#E0DCD8']},
-  'lean-stand':{name:'Lean Stand',price:890,usd:'$11',badge:'New',desc:'Single-piece phone and tablet stand. Lightweight with a non-slip base. Works with any phone or 7 to 11 inch tablet.',variants:['Ivory White','Stone Grey','Matte Black'],specs:[['Material','PLA+'],['Angle','60 degrees'],['Compatible','Phone, 7 to 11 inch tablet'],['Weight','110g'],['Production','2 to 3 business days']],views:['#D4D0C8','#C4C0B8','#BCBAB0','#E4E0D8']},
-  'facet-vase':{name:'Facet Vase',price:1290,usd:'$15',badge:'',desc:'Geometric table vase with a faceted exterior. Lined inside and fully waterproof for fresh or dry arrangements.',variants:['Sand','White','Charcoal'],specs:[['Material','PLA with waterproof liner'],['Height','180mm'],['Top diameter','90mm'],['Waterproof','Yes'],['Production','2 to 3 business days']],views:['#D0CCC4','#C4C0B8','#D8D4CC','#C8C4BC']},
+  'arc-desk':{name:'Arc Desk Organizer',price:1890,mrp:2490,usd:'$22',badge:'Bestseller',desc:'Multi-compartment desk organiser designed for pens, cards, cables and whatever accumulates on your desk.',variants:['Stone Grey','Ivory White','Matte Black'],specs:[['Material','PLA+'],['Dimensions','220 x 110 x 85mm'],['Compartments','3'],['Base','Non-slip rubber'],['Layer height','0.2mm'],['Production','2 to 3 business days']],views:['#D4D0C8','#BEBAB0','#C8C4BC','#E2DED8']},
+  'cable-loop':{name:'Cable Loop',price:490,mrp:699,usd:'$6',badge:'',desc:'Adhesive cable management clips. Pack of 4. Attaches to any surface and holds cables up to 6mm.',variants:['Pack of 4','Pack of 8'],specs:[['Material','Flexible PLA'],['Pack size','4 clips'],['Adhesive','3M removable'],['Cable width','Up to 6mm'],['Production','1 to 2 business days']],views:['#D0CCC4','#C8C4BC','#D8D4CC','#E0DCD8']},
+  'lean-stand':{name:'Lean Stand',price:890,mrp:1290,usd:'$11',badge:'New',desc:'Single-piece phone and tablet stand. Lightweight with a non-slip base. Works with any phone or 7 to 11 inch tablet.',variants:['Ivory White','Stone Grey','Matte Black'],specs:[['Material','PLA+'],['Angle','60 degrees'],['Compatible','Phone, 7 to 11 inch tablet'],['Weight','110g'],['Production','2 to 3 business days']],views:['#D4D0C8','#C4C0B8','#BCBAB0','#E4E0D8']},
+  'facet-vase':{name:'Facet Vase',price:1290,mrp:1790,usd:'$15',badge:'',desc:'Geometric table vase with a faceted exterior. Lined inside and fully waterproof for fresh or dry arrangements.',variants:['Sand','White','Charcoal'],specs:[['Material','PLA with waterproof liner'],['Height','180mm'],['Top diameter','90mm'],['Waterproof','Yes'],['Production','2 to 3 business days']],views:['#D0CCC4','#C4C0B8','#D8D4CC','#C8C4BC']},
 };
 // colour swatches for thumbnails
 const THUMB_SVGS = {
@@ -376,18 +376,18 @@ function initSwipe(){
 function init(){
   const params=new URLSearchParams(window.location.search);
   const slug=params.get('slug');
-  const localId=params.get('id');
+  const id=slug||params.get('id')||'arc-desk';
+
+  // Render immediately from local data — no waiting for API cold start
+  const local=PRODS[id]||PRODS['arc-desk'];
+  if(local) renderProduct({...local, slug:id});
+
+  // Silently upgrade with live API data when/if it arrives
   if(slug){
-    // API path: fetch live product data by slug
     fetch('https://triakar.onrender.com/api/products/'+encodeURIComponent(slug))
       .then(r=>r.json())
-      .then(data=>renderProduct(data.product||data))
-      .catch(()=>{const p=PRODS['arc-desk'];renderProduct({...p,slug:'arc-desk'});});
-  } else {
-    // Local fallback: use PRODS data by id
-    const id=localId||'arc-desk';
-    const p=PRODS[id]||PRODS['arc-desk'];
-    renderProduct({...p, slug:id});
+      .then(data=>{const ap=data.product||data;if(ap&&ap.name)renderProduct(ap);})
+      .catch(()=>{}); // already showing local data — ignore
   }
 }
 
@@ -398,6 +398,7 @@ function renderProduct(ap){
   if(ap.discount_value&&ap.discount_type==='percentage'){discountPct=ap.discount_value;}
   else if(ap.discount_pct){discountPct=ap.discount_pct;}
   else if(ap.compare_at_price&&ap.price&&ap.compare_at_price>ap.price){discountPct=Math.round((1-ap.price/ap.compare_at_price)*100);}
+  else if(ap.mrp&&ap.price&&ap.mrp>ap.price){discountPct=Math.round((1-ap.price/ap.mrp)*100);}
   // badge label
   const badgeLabel=ap.badge||(ap.is_bestseller?'Bestseller':null)||ap.tag||null;
   // variants: use colors array, or variants array (extract names), or available_colors
@@ -435,7 +436,7 @@ function renderProduct(ap){
   if(p.discount_pct){
     if(discEl){discEl.textContent='-'+p.discount_pct+'%';discEl.style.display='';}
     if(mrpEl){
-      const mrp=ap.compare_at_price||Math.round(p.price/(1-p.discount_pct/100));
+      const mrp=ap.compare_at_price||ap.mrp||Math.round(p.price/(1-p.discount_pct/100));
       mrpEl.textContent='₹'+mrp.toLocaleString('en-IN');mrpEl.style.display='';
     }
   } else {
@@ -621,16 +622,6 @@ function submitReview(){
 }
 
 init();
-
-/* Mobile buy bar — slide up on scroll */
-(function(){
-  var bar=document.getElementById('mobileBuyBar');
-  if(!bar)return;
-  var shown=false;
-  window.addEventListener('scroll',function(){
-    if(!shown&&window.scrollY>100){shown=true;bar.classList.add('visible');}
-  },{passive:true});
-})();
 </script>
 
 <div class="cart-overlay" id="cartOverlay" onclick="closeCart()"></div>
@@ -700,5 +691,16 @@ init();
 <script src="js/auth.js"></script>
 <script src="products-data.js"></script>
 <script src="shared.js"></script>
+<script>
+/* Mobile buy bar — slide up on scroll (must run after element exists in DOM) */
+(function(){
+  var bar=document.getElementById('mobileBuyBar');
+  if(!bar)return;
+  var shown=false;
+  window.addEventListener('scroll',function(){
+    if(!shown&&window.scrollY>100){shown=true;bar.classList.add('visible');}
+  },{passive:true});
+})();
+</script>
 </body>
 </html>
