@@ -831,6 +831,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     <button class="tab" data-tab="logs" onclick="switchTab('logs')">Security Logs</button>
     <button class="tab" data-tab="recyclebin" onclick="switchTab('recyclebin')">Recycle Bin <span class="tab-count" id="binCount">0</span></button>
     <button class="tab" data-tab="promo" onclick="switchTab('promo')">Promo Codes</button>
+    <button class="tab" data-tab="reviews" onclick="switchTab('reviews')">Reviews <span class="tab-count" id="reviewCount">0</span><span class="tab-dot" id="dotReviews"></span></button>
   </div>
 
   <!-- ── CALLBACKS PANEL ───────────────────────── -->
@@ -1249,6 +1250,34 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     </div>
   </div>
 
+  <!-- ── REVIEWS PANEL ──────────────────────────── -->
+  <div class="panel" id="panelReviews">
+    <div class="p-head">
+      <div class="p-title">Reviews</div>
+      <div class="p-actions">
+        <button class="btn-secondary" onclick="loadReviewsAdmin()">⟳ Refresh</button>
+        <button class="btn-primary" onclick="openReviewModal(null)">+ Add Review</button>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <select id="filterReviewStatus" onchange="loadReviewsAdmin()">
+        <option value="">All Status</option>
+        <option value="pending">Pending</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+      </select>
+      <input type="text" id="filterReviewSlug" placeholder="Filter by product slug…" oninput="loadReviewsAdmin()" style="min-width:180px">
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Date</th><th>Product</th><th>Customer</th><th>Rating</th><th>Review</th><th>Images</th><th>Verified</th><th>Source</th><th>Status</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="reviewsBody"><tr><td colspan="10" class="tbl-msg">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- ── RECYCLE BIN PANEL ──────────────────────── -->
   <div class="panel" id="panelRecyclebin">
     <div class="p-head">
@@ -1611,7 +1640,7 @@ function showDashboard(user){
   document.getElementById('adminDash').classList.add('show');
   updateClock();setInterval(updateClock,30000);
   initTheme();
-  loadCategories().then(()=>{loadProducts();loadOrders();loadLogs();loadCustomers();loadMessages();loadCustomEnquiries();loadCallbacks();loadRecycleBin()});
+  loadCategories().then(()=>{loadProducts();loadOrders();loadLogs();loadCustomers();loadMessages();loadCustomEnquiries();loadCallbacks();loadRecycleBin();loadReviewsAdmin();});
 }
 
 // Check existing session on load
@@ -1663,12 +1692,13 @@ function fmtPrice(n){return '₹'+Number(n).toLocaleString('en-IN')}
 function toast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type||'')+' show';setTimeout(()=>t.classList.remove('show'),3000)}
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['Callbacks','Orders','Customers','Products','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo'].forEach(p=>{
+  ['Callbacks','Orders','Customers','Products','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo','Reviews'].forEach(p=>{
     document.getElementById('panel'+p).classList.toggle('active',p.toLowerCase()===tab);
   });
   // Clear notification dot and save seen count
   if(tab==='analytics')loadAnalytics();
   if(tab==='promo')loadPromoCodes();
+  if(tab==='reviews')loadReviewsAdmin();
   const dotMap={orders:'dotOrders',customers:'dotCustomers',messages:'dotMessages',enquiries:'dotEnquiries',callbacks:'dotCallbacks'};
   const countEls={orders:'orderCount',customers:'customerCount',messages:'messageCount',enquiries:'enquiryCount',callbacks:'callbackCount'};
   if(dotMap[tab]){
@@ -3281,7 +3311,247 @@ async function deletePromoCode(id){
     loadPromoCodes();
   }catch(e){ toast('Error deleting promo code: '+e.message,'error'); }
 }
+
+// ═══════════════════════════════════════════════════════════
+// REVIEWS
+// ═══════════════════════════════════════════════════════════
+let _editingReviewId=null;
+
+async function loadReviewsAdmin(){
+  const tbody=document.getElementById('reviewsBody');
+  tbody.innerHTML='<tr><td colspan="10" class="tbl-msg">Loading…</td></tr>';
+  try{
+    const status=document.getElementById('filterReviewStatus')?.value||'';
+    const slug=document.getElementById('filterReviewSlug')?.value?.trim()||'';
+    const token=localStorage.getItem('ta_token');
+    let url=API+'/api/reviews?limit=200';
+    if(status)url+='&status='+encodeURIComponent(status);
+    if(slug)url+='&slug='+encodeURIComponent(slug);
+    const res=await fetch(url,{headers:{'Authorization':'Bearer '+token}});
+    const d=await res.json();
+    const rows=d.reviews||[];
+
+    // Update count badge
+    const pending=rows.filter(r=>r.status==='pending').length;
+    const badge=document.getElementById('reviewCount');
+    if(badge)badge.textContent=rows.length;
+    const dot=document.getElementById('dotReviews');
+    if(dot)dot.style.display=pending>0?'inline-block':'none';
+
+    if(!rows.length){tbody.innerHTML='<tr><td colspan="10" class="tbl-msg">No reviews found.</td></tr>';return;}
+
+    tbody.innerHTML=rows.map(r=>{
+      const date=new Date(r.created_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+      const stars='★'.repeat(r.rating||0)+'☆'.repeat(5-(r.rating||0));
+      const starsColor=r.rating>=4?'#2D8A4E':r.rating>=3?'#D97706':'#DC2626';
+      const imgCount=(r.images||[]).length;
+      const imgCell=imgCount?`<span style="cursor:pointer;color:var(--accent);font-weight:600" onclick='showReviewImages(${JSON.stringify(r.images)})'>${imgCount} photo${imgCount>1?'s':''}</span>`:'—';
+      const statusBadge=r.status==='approved'
+        ?'<span style="color:#15803D;font-weight:700">Approved</span>'
+        :r.status==='rejected'
+        ?'<span style="color:#B91C1C;font-weight:700">Rejected</span>'
+        :'<span style="color:#D97706;font-weight:700">Pending</span>';
+      const sourceLabel=r.source||'website';
+      return`<tr>
+        <td style="white-space:nowrap">${date}</td>
+        <td><a href="product-detail.html?id=${r.product_slug}" target="_blank" style="color:var(--accent)">${r.product_slug}</a>${r.product_name?'<br><small style="color:var(--text-3)">'+r.product_name+'</small>':''}</td>
+        <td>${_esc(r.reviewer_name||'—')}${r.city?'<br><small style="color:var(--text-3)">'+_esc(r.city)+'</small>':''}</td>
+        <td style="color:${starsColor};font-size:15px;letter-spacing:1px">${stars}</td>
+        <td style="max-width:220px;white-space:pre-wrap;word-break:break-word;font-size:12px">${_esc((r.review||'').slice(0,120))}${(r.review||'').length>120?'…':''}</td>
+        <td>${imgCell}</td>
+        <td style="text-align:center">${r.verified_purchase?'<span style="color:#2D8A4E;font-weight:700">✓</span>':'—'}</td>
+        <td style="font-size:11px;color:var(--text-3)">${sourceLabel}</td>
+        <td>${statusBadge}</td>
+        <td style="white-space:nowrap">
+          ${r.status!=='approved'?`<button class="btn-secondary" style="margin-right:3px;color:#15803D" onclick="setReviewStatus('${r.id}','approved')">✓</button>`:''}
+          ${r.status!=='rejected'?`<button class="btn-secondary" style="margin-right:3px;color:#B91C1C" onclick="setReviewStatus('${r.id}','rejected')">✗</button>`:''}
+          ${r.status!=='pending'?`<button class="btn-secondary" style="margin-right:3px" onclick="setReviewStatus('${r.id}','pending')">↺</button>`:''}
+          <button class="btn-secondary" style="margin-right:3px" onclick='openReviewModal(${JSON.stringify(r)})'>Edit</button>
+          <button class="btn-secondary" style="color:#B91C1C" onclick="deleteReviewAdmin('${r.id}')">Del</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }catch(e){
+    console.error('loadReviewsAdmin:',e);
+    document.getElementById('reviewsBody').innerHTML='<tr><td colspan="10" class="tbl-msg" style="color:#B91C1C">Error: '+e.message+'</td></tr>';
+  }
+}
+
+async function setReviewStatus(id,status){
+  try{
+    const token=localStorage.getItem('ta_token');
+    const res=await fetch(API+'/api/reviews/'+id+'/status',{
+      method:'PATCH',
+      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({status})
+    });
+    if(!res.ok){const d=await res.json();throw new Error(d.error);}
+    toast('Review '+(status==='approved'?'approved ✓':status==='rejected'?'rejected':'set to pending'),'success');
+    loadReviewsAdmin();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
+async function deleteReviewAdmin(id){
+  if(!confirm('Delete this review permanently?'))return;
+  try{
+    const token=localStorage.getItem('ta_token');
+    const res=await fetch(API+'/api/reviews/'+id,{
+      method:'DELETE',
+      headers:{'Authorization':'Bearer '+token}
+    });
+    if(!res.ok){const d=await res.json();throw new Error(d.error);}
+    toast('Review deleted','success');
+    loadReviewsAdmin();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
+function showReviewImages(imgs){
+  if(!imgs||!imgs.length)return;
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center;gap:12px;padding:20px;flex-wrap:wrap';
+  overlay.onclick=()=>overlay.remove();
+  imgs.forEach(src=>{
+    const img=document.createElement('img');
+    img.src=src;
+    img.style.cssText='max-width:min(90vw,400px);max-height:70vh;border-radius:10px;object-fit:contain;box-shadow:0 8px 40px rgba(0,0,0,.4)';
+    overlay.appendChild(img);
+  });
+  document.body.appendChild(overlay);
+}
+
+function openReviewModal(r){
+  _editingReviewId=r?r.id:null;
+  document.getElementById('rvModalTitle').textContent=r?'Edit Review':'Add Review';
+  document.getElementById('rvSlug').value=r?r.product_slug:'';
+  document.getElementById('rvProductName').value=r?(r.product_name||''):'';
+  document.getElementById('rvName').value=r?r.reviewer_name:'';
+  document.getElementById('rvCity').value=r?(r.city||''):'';
+  document.getElementById('rvRating').value=r?r.rating:5;
+  document.getElementById('rvReview').value=r?r.review:'';
+  document.getElementById('rvStatus').value=r?r.status:'approved';
+  document.getElementById('rvVerified').checked=r?r.verified_purchase:false;
+  document.getElementById('rvSource').value=r?(r.source||'website'):'website';
+  document.getElementById('rvAdminNote').value=r?(r.admin_note||''):'';
+  document.getElementById('rvImagesVal').value=r&&r.images?r.images.join('\n'):'';
+  document.getElementById('reviewModal').style.display='flex';
+}
+
+function closeReviewModal(){
+  document.getElementById('reviewModal').style.display='none';
+  _editingReviewId=null;
+}
+
+async function saveReview(){
+  const slug=document.getElementById('rvSlug').value.trim();
+  const name=document.getElementById('rvName').value.trim();
+  const review=document.getElementById('rvReview').value.trim();
+  const rating=Number(document.getElementById('rvRating').value);
+  if(!slug||!name||!review){toast('Slug, name, and review are required','error');return;}
+  if(rating<1||rating>5){toast('Rating must be 1–5','error');return;}
+
+  const imagesRaw=document.getElementById('rvImagesVal').value.trim();
+  const images=imagesRaw?imagesRaw.split('\n').map(s=>s.trim()).filter(Boolean):[];
+
+  const body={
+    product_slug:slug,
+    product_name:document.getElementById('rvProductName').value.trim()||null,
+    reviewer_name:name,
+    city:document.getElementById('rvCity').value.trim()||null,
+    rating,
+    review,
+    status:document.getElementById('rvStatus').value,
+    verified_purchase:document.getElementById('rvVerified').checked,
+    source:document.getElementById('rvSource').value,
+    admin_note:document.getElementById('rvAdminNote').value.trim()||null,
+    images,
+  };
+
+  try{
+    const token=localStorage.getItem('ta_token');
+    let res;
+    if(_editingReviewId){
+      res=await fetch(API+'/api/reviews/'+_editingReviewId,{
+        method:'PUT',
+        headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body:JSON.stringify(body)
+      });
+    }else{
+      // Admin-created review — POST directly to Supabase (bypasses auth check)
+      const{error}=await sb.from('reviews').insert({...body,status:body.status||'approved'});
+      if(error)throw error;
+      toast('Review added ✓','success');
+      closeReviewModal();
+      loadReviewsAdmin();
+      return;
+    }
+    if(!res.ok){const d=await res.json();throw new Error(d.error);}
+    toast(_editingReviewId?'Review updated ✓':'Review added ✓','success');
+    closeReviewModal();
+    loadReviewsAdmin();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
 </script>
+
+<!-- ── REVIEW MODAL ───────────────────────────────────── -->
+<div id="reviewModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:28px;max-width:560px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div class="p-title" id="rvModalTitle">Add Review</div>
+      <button onclick="closeReviewModal()" style="background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;line-height:1">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label class="form-label">Product Slug *</label>
+          <input id="rvSlug" class="form-input" placeholder="e.g. arc-desk"></div>
+        <div><label class="form-label">Product Name</label>
+          <input id="rvProductName" class="form-input" placeholder="e.g. Arc Desk Organizer"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label class="form-label">Customer Name *</label>
+          <input id="rvName" class="form-input" placeholder="e.g. Rahul S."></div>
+        <div><label class="form-label">City</label>
+          <input id="rvCity" class="form-input" placeholder="e.g. Mumbai"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:10px">
+        <div><label class="form-label">Rating *</label>
+          <select id="rvRating" class="form-input">
+            <option value="5">★★★★★ 5</option>
+            <option value="4">★★★★☆ 4</option>
+            <option value="3">★★★☆☆ 3</option>
+            <option value="2">★★☆☆☆ 2</option>
+            <option value="1">★☆☆☆☆ 1</option>
+          </select></div>
+        <div><label class="form-label">Status</label>
+          <select id="rvStatus" class="form-input">
+            <option value="approved">Approved</option>
+            <option value="pending">Pending</option>
+            <option value="rejected">Rejected</option>
+          </select></div>
+        <div><label class="form-label">Source</label>
+          <select id="rvSource" class="form-input">
+            <option value="website">Website</option>
+            <option value="google">Google</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="direct">Direct</option>
+          </select></div>
+      </div>
+      <div><label class="form-label">Review Text *</label>
+        <textarea id="rvReview" class="form-input" rows="4" placeholder="Customer's review text…" style="resize:vertical"></textarea></div>
+      <div><label class="form-label">Image URLs (one per line, optional)</label>
+        <textarea id="rvImagesVal" class="form-input" rows="3" placeholder="https://res.cloudinary.com/…&#10;https://res.cloudinary.com/…" style="resize:vertical;font-size:11px"></textarea></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="rvVerified" style="width:16px;height:16px;accent-color:var(--accent)">
+        <label for="rvVerified" style="font-size:13px;cursor:pointer">Verified Purchase</label>
+      </div>
+      <div><label class="form-label">Admin Note (internal only)</label>
+        <input id="rvAdminNote" class="form-input" placeholder="e.g. Imported from Google Reviews"></div>
+      <div style="display:flex;gap:10px;margin-top:6px">
+        <button class="btn-primary" onclick="saveReview()" style="flex:1">Save Review</button>
+        <button class="btn-secondary" onclick="closeReviewModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ── PROMO CODE MODAL ────────────────────────────────── -->
 <div id="promoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;align-items:center;justify-content:center;padding:20px">

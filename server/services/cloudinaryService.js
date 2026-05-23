@@ -35,4 +35,26 @@ export function getThumbnailUrl(publicId) {
   });
 }
 
+/**
+ * Upload a Buffer directly to Cloudinary (for multer memoryStorage).
+ * Returns the full Cloudinary upload result (secure_url, public_id, etc.).
+ */
+export function uploadBufferToCloudinary(buffer, options = {}) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder:       options.folder       || 'triakar/reviews',
+        quality:      options.quality      || 'auto',
+        fetch_format: options.fetch_format || 'auto',
+        ...options,
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+    stream.end(buffer);
+  });
+}
+
 export { cloudinary };

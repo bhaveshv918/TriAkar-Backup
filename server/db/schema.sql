@@ -272,6 +272,54 @@ ON CONFLICT (slug) DO NOTHING;
 -- ════════════════════════════════════════════════════════════════════════
 -- 14. PROMO CODES
 -- ════════════════════════════════════════════════════════════════════════
+-- (section continues below)
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 15. REVIEWS
+-- Run this block in Supabase SQL Editor to add the reviews table.
+-- ════════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS reviews (
+  id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_slug      TEXT        NOT NULL,
+  product_name      TEXT,
+  user_id           UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
+  reviewer_name     TEXT        NOT NULL,
+  reviewer_email    TEXT,
+  rating            INTEGER     NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  review            TEXT        NOT NULL,
+  images            TEXT[]      DEFAULT '{}',
+  verified_purchase BOOLEAN     DEFAULT false,
+  status            TEXT        NOT NULL DEFAULT 'pending'
+                                CHECK (status IN ('pending','approved','rejected')),
+  admin_note        TEXT,
+  source            TEXT        DEFAULT 'website',
+  city              TEXT,
+  created_at        TIMESTAMPTZ DEFAULT now(),
+  updated_at        TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
+
+-- Public: read approved reviews only
+CREATE POLICY "Anyone reads approved reviews" ON reviews
+  FOR SELECT USING (status = 'approved');
+
+-- Authenticated users can submit reviews
+CREATE POLICY "Auth users insert reviews" ON reviews
+  FOR INSERT TO authenticated
+  WITH CHECK (true);
+
+-- Admin: full access
+CREATE POLICY "Admin manages reviews" ON reviews
+  FOR ALL TO authenticated
+  USING     (auth.email() = 'bhaveshv918@gmail.com')
+  WITH CHECK(auth.email() = 'bhaveshv918@gmail.com');
+
+-- Migration helper: add reviews table to an existing deployment without full re-create
+-- ALTER TABLE reviews ADD COLUMN IF NOT EXISTS product_name TEXT;
+-- ALTER TABLE reviews ADD COLUMN IF NOT EXISTS admin_note TEXT;
+-- ALTER TABLE reviews ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'website';
+-- ALTER TABLE reviews ADD COLUMN IF NOT EXISTS city TEXT;
+-- ALTER TABLE reviews ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 CREATE TABLE IF NOT EXISTS promo_codes (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   code             TEXT UNIQUE NOT NULL,
