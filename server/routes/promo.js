@@ -11,8 +11,8 @@ import { requireAdmin } from '../middleware/requireAdmin.js';
 
 const router = Router();
 
-// Validate a code at checkout (any logged-in user)
-router.post('/validate', requireAuth, validatePromo);
+// Validate a code at checkout — no auth needed (read-only, no user data exposed)
+router.post('/validate', validatePromo);
 
 // Admin-only CRUD
 router.get('/',       requireAuth, requireAdmin, getPromoCodes);

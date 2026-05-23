@@ -643,11 +643,11 @@ async function applyPromo() {
   btn.disabled = true; btn.textContent = 'Checking…';
 
   try {
-    var items   = Cart.getItems();
+    var items    = Cart.getItems();
     var subtotal = Cart.total();
     var res = await fetch(CK_API + '/api/promo/validate', {
       method: 'POST',
-      headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         code,
         subtotal,
@@ -673,7 +673,7 @@ async function applyPromo() {
       renderReview();
     }
   } catch (e) {
-    if (msg) { msg.style.color = '#B91C1C'; msg.textContent = 'Could not validate code. Please try again.'; }
+    if (msg) { msg.style.color = '#B91C1C'; msg.textContent = '✕ Error: ' + (e.message || 'Could not validate. Try again.'); }
   }
   btn.disabled = false; btn.textContent = 'Apply';
 }
