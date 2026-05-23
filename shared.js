@@ -18,6 +18,16 @@ function _esc(s){
   document.head.appendChild(s);
 })();
 
+/* ── TRK Order ID generator ─────────────────────────────── */
+function generateTRKId(){
+  var d=new Date();
+  var date=d.getFullYear().toString()+
+    ('0'+(d.getMonth()+1)).slice(-2)+
+    ('0'+d.getDate()).slice(-2);
+  var rand=String(Math.floor(1000+Math.random()*9000));
+  return 'TRK-'+date+'-'+rand;
+}
+
 /* ── Supabase Client ───────────────────────────────────── */
 const SUPABASE_URL='https://qarjbmogersuaerkhlcu.supabase.co';
 const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
