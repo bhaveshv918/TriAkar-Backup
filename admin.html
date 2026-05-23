@@ -490,6 +490,13 @@ td.td-name{color:var(--text);font-weight:500}
 .fcheck{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2);cursor:pointer}
 .fcheck input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
 
+/* Modal form helpers (used by promo modal) */
+.form-label{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;color:var(--text-3);display:block;margin-bottom:5px}
+.form-input{background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--sans);font-size:13px;padding:10px 12px;border-radius:var(--radius);outline:none;transition:border-color .2s,box-shadow .2s;width:100%}
+.form-input:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-bg)}
+.form-input::placeholder{color:var(--text-3)}
+.form-input option{background:var(--bg-2)}
+
 /* Section divider in form */
 .form-section{
   font-family:var(--mono);font-size:10px;letter-spacing:.14em;
@@ -3176,11 +3183,9 @@ let _editingPromoId = null;
 async function loadPromoCodes(){
   document.getElementById('promoList').innerHTML='<tr><td colspan="9" class="tbl-msg">Loading…</td></tr>';
   try{
-    const token=localStorage.getItem('ta_token');
-    const res=await fetch(API+'/api/promo',{headers:{'Authorization':'Bearer '+token}});
-    const data=await res.json();
-    const rows=data.promo_codes||[];
-    if(!rows.length){ document.getElementById('promoList').innerHTML='<tr><td colspan="9" class="tbl-msg">No promo codes yet</td></tr>'; return; }
+    const{data:rows,error}=await sb.from('promo_codes').select('*').order('created_at',{ascending:false});
+    if(error)throw error;
+    if(!rows||!rows.length){ document.getElementById('promoList').innerHTML='<tr><td colspan="9" class="tbl-msg">No promo codes yet. Click "+ New Code" to add one.</td></tr>'; return; }
     document.getElementById('promoList').innerHTML=rows.map(p=>{
       const typeLabel=p.discount_type==='free_shipping'?'Free Shipping':p.discount_type==='percent'?'Percent':'Fixed ₹';
       const valLabel=p.discount_type==='free_shipping'?'—':p.discount_type==='percent'?p.discount_value+'%':'₹'+p.discount_value;
@@ -3189,7 +3194,7 @@ async function loadPromoCodes(){
       const exp=p.expires_at?new Date(p.expires_at).toLocaleDateString('en-IN'):'—';
       const statusBadge=p.is_active?'<span style="color:#15803D;font-weight:700">Active</span>':'<span style="color:#B91C1C;font-weight:700">Inactive</span>';
       return`<tr>
-        <td><strong>${p.code}</strong>${p.description?'<br><small style="color:var(--stone)">'+p.description+'</small>':''}</td>
+        <td><strong>${p.code}</strong>${p.description?'<br><small style="color:var(--text-3)">'+p.description+'</small>':''}</td>
         <td>${typeLabel}</td><td>${valLabel}</td><td>${minLabel}</td>
         <td>${usesLabel}</td>
         <td>${p.product_slug||'All products'}</td>
@@ -3201,7 +3206,10 @@ async function loadPromoCodes(){
         </td>
       </tr>`;
     }).join('');
-  }catch(e){ document.getElementById('promoList').innerHTML='<tr><td colspan="9" class="tbl-msg">Error loading promo codes</td></tr>'; }
+  }catch(e){
+    console.error('loadPromoCodes:',e);
+    document.getElementById('promoList').innerHTML='<tr><td colspan="9" class="tbl-msg" style="color:#B91C1C">Error: '+e.message+'</td></tr>';
+  }
 }
 
 function openPromoModal(promo){
@@ -3234,7 +3242,6 @@ function updatePromoValueLabel(){
 }
 
 async function savePromoCode(){
-  const token=localStorage.getItem('ta_token');
   const code=document.getElementById('promoCode').value.trim().toUpperCase();
   const type=document.getElementById('promoType').value;
   if(!code){toast('Code is required','error');return;}
@@ -3250,11 +3257,16 @@ async function savePromoCode(){
     expires_at: document.getElementById('promoExpiry').value||null,
   };
   try{
-    const url=_editingPromoId?API+'/api/promo/'+_editingPromoId:API+'/api/promo';
-    const method=_editingPromoId?'PUT':'POST';
-    const res=await fetch(url,{method,headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
-    if(!res.ok){ const d=await res.json(); throw new Error(d.error||'Failed'); }
-    toast(_editingPromoId?'Promo code updated':'Promo code created','success');
+    let error;
+    if(_editingPromoId){
+      const res=await sb.from('promo_codes').update(body).eq('id',_editingPromoId);
+      error=res.error;
+    }else{
+      const res=await sb.from('promo_codes').insert(body);
+      error=res.error;
+    }
+    if(error)throw error;
+    toast(_editingPromoId?'Promo code updated ✓':'Promo code created ✓','success');
     closePromoModal();
     loadPromoCodes();
   }catch(e){ toast('Error: '+e.message,'error'); }
@@ -3262,21 +3274,21 @@ async function savePromoCode(){
 
 async function deletePromoCode(id){
   if(!confirm('Delete this promo code?')) return;
-  const token=localStorage.getItem('ta_token');
   try{
-    await fetch(API+'/api/promo/'+id,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+    const{error}=await sb.from('promo_codes').delete().eq('id',id);
+    if(error)throw error;
     toast('Promo code deleted','success');
     loadPromoCodes();
-  }catch(e){ toast('Error deleting promo code','error'); }
+  }catch(e){ toast('Error deleting promo code: '+e.message,'error'); }
 }
 </script>
 
 <!-- ── PROMO CODE MODAL ────────────────────────────────── -->
-<div id="promoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;align-items:center;justify-content:center;padding:20px">
-  <div style="background:var(--surface);border:1px solid var(--border);padding:28px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
+<div id="promoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:28px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
       <div class="p-title" id="promoModalTitle">New Promo Code</div>
-      <button onclick="closePromoModal()" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;line-height:1">×</button>
+      <button onclick="closePromoModal()" style="background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;line-height:1">×</button>
     </div>
     <div style="display:flex;flex-direction:column;gap:14px">
       <div><label class="form-label">Code *</label>

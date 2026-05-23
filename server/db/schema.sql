@@ -287,7 +287,11 @@ CREATE TABLE IF NOT EXISTS promo_codes (
   created_at       TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE promo_codes ENABLE ROW LEVEL SECURITY;
--- Authenticated users can read active codes for validation
-CREATE POLICY "Auth users read active promos" ON promo_codes
+-- Authenticated users can read all promo codes (needed for admin panel + checkout validation)
+CREATE POLICY "Auth users read promos" ON promo_codes
   FOR SELECT USING (auth.role() = 'authenticated');
--- Service role (backend) has full access via service key — no policy needed
+-- Admin user has full write access (INSERT / UPDATE / DELETE) via Supabase client
+CREATE POLICY "Admin write promos" ON promo_codes
+  FOR ALL TO authenticated
+  USING     (auth.email() = 'bhaveshv918@gmail.com')
+  WITH CHECK(auth.email() = 'bhaveshv918@gmail.com');
