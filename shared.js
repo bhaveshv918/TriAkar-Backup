@@ -28,16 +28,40 @@ function generateTRKId(){
   return 'TRK-'+date+'-'+rand;
 }
 
-/* ── Supabase Client ───────────────────────────────────── */
+/* ── Supabase Client (lazy-loaded — not fetched until actually needed) ── */
 const SUPABASE_URL='https://qarjbmogersuaerkhlcu.supabase.co';
 const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
-let _sb=null;
+const _SB_CDN='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0';
+let _sb=null, _sbLoadPromise=null;
+
 function getSB(){
   if(_sb)return _sb;
   if(window.supabase&&window.supabase.createClient){
     _sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
   }
   return _sb;
+}
+
+/* Returns a Promise<SupabaseClient|null>.
+   Dynamically injects the CDN script the first time it is needed,
+   so pages that never use Supabase features pay zero download cost. */
+function _ensureSB(){
+  var existing=getSB();
+  if(existing)return Promise.resolve(existing);
+  if(_sbLoadPromise)return _sbLoadPromise;
+  _sbLoadPromise=new Promise(function(resolve){
+    var s=document.createElement('script');
+    s.src=_SB_CDN;
+    s.onload=function(){
+      if(window.supabase&&window.supabase.createClient){
+        _sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+      }
+      resolve(_sb);
+    };
+    s.onerror=function(){resolve(null);};
+    document.head.appendChild(s);
+  });
+  return _sbLoadPromise;
 }
 
 /* ── Safe GA4 analytics helper ──────────────────────────── */
@@ -489,7 +513,7 @@ function attachPincodeAutofill(pinId, infoId, cityId, districtId, stateId, state
 
 /* ══ SAVED ADDRESSES (Supabase) ═══════════════════════════ */
 async function loadSavedAddresses(){
-  const sb=getSB();
+  const sb=await _ensureSB();
   if(!sb)return[];
   const user=(typeof Auth!=='undefined'&&Auth.getUser)?Auth.getUser():null;
   if(!user)return[];
@@ -607,7 +631,7 @@ function generateCallbackRef(){
 /* Resilient Supabase insert for callback_requests — retries with minimal columns
    if the full row fails (e.g. missing columns in schema). */
 async function _insertCallbackResilient(payload){
-  const sb=getSB();
+  const sb=await _ensureSB();
   if(!sb)return{ok:false,error:'Supabase unavailable'};
   try{
     const {error}=await sb.from('callback_requests').insert([payload]);
@@ -989,14 +1013,30 @@ function prefillCheckout(){
 
 /* ══ DOM READY ══════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded',function(){
-  Cart.badge();Cart.render();Cart.loadFromServer();
+  // Critical path: badge + nav state only — must be instant
+  Cart.badge();
   updateNavAuth();
   applyNavActiveState();
-  // Eagerly enrich images for any cart items missing them — runs in background
-  // so images are ready before the user opens the cart
-  if(Cart.getItems().some(function(i){return !i.image;})){
-    Cart._enrichImages().then(function(changed){if(changed)Cart.render();});
-  }
+
+  // Defer cart render + server sync until after first paint so LCP is not blocked.
+  // requestAnimationFrame yields to the browser paint cycle first; the second
+  // rAF ensures we're fully past layout/paint before doing any DOM work.
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      Cart.render();
+
+      // Sync cart from server 2.5 s after load — avoids competing with page resources.
+      // On fast connections this feels instant; on slow connections it doesn't block LCP.
+      setTimeout(function(){
+        Cart.loadFromServer().then(function(){
+          // Enrich missing images only AFTER cart sync, and only if cart is non-empty
+          if(Cart.getItems().some(function(i){return !i.image;})){
+            Cart._enrichImages().then(function(changed){if(changed)Cart.render();});
+          }
+        });
+      }, 2500);
+    });
+  });
 });
 
 /* ══ IMAGE PROTECTION (prevent casual right-click / drag copy) ══ */
@@ -1025,3 +1065,10 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }
 });
+
+/* ══ SERVICE WORKER — register for static asset caching ════ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('/sw.js').catch(function(){});
+  });
+}
