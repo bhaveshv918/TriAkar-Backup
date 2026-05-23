@@ -134,12 +134,15 @@
 .reviews-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 @media(max-width:900px){.reviews-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:600px){.reviews-grid{grid-template-columns:1fr}}
-.review-card{background:#fff;border-radius:10px;padding:20px;border:1px solid rgba(45,138,78,.12);border-left:3px solid #2D8A4E}
+.review-card{background:#fff;border-radius:10px;padding:22px;border:1px solid rgba(45,138,78,.15);border-left:3px solid #2D8A4E;box-shadow:0 2px 12px rgba(45,138,78,.06);transition:box-shadow .25s}
+.review-card:hover{box-shadow:0 6px 24px rgba(45,138,78,.13)}
 .review-stars{color:#2D8A4E;font-size:14px;letter-spacing:2px;margin-bottom:8px}
-.review-text{font-size:14px;color:var(--warm);line-height:1.7;margin-bottom:10px}
+.review-text{font-size:13px;color:var(--warm);line-height:1.75;margin-bottom:14px;font-style:italic}
+.review-footer{display:flex;align-items:center;gap:9px}
+.review-avatar{width:32px;height:32px;border-radius:50%;background:rgba(45,138,78,.12);border:1.5px solid rgba(45,138,78,.3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#2D8A4E;flex-shrink:0}
 .review-author{font-size:12px;font-weight:600;color:var(--charcoal)}
-.review-verified{font-size:10px;color:#2D8A4E;font-weight:600;letter-spacing:.05em;margin-left:8px}
-.review-date{font-size:11px;color:var(--stone);margin-left:6px}
+.review-verified{display:inline-flex;align-items:center;gap:3px;font-size:9px;color:#2D8A4E;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-left:6px}
+.review-date{font-size:10px;color:var(--stone);margin-top:1px}
 .review-imgs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
 .review-img{width:64px;height:64px;object-fit:cover;border-radius:6px;cursor:pointer}
 .review-form-wrap{background:#fff;border-radius:12px;padding:28px;margin-top:24px;border:1px solid rgba(0,0,0,.08)}
@@ -599,7 +602,11 @@ function loadReviews(slug){
       if(grid)grid.innerHTML=reviews.map(r=>{
         const stars='★'.repeat(Math.min(5,Math.max(0,Number(r.rating||5))))+'☆'.repeat(5-Math.min(5,Number(r.rating||5)));
         const imgs=(r.images||[]).map(img=>`<img src="${img}" class="review-img" alt="">`).join('');
-        return `<div class="review-card"><div class="review-stars">${stars}</div>${imgs?`<div class="review-imgs">${imgs}</div>`:''}<p class="review-text">${r.review||r.content||''}</p><div style="display:flex;align-items:center;flex-wrap:wrap"><span class="review-author">${r.author_name||r.name||'Customer'}</span>${r.verified_purchase?'<span class="review-verified">✓ Verified</span>':''}<span class="review-date">${r.created_at?new Date(r.created_at).toLocaleDateString('en-IN',{month:'short',year:'numeric'}):''}</span></div></div>`;
+        const name=r.author_name||r.name||'Customer';
+        const initials=name.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'C';
+        const date=r.created_at?new Date(r.created_at).toLocaleDateString('en-IN',{month:'short',year:'numeric'}):'';
+        const verBadge=r.verified_purchase?`<span class="review-verified"><svg width="9" height="9" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Verified</span>`:'';
+        return `<div class="review-card"><div class="review-stars">${stars}</div>${imgs?`<div class="review-imgs">${imgs}</div>`:''}<p class="review-text">"${r.review||r.content||''}"</p><div class="review-footer"><div class="review-avatar">${initials}</div><div><div style="display:flex;align-items:center;flex-wrap:wrap"><span class="review-author">${_esc(name)}</span>${verBadge}</div><div class="review-date">${date}</div></div></div></div>`;
       }).join('');
       if(section)section.style.display='';
     })
