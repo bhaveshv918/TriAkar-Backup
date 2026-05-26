@@ -71,27 +71,12 @@
 <script defer src="/_vercel/speed-insights/script.js"></script>
 </head>
 <body>
+<script src="/partials.js"></script>
 <div class="notice-bar">
   Free shipping above ₹999 in India<span class="ndot">·</span><span class="notice-hide-mobile">Noida pickup available<span class="ndot">·</span></span><a href="contact.html">Contact Us</a>
 </div>
-<nav class="main-nav" id="mainNav">
-  <div class="nav-inner">
-    <a href="index.html" class="logo">
-      <span class="logo-en"><span style="color:var(--accent)">TRI</span>AKAR</span>
-      <span class="logo-hi">त्रिआकार</span>
-    </a>
-    <ul class="nav-links"><li><a href="products.html">Shop</a></li><li><a href="custom.html">Custom Order</a></li><li><a href="stories.html">Our Stories</a></li><li><a href="about.html">About</a></li><li><a href="contact.html">Contact</a></li><li><a href="track-order.html">Track Order</a></li></ul>
-    <div class="nav-right">
-      <a href="#" class="cart-btn" onclick="openCart();return false;">
-        <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M1 1h2.5l1.6 8h8.4l1.5-5.5H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="14.5" r="1.2" fill="currentColor"/><circle cx="13" cy="14.5" r="1.2" fill="currentColor"/></svg>
-        Cart <span class="cart-badge" id="cartBadge">0</span>
-      </a>
-      <a href="account.html" class="nav-shop">Login</a>
-      <button class="nav-toggle" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
-    </div>
-  </div>
-</nav>
-<nav class="nav-drawer"><a href="products.html">Shop</a><a href="custom.html">Custom Order</a><a href="stories.html">Our Stories</a><a href="about.html">About</a><a href="contact.html">Contact</a><a href="track-order.html">Track Order</a></nav>
+<div id="nav-root"></div><script>if(window._NAV_HTML)document.getElementById("nav-root").outerHTML=window._NAV_HTML;</script>
+<div id="drawer-root"></div><script>if(window._DRAWER_HTML)document.getElementById("drawer-root").outerHTML=window._DRAWER_HTML;</script>
 
 <div class="track-hero">
   <div style="max-width:var(--max-w);margin:0 auto">
@@ -128,13 +113,25 @@
   </div>
 </section>
 <script>
-const sb=supabase.createClient('https://qarjbmogersuaerkhlcu.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs');
+const SB_URL='https://qarjbmogersuaerkhlcu.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
+const sb=supabase.createClient(SB_URL,SB_KEY);
 
-const STATUS_MAP={placed:0,confirmed:1,processing:2,shipped:3,delivered:4,cancelled:-1,returned:-2,refunded:-3,pending:0};
-const STATUS_LABELS=['Confirmed','Processing','Shipped','Out for Delivery','Delivered'];
+/* Authenticate with stored token so RLS lets users see their own orders.
+   Store the promise so auto-track can WAIT for session before querying. */
+const _authReady=(function(){
+  try{
+    const t=localStorage.getItem('ta_token');
+    const r=localStorage.getItem('ta_refresh');
+    if(t)return sb.auth.setSession({access_token:t,refresh_token:r||''}).catch(function(){return null;});
+  }catch(e){}
+  return Promise.resolve(null);
+})();
 
-function fmtDate(iso){return new Date(iso).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}
-function fmtDateTime(iso){return new Date(iso).toLocaleString('en-IN',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
+const STATUS_MAP={pending:0,confirmed:1,processing:2,shipped:3,delivered:4,cancelled:-1,returned:-2,refunded:-3,placed:1};
+
+function fmtDate(iso){if(!iso)return'—';return new Date(iso).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}
+function capFirst(s){return s?s.charAt(0).toUpperCase()+s.slice(1):s}
 
 async function trackOrder(){
   const input=document.getElementById('trackInput').value.trim();
@@ -143,75 +140,124 @@ async function trackOrder(){
   const det=document.getElementById('trackDetail');
 
   if(!input){alert('Please enter your order ID.');return}
-
-  // Accept TRK-YYYYMMDD-XXXX format directly
-  let orderId=input.toUpperCase().trim();
-
-  btn.textContent='Searching...';btn.disabled=true;
+  const orderId=input.toUpperCase().trim();
+  btn.textContent='Searching…';btn.disabled=true;
 
   try{
-    const{data,error}=await sb.rpc('track_order_public',{p_order_id:orderId});
+    /* Direct Supabase query — no RPC needed. Matches invoice_number OR order_id */
+    const{data,error}=await sb
+      .from('orders')
+      .select('*, order_items(quantity, unit_price, customization_notes, products(name, images))')
+      .or('invoice_number.eq.'+orderId+',order_id.eq.'+orderId)
+      .maybeSingle();
+
+    if(error)throw error;
 
     res.classList.add('show');
 
-    if(error||!data||!data.found){
-      for(let i=0;i<5;i++){document.getElementById('ts'+i).className='ts-dot'}
-      det.innerHTML='<div style="text-align:center;padding:24px;font-size:13px;color:var(--stone)">No order found for <strong>'+orderId+'</strong>. Double-check your order ID or <a href="contact.html" style="color:var(--accent)">contact us</a> for help.</div>';
+    if(!data){
+      for(let i=0;i<5;i++)document.getElementById('ts'+i).className='ts-dot';
+      det.innerHTML='<div style="text-align:center;padding:28px 20px">'
+        +'<div style="font-size:14px;font-weight:600;color:var(--charcoal);margin-bottom:8px">Order not found</div>'
+        +'<div style="font-size:13px;color:var(--stone);margin-bottom:16px">No order found for <strong>'+orderId+'</strong>.<br>Make sure you\'re signed in with the account used to place the order.</div>'
+        +'<a href="contact.html" style="color:var(--accent);font-size:13px;font-weight:600">Contact us for help →</a>'
+        +'</div>';
       btn.textContent='Track';btn.disabled=false;
       return;
     }
 
     const order=data;
-    const st=order.order_status||'placed';
-    const statusIdx=STATUS_MAP[st]??-1;
+    const st=order.order_status||order.status||'confirmed';
+    const isPaid=order.payment_received===true||order.payment_status==='paid';
+    const statusIdx=isPaid?(STATUS_MAP[st]??1):0;
 
+    /* Update step tracker dots */
     for(let i=0;i<5;i++){
       const d=document.getElementById('ts'+i);
-      if(statusIdx<0) d.className='ts-dot';
-      else if(i<statusIdx) d.className='ts-dot done';
-      else if(i===statusIdx) d.className='ts-dot active';
+      if(statusIdx<0)d.className='ts-dot';
+      else if(i<statusIdx)d.className='ts-dot done';
+      else if(i===statusIdx)d.className='ts-dot active';
       else d.className='ts-dot';
     }
 
-    let html='<div class="td-row"><span class="td-l">Order ID</span><span class="td-v" style="font-weight:700">'+order.order_id+'</span></div>'
-      +'<div class="td-row"><span class="td-l">Order Date</span><span class="td-v">'+fmtDate(order.created_at)+'</span></div>'
-      +'<div class="td-row"><span class="td-l">Total</span><span class="td-v" style="font-weight:700">₹'+Number(order.total_amount).toLocaleString('en-IN')+'</span></div>'
-      +'<div class="td-row"><span class="td-l">Status</span><span class="td-v" style="text-transform:capitalize;font-weight:600">'+st+'</span></div>';
+    const addr=order.shipping_address||{};
+    const invNum=order.invoice_number||order.order_id||order.id;
+    const addrLine=[addr.address_line1,addr.address_line2,addr.city,addr.state,addr.pincode].filter(Boolean).join(', ');
 
+    let html='';
+
+    /* Order summary */
+    html+='<div style="margin-bottom:12px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:600">Order Summary</div>';
+    html+='<div class="td-row"><span class="td-l">Invoice No.</span><span class="td-v" style="font-family:monospace;letter-spacing:.04em;color:var(--accent)">'+invNum+'</span></div>';
+    html+='<div class="td-row"><span class="td-l">Order Date</span><span class="td-v">'+fmtDate(order.created_at)+'</span></div>';
+    html+='<div class="td-row"><span class="td-l">Status</span><span class="td-v">'+capFirst(st)+'</span></div>';
+    html+='<div class="td-row"><span class="td-l">Payment</span><span class="td-v">'+(isPaid?'<span style="color:#16a34a;font-weight:700">✓ Paid</span>':'<span style="color:#9A3412;font-weight:600">Pending</span>')+'</span></div>';
+
+    /* Items ordered */
+    const items=(order.order_items||[]);
+    if(items.length){
+      html+='<div style="margin:18px 0 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:600">Items Ordered</div>';
+      items.forEach(function(item){
+        const name=(item.products&&item.products.name)||'Item';
+        const qty=item.quantity||1;
+        const price=Number(item.unit_price||0);
+        html+='<div class="td-row"><span class="td-l" style="color:var(--charcoal);font-weight:600">'+name
+          +(qty>1?' <span style="font-weight:400;color:var(--stone)">×'+qty+'</span>':'')
+          +'</span><span class="td-v">₹'+(price*qty).toLocaleString('en-IN')+'</span></div>';
+        if(item.customization_notes){
+          html+='<div style="font-size:11px;color:var(--stone);padding:2px 0 8px;border-bottom:1px solid var(--stone-p)">Customisation: '+item.customization_notes+'</div>';
+        }
+      });
+    }
+
+    /* Price breakdown */
+    html+='<div style="margin:18px 0 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:600">Price Breakdown</div>';
+    if(order.subtotal!=null)html+='<div class="td-row"><span class="td-l">Subtotal</span><span class="td-v">₹'+Number(order.subtotal).toLocaleString('en-IN')+'</span></div>';
+    if(order.shipping_charge!=null)html+='<div class="td-row"><span class="td-l">Shipping</span><span class="td-v">'+(order.shipping_charge===0?'Free':'₹'+Number(order.shipping_charge).toLocaleString('en-IN'))+'</span></div>';
+    if(order.discount_amount>0)html+='<div class="td-row"><span class="td-l">Discount'+(order.promo_code?' ('+order.promo_code+')':'')+'</span><span class="td-v" style="color:#16a34a">−₹'+Number(order.discount_amount).toLocaleString('en-IN')+'</span></div>';
+    html+='<div class="td-row"><span class="td-l" style="font-weight:700">Total</span><span class="td-v" style="font-weight:700;font-size:15px">₹'+Number(order.total_amount).toLocaleString('en-IN')+'</span></div>';
+
+    /* Shipping address */
+    if(addrLine||addr.full_name){
+      html+='<div style="margin:18px 0 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:600">Shipping Address</div>';
+      if(addr.full_name)html+='<div class="td-row"><span class="td-l">Name</span><span class="td-v">'+addr.full_name+'</span></div>';
+      if(addrLine)html+='<div class="td-row"><span class="td-l">Address</span><span class="td-v" style="text-align:right;max-width:65%">'+addrLine+'</span></div>';
+    }
+
+    /* Courier / tracking */
     if(order.tracking_vendor||order.tracking_number){
-      html+='<div class="td-row"><span class="td-l">Courier</span><span class="td-v">'+(order.tracking_vendor||'—')+'</span></div>';
-      html+='<div class="td-row"><span class="td-l">Tracking #</span><span class="td-v" style="font-family:var(--font-b);letter-spacing:.04em">'+(order.tracking_number||'—')+'</span></div>';
+      html+='<div style="margin:18px 0 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:600">Shipment</div>';
+      if(order.tracking_vendor)html+='<div class="td-row"><span class="td-l">Courier</span><span class="td-v">'+order.tracking_vendor+'</span></div>';
+      if(order.tracking_number)html+='<div class="td-row"><span class="td-l">Tracking #</span><span class="td-v" style="font-family:monospace;letter-spacing:.04em">'+order.tracking_number+'</span></div>';
     }
 
-    if(order.shipping_city||order.shipping_state){
-      const loc=[order.shipping_city,order.shipping_state].filter(Boolean).join(', ');
-      if(loc)html+='<div class="td-row"><span class="td-l">Shipping to</span><span class="td-v">'+loc+'</span></div>';
-    }
-    // Show masked delivery contact phone (from shipping_address.contact_phone)
-    const cp=(order.shipping_address||{}).contact_phone||'';
-    if(cp){
-      const digits=cp.replace(/\D/g,'');
-      const masked=digits.length>=4?'+91 XXXXX X'+digits.slice(-4):'—';
-      html+='<div class="td-row"><span class="td-l">Delivery Contact</span><span class="td-v" style="font-family:monospace">'+masked+'</span></div>';
+    /* Expected delivery */
+    if(order.expected_delivery||order.estimated_delivery){
+      html+='<div class="td-row"><span class="td-l">Expected Delivery</span><span class="td-v">'+fmtDate(order.expected_delivery||order.estimated_delivery)+'</span></div>';
     }
 
     det.innerHTML=html;
+
   }catch(err){
     res.classList.add('show');
-    for(let i=0;i<5;i++){document.getElementById('ts'+i).className='ts-dot'}
-    det.innerHTML='<div style="text-align:center;padding:24px;font-size:13px;color:var(--stone)">Something went wrong. Please try again or <a href="contact.html" style="color:var(--accent)">contact us</a>.</div>';
+    for(let i=0;i<5;i++)document.getElementById('ts'+i).className='ts-dot';
+    det.innerHTML='<div style="text-align:center;padding:28px 20px;font-size:13px;color:var(--stone)">Something went wrong. Please <a href="contact.html" style="color:var(--accent)">contact us</a>.</div>';
+    console.error('trackOrder error:',err);
   }
 
   btn.textContent='Track';btn.disabled=false;
 }
 
-// Auto-fill from URL param
+/* Auto-track from URL param — wait for auth session first so RLS passes */
 (function(){
   const p=new URLSearchParams(window.location.search).get('id');
-  if(p){document.getElementById('trackInput').value=p;trackOrder()}
+  if(p){
+    document.getElementById('trackInput').value=decodeURIComponent(p);
+    _authReady.then(function(){trackOrder();});
+  }
 })();
 
-document.getElementById('trackInput').addEventListener('keydown',e=>{if(e.key==='Enter')trackOrder()});
+document.getElementById('trackInput').addEventListener('keydown',function(e){if(e.key==='Enter')trackOrder();});
 </script>
 
 <div class="cart-overlay" id="cartOverlay" onclick="closeCart()"></div>
@@ -225,57 +271,7 @@ document.getElementById('trackInput').addEventListener('keydown',e=>{if(e.key===
     <div style="text-align:center;margin-top:10px"><button class="btn-ghost" onclick="closeCart()">Continue shopping</button></div>
   </div>
 </div>
-<footer>
-  <div class="mw">
-    <div class="foot-grid">
-      <div>
-        <div class="foot-brand"><span style="color:var(--accent)">TRI</span><span style="color:#ffffff">AKAR</span></div>
-        <div class="foot-hi">त्रिआकार</div>
-        <p class="foot-desc">3D Printing Services, Delhi NCR</p>
-        <div class="foot-phone"><a href="tel:+919217555833">+91 92175 55833</a></div>
-        <div class="foot-hours">Open all days, 11 AM to 9 PM</div>
-        <div class="foot-addr">Shop No. 25, Karan Singh Market<br>Chhoti Milak, Greater Noida West, UP – 201318</div>
-        <a href="https://maps.google.com/?q=TRIAKAR+Karan+Singh+Market+Chhoti+Milak+Greater+Noida+West+201318" class="foot-dir" target="_blank">Get Directions →</a>
-      </div>
-      <div>
-        <div class="foot-col-t">Shop</div>
-        <ul class="foot-links">
-          <li><a href="products.html">All Products</a></li>
-          <li><a href="products.html?cat=desk">Desk</a></li>
-          <li><a href="products.html?cat=home">Home</a></li>
-          <li><a href="products.html?cat=gifting">Gifting</a></li>
-          <li><a href="custom.html">Custom Order</a></li>
-          <li><a href="stories.html">Stories</a></li>
-          <li><a href="services/replacement-parts.html">Replacement Parts</a></li>
-          <li><a href="services/corporate-gifting.html">Corporate Gifting</a></li>
-          <li><a href="services/personalized-gifts.html">Personalized Gifts</a></li>
-        </ul>
-      </div>
-      <div>
-        <div class="foot-col-t">Help</div>
-        <ul class="foot-links">
-          <li><a href="contact.html">Contact Us</a></li>
-          <li><a href="track-order.html">Track Order</a></li>
-          <li><a href="refund-policy.html">Refund Policy</a></li>
-          <li><a href="about.html">About</a></li>
-          <li><a href="custom.html">Custom Order</a></li>
-        </ul>
-      </div>
-      <div>
-        <div class="foot-col-t">Legal</div>
-        <ul class="foot-links">
-          <li><a href="terms.html">Terms &amp; Conditions</a></li>
-          <li><a href="privacy.html">Privacy Policy</a></li>
-        </ul>
-      </div>
-    </div>
-    <div class="foot-bottom">
-      <p class="foot-copy">© 2026 TriAkar. All rights reserved.</p>
-      <a href="https://www.instagram.com/triakarofficial" target="_blank" rel="noopener" class="foot-insta" aria-label="TriAkar on Instagram"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/><circle cx="17.5" cy="6.5" r=".5" fill="currentColor" stroke="none"/></svg>@triakarofficial</a>
-      <p class="foot-tag">Serving Delhi NCR: Noida, Greater Noida, Faridabad, Gurugram, Delhi. Shipping across India.</p>
-    </div>
-  </div>
-</footer>
+<div id="footer-root"></div><script>if(window._FOOTER_HTML)document.getElementById("footer-root").outerHTML=window._FOOTER_HTML;</script>
 <script defer src="js/auth.js"></script>
 <script defer src="products-data.js"></script>
 <script defer src="shared.js"></script>
