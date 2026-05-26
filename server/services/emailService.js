@@ -117,7 +117,7 @@ export async function sendOrderConfirmation(order) {
   const shippingRow = order.shipping_charge != null
     ? `<tr><td style="padding:6px 0;font-size:13px;color:#666;">Shipping</td><td style="padding:6px 0;font-size:13px;color:#1a1a1a;text-align:right;">${order.shipping_charge === 0 ? 'FREE' : inr(order.shipping_charge)}</td></tr>`
     : '';
-  const trackingUrl = `https://triakar.com/track-order.html`;
+  const trackingUrl = `https://triakar.com/track-order.html?id=${encodeURIComponent(order.order_id || '')}`;
   const body = `
     <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 20px;">
       Thank you for your order. We have received your payment and your TriAkar pieces are now in our hands.
