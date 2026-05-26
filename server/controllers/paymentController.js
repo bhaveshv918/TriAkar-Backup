@@ -2,6 +2,14 @@ import Razorpay from 'razorpay';
 import crypto   from 'crypto';
 import supabase from '../db/supabaseClient.js';
 
+/* Generate invoice number: TRK-YYYYMMDD-XXXX */
+function generateInvoiceNumber() {
+  const now  = new Date();
+  const date = now.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
+  const rand = Math.floor(1000 + Math.random() * 9000);           // 4-digit
+  return `TRK-${date}-${rand}`;
+}
+
 const razorpay = new Razorpay({
   key_id:     process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
@@ -80,11 +88,13 @@ export async function createOrder(req, res, next) {
       city: addr.city, state: addr.state, pincode: addr.pincode, country: addr.country,
     };
 
-    /* 4. Create DB order — include TRK ID + customer fields now so tracking always works */
+    /* 4. Create DB order — generate invoice number server-side, always TRK-YYYYMMDD-XXXX */
+    const invoiceNumber = generateInvoiceNumber();
     const orderInsert = {
       user_id, address_id, status: 'pending', total_amount, subtotal, shipping_charge, shipping_address,
+      invoice_number: invoiceNumber,
+      order_id:       invoiceNumber,   // keep order_id in sync for legacy compatibility
     };
-    if (trk_id)             orderInsert.order_id            = trk_id;
     if (customer_name)      orderInsert.customer_name       = customer_name;
     if (customer_email)     orderInsert.customer_email      = customer_email;
     if (customer_phone)     orderInsert.customer_phone      = customer_phone;
@@ -124,8 +134,8 @@ export async function createOrder(req, res, next) {
     const rzpOrder = await razorpay.orders.create({
       amount:   Math.round(total_amount * 100),
       currency: 'INR',
-      receipt:  order.id,
-      notes:    { order_id: order.id },
+      receipt:  invoiceNumber,                // TRK-YYYYMMDD-XXXX (max 40 chars, safe)
+      notes:    { order_id: invoiceNumber },  // shows in Razorpay dashboard
     });
 
     await supabase.from('orders')
@@ -138,6 +148,7 @@ export async function createOrder(req, res, next) {
       amount:            rzpOrder.amount,
       currency:          rzpOrder.currency,
       order_id:          order.id,
+      invoice_number:    invoiceNumber,
       key_id:            process.env.RAZORPAY_KEY_ID,
     });
   } catch (err) { next(err); }
