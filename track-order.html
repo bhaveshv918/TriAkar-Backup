@@ -144,11 +144,12 @@ async function trackOrder(){
   btn.textContent='Searching…';btn.disabled=true;
 
   try{
-    /* Direct Supabase query — no RPC needed. Matches invoice_number OR order_id */
+    /* Query by order_id (TRK-YYYYMMDD-XXXX) or by UUID id as fallback.
+       Avoids invoice_number column which may not exist in DB yet. */
     const{data,error}=await sb
       .from('orders')
       .select('*, order_items(quantity, unit_price, customization_notes, products(name, images))')
-      .or('invoice_number.eq.'+orderId+',order_id.eq.'+orderId)
+      .or('order_id.eq.'+orderId+',id.eq.'+orderId)
       .maybeSingle();
 
     if(error)throw error;
