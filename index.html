@@ -314,6 +314,34 @@
   .work-grid.one-row{grid-template-columns:1fr}
   .work-grid.one-row .work-card:last-child:nth-child(odd){grid-column:auto}
 }
+
+/* PROMO STRIP — rotating, in-flow (does not affect the fixed-header math) */
+.promo-strip{background:var(--charcoal);border-bottom:1px solid rgba(255,255,255,.06)}
+.promo-inner{display:flex;align-items:center;justify-content:center;gap:16px;height:42px;overflow:hidden}
+.promo-pre{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--stone);font-weight:700;white-space:nowrap}
+.promo-rotator{position:relative;height:42px;width:250px}
+.promo-item{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:8px;font-size:12.5px;font-weight:700;letter-spacing:.04em;color:var(--ivory);white-space:nowrap;text-decoration:none;opacity:0;animation:promoCycle 12s linear infinite}
+.promo-item:nth-child(2){animation-delay:4s}
+.promo-item:nth-child(3){animation-delay:8s}
+.promo-item svg{flex-shrink:0;color:var(--accent-l)}
+.promo-item:hover{color:var(--accent-l)}
+@keyframes promoCycle{0%{opacity:0;transform:translateY(6px)}4%{opacity:1;transform:none}29%{opacity:1;transform:none}33%,100%{opacity:0;transform:translateY(-6px)}}
+/* Static, readable fallback when motion is reduced */
+html.a11y-reduce-motion .promo-item{opacity:0;animation:none}
+html.a11y-reduce-motion .promo-item:first-child{opacity:1}
+@media(prefers-reduced-motion:reduce){.promo-item{opacity:0;animation:none}.promo-item:first-child{opacity:1}}
+@media(max-width:600px){.promo-pre{display:none}.promo-rotator{width:220px}}
+
+/* GUARANTEE BAND — "Shop with confidence" */
+.guarantee-band{background:var(--charcoal)}
+.guarantee-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,.06);margin-top:26px}
+.g-card{background:rgba(255,255,255,.03);padding:26px 22px;display:flex;flex-direction:column;gap:11px;transition:background .25s}
+.g-card:hover{background:rgba(255,255,255,.06)}
+.g-ico{width:30px;height:30px;color:var(--accent)}
+.g-t{font-size:14px;font-weight:700;color:var(--ivory)}
+.g-d{font-size:12px;color:var(--stone-l);font-weight:300;line-height:1.65}
+@media(max-width:900px){.guarantee-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.guarantee-grid{grid-template-columns:1fr}}
 </style>
 <link rel="stylesheet" href="hero-print-animation.css">
 <script defer src="/_vercel/insights/script.js"></script>
@@ -326,6 +354,18 @@
 </div>
 <div id="nav-root"></div><script>if(window._NAV_HTML)document.getElementById("nav-root").outerHTML=window._NAV_HTML;</script>
 <div id="drawer-root"></div><script>if(window._DRAWER_HTML)document.getElementById("drawer-root").outerHTML=window._DRAWER_HTML;</script>
+
+<!-- Rotating promo strip -->
+<div class="promo-strip">
+  <div class="promo-inner">
+    <span class="promo-pre">Now offering</span>
+    <span class="promo-rotator">
+      <a class="promo-item" href="products.html">3D Printing Services <svg width="11" height="10" viewBox="0 0 11 10" fill="none"><path d="M0 5H9M6.5 2l3 3-3 3" stroke="currentColor" stroke-width="1.3"/></svg></a>
+      <a class="promo-item" href="custom.html">Customized Items <svg width="11" height="10" viewBox="0 0 11 10" fill="none"><path d="M0 5H9M6.5 2l3 3-3 3" stroke="currentColor" stroke-width="1.3"/></svg></a>
+      <a class="promo-item" href="services/corporate-gifting.html">Corporate Gifts <svg width="11" height="10" viewBox="0 0 11 10" fill="none"><path d="M0 5H9M6.5 2l3 3-3 3" stroke="currentColor" stroke-width="1.3"/></svg></a>
+    </span>
+  </div>
+</div>
 
 <section class="hero">
   <div class="hero-body">
@@ -369,6 +409,45 @@
   </div>
 </section>
 
+<!-- FEATURED PRODUCTS — shop-first, directly under the hero -->
+<section class="section" style="background:var(--white);padding-top:48px;padding-bottom:46px" id="hpProductsSection">
+  <div class="mw">
+    <div class="section-head r"><div><div class="t-label" style="margin-bottom:9px">Shop</div><h2 class="t-h2">Featured Products</h2></div><a href="products.html" class="btn-ghost">See all →</a></div>
+    <div id="hpProdGrid" class="hp-prod-grid r" style="margin-top:8px">
+      <div class="hp-prod-loading">Loading products…</div>
+    </div>
+  </div>
+</section>
+
+<!-- SHOP WITH CONFIDENCE — trust / "your money is safe" -->
+<section class="section guarantee-band">
+  <div class="mw">
+    <div class="section-head r"><div><div class="t-label" style="color:var(--stone);margin-bottom:9px">Why TriAkar</div><h2 class="t-h2" style="color:var(--ivory)">Shop with confidence</h2><p class="t-body" style="color:var(--stone-l);margin-top:8px;max-width:560px">Your order, your money and your trust are looked after at every step.</p></div></div>
+    <div class="guarantee-grid r">
+      <div class="g-card">
+        <svg class="g-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M4 14h16M8 10V7a4 4 0 018 0v3"/></svg>
+        <div class="g-t">100% secure checkout</div>
+        <div class="g-d">Payments are handled by Razorpay over an encrypted connection. We never see or store your card details.</div>
+      </div>
+      <div class="g-card">
+        <svg class="g-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
+        <div class="g-t">7-day reprint guarantee</div>
+        <div class="g-d">Arrived damaged or not as described? Send a photo within 7 days and we reprint and reship it free.</div>
+      </div>
+      <div class="g-card">
+        <svg class="g-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9l1.5-5h13L20 9M4 9v10a1 1 0 001 1h14a1 1 0 001-1V9M4 9h16M9 20v-6h6v6"/></svg>
+        <div class="g-t">A real workshop, real people</div>
+        <div class="g-d">Visit us at Shop No. 25, Karan Singh Market, Greater Noida West — open all days, 11 AM to 9 PM.</div>
+      </div>
+      <div class="g-card">
+        <svg class="g-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/></svg>
+        <div class="g-t">Human support, always</div>
+        <div class="g-d">Questions before you buy? Message us on WhatsApp at +91 92175 55833 and talk to an actual person.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="section" style="background:var(--ivory);padding-top:48px;padding-bottom:48px">
   <div class="mw">
     <div class="section-head r"><div><div class="t-label" style="margin-bottom:9px">Explore</div><h2 class="t-h2">What We Make</h2></div><a href="products.html" class="btn-ghost">All products →</a></div>
@@ -401,17 +480,6 @@
         <a href="custom.html" class="cat-card wm-card" style="background:var(--charcoal)"><div class="cat-num" style="color:rgba(255,255,255,.05)">04</div><div class="cat-icon"><svg width="34" height="34" viewBox="0 0 34 34" fill="none"><path d="M5 29l12-22 12 22" stroke="#C4C0B8" stroke-width="1.3" fill="none"/><path d="M9 19h16" stroke="#8A8680" stroke-width="1.3"/></svg></div><div class="cat-name" style="color:var(--ivory)">Custom Order</div><div class="cat-desc" style="color:var(--stone)">Your idea, printed in India. Single pieces to bulk.</div><div class="cat-arrow" style="border-color:rgba(255,255,255,.1);color:var(--stone-l)"><svg width="11" height="10" viewBox="0 0 11 10" fill="none"><path d="M0 5H9M6.5 2l3 3-3 3" stroke="currentColor" stroke-width="1.2"/></svg></div></a>
       </div>
 
-    </div>
-
-    <!-- Featured products — loaded dynamically from Supabase -->
-    <div style="margin-top:36px" id="hpProductsSection">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px" class="r">
-        <div class="t-label">Featured Products</div>
-        <a href="products.html" class="btn-ghost">See all →</a>
-      </div>
-      <div id="hpProdGrid" class="hp-prod-grid r">
-        <div class="hp-prod-loading">Loading products…</div>
-      </div>
     </div>
   </div>
 </section>

@@ -71,3 +71,94 @@ window._FOOTER_HTML = `<footer>
     </div>
   </div>
 </footer>`;
+
+/* ════════════════════════════════════════════════════════════════════
+   ACCESSIBILITY WIDGET — site-wide
+   partials.js is a blocking script at the top of <body>, so saved
+   settings are applied to <html> before first paint = zero flash.
+   The widget UI itself is built once the DOM is ready.
+   ════════════════════════════════════════════════════════════════════ */
+(function(){
+  var KEY='ta_a11y';
+  var FLAGS={contrast:'a11y-contrast',bigtext:'a11y-bigtext',readable:'a11y-readable',links:'a11y-links',motion:'a11y-reduce-motion'};
+  var CB={deut:'a11y-cb-deut',prot:'a11y-cb-prot',trit:'a11y-cb-trit'};
+
+  function read(){try{return JSON.parse(localStorage.getItem(KEY))||{};}catch(_){return {};}}
+  function write(s){try{localStorage.setItem(KEY,JSON.stringify(s));}catch(_){}}
+  function apply(s){
+    var root=document.documentElement;
+    Object.keys(FLAGS).forEach(function(k){root.classList.toggle(FLAGS[k],!!s[k]);});
+    Object.keys(CB).forEach(function(k){root.classList.toggle(CB[k],s.cb===k);});
+  }
+
+  var state=read();
+  apply(state); /* ① pre-paint */
+
+  function isOn(type,key){return type==='cb'?state.cb===key:!!state[key];}
+  function opt(type,key,label){
+    return '<button class="a11y-opt" type="button" data-type="'+type+'" data-key="'+key+'" aria-pressed="'+isOn(type,key)+'">'+
+      '<span>'+label+'</span><span class="a11y-state">'+(isOn(type,key)?'On':'Off')+'</span></button>';
+  }
+
+  function build(){
+    if(document.getElementById('a11yFab'))return;
+
+    var fab=document.createElement('button');
+    fab.id='a11yFab';fab.type='button';fab.className='a11y-fab';
+    fab.setAttribute('aria-label','Accessibility options');
+    fab.setAttribute('aria-expanded','false');
+    fab.setAttribute('aria-controls','a11yPanel');
+    fab.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="3.6" r="1.7" fill="currentColor" stroke="none"/><path d="M3.5 7.5c2.8 1 5.4 1.4 8.5 1.4s5.7-.4 8.5-1.4"/><path d="M12 8.9V15m0 0l-3.2 5.5M12 15l3.2 5.5"/></svg>';
+    document.body.appendChild(fab);
+
+    var panel=document.createElement('div');
+    panel.id='a11yPanel';panel.className='a11y-panel';
+    panel.setAttribute('role','dialog');
+    panel.setAttribute('aria-label','Accessibility options');
+    panel.innerHTML=
+      '<div class="a11y-panel-head"><span class="a11y-panel-title">Accessibility</span>'+
+      '<button class="a11y-close" id="a11yClose" type="button" aria-label="Close accessibility options">&times;</button></div>'+
+      '<div class="a11y-panel-sub">Adjust the site to suit how you see and read. Your choices are saved on this device.</div>'+
+      '<div class="a11y-group-label">Colour-blind friendly</div>'+
+      opt('cb','deut','Red-green · Deuteranopia')+
+      opt('cb','prot','Red-green · Protanopia')+
+      opt('cb','trit','Blue-yellow · Tritanopia')+
+      '<div class="a11y-group-label">Vision &amp; reading</div>'+
+      opt('flag','contrast','High contrast')+
+      opt('flag','bigtext','Bigger text')+
+      opt('flag','readable','Readable font')+
+      opt('flag','links','Highlight links')+
+      opt('flag','motion','Reduce motion')+
+      '<button class="a11y-reset" id="a11yReset" type="button">Reset all</button>';
+    document.body.appendChild(panel);
+
+    function refresh(){
+      panel.querySelectorAll('.a11y-opt').forEach(function(b){
+        var on=isOn(b.dataset.type,b.dataset.key);
+        b.setAttribute('aria-pressed',on);
+        b.querySelector('.a11y-state').textContent=on?'On':'Off';
+      });
+    }
+    function openP(){panel.classList.add('open');fab.setAttribute('aria-expanded','true');var f=panel.querySelector('.a11y-opt');if(f)f.focus();}
+    function closeP(){panel.classList.remove('open');fab.setAttribute('aria-expanded','false');}
+
+    fab.addEventListener('click',function(){panel.classList.contains('open')?closeP():openP();});
+    panel.addEventListener('click',function(e){
+      var o=e.target.closest('.a11y-opt');
+      if(o){
+        var t=o.dataset.type,k=o.dataset.key;
+        if(t==='cb')state.cb=(state.cb===k?null:k);else state[k]=!state[k];
+        write(state);apply(state);refresh();return;
+      }
+      if(e.target.closest('#a11yReset')){state={};write(state);apply(state);refresh();return;}
+      if(e.target.closest('#a11yClose')){closeP();fab.focus();}
+    });
+    document.addEventListener('keydown',function(e){if(e.key==='Escape'&&panel.classList.contains('open')){closeP();fab.focus();}});
+    document.addEventListener('click',function(e){
+      if(panel.classList.contains('open')&&!panel.contains(e.target)&&!fab.contains(e.target))closeP();
+    });
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',build);
+  else build();
+})();
