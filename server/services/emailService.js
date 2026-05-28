@@ -104,9 +104,22 @@ function itemsList(items = []) {
 }
 
 async function send({ to, subject, html }) {
-  const { data, error } = await resend.emails.send({ from: FROM_EMAIL, to, subject, html });
-  if (error) throw new Error(error.message || 'Resend send failed');
-  return data;
+  // Retry once on transient Resend failures before giving up.
+  let lastErr;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const { data, error } = await resend.emails.send({ from: FROM_EMAIL, to, subject, html });
+      if (error) throw new Error(error.message || 'Resend send failed');
+      return data;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < 2) {
+        console.warn(`Email send attempt ${attempt} failed (${err.message}); retrying…`);
+        await new Promise(r => setTimeout(r, 800));
+      }
+    }
+  }
+  throw lastErr;
 }
 
 /* ── ORDER CONFIRMATION (to customer) ─────────────────────── */
