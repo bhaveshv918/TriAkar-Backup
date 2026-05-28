@@ -182,22 +182,30 @@ async function loadOrder() {
   const orderId = new URLSearchParams(window.location.search).get('order_id');
   if (!orderId) { showError('No order ID found.'); return; }
 
-  // Try Supabase RPC first (works without auth)
+  // Direct Supabase query via the shared lazy-loader (_ensureSB from shared.js).
+  // Set auth session first so RLS lets the user read their own order.
+  // Query by order_id (TRK-…) or UUID id.
   try {
-    const sb = window.supabase ? window.supabase.createClient(
-      'https://qarjbmogersuaerkhlcu.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs'
-    ) : null;
+    const sb = (typeof _ensureSB === 'function') ? await _ensureSB() : null;
     if (sb) {
-      const { data, error } = await sb.rpc('track_order_public', { p_order_id: orderId });
-      if (!error && data && data.found) {
-        renderOrder(data);
+      const t = localStorage.getItem('ta_token');
+      const r = localStorage.getItem('ta_refresh');
+      if (t) { try { await sb.auth.setSession({ access_token: t, refresh_token: r || '' }); } catch (e) {} }
+
+      const { data, error } = await sb
+        .from('orders')
+        .select('*, order_items(quantity, unit_price, customization_notes, products(name, images))')
+        .or('order_id.eq.' + orderId + ',id.eq.' + orderId)
+        .maybeSingle();
+
+      if (!error && data) {
+        renderOrder(Object.assign({}, data, { items: data.order_items || [] }));
         return;
       }
     }
-  } catch (e) {}
+  } catch (e) { console.error('order-confirmation supabase query failed:', e); }
 
-  // Fallback to Express API
+  // Fallback to Express API (auth required)
   const token = localStorage.getItem('ta_token');
   if (!token) { showError('Order placed! Your order ID is <strong>' + orderId + '</strong>. Use it to track your order.'); return; }
 
