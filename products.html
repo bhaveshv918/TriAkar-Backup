@@ -452,6 +452,7 @@ const API_BASE = window.location.hostname === 'localhost'
 const grid = document.getElementById('prodGrid');
 let allCards = [];
 let curFilter = 'all';
+let curSearch = (new URLSearchParams(window.location.search).get('search') || '').trim().toLowerCase();
 
 document.getElementById('shopCount').textContent = '';
 document.getElementById('fcount').textContent = '';
@@ -465,6 +466,7 @@ function buildCard(p) {
   el.className = 'prod-card';
   el.dataset.cat = p.category;
   el.dataset.price = p.price;
+  el.dataset.search = ((p.name || '') + ' ' + (p.short_description || p.description || '') + ' ' + (p.category || '')).toLowerCase();
 
   const altText = p.name + ' — 3D printed by TriAkar, Greater Noida';
   const img = p.images && p.images.length
@@ -497,7 +499,10 @@ function buildCard(p) {
 
 function applyFilters() {
   const sort = document.getElementById('sortSel').value;
-  let visible = allCards.filter(c => curFilter === 'all' || c.dataset.cat === curFilter);
+  let visible = allCards.filter(c =>
+    (curFilter === 'all' || c.dataset.cat === curFilter) &&
+    (!curSearch || (c.dataset.search || '').indexOf(curSearch) !== -1)
+  );
   if (sort === 'asc') visible.sort((a, b) => +a.dataset.price - +b.dataset.price);
   else if (sort === 'desc') visible.sort((a, b) => +b.dataset.price - +a.dataset.price);
 
@@ -512,7 +517,9 @@ function applyFilters() {
 
   const nr = grid.querySelector('.no-results');
   if (!visible.length) {
-    if (!nr) { const d = document.createElement('div'); d.className = 'no-results'; d.textContent = 'No products in this category.'; grid.appendChild(d); }
+    const msg = curSearch ? 'No products match “' + curSearch + '”.' : 'No products in this category.';
+    if (!nr) { const d = document.createElement('div'); d.className = 'no-results'; d.textContent = msg; grid.appendChild(d); }
+    else nr.textContent = msg;
   } else if (nr) nr.remove();
 }
 
@@ -582,6 +589,10 @@ function syncCategories() {
 
 // LAYER 1 — render instantly from local products-data.js, then sync in background
 document.addEventListener('DOMContentLoaded', function() {
+  if (curSearch) {
+    var ns = document.getElementById('navSearchInput');
+    if (ns) ns.value = curSearch;
+  }
   loadFromLocal();
   syncFromAPI();
   syncCategories();

@@ -11,6 +11,10 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
     </a>
     <ul class="nav-links"><li><a href="/products.html">Shop</a></li><li><a href="/custom.html">Custom Order</a></li><li><a href="/stories.html">Our Stories</a></li><li><a href="/about.html">About</a></li><li><a href="/contact.html">Contact</a></li><li><a href="/track-order.html">Track Order</a></li></ul>
     <div class="nav-right">
+      <form class="nav-search" role="search" onsubmit="return window.taSearch(this);">
+        <input type="search" id="navSearchInput" name="q" placeholder="Search products…" aria-label="Search products" autocomplete="off">
+        <button type="submit" aria-label="Search"><svg width="15" height="15" viewBox="0 0 18 18" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M12.4 12.4L16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+      </form>
       <a href="#" class="cart-btn" onclick="openCart();return false;">
         <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M1 1h2.5l1.6 8h8.4l1.5-5.5H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="14.5" r="1.2" fill="currentColor"/><circle cx="13" cy="14.5" r="1.2" fill="currentColor"/></svg>
         Cart <span class="cart-badge" id="cartBadge">0</span>
@@ -21,7 +25,16 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
   </div>
 </nav>`;
 
-window._DRAWER_HTML = `<nav class="nav-drawer"><a href="/products.html">Shop</a><a href="/custom.html">Custom Order</a><a href="/stories.html">Our Stories</a><a href="/about.html">About</a><a href="/contact.html">Contact</a><a href="/track-order.html">Track Order</a></nav>`;
+window._DRAWER_HTML = `<nav class="nav-drawer"><form class="drawer-search" role="search" onsubmit="return window.taSearch(this);"><input type="search" name="q" placeholder="Search products…" aria-label="Search products" autocomplete="off"><button type="submit" aria-label="Search"><svg width="16" height="16" viewBox="0 0 18 18" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M12.4 12.4L16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></form><a href="/products.html">Shop</a><a href="/custom.html">Custom Order</a><a href="/stories.html">Our Stories</a><a href="/about.html">About</a><a href="/contact.html">Contact</a><a href="/track-order.html">Track Order</a></nav>`;
+
+/* Site-wide product search — used by nav + drawer search forms */
+window.taSearch = function(form){
+  var i = form.querySelector('input');
+  var q = (i && i.value || '').trim();
+  if(!q){ if(i) i.focus(); return false; }
+  window.location.href = '/products.html?search=' + encodeURIComponent(q);
+  return false;
+};
 
 window._FOOTER_HTML = `<footer>
   <div class="mw">
