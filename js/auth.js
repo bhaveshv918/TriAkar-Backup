@@ -127,7 +127,58 @@ const Auth = (function () {
     if (typeof updateNavAuth === 'function') { updateNavAuth(); return; }
   }
 
-  function init() { _updateNav(); }
+  // BUG 5: true once the session has expired and could not be refreshed.
+  function isExpired() {
+    const expiry = parseInt(localStorage.getItem(EXPIRY_KEY) || '0', 10);
+    return !!expiry && Date.now() >= expiry;
+  }
 
-  return { signup, login, logout, getToken, getUser, isLoggedIn, authHeader, authHeaderAsync, init, API_BASE };
+  // BUG 5: graceful session-expiry. Clears the session and notifies the page
+  // so it can show a friendly "please sign in again" state instead of a 401.
+  function _expireSession() {
+    _clear();
+    _updateNav();
+    try { window.dispatchEvent(new CustomEvent('ta-auth-expired')); } catch (_) {}
+  }
+
+  // BUG 5: centralized authenticated fetch.
+  // - refreshes a near-expiry token before the request,
+  // - on a 401 it force-refreshes once and retries,
+  // - if it still fails, the session is expired gracefully.
+  // Returns the Response (callers handle non-OK as usual). Throws on network error.
+  async function apiFetch(url, options = {}) {
+    const headers = Object.assign({}, options.headers || {}, await authHeaderAsync());
+    let res = await fetch(url, Object.assign({}, options, { headers }));
+    if (res.status === 401 && localStorage.getItem(REFRESH_KEY)) {
+      const ok = await _forceRefresh();
+      if (ok) {
+        const retryHeaders = Object.assign({}, options.headers || {}, authHeader());
+        res = await fetch(url, Object.assign({}, options, { headers: retryHeaders }));
+      }
+      if (res.status === 401) _expireSession();
+    }
+    return res;
+  }
+
+  // BUG 5: refresh regardless of the expiry timer (used after a real 401).
+  async function _forceRefresh() {
+    localStorage.setItem(EXPIRY_KEY, '0'); // force _maybeRefresh to act
+    await _maybeRefresh();
+    return !!getToken();
+  }
+
+  // BUG 5: on page load, proactively refresh a near-expiry token (or clear a
+  // dead one) so the nav and gated UI reflect the real session state.
+  function init() {
+    _updateNav();
+    if (getToken()) {
+      if (isExpired() && !localStorage.getItem(REFRESH_KEY)) {
+        _expireSession();
+      } else {
+        _maybeRefresh().then(_updateNav).catch(function () {});
+      }
+    }
+  }
+
+  return { signup, login, logout, getToken, getUser, isLoggedIn, authHeader, authHeaderAsync, apiFetch, isExpired, init, API_BASE };
 })();

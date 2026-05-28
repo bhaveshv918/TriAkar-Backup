@@ -819,11 +819,15 @@ async function loadOrders(){
     }catch(e1){console.warn('Supabase orders query failed:',e1.message);}
   }
 
-  // 2. Fallback to Express API (uses authHeaderAsync to auto-refresh expired tokens)
+  // 2. Fallback to Express API. Auth.apiFetch auto-refreshes a near-expiry token
+  //    and, on a 401, force-refreshes once before gracefully expiring the session.
   try{
     const API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
-    const headers=Object.assign({'Content-Type':'application/json'},await Auth.authHeaderAsync());
-    const res=await fetch(API+'/api/orders',{headers:headers});
+    const res=await Auth.apiFetch(API+'/api/orders',{headers:{'Content-Type':'application/json'}});
+    if(res.status===401){
+      el.innerHTML='<div class="orders-empty"><p>Your session has expired. Please <a href="account.html">sign in again</a> to view your orders.</p></div>';
+      return;
+    }
     if(!res.ok)throw new Error('Could not load orders ('+res.status+')');
     const {orders}=await res.json();
     renderOrders(orders||[]);

@@ -1015,7 +1015,10 @@ function prefillCheckout(){
 document.addEventListener('DOMContentLoaded',function(){
   // Critical path: badge + nav state only — must be instant
   Cart.badge();
-  updateNavAuth();
+  // BUG 5: Auth.init() refreshes a near-expiry token and reconciles nav with the
+  // real session state on load; falls back to a plain nav update if absent.
+  if (window.Auth && typeof Auth.init === 'function') { Auth.init(); }
+  else { updateNavAuth(); }
   applyNavActiveState();
 
   // Defer cart render + server sync until after first paint so LCP is not blocked.
