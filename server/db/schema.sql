@@ -267,6 +267,7 @@ ON CONFLICT (slug) DO NOTHING;
 -- ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_id TEXT;
 -- ALTER TABLE orders ADD COLUMN IF NOT EXISTS promo_code TEXT;
 -- ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(10,2) DEFAULT 0;
+-- ALTER TABLE orders ADD COLUMN IF NOT EXISTS invoice_number TEXT;
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ════════════════════════════════════════════════════════════════════════
