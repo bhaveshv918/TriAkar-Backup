@@ -150,6 +150,22 @@
 .orders-empty{padding:48px 0;text-align:center}
 .orders-empty p{font-size:14px;color:var(--stone);margin-bottom:16px}
 .orders-loading{padding:40px 0;text-align:center;font-size:13px;color:var(--stone);letter-spacing:.06em}
+/* SAVED ITEMS */
+.saved-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:18px}
+.saved-card{border:1px solid var(--stone-p);border-radius:12px;overflow:hidden;background:#fff;display:flex;flex-direction:column;transition:box-shadow .2s,transform .2s}
+.saved-card:hover{box-shadow:0 8px 24px rgba(0,0,0,.07);transform:translateY(-2px)}
+.saved-img{display:block;aspect-ratio:1;background:var(--ivory) center/cover no-repeat}
+.saved-body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:6px;flex:1}
+.saved-name{font-size:13px;font-weight:600;color:var(--ink);text-decoration:none;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.saved-name:hover{text-decoration:underline}
+.saved-price{font-size:14px;font-weight:700;color:var(--ink)}
+.saved-actions{display:flex;align-items:center;gap:10px;margin-top:auto;padding-top:6px}
+.saved-remove{background:none;border:none;font-size:11px;letter-spacing:.06em;color:var(--stone);cursor:pointer;text-decoration:underline;padding:0}
+.saved-remove:hover{color:var(--ink)}
+.saved-empty{padding:50px 20px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--stone)}
+.saved-empty svg{color:var(--stone-l)}
+.saved-empty-t{font-size:15px;font-weight:600;color:var(--ink);letter-spacing:.02em}
+.saved-empty-s{font-size:13px;color:var(--stone);max-width:300px;line-height:1.5}
 /* ORDER DETAIL PANEL */
 .order-detail{border-top:1px solid var(--stone-p);margin-top:12px;padding-top:14px;display:none}
 .order-detail.open{display:block}
@@ -312,6 +328,7 @@
 
       <div class="dash-tabs">
         <button class="dash-tab" data-panel="orders" onclick="switchDashTab('orders')">My Orders</button>
+        <button class="dash-tab" data-panel="savedItems" onclick="switchDashTab('savedItems')">Saved Items</button>
         <button class="dash-tab active" data-panel="profile" onclick="switchDashTab('profile')">Personal Details</button>
         <button class="dash-tab" data-panel="addresses" onclick="switchDashTab('addresses')">Saved Addresses</button>
         <button class="dash-tab" data-panel="settings" onclick="switchDashTab('settings')">Settings</button>
@@ -320,6 +337,12 @@
       <!-- TAB: Orders -->
       <div class="tab-panel" id="panelOrders" data-panel="orders">
         <div id="ordersContainer"><div class="orders-loading">Loading orders...</div></div>
+      </div>
+
+      <!-- TAB: Saved Items -->
+      <div class="tab-panel" id="panelSavedItems" data-panel="savedItems">
+        <div class="orders-title" style="margin-bottom:20px">Saved Items</div>
+        <div id="savedItemsContainer"><div class="orders-loading">Loading saved items...</div></div>
       </div>
 
       <!-- TAB: Personal Details -->
@@ -705,6 +728,67 @@ function switchDashTab(panel){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.dataset.panel===panel));
   if(panel==='profile')loadProfile();
   if(panel==='addresses')loadAddresses();
+  if(panel==='savedItems')loadSavedItems();
+}
+
+/* ── Saved Items (Wishlist) ── */
+let _savedItemsLoaded=false;
+async function loadSavedItems(){
+  const wrap=document.getElementById('savedItemsContainer');
+  if(!wrap)return;
+  try{
+    if(typeof Wishlist!=='undefined'&&Wishlist.loadFromServer){
+      try{await Wishlist.loadFromServer();}catch(_){}
+    }
+    const slugs=(typeof Wishlist!=='undefined'&&Wishlist.getItems)?Wishlist.getItems():[];
+    if(!slugs.length){
+      wrap.innerHTML='<div class="saved-empty">'
+        +'<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 21s-7-4.5-9.5-8.5C.5 9 2 5.5 5.5 5.5c2 0 3.2 1.2 4 2.3.8-1.1 2-2.3 4-2.3 3.5 0 5 3.5 3 7C19 16.5 12 21 12 21z"/></svg>'
+        +'<div class="saved-empty-t">No saved items yet</div>'
+        +'<div class="saved-empty-s">Tap the heart on any product to save it here for later.</div>'
+        +'<a href="products.html" class="btn btn-dark" style="font-size:11px;padding:10px 24px;margin-top:8px">Browse products →</a>'
+        +'</div>';
+      return;
+    }
+    // Load product data
+    let prods=[];
+    try{
+      const API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:3000':'https://triakar.onrender.com';
+      const r=await fetch(API+'/api/products');
+      if(r.ok){const j=await r.json();prods=Array.isArray(j)?j:(j.products||j.data||[]);}
+    }catch(_){}
+    if((!prods||!prods.length)&&window.PRODUCTS)prods=window.PRODUCTS;
+    const map={};(prods||[]).forEach(function(p){if(p&&p.slug)map[p.slug]=p;});
+    const cards=slugs.map(function(slug){
+      const p=map[slug];
+      if(!p)return '';
+      const img=(p.images&&p.images[0])||p.image||'';
+      const price=Number(p.price||0).toLocaleString('en-IN');
+      return '<div class="saved-card" data-slug="'+_esc2(slug)+'">'
+        +'<a class="saved-img" href="product-detail.html?slug='+encodeURIComponent(slug)+'"'+(img?' style="background-image:url('+_esc2(img)+')"':'')+'></a>'
+        +'<div class="saved-body">'
+        +'<a class="saved-name" href="product-detail.html?slug='+encodeURIComponent(slug)+'">'+_esc2(p.name||slug)+'</a>'
+        +'<div class="saved-price">₹'+price+'</div>'
+        +'<div class="saved-actions">'
+        +'<button class="btn btn-dark" style="font-size:10px;padding:8px 14px" onclick="savedAddToCart(\''+_esc2(slug)+'\')">Add to Cart</button>'
+        +'<button class="saved-remove" onclick="savedRemove(\''+_esc2(slug)+'\')" aria-label="Remove">Remove</button>'
+        +'</div></div></div>';
+    }).join('');
+    wrap.innerHTML='<div class="saved-grid">'+(cards||'')+'</div>';
+    window._savedItemsMap=map;
+  }catch(err){
+    wrap.innerHTML='<div class="saved-empty"><div class="saved-empty-t">Could not load saved items</div><div class="saved-empty-s">Please try again later.</div></div>';
+  }
+}
+function savedRemove(slug){
+  if(typeof Wishlist!=='undefined'&&Wishlist.remove)Wishlist.remove(slug);
+  loadSavedItems();
+}
+function savedAddToCart(slug){
+  const map=window._savedItemsMap||{};
+  const p=map[slug];
+  if(!p||typeof Cart==='undefined'||!Cart.add)return;
+  Cart.add({id:p.id||slug,name:p.name,price:Number(p.price||0),color:'',image:(p.images&&p.images[0])||p.image||''});
 }
 
 /* ── Orders ── */
@@ -1372,6 +1456,7 @@ async function showDashboard(){
   // Hash-based tab routing: #profile → details, #orders → orders, default → profile
   const hash=window.location.hash.replace('#','');
   if(hash==='orders')switchDashTab('orders');
+  else if(hash==='saved'||hash==='savedItems'||hash==='wishlist')switchDashTab('savedItems');
   else if(hash==='addresses')switchDashTab('addresses');
   else if(hash==='settings')switchDashTab('settings');
   else switchDashTab('profile'); // default: My Account shows personal details
