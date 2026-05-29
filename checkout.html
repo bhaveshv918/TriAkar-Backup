@@ -89,6 +89,19 @@
 .ck-check-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--charcoal)}
 .ck-check-row label{font-size:12px;color:var(--warm);cursor:pointer}
 
+/* F11 gift message */
+.ck-gift{margin-top:6px;padding:12px 14px;border:1px dashed var(--stone-p);background:var(--ivory);border-radius:6px}
+.ck-gift-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--charcoal);font-weight:600}
+.ck-gift-toggle input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+
+/* F8 first-order offer */
+.ck-firstorder{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding:11px 14px;background:rgba(196,98,42,.07);border:1px solid rgba(196,98,42,.25);border-radius:6px}
+.ck-fo-text{font-size:12px;color:var(--charcoal)}
+.ck-fo-text strong{color:var(--accent);letter-spacing:.04em}
+.ck-fo-btn{padding:7px 14px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-family:var(--font-b);font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;border-radius:3px;white-space:nowrap;transition:opacity .2s}
+.ck-fo-btn:hover{opacity:.88}
+.ck-firstorder.done{opacity:.55}
+
 /* Primary btn */
 .ck-btn{width:100%;padding:14px;margin-top:8px;background:var(--charcoal);color:var(--white);border:none;cursor:pointer;font-family:var(--font-b);font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;transition:background .2s}
 .ck-btn:hover:not(:disabled){background:var(--char-2)}
@@ -207,6 +220,19 @@
           <label>Special Instructions <span style="font-weight:400;font-size:10px;text-transform:none;letter-spacing:0;color:var(--stone)">(optional)</span></label>
           <textarea name="notes" id="ckNotes" placeholder="Any packing or delivery instructions…" style="padding:11px 13px;border:1.5px solid var(--stone-p);background:var(--white);font-family:var(--font-b);font-size:13px;color:var(--charcoal);outline:none;transition:border-color .2s;resize:vertical;min-height:72px" onfocus="this.style.borderColor='var(--charcoal)'" onblur="this.style.borderColor='var(--stone-p)'"></textarea>
         </div>
+        <div class="ck-gift">
+          <label class="ck-gift-toggle">
+            <input type="checkbox" id="ckIsGift" onchange="ckToggleGift()">
+            <span>🎁 This is a gift</span>
+          </label>
+          <div id="ckGiftWrap" style="display:none;margin-top:10px">
+            <textarea id="ckGiftMsg" maxlength="150" placeholder="Add a short gift message (printed on the packing slip)…"
+              oninput="ckGiftCount()"
+              style="width:100%;padding:11px 13px;border:1.5px solid var(--stone-p);background:var(--white);font-family:var(--font-b);font-size:13px;color:var(--charcoal);outline:none;transition:border-color .2s;resize:vertical;min-height:64px"
+              onfocus="this.style.borderColor='var(--charcoal)'" onblur="this.style.borderColor='var(--stone-p)'"></textarea>
+            <div style="font-size:10.5px;color:var(--stone);text-align:right;margin-top:4px"><span id="ckGiftCount">0</span>/150</div>
+          </div>
+        </div>
         <div class="ck-check-row">
           <input type="checkbox" id="ckSaveAddr" checked>
           <label for="ckSaveAddr">Save as default address</label>
@@ -219,6 +245,11 @@
     <div id="ckStep2" style="display:none">
       <div class="ck-title">Review &amp; Pay</div>
       <div class="ck-items" id="ckItems"></div>
+      <!-- F8: first-order offer hint -->
+      <div id="ckFirstOrder" class="ck-firstorder">
+        <span class="ck-fo-text">💡 First order? Use code <strong>TRIAKAR10</strong> for 10% off (min ₹999)</span>
+        <button type="button" class="ck-fo-btn" onclick="ckApplyFirstOrder()">Apply</button>
+      </div>
       <!-- Promo code -->
       <div id="ckPromoRow" style="margin-bottom:18px">
         <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--stone);margin-bottom:8px">Promo Code</div>
@@ -577,6 +608,27 @@ function renderReview() {
 }
 
 /* ── Apply promo code ───────────────────────────────────── */
+/* F11 — gift message toggle + counter */
+function ckToggleGift() {
+  var on = document.getElementById('ckIsGift').checked;
+  var wrap = document.getElementById('ckGiftWrap');
+  if (wrap) wrap.style.display = on ? 'block' : 'none';
+}
+function ckGiftCount() {
+  var el = document.getElementById('ckGiftMsg');
+  var c = document.getElementById('ckGiftCount');
+  if (el && c) c.textContent = String(el.value.length);
+}
+
+/* F8 — apply first-order offer code into the promo field, then validate */
+function ckApplyFirstOrder() {
+  var input = document.getElementById('ckPromoInput');
+  if (input) { input.value = 'TRIAKAR10'; }
+  var fo = document.getElementById('ckFirstOrder');
+  if (fo) fo.classList.add('done');
+  applyPromo();
+}
+
 async function applyPromo() {
   var input = document.getElementById('ckPromoInput');
   var btn   = document.getElementById('ckPromoBtn');
@@ -699,6 +751,8 @@ async function ckPlaceOrder() {
         customer_phone: chosenAddr.phone,
         special_instructions: chosenAddr.notes || null,
         promo_code: ckPromo ? ckPromo.code : null,
+        is_gift: (function(){ var g = document.getElementById('ckIsGift'); return !!(g && g.checked); })(),
+        gift_message: (function(){ var g = document.getElementById('ckIsGift'); var m = document.getElementById('ckGiftMsg'); return (g && g.checked && m) ? m.value.trim() : null; })(),
       }),
     });
     var data = await res.json();

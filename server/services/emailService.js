@@ -182,6 +182,8 @@ export async function sendAdminOrderAlert(order) {
       ${row('Phone', order.customer_phone)}
       ${row('Email', order.customer_email)}
       ${row('Payment', (order.payment_method || 'online').replace('online', 'Razorpay'))}
+      ${order.is_gift ? row('Gift Order', '🎁 Yes') : ''}
+      ${order.is_gift && order.gift_message ? row('Gift Message', order.gift_message) : ''}
     </table>
     ${itemsTable(order.items)}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border-top:1px solid #eee;padding-top:8px;">
@@ -198,8 +200,8 @@ export async function sendAdminOrderAlert(order) {
   `;
   return send({
     to: ADMIN_EMAIL,
-    subject: `New Order ${order.order_id} — ${inr(order.total_amount)} | TriAkar`,
-    html: shell('New order received', body),
+    subject: `${order.is_gift ? '🎁 GIFT ORDER — ' : ''}New Order ${order.order_id} — ${inr(order.total_amount)} | TriAkar`,
+    html: shell(order.is_gift ? '🎁 New gift order received' : 'New order received', body),
   });
 }
 

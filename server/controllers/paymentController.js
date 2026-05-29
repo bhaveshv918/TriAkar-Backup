@@ -19,7 +19,7 @@ const razorpay = new Razorpay({
 export async function createOrder(req, res, next) {
   try {
     // FIX #13/#18: accept trk_id + customer fields upfront so no post-payment enrichment needed
-    const { items, address_id, trk_id, customer_name, customer_email, customer_phone, special_instructions, promo_code } = req.body;
+    const { items, address_id, trk_id, customer_name, customer_email, customer_phone, special_instructions, promo_code, is_gift, gift_message } = req.body;
     const user_id = req.user.id;
 
     if (!items?.length) return res.status(400).json({ error: 'Cart is empty' });
@@ -99,6 +99,10 @@ export async function createOrder(req, res, next) {
     if (customer_email)     orderInsert.customer_email      = customer_email;
     if (customer_phone)     orderInsert.customer_phone      = customer_phone;
     if (special_instructions) orderInsert.special_instructions = special_instructions;
+    if (is_gift) {
+      orderInsert.is_gift = true;
+      if (gift_message) orderInsert.gift_message = String(gift_message).slice(0, 150);
+    }
     if (applied_promo) {
       orderInsert.promo_code      = applied_promo.code;
       orderInsert.discount_amount = discount_amount;
