@@ -94,6 +94,24 @@
 .prod-card:hover .prod-qv{transform:translateY(0)}
 @media(hover:none){.prod-qv{display:none}}
 
+/* F2: Gift-Studio style card badges / brand / rating / delivery / sold-out */
+.pb-bestseller{background:var(--accent);color:#fff}
+.pb-new{background:var(--charcoal);color:var(--ivory)}
+.pb-custom{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.pb-fast{background:#E8A23D;color:#161614}
+.prod-brand{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--stone);font-weight:600;margin-bottom:5px}
+.prod-rating{display:flex;align-items:center;gap:1px;margin-bottom:9px}
+.pr-star{font-size:11px;color:var(--stone-p);line-height:1}
+.pr-star.on{color:var(--accent)}
+.pr-count{font-size:10.5px;color:var(--stone);margin-left:5px;letter-spacing:.02em}
+.prod-delivery{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:5px 10px;background:var(--ivory);border:1px solid var(--stone-p);border-radius:20px;font-size:11px;color:var(--warm);align-self:flex-start}
+.prod-delivery svg{flex-shrink:0;color:var(--warm)}
+.prod-delivery.fast{color:var(--accent);border-color:rgba(196,98,42,.35)}
+.prod-delivery.fast svg{color:var(--accent)}
+.prod-sold{position:absolute;inset:0;z-index:4;background:rgba(22,22,20,.6);display:flex;align-items:center;justify-content:center}
+.prod-sold span{color:#fff;font-size:13px;font-weight:700;letter-spacing:.2em;text-transform:uppercase}
+.prod-card.is-sold .prod-img svg{filter:grayscale(1);opacity:.5}
+
 /* Secondary filter row: price + availability */
 .filter-row2{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:12px var(--pad);background:var(--white);border-bottom:1px solid var(--stone-p)}
 .fr2-group{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--warm)}
@@ -506,14 +524,46 @@ function fmtPrice(n) {
 
 const _PRODMAP = {};
 
+// Badge label + class map (one badge per card)
+const _BADGE_MAP = {
+  bestseller: { label: 'BESTSELLER', cls: 'pb-bestseller' },
+  new:        { label: 'NEW',         cls: 'pb-new' },
+  custom:     { label: 'CUSTOM',      cls: 'pb-custom' },
+  'ships-fast': { label: '⚡ SHIPS FAST', cls: 'pb-fast' }
+};
+function _badgeHtml(p) {
+  let b = p.badge;
+  if (!b && p.ready_to_ship) b = 'ships-fast';
+  const def = _BADGE_MAP[b];
+  return def ? '<span class="prod-badge ' + def.cls + '">' + def.label + '</span>' : '';
+}
+function _starsHtml(rating) {
+  if (!rating || !rating.score) return '';
+  const score = Math.round(rating.score);
+  let stars = '';
+  for (let i = 1; i <= 5; i++) stars += '<span class="pr-star' + (i <= score ? ' on' : '') + '">★</span>';
+  return '<div class="prod-rating">' + stars + '<span class="pr-count">(' + (rating.count || 0) + ')</span></div>';
+}
+function _deliveryHtml(p) {
+  const fast = p.ready_to_ship;
+  const txt = p.delivery_text || (fast ? 'Ships today' : 'Delivers in 5–7 days');
+  const van = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M1 5h11v9H1zM12 8h5l3 3v3h-8z"/><circle cx="6" cy="17" r="1.6"/><circle cx="16.5" cy="17" r="1.6"/></svg>';
+  return '<div class="prod-delivery' + (fast ? ' fast' : '') + '">' + van + '<span>' + _esc(txt) + (fast ? ' ⚡' : '') + '</span></div>';
+}
+
 function buildCard(p) {
+  if (window.enrichProduct) { try { window.enrichProduct(p, p.slug); } catch (_) {} }
   _PRODMAP[p.slug] = p;
   const el = document.createElement('div');
-  el.className = 'prod-card';
+  el.className = 'prod-card' + (p.stock_qty === 0 ? ' is-sold' : '');
   el.dataset.cat = p.category;
   el.dataset.price = p.price;
   el.dataset.stock = (p.stock_qty === 0) ? '0' : '1';
-  el.dataset.search = ((p.name || '') + ' ' + (p.short_description || p.description || '') + ' ' + (p.category || '')).toLowerCase();
+  el.dataset.occasion = (p.occasion || []).join(',');
+  el.dataset.recipient = (p.recipient || []).join(',');
+  el.dataset.material = (p.materials || []).join(',');
+  el.dataset.ready = p.ready_to_ship ? '1' : '0';
+  el.dataset.search = ((p.name || '') + ' ' + (p.short_description || p.description || '') + ' ' + (p.category || '') + ' ' + (p.tags || []).join(' ')).toLowerCase();
 
   const altText = p.name + ' — 3D printed by TriAkar, Greater Noida';
   const img = p.images && p.images.length
@@ -528,20 +578,26 @@ function buildCard(p) {
   const heartSvg = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 21s-7.5-4.6-10-9.3C.5 8.5 2 5 5.5 5c2 0 3.3 1.2 4 2.3C10.2 6.2 11.5 5 13.5 5 17 5 18.5 8.5 17 11.7 14.5 16.4 12 21 12 21z" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>';
   const wlBtn = '<button class="wl-heart prod-wl" data-slug="' + _esc(p.slug) + '" data-name="' + _esc(p.name) + '" onclick="event.preventDefault();event.stopPropagation();toggleWishlist(this)" aria-label="Save to wishlist" aria-pressed="false">' + heartSvg + '</button>';
   const qvBtn = '<button class="prod-qv" onclick="event.preventDefault();event.stopPropagation();openQuickView(\'' + _esc(p.slug) + '\')" aria-label="Quick view">Quick View</button>';
+  const soldOverlay = outOfStock ? '<div class="prod-sold"><span>SOLD OUT</span></div>' : '';
 
   el.innerHTML = '<div class="prod-img-wrap">'
+    + _badgeHtml(p)
     + wlBtn
-    + '<a href="product-detail.html?slug=' + _esc(p.slug) + '"><div class="prod-img">' + img + '</div></a>'
+    + '<a href="product-detail.html?slug=' + _esc(p.slug) + '"><div class="prod-img">' + img + soldOverlay + '</div></a>'
     + qvBtn
     + '</div>'
     + '<div class="prod-body">'
     + '<div class="prod-name">' + _esc(p.name) + '</div>'
+    + '<div class="prod-brand">TRIAKAR</div>'
+    + _starsHtml(p.rating)
     + '<div class="prod-short">' + _esc(p.short_description || p.description || '') + '</div>'
     + '<div class="prod-foot"><div>' + priceBlock + '</div>'
     + (outOfStock
         ? '<button class="add-to-cart-btn" disabled style="opacity:.4;cursor:not-allowed" title="Out of stock">Out of Stock</button>'
         : '<button class="add-to-cart-btn">Add to Cart</button>')
-    + '</div></div>';
+    + '</div>'
+    + _deliveryHtml(p)
+    + '</div>';
 
   if (!outOfStock) {
     el.querySelector('.add-to-cart-btn').addEventListener('click', function() {
