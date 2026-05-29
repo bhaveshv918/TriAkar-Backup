@@ -252,13 +252,51 @@ const Cart=(function(){
       </div>`).join('')
   }
 
+  const FREE_SHIP_MIN=999;
+  function _renderShipProgress(){
+    const foot=document.querySelector('.cart-foot');
+    if(!foot)return;
+    let bar=foot.querySelector('.cart-ship-progress');
+    if(!items.length){ if(bar)bar.style.display='none'; return; }
+    if(!bar){
+      bar=document.createElement('div');
+      bar.className='cart-ship-progress';
+      bar.innerHTML='<div class="csp-msg"></div><div class="csp-track"><div class="csp-fill"></div></div>';
+      foot.insertBefore(bar,foot.firstChild);
+    }
+    bar.style.display='';
+    const t=total();
+    const remaining=Math.max(0,FREE_SHIP_MIN-t);
+    const pct=Math.min(100,Math.round(t/FREE_SHIP_MIN*100));
+    const msg=bar.querySelector('.csp-msg');
+    const fill=bar.querySelector('.csp-fill');
+    if(remaining>0){
+      msg.innerHTML='Add <strong>₹'+remaining.toLocaleString('en-IN')+'</strong> more for <strong>free shipping</strong>';
+      bar.classList.remove('done');
+    }else{
+      msg.innerHTML='You’ve unlocked <strong>free shipping</strong> ✓';
+      bar.classList.add('done');
+    }
+    if(fill)fill.style.width=pct+'%';
+  }
+
   function render(){
     const el=document.getElementById('cartItemsList');
     const tot=document.getElementById('cartTotal');
     if(!el)return;
     if(tot)tot.textContent='₹'+total().toLocaleString('en-IN');
-    if(!items.length){el.innerHTML='<div class="cart-empty">Your cart is empty.</div>';return}
+    if(!items.length){
+      el.innerHTML='<div class="cart-empty">'
+        +'<svg viewBox="0 0 48 48" width="46" height="46" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8h4l3 22h22l4-15H14"/><circle cx="18" cy="38" r="2.4"/><circle cx="34" cy="38" r="2.4"/></svg>'
+        +'<div class="cart-empty-t">Your cart is empty</div>'
+        +'<div class="cart-empty-s">Discover design objects, made fresh in India.</div>'
+        +'<a href="/products.html" class="btn btn-dark cart-empty-cta" onclick="closeCart()">Browse products →</a>'
+        +'</div>';
+      _renderShipProgress();
+      return;
+    }
     _renderCartItems(el);
+    _renderShipProgress();
     // Async-enrich any items missing images, then re-render
     if(items.some(i=>!i.image)){
       _enrichImages().then(changed=>{if(changed)_renderCartItems(el);});
