@@ -103,6 +103,13 @@
 .detail-actions .btn-outline{transition:all .25s}
 .detail-actions .btn-outline:hover{transform:translateY(-1px)}
 
+/* WISHLIST SAVE BUTTON */
+.detail-save{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-bottom:18px;padding:12px;background:none;border:1.5px solid var(--stone-p);color:var(--warm);font-family:var(--font-b);font-size:12px;letter-spacing:.04em;font-weight:600;cursor:pointer;transition:all .2s;border-radius:0}
+.detail-save svg{stroke:currentColor;fill:none;transition:fill .2s}
+.detail-save:hover{border-color:var(--accent);color:var(--accent)}
+.detail-save.saved{border-color:var(--accent);color:var(--accent)}
+.detail-save.saved svg{fill:var(--accent);stroke:var(--accent)}
+
 /* SPEC TABLE */
 .spec-table{margin:22px 0}
 .spec-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--stone-p);font-size:13px}
@@ -298,6 +305,11 @@
         <button class="btn btn-accent" onclick="buyNow()">Buy Now &rarr;</button>
       </div>
 
+      <button class="detail-save" id="detailSave" onclick="_toggleDetailWish()" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 21s-7.5-4.6-10-9.3C.5 8.5 2 5 5.5 5c2 0 3.3 1.2 4 2.3C10.2 6.2 11.5 5 13.5 5 17 5 18.5 8.5 17 11.7 14.5 16.4 12 21 12 21z" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>
+        <span id="detailSaveLabel">Save to Wishlist</span>
+      </button>
+
       <div id="keyFeaturesWrap" style="display:none">
         <div class="key-features-label">Care &amp; Use</div>
         <ul class="key-features-list" id="keyFeaturesList"></ul>
@@ -365,6 +377,13 @@
   <div class="mw">
     <div class="section-head r"><div><div class="t-label" style="margin-bottom:10px">You may also like</div><h2 class="t-h2">Related products</h2></div><a href="products.html" class="btn-ghost">All products →</a></div>
     <div class="related-grid" id="relatedGrid"></div>
+  </div>
+</section>
+
+<section class="section" id="recentSection" style="background:var(--white);display:none">
+  <div class="mw">
+    <div class="section-head r"><div><div class="t-label" style="margin-bottom:10px">Pick up where you left off</div><h2 class="t-h2">Recently viewed</h2></div></div>
+    <div class="related-grid" id="recentGrid"></div>
   </div>
 </section>
 
@@ -511,11 +530,62 @@ function renderProduct(ap){
   const kfWrap=document.getElementById('keyFeaturesWrap');
   const kfList=document.getElementById('keyFeaturesList');
   if(kfWrap&&kfList){if(p.key_features&&p.key_features.length){kfList.innerHTML=p.key_features.map(f=>`<li>${f}</li>`).join('');kfWrap.style.display='';}else{kfWrap.style.display='none';}}
+  // wishlist heart state
+  const saveBtn=document.getElementById('detailSave');
+  if(saveBtn){saveBtn.dataset.slug=id;saveBtn.dataset.name=p.name;}
+  _paintDetailWish();
   // dropdowns in gallery column
   renderDropdowns(p);
   loadReviews(id);
   loadRelated(id);
+  renderRecentlyViewed(id);
+  pushRecentlyViewed(id);
   initSwipe();
+}
+
+/* WISHLIST on detail page */
+function _paintDetailWish(){
+  const btn=document.getElementById('detailSave');
+  if(!btn||typeof Wishlist==='undefined')return;
+  const slug=btn.dataset.slug;
+  const on=Wishlist.has(slug);
+  btn.classList.toggle('saved',on);
+  btn.setAttribute('aria-pressed',on?'true':'false');
+  const lbl=document.getElementById('detailSaveLabel');
+  if(lbl)lbl.textContent=on?'Saved to Wishlist':'Save to Wishlist';
+}
+function _toggleDetailWish(){
+  const btn=document.getElementById('detailSave');
+  if(!btn||typeof Wishlist==='undefined')return;
+  Wishlist.toggle(btn.dataset.slug,btn.dataset.name);
+  _paintDetailWish();
+}
+
+/* RECENTLY VIEWED */
+function getRecentlyViewed(){try{return JSON.parse(localStorage.getItem('ta_recently_viewed'))||[];}catch(_){return[];}}
+function pushRecentlyViewed(slug){if(!slug)return;let a=getRecentlyViewed().filter(s=>s!==slug);a.unshift(slug);a=a.slice(0,12);try{localStorage.setItem('ta_recently_viewed',JSON.stringify(a));}catch(_){}}
+function _relCard(p){
+  const img=p.images&&p.images[0]?`<img loading="lazy" src="${_esc(p.images[0])}" alt="${_esc(p.name)}" style="width:100%;height:100%;object-fit:cover">`:`<svg viewBox="0 0 200 200" fill="none" style="width:65%"><rect x="40" y="40" width="120" height="120" rx="8" fill="#D4D0C8" stroke="#B8B4AA" stroke-width="1.5"/></svg>`;
+  const href=`product-detail.html?slug=${encodeURIComponent(p.slug)}`;
+  const nameJs=(p.name||'').replace(/'/g,"\\'");
+  return `<div class="prod-card"><a href="${href}"><div class="prod-img">${img}</div></a><div class="prod-body"><div class="prod-name">${_esc(p.name)}</div><div class="prod-foot"><span class="prod-price">₹${(p.price||0).toLocaleString('en-IN')}</span><button class="add-btn" onclick="Cart.add({id:'${_esc(p.slug)}',name:'${nameJs}',price:${p.price||0},color:'Default'})">+</button></div></div></div>`;
+}
+function renderRecentlyViewed(currentSlug){
+  const grid=document.getElementById('recentGrid');
+  const section=document.getElementById('recentSection');
+  if(!grid||!section)return;
+  const slugs=getRecentlyViewed().filter(s=>s!==currentSlug).slice(0,4);
+  if(!slugs.length){section.style.display='none';return;}
+  fetch('https://triakar.onrender.com/api/products')
+    .then(r=>r.json())
+    .then(data=>{
+      const map={};(data.products||[]).forEach(p=>{map[p.slug]=p;});
+      const picks=slugs.map(s=>map[s]).filter(Boolean);
+      if(!picks.length){section.style.display='none';return;}
+      grid.innerHTML=picks.map(_relCard).join('');
+      section.style.display='';
+    })
+    .catch(()=>{section.style.display='none';});
 }
 function selectVariant(btn,v){document.querySelectorAll('.variant-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selVariant=v}
 function changeQty(d){qty=Math.max(1,qty+d);document.getElementById('qtyNum').textContent=qty}
@@ -585,11 +655,7 @@ function loadRelated(currentSlug){
       const all=(data.products||[]).filter(p=>p.is_active!==false&&p.slug!==currentSlug);
       const picks=all.sort(()=>Math.random()-.5).slice(0,4);
       if(!picks.length){section.style.display='none';return;}
-      grid.innerHTML=picks.map(p=>{
-        const img=p.images&&p.images[0]?`<img loading="lazy" src="${p.images[0]}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover">`:`<svg viewBox="0 0 200 200" fill="none" style="width:65%"><rect x="40" y="40" width="120" height="120" rx="8" fill="#D4D0C8" stroke="#B8B4AA" stroke-width="1.5"/></svg>`;
-        const href=`product-detail.html?slug=${p.slug}`;
-        return `<div class="prod-card"><a href="${href}"><div class="prod-img">${img}</div></a><div class="prod-body"><div class="prod-name">${p.name}</div><div class="prod-foot"><span class="prod-price">₹${(p.price||0).toLocaleString('en-IN')}</span><button class="add-btn" onclick="Cart.add({id:'${p.slug}',name:'${p.name.replace(/'/g,"\\'")}',price:${p.price||0},color:'Default'})">+</button></div></div></div>`;
-      }).join('');
+      grid.innerHTML=picks.map(_relCard).join('');
       section.style.display='';
     })
     .catch(()=>{section.style.display='none';});
@@ -703,6 +769,7 @@ async function submitReview(){
 }
 
 init();
+document.addEventListener('DOMContentLoaded',function(){ try{ _paintDetailWish(); }catch(_){} });
 </script>
 
 <div class="cart-overlay" id="cartOverlay" onclick="closeCart()"></div>
