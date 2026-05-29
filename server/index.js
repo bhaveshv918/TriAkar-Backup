@@ -21,6 +21,7 @@ import categoryRoutes    from './routes/categories.js';
 import pincodeRoutes     from './routes/pincode.js';
 import promoRoutes       from './routes/promo.js';
 import reviewRoutes      from './routes/reviews.js';
+import wishlistRoutes    from './routes/wishlist.js';
 import webhookRoutes     from './routes/webhooks.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -203,6 +204,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/pincode',    pincodeRoutes);   // India Post proxy — bypasses expired cert
 app.use('/api/promo',      promoRoutes);     // Promo code validate + admin CRUD
 app.use('/api/reviews',    reviewRoutes);    // Product reviews — public + admin CRUD
+app.use('/api/wishlist',   wishlistRoutes);  // Saved items — per-user, auth required
 
 /* /api/profile — see server/routes/auth.js handlers; also accessible at /api/auth/profile */
 
