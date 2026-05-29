@@ -43,7 +43,7 @@ window._FOOTER_HTML = `<footer>
         <div class="foot-brand"><span style="color:var(--accent)">TRI</span><span style="color:#ffffff">AKAR</span></div>
         <div class="foot-hi">त्रिआकार</div>
         <p class="foot-desc">3D Printing Services, Delhi NCR</p>
-        <div class="foot-phone"><a href="tel:+919217555833">+91 92175 55833</a></div>
+        <div class="foot-phone"><a href="tel:+919217555833">+91 9217-555-833</a></div>
         <div class="foot-hours">Open all days, 11 AM to 9 PM</div>
         <div class="foot-addr">Shop No. 25, Karan Singh Market<br>Chhoti Milak, Greater Noida West, UP – 201318</div>
         <a href="https://maps.google.com/?q=TRIAKAR+Karan+Singh+Market+Chhoti+Milak+Greater+Noida+West+201318" class="foot-dir" target="_blank">Get Directions →</a>
