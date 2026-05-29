@@ -84,9 +84,41 @@
 
 .no-results{grid-column:1/-1;text-align:center;padding:80px 0;color:var(--stone);font-size:14px}
 
+/* Card overlay actions: wishlist heart + quick view */
+.prod-card .prod-wl{position:absolute;top:12px;right:12px;z-index:3;width:32px;height:32px}
+.prod-card .prod-wl svg{width:16px;height:16px}
+.prod-qv{position:absolute;left:0;right:0;bottom:0;z-index:3;background:rgba(22,22,20,.86);color:var(--ivory);border:none;
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;padding:11px;cursor:pointer;
+  transform:translateY(100%);transition:transform .25s;backdrop-filter:blur(4px)}
+.prod-img-wrap{position:relative;overflow:hidden}
+.prod-card:hover .prod-qv{transform:translateY(0)}
+@media(hover:none){.prod-qv{display:none}}
+
+/* Secondary filter row: price + availability */
+.filter-row2{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:12px var(--pad);background:var(--white);border-bottom:1px solid var(--stone-p)}
+.fr2-group{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--warm)}
+.fr2-group label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:600}
+.fr2-range{accent-color:var(--accent);cursor:pointer}
+.fr2-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;user-select:none}
+.fr2-clear{font-size:10.5px;color:var(--accent);background:none;border:none;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;font-weight:600;margin-left:auto}
+
+/* Quick View modal */
+.qv-overlay{position:fixed;inset:0;background:rgba(22,22,20,.55);backdrop-filter:blur(3px);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px}
+.qv-overlay.open{display:flex}
+.qv-modal{background:var(--white);max-width:760px;width:100%;max-height:90vh;overflow:auto;display:grid;grid-template-columns:1fr 1fr;position:relative}
+.qv-close{position:absolute;top:12px;right:12px;z-index:4;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.9);border:1px solid var(--stone-p);font-size:20px;cursor:pointer;line-height:1;color:var(--charcoal)}
+.qv-img{background:var(--ivory);display:flex;align-items:center;justify-content:center;min-height:280px;overflow:hidden}
+.qv-img img{width:100%;height:100%;object-fit:cover}
+.qv-info{padding:30px 30px 28px;display:flex;flex-direction:column;gap:10px}
+.qv-cat{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);font-weight:600}
+.qv-name{font-family:var(--font-g);font-size:26px;font-weight:400;color:var(--charcoal);line-height:1.1}
+.qv-price{font-size:20px;font-weight:700;color:var(--charcoal)}
+.qv-desc{font-size:13.5px;color:var(--warm);font-weight:300;line-height:1.7}
+.qv-actions{display:flex;gap:10px;margin-top:8px}
+.qv-actions .btn{flex:1;justify-content:center}
 @media(max-width:1100px){.products-grid{grid-template-columns:repeat(2,1fr)}.fcat-btn{padding:14px 14px;font-size:9.5px}}
 @media(max-width:768px){.filter-bar-inner{flex-wrap:wrap}.fcat{flex-wrap:wrap}.fsort,.fcount{border-left:none;border-top:1px solid var(--stone-p);width:100%;padding:10px var(--pad)}}
-@media(max-width:600px){.products-grid{grid-template-columns:1fr}.prod-foot{flex-direction:column;align-items:stretch;gap:8px}}
+@media(max-width:600px){.products-grid{grid-template-columns:1fr}.prod-foot{flex-direction:column;align-items:stretch;gap:8px}.qv-modal{grid-template-columns:1fr}.qv-img{min-height:200px}}
 </style>
 <script defer src="/_vercel/insights/script.js"></script>
 <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -127,6 +159,17 @@
         </select>
       </div>
       <div class="fcount" id="fcount">18 items</div>
+    </div>
+  </div>
+  <div class="mw" style="padding-top:0;padding-bottom:0">
+    <div class="filter-row2">
+      <div class="fr2-group">
+        <label for="fr2Range">Max price</label>
+        <input type="range" id="fr2Range" class="fr2-range" min="0" max="2000" step="50" value="2000" aria-label="Maximum price">
+        <span class="fr2-val" id="fr2Val">Up to ₹2,000</span>
+      </div>
+      <label class="fr2-chip"><input type="checkbox" id="fr2Stock"> In stock only</label>
+      <button class="fr2-clear" id="fr2Clear" type="button">Reset filters</button>
     </div>
   </div>
 </div>
@@ -461,27 +504,39 @@ function fmtPrice(n) {
   return '₹' + Number(n).toLocaleString('en-IN');
 }
 
+const _PRODMAP = {};
+
 function buildCard(p) {
+  _PRODMAP[p.slug] = p;
   const el = document.createElement('div');
   el.className = 'prod-card';
   el.dataset.cat = p.category;
   el.dataset.price = p.price;
+  el.dataset.stock = (p.stock_qty === 0) ? '0' : '1';
   el.dataset.search = ((p.name || '') + ' ' + (p.short_description || p.description || '') + ' ' + (p.category || '')).toLowerCase();
 
   const altText = p.name + ' — 3D printed by TriAkar, Greater Noida';
   const img = p.images && p.images.length
-    ? '<img src="' + p.images[0] + '" alt="' + altText + '" loading="lazy" style="width:100%;height:100%;object-fit:cover">'
-    : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;opacity:.25"><svg viewBox="0 0 80 80" fill="none" role="img" aria-label="' + altText + '"><rect x="8" y="8" width="64" height="64" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 52l18-18 14 14 10-10 22 22" stroke="currentColor" stroke-width="1.5"/></svg></div>';
+    ? '<img src="' + _esc(p.images[0]) + '" alt="' + _esc(altText) + '" loading="lazy" style="width:100%;height:100%;object-fit:cover">'
+    : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;opacity:.25"><svg viewBox="0 0 80 80" fill="none" role="img" aria-label="' + _esc(altText) + '"><rect x="8" y="8" width="64" height="64" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 52l18-18 14 14 10-10 22 22" stroke="currentColor" stroke-width="1.5"/></svg></div>';
 
   const outOfStock = p.stock_qty === 0;
   const mrp = p.mrp || Math.round(p.price / 0.35 / 10) * 10;
   const off = Math.round((1 - p.price / mrp) * 100);
   const priceBlock = '<div class="prod-price-wrap"><span class="prod-mrp">' + fmtPrice(mrp) + '</span><span class="prod-price">' + fmtPrice(p.price) + '</span><span class="prod-off">' + off + '% OFF</span></div>';
 
-  el.innerHTML = '<a href="product-detail.html?slug=' + p.slug + '"><div class="prod-img">' + img + '</div></a>'
+  const heartSvg = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 21s-7.5-4.6-10-9.3C.5 8.5 2 5 5.5 5c2 0 3.3 1.2 4 2.3C10.2 6.2 11.5 5 13.5 5 17 5 18.5 8.5 17 11.7 14.5 16.4 12 21 12 21z" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>';
+  const wlBtn = '<button class="wl-heart prod-wl" data-slug="' + _esc(p.slug) + '" data-name="' + _esc(p.name) + '" onclick="event.preventDefault();event.stopPropagation();toggleWishlist(this)" aria-label="Save to wishlist" aria-pressed="false">' + heartSvg + '</button>';
+  const qvBtn = '<button class="prod-qv" onclick="event.preventDefault();event.stopPropagation();openQuickView(\'' + _esc(p.slug) + '\')" aria-label="Quick view">Quick View</button>';
+
+  el.innerHTML = '<div class="prod-img-wrap">'
+    + wlBtn
+    + '<a href="product-detail.html?slug=' + _esc(p.slug) + '"><div class="prod-img">' + img + '</div></a>'
+    + qvBtn
+    + '</div>'
     + '<div class="prod-body">'
-    + '<div class="prod-name">' + p.name + '</div>'
-    + '<div class="prod-short">' + (p.short_description || p.description || '') + '</div>'
+    + '<div class="prod-name">' + _esc(p.name) + '</div>'
+    + '<div class="prod-short">' + _esc(p.short_description || p.description || '') + '</div>'
     + '<div class="prod-foot"><div>' + priceBlock + '</div>'
     + (outOfStock
         ? '<button class="add-to-cart-btn" disabled style="opacity:.4;cursor:not-allowed" title="Out of stock">Out of Stock</button>'
@@ -497,11 +552,16 @@ function buildCard(p) {
   return el;
 }
 
+let curMaxPrice = Infinity;
+let curInStockOnly = false;
+
 function applyFilters() {
   const sort = document.getElementById('sortSel').value;
   let visible = allCards.filter(c =>
     (curFilter === 'all' || c.dataset.cat === curFilter) &&
-    (!curSearch || (c.dataset.search || '').indexOf(curSearch) !== -1)
+    (!curSearch || (c.dataset.search || '').indexOf(curSearch) !== -1) &&
+    (+c.dataset.price <= curMaxPrice) &&
+    (!curInStockOnly || c.dataset.stock !== '0')
   );
   if (sort === 'asc') visible.sort((a, b) => +a.dataset.price - +b.dataset.price);
   else if (sort === 'desc') visible.sort((a, b) => +b.dataset.price - +a.dataset.price);
@@ -517,11 +577,80 @@ function applyFilters() {
 
   const nr = grid.querySelector('.no-results');
   if (!visible.length) {
-    const msg = curSearch ? 'No products match “' + curSearch + '”.' : 'No products in this category.';
+    const msg = curSearch ? 'No products match “' + curSearch + '”.' : 'No products match these filters.';
     if (!nr) { const d = document.createElement('div'); d.className = 'no-results'; d.textContent = msg; grid.appendChild(d); }
     else nr.textContent = msg;
   } else if (nr) nr.remove();
+
+  try { if (typeof Wishlist !== 'undefined') Wishlist.refresh(); } catch (_) {}
 }
+
+// Secondary filter row — price range + availability
+function _initFilterRow2() {
+  const range = document.getElementById('fr2Range');
+  const out = document.getElementById('fr2Val');
+  const stock = document.getElementById('fr2Stock');
+  const clear = document.getElementById('fr2Clear');
+  if (range) {
+    // compute max price from current cards
+    let max = 0;
+    allCards.forEach(c => { const v = +c.dataset.price; if (v > max) max = v; });
+    max = Math.max(max, 100);
+    max = Math.ceil(max / 100) * 100;
+    range.max = String(max);
+    if (curMaxPrice === Infinity || curMaxPrice > max) { curMaxPrice = max; range.value = String(max); }
+    else range.value = String(curMaxPrice);
+    if (out) out.textContent = 'Up to ' + fmtPrice(curMaxPrice);
+    range.oninput = function() {
+      curMaxPrice = +range.value;
+      if (out) out.textContent = 'Up to ' + fmtPrice(curMaxPrice);
+      applyFilters();
+    };
+  }
+  if (stock) stock.onchange = function() { curInStockOnly = stock.checked; applyFilters(); };
+  if (clear) clear.onclick = function() {
+    curInStockOnly = false; if (stock) stock.checked = false;
+    if (range) { curMaxPrice = +range.max; range.value = range.max; if (out) out.textContent = 'Up to ' + fmtPrice(curMaxPrice); }
+    applyFilters();
+  };
+}
+
+// Quick View
+function openQuickView(slug) {
+  const p = _PRODMAP[slug];
+  if (!p) return;
+  const ov = document.getElementById('qvOverlay');
+  const mrp = p.mrp || Math.round(p.price / 0.35 / 10) * 10;
+  const off = Math.round((1 - p.price / mrp) * 100);
+  const imgEl = document.getElementById('qvImg');
+  if (p.images && p.images.length) imgEl.innerHTML = '<img src="' + _esc(p.images[0]) + '" alt="' + _esc(p.name) + '">';
+  else imgEl.innerHTML = '<div style="opacity:.25;padding:40px"><svg viewBox="0 0 80 80" width="80" height="80" fill="none"><rect x="8" y="8" width="64" height="64" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 52l18-18 14 14 10-10 22 22" stroke="currentColor" stroke-width="1.5"/></svg></div>';
+  document.getElementById('qvCat').textContent = (p.category || '').toString();
+  document.getElementById('qvName').textContent = p.name;
+  document.getElementById('qvPrice').innerHTML = '<span class="prod-mrp" style="margin-right:8px">' + fmtPrice(mrp) + '</span>' + fmtPrice(p.price) + ' <span class="prod-off" style="margin-left:6px">' + off + '% OFF</span>';
+  document.getElementById('qvDesc').textContent = p.short_description || p.description || '';
+  const viewLink = document.getElementById('qvView');
+  if (viewLink) viewLink.href = 'product-detail.html?slug=' + encodeURIComponent(slug);
+  const addBtn = document.getElementById('qvAdd');
+  const outOfStock = p.stock_qty === 0;
+  if (addBtn) {
+    if (outOfStock) { addBtn.disabled = true; addBtn.textContent = 'Out of Stock'; addBtn.style.opacity = '.5'; }
+    else {
+      addBtn.disabled = false; addBtn.textContent = 'Add to Cart'; addBtn.style.opacity = '';
+      addBtn.onclick = function() {
+        addToCartBtn(this, { id: p.slug, name: p.name, price: p.price, color: 'Standard', image: (p.images&&p.images.length)?p.images[0]:'' });
+      };
+    }
+  }
+  ov.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeQuickView() {
+  const ov = document.getElementById('qvOverlay');
+  if (ov) ov.classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeQuickView(); });
 
 // Use event delegation so dynamically-rebuilt pills also work
 document.getElementById('fcatList').addEventListener('click', function(e) {
@@ -543,6 +672,7 @@ function loadFromLocal() {
   grid.innerHTML = '';
   allCards = products.map(buildCard);
   allCards.forEach(function(c) { grid.appendChild(c); });
+  _initFilterRow2();
   var cat = new URLSearchParams(window.location.search).get('cat');
   var btn = cat ? document.querySelector('[data-filter="' + cat + '"]') : null;
   if (btn) btn.click(); else applyFilters();
@@ -561,6 +691,7 @@ function syncFromAPI() {
       grid.innerHTML = '';
       allCards = products.map(buildCard);
       allCards.forEach(function(c) { grid.appendChild(c); });
+      _initFilterRow2();
       const cat = new URLSearchParams(window.location.search).get('cat');
       const btn = cat ? document.querySelector('[data-filter="' + cat + '"]') : null;
       if (btn) btn.click(); else applyFilters();
@@ -610,6 +741,23 @@ document.addEventListener('DOMContentLoaded', function() {
     <div style="text-align:center;margin-top:10px"><button class="btn-ghost" onclick="closeCart()">Continue shopping</button></div>
   </div>
 </div>
+<div class="qv-overlay" id="qvOverlay" onclick="if(event.target===this)closeQuickView()">
+  <div class="qv-modal" role="dialog" aria-modal="true" aria-label="Quick product view">
+    <button class="qv-close" onclick="closeQuickView()" aria-label="Close quick view">×</button>
+    <div class="qv-img" id="qvImg"></div>
+    <div class="qv-info">
+      <div class="qv-cat" id="qvCat"></div>
+      <h3 class="qv-name" id="qvName"></h3>
+      <div class="qv-price" id="qvPrice"></div>
+      <p class="qv-desc" id="qvDesc"></p>
+      <div class="qv-actions">
+        <button class="btn btn-dark" id="qvAdd">Add to Cart</button>
+        <a class="btn btn-outline" id="qvView" href="#">View Details</a>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="footer-root"></div><script>if(window._FOOTER_HTML)document.getElementById("footer-root").outerHTML=window._FOOTER_HTML;</script>
 <script defer src="js/auth.js"></script>
 <script defer src="products-data.js"></script>
