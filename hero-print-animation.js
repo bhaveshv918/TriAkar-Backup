@@ -32,10 +32,10 @@
 
   /* ── Configuration ─────────────────────────────────────── */
   const CFG = {
-    PASS_DURATION_MS:  800,   /* doubled → nozzle sweeps at half speed */
-    LAYER_INTERVAL_MS: 200,
-    HOLD_MS:          1200,
-    RESET_MS:          550,
+    PASS_DURATION_MS: 1300,   /* slower, deliberate nozzle sweep (old-printer feel) */
+    LAYER_INTERVAL_MS: 600,   /* slower pause between layers */
+    HOLD_MS:          1800,
+    RESET_MS:          700,
     LAYER_HEIGHT_PX:     5,   /* must match .tpa-layer { height } in CSS */
 
     /* Vase / artifact silhouette */
@@ -162,7 +162,7 @@
 
   /* Lift entire gantry to the correct Y for a given layer */
   function liftGantry(layerIdx, animate) {
-    gantry.style.transition = animate ? 'top 0.15s ease-out' : 'none';
+    gantry.style.transition = animate ? 'top 0.3s ease-out' : 'none';
     gantry.style.top = gantryTopForLayer(layerIdx) + 'px';
   }
 
