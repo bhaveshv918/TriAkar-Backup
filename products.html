@@ -112,6 +112,27 @@
 .prod-sold span{color:#fff;font-size:13px;font-weight:700;letter-spacing:.2em;text-transform:uppercase}
 .prod-card.is-sold .prod-img svg{filter:grayscale(1);opacity:.5}
 
+/* F7: Theobroma-style page hero (brand charcoal, centered) */
+.shop-header{text-align:center;padding:50px 0 38px}
+.shop-eyebrow{color:var(--accent);letter-spacing:.5em;font-size:10px;font-weight:600;margin-bottom:14px}
+.shop-sub{max-width:560px;margin:14px auto 0;color:var(--stone-l);font-size:14px;line-height:1.65;font-weight:300}
+.shop-count{margin-top:12px}
+
+/* F4: Collection filter pills (occasion / budget / material) */
+.collection-bar{background:var(--white);border-bottom:1px solid var(--stone-p);padding:14px var(--pad)}
+.coll-row{display:flex;align-items:center;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.coll-row::-webkit-scrollbar{display:none}
+.coll-row+.coll-row{margin-top:10px}
+.coll-label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:600;white-space:nowrap;flex-shrink:0;margin-right:2px}
+.coll-pill{flex-shrink:0;font-size:11.5px;padding:7px 14px;border:1px solid var(--stone-p);background:var(--white);color:var(--warm);border-radius:20px;cursor:pointer;white-space:nowrap;transition:border-color .18s,color .18s,background .18s;font-family:var(--font-b)}
+.coll-pill:hover{border-color:var(--accent);color:var(--charcoal)}
+.coll-pill.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.coll-mat{display:flex;align-items:center;gap:14px;flex-shrink:0}
+.coll-mat label{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--warm);cursor:pointer;white-space:nowrap}
+.coll-mat input{accent-color:var(--accent);cursor:pointer}
+.coll-count{font-size:11px;color:var(--stone);white-space:nowrap;margin-left:auto;flex-shrink:0;padding-left:12px}
+@media(max-width:768px){.coll-count{display:none}}
+
 /* Secondary filter row: price + availability */
 .filter-row2{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:12px var(--pad);background:var(--white);border-bottom:1px solid var(--stone-p)}
 .fr2-group{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--warm)}
@@ -151,10 +172,10 @@
 
 <div class="shop-header">
   <div class="mw">
-    <div class="shop-header-inner">
-      <div><div class="shop-title">SHOP</div><div class="shop-count" id="shopCount">19 products</div></div>
-      <a href="custom.html" class="btn btn-outline" style="border-color:rgba(255,255,255,.2);color:var(--stone-l)">Custom Order</a>
-    </div>
+    <div class="shop-eyebrow">◆ ◆ ◆</div>
+    <h1 class="shop-title" id="shopTitle">3D Printed Products</h1>
+    <p class="shop-sub" id="shopSub">Designed in-house, printed to order in Greater Noida. Desk essentials, home decor and personalised gifts — made responsibly in India.</p>
+    <div class="shop-count" id="shopCount">19 products</div>
   </div>
 </div>
 
@@ -188,6 +209,36 @@
       </div>
       <label class="fr2-chip"><input type="checkbox" id="fr2Stock"> In stock only</label>
       <button class="fr2-clear" id="fr2Clear" type="button">Reset filters</button>
+    </div>
+  </div>
+  <div class="mw" style="padding-top:0;padding-bottom:0">
+    <div class="collection-bar">
+      <div class="coll-row" id="collOcc">
+        <span class="coll-label">Occasion</span>
+        <button class="coll-pill active" data-occ="all">All</button>
+        <button class="coll-pill" data-occ="birthday">Birthday</button>
+        <button class="coll-pill" data-occ="anniversary">Anniversary</button>
+        <button class="coll-pill" data-occ="corporate">Corporate</button>
+        <button class="coll-pill" data-occ="housewarming">Housewarming</button>
+        <button class="coll-pill" data-occ="last-minute">Last Minute ⚡</button>
+      </div>
+      <div class="coll-row" id="collBudget">
+        <span class="coll-label">Budget</span>
+        <button class="coll-pill active" data-min="0" data-max="999999">All Budgets</button>
+        <button class="coll-pill" data-min="0" data-max="499">Under ₹499</button>
+        <button class="coll-pill" data-min="500" data-max="999">₹500–₹999</button>
+        <button class="coll-pill" data-min="1000" data-max="2499">₹1000–₹2499</button>
+        <button class="coll-pill" data-min="2500" data-max="999999">₹2500+</button>
+      </div>
+      <div class="coll-row">
+        <span class="coll-label">Material</span>
+        <div class="coll-mat" id="collMat">
+          <label><input type="checkbox" value="PLA"> PLA</label>
+          <label><input type="checkbox" value="ABS"> ABS</label>
+          <label><input type="checkbox" value="PETG"> PETG</label>
+        </div>
+        <span class="coll-count" id="collCount">Showing 19 products</span>
+      </div>
     </div>
   </div>
 </div>
@@ -610,6 +661,22 @@ function buildCard(p) {
 
 let curMaxPrice = Infinity;
 let curInStockOnly = false;
+// F4 collection filters
+let curOccasion = 'all';
+let curBudgetMin = 0;
+let curBudgetMax = Infinity;
+let curMaterials = [];
+
+function _occMatch(c) {
+  if (curOccasion === 'all') return true;
+  if (curOccasion === 'last-minute') return c.dataset.ready === '1';
+  return (c.dataset.occasion || '').split(',').indexOf(curOccasion) !== -1;
+}
+function _matMatch(c) {
+  if (!curMaterials.length) return true;
+  const mats = (c.dataset.material || '').split(',');
+  return curMaterials.some(m => mats.indexOf(m) !== -1);
+}
 
 function applyFilters() {
   const sort = document.getElementById('sortSel').value;
@@ -617,7 +684,10 @@ function applyFilters() {
     (curFilter === 'all' || c.dataset.cat === curFilter) &&
     (!curSearch || (c.dataset.search || '').indexOf(curSearch) !== -1) &&
     (+c.dataset.price <= curMaxPrice) &&
-    (!curInStockOnly || c.dataset.stock !== '0')
+    (!curInStockOnly || c.dataset.stock !== '0') &&
+    _occMatch(c) &&
+    (+c.dataset.price >= curBudgetMin && +c.dataset.price <= curBudgetMax) &&
+    _matMatch(c)
   );
   if (sort === 'asc') visible.sort((a, b) => +a.dataset.price - +b.dataset.price);
   else if (sort === 'desc') visible.sort((a, b) => +b.dataset.price - +a.dataset.price);
@@ -627,9 +697,11 @@ function applyFilters() {
 
   const cnt = document.getElementById('fcount');
   const sc = document.getElementById('shopCount');
+  const cc = document.getElementById('collCount');
   const label = visible.length + ' item' + (visible.length !== 1 ? 's' : '');
   if (cnt) cnt.textContent = label;
   if (sc) sc.textContent = visible.length + ' products';
+  if (cc) cc.textContent = 'Showing ' + visible.length + ' product' + (visible.length !== 1 ? 's' : '');
 
   const nr = grid.querySelector('.no-results');
   if (!visible.length) {
@@ -669,6 +741,62 @@ function _initFilterRow2() {
     if (range) { curMaxPrice = +range.max; range.value = range.max; if (out) out.textContent = 'Up to ' + fmtPrice(curMaxPrice); }
     applyFilters();
   };
+}
+
+// F4 — collection filter pills (occasion / budget / material). Attach once.
+function _initCollectionFilters() {
+  const occ = document.getElementById('collOcc');
+  if (occ && !occ.dataset.bound) {
+    occ.dataset.bound = '1';
+    occ.addEventListener('click', function(e) {
+      const b = e.target.closest('.coll-pill'); if (!b) return;
+      occ.querySelectorAll('.coll-pill').forEach(p => p.classList.remove('active'));
+      b.classList.add('active'); curOccasion = b.dataset.occ; applyFilters();
+    });
+  }
+  const bud = document.getElementById('collBudget');
+  if (bud && !bud.dataset.bound) {
+    bud.dataset.bound = '1';
+    bud.addEventListener('click', function(e) {
+      const b = e.target.closest('.coll-pill'); if (!b) return;
+      bud.querySelectorAll('.coll-pill').forEach(p => p.classList.remove('active'));
+      b.classList.add('active'); curBudgetMin = +b.dataset.min; curBudgetMax = +b.dataset.max; applyFilters();
+    });
+  }
+  const mat = document.getElementById('collMat');
+  if (mat && !mat.dataset.bound) {
+    mat.dataset.bound = '1';
+    mat.addEventListener('change', function() {
+      curMaterials = Array.from(mat.querySelectorAll('input:checked')).map(i => i.value);
+      applyFilters();
+    });
+  }
+}
+
+// F7 — dynamic page hero + pre-select pill from ?occasion= URL param
+const _OCC_HERO = {
+  birthday:      { h: 'Birthday Gifts',     s: 'Thoughtful 3D-printed birthday gifts — personalised name pieces, desk décor and keepsakes they will actually keep.' },
+  anniversary:   { h: 'Anniversary Gifts',  s: 'Mark the milestone with minimal, made-to-order 3D-printed gifts designed in-house in Greater Noida.' },
+  corporate:     { h: 'Corporate Gifting',  s: 'Branded, bulk 3D-printed corporate gifts for teams, clients and events. Custom design, made responsibly in India.' },
+  housewarming:  { h: 'Housewarming Gifts', s: 'Planters, vases and décor to welcome a new home — clean modern 3D-printed pieces, made to order.' },
+  'last-minute': { h: 'Last-Minute Gifts',  s: 'Ready-to-ship picks that go out fast. Great design, no waiting.' }
+};
+function _applyOccasionFromURL() {
+  const occParam = (new URLSearchParams(window.location.search).get('occasion') || '').trim().toLowerCase();
+  if (!occParam) return;
+  const pill = document.querySelector('#collOcc .coll-pill[data-occ="' + occParam + '"]');
+  if (!pill) return;
+  document.querySelectorAll('#collOcc .coll-pill').forEach(p => p.classList.remove('active'));
+  pill.classList.add('active');
+  curOccasion = occParam;
+  const hero = _OCC_HERO[occParam];
+  if (hero) {
+    const t = document.getElementById('shopTitle');
+    const sub = document.getElementById('shopSub');
+    if (t) t.textContent = hero.h;
+    if (sub) sub.textContent = hero.s;
+    try { document.title = hero.h + ' — TriAkar'; } catch (_) {}
+  }
 }
 
 // Quick View
@@ -780,6 +908,8 @@ document.addEventListener('DOMContentLoaded', function() {
     var ns = document.getElementById('navSearchInput');
     if (ns) ns.value = curSearch;
   }
+  _initCollectionFilters();
+  _applyOccasionFromURL();
   loadFromLocal();
   syncFromAPI();
   syncCategories();
