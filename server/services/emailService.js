@@ -237,7 +237,7 @@ export async function sendEnquiryConfirmation(enquiry) {
     <p style="font-size:14px;color:#444;line-height:1.6;margin:24px 0 16px;">
       Need to speak with us sooner? Call our team and quote your reference ID.
     </p>
-    ${btn('Call +91 92175 55833', 'tel:+919217555833')}
+    ${btn('Call +91 9217-555-833', 'tel:+919217555833')}
   `;
   return send({
     to: enquiry.email,
@@ -306,5 +306,49 @@ export async function sendCallbackAlert(cb) {
     to: ADMIN_EMAIL,
     subject: `New Callback Request: ${cb.reference_id}`,
     html: shell('New callback request', body),
+  });
+}
+
+/* ── CORPORATE INQUIRY ALERT (to admin) ───────────────────── */
+export async function sendCorporateInquiryAlert(inq) {
+  const body = `
+    <p style="font-size:15px;color:#444;margin:0 0 20px;">A new corporate gifting inquiry has been submitted.</p>
+    <table role="presentation" cellpadding="0" cellspacing="0">
+      ${row('Company', inq.company_name)}
+      ${row('Contact', inq.contact_name)}
+      ${row('Email', inq.email)}
+      ${row('Phone', inq.phone)}
+      ${row('Product interest', inq.product_interest)}
+    </table>
+    <h2 style="font-size:14px;color:#0e0e0e;margin:24px 0 8px;text-transform:uppercase;letter-spacing:1px;">Message</h2>
+    <p style="font-size:14px;color:#444;line-height:1.7;margin:0 0 24px;white-space:pre-wrap;">${esc(inq.message)}</p>
+    ${btn('Open Admin Panel', ADMIN_LINK)}
+  `;
+  return send({
+    to: ADMIN_EMAIL,
+    subject: `New Corporate Inquiry: ${inq.company_name || inq.contact_name}`,
+    html: shell('New corporate gifting inquiry', body),
+  });
+}
+
+/* ── CORPORATE INQUIRY CONFIRMATION (to customer) ─────────── */
+export async function sendCorporateInquiryConfirmation(inq) {
+  const body = `
+    <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 20px;">
+      Thank you for reaching out to TriAkar about corporate gifting. We have received your inquiry and our team will get back to you within one business day with a tailored quote.
+    </p>
+    <table role="presentation" cellpadding="0" cellspacing="0">
+      ${row('Company', inq.company_name)}
+      ${row('Product interest', inq.product_interest)}
+    </table>
+    <p style="font-size:14px;color:#444;line-height:1.6;margin:24px 0 16px;">
+      Need to speak with us sooner? Call our team directly.
+    </p>
+    ${btn('Call +91 9217-555-833', 'tel:+919217555833')}
+  `;
+  return send({
+    to: inq.email,
+    subject: 'We received your corporate gifting inquiry — TriAkar',
+    html: shell('We received your inquiry', body),
   });
 }
