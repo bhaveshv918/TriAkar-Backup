@@ -2,7 +2,7 @@
    Strategy: Cache-First for assets, Network-First for HTML + API.
    Version bump (CACHE_VER) forces all clients to re-fetch on deploy. */
 
-const CACHE_VER = 'ta-v5';
+const CACHE_VER = 'ta-v6';
 const CACHE_NAME = 'triakar-' + CACHE_VER;
 
 /* Assets to pre-cache on install (shell) */
@@ -71,7 +71,24 @@ self.addEventListener('fetch', function(e) {
     return;
   }
 
-  /* Static assets: Cache-first (fonts, CSS, JS, images) */
+  /* App shell (CSS / JS): Network-first so deploys are picked up immediately,
+     with cache fallback for offline. Prevents stale partials.js/shared.css/shared.js. */
+  if (/\.(?:css|js)(?:\?|$)/.test(url)) {
+    e.respondWith(
+      fetch(req).then(function(res) {
+        if (res && res.status === 200 && res.type !== 'opaque') {
+          var clone = res.clone();
+          caches.open(CACHE_NAME).then(function(cache) { cache.put(req, clone); });
+        }
+        return res;
+      }).catch(function() {
+        return caches.match(req);
+      })
+    );
+    return;
+  }
+
+  /* Other static assets (fonts, images, favicon): Cache-first */
   e.respondWith(
     caches.match(req).then(function(cached) {
       if (cached) return cached;
