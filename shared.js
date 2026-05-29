@@ -267,6 +267,105 @@ const Cart=(function(){
   return{add,changeQty,total,getItems,clear,render,badge,loadFromServer,mergeOnLogin,_enrichImages};
 })();
 
+/* ══ WISHLIST ════════════════════════════════════════════════
+   Per-user saved items. Works offline (localStorage) and syncs to
+   /api/wishlist when logged in. Toggling a heart adds/removes both
+   locally and server-side; on login the local list is merged up. */
+const Wishlist=(function(){
+  const _API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
+  const WL_KEY='triakar_wishlist';
+  let items=[]; // [{slug,name}]
+  try{
+    const raw=JSON.parse(localStorage.getItem(WL_KEY)||'[]');
+    if(Array.isArray(raw))items=raw.filter(x=>x&&x.slug).map(x=>({slug:String(x.slug),name:x.name||''}));
+  }catch(e){items=[]}
+
+  function _token(){return localStorage.getItem('ta_token');}
+  function _saveLocal(){try{localStorage.setItem(WL_KEY,JSON.stringify(items))}catch(e){}}
+  function has(slug){return items.some(i=>i.slug===slug);}
+  function getItems(){return items.map(i=>({slug:i.slug,name:i.name}));}
+  function count(){return items.length;}
+
+  function badge(){
+    const n=items.length;
+    document.querySelectorAll('.wishlist-badge').forEach(b=>{b.textContent=n;b.classList.toggle('on',n>0);});
+  }
+  function _paintHearts(){
+    document.querySelectorAll('.wl-heart[data-slug]').forEach(el=>{
+      const on=has(el.getAttribute('data-slug'));
+      el.classList.toggle('active',on);
+      el.setAttribute('aria-pressed',on?'true':'false');
+      el.setAttribute('aria-label',on?'Remove from wishlist':'Add to wishlist');
+    });
+  }
+  function refresh(){badge();_paintHearts();}
+
+  function _serverAdd(slug,name){
+    const tok=_token();if(!tok)return;
+    fetch(_API+'/api/wishlist',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({product_slug:slug,product_name:name})}).catch(()=>{});
+  }
+  function _serverRemove(slug){
+    const tok=_token();if(!tok)return;
+    fetch(_API+'/api/wishlist/'+encodeURIComponent(slug),{method:'DELETE',headers:{'Authorization':'Bearer '+tok}}).catch(()=>{});
+  }
+
+  function add(slug,name){
+    if(!slug||has(slug))return;
+    items.push({slug:String(slug),name:name||''});
+    _saveLocal();_serverAdd(slug,name||'');refresh();
+    gtagEvent('add_to_wishlist',{items:[{item_id:slug,item_name:name||''}]});
+  }
+  function remove(slug){
+    const i=items.findIndex(x=>x.slug===slug);
+    if(i<0)return;
+    items.splice(i,1);
+    _saveLocal();_serverRemove(slug);refresh();
+  }
+  function toggle(slug,name){
+    if(has(slug)){remove(slug);return false;}
+    add(slug,name);return true;
+  }
+
+  async function loadFromServer(){
+    const tok=_token();if(!tok)return;
+    try{
+      const res=await fetch(_API+'/api/wishlist',{headers:{'Authorization':'Bearer '+tok}});
+      if(!res.ok)return;
+      const {items:srv}=await res.json();
+      if(Array.isArray(srv)){
+        items=srv.map(x=>({slug:x.product_slug,name:x.product_name||''}));
+        _saveLocal();
+      }
+      refresh();
+    }catch(_){}
+  }
+
+  // After login: push any guest items the server doesn't have, then reload.
+  async function mergeOnLogin(){
+    const tok=_token();if(!tok)return;
+    let srv=[];
+    try{
+      const res=await fetch(_API+'/api/wishlist',{headers:{'Authorization':'Bearer '+tok}});
+      if(res.ok){const j=await res.json();srv=(j&&j.items)||[];}
+    }catch(_){return;}
+    const srvSlugs=new Set(srv.map(s=>s.product_slug));
+    items.forEach(i=>{if(!srvSlugs.has(i.slug))_serverAdd(i.slug,i.name);});
+    await loadFromServer();
+  }
+
+  return{add,remove,toggle,has,getItems,count,badge,refresh,loadFromServer,mergeOnLogin};
+})();
+
+/* Toggle handler for heart buttons. Pass the clicked element so its
+   pressed state updates instantly. Element must carry data-slug + data-name. */
+function toggleWishlist(el){
+  if(!el)return;
+  const slug=el.getAttribute('data-slug');
+  const name=el.getAttribute('data-name')||'';
+  if(!slug)return;
+  Wishlist.toggle(slug,name);
+}
+
 function openCart(){
   document.getElementById('cartSidebar')?.classList.add('open');
   document.getElementById('cartOverlay')?.classList.add('open');
@@ -1040,6 +1139,7 @@ function prefillCheckout(){
 document.addEventListener('DOMContentLoaded',function(){
   // Critical path: badge + nav state only — must be instant
   Cart.badge();
+  Wishlist.refresh();
   // BUG 5: Auth.init() refreshes a near-expiry token and reconciles nav with the
   // real session state on load; falls back to a plain nav update if absent.
   if (window.Auth && typeof Auth.init === 'function') { Auth.init(); }
@@ -1062,6 +1162,7 @@ document.addEventListener('DOMContentLoaded',function(){
             Cart._enrichImages().then(function(changed){if(changed)Cart.render();});
           }
         });
+        Wishlist.loadFromServer();
       }, 2500);
     });
   });

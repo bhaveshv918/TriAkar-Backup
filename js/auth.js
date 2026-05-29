@@ -107,6 +107,8 @@ const Auth = (function () {
     // Merge any guest cart with the server cart so nothing added while
     // logged out is lost. Best-effort — never blocks the login result.
     try { if (typeof Cart !== 'undefined' && Cart.mergeOnLogin) await Cart.mergeOnLogin(); } catch (_) {}
+    // Merge guest wishlist with the server wishlist on login. Best-effort.
+    try { if (typeof Wishlist !== 'undefined' && Wishlist.mergeOnLogin) await Wishlist.mergeOnLogin(); } catch (_) {}
     return data;
   }
 
