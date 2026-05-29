@@ -739,7 +739,7 @@ document.addEventListener('DOMContentLoaded',function(){
   if(document.querySelector('.mobile-buy-bar'))return;
   const wa=document.createElement('a');
   wa.className='wa-float';
-  wa.href='https://wa.me/919217555833';
+  wa.href='https://wa.me/919217555833?text='+encodeURIComponent('Hi TriAkar! I have a question about your 3D printed products.');
   wa.target='_blank';
   wa.rel='noopener';
   wa.setAttribute('aria-label','Chat on WhatsApp');

@@ -19,6 +19,7 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
         <span class="wishlist-badge" id="wishlistBadge">0</span>
       </a>
+      <a href="/custom.html" class="nav-corp" aria-label="Corporate or bulk order">Corporate Order →</a>
       <a href="#" class="cart-btn" onclick="openCart();return false;">
         <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M1 1h2.5l1.6 8h8.4l1.5-5.5H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="14.5" r="1.2" fill="currentColor"/><circle cx="13" cy="14.5" r="1.2" fill="currentColor"/></svg>
         Cart <span class="cart-badge" id="cartBadge">0</span>
@@ -88,6 +89,77 @@ window._FOOTER_HTML = `<footer>
     </div>
   </div>
 </footer>`;
+
+/* ════════════════════════════════════════════════════════════════════
+   F1 — TOP CONTACT BAR (two lines, site-wide)
+   Line 1: phone + WhatsApp + "Bulk / Corporate Order?"  (desktop only)
+   Line 2: rotating notice carousel (3 messages, 3s fade)
+   Supersedes any per-page .notice-bar (hidden via injected CSS = no flash).
+   ════════════════════════════════════════════════════════════════════ */
+(function(){
+  var WA='https://wa.me/919217555833?text='+encodeURIComponent('Hi TriAkar! I have a question.');
+  var NOTES=[
+    'Free shipping above ₹999 across India',
+    'Custom 3D printing — your design, made in Greater Noida',
+    'Noida pickup available · Open 11 AM–9 PM, all days'
+  ];
+  /* Inject CSS first (head exists during parse) so per-page .notice-bar
+     is hidden before it paints — prevents a double-bar flash. */
+  try{
+    var head=document.head||document.getElementsByTagName('head')[0];
+    if(head && !document.getElementById('taTopbarCSS')){
+      var st=document.createElement('style');st.id='taTopbarCSS';
+      st.textContent=
+        '.notice-bar{display:none!important}'+
+        '.ta-topbar{font-family:var(--font-b,inherit);background:var(--charcoal,#161614);color:var(--ivory,#F4F2EC)}'+
+        '.ta-topbar-l1{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:6px 20px;font-size:11px;letter-spacing:.02em;border-bottom:1px solid rgba(255,255,255,.08)}'+
+        '.ta-topbar-l1 a{color:var(--ivory,#F4F2EC);text-decoration:none;opacity:.85;transition:opacity .2s}'+
+        '.ta-topbar-l1 a:hover{opacity:1}'+
+        '.ta-topbar-l1 .ttb-left{display:flex;align-items:center;gap:18px}'+
+        '.ta-topbar-l1 .ttb-corp{color:var(--accent,#C4622A);font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:10px;opacity:1}'+
+        '.ta-topbar-l2{position:relative;height:30px;overflow:hidden;text-align:center}'+
+        '.notice-carousel{position:relative;height:30px}'+
+        '.notice-slide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:.04em;color:var(--ivory,#F4F2EC);opacity:0;transition:opacity .6s ease}'+
+        '.notice-slide.active{opacity:.92}'+
+        '.nav-corp{display:inline-flex;align-items:center;background:var(--charcoal,#161614);color:#fff!important;padding:7px 16px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;border-radius:2px;text-decoration:none;transition:background .2s}'+
+        '.nav-corp:hover{background:var(--accent,#C4622A)}'+
+        '@media(max-width:768px){.ta-topbar-l1{display:none}.nav-corp{display:none}}';
+      head.appendChild(st);
+    }
+  }catch(_){}
+
+  function build(){
+    if(document.getElementById('taTopbar'))return;
+    var bar=document.createElement('div');
+    bar.id='taTopbar';bar.className='ta-topbar';
+    var slides=NOTES.map(function(n,i){
+      return '<div class="notice-slide'+(i===0?' active':'')+'">'+n+'</div>';
+    }).join('');
+    bar.innerHTML=
+      '<div class="ta-topbar-l1">'+
+        '<span class="ttb-left">'+
+          '<a href="tel:+919217555833">📞 +91 9217-555-833</a>'+
+          '<a href="'+WA+'" target="_blank" rel="noopener">💬 WhatsApp</a>'+
+        '</span>'+
+        '<a href="/custom.html" class="ttb-corp">Bulk / Corporate Order? →</a>'+
+      '</div>'+
+      '<div class="ta-topbar-l2"><div class="notice-carousel">'+slides+'</div></div>';
+    document.body.insertBefore(bar,document.body.firstChild);
+
+    /* Rotate line-2 messages every 3s */
+    var els=bar.querySelectorAll('.notice-slide');
+    if(els.length>1){
+      var idx=0;
+      setInterval(function(){
+        els[idx].classList.remove('active');
+        idx=(idx+1)%els.length;
+        els[idx].classList.add('active');
+      },3000);
+    }
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',build);
+  else build();
+})();
 
 /* ════════════════════════════════════════════════════════════════════
    PWA — manifest link, theme-color, and service-worker registration.
