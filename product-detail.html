@@ -444,6 +444,56 @@ function init(){
   }
 }
 
+/* Inject Product + BreadcrumbList structured data for rich results.
+   Built from live product data; replaces any previous block on re-render. */
+function injectProductSchema(ap,p,id){
+  var base='https://www.triakar.com';
+  var url=base+'/product-detail.html?slug='+encodeURIComponent(id);
+  var imgs=(p.images||[]).map(function(im){
+    return (typeof im==='string'?im:(im&&im.url)||'')||'';
+  }).filter(Boolean).map(function(u){return u.indexOf('http')===0?u:base+'/'+u.replace(/^\//,'');});
+  if(!imgs.length)imgs=[base+'/assets/og-image.png'];
+  var mrp=ap.compare_at_price||ap.mrp||null;
+  var inStock=(ap.stock_qty==null)||Number(ap.stock_qty)>0;
+  if(ap.is_active===false)inStock=false;
+  var schema={
+    "@context":"https://schema.org",
+    "@type":"Product",
+    "name":p.name,
+    "description":(p.desc||p.long_desc||p.name||'').slice(0,500),
+    "image":imgs,
+    "sku":String(id),
+    "category":ap.category||"3D Printed Products",
+    "brand":{"@type":"Brand","name":"TriAkar"},
+    "offers":{
+      "@type":"Offer",
+      "url":url,
+      "priceCurrency":"INR",
+      "price":String(p.price||0),
+      "availability":inStock?"https://schema.org/InStock":"https://schema.org/OutOfStock",
+      "itemCondition":"https://schema.org/NewCondition",
+      "seller":{"@type":"Organization","name":"TriAkar"}
+    }
+  };
+  if(mrp&&mrp>p.price){schema.offers.priceSpecification={"@type":"UnitPriceSpecification","price":String(p.price),"priceCurrency":"INR"};}
+  var rating=ap.rating||ap.avg_rating||null;
+  var rcount=ap.review_count||ap.reviews_count||ap.rating_count||0;
+  if(rating&&rcount>0){
+    schema.aggregateRating={"@type":"AggregateRating","ratingValue":String(rating),"reviewCount":String(rcount)};
+  }
+  var crumbs={
+    "@context":"https://schema.org","@type":"BreadcrumbList",
+    "itemListElement":[
+      {"@type":"ListItem","position":1,"name":"Home","item":base+"/"},
+      {"@type":"ListItem","position":2,"name":"Shop","item":base+"/products.html"},
+      {"@type":"ListItem","position":3,"name":p.name,"item":url}
+    ]
+  };
+  ['taProdSchema','taCrumbSchema'].forEach(function(eid){var old=document.getElementById(eid);if(old)old.remove();});
+  var s1=document.createElement('script');s1.type='application/ld+json';s1.id='taProdSchema';s1.textContent=JSON.stringify(schema);document.head.appendChild(s1);
+  var s2=document.createElement('script');s2.type='application/ld+json';s2.id='taCrumbSchema';s2.textContent=JSON.stringify(crumbs);document.head.appendChild(s2);
+}
+
 function renderProduct(ap){
   const id=ap.slug||ap.id||'arc-desk';
   // compute discount % from API fields
@@ -475,6 +525,7 @@ function renderProduct(ap){
   };
   curProduct={...p, id, slug:id};
   window._prodId=id;
+  try{ injectProductSchema(ap,p,id); }catch(_){}
   document.getElementById('prodName').textContent=p.name;
   document.getElementById('breadProd').textContent=p.name;
   document.getElementById('prodPrice').textContent='₹'+p.price.toLocaleString('en-IN');
