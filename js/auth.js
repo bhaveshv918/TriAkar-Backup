@@ -104,6 +104,9 @@ const Auth = (function () {
     if (!res.ok) throw new Error(data.error || 'Login failed');
     _save(data.access_token, data.user, data.refresh_token, data.expires_in);
     _updateNav();
+    // Merge any guest cart with the server cart so nothing added while
+    // logged out is lost. Best-effort — never blocks the login result.
+    try { if (typeof Cart !== 'undefined' && Cart.mergeOnLogin) await Cart.mergeOnLogin(); } catch (_) {}
     return data;
   }
 

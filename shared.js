@@ -190,6 +190,31 @@ const Cart=(function(){
     }catch(_){}
   }
 
+  // Called right after a successful login. Merges the guest (local) cart
+  // with the server cart so nothing the user added while logged out is
+  // lost, then persists the merged result back to the server.
+  async function mergeOnLogin(){
+    const tok=localStorage.getItem('ta_token');
+    if(!tok)return;
+    let srv=[];
+    try{
+      const res=await fetch(_API+'/api/cart',{headers:{'Authorization':'Bearer '+tok}});
+      if(res.ok){const j=await res.json();srv=(j&&j.items)||[];}
+    }catch(_){return;}
+    (srv||[]).forEach(function(s){
+      const sid=s.id,scolor=s.color||s.variant||'',sq=s.quantity||s.qty||1;
+      const idx=items.findIndex(i=>i.id===sid&&i.color===scolor);
+      if(idx>-1){
+        if(sq>items[idx].quantity)items[idx].quantity=sq;
+        if(!items[idx].image&&(s.image||s.img))items[idx].image=s.image||s.img;
+      }else{
+        items.push({id:sid,name:s.name,price:s.price,quantity:sq,color:scolor,image:s.image||s.img||''});
+      }
+    });
+    save(); // persists locally + pushes merged cart to server
+    render();
+  }
+
   async function _enrichImages(){
     const missing=items.filter(function(i){return !i.image;});
     if(!missing.length)return false;
@@ -239,7 +264,7 @@ const Cart=(function(){
       _enrichImages().then(changed=>{if(changed)_renderCartItems(el);});
     }
   }
-  return{add,changeQty,total,getItems,clear,render,badge,loadFromServer,_enrichImages};
+  return{add,changeQty,total,getItems,clear,render,badge,loadFromServer,mergeOnLogin,_enrichImages};
 })();
 
 function openCart(){
