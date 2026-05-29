@@ -90,6 +90,81 @@ window._FOOTER_HTML = `<footer>
 </footer>`;
 
 /* ════════════════════════════════════════════════════════════════════
+   PWA — manifest link, theme-color, and service-worker registration.
+   Injected here so it runs site-wide without editing every page <head>.
+   ════════════════════════════════════════════════════════════════════ */
+(function(){
+  try{
+    var head=document.head||document.getElementsByTagName('head')[0];
+    if(head){
+      if(!head.querySelector('link[rel="manifest"]')){
+        var m=document.createElement('link');m.rel='manifest';m.href='/manifest.json';head.appendChild(m);
+      }
+      if(!head.querySelector('meta[name="theme-color"]')){
+        var t=document.createElement('meta');t.name='theme-color';t.content='#161614';head.appendChild(t);
+      }
+      if(!head.querySelector('link[rel="apple-touch-icon"]')){
+        var a=document.createElement('link');a.rel='apple-touch-icon';a.href='/favicon.svg';head.appendChild(a);
+      }
+      if(!head.querySelector('meta[name="apple-mobile-web-app-capable"]')){
+        var c=document.createElement('meta');c.name='apple-mobile-web-app-capable';c.content='yes';head.appendChild(c);
+      }
+    }
+  }catch(_){}
+  /* Register service worker (skip localhost file:// & http to avoid dev noise) */
+  if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
+    window.addEventListener('load',function(){
+      navigator.serviceWorker.register('/sw.js').catch(function(){});
+    });
+  }
+})();
+
+/* ════════════════════════════════════════════════════════════════════
+   MOBILE BOTTOM NAV — app-style tab bar, shown only on small screens.
+   Cart/wishlist badges reuse the .cart-badge/.wishlist-badge classes so
+   shared.js keeps them in sync automatically.
+   ════════════════════════════════════════════════════════════════════ */
+(function(){
+  function build(){
+    if(document.getElementById('taBottomNav'))return;
+    /* Product detail has its own sticky mobile buy-bar; skip the tab bar there */
+    if(document.getElementById('mobileBuyBar'))return;
+    var path=(location.pathname||'').toLowerCase();
+    function on(names){return names.some(function(n){return path===n||path.endsWith('/'+n);});}
+    var isHome=on(['','/','index.html'])||path==='/';
+    var isShop=on(['products.html','product-detail.html']);
+    var isWish=on(['wishlist.html']);
+    var isAcct=on(['account.html']);
+
+    var nav=document.createElement('nav');
+    nav.id='taBottomNav';nav.className='ta-bottomnav';
+    nav.setAttribute('aria-label','Primary');
+    nav.innerHTML=
+      '<a href="/index.html" class="tabn-item'+(isHome?' active':'')+'" aria-label="Home">'+
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>'+
+        '<span>Home</span></a>'+
+      '<a href="/products.html" class="tabn-item'+(isShop?' active':'')+'" aria-label="Shop">'+
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>'+
+        '<span>Shop</span></a>'+
+      '<a href="/wishlist.html" class="tabn-item'+(isWish?' active':'')+'" aria-label="Wishlist">'+
+        '<span class="tabn-ico-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>'+
+        '<span class="wishlist-badge tabn-badge" id="tabnWishBadge">0</span></span>'+
+        '<span>Saved</span></a>'+
+      '<a href="#" class="tabn-item" aria-label="Cart" onclick="if(window.openCart){openCart();}return false;">'+
+        '<span class="tabn-ico-wrap"><svg viewBox="0 0 18 18" fill="none"><path d="M1 1h2.5l1.6 8h8.4l1.5-5.5H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="14.5" r="1.2" fill="currentColor"/><circle cx="13" cy="14.5" r="1.2" fill="currentColor"/></svg>'+
+        '<span class="cart-badge tabn-badge" id="tabnCartBadge">0</span></span>'+
+        '<span>Cart</span></a>'+
+      '<a href="/account.html" class="tabn-item'+(isAcct?' active':'')+'" aria-label="Account">'+
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>'+
+        '<span>Account</span></a>';
+    document.body.appendChild(nav);
+    document.body.classList.add('has-bottomnav');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',build);
+  else build();
+})();
+
+/* ════════════════════════════════════════════════════════════════════
    ACCESSIBILITY WIDGET — site-wide
    partials.js is a blocking script at the top of <body>, so saved
    settings are applied to <html> before first paint = zero flash.
