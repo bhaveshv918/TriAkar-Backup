@@ -709,6 +709,164 @@ document.addEventListener('DOMContentLoaded',function(){
   document.body.appendChild(wa);
 })();
 
+/* ══ SITE-WIDE SEARCH OVERLAY ══════════════════════════════ */
+(function(){
+  let _built = false, _data = null, _loading = null, _activeIdx = -1, _results = [];
+
+  function _api(){
+    return (window.location.hostname === 'localhost')
+      ? 'http://localhost:3000' : 'https://triakar.onrender.com';
+  }
+
+  function _normLocal(){
+    if (typeof window.PRODUCTS === 'undefined') return null;
+    return Object.entries(window.PRODUCTS).map(function(e){
+      const slug = e[0], p = e[1];
+      const cdn = (typeof window.getProductImage === 'function') ? window.getProductImage(p) : null;
+      return { slug: slug, name: p.name, price: p.price, category: p.category,
+        desc: p.short_description || p.description || '',
+        image: cdn || p.image || '' };
+    });
+  }
+
+  function _loadData(){
+    if (_data) return Promise.resolve(_data);
+    if (_loading) return _loading;
+    const local = _normLocal();
+    if (local && local.length) _data = local; // instant fallback
+    _loading = fetch(_api() + '/api/products')
+      .then(function(r){ if(!r.ok) throw 0; return r.json(); })
+      .then(function(d){
+        const ps = d && d.products;
+        if (ps && ps.length){
+          _data = ps.map(function(p){
+            return { slug: p.slug, name: p.name, price: p.price, category: p.category,
+              desc: p.short_description || p.description || '',
+              image: (p.images && p.images.length) ? p.images[0] : '' };
+          });
+        }
+        return _data;
+      })
+      .catch(function(){ return _data; });
+    return local && local.length ? Promise.resolve(_data) : _loading;
+  }
+
+  function _build(){
+    if (_built) return;
+    _built = true;
+    const ov = document.createElement('div');
+    ov.className = 'ta-search-ov';
+    ov.id = 'taSearchOv';
+    ov.innerHTML =
+      '<div class="ta-search-box" role="dialog" aria-modal="true" aria-label="Search products">'
+      + '<div class="ta-search-head">'
+      + '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M12.4 12.4L16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
+      + '<input type="search" id="taSearchInput" placeholder="Search products…" aria-label="Search products" autocomplete="off">'
+      + '<button class="ta-search-esc" type="button" aria-label="Close search">Esc</button>'
+      + '</div>'
+      + '<div class="ta-search-results" id="taSearchResults"></div>'
+      + '</div>';
+    ov.addEventListener('click', function(e){ if (e.target === ov) closeSearch(); });
+    document.body.appendChild(ov);
+    ov.querySelector('.ta-search-esc').addEventListener('click', closeSearch);
+    const inp = ov.querySelector('#taSearchInput');
+    inp.addEventListener('input', function(){ _render(inp.value); });
+    inp.addEventListener('keydown', _onKey);
+    _loadData();
+  }
+
+  function _render(q){
+    const box = document.getElementById('taSearchResults');
+    if (!box) return;
+    q = (q || '').trim().toLowerCase();
+    _activeIdx = -1;
+    if (!q){
+      _results = [];
+      box.innerHTML = '<div class="ta-search-empty">Start typing to search the catalog.</div>';
+      return;
+    }
+    const data = _data || [];
+    _results = data.filter(function(p){
+      return ((p.name||'') + ' ' + (p.desc||'') + ' ' + (p.category||'')).toLowerCase().indexOf(q) !== -1;
+    }).slice(0, 8);
+    if (!_results.length){
+      box.innerHTML = '<div class="ta-search-empty">No products match “' + _esc(q) + '”.</div>';
+      return;
+    }
+    box.innerHTML = _results.map(function(p, i){
+      const img = p.image
+        ? '<img src="' + _esc(p.image) + '" alt="" loading="lazy">'
+        : '<span class="ta-sr-noimg"></span>';
+      return '<a class="ta-search-item" data-i="' + i + '" href="product-detail.html?slug=' + encodeURIComponent(p.slug) + '">'
+        + '<span class="ta-sr-img">' + img + '</span>'
+        + '<span class="ta-sr-txt"><span class="ta-sr-name">' + _esc(p.name) + '</span>'
+        + '<span class="ta-sr-cat">' + _esc(p.category || '') + '</span></span>'
+        + '<span class="ta-sr-price">₹' + Number(p.price).toLocaleString('en-IN') + '</span></a>';
+    }).join('')
+      + '<button class="ta-search-all" type="button" onclick="window.location.href=\'/products.html?search=\'+encodeURIComponent(document.getElementById(\'taSearchInput\').value.trim())">See all results →</button>';
+  }
+
+  function _onKey(e){
+    if (e.key === 'Escape'){ closeSearch(); return; }
+    const items = _results.length;
+    if (e.key === 'ArrowDown'){ e.preventDefault(); _activeIdx = Math.min(_activeIdx + 1, items - 1); _highlight(); }
+    else if (e.key === 'ArrowUp'){ e.preventDefault(); _activeIdx = Math.max(_activeIdx - 1, -1); _highlight(); }
+    else if (e.key === 'Enter'){
+      if (_activeIdx >= 0 && _results[_activeIdx]){
+        window.location.href = 'product-detail.html?slug=' + encodeURIComponent(_results[_activeIdx].slug);
+      } else {
+        const v = e.target.value.trim();
+        if (v) window.location.href = '/products.html?search=' + encodeURIComponent(v);
+      }
+    }
+  }
+
+  function _highlight(){
+    const els = document.querySelectorAll('.ta-search-item');
+    els.forEach(function(el, i){ el.classList.toggle('active', i === _activeIdx); });
+    if (_activeIdx >= 0 && els[_activeIdx]) els[_activeIdx].scrollIntoView({ block: 'nearest' });
+  }
+
+  window.openSearch = function(prefill){
+    _build();
+    _loadData();
+    const ov = document.getElementById('taSearchOv');
+    const inp = document.getElementById('taSearchInput');
+    ov.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    if (typeof prefill === 'string' && prefill) inp.value = prefill;
+    _render(inp.value);
+    setTimeout(function(){ inp.focus(); }, 30);
+  };
+
+  window.closeSearch = function(){
+    const ov = document.getElementById('taSearchOv');
+    if (ov) ov.classList.remove('open');
+    document.body.style.overflow = '';
+  };
+
+  // "/" keyboard shortcut (ignore when typing in a field)
+  document.addEventListener('keydown', function(e){
+    if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target;
+    const tag = t && t.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+    e.preventDefault();
+    window.openSearch();
+  });
+
+  // Hook nav/drawer search inputs to open the overlay on focus
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('.nav-search input, .drawer-search input').forEach(function(inp){
+      inp.addEventListener('focus', function(e){
+        e.preventDefault();
+        inp.blur();
+        window.openSearch(inp.value);
+      });
+    });
+  });
+})();
+
 /* ══ CALLBACK MODAL ════════════════════════════════════════ */
 function openCallbackModal(){
   let ov=document.getElementById('cbOverlay');
