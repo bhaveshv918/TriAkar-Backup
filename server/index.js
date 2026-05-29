@@ -21,6 +21,7 @@ import categoryRoutes    from './routes/categories.js';
 import pincodeRoutes     from './routes/pincode.js';
 import promoRoutes       from './routes/promo.js';
 import reviewRoutes      from './routes/reviews.js';
+import webhookRoutes     from './routes/webhooks.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 /* ── ENV VALIDATION (fail fast on missing secrets) ────────── */
@@ -169,6 +170,12 @@ const notifyLimiter = rateLimit({
   legacyHeaders: false,
 });
 app.use('/api/notify', notifyLimiter);
+
+/* ── 4b. WEBHOOKS (raw body — MUST precede express.json) ──────
+   Razorpay signs the raw request bytes; the global JSON parser below
+   would consume the stream and break HMAC verification, so this route
+   is mounted with its own express.raw() parser first. */
+app.use('/api/webhooks', webhookRoutes);
 
 /* ── 5. BODY PARSING (size-limited) ───────────────────────── */
 // Image upload routes allow up to 15 MB (multipart handled by multer, not express.json)
