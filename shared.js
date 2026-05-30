@@ -1405,3 +1405,69 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('/sw.js').catch(function(){});
   });
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   LIQUID GLASS — micro-interactions (toast, ripple, scroll-reveal)
+   ════════════════════════════════════════════════════════════════════ */
+(function(){
+  /* ── Toast notifications ── */
+  window.showToast = function(message, type){
+    type = type || 'success';
+    var t = document.createElement('div');
+    t.className = 'toast toast-' + type;
+    var icon = type === 'error' ? '✕' : (type === 'info' ? 'ℹ' : '✓');
+    var ic = document.createElement('span'); ic.className = 'toast-icon'; ic.textContent = icon;
+    var msg = document.createElement('span'); msg.textContent = message;
+    t.appendChild(ic); t.appendChild(msg);
+    document.body.appendChild(t);
+    requestAnimationFrame(function(){ t.classList.add('show'); });
+    setTimeout(function(){
+      t.classList.remove('show');
+      setTimeout(function(){ t.remove(); }, 320);
+    }, 3000);
+  };
+
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ── Button ripple ── */
+  function createRipple(e){
+    var btn = e.currentTarget;
+    var rect = btn.getBoundingClientRect();
+    var size = Math.max(rect.width, rect.height);
+    var r = document.createElement('span');
+    r.style.cssText = 'position:absolute;width:'+size+'px;height:'+size+'px;left:'+
+      (e.clientX-rect.left-size/2)+'px;top:'+(e.clientY-rect.top-size/2)+
+      'px;background:rgba(255,255,255,.3);border-radius:50%;transform:scale(0);'+
+      'animation:ta-ripple .5s linear;pointer-events:none;z-index:0';
+    var cs = getComputedStyle(btn);
+    if(cs.position === 'static') btn.style.position = 'relative';
+    btn.style.overflow = 'hidden';
+    btn.appendChild(r);
+    setTimeout(function(){ r.remove(); }, 520);
+  }
+  function wireRipples(root){
+    (root||document).querySelectorAll('.btn-primary,.btn-accent,.btn-add-cart').forEach(function(b){
+      if(b._taRipple) return; b._taRipple = 1;
+      b.addEventListener('click', createRipple);
+    });
+  }
+
+  /* ── Scroll-reveal for .fade-in-up ── */
+  function wireReveal(root){
+    var els = (root||document).querySelectorAll('.fade-in-up');
+    if(reduce || !('IntersectionObserver' in window)){
+      els.forEach(function(el){ el.classList.add('visible'); });
+      return;
+    }
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if(en.isIntersecting){ en.target.classList.add('visible'); io.unobserve(en.target); }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+    els.forEach(function(el){ io.observe(el); });
+  }
+
+  function init(){ if(!reduce) wireRipples(); wireReveal(); }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
