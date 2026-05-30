@@ -409,6 +409,8 @@ function toggleWishlist(el){
   const name=el.getAttribute('data-name')||'';
   if(!slug)return;
   Wishlist.toggle(slug,name);
+  /* heart pop animation */
+  if(el.classList.contains('wl-heart')){el.classList.remove('pop');void el.offsetWidth;el.classList.add('pop');}
 }
 
 function openCart(){
@@ -430,6 +432,9 @@ function addToCartBtn(btnEl,product){
   if(!product)return;
   Cart.add({id:product.id,name:product.name,price:product.price,color:product.color||'',image:product.image||product.img||''});
   gtagEvent('add_to_cart',{currency:'INR',value:product.price,items:[{item_id:product.id,item_name:product.name,price:product.price}]});
+  /* feedback: toast + cart-badge bounce */
+  if(window.showToast) showToast((product.name||'Item')+' added to cart','success');
+  document.querySelectorAll('.cart-badge,.tabn-badge').forEach(function(b){b.classList.remove('pop');void b.offsetWidth;b.classList.add('pop');});
   if(!btnEl)return;
   // Guard against re-trigger while in "Added" state
   if(btnEl.dataset.adding==='1')return;
