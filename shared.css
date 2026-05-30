@@ -20,6 +20,31 @@
   --warm:#645F59;
   --accent:#C4622A; --accent-l:#D98B50;
 
+  /* ── LIQUID GLASS SYSTEM — 3 standard variants ──────────
+     A = light frosted  → on light / ivory surfaces
+     B = dark smoked     → on charcoal / dark sections
+     C = ultra-clear     → floating over imagery / vivid bg
+     Apply via .glass-a / .glass-b / .glass-c, or inherit the
+     vars directly (background:var(--glass-a-bg); etc). */
+  --glass-blur: blur(20px) saturate(180%);
+  --glass-blur-strong: blur(30px) saturate(200%);
+  --glass-radius: 20px;
+
+  --glass-a-bg: rgba(244,242,236,.62);
+  --glass-a-border: rgba(255,255,255,.55);
+  --glass-a-shadow: 0 10px 34px rgba(22,22,20,.14), inset 0 1px 0 rgba(255,255,255,.65), inset 0 -1px 1px rgba(0,0,0,.04);
+  --glass-a-sheen: linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,0) 46%);
+
+  --glass-b-bg: rgba(22,22,20,.55);
+  --glass-b-border: rgba(255,255,255,.20);
+  --glass-b-shadow: 0 10px 34px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.18), inset 0 -1px 1px rgba(0,0,0,.3);
+  --glass-b-sheen: linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,0) 46%);
+
+  --glass-c-bg: rgba(255,255,255,.16);
+  --glass-c-border: rgba(255,255,255,.6);
+  --glass-c-shadow: 0 10px 40px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.7), inset 0 -8px 22px rgba(255,255,255,.06);
+  --glass-c-sheen: linear-gradient(180deg,rgba(255,255,255,.30),rgba(255,255,255,0) 50%);
+
   --notice-h: 38px;
   --nav-h: 64px;
   --total-h: calc(var(--notice-h) + var(--nav-h)); /* = 102px desktop */
@@ -65,6 +90,36 @@ a{color:inherit;text-decoration:none}
 ul{list-style:none}
 img{display:block;max-width:100%;height:auto}
 
+/* ── LIQUID GLASS — reusable surfaces ────────────────
+   .glass-a/.glass-b/.glass-c = the 3 standards.
+   Add .glass-pill for fully-rounded ends.
+   The ::after layer is the specular "liquid" sheen; it sits
+   under content (z-index:0) and ignores pointer events. */
+.glass-a,.glass-b,.glass-c{
+  position:relative;
+  -webkit-backdrop-filter:var(--glass-blur);
+  backdrop-filter:var(--glass-blur);
+  border-radius:var(--glass-radius);
+  border:1px solid transparent;
+  isolation:isolate;
+}
+.glass-a{background:var(--glass-a-bg);border-color:var(--glass-a-border);box-shadow:var(--glass-a-shadow)}
+.glass-b{background:var(--glass-b-bg);border-color:var(--glass-b-border);box-shadow:var(--glass-b-shadow);color:var(--ivory)}
+.glass-c{background:var(--glass-c-bg);border-color:var(--glass-c-border);box-shadow:var(--glass-c-shadow);
+  -webkit-backdrop-filter:var(--glass-blur-strong);backdrop-filter:var(--glass-blur-strong)}
+.glass-a::after,.glass-b::after,.glass-c::after{
+  content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;
+}
+.glass-a::after{background:var(--glass-a-sheen)}
+.glass-b::after{background:var(--glass-b-sheen)}
+.glass-c::after{background:var(--glass-c-sheen)}
+.glass-pill{border-radius:999px}
+@media(prefers-reduced-transparency:reduce){
+  .glass-a{background:var(--ivory)}
+  .glass-b{background:var(--charcoal)}
+  .glass-c{background:rgba(40,40,38,.9)}
+}
+
 /* ── NOTICE BAR ────────────────────────────────────── */
 .notice-bar{
   position:fixed; top:0; left:0; right:0; z-index:1001;
@@ -92,14 +147,27 @@ nav.main-nav{
   left:0; right:0; z-index:1000;
   height:var(--nav-h);
   display:flex; align-items:center;
-  transition:background .4s, box-shadow .4s;
+  border:1px solid transparent;
+  /* smooth "liquid glass pop-up" transition into the floating capsule */
+  transition:top .45s cubic-bezier(.22,1,.36,1), left .45s cubic-bezier(.22,1,.36,1),
+             right .45s cubic-bezier(.22,1,.36,1), height .45s cubic-bezier(.22,1,.36,1),
+             border-radius .45s cubic-bezier(.22,1,.36,1), background .4s, box-shadow .4s, border-color .4s;
 }
+/* On scroll the bar detaches from the edges and becomes a rounded,
+   frosted glass capsule with a visible curved boundary (iOS-style). */
 nav.main-nav.scrolled{
-  background:rgba(244,242,236,.70);
-  backdrop-filter:blur(18px) saturate(150%);
-  -webkit-backdrop-filter:blur(18px) saturate(150%);
-  box-shadow:0 1px 0 rgba(226,222,215,.6), 0 6px 24px rgba(22,22,20,.06);
-  border-bottom:1px solid rgba(255,255,255,.45);
+  top:12px;
+  left:16px; right:16px;
+  height:54px;
+  border-radius:22px;
+  background:var(--glass-a-bg);
+  -webkit-backdrop-filter:var(--glass-blur);
+  backdrop-filter:var(--glass-blur);
+  border-color:var(--glass-a-border);
+  box-shadow:var(--glass-a-shadow);
+}
+@media(max-width:600px){
+  nav.main-nav.scrolled{ top:8px; left:10px; right:10px; border-radius:18px; }
 }
 .nav-inner{
   display:flex; align-items:center; justify-content:space-between;
@@ -288,15 +356,15 @@ nav.main-nav.scrolled{
   position:fixed;
   top:var(--total-h);
   left:0;right:0;z-index:997;
-  background:rgba(244,242,236,.82);
-  backdrop-filter:blur(18px) saturate(140%);
-  -webkit-backdrop-filter:blur(18px) saturate(140%);
-  border-bottom:1px solid rgba(255,255,255,.4);
+  background:var(--glass-a-bg);
+  -webkit-backdrop-filter:var(--glass-blur);
+  backdrop-filter:var(--glass-blur);
+  border-bottom:1px solid var(--glass-a-border);
   padding:0 var(--pad) 16px;
   flex-direction:column;
   max-height:calc(100vh - var(--total-h));
   overflow-y:auto;
-  box-shadow:0 8px 32px rgba(0,0,0,.1);
+  box-shadow:var(--glass-a-shadow);
 }
 .nav-drawer.open{display:flex}
 .nav-drawer a{
@@ -471,7 +539,7 @@ nav.main-nav.scrolled{
 .d1{transition-delay:.08s}.d2{transition-delay:.16s}.d3{transition-delay:.24s}
 
 /* ── CART SIDEBAR ───────────────────────────────────── */
-.cart-sidebar{position:fixed;right:0;top:0;bottom:0;z-index:1200;width:min(400px,100%);background:rgba(250,250,248,.82);backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);border-left:1px solid rgba(255,255,255,.5);box-shadow:-4px 0 32px rgba(0,0,0,.12);transform:translateX(100%);transition:transform .4s cubic-bezier(.22,1,.36,1);display:flex;flex-direction:column}
+.cart-sidebar{position:fixed;right:0;top:0;bottom:0;z-index:1200;width:min(400px,100%);background:var(--glass-a-bg);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);border-left:1px solid var(--glass-a-border);box-shadow:-8px 0 36px rgba(22,22,20,.16),inset 1px 0 0 rgba(255,255,255,.5);transform:translateX(100%);transition:transform .4s cubic-bezier(.22,1,.36,1);display:flex;flex-direction:column}
 .cart-sidebar.open{transform:none}
 .cart-overlay{position:fixed;inset:0;z-index:1190;background:rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .4s}
 .cart-overlay.open{opacity:1;pointer-events:all}
@@ -568,7 +636,7 @@ body.has-buy-bar .wa-float{display:none}
 @media(prefers-reduced-motion:reduce){.wa-float{animation:none}}
 
 /* ── SCROLL TO TOP ─── */
-.scroll-top{position:fixed;bottom:24px;right:22px;z-index:998;width:42px;height:42px;border-radius:50%;background:rgba(22,22,20,.62);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid rgba(255,255,255,.22);box-shadow:0 8px 32px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.16);color:rgba(255,255,255,.95);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;pointer-events:none;transform:translateY(10px) scale(.9);transition:opacity .25s ease,transform .25s ease}
+.scroll-top{position:fixed;bottom:24px;right:22px;z-index:998;width:42px;height:42px;border-radius:50%;background:var(--glass-b-bg);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);border:1px solid var(--glass-b-border);box-shadow:var(--glass-b-shadow);color:rgba(255,255,255,.95);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;pointer-events:none;transform:translateY(10px) scale(.9);transition:opacity .25s ease,transform .25s ease}
 .scroll-top.show{opacity:1;pointer-events:all;transform:translateY(0) scale(1)}
 .scroll-top:hover{background:rgba(22,22,20,.82);border-color:rgba(255,255,255,.38);box-shadow:0 12px 40px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.22);transform:translateY(-2px) scale(1.07)}
 .scroll-top:active{transform:scale(.95);transition:transform .1s}
@@ -785,7 +853,7 @@ body.has-buy-bar .wa-float{display:none}
    WhatsApp float (bottom-right).
    ════════════════════════════════════════════════════════════ */
 /* Matches the scroll-to-top button (.scroll-top) — frosted glass, same size/shadow/hover */
-.a11y-fab{position:fixed;left:22px;bottom:24px;z-index:1002;width:42px;height:42px;border-radius:50%;background:rgba(22,22,20,.62);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid rgba(255,255,255,.22);box-shadow:0 8px 32px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.16);color:rgba(255,255,255,.95);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .25s ease,border-color .25s ease,box-shadow .25s ease,transform .25s ease}
+.a11y-fab{position:fixed;left:22px;bottom:24px;z-index:1002;width:42px;height:42px;border-radius:50%;background:var(--glass-b-bg);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);border:1px solid var(--glass-b-border);box-shadow:var(--glass-b-shadow);color:rgba(255,255,255,.95);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .25s ease,border-color .25s ease,box-shadow .25s ease,transform .25s ease}
 .a11y-fab:hover{background:rgba(22,22,20,.82);border-color:rgba(255,255,255,.38);box-shadow:0 12px 40px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.22);transform:translateY(-2px) scale(1.07)}
 .a11y-fab:active{transform:scale(.95);transition:transform .1s}
 .a11y-fab svg{width:18px;height:18px}
