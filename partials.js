@@ -30,7 +30,7 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
   </div>
 </nav>`;
 
-window._DRAWER_HTML = `<nav class="nav-drawer"><form class="drawer-search" role="search" onsubmit="return window.taSearch(this);"><input type="search" name="q" placeholder="Search products…" aria-label="Search products" autocomplete="off"><button type="submit" aria-label="Search"><svg width="16" height="16" viewBox="0 0 18 18" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M12.4 12.4L16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></form><a href="/products.html">Shop</a><a href="/custom.html">Custom Order</a><a href="/custom.html">Corporate Order</a><a href="/wishlist.html">Wishlist</a><a href="/stories.html">Our Stories</a><a href="/about.html">About</a><a href="/contact.html">Contact</a><a href="/track-order.html">Track Order</a></nav>`;
+window._DRAWER_HTML = `<nav class="nav-drawer"><form class="drawer-search" role="search" onsubmit="return window.taSearch(this);"><input type="search" name="q" placeholder="Search products…" aria-label="Search products" autocomplete="off"><button type="submit" aria-label="Search"><svg width="16" height="16" viewBox="0 0 18 18" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M12.4 12.4L16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></form><a href="/products.html">Shop</a><a href="/custom.html">Custom Order</a><a href="/custom.html">Corporate Order</a><a href="/wishlist.html">Wishlist</a><a href="/stories.html">Our Stories</a><a href="/about.html">About</a><a href="/contact.html">Contact</a><a href="/track-order.html">Track Order</a><a href="/account.html" class="drawer-login">Login</a></nav>`;
 
 /* Site-wide product search — used by nav + drawer search forms */
 window.taSearch = function(form){
@@ -234,7 +234,7 @@ window._FOOTER_HTML = `<footer>
         '<span class="tabn-ico-wrap"><svg viewBox="0 0 18 18" fill="none"><path d="M1 1h2.5l1.6 8h8.4l1.5-5.5H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="14.5" r="1.2" fill="currentColor"/><circle cx="13" cy="14.5" r="1.2" fill="currentColor"/></svg>'+
         '<span class="cart-badge tabn-badge" id="tabnCartBadge">0</span></span>'+
         '<span>Cart</span></a>'+
-      '<a href="/account.html" class="tabn-item'+(isAcct?' active':'')+'" aria-label="Account">'+
+      '<a href="/account.html#orders" class="tabn-item'+(isAcct?' active':'')+'" aria-label="Account">'+
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>'+
         '<span>Account</span></a>';
     document.body.appendChild(nav);
