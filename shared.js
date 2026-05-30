@@ -736,6 +736,7 @@ document.addEventListener('DOMContentLoaded',function(){
 
 /* ══ WHATSAPP FLOATING BUTTON ══════════════════════════════ */
 (function(){
+  return; /* WhatsApp float disabled per request */
   if(document.querySelector('.mobile-buy-bar'))return;
   const wa=document.createElement('a');
   wa.className='wa-float';

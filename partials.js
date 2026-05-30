@@ -137,13 +137,6 @@ window._FOOTER_HTML = `<footer>
       return '<div class="notice-slide'+(i===0?' active':'')+'">'+n+'</div>';
     }).join('');
     bar.innerHTML=
-      '<div class="ta-topbar-l1">'+
-        '<span class="ttb-left">'+
-          '<a href="tel:+919217555833">📞 +91 9217-555-833</a>'+
-          '<a href="'+WA+'" target="_blank" rel="noopener">💬 WhatsApp</a>'+
-        '</span>'+
-        '<a href="/custom.html" class="ttb-corp">Bulk / Corporate Order? →</a>'+
-      '</div>'+
       '<div class="ta-topbar-l2"><div class="notice-carousel">'+slides+'</div></div>';
     document.body.insertBefore(bar,document.body.firstChild);
 
