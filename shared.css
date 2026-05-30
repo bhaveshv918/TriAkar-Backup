@@ -256,12 +256,15 @@ nav.main-nav.scrolled{
 .wl-heart.active{color:var(--accent);border-color:var(--accent)}
 .wl-heart.active svg{fill:var(--accent);stroke:var(--accent)}
 .nav-shop{
-  font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;
-  padding:8px 16px;background:var(--accent);color:white;border:none;
-  transition:all .25s;white-space:nowrap;
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;
+  padding:9px 18px;border-radius:10px;border:none;color:#fff;white-space:nowrap;
+  background:linear-gradient(135deg,var(--accent),var(--accent-l),var(--accent));background-size:200% auto;
+  box-shadow:0 4px 14px rgba(196,98,42,.34),inset 0 1px 0 rgba(255,255,255,.28);
+  transition:all .3s cubic-bezier(.4,0,.2,1);
   order:1; /* always left of cart */
 }
-.nav-shop:hover{background:var(--accent-d);color:white}
+.nav-shop:hover{background-position:right center;transform:translateY(-1px);color:#fff;
+  box-shadow:0 7px 20px rgba(196,98,42,.44),inset 0 1px 0 rgba(255,255,255,.32)}
 
 /* NAV SEARCH — desktop pill in the nav bar */
 .nav-search{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--stone-p);border-radius:999px;padding:7px 14px;box-shadow:0 1px 2px rgba(22,22,20,.05);transition:border-color .2s,background .2s,box-shadow .2s;order:0}
@@ -403,37 +406,54 @@ nav.main-nav.scrolled{
 .t-body{font-size:14px;line-height:1.85;color:var(--warm);font-weight:300}
 
 /* ── BUTTONS ────────────────────────────────────────── */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:var(--font-b);font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;padding:13px 24px;border:none;cursor:pointer;transition:all .25s;text-decoration:none}
-.btn-dark{background:var(--charcoal);color:var(--ivory)}
-.btn-dark:hover{background:var(--char-2)}
-.btn-outline{background:none;border:1.5px solid var(--charcoal);color:var(--charcoal)}
-.btn-outline:hover{background:var(--charcoal);color:var(--ivory)}
-.btn-accent{background:var(--accent);color:white}
-.btn-accent:hover{background:var(--accent-d)}
+/* ── BUTTON SYSTEM — liquid glass, consistent roles site-wide ──
+   .btn-accent = PRIMARY orange (Buy Now / Add to Cart / Login / Submit)
+   .btn-dark   = charcoal glass (Checkout / dark CTAs) → warms to orange on hover
+   .btn-outline= glass outline (secondary)  ·  .btn-ghost = text link (tertiary) */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:var(--font-b);font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;padding:13px 26px;border:1px solid transparent;border-radius:12px;cursor:pointer;text-decoration:none;position:relative;overflow:hidden;transition:all .3s cubic-bezier(.4,0,.2,1)}
+.btn>*{position:relative;z-index:1}
+/* shared shine sweep for filled buttons */
+.btn-accent::before,.btn-dark::before{content:'';position:absolute;top:0;left:-120%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.22),transparent);transition:left .55s ease;pointer-events:none;z-index:0}
+.btn-accent:hover::before,.btn-dark:hover::before{left:120%}
+/* PRIMARY — orange liquid glass */
+.btn-accent{background:linear-gradient(135deg,var(--accent),var(--accent-l),var(--accent));background-size:200% auto;color:#fff;box-shadow:0 4px 18px rgba(196,98,42,.34),inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(0,0,0,.12)}
+.btn-accent:hover{background-position:right center;transform:translateY(-2px);box-shadow:0 9px 28px rgba(196,98,42,.46),inset 0 1px 0 rgba(255,255,255,.32)}
+.btn-accent:active{transform:translateY(0);box-shadow:0 3px 10px rgba(196,98,42,.3)}
+/* DARK — charcoal glass; warms to orange on hover for a consistent accent */
+.btn-dark{background:linear-gradient(135deg,var(--char-2),var(--charcoal));color:var(--ivory);box-shadow:0 4px 16px rgba(22,22,20,.26),inset 0 1px 0 rgba(255,255,255,.10)}
+.btn-dark:hover{background:linear-gradient(135deg,var(--accent),var(--accent-d));color:#fff;transform:translateY(-2px);box-shadow:0 9px 26px rgba(196,98,42,.34),inset 0 1px 0 rgba(255,255,255,.16)}
+.btn-dark:active{transform:translateY(0)}
+/* OUTLINE — glass outline */
+.btn-outline{background:rgba(255,255,255,.42);-webkit-backdrop-filter:var(--glass-blur-light);backdrop-filter:var(--glass-blur-light);border:1.5px solid rgba(22,22,20,.22);color:var(--charcoal);box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}
+.btn-outline:hover{background:rgba(196,98,42,.08);border-color:var(--accent);color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 18px rgba(196,98,42,.16),inset 0 1px 0 rgba(255,255,255,.6)}
+.btn-outline:active{transform:translateY(0)}
 .btn-ghost{display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:.11em;text-transform:uppercase;font-weight:500;color:var(--stone);background:none;border:none;border-bottom:1px solid transparent;padding:0;cursor:pointer;transition:all .25s;text-decoration:none}
 .btn-ghost:hover{color:var(--charcoal);border-bottom-color:var(--charcoal)}
 
 /* ── ADD TO CART BUTTON ── */
 .add-to-cart-btn{
-  display:inline-flex;align-items:center;justify-content:center;
+  display:inline-flex;align-items:center;justify-content:center;position:relative;overflow:hidden;
   font-family:var(--font-b);
   font-size:11px;
-  font-weight:600;
+  font-weight:700;
   letter-spacing:.14em;
   text-transform:uppercase;
-  background:none;
-  color:var(--accent);
-  border:1.5px solid var(--accent);
+  color:#fff;
+  border:1px solid transparent;
+  border-radius:12px;
   padding:13px 20px;
   cursor:pointer;
   min-height:44px;
   min-width:130px;
-  transition:all .22s ease;
+  background:linear-gradient(135deg,var(--accent),var(--accent-l),var(--accent));background-size:200% auto;
+  box-shadow:0 4px 16px rgba(196,98,42,.32),inset 0 1px 0 rgba(255,255,255,.26),inset 0 -1px 0 rgba(0,0,0,.1);
+  transition:all .3s cubic-bezier(.4,0,.2,1);
 }
 .add-to-cart-btn:hover{
-  background:var(--accent);
+  background-position:right center;
   color:#fff;
-  transform:translateY(-1px);
+  transform:translateY(-2px);
+  box-shadow:0 9px 26px rgba(196,98,42,.44),inset 0 1px 0 rgba(255,255,255,.3);
 }
 .add-to-cart-btn:active{
   transform:translateY(0) scale(.97);
@@ -999,9 +1019,6 @@ html.a11y-reduce-motion *,html.a11y-reduce-motion *::before,html.a11y-reduce-mot
 .btn-add-cart:hover{background:var(--accent);transform:translateY(-2px);
   box-shadow:0 8px 24px rgba(196,98,42,.35),inset 0 1px 0 rgba(255,255,255,.15)}
 .btn-add-cart:active{transform:translateY(0)}
-/* gentle, universal hover lift for the EXISTING primary button class */
-.btn-accent{transition:transform .25s ease,box-shadow .25s ease,background .25s ease}
-.btn-accent:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(196,98,42,.32)}
 
 /* ── Glass badges (new; existing .tag-accent untouched) ── */
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;
