@@ -32,8 +32,8 @@
 
   /* ── Configuration ─────────────────────────────────────── */
   const CFG = {
-    PASS_DURATION_MS: 1300,   /* slower, deliberate nozzle sweep (old-printer feel) */
-    LAYER_INTERVAL_MS: 600,   /* slower pause between layers */
+    PASS_DURATION_MS: 1050,   /* smooth, continuous nozzle sweep */
+    LAYER_INTERVAL_MS: 150,   /* brief reversal pause — keeps motion flowing */
     HOLD_MS:          1800,
     RESET_MS:          700,
     LAYER_HEIGHT_PX:     5,   /* must match .tpa-layer { height } in CSS */
@@ -196,47 +196,41 @@
     if (layerCountEl) layerCountEl.textContent = layerIndex;
   }
 
-  /* ── Single pass ────────────────────────────────────────── */
+  /* ── Single pass ──────────────────────────────────────────
+     One uninterrupted sweep across the bed. The head is never
+     snapped mid-pass: each pass starts exactly where the last
+     one ended (alternating sides), so motion stays continuous.
+     The layer is deposited at the midpoint, where the easing
+     naturally places the head over the centre — no jump.       */
   function runPass() {
     if (!isRunning) return;
 
-    const goRight  = (layerIndex % 2 === 0);
-    const startPct = goRight ? 8  : 92;
-    const endPct   = goRight ? 92 : 8;
-
-    /* 1. Snap gantry to current layer height (no anim) */
-    liftGantry(layerIndex, false);
-
-    /* 2. Snap head to start-of-pass X (no anim) */
-    slideHead(startPct, 0);
+    const goRight = (layerIndex % 2 === 0);
+    const endPct  = goRight ? 92 : 8;   /* sweeps to the opposite edge */
 
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      /* 3. Sweep head across */
+      /* one smooth sweep all the way across */
       slideHead(endPct, CFG.PASS_DURATION_MS);
 
-      /* 4. At midpoint: snap to center, deposit */
+      /* deposit at the midpoint — head is centred there, no snap */
+      setTimeout(() => {
+        if (isRunning) depositLayer();   /* layerIndex++ happens here */
+      }, CFG.PASS_DURATION_MS * 0.5);
+
+      /* at the end of the sweep: lift to the new layer height and chain.
+         The lift (0.3s) overlaps the start of the next sweep, so the
+         head glides sideways while the gantry rises — fluid, no stutter. */
       setTimeout(() => {
         if (!isRunning) return;
+        liftGantry(layerIndex, true);
 
-        slideHead(50, 0);   /* center for deposit */
-        depositLayer();     /* layerIndex++ happens here */
-
-        /* 5. Lift gantry to next layer position */
-        setTimeout(() => {
-          if (!isRunning) return;
-          liftGantry(layerIndex, true);   /* smooth lift */
-
-          if (layerIndex < totalLayers) {
-            setTimeout(runPass, CFG.LAYER_INTERVAL_MS);
-          } else {
-            /* Done — park head left, hold, then reset */
-            glow.classList.remove('on');
-            slideHead(8, 700);
-            setTimeout(reset, CFG.HOLD_MS);
-          }
-        }, 80);
-
-      }, CFG.PASS_DURATION_MS * 0.5);
+        if (layerIndex < totalLayers) {
+          setTimeout(runPass, CFG.LAYER_INTERVAL_MS);
+        } else {
+          glow.classList.remove('on');
+          setTimeout(reset, CFG.HOLD_MS);
+        }
+      }, CFG.PASS_DURATION_MS);
     }));
   }
 
