@@ -181,8 +181,20 @@ window._FOOTER_HTML = `<footer>
   }catch(_){}
   /* Register service worker (skip localhost file:// & http to avoid dev noise) */
   if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
+    /* Auto-reload once when a NEW service worker takes control, so deploys
+       reach users without a manual cache clear. Gated on an existing
+       controller so the first-ever install doesn't trigger a reload. */
+    var _swReloaded=false;
+    var _hadController=!!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange',function(){
+      if(_swReloaded || !_hadController) return;
+      _swReloaded=true;
+      location.reload();
+    });
     window.addEventListener('load',function(){
-      navigator.serviceWorker.register('/sw.js').catch(function(){});
+      navigator.serviceWorker.register('/sw.js').then(function(reg){
+        if(reg && reg.update) reg.update(); /* check for a newer SW on every load */
+      }).catch(function(){});
     });
   }
 })();
