@@ -96,7 +96,14 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
   const nav=document.querySelector('.main-nav');
   const toggle=document.querySelector('.nav-toggle');
   const drawer=document.querySelector('.nav-drawer');
-  if(nav) window.addEventListener('scroll',()=>nav.classList.toggle('scrolled',window.scrollY>10),{passive:true});
+  /* Attach unconditionally — the nav may be injected after this runs,
+     so resolve it at scroll time rather than capturing it once. */
+  window.addEventListener('scroll',function(){
+    var s=window.scrollY>10;
+    var n=document.querySelector('.main-nav');
+    if(n) n.classList.toggle('scrolled',s);
+    document.documentElement.classList.toggle('is-scrolled',s); /* slides the top notice bar away on scroll */
+  },{passive:true});
   if(toggle&&drawer){
     toggle.addEventListener('click',()=>{
       const o=drawer.classList.toggle('open');

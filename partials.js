@@ -111,7 +111,9 @@ window._FOOTER_HTML = `<footer>
       var st=document.createElement('style');st.id='taTopbarCSS';
       st.textContent=
         '.notice-bar{display:none!important}'+
-        '.ta-topbar{font-family:var(--font-b,inherit);background:var(--charcoal,#161614);color:var(--ivory,#F4F2EC)}'+
+        '.ta-topbar{position:fixed;top:0;left:0;right:0;z-index:1001;height:var(--notice-h);display:flex;align-items:center;justify-content:center;font-family:var(--font-b,inherit);background:var(--charcoal,#161614);color:var(--ivory,#F4F2EC);transition:transform .4s cubic-bezier(.22,1,.36,1),opacity .35s}'+
+        'html.is-scrolled .ta-topbar{transform:translateY(-100%);opacity:0;pointer-events:none}'+
+        '.ta-topbar-l2{width:100%}'+
         '.ta-topbar-l1{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:6px 20px;font-size:11px;letter-spacing:.02em;border-bottom:1px solid rgba(255,255,255,.08)}'+
         '.ta-topbar-l1 a{color:var(--ivory,#F4F2EC);text-decoration:none;opacity:.85;transition:opacity .2s}'+
         '.ta-topbar-l1 a:hover{opacity:1}'+
