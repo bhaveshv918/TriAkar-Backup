@@ -30,7 +30,7 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
   </div>
 </nav>`;
 
-window._DRAWER_HTML = `<nav class="nav-drawer"><form class="drawer-search" role="search" onsubmit="return window.taSearch(this);"><input type="search" name="q" placeholder="Search products…" aria-label="Search products" autocomplete="off"><button type="submit" aria-label="Search"><svg width="16" height="16" viewBox="0 0 18 18" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M12.4 12.4L16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></form><a href="/products.html">Shop</a><a href="/custom.html">Custom Order</a><a href="/wishlist.html">Wishlist</a><a href="/stories.html">Our Stories</a><a href="/about.html">About</a><a href="/contact.html">Contact</a><a href="/track-order.html">Track Order</a></nav>`;
+window._DRAWER_HTML = `<nav class="nav-drawer"><form class="drawer-search" role="search" onsubmit="return window.taSearch(this);"><input type="search" name="q" placeholder="Search products…" aria-label="Search products" autocomplete="off"><button type="submit" aria-label="Search"><svg width="16" height="16" viewBox="0 0 18 18" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M12.4 12.4L16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></form><a href="/products.html">Shop</a><a href="/custom.html">Custom Order</a><a href="/custom.html">Corporate Order</a><a href="/wishlist.html">Wishlist</a><a href="/stories.html">Our Stories</a><a href="/about.html">About</a><a href="/contact.html">Contact</a><a href="/track-order.html">Track Order</a></nav>`;
 
 /* Site-wide product search — used by nav + drawer search forms */
 window.taSearch = function(form){
@@ -121,7 +121,8 @@ window._FOOTER_HTML = `<footer>
         '.notice-carousel{position:relative;height:30px}'+
         '.notice-slide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:.04em;color:var(--ivory,#F4F2EC);opacity:0;transition:opacity .6s ease}'+
         '.notice-slide.active{opacity:.92}'+
-        '.nav-corp{display:inline-flex;align-items:center;background:var(--charcoal,#161614);color:#fff!important;padding:7px 16px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;border-radius:2px;text-decoration:none;transition:background .2s}'+
+        /* nav-corp pill removed from the top nav to prevent crowding/collision — corporate CTA lives in the top contact bar (ttb-corp), footer, and mobile drawer */
+        '.nav-corp{display:none!important}'+
         '.nav-corp:hover{background:var(--accent,#C4622A)}'+
         '@media(max-width:768px){.ta-topbar-l1{display:none}.nav-corp{display:none}}';
       head.appendChild(st);
