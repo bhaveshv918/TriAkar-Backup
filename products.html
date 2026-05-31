@@ -980,10 +980,18 @@ function buildCard(p) {
     + '</div>';
 
   if (!outOfStock) {
-    el.querySelector('.add-to-cart-btn').addEventListener('click', function() {
+    el.querySelector('.add-to-cart-btn').addEventListener('click', function(e) {
+      e.stopPropagation();
       addToCartBtn(this, { id: p.slug, name: p.name, price: p.price, color: 'Standard', image: (p.images&&p.images.length)?p.images[0]:'' });
     });
   }
+
+  // Whole card click → product detail (except interactive elements)
+  el.style.cursor = 'pointer';
+  el.addEventListener('click', function(e) {
+    if (e.target.closest('button, a, input, label')) return;
+    window.location.href = 'product-detail.html?slug=' + encodeURIComponent(p.slug);
+  });
 
   return el;
 }
