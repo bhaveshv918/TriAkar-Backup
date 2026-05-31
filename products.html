@@ -189,6 +189,7 @@
   .products-grid{grid-template-columns:1fr}.prod-foot{flex-direction:column;align-items:stretch;gap:8px}.qv-modal{grid-template-columns:1fr}.qv-img{min-height:200px}
   .fbar-sticky{position:static;box-shadow:none;border-bottom:1px solid rgba(0,0,0,.07)}
   .fsort-wrap{display:none}
+  .fcat-wrap{display:none}
   .fcat-strip{display:flex}
   .fp-cat-section{display:none}
   .fp-handle{display:block}
@@ -229,6 +230,16 @@
         <div class="fbar-chips" id="fbarChips"></div>
       </div>
       <div class="fbar-right">
+        <div class="fsort-wrap fcat-wrap">
+          <select id="catSel" class="fsort-sel" onchange="_onCatSelChange()" aria-label="Category">
+            <option value="all">All Products</option>
+            <option value="desk">Desk</option>
+            <option value="home">Home</option>
+            <option value="gifting">Gifting</option>
+            <option value="custom">Custom Parts</option>
+          </select>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
         <div class="fsort-wrap">
           <select id="sortSel" class="fsort-sel" onchange="applyFilters()" aria-label="Sort products">
             <option value="default">Featured</option>
@@ -1058,7 +1069,16 @@ function _updateFilterUI() {
   }
 }
 
+function _onCatSelChange() {
+  const sel = document.getElementById('catSel');
+  if (!sel) return;
+  _syncCatPills(sel.value);
+  curFilter = sel.value;
+  applyFilters();
+}
 function _syncCatPills(val) {
+  const sel = document.getElementById('catSel');
+  if (sel) sel.value = val;
   ['#fpCat', '#fcatStrip'].forEach(function(sel) {
     const c = document.querySelector(sel); if (!c) return;
     c.querySelectorAll('.fp-pill').forEach(p => p.classList.toggle('active', p.dataset.filter === val));
