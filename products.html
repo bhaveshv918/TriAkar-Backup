@@ -247,16 +247,21 @@
 .fsb-toggle-thumb{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2);transition:transform .25s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
 .fsb-toggle input:checked~.fsb-toggle-thumb{transform:translateX(18px)}
 
-/* Desktop: hide panel button + adjust grid cols */
+/* Desktop: hide the floating bar, use inline topbar inside grid */
 @media(min-width:901px){
-  .fopen-btn{display:none}
-  .fcat-wrap{display:none}
+  .fbar-sticky{display:none}
+  .fcat-strip{display:none!important}
   .products-grid{grid-template-columns:repeat(3,1fr)}
 }
 @media(max-width:900px){
   .shop-layout{grid-template-columns:1fr}
   .filter-sidebar{display:none}
+  .prd-topbar{display:none}
 }
+/* Products inline topbar (inside grid column) */
+.prd-topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 0 10px;border-bottom:1px solid rgba(22,22,20,.08);margin-bottom:0}
+.prd-topbar-count{font-size:12px;color:var(--stone);letter-spacing:.04em}
+.prd-topbar-right{display:flex;align-items:center;gap:10px}
 @media(max-width:1100px) and (min-width:901px){.products-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:600px){
   .products-grid{grid-template-columns:1fr}.prod-foot{flex-direction:column;align-items:stretch;gap:8px}.qv-modal{grid-template-columns:1fr}.qv-img{min-height:200px}
@@ -530,6 +535,19 @@
 
     <!-- PRODUCTS GRID -->
     <div class="products-main">
+    <div class="prd-topbar">
+      <span class="prd-topbar-count" id="prdCount"></span>
+      <div class="prd-topbar-right">
+        <div class="fsort-wrap">
+          <select id="prdSortSel" class="fsort-sel" onchange="_onPrdSort()" aria-label="Sort products">
+            <option value="default">Featured</option>
+            <option value="asc">Price: Low → High</option>
+            <option value="desc">Price: High → Low</option>
+          </select>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+    </div>
     <div class="products-grid" id="prodGrid"><div class="prod-card" data-cat="desk" data-price="1890">
   <span class="prod-badge badge-best">Bestseller</span>
   <a href="product-detail.html?slug=arc-desk">
@@ -984,9 +1002,11 @@ function applyFilters() {
 
   const cnt = document.getElementById('fcount');
   const sc = document.getElementById('shopCount');
+  const prd = document.getElementById('prdCount');
   const label = visible.length + ' product' + (visible.length !== 1 ? 's' : '');
   if (cnt) cnt.textContent = label;
   if (sc) sc.textContent = label;
+  if (prd) prd.textContent = label;
   _updateFilterUI();
 
   const nr = grid.querySelector('.no-results');
@@ -1361,6 +1381,12 @@ function _updateFilterUI() {
   }
 }
 
+function _onPrdSort() {
+  const prd = document.getElementById('prdSortSel');
+  const mob = document.getElementById('sortSel');
+  if (prd && mob) mob.value = prd.value;
+  applyFilters();
+}
 function _onCatSelChange() {
   const sel = document.getElementById('catSel');
   if (!sel) return;
