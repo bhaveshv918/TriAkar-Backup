@@ -49,19 +49,66 @@
 .shop-title{font-family:var(--font-g);font-size:clamp(40px,6vw,80px);font-weight:400;color:var(--ivory);letter-spacing:.04em;line-height:1}
 .shop-count{font-size:12px;color:var(--stone);margin-top:6px}
 
-/* FILTER BAR */
-.filter-bar{background:rgba(250,250,248,.85);backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%);border-bottom:1px solid rgba(255,255,255,.55);box-shadow:0 2px 12px rgba(0,0,0,.05);position:sticky;top:calc(var(--notice-h)+var(--nav-h));z-index:100}
-.filter-bar-inner{display:flex;align-items:stretch;gap:0}
-.fcat{display:flex;gap:0;border-right:1px solid var(--stone-p);flex:1}
-.fcat-btn{font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;padding:16px 22px;border:none;border-right:1px solid var(--stone-p);background:none;color:var(--stone);cursor:pointer;transition:all .2s;white-space:nowrap;position:relative}
-.fcat-btn:last-child{border-right:none}
-.fcat-btn::after{content:"";position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--accent);transform:scaleX(0);transition:transform .25s}
-.fcat-btn.active{color:var(--charcoal)}.fcat-btn.active::after{transform:scaleX(1)}
-.fcat-btn:hover{color:var(--charcoal);background:rgba(196,98,42,.05)}
-.fsort{display:flex;align-items:center;gap:8px;padding:0 20px;border-left:1px solid var(--stone-p);white-space:nowrap}
-.fsort-label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone)}
-.fsort select{font-size:11px;color:var(--charcoal);background:none;border:none;outline:none;cursor:pointer;font-family:var(--font-b);letter-spacing:.06em}
-.fcount{font-size:10px;color:var(--stone);padding:0 16px;display:flex;align-items:center;border-left:1px solid var(--stone-p);white-space:nowrap}
+/* SMART FILTER — sticky action bar */
+.fbar-sticky{position:sticky;top:calc(var(--notice-h) + var(--nav-h));z-index:100;background:rgba(250,250,248,.92);backdrop-filter:blur(20px) saturate(160%);-webkit-backdrop-filter:blur(20px) saturate(160%);border-bottom:1px solid rgba(0,0,0,.08);box-shadow:0 2px 16px rgba(0,0,0,.06)}
+.fbar-inner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0}
+.fbar-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow:hidden}
+.fbar-count{font-size:11px;color:var(--stone);white-space:nowrap;letter-spacing:.04em;flex-shrink:0}
+.fbar-chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
+.fbar-chips::-webkit-scrollbar{display:none}
+.fchip{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--charcoal);padding:4px 10px 4px 12px;border-radius:999px;background:rgba(196,98,42,.1);border:1px solid rgba(196,98,42,.25);white-space:nowrap;flex-shrink:0;cursor:pointer;transition:all .18s}
+.fchip:hover{background:rgba(196,98,42,.18)}
+.fchip-x{font-size:13px;color:var(--stone);line-height:1;opacity:.65;margin-left:1px}
+.fbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.fsort-wrap{position:relative;display:flex;align-items:center}
+.fsort-sel{appearance:none;-webkit-appearance:none;font-size:11px;font-weight:600;font-family:var(--font-b);letter-spacing:.06em;color:var(--charcoal);padding:8px 28px 8px 13px;border:1.5px solid rgba(22,22,20,.12);border-radius:999px;background:rgba(255,255,255,.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);cursor:pointer;outline:none;transition:border-color .18s,box-shadow .18s}
+.fsort-sel:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(196,98,42,.12)}
+.fsort-wrap svg{position:absolute;right:10px;pointer-events:none;color:var(--stone)}
+.fopen-btn{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-family:var(--font-b);padding:9px 17px;border-radius:999px;border:1.5px solid transparent;background:var(--charcoal);color:var(--ivory);cursor:pointer;transition:all .22s cubic-bezier(.4,0,.2,1);box-shadow:0 2px 12px rgba(22,22,20,.18),inset 0 1px 0 rgba(255,255,255,.08)}
+.fopen-btn:hover{background:var(--accent);transform:translateY(-1px);box-shadow:0 6px 20px rgba(196,98,42,.35)}
+.fopen-btn.has-filters{background:var(--accent)}
+.fopen-badge{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;font-size:9px;font-weight:800;background:rgba(255,255,255,.25);color:#fff;transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
+.fopen-badge.pop{transform:scale(1.5)}
+/* Backdrop */
+.fp-backdrop{position:fixed;inset:0;background:rgba(22,22,20,.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:400;opacity:0;pointer-events:none;transition:opacity .3s}
+.fp-backdrop.open{opacity:1;pointer-events:auto}
+/* Panel */
+.fp-panel{position:fixed;top:0;right:0;bottom:0;width:min(420px,92vw);z-index:401;background:rgba(250,250,248,.98);backdrop-filter:blur(28px) saturate(170%);-webkit-backdrop-filter:blur(28px) saturate(170%);border-left:1px solid rgba(255,255,255,.65);box-shadow:-16px 0 56px rgba(22,22,20,.2);display:flex;flex-direction:column;transform:translateX(105%);transition:transform .42s cubic-bezier(.32,0,.15,1);will-change:transform}
+.fp-panel.open{transform:translateX(0)}
+.fp-handle{width:36px;height:4px;border-radius:2px;background:rgba(22,22,20,.15);margin:12px auto 0;flex-shrink:0;display:none}
+.fp-header{display:flex;align-items:center;justify-content:space-between;padding:22px 24px 16px;border-bottom:1px solid rgba(22,22,20,.07);flex-shrink:0}
+.fp-title{font-family:var(--font-g);font-size:22px;font-weight:700;color:var(--charcoal)}
+.fp-close{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(22,22,20,.07);border:none;font-size:15px;color:var(--charcoal);cursor:pointer;transition:background .18s,transform .22s}
+.fp-close:hover{background:rgba(22,22,20,.14);transform:rotate(90deg)}
+.fp-body{flex:1;overflow-y:auto;padding:22px 24px;display:flex;flex-direction:column;gap:26px;scrollbar-width:thin;scrollbar-color:rgba(22,22,20,.12) transparent}
+.fp-body::-webkit-scrollbar{width:4px}.fp-body::-webkit-scrollbar-thumb{background:rgba(22,22,20,.12);border-radius:2px}
+.fp-sec-label{display:block;font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--stone);margin-bottom:11px}
+.fp-pills{display:flex;flex-wrap:wrap;gap:7px}
+.fp-pill{font-size:12px;font-weight:600;font-family:var(--font-b);padding:9px 17px;border-radius:999px;border:1.5px solid rgba(22,22,20,.12);background:rgba(255,255,255,.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:var(--warm);cursor:pointer;transition:all .22s cubic-bezier(.4,0,.2,1);white-space:nowrap}
+.fp-pill:hover{border-color:var(--accent-l);color:var(--charcoal);transform:translateY(-1px);box-shadow:0 3px 10px rgba(0,0,0,.07)}
+.fp-pill.active{background:linear-gradient(135deg,var(--accent),var(--accent-l));border-color:transparent;color:#fff;box-shadow:0 4px 14px rgba(196,98,42,.3)}
+.fp-range-val{font-size:14px;font-weight:700;color:var(--charcoal);margin-bottom:12px}
+.fp-range{width:100%;accent-color:var(--accent);cursor:pointer;height:4px;border-radius:2px}
+.fp-range-labels{display:flex;justify-content:space-between;margin-top:8px;font-size:11px;color:var(--stone)}
+.fp-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.fp-toggle-label{font-size:14px;font-weight:600;color:var(--charcoal)}
+.fp-toggle-sub{font-size:11px;color:var(--stone);margin-top:2px}
+.fp-toggle{position:relative;display:inline-block;width:46px;height:26px;flex-shrink:0}
+.fp-toggle input{opacity:0;width:0;height:0;position:absolute}
+.fp-toggle-track{position:absolute;inset:0;border-radius:13px;background:rgba(22,22,20,.18);transition:background .25s;cursor:pointer}
+.fp-toggle input:checked+.fp-toggle-track{background:var(--accent)}
+.fp-toggle-thumb{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.2);transition:transform .28s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
+.fp-toggle input:checked~.fp-toggle-thumb{transform:translateX(20px)}
+.fp-mats{display:flex;gap:7px;flex-wrap:wrap}
+.fp-mat{display:none}
+.fp-mat+label{font-size:12px;font-weight:600;font-family:var(--font-b);padding:9px 17px;border-radius:999px;border:1.5px solid rgba(22,22,20,.12);background:rgba(255,255,255,.75);color:var(--warm);cursor:pointer;transition:all .22s cubic-bezier(.4,0,.2,1);white-space:nowrap;display:inline-block}
+.fp-mat+label:hover{border-color:var(--accent-l);color:var(--charcoal)}
+.fp-mat:checked+label{background:linear-gradient(135deg,var(--accent),var(--accent-l));border-color:transparent;color:#fff;box-shadow:0 4px 14px rgba(196,98,42,.3)}
+.fp-footer{padding:16px 24px 20px;border-top:1px solid rgba(22,22,20,.07);display:flex;gap:10px;flex-shrink:0;background:rgba(250,250,248,.98)}
+.fp-reset{flex:1;padding:13px;border-radius:12px;border:1.5px solid rgba(22,22,20,.13);background:transparent;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-family:var(--font-b);color:var(--warm);cursor:pointer;transition:all .2s}
+.fp-reset:hover{border-color:var(--accent);color:var(--accent)}
+.fp-apply{flex:2;padding:13px;border-radius:12px;background:var(--charcoal);color:var(--ivory);border:none;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-family:var(--font-b);cursor:pointer;transition:all .22s cubic-bezier(.4,0,.2,1);box-shadow:0 4px 14px rgba(22,22,20,.2)}
+.fp-apply:hover{background:var(--accent);box-shadow:0 6px 20px rgba(196,98,42,.35);transform:translateY(-1px)}
 
 .products-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--stone-p);min-height:400px}
 .prod-card{display:flex;flex-direction:column;background:rgba(250,250,248,.82);backdrop-filter:blur(10px) saturate(140%);-webkit-backdrop-filter:blur(10px) saturate(140%);position:relative;overflow:hidden;transition:background .25s,box-shadow .3s,transform .3s cubic-bezier(.4,0,.2,1)}
@@ -118,30 +165,6 @@
 .shop-sub{max-width:560px;margin:14px auto 0;color:var(--stone-l);font-size:14px;line-height:1.65;font-weight:300}
 .shop-count{margin-top:12px}
 
-/* F4: Collection filter pills (occasion / budget / material) */
-.collection-bar{background:rgba(250,250,248,.7);-webkit-backdrop-filter:blur(14px) saturate(150%);backdrop-filter:blur(14px) saturate(150%);border-bottom:1px solid rgba(255,255,255,.5);padding:13px var(--pad)}
-.coll-row{display:flex;align-items:center;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-.coll-row::-webkit-scrollbar{display:none}
-.coll-row+.coll-row{margin-top:10px}
-.coll-label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:600;white-space:nowrap;flex-shrink:0;margin-right:2px}
-.coll-pill{flex-shrink:0;font-size:11.5px;font-weight:600;padding:8px 15px;border:1px solid rgba(22,22,20,.12);background:rgba(255,255,255,.6);-webkit-backdrop-filter:blur(8px) saturate(140%);backdrop-filter:blur(8px) saturate(140%);color:var(--warm);border-radius:999px;cursor:pointer;white-space:nowrap;transition:all .22s cubic-bezier(.4,0,.2,1);font-family:var(--font-b);box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}
-.coll-pill:hover{border-color:var(--accent-l);color:var(--charcoal);background:rgba(196,98,42,.06);transform:translateY(-1px)}
-.coll-pill.active{background:linear-gradient(135deg,var(--accent),var(--accent-l));border-color:transparent;color:#fff;box-shadow:0 4px 14px rgba(196,98,42,.34),inset 0 1px 0 rgba(255,255,255,.25)}
-.coll-mat{display:flex;align-items:center;gap:14px;flex-shrink:0}
-.coll-mat label{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--warm);cursor:pointer;white-space:nowrap}
-.coll-mat input{accent-color:var(--accent);cursor:pointer}
-.coll-count{font-size:11px;color:var(--stone);white-space:nowrap;margin-left:auto;flex-shrink:0;padding-left:12px}
-@media(max-width:768px){.coll-count{display:none}}
-
-/* Secondary filter row: price + availability */
-.filter-row2{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:12px var(--pad);background:rgba(250,250,248,.7);-webkit-backdrop-filter:blur(14px) saturate(150%);backdrop-filter:blur(14px) saturate(150%);border-bottom:1px solid rgba(255,255,255,.5)}
-.fr2-group{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--warm)}
-.fr2-group label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:600}
-.fr2-range{accent-color:var(--accent);cursor:pointer}
-.fr2-chip{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:600;color:var(--warm);cursor:pointer;user-select:none;padding:6px 13px;border-radius:999px;background:rgba(255,255,255,.6);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(22,22,20,.1);transition:all .2s}
-.fr2-chip:hover{border-color:var(--accent-l);color:var(--charcoal)}
-.fr2-clear{font-size:10px;color:var(--accent);background:rgba(196,98,42,.08);border:1px solid rgba(196,98,42,.25);border-radius:999px;padding:6px 14px;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;font-weight:700;margin-left:auto;transition:all .2s}
-.fr2-clear:hover{background:rgba(196,98,42,.16);border-color:var(--accent);transform:translateY(-1px)}
 
 /* Quick View modal */
 .qv-overlay{position:fixed;inset:0;background:rgba(22,22,20,.55);backdrop-filter:blur(3px);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px}
@@ -157,9 +180,13 @@
 .qv-desc{font-size:13.5px;color:var(--warm);font-weight:300;line-height:1.7}
 .qv-actions{display:flex;gap:10px;margin-top:8px}
 .qv-actions .btn{flex:1;justify-content:center}
-@media(max-width:1100px){.products-grid{grid-template-columns:repeat(2,1fr)}.fcat-btn{padding:14px 14px;font-size:9.5px}}
-@media(max-width:768px){.filter-bar-inner{flex-wrap:wrap}.fcat{flex-wrap:wrap}.fsort,.fcount{border-left:none;border-top:1px solid var(--stone-p);width:100%;padding:10px var(--pad)}}
-@media(max-width:600px){.products-grid{grid-template-columns:1fr}.prod-foot{flex-direction:column;align-items:stretch;gap:8px}.qv-modal{grid-template-columns:1fr}.qv-img{min-height:200px}}
+@media(max-width:1100px){.products-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){
+  .products-grid{grid-template-columns:1fr}.prod-foot{flex-direction:column;align-items:stretch;gap:8px}.qv-modal{grid-template-columns:1fr}.qv-img{min-height:200px}
+  .fp-handle{display:block}
+  .fp-panel{top:auto;right:0;left:0;bottom:0;width:100%;max-height:90vh;border-left:none;border-top:1px solid rgba(255,255,255,.6);border-radius:24px 24px 0 0;box-shadow:0 -16px 56px rgba(22,22,20,.22);transform:translateY(105%)}
+  .fp-panel.open{transform:translateY(0)}
+}
 </style>
 <script defer src="/_vercel/insights/script.js"></script>
 <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -181,67 +208,106 @@
   </div>
 </div>
 
-<div class="filter-bar">
-  <div class="mw" style="padding-top:0;padding-bottom:0">
-    <div class="filter-bar-inner">
-      <div class="fcat" id="fcatList">
-        <button class="fcat-btn active" data-filter="all">All Products</button>
-        <button class="fcat-btn" data-filter="desk">Desk</button>
-        <button class="fcat-btn" data-filter="home">Home</button>
-        <button class="fcat-btn" data-filter="gifting">Gifting</button>
-        <button class="fcat-btn" data-filter="custom">Custom Parts</button>
+<!-- SMART FILTER BAR -->
+<div class="fbar-sticky" id="fbarSticky">
+  <div class="mw">
+    <div class="fbar-inner">
+      <div class="fbar-left">
+        <span class="fbar-count" id="fcount"></span>
+        <div class="fbar-chips" id="fbarChips"></div>
       </div>
-      <div class="fsort">
-        <span class="fsort-label">Sort by</span>
-        <select id="sortSel" onchange="applyFilters()">
-          <option value="default">Featured</option>
-          <option value="asc">Price: Low to High</option>
-          <option value="desc">Price: High to Low</option>
-        </select>
-      </div>
-      <div class="fcount" id="fcount">18 items</div>
-    </div>
-  </div>
-  <div class="mw" style="padding-top:0;padding-bottom:0">
-    <div class="filter-row2">
-      <div class="fr2-group">
-        <label for="fr2Range">Max price</label>
-        <input type="range" id="fr2Range" class="fr2-range" min="0" max="2000" step="50" value="2000" aria-label="Maximum price">
-        <span class="fr2-val" id="fr2Val">Up to ₹2,000</span>
-      </div>
-      <label class="fr2-chip"><input type="checkbox" id="fr2Stock"> In stock only</label>
-      <button class="fr2-clear" id="fr2Clear" type="button">Reset filters</button>
-    </div>
-  </div>
-  <div class="mw" style="padding-top:0;padding-bottom:0">
-    <div class="collection-bar">
-      <div class="coll-row" id="collOcc">
-        <span class="coll-label">Occasion</span>
-        <button class="coll-pill active" data-occ="all">All</button>
-        <button class="coll-pill" data-occ="birthday">Birthday</button>
-        <button class="coll-pill" data-occ="anniversary">Anniversary</button>
-        <button class="coll-pill" data-occ="corporate">Corporate</button>
-        <button class="coll-pill" data-occ="housewarming">Housewarming</button>
-        <button class="coll-pill" data-occ="last-minute">Last Minute ⚡</button>
-      </div>
-      <div class="coll-row" id="collBudget">
-        <span class="coll-label">Budget</span>
-        <button class="coll-pill active" data-min="0" data-max="999999">All Budgets</button>
-        <button class="coll-pill" data-min="0" data-max="499">Under ₹499</button>
-        <button class="coll-pill" data-min="500" data-max="999">₹500–₹999</button>
-        <button class="coll-pill" data-min="1000" data-max="2499">₹1000–₹2499</button>
-        <button class="coll-pill" data-min="2500" data-max="999999">₹2500+</button>
-      </div>
-      <div class="coll-row">
-        <span class="coll-label">Material</span>
-        <div class="coll-mat" id="collMat">
-          <label><input type="checkbox" value="PLA"> PLA</label>
-          <label><input type="checkbox" value="ABS"> ABS</label>
-          <label><input type="checkbox" value="PETG"> PETG</label>
+      <div class="fbar-right">
+        <div class="fsort-wrap">
+          <select id="sortSel" class="fsort-sel" onchange="applyFilters()" aria-label="Sort products">
+            <option value="default">Featured</option>
+            <option value="asc">Price: Low → High</option>
+            <option value="desc">Price: High → Low</option>
+          </select>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
-        <span class="coll-count" id="collCount">Showing 19 products</span>
+        <button class="fopen-btn" id="fopenBtn" onclick="openFilters()" aria-haspopup="dialog" aria-expanded="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+          <span>Filters</span>
+          <span class="fopen-badge" id="fopenBadge" hidden>0</span>
+        </button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- FILTER PANEL BACKDROP -->
+<div class="fp-backdrop" id="fpBackdrop" onclick="closeFilters()"></div>
+
+<!-- FILTER PANEL -->
+<div class="fp-panel" id="fpPanel" role="dialog" aria-label="Filter products" aria-modal="true">
+  <div class="fp-handle"></div>
+  <div class="fp-header">
+    <span class="fp-title">Filters</span>
+    <button class="fp-close" onclick="closeFilters()" aria-label="Close filters">✕</button>
+  </div>
+  <div class="fp-body">
+    <div class="fp-section">
+      <span class="fp-sec-label">Category</span>
+      <div class="fp-pills" id="fpCat">
+        <button class="fp-pill active" data-filter="all">All Products</button>
+        <button class="fp-pill" data-filter="desk">Desk</button>
+        <button class="fp-pill" data-filter="home">Home</button>
+        <button class="fp-pill" data-filter="gifting">Gifting</button>
+        <button class="fp-pill" data-filter="custom">Custom Parts</button>
+      </div>
+    </div>
+    <div class="fp-section">
+      <span class="fp-sec-label">Occasion</span>
+      <div class="fp-pills" id="fpOcc">
+        <button class="fp-pill active" data-occ="all">All</button>
+        <button class="fp-pill" data-occ="birthday">Birthday</button>
+        <button class="fp-pill" data-occ="anniversary">Anniversary</button>
+        <button class="fp-pill" data-occ="corporate">Corporate</button>
+        <button class="fp-pill" data-occ="housewarming">Housewarming</button>
+        <button class="fp-pill" data-occ="last-minute">Last Minute ⚡</button>
+      </div>
+    </div>
+    <div class="fp-section">
+      <span class="fp-sec-label">Budget</span>
+      <div class="fp-pills" id="fpBudget">
+        <button class="fp-pill active" data-min="0" data-max="999999">All Budgets</button>
+        <button class="fp-pill" data-min="0" data-max="499">Under ₹499</button>
+        <button class="fp-pill" data-min="500" data-max="999">₹500–₹999</button>
+        <button class="fp-pill" data-min="1000" data-max="2499">₹1,000–₹2,499</button>
+        <button class="fp-pill" data-min="2500" data-max="999999">₹2,500+</button>
+      </div>
+    </div>
+    <div class="fp-section">
+      <span class="fp-sec-label">Max Price</span>
+      <div class="fp-range-val" id="fpRangeVal">Up to ₹2,000</div>
+      <input type="range" class="fp-range" id="fpRange" min="0" max="2000" step="50" value="2000" aria-label="Maximum price">
+      <div class="fp-range-labels"><span>₹0</span><span id="fpRangeMax">₹2,000</span></div>
+    </div>
+    <div class="fp-section">
+      <div class="fp-toggle-row">
+        <div>
+          <div class="fp-toggle-label">In Stock Only</div>
+          <div class="fp-toggle-sub">Hide sold-out items</div>
+        </div>
+        <label class="fp-toggle">
+          <input type="checkbox" id="fpStock">
+          <div class="fp-toggle-track"></div>
+          <div class="fp-toggle-thumb"></div>
+        </label>
+      </div>
+    </div>
+    <div class="fp-section">
+      <span class="fp-sec-label">Material</span>
+      <div class="fp-mats" id="fpMat">
+        <input type="checkbox" class="fp-mat" id="matPLA" value="PLA"><label for="matPLA">PLA+</label>
+        <input type="checkbox" class="fp-mat" id="matABS" value="ABS"><label for="matABS">ABS</label>
+        <input type="checkbox" class="fp-mat" id="matPETG" value="PETG"><label for="matPETG">PETG</label>
+      </div>
+    </div>
+  </div>
+  <div class="fp-footer">
+    <button class="fp-reset" id="fpResetBtn">Reset all</button>
+    <button class="fp-apply" id="fpApplyBtn">Show results</button>
   </div>
 </div>
 
@@ -699,11 +765,10 @@ function applyFilters() {
 
   const cnt = document.getElementById('fcount');
   const sc = document.getElementById('shopCount');
-  const cc = document.getElementById('collCount');
-  const label = visible.length + ' item' + (visible.length !== 1 ? 's' : '');
+  const label = visible.length + ' product' + (visible.length !== 1 ? 's' : '');
   if (cnt) cnt.textContent = label;
-  if (sc) sc.textContent = visible.length + ' products';
-  if (cc) cc.textContent = 'Showing ' + visible.length + ' product' + (visible.length !== 1 ? 's' : '');
+  if (sc) sc.textContent = label;
+  _updateFilterUI();
 
   const nr = grid.querySelector('.no-results');
   if (!visible.length) {
@@ -715,61 +780,95 @@ function applyFilters() {
   try { if (typeof Wishlist !== 'undefined') Wishlist.refresh(); } catch (_) {}
 }
 
-// Secondary filter row — price range + availability
-function _initFilterRow2() {
-  const range = document.getElementById('fr2Range');
-  const out = document.getElementById('fr2Val');
-  const stock = document.getElementById('fr2Stock');
-  const clear = document.getElementById('fr2Clear');
+// Init the filter panel — price range, toggles, pills, apply/reset
+function _initFilterPanel() {
+  const range = document.getElementById('fpRange');
+  const rangeVal = document.getElementById('fpRangeVal');
+  const rangeMax = document.getElementById('fpRangeMax');
+
   if (range) {
-    // compute max price from current cards
     let max = 0;
     allCards.forEach(c => { const v = +c.dataset.price; if (v > max) max = v; });
     max = Math.max(max, 100);
     max = Math.ceil(max / 100) * 100;
     range.max = String(max);
+    if (rangeMax) rangeMax.textContent = fmtPrice(max);
     if (curMaxPrice === Infinity || curMaxPrice > max) { curMaxPrice = max; range.value = String(max); }
     else range.value = String(curMaxPrice);
-    if (out) out.textContent = 'Up to ' + fmtPrice(curMaxPrice);
+    if (rangeVal) rangeVal.textContent = 'Up to ' + fmtPrice(curMaxPrice);
     range.oninput = function() {
       curMaxPrice = +range.value;
-      if (out) out.textContent = 'Up to ' + fmtPrice(curMaxPrice);
-      applyFilters();
+      if (rangeVal) rangeVal.textContent = 'Up to ' + fmtPrice(curMaxPrice);
     };
   }
-  if (stock) stock.onchange = function() { curInStockOnly = stock.checked; applyFilters(); };
-  if (clear) clear.onclick = function() {
-    curInStockOnly = false; if (stock) stock.checked = false;
-    if (range) { curMaxPrice = +range.max; range.value = range.max; if (out) out.textContent = 'Up to ' + fmtPrice(curMaxPrice); }
-    applyFilters();
-  };
-}
 
-// F4 — collection filter pills (occasion / budget / material). Attach once.
-function _initCollectionFilters() {
-  const occ = document.getElementById('collOcc');
-  if (occ && !occ.dataset.bound) {
-    occ.dataset.bound = '1';
-    occ.addEventListener('click', function(e) {
-      const b = e.target.closest('.coll-pill'); if (!b) return;
-      occ.querySelectorAll('.coll-pill').forEach(p => p.classList.remove('active'));
+  const stock = document.getElementById('fpStock');
+  if (stock && !stock.dataset.bound) {
+    stock.dataset.bound = '1';
+    stock.onchange = function() { curInStockOnly = stock.checked; applyFilters(); };
+  }
+
+  const fpCat = document.getElementById('fpCat');
+  if (fpCat && !fpCat.dataset.bound) {
+    fpCat.dataset.bound = '1';
+    fpCat.addEventListener('click', function(e) {
+      const b = e.target.closest('.fp-pill'); if (!b || !b.dataset.filter) return;
+      fpCat.querySelectorAll('.fp-pill').forEach(p => p.classList.remove('active'));
+      b.classList.add('active'); curFilter = b.dataset.filter; applyFilters();
+    });
+  }
+
+  const fpOcc = document.getElementById('fpOcc');
+  if (fpOcc && !fpOcc.dataset.bound) {
+    fpOcc.dataset.bound = '1';
+    fpOcc.addEventListener('click', function(e) {
+      const b = e.target.closest('.fp-pill'); if (!b) return;
+      fpOcc.querySelectorAll('.fp-pill').forEach(p => p.classList.remove('active'));
       b.classList.add('active'); curOccasion = b.dataset.occ; applyFilters();
     });
   }
-  const bud = document.getElementById('collBudget');
-  if (bud && !bud.dataset.bound) {
-    bud.dataset.bound = '1';
-    bud.addEventListener('click', function(e) {
-      const b = e.target.closest('.coll-pill'); if (!b) return;
-      bud.querySelectorAll('.coll-pill').forEach(p => p.classList.remove('active'));
+
+  const fpBudget = document.getElementById('fpBudget');
+  if (fpBudget && !fpBudget.dataset.bound) {
+    fpBudget.dataset.bound = '1';
+    fpBudget.addEventListener('click', function(e) {
+      const b = e.target.closest('.fp-pill'); if (!b) return;
+      fpBudget.querySelectorAll('.fp-pill').forEach(p => p.classList.remove('active'));
       b.classList.add('active'); curBudgetMin = +b.dataset.min; curBudgetMax = +b.dataset.max; applyFilters();
     });
   }
-  const mat = document.getElementById('collMat');
-  if (mat && !mat.dataset.bound) {
-    mat.dataset.bound = '1';
-    mat.addEventListener('change', function() {
-      curMaterials = Array.from(mat.querySelectorAll('input:checked')).map(i => i.value);
+
+  const fpMat = document.getElementById('fpMat');
+  if (fpMat && !fpMat.dataset.bound) {
+    fpMat.dataset.bound = '1';
+    fpMat.addEventListener('change', function() {
+      curMaterials = Array.from(fpMat.querySelectorAll('input:checked')).map(i => i.value);
+      applyFilters();
+    });
+  }
+
+  const applyBtn = document.getElementById('fpApplyBtn');
+  if (applyBtn && !applyBtn.dataset.bound) {
+    applyBtn.dataset.bound = '1';
+    applyBtn.addEventListener('click', function() {
+      if (range) { curMaxPrice = +range.value; }
+      applyFilters();
+      closeFilters();
+    });
+  }
+
+  const resetBtn = document.getElementById('fpResetBtn');
+  if (resetBtn && !resetBtn.dataset.bound) {
+    resetBtn.dataset.bound = '1';
+    resetBtn.addEventListener('click', function() {
+      curFilter = 'all'; curOccasion = 'all'; curBudgetMin = 0; curBudgetMax = Infinity;
+      curInStockOnly = false; curMaterials = [];
+      if (stock) stock.checked = false;
+      if (range) { curMaxPrice = +range.max; range.value = range.max; if (rangeVal) rangeVal.textContent = 'Up to ' + fmtPrice(curMaxPrice); }
+      document.querySelectorAll('.fp-mat').forEach(i => i.checked = false);
+      document.querySelectorAll('#fpCat .fp-pill').forEach(p => p.classList.toggle('active', p.dataset.filter === 'all'));
+      document.querySelectorAll('#fpOcc .fp-pill').forEach(p => p.classList.toggle('active', p.dataset.occ === 'all'));
+      document.querySelectorAll('#fpBudget .fp-pill').forEach(p => p.classList.toggle('active', p.dataset.max === '999999'));
       applyFilters();
     });
   }
@@ -786,9 +885,9 @@ const _OCC_HERO = {
 function _applyOccasionFromURL() {
   const occParam = (new URLSearchParams(window.location.search).get('occasion') || '').trim().toLowerCase();
   if (!occParam) return;
-  const pill = document.querySelector('#collOcc .coll-pill[data-occ="' + occParam + '"]');
+  const pill = document.querySelector('#fpOcc .fp-pill[data-occ="' + occParam + '"]');
   if (!pill) return;
-  document.querySelectorAll('#collOcc .coll-pill').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#fpOcc .fp-pill').forEach(p => p.classList.remove('active'));
   pill.classList.add('active');
   curOccasion = occParam;
   const hero = _OCC_HERO[occParam];
@@ -838,15 +937,92 @@ function closeQuickView() {
 }
 document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeQuickView(); });
 
-// Use event delegation so dynamically-rebuilt pills also work
-document.getElementById('fcatList').addEventListener('click', function(e) {
-  const btn = e.target.closest('.fcat-btn');
-  if (!btn) return;
-  document.querySelectorAll('.fcat-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  curFilter = btn.dataset.filter;
-  applyFilters();
+// Filter panel open/close
+function openFilters() {
+  document.getElementById('fpPanel').classList.add('open');
+  document.getElementById('fpBackdrop').classList.add('open');
+  document.getElementById('fopenBtn').setAttribute('aria-expanded', 'true');
+  document.body.style.overflow = 'hidden';
+}
+function closeFilters() {
+  document.getElementById('fpPanel').classList.remove('open');
+  document.getElementById('fpBackdrop').classList.remove('open');
+  document.getElementById('fopenBtn').setAttribute('aria-expanded', 'false');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') { closeFilters(); closeQuickView(); }
 });
+
+// Update badge + chips from active filter state
+function _updateFilterUI() {
+  let count = 0;
+  const chips = [];
+  if (curFilter !== 'all') {
+    count++;
+    const lbl = (document.querySelector('#fpCat .fp-pill.active') || {}).textContent || curFilter;
+    chips.push({ label: lbl, clear: function() { _setFpPill('#fpCat', 'all', 'filter'); curFilter = 'all'; applyFilters(); } });
+  }
+  if (curOccasion !== 'all') {
+    count++;
+    const lbl = (document.querySelector('#fpOcc .fp-pill.active') || {}).textContent || curOccasion;
+    chips.push({ label: lbl, clear: function() { _setFpPill('#fpOcc', 'all', 'occ'); curOccasion = 'all'; applyFilters(); } });
+  }
+  if (curBudgetMax < 999999 || curBudgetMin > 0) {
+    count++;
+    const lbl = (document.querySelector('#fpBudget .fp-pill.active') || {}).textContent || 'Budget';
+    chips.push({ label: lbl, clear: function() { _setFpPillEl(document.querySelector('#fpBudget .fp-pill[data-max="999999"]')); curBudgetMin = 0; curBudgetMax = Infinity; applyFilters(); } });
+  }
+  if (curMaxPrice !== Infinity && curMaxPrice < +(document.getElementById('fpRange') || {}).max) {
+    count++;
+    chips.push({ label: 'Max ₹' + Number(curMaxPrice).toLocaleString('en-IN'), clear: function() { const r = document.getElementById('fpRange'); if (r) { curMaxPrice = +r.max; r.value = r.max; _updateRangeLabel(); } applyFilters(); } });
+  }
+  if (curInStockOnly) {
+    count++;
+    chips.push({ label: 'In stock', clear: function() { curInStockOnly = false; const s = document.getElementById('fpStock'); if (s) s.checked = false; applyFilters(); } });
+  }
+  if (curMaterials.length) {
+    count++;
+    chips.push({ label: curMaterials.join(', '), clear: function() { curMaterials = []; document.querySelectorAll('.fp-mat').forEach(i => i.checked = false); applyFilters(); } });
+  }
+
+  const badge = document.getElementById('fopenBadge');
+  const btn = document.getElementById('fopenBtn');
+  if (badge) {
+    badge.textContent = count;
+    badge.hidden = count === 0;
+    if (count > 0) { badge.classList.add('pop'); setTimeout(() => badge.classList.remove('pop'), 300); }
+  }
+  if (btn) btn.classList.toggle('has-filters', count > 0);
+
+  const chipsEl = document.getElementById('fbarChips');
+  if (chipsEl) {
+    chipsEl.innerHTML = chips.map(function(c, i) {
+      return '<button class="fchip" data-ci="' + i + '">' + c.label + '<span class="fchip-x">×</span></button>';
+    }).join('');
+    chipsEl.querySelectorAll('.fchip').forEach(function(el) {
+      el.addEventListener('click', function() { chips[+el.dataset.ci].clear(); });
+    });
+  }
+}
+
+function _setFpPill(containerSel, val, type) {
+  const container = document.querySelector(containerSel);
+  if (!container) return;
+  container.querySelectorAll('.fp-pill').forEach(p => p.classList.remove('active'));
+  const target = container.querySelector(type === 'filter' ? '[data-filter="' + val + '"]' : '[data-occ="' + val + '"]');
+  if (target) target.classList.add('active');
+}
+function _setFpPillEl(el) {
+  if (!el) return;
+  el.closest('.fp-pills').querySelectorAll('.fp-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+}
+function _updateRangeLabel() {
+  const r = document.getElementById('fpRange');
+  const v = document.getElementById('fpRangeVal');
+  if (r && v) v.textContent = 'Up to ' + fmtPrice(+r.value);
+}
 
 function loadFromLocal() {
   if (typeof PRODUCTS === 'undefined') return;
@@ -858,7 +1034,7 @@ function loadFromLocal() {
   grid.innerHTML = '';
   allCards = products.map(buildCard);
   allCards.forEach(function(c) { grid.appendChild(c); });
-  _initFilterRow2();
+  _initFilterPanel();
   var cat = new URLSearchParams(window.location.search).get('cat');
   var btn = cat ? document.querySelector('[data-filter="' + cat + '"]') : null;
   if (btn) btn.click(); else applyFilters();
@@ -877,7 +1053,7 @@ function syncFromAPI() {
       grid.innerHTML = '';
       allCards = products.map(buildCard);
       allCards.forEach(function(c) { grid.appendChild(c); });
-      _initFilterRow2();
+      _initFilterPanel();
       const cat = new URLSearchParams(window.location.search).get('cat');
       const btn = cat ? document.querySelector('[data-filter="' + cat + '"]') : null;
       if (btn) btn.click(); else applyFilters();
@@ -892,14 +1068,16 @@ function syncCategories() {
     .then(function(data) {
       const cats = data && data.categories;
       if (!cats || !cats.length) return; // keep hardcoded pills
-      const wrap = document.getElementById('fcatList');
+      const wrap = document.getElementById('fpCat');
       if (!wrap) return;
       const activeCat = curFilter || 'all';
+      wrap.dataset.bound = ''; // re-bind after rebuild
       wrap.innerHTML =
-        '<button class="fcat-btn' + (activeCat === 'all' ? ' active' : '') + '" data-filter="all">All Products</button>' +
+        '<button class="fp-pill' + (activeCat === 'all' ? ' active' : '') + '" data-filter="all">All Products</button>' +
         cats.map(function(c) {
-          return '<button class="fcat-btn' + (activeCat === c.slug ? ' active' : '') + '" data-filter="' + c.slug + '">' + c.name + '</button>';
+          return '<button class="fp-pill' + (activeCat === c.slug ? ' active' : '') + '" data-filter="' + c.slug + '">' + c.name + '</button>';
         }).join('');
+      _initFilterPanel();
     })
     .catch(function() { /* keep hardcoded categories — no error shown */ });
 }
@@ -910,7 +1088,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var ns = document.getElementById('navSearchInput');
     if (ns) ns.value = curSearch;
   }
-  _initCollectionFilters();
   _applyOccasionFromURL();
   loadFromLocal();
   syncFromAPI();
