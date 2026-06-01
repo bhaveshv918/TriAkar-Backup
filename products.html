@@ -275,10 +275,12 @@
   .prod-rating{margin-bottom:2px}
   .prod-short{font-size:11px;color:var(--stone);line-height:1.4;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
   /* Price: big, then MRP + % on same row below */
-  .prod-price-wrap{display:flex;flex-direction:column;gap:1px;margin-bottom:4px}
-  .prod-price{font-size:16px;font-weight:800;order:0}
-  .prod-mrp{font-size:11px;order:1}
-  .prod-off{font-size:13px;font-weight:800;color:#1a8a3c;order:1;background:none;padding:0;border:none;border-radius:0;display:inline}
+  .prod-price-wrap{display:flex;flex-direction:column;gap:2px;margin-bottom:4px}
+  .prod-price{font-size:16px;font-weight:800;order:0;display:block}
+  /* MRP + % OFF on same line */
+  .prod-mrp-row{display:flex;align-items:center;gap:5px}
+  .prod-mrp{font-size:11px}
+  .prod-off{font-size:11px;font-weight:700;color:#1a8a3c;background:none;padding:0;border:none;border-radius:0}
   /* Full-width Add to Cart at bottom */
   .prod-foot{flex-direction:row;align-items:center;justify-content:space-between;gap:8px;margin-top:auto}
   .add-to-cart-btn{width:auto;align-self:flex-start;font-size:9px;padding:5px 10px;letter-spacing:.03em;text-align:center}
@@ -700,9 +702,8 @@ function buildCard(p) {
   const mrp = (p.compare_at_price || p.mrp || 0);
   const off = (mrp > p.price) ? Math.round((1 - p.price / mrp) * 100) : 0;
   const priceBlock = '<div class="prod-price-wrap">'
-    + (mrp > p.price ? '<span class="prod-mrp">' + fmtPrice(mrp) + '</span>' : '')
     + '<span class="prod-price">' + fmtPrice(p.price) + '</span>'
-    + (off > 0 ? '<span class="prod-off">' + off + '% OFF</span>' : '')
+    + (mrp > p.price && off > 0 ? '<div class="prod-mrp-row"><span class="prod-mrp">' + fmtPrice(mrp) + '</span><span class="prod-off">' + off + '% OFF</span></div>' : '')
     + '</div>';
 
   const heartSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>';
