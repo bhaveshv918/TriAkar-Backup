@@ -724,9 +724,19 @@ function renderDropdowns(p){
     {id:'returns',title:'Returns and Damage Policy',content:'7-day return window for standard products. If your item arrives damaged or incorrect, email us a photo within 24 hours of delivery and we will reprint and reship at no charge. Custom orders are non-refundable once the design is approved and production begins. <a href="refund-policy.html" style="color:var(--accent)">Full policy</a>'},
     {id:'material',title:'Material and Sustainability',content:'Made from PLA+ — a plant-based bioplastic derived from corn starch, not petroleum. Non-toxic and significantly more eco-friendly than conventional plastics.'}
   ];
-  const dynamicAccs=(p.product_dropdowns||[]).map((d,i)=>({id:'dyn-'+i,title:d.title,content:d.content}));
-  const allAccs=[...staticAccs,...dynamicAccs];
-  container.innerHTML=allAccs.map(a=>`<div class="acc-item" id="acc-${a.id}"><button class="acc-trigger" onclick="toggleAcc('${a.id}')">${a.title} <div class="acc-icon">+</div></button><div class="acc-body" id="acc-body-${a.id}"><div class="acc-body-inner">${a.content}</div></div></div>`).join('');
+  // Customer-facing dropdowns/inputs from admin
+  const custDropdowns=(p.product_dropdowns||[]).filter(d=>d.title);
+  const custHtml=custDropdowns.length?'<div class="prod-cust-fields" style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;padding:16px 18px;background:var(--ivory);border:1px solid var(--stone-p);border-radius:12px">'
+    +'<div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--stone);margin-bottom:2px">Customisation Details</div>'
+    +custDropdowns.map((d,i)=>{
+      const fid='cust-'+i;
+      if(d.options&&d.options.length){
+        return `<div><label style="font-size:12px;font-weight:600;color:var(--charcoal);display:block;margin-bottom:5px">${d.title}</label><select id="${fid}" name="${d.title}" style="width:100%;padding:9px 12px;border:1.5px solid var(--stone-p);border-radius:8px;font-size:13px;font-family:var(--font-b);background:#fff;color:var(--charcoal);outline:none"><option value="">Select ${d.title}</option>${d.options.map(o=>`<option value="${o}">${o}</option>`).join('')}</select></div>`;
+      }
+      return `<div><label style="font-size:12px;font-weight:600;color:var(--charcoal);display:block;margin-bottom:5px">${d.title}</label><input id="${fid}" name="${d.title}" type="text" placeholder="Enter ${d.title}" style="width:100%;padding:9px 12px;border:1.5px solid var(--stone-p);border-radius:8px;font-size:13px;font-family:var(--font-b);background:#fff;color:var(--charcoal);outline:none;box-sizing:border-box"></div>`;
+    }).join('')
+    +'</div>':'';
+  container.innerHTML=custHtml+staticAccs.map(a=>`<div class="acc-item" id="acc-${a.id}"><button class="acc-trigger" onclick="toggleAcc('${a.id}')">${a.title} <div class="acc-icon">+</div></button><div class="acc-body" id="acc-body-${a.id}"><div class="acc-body-inner">${a.content}</div></div></div>`).join('');
   const confirmItem=document.getElementById('acc-confirm');
   const confirmBody=document.getElementById('acc-body-confirm');
   if(confirmItem&&confirmBody){confirmItem.classList.add('open');confirmBody.classList.add('open');}
