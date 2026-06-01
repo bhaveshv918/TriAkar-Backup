@@ -1217,16 +1217,26 @@ function loadFromLocal() {
   if (btn) btn.click(); else applyFilters();
 }
 
-// LAYER 2 — sync from API: 20s timeout, fallback to local data on failure
+function _showFetchError() {
+  grid.innerHTML = '<div class="fetch-error" style="display:flex">'
+    + '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01" stroke-linecap="round"/></svg>'
+    + '<div class="fetch-error-title">Unable to fetch products</div>'
+    + '<div class="fetch-error-sub">Something went wrong loading the products. Please check your connection and try again.</div>'
+    + '<button class="btn btn-accent" onclick="retryFetch()" style="margin-top:8px">↺ &nbsp;Retry</button>'
+    + '</div>';
+}
+function retryFetch() { _showSkeletons(6); syncFromAPI(); }
+
+// LAYER 2 — sync from API: 25s timeout, error state on failure (no dummy fallback)
 function syncFromAPI() {
   const ctrl = new AbortController();
-  const timer = setTimeout(function() { ctrl.abort(); }, 20000);
+  const timer = setTimeout(function() { ctrl.abort(); }, 25000);
   fetch(API_BASE + '/api/products', { signal: ctrl.signal })
     .then(function(res) { if (!res.ok) throw new Error('server'); return res.json(); })
     .then(function(data) {
       clearTimeout(timer);
       const products = data && data.products;
-      if (!products || !products.length) { loadFromLocal(); return; }
+      if (!products || !products.length) { _showFetchError(); return; }
       grid.innerHTML = '';
       allCards = products.map(buildCard);
       allCards.forEach(function(c) { grid.appendChild(c); });
@@ -1235,7 +1245,7 @@ function syncFromAPI() {
       const btn = cat ? document.querySelector('[data-filter="' + cat + '"]') : null;
       if (btn) btn.click(); else applyFilters();
     })
-    .catch(function() { clearTimeout(timer); loadFromLocal(); });
+    .catch(function() { clearTimeout(timer); _showFetchError(); });
 }
 
 // LAYER 3 — background sync categories from API; keeps hardcoded pills on failure

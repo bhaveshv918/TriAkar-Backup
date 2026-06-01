@@ -447,21 +447,37 @@ function initSwipe(){
   box.addEventListener('touchend',e=>{const dx=sx-e.changedTouches[0].clientX;if(Math.abs(dx)>40){dx>0?nextImage():prevImage();}});
 }
 
+function _showDetailError(slug){
+  const wrap=document.getElementById('prodName');
+  if(wrap&&wrap.querySelector('.skeleton')){
+    wrap.closest('.detail-info')||document.querySelector('.detail-info');
+    const main=document.querySelector('.detail-info')||document.querySelector('.detail-right');
+    if(main)main.innerHTML='<div style="padding:40px 0;text-align:center">'
+      +'<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="color:#ccc;margin-bottom:12px"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01" stroke-linecap="round"/></svg>'
+      +'<div style="font-size:16px;font-weight:700;margin-bottom:8px">Unable to load product</div>'
+      +'<p style="font-size:13px;color:var(--stone);margin-bottom:20px">Something went wrong. Please try again.</p>'
+      +'<button class="btn btn-accent" onclick="location.reload()">↺ &nbsp;Retry</button>'
+      +'&nbsp;&nbsp;<a href="products.html" class="btn btn-outline">Browse All Products</a>'
+      +'</div>';
+  }
+}
 function init(){
   const params=new URLSearchParams(window.location.search);
   const slug=params.get('slug');
   const id=slug||params.get('id')||'arc-desk';
 
-  // Render immediately from local data — no waiting for API cold start
-  const local=PRODS[id]||PRODS['arc-desk'];
-  if(local) renderProduct({...local, slug:id});
+  // Show skeleton while waiting for API — never render local demo data
 
   // Silently upgrade with live API data when/if it arrives
   if(slug){
     fetch('https://triakar.onrender.com/api/products/'+encodeURIComponent(slug))
       .then(r=>r.json())
-      .then(data=>{const ap=data.product||data;if(ap&&ap.name)renderProduct(ap);})
-      .catch(()=>{}); // already showing local data — ignore
+      .then(data=>{
+        const ap=data.product||data;
+        if(ap&&ap.name){renderProduct(ap);}
+        else{_showDetailError(slug);}
+      })
+      .catch(()=>_showDetailError(slug));
   }
 }
 
