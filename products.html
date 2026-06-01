@@ -1217,16 +1217,16 @@ function loadFromLocal() {
   if (btn) btn.click(); else applyFilters();
 }
 
-// LAYER 2 — background sync from API: 3s timeout, silent fallback to local data
+// LAYER 2 — sync from API: 20s timeout, fallback to local data on failure
 function syncFromAPI() {
   const ctrl = new AbortController();
-  const timer = setTimeout(function() { ctrl.abort(); }, 3000);
+  const timer = setTimeout(function() { ctrl.abort(); }, 20000);
   fetch(API_BASE + '/api/products', { signal: ctrl.signal })
     .then(function(res) { if (!res.ok) throw new Error('server'); return res.json(); })
     .then(function(data) {
       clearTimeout(timer);
       const products = data && data.products;
-      if (!products || !products.length) return; // keep local data
+      if (!products || !products.length) { loadFromLocal(); return; }
       grid.innerHTML = '';
       allCards = products.map(buildCard);
       allCards.forEach(function(c) { grid.appendChild(c); });
@@ -1235,7 +1235,7 @@ function syncFromAPI() {
       const btn = cat ? document.querySelector('[data-filter="' + cat + '"]') : null;
       if (btn) btn.click(); else applyFilters();
     })
-    .catch(function() { clearTimeout(timer); /* keep local data — no error shown */ });
+    .catch(function() { clearTimeout(timer); loadFromLocal(); });
 }
 
 // LAYER 3 — background sync categories from API; keeps hardcoded pills on failure
