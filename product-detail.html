@@ -268,7 +268,7 @@
         <span class="detail-usd" id="prodUsd"></span>
       </div>
       <p class="detail-desc" id="prodDesc"></p>
-      <p class="detail-desc" id="prodLongDesc" style="margin-top:-10px;font-size:13px;color:var(--warm);font-weight:300"></p>
+      <div class="detail-desc" id="prodLongDesc" style="margin-top:-10px;font-size:13px;font-weight:300"></div>
 
       <!-- TRUST ICONS — Amazon style (FIX annotation PDF p7) -->
       <div class="trust-strip-product">
@@ -404,6 +404,26 @@ const THUMB_SVGS = {
 };
 
 let qty=1, selVariant='', curProduct=null, currentImgIdx=0;
+function _mdRender(t){
+  if(!t)return'';
+  var h=t
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/^### (.+)$/gm,'<h4 style="font-size:15px;font-weight:700;color:var(--charcoal);margin:20px 0 6px">$1</h4>')
+    .replace(/^## (.+)$/gm,'<h3 style="font-size:17px;font-weight:700;color:var(--charcoal);margin:24px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--stone-p)">$1</h3>')
+    .replace(/^# (.+)$/gm,'<h2 style="font-size:20px;font-weight:700;color:var(--charcoal);margin:28px 0 10px">$1</h2>')
+    .replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/^[-•] (.+)$/gm,'<li>$1</li>');
+  h=h.replace(/(<li>[\s\S]*?<\/li>)(\n<li>[\s\S]*?<\/li>)*/g,function(m){return'<ul style="padding-left:20px;margin:10px 0;line-height:1.8">'+m+'</ul>';});
+  var parts=h.split(/\n{2,}/);
+  return parts.map(function(b){
+    b=b.trim();
+    if(!b)return'';
+    if(/^<(h[2-4]|ul)/.test(b))return b;
+    return'<p style="margin:10px 0;line-height:1.8;color:var(--warm)">'+b.replace(/\n/g,'<br>')+'</p>';
+  }).join('');
+}
 
 function prevImage(){
   const total=(window._thumbData||[]).length;
@@ -536,16 +556,15 @@ function renderProduct(ap){
   document.getElementById('prodDesc').textContent=p.desc;
   // long desc
   const ldEl=document.getElementById('prodLongDesc');
-  if(ldEl){if(p.long_desc){ldEl.textContent=p.long_desc;ldEl.style.display='';}else{ldEl.style.display='none';}}
-  // MRP strikethrough + discount badge
+  if(ldEl){if(p.long_desc){ldEl.innerHTML=_mdRender(p.long_desc);ldEl.style.display='';}else{ldEl.style.display='none';}}
+  // MRP — only show if compare_at_price or mrp is explicitly set and > price
   const discEl=document.getElementById('prodDiscount');
   const mrpEl=document.getElementById('prodMrp');
-  if(p.discount_pct){
-    if(discEl){discEl.textContent='-'+p.discount_pct+'%';discEl.style.display='';}
-    if(mrpEl){
-      const mrp=ap.compare_at_price||ap.mrp||Math.round(p.price/(1-p.discount_pct/100));
-      mrpEl.textContent='₹'+mrp.toLocaleString('en-IN');mrpEl.style.display='';
-    }
+  const mrpVal=ap.compare_at_price||ap.mrp||0;
+  if(mrpVal&&mrpVal>ap.price){
+    const pct=Math.round((1-ap.price/mrpVal)*100);
+    if(discEl){discEl.textContent='-'+pct+'%';discEl.style.display='';}
+    if(mrpEl){mrpEl.textContent='₹'+mrpVal.toLocaleString('en-IN');mrpEl.style.display='';}
   } else {
     if(discEl)discEl.style.display='none';
     if(mrpEl)mrpEl.style.display='none';

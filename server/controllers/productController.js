@@ -6,7 +6,7 @@ export async function getAllProducts(req, res, next) {
 
     let query = supabase
       .from('products')
-      .select('id, name, slug, description, short_description, price, compare_at_price, category, stock_qty, images, is_customizable, material, badge')
+      .select('id, name, slug, description, short_description, long_description, price, compare_at_price, mrp, discount_type, discount_value, category, stock_qty, images, is_customizable, material, badge, bullet_points, key_features, tags, occasion, rating')
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 

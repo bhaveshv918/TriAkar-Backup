@@ -670,9 +670,13 @@ function buildCard(p) {
     : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;opacity:.25"><svg viewBox="0 0 80 80" fill="none" role="img" aria-label="' + _esc(altText) + '"><rect x="8" y="8" width="64" height="64" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 52l18-18 14 14 10-10 22 22" stroke="currentColor" stroke-width="1.5"/></svg></div>';
 
   const outOfStock = p.stock_qty === 0;
-  const mrp = p.mrp || Math.round(p.price / 0.35 / 10) * 10;
-  const off = Math.round((1 - p.price / mrp) * 100);
-  const priceBlock = '<div class="prod-price-wrap"><span class="prod-mrp">' + fmtPrice(mrp) + '</span><span class="prod-price">' + fmtPrice(p.price) + '</span><span class="prod-off">' + off + '% OFF</span></div>';
+  const mrp = (p.compare_at_price || p.mrp || 0);
+  const off = (mrp > p.price) ? Math.round((1 - p.price / mrp) * 100) : 0;
+  const priceBlock = '<div class="prod-price-wrap">'
+    + (mrp > p.price ? '<span class="prod-mrp">' + fmtPrice(mrp) + '</span>' : '')
+    + '<span class="prod-price">' + fmtPrice(p.price) + '</span>'
+    + (off > 0 ? '<span class="prod-off">' + off + '% OFF</span>' : '')
+    + '</div>';
 
   const heartSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>';
   const wlBtn = '<button class="wl-heart prod-wl" data-slug="' + _esc(p.slug) + '" data-name="' + _esc(p.name) + '" onclick="event.preventDefault();event.stopPropagation();toggleWishlist(this)" aria-label="Save to wishlist" aria-pressed="false">' + heartSvg + '</button>';
@@ -919,14 +923,14 @@ function openQuickView(slug) {
   const p = _PRODMAP[slug];
   if (!p) return;
   const ov = document.getElementById('qvOverlay');
-  const mrp = p.mrp || Math.round(p.price / 0.35 / 10) * 10;
-  const off = Math.round((1 - p.price / mrp) * 100);
+  const mrp = (p.compare_at_price || p.mrp || 0);
+  const off = (mrp > p.price) ? Math.round((1 - p.price / mrp) * 100) : 0;
   const imgEl = document.getElementById('qvImg');
   if (p.images && p.images.length) imgEl.innerHTML = '<img src="' + _esc(p.images[0]) + '" alt="' + _esc(p.name) + '">';
   else imgEl.innerHTML = '<div style="opacity:.25;padding:40px"><svg viewBox="0 0 80 80" width="80" height="80" fill="none"><rect x="8" y="8" width="64" height="64" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 52l18-18 14 14 10-10 22 22" stroke="currentColor" stroke-width="1.5"/></svg></div>';
   document.getElementById('qvCat').textContent = (p.category || '').toString();
   document.getElementById('qvName').textContent = p.name;
-  document.getElementById('qvPrice').innerHTML = '<span class="prod-mrp" style="margin-right:8px">' + fmtPrice(mrp) + '</span>' + fmtPrice(p.price) + ' <span class="prod-off" style="margin-left:6px">' + off + '% OFF</span>';
+  document.getElementById('qvPrice').innerHTML = (mrp > p.price ? '<span class="prod-mrp" style="margin-right:8px">' + fmtPrice(mrp) + '</span>' : '') + fmtPrice(p.price) + (off > 0 ? ' <span class="prod-off" style="margin-left:6px">' + off + '% OFF</span>' : '');
   document.getElementById('qvDesc').textContent = p.short_description || p.description || '';
   const viewLink = document.getElementById('qvView');
   if (viewLink) viewLink.href = 'product-detail.html?slug=' + encodeURIComponent(slug);

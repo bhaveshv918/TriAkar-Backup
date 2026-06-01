@@ -1006,8 +1006,16 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <!-- Long Description (detail page) -->
       <div class="fg fg-full" style="margin-top:0">
         <div class="ff">
-          <label>Long Description <span class="hint">(shown on product detail page)</span></label>
-          <textarea id="fDescription" rows="4" placeholder="Full paragraph description for the product detail page. Can be as long as needed."
+          <label>Long Description <span class="hint">(shown on product detail page — supports Markdown formatting)</span></label>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">
+            <button type="button" onclick="_mdBtn('fDescription','**','**','Bold')" style="padding:3px 10px;font-size:11px;font-weight:700;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-1)"><b>B</b></button>
+            <button type="button" onclick="_mdBtn('fDescription','*','*','Italic')" style="padding:3px 10px;font-size:11px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-1)"><i>I</i></button>
+            <button type="button" onclick="_mdBtn('fDescription','## ','',' Heading')" style="padding:3px 10px;font-size:11px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-1)">H2</button>
+            <button type="button" onclick="_mdBtn('fDescription','### ','',' Sub-heading')" style="padding:3px 10px;font-size:11px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-1)">H3</button>
+            <button type="button" onclick="_mdBullet('fDescription')" style="padding:3px 10px;font-size:11px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-1)">• List</button>
+            <span style="font-size:10px;color:var(--text-3);align-self:center;margin-left:4px">Select text then click a button · <strong>**bold**</strong> · <em>*italic*</em> · ## Heading · - Bullet</span>
+          </div>
+          <textarea id="fDescription" rows="8" placeholder="## What makes this special&#10;Write your description here...&#10;&#10;## Key Details&#10;- Detail one&#10;- Detail two&#10;&#10;Use **bold** for emphasis and *italics* for notes."
             oninput=""></textarea>
           <div id="fDescErr" style="font-size:11px;color:#B91C1C;margin-top:3px;display:none"></div>
         </div>
@@ -2208,6 +2216,22 @@ function toggleCustSection(){
   document.getElementById('custSection').style.display=document.getElementById('fCustomizable').checked?'block':'none';
 }
 
+/* Markdown toolbar helpers */
+function _mdBtn(id,before,after,sample){
+  const ta=document.getElementById(id);
+  const s=ta.selectionStart,e=ta.selectionEnd;
+  const sel=ta.value.slice(s,e)||sample;
+  ta.value=ta.value.slice(0,s)+before+sel+after+ta.value.slice(e);
+  ta.focus();ta.selectionStart=s+before.length;ta.selectionEnd=s+before.length+sel.length;
+}
+function _mdBullet(id){
+  const ta=document.getElementById(id);
+  const s=ta.selectionStart;
+  const before=ta.value.slice(0,s),after=ta.value.slice(s);
+  const nl=(before.length&&before.slice(-1)!=='\n')?'\n':'';
+  ta.value=before+nl+'- Item\n'+after;
+  ta.focus();const pos=s+nl.length+2;ta.selectionStart=pos;ta.selectionEnd=pos+4;
+}
 function openProductForm(id){
   const wrap=document.getElementById('productFormWrap');
   wrap.classList.add('open');
