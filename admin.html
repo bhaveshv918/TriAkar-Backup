@@ -931,19 +931,21 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <!-- Pricing & Discount -->
       <div class="form-section">Pricing & Discount</div>
       <div class="fg">
-        <div class="ff"><label>Price (₹) *</label><input type="number" id="fPrice" placeholder="1890" min="0" step="1"></div>
-        <div class="ff"><label>Discount Type</label>
-          <select id="fDiscountType" onchange="toggleDiscountField()">
-            <option value="">No Discount</option>
-            <option value="percentage">Percentage Off</option>
-            <option value="fixed">Fixed Sale Price</option>
-          </select>
+        <div class="ff">
+          <label>MRP / Original Price (₹) <span class="hint">shown crossed out</span></label>
+          <input type="number" id="fCompareAt" placeholder="2490" min="0" step="1" oninput="_syncPricing('mrp')">
         </div>
-        <div class="ff" id="discountValueWrap" style="display:none">
-          <label id="discountValueLabel">Discount Value</label>
-          <input type="number" id="fDiscountValue" placeholder="20" min="0">
+        <div class="ff">
+          <label>Discount % <span class="hint">whole number only</span></label>
+          <input type="number" id="fDiscountValue" placeholder="20" min="0" max="99" step="1" oninput="_syncPricing('pct')">
+        </div>
+        <div class="ff">
+          <label>Selling Price (₹) *</label>
+          <input type="number" id="fPrice" placeholder="1890" min="0" step="1" oninput="_syncPricing('price')" required>
+          <div id="pricingHint" style="font-size:10px;color:var(--accent);margin-top:4px;display:none"></div>
         </div>
       </div>
+      <input type="hidden" id="fDiscountType" value="percentage">
 
       <!-- Tags & Urgency -->
       <div class="form-section">Tags & Urgency</div>
@@ -2195,12 +2197,26 @@ function getDiscountedPrice(p){
 }
 
 // ── Product Form ───────────────────────────────────────────
-function toggleDiscountField(){
-  const type=document.getElementById('fDiscountType').value;
-  const wrap=document.getElementById('discountValueWrap');
-  const label=document.getElementById('discountValueLabel');
-  wrap.style.display=type?'flex':'none';
-  label.textContent=type==='percentage'?'Percentage Off (%)':'Sale Price (₹)';
+function toggleDiscountField(){}  // kept for legacy calls
+function _syncPricing(changed){
+  const mrp=parseFloat(document.getElementById('fCompareAt').value)||0;
+  const pct=parseFloat(document.getElementById('fDiscountValue').value)||0;
+  const priceEl=document.getElementById('fPrice');
+  const hint=document.getElementById('pricingHint');
+  const price=parseFloat(priceEl.value)||0;
+  if(changed==='mrp'||changed==='pct'){
+    if(mrp>0&&pct>0&&pct<100){
+      const np=Math.round(mrp*(1-pct/100));
+      priceEl.value=np;
+      if(hint){hint.textContent='₹'+mrp.toLocaleString('en-IN')+' − '+Math.round(pct)+'% = ₹'+np.toLocaleString('en-IN');hint.style.display='';}
+    }
+  } else if(changed==='price'){
+    if(mrp>0&&price>0&&price<mrp){
+      const np=Math.round((1-price/mrp)*100);
+      document.getElementById('fDiscountValue').value=np;
+      if(hint){hint.textContent='₹'+mrp.toLocaleString('en-IN')+' − '+np+'% = ₹'+price.toLocaleString('en-IN');hint.style.display='';}
+    } else if(hint){hint.style.display='none';}
+  }
 }
 
 function toggleUrgencyField(){
@@ -2250,9 +2266,9 @@ function openProductForm(id){
     document.getElementById('fCategory').value=p.category||'';
     document.getElementById('fMaterial').value=p.material||'PLA+';
     document.getElementById('fPrice').value=p.price||'';
-    document.getElementById('fDiscountType').value=p.discount_type||'';
-    document.getElementById('fDiscountValue').value=p.discount_value||'';
-    toggleDiscountField();
+    document.getElementById('fCompareAt').value=p.compare_at_price||'';
+    document.getElementById('fDiscountValue').value=p.discount_value?Math.round(p.discount_value):'';
+    if(p.compare_at_price&&p.price){const h=document.getElementById('pricingHint');if(h){h.textContent='₹'+Number(p.compare_at_price).toLocaleString('en-IN')+' − '+(p.discount_value?Math.round(p.discount_value):Math.round((1-p.price/p.compare_at_price)*100))+'% = ₹'+Number(p.price).toLocaleString('en-IN');h.style.display='';}}
     document.getElementById('fBadge').value=p.badge||'';
     document.getElementById('fUrgencyType').value=p.urgency_type||'';
     document.getElementById('fUrgencyText').value=p.urgency_text||'';
@@ -2301,7 +2317,9 @@ function openProductForm(id){
     _bulletPoints=[];renderBulletPoints();
     document.getElementById('fCategory').value='';
     document.getElementById('fMaterial').value='PLA+';
-    document.getElementById('fDiscountType').value='';
+    document.getElementById('fCompareAt').value='';
+    document.getElementById('fDiscountValue').value='';
+    const ph=document.getElementById('pricingHint');if(ph)ph.style.display='none';
     document.getElementById('fBadge').value='';
     document.getElementById('fUrgencyType').value='';
     document.getElementById('fBestseller').checked=false;
@@ -2356,12 +2374,13 @@ async function submitProductForm(){
 
   const productData={
     name,slug,price:Number(price),category,
+    compare_at_price:Number(document.getElementById('fCompareAt').value)||null,
     material:document.getElementById('fMaterial').value.trim()||'PLA+',
     sku:document.getElementById('fSku').value.trim()||null,
     designer:document.getElementById('fDesigner').value.trim()||null,
     stock_status:document.getElementById('fStockStatus').value||'Made to Order',
-    discount_type:document.getElementById('fDiscountType').value||null,
-    discount_value:Number(document.getElementById('fDiscountValue').value)||0,
+    discount_type:Number(document.getElementById('fDiscountValue').value)>0?'percentage':null,
+    discount_value:Math.round(Number(document.getElementById('fDiscountValue').value))||0,
     badge:document.getElementById('fBadge').value||null,
     urgency_type:document.getElementById('fUrgencyType').value||null,
     urgency_text:document.getElementById('fUrgencyText').value.trim()||null,

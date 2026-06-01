@@ -868,40 +868,27 @@ function _renderHpGrid(prods){
   try{
     var prods=null;
 
-    // ── Stage 1: homepage_order column (set from admin) ──────────────────
+    // ── Stage 1: homepage_order set from admin panel ─────────────────────
     var r1=await sb.from('products')
-      .select('id,name,slug,price,images,short_description,badge,homepage_order')
+      .select('*')
       .eq('is_active',true)
       .not('homepage_order','is',null)
       .order('homepage_order',{ascending:true})
       .limit(10);
-    if(!r1.error&&r1.data&&r1.data.length){
-      prods=r1.data;
-    }
+    if(!r1.error&&r1.data&&r1.data.length) prods=r1.data;
 
-    // ── Stage 2: fallback — is_featured flag ─────────────────────────────
+    // ── Stage 2: fallback — latest active products ────────────────────────
     if(!prods){
       var r2=await sb.from('products')
-        .select('id,name,slug,price,images,short_description,badge')
+        .select('*')
         .eq('is_active',true)
-        .eq('is_featured',true)
         .order('created_at',{ascending:false})
-        .limit(10);
+        .limit(8);
       if(!r2.error&&r2.data&&r2.data.length)prods=r2.data;
     }
 
-    // ── Stage 3: fallback — show latest active products ──────────────────
-    if(!prods){
-      var r3=await sb.from('products')
-        .select('id,name,slug,price,images,short_description,badge')
-        .eq('is_active',true)
-        .order('created_at',{ascending:false})
-        .limit(5);
-      if(!r3.error&&r3.data&&r3.data.length)prods=r3.data;
-    }
-
     if(!_renderHpGrid(prods)){
-      if(section)section.style.display='none';
+      grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:32px 0;color:var(--stone);font-size:13px">No products yet. <a href="products.html" style="color:var(--accent);font-weight:600">Browse all →</a></div>';
     }
 
   }catch(e){
