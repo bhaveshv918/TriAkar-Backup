@@ -5,6 +5,7 @@
 
 window._NAV_HTML = `<nav class="main-nav" id="mainNav">
   <div class="nav-inner">
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
     <a href="/index.html" class="logo">
       <span class="logo-en"><span style="color:var(--accent)">TRI</span>AKAR</span>
       <span class="logo-hi">त्रिआकार</span>
@@ -25,12 +26,11 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
         Cart <span class="cart-badge" id="cartBadge">0</span>
       </a>
       <a href="/account.html" class="nav-shop">Login</a>
-      <button class="nav-toggle" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
     </div>
   </div>
 </nav>`;
 
-window._DRAWER_HTML = `<nav class="nav-drawer"><form class="drawer-search" role="search" onsubmit="return window.taSearch(this);"><input type="search" name="q" placeholder="Search products…" aria-label="Search products" autocomplete="off"><button type="submit" aria-label="Search"><svg width="16" height="16" viewBox="0 0 18 18" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M12.4 12.4L16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></form><a href="/products.html" class="drawer-link">Shop</a><a href="/custom.html" class="drawer-link">Custom Order</a><a href="/custom.html" class="drawer-link">Corporate Order</a><a href="/wishlist.html" class="drawer-link">Wishlist</a><a href="/stories.html" class="drawer-link">Our Stories</a><a href="/about.html" class="drawer-link">About</a><a href="/contact.html" class="drawer-link">Contact</a><a href="/track-order.html" class="drawer-link">Track Order</a><a href="#" class="drawer-cart drawer-link" onclick="closeDrawer&&closeDrawer();openCart&&openCart();return false;"><svg width="16" height="16" viewBox="0 0 18 18" fill="none"><path d="M1 1h2.5l1.6 8h8.4l1.5-5.5H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="14.5" r="1.2" fill="currentColor"/><circle cx="13" cy="14.5" r="1.2" fill="currentColor"/></svg>Cart<span class="cart-badge drawer-cart-badge" id="drawerCartBadge">0</span></a><a href="/account.html" class="drawer-login">Login</a></nav>`;
+window._DRAWER_HTML = `<nav class="nav-drawer"><a href="/custom.html" class="drawer-link">Custom Order</a><a href="/custom.html" class="drawer-link">Corporate Order</a><a href="/wishlist.html" class="drawer-link">Wishlist</a><a href="/stories.html" class="drawer-link">Our Stories</a><a href="/about.html" class="drawer-link">About</a><a href="/contact.html" class="drawer-link">Contact</a><a href="/track-order.html" class="drawer-link">Track Order</a><a href="/account.html" class="drawer-login">Login</a></nav>`;
 
 /* Site-wide product search — used by nav + drawer search forms */
 window.taSearch = function(form){
