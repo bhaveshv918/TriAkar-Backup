@@ -783,7 +783,8 @@ function _initFilterPanel() {
     max = Math.ceil(max / 100) * 100;
     range.max = String(max);
     if (rangeMax) rangeMax.textContent = fmtPrice(max);
-    if (curMaxPrice === Infinity || curMaxPrice > max) { curMaxPrice = max; range.value = String(max); }
+    /* Always extend slider to new max — handles products added after initial load */
+    if (curMaxPrice === Infinity || curMaxPrice >= +range.max - 100) { curMaxPrice = max; range.value = String(max); }
     else range.value = String(curMaxPrice);
     if (rangeVal) rangeVal.textContent = 'Up to ' + fmtPrice(curMaxPrice);
     range.oninput = function() {
@@ -1007,7 +1008,7 @@ function _initFilterSidebar() {
     max = Math.max(max, 100); max = Math.ceil(max / 100) * 100;
     fsbRange.max = String(max);
     if (fsbRangeMax) fsbRangeMax.textContent = fmtPrice(max);
-    if (curMaxPrice === Infinity || curMaxPrice > max) { curMaxPrice = max; fsbRange.value = String(max); }
+    if (curMaxPrice === Infinity || curMaxPrice >= +fsbRange.max - 100) { curMaxPrice = max; fsbRange.value = String(max); }
     else fsbRange.value = String(curMaxPrice);
     if (fsbRangeVal) fsbRangeVal.textContent = 'Up to ' + fmtPrice(curMaxPrice);
     fsbRange.oninput = function() {
