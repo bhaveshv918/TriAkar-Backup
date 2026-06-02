@@ -2,6 +2,15 @@ import { Router } from 'express';
 import supabase from '../db/supabaseClient.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 
+/* Generate 12-digit UserID: DDMMYY + 6 random (e.g. 020626847391 = 2-Jun-2026) */
+function generateUserCode(date = new Date()) {
+  const dd   = String(date.getDate()).padStart(2, '0');
+  const mm   = String(date.getMonth() + 1).padStart(2, '0');
+  const yy   = String(date.getFullYear()).slice(-2);
+  const rand = String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
+  return dd + mm + yy + rand;
+}
+
 const router = Router();
 
 /* ── POST /api/auth/send-otp ─────────────────────────────── */
@@ -100,15 +109,24 @@ router.post('/signup', async (req, res, next) => {
     });
     if (error) return res.status(400).json({ error: error.message });
 
-    // Ensure profile row exists (trigger should handle this, but belt-and-suspenders)
+    // Ensure profile row exists with user_code
     const digits = phone ? phone.replace(/\D/g, '') : null;
     const mobile = digits && digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
+
+    // Generate a collision-safe UserID (retry up to 5 times)
+    let user_code = null;
+    for (let i = 0; i < 5; i++) {
+      const candidate = generateUserCode();
+      const { data: existing } = await supabase.from('profiles').select('id').eq('user_code', candidate).maybeSingle();
+      if (!existing) { user_code = candidate; break; }
+    }
+
     await supabase.from('profiles').upsert(
-      { id: data.user.id, full_name, phone: phone || null, mobile: mobile ? `+91${mobile}` : null, phone_verified: !!phone },
+      { id: data.user.id, full_name, phone: phone || null, mobile: mobile ? `+91${mobile}` : null, phone_verified: !!phone, user_code },
       { onConflict: 'id' },
     );
 
-    res.status(201).json({ message: 'Account created successfully.', user_id: data.user.id });
+    res.status(201).json({ message: 'Account created successfully.', user_id: data.user.id, user_code });
   } catch (err) { next(err); }
 });
 
@@ -121,7 +139,31 @@ router.post('/login', async (req, res, next) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return res.status(401).json({ error: error.message });
 
-    res.json({ access_token: data.session.access_token, user: data.user });
+    // Fetch user_code from profiles (ensures it's always fresh)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('user_code, full_name, mobile')
+      .eq('id', data.user.id)
+      .maybeSingle();
+
+    // If somehow no user_code yet (pre-migration user), generate and save one now
+    let user_code = profile?.user_code;
+    if (!user_code) {
+      for (let i = 0; i < 5; i++) {
+        const candidate = generateUserCode();
+        const { data: clash } = await supabase.from('profiles').select('id').eq('user_code', candidate).maybeSingle();
+        if (!clash) { user_code = candidate; break; }
+      }
+      if (user_code) await supabase.from('profiles').update({ user_code }).eq('id', data.user.id);
+    }
+
+    res.json({
+      access_token:  data.session.access_token,
+      refresh_token: data.session.refresh_token,
+      expires_in:    data.session.expires_in,
+      user:          Object.assign({}, data.user, { user_code }),
+      user_code,
+    });
   } catch (err) { next(err); }
 });
 
@@ -167,7 +209,7 @@ router.get('/profile', requireAuth, async (req, res, next) => {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, nickname, email, mobile, phone, gender, date_of_birth, phone_verified')
+      .select('id, full_name, nickname, email, mobile, phone, gender, date_of_birth, phone_verified, user_code')
       .eq('id', req.user.id)
       .single();
     if (error || !data) return res.status(404).json({ error: 'Profile not found' });

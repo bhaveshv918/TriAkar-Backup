@@ -1138,8 +1138,8 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     </div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Name</th><th>Email</th><th>Mobile</th><th>Orders</th><th>Total Spent</th><th>Joined</th></tr></thead>
-        <tbody id="customersBody"><tr><td colspan="6" class="tbl-msg">Loading...</td></tr></tbody>
+        <thead><tr><th>Member ID</th><th>Name</th><th>Email</th><th>Mobile</th><th>Orders</th><th>Total Spent</th><th>Joined</th></tr></thead>
+        <tbody id="customersBody"><tr><td colspan="7" class="tbl-msg">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1914,7 +1914,7 @@ const STATUS_BADGE={whatsapp_pending:'badge-wa',pending:'badge-yellow',confirmed
 
 async function loadOrders(){
   const{data,error}=await sb.from('orders')
-    .select('*,profiles!fk_orders_profiles(email,full_name,phone),order_items(*,products(name,images)),user_addresses(*)')
+    .select('*,profiles!fk_orders_profiles(email,full_name,phone,user_code),order_items(*,products(name,images)),user_addresses(*)')
     .is('deleted_at',null)
     .order('created_at',{ascending:false});
   if(error){document.getElementById('ordersBody').innerHTML='<tr><td colspan="9" class="tbl-msg">Error: '+error.message+'</td></tr>';return}
@@ -1948,7 +1948,8 @@ function filterOrders(){
       const custEmail=(o.customer_email||p.email||'').toLowerCase();
       const ordId=(o.order_id||o.invoice_number||'').toLowerCase();
       const tracking=((o.tracking_number||'')+(o.tracking_vendor||'')).toLowerCase();
-      return custName.includes(search)||custPhone.includes(search)||custEmail.includes(search)||ordId.includes(search)||tracking.includes(search);
+      const uid=(p.user_code||'').toLowerCase();
+      return custName.includes(search)||custPhone.includes(search)||custEmail.includes(search)||ordId.includes(search)||tracking.includes(search)||uid.includes(search);
     });
   }
   renderOrders(filtered);
@@ -1965,6 +1966,8 @@ function renderOrders(orders){
     const email=custEmail?'<div style="font-size:10px;color:var(--text-3);font-family:var(--mono)">'+custEmail+'</div>':'';
     const custPhone=o.customer_phone||p.phone||'';
     const phone=custPhone?(' ('+custPhone+')'):'';
+    const userCode=p.user_code||'';
+    const uidTag=userCode?'<div style="font-size:9px;font-family:var(--mono);font-weight:700;letter-spacing:.05em;color:var(--accent);margin-top:2px">ID: '+userCode+'</div>':'';
     const addr=o.shipping_address||{};
     const addrObj=o.user_addresses||{};
     const loc=addr.city||addrObj.city||addr.state||addrObj.state||'—';
@@ -2016,7 +2019,7 @@ function renderOrders(orders){
       +'<td><span class="order-expand-btn" id="exp-'+o.id+'">&#9654;</span></td>'
       +'<td class="td-name" style="font-family:var(--mono);font-size:12px">'+inv+waBadge+trackTag+'</td>'
       +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(o.created_at)+'</td>'
-      +'<td class="td-name">'+name+'<span style="color:var(--text-3);font-size:11px">'+phone+'</span>'+email+'</td>'
+      +'<td class="td-name">'+name+'<span style="color:var(--text-3);font-size:11px">'+phone+'</span>'+email+uidTag+'</td>'
       +'<td>'+loc+'</td>'
       +'<td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+items+'</td>'
       +'<td style="font-weight:600">'+fmtPrice(o.total_amount)+'</td>'
@@ -2937,13 +2940,17 @@ async function loadCustomers(){
 
 function renderCustomers(list){
   const tbody=document.getElementById('customersBody');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="tbl-msg">No customers yet.</td></tr>';return}
+  if(!list.length){tbody.innerHTML='<tr><td colspan="7" class="tbl-msg">No customers yet.</td></tr>';return}
   tbody.innerHTML=list.map(c=>{
     const joined=c.created_at?fmtDateShort(c.created_at):'—';
     const orderCount=c._orders||0;
     const spent=c._spent||0;
     const spentFmt=spent?fmtPrice(spent):'₹0';
+    const uidCell=c.user_code
+      ?'<span style="font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.06em;background:var(--bg-3);padding:3px 7px;border-radius:4px;color:var(--text)">'+c.user_code+'</span>'
+      :'<span style="color:var(--text-3);font-size:11px">—</span>';
     return '<tr>'
+      +'<td>'+uidCell+'</td>'
       +'<td class="td-name">'+(c.full_name||'—')+(c.nickname?'<div style="font-size:10px;color:var(--text-3)">aka '+c.nickname+'</div>':'')+'</td>'
       +'<td style="font-family:var(--mono);font-size:11px">'+(c.email||'—')+'</td>'
       +'<td>'+(c.mobile||'—')+'</td>'
@@ -2958,7 +2965,8 @@ function filterCustomers(){
   const q=(document.getElementById('customerSearch').value||'').toLowerCase();
   if(!q){renderCustomers(_customers);return}
   const filtered=_customers.filter(c=>{
-    return(c.full_name||'').toLowerCase().includes(q)
+    return(c.user_code||'').includes(q)
+      ||(c.full_name||'').toLowerCase().includes(q)
       ||(c.email||'').toLowerCase().includes(q)
       ||(c.mobile||'').toLowerCase().includes(q)
       ||(c.nickname||'').toLowerCase().includes(q);
