@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrder, getOrdersByUser, getOrderById } from '../controllers/orderController.js';
+import { createOrder, getOrdersByUser, getOrderById, createWhatsAppOrder } from '../controllers/orderController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import supabase from '../db/supabaseClient.js';
 
@@ -7,6 +7,7 @@ const router = Router();
 
 router.use(requireAuth);
 
+router.post('/whatsapp', createWhatsAppOrder);  // save WA order — must be before /:id
 router.post('/', createOrder);
 router.get('/', getOrdersByUser);
 

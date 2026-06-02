@@ -696,19 +696,16 @@ async function ckPlaceOrder() {
   if (payMethod === 'whatsapp') {
     btn.disabled = true; btn.textContent = 'Saving order…';
 
-    /* Save order to DB so it appears in account + admin */
+    /* Save order to DB via Express API (service-role, bypasses RLS) */
     try {
-      var _sbWA = (typeof _ensureSB === 'function') ? await _ensureSB() : null;
-      if (_sbWA) {
-        var _tok = localStorage.getItem('ta_token');
-        var _ref = localStorage.getItem('ta_refresh');
-        if (_tok) { try { await _sbWA.auth.setSession({ access_token: _tok, refresh_token: _ref || '' }); } catch (_) {} }
-        var _user = Auth.getUser ? Auth.getUser() : null;
-        var _emailEl = document.getElementById('ckEmail');
-        var _custEmail = (chosenAddr.email) || (_emailEl && _emailEl.value.trim()) || (_user && _user.email) || '';
-        await _sbWA.from('orders').insert({
+      var _emailEl = document.getElementById('ckEmail');
+      var _user = Auth.getUser ? Auth.getUser() : null;
+      var _custEmail = (chosenAddr.email) || (_emailEl && _emailEl.value.trim()) || (_user && _user.email) || '';
+      await Auth.apiFetch(CK_API + '/api/orders/whatsapp', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
+        body: JSON.stringify({
           order_id: trkId,
-          user_id: _user ? _user.id : null,
           customer_name: chosenAddr.full_name,
           customer_phone: chosenAddr.phone,
           customer_email: _custEmail,
@@ -728,14 +725,10 @@ async function ckPlaceOrder() {
           subtotal: subtotal,
           shipping_charge: shipping,
           total_amount: total,
-          payment_method: 'whatsapp',
-          payment_status: 'pending',
-          order_status: 'whatsapp_pending',
-          status: 'pending',
           special_instructions: chosenAddr.notes || null,
-        });
-      }
-    } catch (_e) { console.warn('WhatsApp order DB save failed:', _e.message || _e); }
+        }),
+      });
+    } catch (_e) { console.warn('WhatsApp order save failed:', _e.message || _e); }
 
     btn.textContent = 'Opening WhatsApp…';
     var itemLines = items.map(function(i) { return i.name + ' x' + i.quantity + ' = ₹' + (i.price * i.quantity).toLocaleString('en-IN'); }).join('\n');

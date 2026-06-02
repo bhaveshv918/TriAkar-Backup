@@ -42,6 +42,41 @@ export async function createOrder(req, res, next) {
   } catch (err) { next(err); }
 }
 
+export async function createWhatsAppOrder(req, res, next) {
+  try {
+    const user_id = req.user.id;
+    const { order_id, items, shipping_address, subtotal, shipping_charge, total_amount,
+            customer_name, customer_phone, customer_email, special_instructions } = req.body;
+
+    if (!items?.length) return res.status(400).json({ error: 'items are required' });
+    if (!total_amount)  return res.status(400).json({ error: 'total_amount is required' });
+
+    const { data: order, error } = await supabase
+      .from('orders')
+      .insert({
+        order_id:            order_id || null,
+        user_id,
+        customer_name:       customer_name  || null,
+        customer_phone:      customer_phone || null,
+        customer_email:      customer_email || null,
+        shipping_address:    shipping_address || {},
+        items:               items,
+        subtotal:            subtotal || total_amount,
+        shipping_charge:     shipping_charge || 0,
+        total_amount:        Number(total_amount),
+        payment_method:      'whatsapp',
+        payment_status:      'pending',
+        order_status:        'whatsapp_pending',
+        status:              'pending',
+        special_instructions: special_instructions || null,
+      })
+      .select().single();
+
+    if (error) throw error;
+    res.status(201).json({ order });
+  } catch (err) { next(err); }
+}
+
 export async function getOrdersByUser(req, res, next) {
   try {
     const { data, error } = await supabase
@@ -56,12 +91,14 @@ export async function getOrdersByUser(req, res, next) {
 
 export async function getOrderById(req, res, next) {
   try {
+    const param = req.params.id;
+    // Support both UUID id and TRK-YYYYMMDD-XXXX order_id
     const { data, error } = await supabase
       .from('orders')
       .select('*, order_items(*, products(name, slug, images))')
-      .eq('id', req.params.id)
+      .or(`id.eq.${param},order_id.eq.${param}`)
       .eq('user_id', req.user.id)
-      .single();
+      .maybeSingle();
     if (error || !data) return res.status(404).json({ error: 'Order not found' });
     res.json({ order: data });
   } catch (err) { next(err); }
