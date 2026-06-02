@@ -1171,6 +1171,16 @@ function updateNavAuth(){
 
   document.querySelectorAll('.nav-drawer').forEach(drawer=>{
     drawer.querySelectorAll('.drawer-auth,.drawer-shop').forEach(e=>e.remove());
+    if(user){
+      const btn=document.createElement('button');
+      btn.className='drawer-auth drawer-signout';
+      btn.textContent='Sign Out';
+      btn.addEventListener('click',function(){
+        if(typeof Auth!=='undefined'&&Auth.logout)Auth.logout();
+        else{localStorage.removeItem('ta_token');localStorage.removeItem('ta_user');window.location.href='index.html';}
+      });
+      drawer.appendChild(btn);
+    }
   });
 
   // Always keep Cart as the last item before the hamburger toggle

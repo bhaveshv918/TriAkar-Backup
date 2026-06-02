@@ -30,7 +30,7 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
   </div>
 </nav>`;
 
-window._DRAWER_HTML = `<nav class="nav-drawer"><a href="/custom.html" class="drawer-link">Custom Order</a><a href="/custom.html" class="drawer-link">Corporate Order</a><a href="/wishlist.html" class="drawer-link">Wishlist</a><a href="/stories.html" class="drawer-link">Our Stories</a><a href="/about.html" class="drawer-link">About</a><a href="/contact.html" class="drawer-link">Contact</a><a href="/track-order.html" class="drawer-link">Track Order</a><a href="/account.html" class="drawer-login">Login</a></nav>`;
+window._DRAWER_HTML = `<nav class="nav-drawer"><a href="/custom.html" class="drawer-link">Custom Order</a><a href="/custom.html" class="drawer-link">Corporate Order</a><a href="/wishlist.html" class="drawer-link">Wishlist</a><a href="/stories.html" class="drawer-link">Our Stories</a><a href="/about.html" class="drawer-link">About</a><a href="/contact.html" class="drawer-link">Contact</a><a href="/track-order.html" class="drawer-link">Track Order</a><a href="/account.html" class="drawer-login drawer-auth">Login</a></nav>`;
 
 /* Site-wide product search — used by nav + drawer search forms */
 window.taSearch = function(form){
