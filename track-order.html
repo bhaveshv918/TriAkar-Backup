@@ -114,20 +114,7 @@
   </div>
 </section>
 <script>
-const SB_URL='https://qarjbmogersuaerkhlcu.supabase.co';
-const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
-const sb=supabase.createClient(SB_URL,SB_KEY);
-
-/* Authenticate with stored token so RLS lets users see their own orders.
-   Store the promise so auto-track can WAIT for session before querying. */
-const _authReady=(function(){
-  try{
-    const t=localStorage.getItem('ta_token');
-    const r=localStorage.getItem('ta_refresh');
-    if(t)return sb.auth.setSession({access_token:t,refresh_token:r||''}).catch(function(){return null;});
-  }catch(e){}
-  return Promise.resolve(null);
-})();
+const API_BASE=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
 
 const STATUS_MAP={pending:0,confirmed:1,processing:2,shipped:3,delivered:4,cancelled:-1,returned:-2,refunded:-3,placed:1};
 
@@ -145,15 +132,10 @@ async function trackOrder(){
   btn.textContent='Searching…';btn.disabled=true;
 
   try{
-    /* Query by order_id (TRK-YYYYMMDD-XXXX) or by UUID id as fallback.
-       Avoids invoice_number column which may not exist in DB yet. */
-    const{data,error}=await sb
-      .from('orders')
-      .select('*, order_items(quantity, unit_price, customization_notes, products(name, images))')
-      .or('order_id.eq.'+orderId+',id.eq.'+orderId)
-      .maybeSingle();
-
-    if(error)throw error;
+    const resp=await fetch(API_BASE+'/api/track/'+encodeURIComponent(orderId));
+    if(!resp.ok)throw new Error('Server error '+resp.status);
+    const json=await resp.json();
+    const data=json.found?json.order:null;
 
     res.classList.add('show');
 
@@ -183,7 +165,7 @@ async function trackOrder(){
     }
 
     const addr=order.shipping_address||{};
-    const invNum=order.invoice_number||order.order_id||order.id;
+    const invNum=order.display_id||order.order_id||order.invoice_number||orderId;
     const addrLine=[addr.address_line1,addr.address_line2,addr.city,addr.state,addr.pincode].filter(Boolean).join(', ');
 
     let html='';
@@ -195,14 +177,15 @@ async function trackOrder(){
     html+='<div class="td-row"><span class="td-l">Status</span><span class="td-v">'+capFirst(st)+'</span></div>';
     html+='<div class="td-row"><span class="td-l">Payment</span><span class="td-v">'+(isPaid?'<span style="color:#16a34a;font-weight:700">✓ Paid</span>':'<span style="color:#9A3412;font-weight:600">Pending</span>')+'</span></div>';
 
-    /* Items ordered */
-    const items=(order.order_items||[]);
+    /* Items ordered — order_items (Razorpay) or JSONB items (WhatsApp) */
+    const dbItems=(order.order_items||[]).map(function(i){return{name:(i.products&&i.products.name)||'Item',quantity:i.quantity,unit_price:i.unit_price,customization_notes:i.customization_notes};});
+    const items=dbItems.length?dbItems:(order.items||[]);
     if(items.length){
       html+='<div style="margin:18px 0 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:600">Items Ordered</div>';
       items.forEach(function(item){
-        const name=(item.products&&item.products.name)||'Item';
+        const name=item.name||(item.products&&item.products.name)||'Item';
         const qty=item.quantity||1;
-        const price=Number(item.unit_price||0);
+        const price=Number(item.unit_price||item.price||0);
         html+='<div class="td-row"><span class="td-l" style="color:var(--charcoal);font-weight:600">'+name
           +(qty>1?' <span style="font-weight:400;color:var(--stone)">×'+qty+'</span>':'')
           +'</span><span class="td-v">₹'+(price*qty).toLocaleString('en-IN')+'</span></div>';
@@ -250,12 +233,12 @@ async function trackOrder(){
   btn.textContent='Track';btn.disabled=false;
 }
 
-/* Auto-track from URL param — wait for auth session first so RLS passes */
+/* Auto-track from URL param */
 (function(){
   const p=new URLSearchParams(window.location.search).get('id');
   if(p){
     document.getElementById('trackInput').value=decodeURIComponent(p);
-    _authReady.then(function(){trackOrder();});
+    trackOrder();
   }
 })();
 

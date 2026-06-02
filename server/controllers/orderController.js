@@ -55,6 +55,7 @@ export async function createWhatsAppOrder(req, res, next) {
       .from('orders')
       .insert({
         order_id:            order_id || null,
+        invoice_number:      order_id || null,   // prevent TAINV trigger
         user_id,
         customer_name:       customer_name  || null,
         customer_phone:      customer_phone || null,

@@ -846,13 +846,14 @@ function renderOrders(orders){
   el.innerHTML=orders.map(function(o,idx){
     const st=o.order_status||o.status||'placed';
     const isWA=o.payment_method==='whatsapp'||st==='whatsapp_pending';
-    // Unpaid = pending status + no payment received (online orders only)
     const isUnpaid=!isWA&&(st==='pending')&&o.payment_received!==true&&o.payment_status!=='paid';
     const displayLabel=isWA?'Via WhatsApp':isUnpaid?'Payment Pending':st;
     const sc=isWA?'status-whatsapp':isUnpaid?'status-payment-pending':(STATUS_CLASS[st]||'status-pending');
-    const items=o.items||[];
+    // Normalise: prefer order_items (Razorpay) over JSONB items (WhatsApp); handle both
+    const fromDB=(o.order_items||[]).map(function(i){return{name:(i.products&&i.products.name)||'Item',quantity:i.quantity,unit_price:i.unit_price};});
+    const items=fromDB.length?fromDB:(o.items||[]);
     const preview=items.slice(0,3).map(function(i){return(i.name||'Item')+' x'+i.quantity}).join(', ')+(items.length>3?' +'+(items.length-3)+' more':'');
-    const orderId=o.invoice_number||o.order_id||('TRK-'+new Date(o.created_at).toISOString().slice(0,10).replace(/-/g,'')+'-'+((o.id||'').slice(-4).toUpperCase()));
+    const orderId=o.order_id||o.invoice_number||('TRK-'+new Date(o.created_at).toISOString().slice(0,10).replace(/-/g,'')+'-'+((o.id||'').slice(-4).toUpperCase()));
     const uid='ord'+idx;
     const rzpOrderId=o.razorpay_order_id||'';
     const dbOrderId=o.id||'';
@@ -1112,17 +1113,19 @@ async function saveProfile(e){
   }finally{btn.textContent='Save Changes →';btn.disabled=false}
 }
 
-/* ── Addresses ── */
+/* ── Addresses — uses Express API (service JWT auth, no RLS issue) ── */
+const _API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
 async function loadAddresses(){
-  if(!sb)return;
   const user=Auth.getUser();
   if(!user)return;
   const list=document.getElementById('addrList');
   list.innerHTML='<div class="orders-loading">Loading...</div>';
   try{
-    const {data,error}=await sb.from('user_addresses').select('*').eq('user_id',user.id).order('is_default',{ascending:false});
-    if(error)throw error;
-    if(!data||!data.length){list.innerHTML='<div class="addr-empty">No saved addresses yet.</div>';return}
+    const res=await Auth.apiFetch(_API+'/api/addresses');
+    if(!res.ok)throw new Error('status '+res.status);
+    const {addresses}=await res.json();
+    const data=(addresses||[]).sort(function(a,b){return (b.is_default?1:0)-(a.is_default?1:0);});
+    if(!data.length){list.innerHTML='<div class="addr-empty">No saved addresses yet.</div>';return}
     list.innerHTML=data.map(a=>`
       <div class="addr-card ${a.is_default?'default':''}">
         ${a.is_default?'<div class="addr-default-badge">Default</div>':''}
@@ -1137,7 +1140,7 @@ async function loadAddresses(){
         </div>
       </div>
     `).join('');
-  }catch(e){list.innerHTML='<div class="addr-empty">Could not load addresses.</div>'}
+  }catch(e){list.innerHTML='<div class="addr-empty">Could not load addresses. Please try again.</div>'}
 }
 
 function showAddressForm(existing){

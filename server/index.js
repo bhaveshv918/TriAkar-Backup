@@ -24,6 +24,7 @@ import reviewRoutes      from './routes/reviews.js';
 import wishlistRoutes    from './routes/wishlist.js';
 import webhookRoutes     from './routes/webhooks.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import supabase from './db/supabaseClient.js';
 
 /* ── ENV VALIDATION (fail fast on missing secrets) ────────── */
 const requiredEnvVars = [
@@ -207,6 +208,25 @@ app.use('/api/reviews',    reviewRoutes);    // Product reviews — public + adm
 app.use('/api/wishlist',   wishlistRoutes);  // Saved items — per-user, auth required
 
 /* /api/profile — see server/routes/auth.js handlers; also accessible at /api/auth/profile */
+
+/* ── PUBLIC: track order by TRK id or invoice_number — no auth required ── */
+app.get('/api/track/:id', async (req, res) => {
+  try {
+    const id = (req.params.id || '').trim().toUpperCase();
+    if (!id) return res.status(400).json({ error: 'Order ID required' });
+    const { data, error } = await supabase
+      .from('orders')
+      .select('order_id, invoice_number, order_status, status, payment_received, payment_status, payment_method, total_amount, subtotal, shipping_charge, discount_amount, promo_code, tracking_number, tracking_vendor, estimated_delivery, created_at, shipping_address, items, order_items(quantity, unit_price, customization_notes, products(name))')
+      .or(`order_id.eq.${id},invoice_number.eq.${id}`)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return res.json({ found: false });
+    const displayId = data.order_id || data.invoice_number || id;
+    res.json({ found: true, order: Object.assign({}, data, { display_id: displayId }) });
+  } catch (err) {
+    res.status(500).json({ error: 'Could not fetch order' });
+  }
+});
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', brand: 'TriAkar' }));
 
