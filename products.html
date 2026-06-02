@@ -403,8 +403,6 @@
       <button class="fp-ml-tab" data-for="fpSecOcc">Occasion</button>
       <button class="fp-ml-tab" data-for="fpSecBudget">Budget</button>
       <button class="fp-ml-tab" data-for="fpSecPrice">Price</button>
-      <button class="fp-ml-tab" data-for="fpSecStock">Availability</button>
-      <button class="fp-ml-tab" data-for="fpSecMat">Material</button>
     </nav>
     <!-- Right content -->
     <div class="fp-body">
@@ -452,27 +450,6 @@
         <div class="fp-range-val" id="fpRangeVal">Up to ₹2,000</div>
         <input type="range" class="fp-range" id="fpRange" min="0" max="2000" step="50" value="2000" aria-label="Maximum price">
         <div class="fp-range-labels"><span>₹0</span><span id="fpRangeMax">₹2,000</span></div>
-      </div>
-      <div class="fp-section" id="fpSecStock">
-        <div class="fp-toggle-row">
-          <div>
-            <div class="fp-toggle-label">In Stock Only</div>
-            <div class="fp-toggle-sub">Hide sold-out items</div>
-          </div>
-          <label class="fp-toggle">
-            <input type="checkbox" id="fpStock">
-            <div class="fp-toggle-track"></div>
-            <div class="fp-toggle-thumb"></div>
-          </label>
-        </div>
-      </div>
-      <div class="fp-section" id="fpSecMat">
-        <span class="fp-sec-label">Material</span>
-        <div class="fp-mats" id="fpMat">
-          <input type="checkbox" class="fp-mat" id="matPLA" value="PLA"><label for="matPLA">PLA+</label>
-          <input type="checkbox" class="fp-mat" id="matABS" value="ABS"><label for="matABS">ABS</label>
-          <input type="checkbox" class="fp-mat" id="matPETG" value="PETG"><label for="matPETG">PETG</label>
-        </div>
       </div>
     </div>
   </div>
@@ -554,36 +531,6 @@
         </div>
       </div>
 
-      <div class="fsb-section open" id="fsbSecStock">
-        <button class="fsb-sec-btn" onclick="toggleFsbSection('fsbSecStock')">
-          Availability
-          <svg class="fsb-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
-        <div class="fsb-content">
-          <div class="fsb-toggle-row">
-            <span class="fsb-toggle-label">In Stock Only</span>
-            <label class="fsb-toggle">
-              <input type="checkbox" id="fsbStock">
-              <div class="fsb-toggle-track"></div>
-              <div class="fsb-toggle-thumb"></div>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div class="fsb-section open" id="fsbSecMat">
-        <button class="fsb-sec-btn" onclick="toggleFsbSection('fsbSecMat')">
-          Material
-          <svg class="fsb-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
-        <div class="fsb-content">
-          <div class="fsb-pills" id="fsbMat">
-            <button class="fsb-pill" data-mat="PLA"><span class="fsb-pill-dot"></span>PLA+</button>
-            <button class="fsb-pill" data-mat="ABS"><span class="fsb-pill-dot"></span>ABS</button>
-            <button class="fsb-pill" data-mat="PETG"><span class="fsb-pill-dot"></span>PETG</button>
-          </div>
-        </div>
-      </div>
     </aside>
 
     <!-- PRODUCTS GRID -->
@@ -626,6 +573,7 @@ document.getElementById('shopCount').textContent = '';
 document.getElementById('fcount').textContent = '';
 
 function fmtPrice(n) {
+  if (!isFinite(n) || n === null || n === undefined) return '₹0';
   return '₹' + Number(n).toLocaleString('en-IN');
 }
 
@@ -748,22 +696,15 @@ function buildCard(p) {
 }
 
 let curMaxPrice = Infinity;
-let curInStockOnly = false;
 // F4 collection filters
 let curOccasion = 'all';
 let curBudgetMin = 0;
 let curBudgetMax = Infinity;
-let curMaterials = [];
 
 function _occMatch(c) {
   if (curOccasion === 'all') return true;
   if (curOccasion === 'last-minute') return c.dataset.ready === '1';
   return (c.dataset.occasion || '').split(',').indexOf(curOccasion) !== -1;
-}
-function _matMatch(c) {
-  if (!curMaterials.length) return true;
-  const mats = (c.dataset.material || '').split(',');
-  return curMaterials.some(m => mats.indexOf(m) !== -1);
 }
 
 function applyFilters() {
@@ -772,10 +713,8 @@ function applyFilters() {
     (curFilter === 'all' || c.dataset.cat === curFilter) &&
     (!curSearch || (c.dataset.search || '').indexOf(curSearch) !== -1) &&
     (+c.dataset.price <= curMaxPrice) &&
-    (!curInStockOnly || c.dataset.stock !== '0') &&
     _occMatch(c) &&
-    (+c.dataset.price >= curBudgetMin && +c.dataset.price <= curBudgetMax) &&
-    _matMatch(c)
+    (+c.dataset.price >= curBudgetMin && +c.dataset.price <= curBudgetMax)
   );
   if (sort === 'asc') visible.sort((a, b) => +a.dataset.price - +b.dataset.price);
   else if (sort === 'desc') visible.sort((a, b) => +b.dataset.price - +a.dataset.price);
@@ -810,7 +749,7 @@ function _initFilterPanel() {
 
   if (range) {
     let max = 0;
-    allCards.forEach(c => { const v = +c.dataset.price; if (v > max) max = v; });
+    allCards.forEach(c => { const v = +c.dataset.price; if (isFinite(v) && v > max) max = v; });
     max = Math.max(max, 100);
     max = Math.ceil(max / 100) * 100;
     range.max = String(max);
@@ -823,12 +762,6 @@ function _initFilterPanel() {
       curMaxPrice = +range.value;
       if (rangeVal) rangeVal.textContent = 'Up to ' + fmtPrice(curMaxPrice);
     };
-  }
-
-  const stock = document.getElementById('fpStock');
-  if (stock && !stock.dataset.bound) {
-    stock.dataset.bound = '1';
-    stock.onchange = function() { curInStockOnly = stock.checked; applyFilters(); };
   }
 
   const fpCat = document.getElementById('fpCat');
@@ -884,15 +817,6 @@ function _initFilterPanel() {
     });
   }
 
-  const fpMat = document.getElementById('fpMat');
-  if (fpMat && !fpMat.dataset.bound) {
-    fpMat.dataset.bound = '1';
-    fpMat.addEventListener('change', function() {
-      curMaterials = Array.from(fpMat.querySelectorAll('input:checked')).map(i => i.value);
-      applyFilters();
-    });
-  }
-
   const applyBtn = document.getElementById('fpApplyBtn');
   if (applyBtn && !applyBtn.dataset.bound) {
     applyBtn.dataset.bound = '1';
@@ -908,10 +832,7 @@ function _initFilterPanel() {
     resetBtn.dataset.bound = '1';
     resetBtn.addEventListener('click', function() {
       curFilter = 'all'; curOccasion = 'all'; curBudgetMin = 0; curBudgetMax = Infinity;
-      curInStockOnly = false; curMaterials = [];
-      if (stock) stock.checked = false;
       if (range) { curMaxPrice = +range.max; range.value = range.max; if (rangeVal) rangeVal.textContent = 'Up to ' + fmtPrice(curMaxPrice); }
-      document.querySelectorAll('.fp-mat').forEach(i => i.checked = false);
       document.querySelectorAll('#fpCat .fp-pill').forEach(p => p.classList.toggle('active', p.dataset.filter === 'all'));
       document.querySelectorAll('#fpOcc .fp-pill').forEach(p => p.classList.toggle('active', p.dataset.occ === 'all'));
       document.querySelectorAll('#fpBudget .fp-pill').forEach(p => p.classList.toggle('active', p.dataset.max === '999999'));
@@ -1036,7 +957,7 @@ function _initFilterSidebar() {
   if (fsbRange && !fsbRange.dataset.bound) {
     fsbRange.dataset.bound = '1';
     let max = 0;
-    allCards.forEach(c => { const v = +c.dataset.price; if (v > max) max = v; });
+    allCards.forEach(c => { const v = +c.dataset.price; if (isFinite(v) && v > max) max = v; });
     max = Math.max(max, 100); max = Math.ceil(max / 100) * 100;
     fsbRange.max = String(max);
     if (fsbRangeMax) fsbRangeMax.textContent = fmtPrice(max);
@@ -1051,46 +972,19 @@ function _initFilterSidebar() {
       applyFilters();
     };
   }
-  // In-stock
-  const fsbStock = document.getElementById('fsbStock');
-  if (fsbStock && !fsbStock.dataset.bound) {
-    fsbStock.dataset.bound = '1';
-    fsbStock.onchange = function() {
-      curInStockOnly = fsbStock.checked;
-      const fpStock = document.getElementById('fpStock');
-      if (fpStock) fpStock.checked = fsbStock.checked;
-      applyFilters();
-    };
-  }
-  // Material (multi-select toggle pills)
-  const fsbMat = document.getElementById('fsbMat');
-  if (fsbMat && !fsbMat.dataset.bound) {
-    fsbMat.dataset.bound = '1';
-    fsbMat.addEventListener('click', function(e) {
-      const b = e.target.closest('.fsb-pill'); if (!b || !b.dataset.mat) return;
-      b.classList.toggle('active');
-      curMaterials = Array.from(fsbMat.querySelectorAll('.fsb-pill.active')).map(p => p.dataset.mat);
-      document.querySelectorAll('.fp-mat').forEach(i => { i.checked = curMaterials.indexOf(i.value) !== -1; });
-      applyFilters();
-    });
-  }
   // Reset
   const fsbReset = document.getElementById('fsbReset');
   if (fsbReset && !fsbReset.dataset.bound) {
     fsbReset.dataset.bound = '1';
     fsbReset.onclick = function() {
       curFilter = 'all'; curOccasion = 'all'; curBudgetMin = 0; curBudgetMax = Infinity;
-      curInStockOnly = false; curMaterials = [];
       document.querySelectorAll('#fsbCat .fsb-pill').forEach(p => p.classList.toggle('active', p.dataset.filter === 'all'));
       document.querySelectorAll('#fsbOcc .fsb-pill').forEach(p => p.classList.toggle('active', p.dataset.occ === 'all'));
       document.querySelectorAll('#fsbBudget .fsb-pill').forEach(p => p.classList.toggle('active', p.dataset.max === '999999'));
-      document.querySelectorAll('#fsbMat .fsb-pill').forEach(p => p.classList.remove('active'));
-      if (fsbStock) { fsbStock.checked = false; }
       if (fsbRange) { curMaxPrice = +fsbRange.max; fsbRange.value = fsbRange.max; if (fsbRangeVal) fsbRangeVal.textContent = 'Up to ' + fmtPrice(curMaxPrice); }
       _syncCatPills('all');
       document.querySelectorAll('#fpOcc .fp-pill').forEach(p => p.classList.toggle('active', p.dataset.occ === 'all'));
       document.querySelectorAll('#fpBudget .fp-pill').forEach(p => p.classList.toggle('active', p.dataset.max === '999999'));
-      const fpStock = document.getElementById('fpStock'); if (fpStock) fpStock.checked = false;
       applyFilters();
     };
   }
@@ -1159,15 +1053,6 @@ function _updateFilterUI() {
     count++;
     chips.push({ label: 'Max ₹' + Number(curMaxPrice).toLocaleString('en-IN'), clear: function() { const r = document.getElementById('fpRange'); if (r) { curMaxPrice = +r.max; r.value = r.max; _updateRangeLabel(); } applyFilters(); } });
   }
-  if (curInStockOnly) {
-    count++;
-    chips.push({ label: 'In stock', clear: function() { curInStockOnly = false; const s = document.getElementById('fpStock'); if (s) s.checked = false; applyFilters(); } });
-  }
-  if (curMaterials.length) {
-    count++;
-    chips.push({ label: curMaterials.join(', '), clear: function() { curMaterials = []; document.querySelectorAll('.fp-mat').forEach(i => i.checked = false); applyFilters(); } });
-  }
-
   const badge = document.getElementById('fopenBadge');
   const btn = document.getElementById('fopenBtn');
   if (badge) {
