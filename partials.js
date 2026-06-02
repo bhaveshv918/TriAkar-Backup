@@ -239,6 +239,64 @@ window._FOOTER_HTML = `<footer>
         '<span>Account</span></a>';
     document.body.appendChild(nav);
     document.body.classList.add('has-bottomnav');
+
+    /* ── Sliding glass highlight ──────────────────────────────────────
+       A single pill slides behind the active tab. To make the slide
+       visible across full page loads (this is a multi-page site), we
+       remember the previously-active tab index in sessionStorage and
+       animate from there to the current one. Purely additive: if any
+       of this fails the tab still shows orange via CSS. */
+    try{
+      var items=Array.prototype.slice.call(nav.querySelectorAll('.tabn-item'));
+      var activeEl=nav.querySelector('.tabn-item.active');
+      if(activeEl){
+        var ind=document.createElement('span');
+        ind.className='tabn-indicator';
+        nav.insertBefore(ind,nav.firstChild);
+
+        var curIdx=items.indexOf(activeEl);
+        var place=function(el){
+          if(!el||!el.offsetWidth)return false; /* skip when hidden (e.g. desktop width) */
+          ind.style.width=el.offsetWidth+'px';
+          ind.style.transform='translateX('+el.offsetLeft+'px)';
+          return true;
+        };
+        var snapThen=function(startEl,endEl){
+          ind.classList.add('tabn-indicator--noanim');
+          if(!place(startEl)){ind.classList.remove('tabn-indicator--noanim');return;}
+          ind.classList.add('on');
+          void ind.offsetWidth; /* flush so the start position isn't animated */
+          requestAnimationFrame(function(){
+            ind.classList.remove('tabn-indicator--noanim');
+            place(endEl);
+          });
+        };
+
+        var prevIdx=-1;
+        try{var v=sessionStorage.getItem('ta_btmTab');if(v!==null)prevIdx=parseInt(v,10);}catch(_){}
+
+        if(prevIdx>=0&&prevIdx<items.length&&prevIdx!==curIdx){
+          snapThen(items[prevIdx],activeEl);   /* slide from the tab we came from */
+        }else{
+          snapThen(activeEl,activeEl);          /* fresh load → settle in place */
+        }
+        try{sessionStorage.setItem('ta_btmTab',String(curIdx));}catch(_){}
+
+        /* Reposition on viewport/orientation change (snap, no slide). */
+        var rt;
+        window.addEventListener('resize',function(){
+          clearTimeout(rt);
+          rt=setTimeout(function(){
+            ind.classList.add('tabn-indicator--noanim');
+            if(place(activeEl)){
+              ind.classList.add('on');
+              void ind.offsetWidth;
+              requestAnimationFrame(function(){ind.classList.remove('tabn-indicator--noanim');});
+            }
+          },150);
+        },{passive:true});
+      }
+    }catch(_){}
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',build);
   else build();
