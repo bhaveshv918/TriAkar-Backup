@@ -940,16 +940,23 @@ function renderOrders(orders){
   }).join('');
 }
 
+var _ordersRetry=0;
 async function loadOrders(){
   const el=document.getElementById('ordersContainer');
-  el.innerHTML='<div class="orders-loading">Loading orders...</div>';
+  if(_ordersRetry===0)el.innerHTML='<div class="orders-loading">Loading orders...</div>';
   const user=Auth.getUser();
   if(!user){el.innerHTML='<div class="orders-empty"><p>Please sign in to view orders.</p></div>';return}
 
-  // 1. Try direct Supabase query (RLS ensures user sees only their own orders)
-  if(sb){
+  // 1. Try Supabase direct query — CRITICAL: attach user JWT so RLS auth.uid()
+  //    matches user_id. Without this, anon key gets auth.uid()=null and RLS
+  //    silently returns zero rows even when orders exist.
+  if(sb&&window.supabase){
     try{
-      const {data,error}=await sb
+      const token=typeof Auth!=='undefined'&&Auth.getToken?Auth.getToken():null;
+      const sbQ=token
+        ?window.supabase.createClient(SB_URL,SB_KEY,{global:{headers:{Authorization:'Bearer '+token}}})
+        :sb;
+      const {data,error}=await sbQ
         .from('orders')
         .select('*, order_items(*, products(name, images))')
         .eq('user_id',user.id)
@@ -962,13 +969,13 @@ async function loadOrders(){
         });
         return Object.assign({},o,{items:fromDB.length?fromDB:(o.items||[])});
       });
+      _ordersRetry=0;
       renderOrders(normalised);
       return;
     }catch(e1){console.warn('Supabase orders query failed:',e1.message);}
   }
 
-  // 2. Fallback to Express API. Auth.apiFetch auto-refreshes a near-expiry token
-  //    and, on a 401, force-refreshes once before gracefully expiring the session.
+  // 2. Fallback to Express API. Auth.apiFetch auto-refreshes a near-expiry token.
   try{
     const API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
     const res=await Auth.apiFetch(API+'/api/orders',{headers:{'Content-Type':'application/json'}});
@@ -978,10 +985,19 @@ async function loadOrders(){
     }
     if(!res.ok)throw new Error('Could not load orders ('+res.status+')');
     const {orders}=await res.json();
+    _ordersRetry=0;
     renderOrders(orders||[]);
   }catch(e2){
-    console.error('loadOrders fallback failed:',e2);
-    el.innerHTML='<div class="orders-empty"><p>Unable to load orders. Please try again.</p><button class="btn btn-dark" onclick="loadOrders()">Retry</button></div>';
+    console.error('loadOrders failed:',e2);
+    // Auto-retry up to 2 times (handles Render.com cold start ~30-50s delay)
+    if(_ordersRetry<2){
+      _ordersRetry++;
+      el.innerHTML='<div class="orders-loading">Connecting to server'+'...'.slice(0,_ordersRetry+1)+' (attempt '+(_ordersRetry+1)+'/3)</div>';
+      setTimeout(loadOrders,5000);
+    }else{
+      _ordersRetry=0;
+      el.innerHTML='<div class="orders-empty"><p>Unable to load orders. Please check your connection and try again.</p><button class="btn btn-dark" style="margin-top:12px" onclick="_ordersRetry=0;loadOrders()">Retry</button></div>';
+    }
   }
 }
 
