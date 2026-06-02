@@ -969,9 +969,15 @@ async function loadOrders(){
         });
         return Object.assign({},o,{items:fromDB.length?fromDB:(o.items||[])});
       });
-      _ordersRetry=0;
-      renderOrders(normalised);
-      return;
+      // KEY FIX: only short-circuit if Supabase actually found orders.
+      // Zero results → fall through to Express API which also checks by email+phone
+      // (catches orphaned orders created before account linking, or admin-entered orders).
+      if(normalised.length>0){
+        _ordersRetry=0;
+        renderOrders(normalised);
+        return;
+      }
+      // Zero from Supabase — continue to Express API for email/phone fallback lookup
     }catch(e1){console.warn('Supabase orders query failed:',e1.message);}
   }
 
