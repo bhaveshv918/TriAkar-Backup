@@ -283,7 +283,7 @@
   .prod-off{font-size:11px;font-weight:700;color:#1a8a3c;background:none;padding:0;border:none;border-radius:0}
   /* Full-width Add to Cart at bottom */
   .prod-foot{flex-direction:row;align-items:center;justify-content:space-between;gap:8px;margin-top:auto}
-  .add-to-cart-btn{width:auto;align-self:flex-start;font-size:9px;padding:3px 10px;letter-spacing:.03em;text-align:center}
+  .add-to-cart-btn{width:auto;align-self:flex-start;font-size:9px;padding:0 10px;letter-spacing:.03em;text-align:center;line-height:1.3}
   .prod-wl{width:28px;height:28px;top:6px;right:6px}
   .prod-badge{font-size:8px;padding:2px 7px;top:6px;left:6px}
   .prod-qv{display:none}
@@ -1239,6 +1239,7 @@ function loadFromLocal() {
   grid.innerHTML = '';
   allCards = products.map(buildCard);
   allCards.forEach(function(c) { grid.appendChild(c); });
+  _buildCatPillsFromData(products);
   _initFilterPanel(); _initFilterSidebar();
   var cat = new URLSearchParams(window.location.search).get('cat');
   var btn = cat ? document.querySelector('[data-filter="' + cat + '"]') : null;
@@ -1268,6 +1269,7 @@ function syncFromAPI() {
       grid.innerHTML = '';
       allCards = products.map(buildCard);
       allCards.forEach(function(c) { grid.appendChild(c); });
+      _buildCatPillsFromData(products);
       _initFilterPanel(); _initFilterSidebar();
       const cat = new URLSearchParams(window.location.search).get('cat');
       const btn = cat ? document.querySelector('[data-filter="' + cat + '"]') : null;
@@ -1276,25 +1278,85 @@ function syncFromAPI() {
     .catch(function() { clearTimeout(timer); _showFetchError(); });
 }
 
-// LAYER 3 — background sync categories from API; keeps hardcoded pills on failure
+// Build category pills dynamically from actual loaded product data.
+// This guarantees filter slugs always match product.category values — no more mismatches.
+function _buildCatPillsFromData(products) {
+  var seen = {};
+  products.forEach(function(p) {
+    var cat = (p.category || '').trim();
+    if (cat) seen[cat] = (seen[cat] || 0) + 1;
+  });
+  var slugs = Object.keys(seen).sort();
+  if (!slugs.length) return;
+
+  function _tc(s) { return s.replace(/-/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}); }
+  function _name(slug) { return (window._catNames && window._catNames[slug]) || _tc(slug); }
+
+  var activeCat = curFilter || 'all';
+
+  // Panel pills (#fpCat)
+  var fpCat = document.getElementById('fpCat');
+  if (fpCat) {
+    fpCat.dataset.bound = '';
+    fpCat.innerHTML = '<button class="fp-pill' + (activeCat==='all'?' active':'') + '" data-filter="all">All Products</button>' +
+      slugs.map(function(s){ return '<button class="fp-pill' + (activeCat===s?' active':'') + '" data-filter="' + s + '">' + _name(s) + '</button>'; }).join('');
+  }
+
+  // Sidebar pills (#fsbCat)
+  var fsbCat = document.getElementById('fsbCat');
+  if (fsbCat) {
+    fsbCat.dataset.bound = '';
+    fsbCat.innerHTML = '<button class="fsb-pill' + (activeCat==='all'?' active':'') + '" data-filter="all"><span class="fsb-pill-dot"></span>All Products</button>' +
+      slugs.map(function(s){ return '<button class="fsb-pill' + (activeCat===s?' active':'') + '" data-filter="' + s + '"><span class="fsb-pill-dot"></span>' + _name(s) + '</button>'; }).join('');
+  }
+
+  // Mobile strip (#fcatStrip)
+  var fcatStrip = document.getElementById('fcatStrip');
+  if (fcatStrip) {
+    fcatStrip.innerHTML = '<button class="fp-pill' + (activeCat==='all'?' active':'') + '" data-filter="all">All</button>' +
+      slugs.map(function(s){ return '<button class="fp-pill' + (activeCat===s?' active':'') + '" data-filter="' + s + '">' + _name(s) + '</button>'; }).join('');
+  }
+
+  // Category dropdown (#catSel) in desktop bar
+  var catSel = document.getElementById('catSel');
+  if (catSel) {
+    var prev = catSel.value;
+    catSel.innerHTML = '<option value="all">All Products</option>' +
+      slugs.map(function(s){ return '<option value="' + s + '">' + _name(s) + '</option>'; }).join('');
+    catSel.value = slugs.indexOf(prev) !== -1 ? prev : 'all';
+  }
+}
+
+// LAYER 3 — fetch display names from API; enriches pill labels without touching slugs
 function syncCategories() {
   fetch(API_BASE + '/api/categories')
     .then(function(res) { if (!res.ok) throw new Error('cats'); return res.json(); })
     .then(function(data) {
-      const cats = data && data.categories;
-      if (!cats || !cats.length) return; // keep hardcoded pills
-      const wrap = document.getElementById('fpCat');
-      if (!wrap) return;
-      const activeCat = curFilter || 'all';
-      wrap.dataset.bound = ''; // re-bind after rebuild
-      wrap.innerHTML =
-        '<button class="fp-pill' + (activeCat === 'all' ? ' active' : '') + '" data-filter="all">All Products</button>' +
-        cats.map(function(c) {
-          return '<button class="fp-pill' + (activeCat === c.slug ? ' active' : '') + '" data-filter="' + c.slug + '">' + c.name + '</button>';
-        }).join('');
-      _initFilterPanel(); _initFilterSidebar();
+      var cats = data && data.categories;
+      if (!cats || !cats.length) return;
+      window._catNames = {};
+      cats.forEach(function(c) { window._catNames[c.slug] = c.name; });
+      // Update existing pill text only — never rebuild (preserves slug consistency)
+      [['#fpCat','.fp-pill'],['#fsbCat','.fsb-pill'],['#fcatStrip','.fp-pill']].forEach(function(pair) {
+        var wrap = document.querySelector(pair[0]); if (!wrap) return;
+        wrap.querySelectorAll(pair[1]+'[data-filter]').forEach(function(btn) {
+          var slug = btn.dataset.filter;
+          if (slug && slug !== 'all' && window._catNames[slug]) {
+            var dot = btn.querySelector('.fsb-pill-dot');
+            btn.textContent = window._catNames[slug];
+            if (dot) btn.insertBefore(dot, btn.firstChild);
+          }
+        });
+      });
+      // Update catSel options text
+      var catSel = document.getElementById('catSel');
+      if (catSel) {
+        catSel.querySelectorAll('option').forEach(function(o) {
+          if (o.value !== 'all' && window._catNames[o.value]) o.textContent = window._catNames[o.value];
+        });
+      }
     })
-    .catch(function() { /* keep hardcoded categories — no error shown */ });
+    .catch(function() { /* keep current pill names */ });
 }
 
 document.addEventListener('DOMContentLoaded', function() {

@@ -694,7 +694,50 @@ async function ckPlaceOrder() {
 
   /* ── WhatsApp order ── */
   if (payMethod === 'whatsapp') {
-    btn.disabled = true; btn.textContent = 'Opening WhatsApp…';
+    btn.disabled = true; btn.textContent = 'Saving order…';
+
+    /* Save order to DB so it appears in account + admin */
+    try {
+      var _sbWA = (typeof _ensureSB === 'function') ? await _ensureSB() : null;
+      if (_sbWA) {
+        var _tok = localStorage.getItem('ta_token');
+        var _ref = localStorage.getItem('ta_refresh');
+        if (_tok) { try { await _sbWA.auth.setSession({ access_token: _tok, refresh_token: _ref || '' }); } catch (_) {} }
+        var _user = Auth.getUser ? Auth.getUser() : null;
+        var _emailEl = document.getElementById('ckEmail');
+        var _custEmail = (chosenAddr.email) || (_emailEl && _emailEl.value.trim()) || (_user && _user.email) || '';
+        await _sbWA.from('orders').insert({
+          order_id: trkId,
+          user_id: _user ? _user.id : null,
+          customer_name: chosenAddr.full_name,
+          customer_phone: chosenAddr.phone,
+          customer_email: _custEmail,
+          shipping_address: {
+            address_line1: chosenAddr.address_line1,
+            address_line2: chosenAddr.address_line2 || '',
+            city: chosenAddr.city,
+            state: chosenAddr.state,
+            pincode: chosenAddr.pincode,
+            country: 'India',
+            full_name: chosenAddr.full_name,
+            phone: chosenAddr.phone,
+          },
+          items: items.map(function(i) {
+            return { slug: i.id, name: i.name, quantity: i.quantity, unit_price: i.price };
+          }),
+          subtotal: subtotal,
+          shipping_charge: shipping,
+          total_amount: total,
+          payment_method: 'whatsapp',
+          payment_status: 'pending',
+          order_status: 'whatsapp_pending',
+          status: 'pending',
+          special_instructions: chosenAddr.notes || null,
+        });
+      }
+    } catch (_e) { console.warn('WhatsApp order DB save failed:', _e.message || _e); }
+
+    btn.textContent = 'Opening WhatsApp…';
     var itemLines = items.map(function(i) { return i.name + ' x' + i.quantity + ' = ₹' + (i.price * i.quantity).toLocaleString('en-IN'); }).join('\n');
     var msg = '*New Order – TriAkar*\n'
       + '*Order ID:* ' + trkId + '\n\n'
@@ -713,7 +756,7 @@ async function ckPlaceOrder() {
     window.open('https://wa.me/919217555833?text=' + encodeURIComponent(msg), '_blank');
     Cart.clear();
     if (typeof gtagEvent === 'function') gtagEvent('purchase', { transaction_id: trkId, currency: 'INR', value: total });
-    window.location.href = 'order-confirmation.html?order_id=' + trkId;
+    window.location.href = 'order-confirmation.html?order_id=' + trkId + '&via=whatsapp';
     return;
   }
 

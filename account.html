@@ -136,6 +136,7 @@
 .status-pending{background:#FFEDD5;color:#9A3412}
 .status-placed{background:#FEF9C3;color:#854D0E}
 .status-payment-pending{background:#C4622A;color:#fff}
+.status-whatsapp{background:#25D366;color:#fff}
 .status-confirmed{background:#DCFCE7;color:#14532D}
 .status-processing{background:#DBEAFE;color:#1E3A5F}
 .status-shipped{background:#E0E7FF;color:#312E81}
@@ -329,7 +330,6 @@
 
       <div class="dash-tabs">
         <button class="dash-tab" data-panel="orders" onclick="switchDashTab('orders')">My Orders</button>
-        <button class="dash-tab" data-panel="savedItems" onclick="switchDashTab('savedItems')">Saved Items</button>
         <button class="dash-tab active" data-panel="profile" onclick="switchDashTab('profile')">Personal Details</button>
         <button class="dash-tab" data-panel="addresses" onclick="switchDashTab('addresses')">Saved Addresses</button>
         <button class="dash-tab" data-panel="settings" onclick="switchDashTab('settings')">Settings</button>
@@ -341,16 +341,6 @@
           <div style="border:1px solid var(--stone-p);border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px"><div class="skeleton" style="width:56px;height:56px;border-radius:8px;flex-shrink:0"></div><div style="flex:1"><div class="skeleton skel-ln w60"></div><div class="skeleton skel-ln w40"></div><div class="skeleton skel-ln w30" style="margin-bottom:0"></div></div><div class="skeleton" style="width:72px;height:26px;border-radius:20px;flex-shrink:0"></div></div>
           <div style="border:1px solid var(--stone-p);border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px"><div class="skeleton" style="width:56px;height:56px;border-radius:8px;flex-shrink:0"></div><div style="flex:1"><div class="skeleton skel-ln w60"></div><div class="skeleton skel-ln w40"></div><div class="skeleton skel-ln w30" style="margin-bottom:0"></div></div><div class="skeleton" style="width:72px;height:26px;border-radius:20px;flex-shrink:0"></div></div>
           <div style="border:1px solid var(--stone-p);border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px"><div class="skeleton" style="width:56px;height:56px;border-radius:8px;flex-shrink:0"></div><div style="flex:1"><div class="skeleton skel-ln w60"></div><div class="skeleton skel-ln w40"></div><div class="skeleton skel-ln w30" style="margin-bottom:0"></div></div><div class="skeleton" style="width:72px;height:26px;border-radius:20px;flex-shrink:0"></div></div>
-        </div></div>
-      </div>
-
-      <!-- TAB: Saved Items -->
-      <div class="tab-panel" id="panelSavedItems" data-panel="savedItems">
-        <div class="orders-title" style="margin-bottom:20px">Saved Items</div>
-        <div id="savedItemsContainer"><div aria-hidden="true" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px">
-          <div style="border:1px solid var(--stone-p);border-radius:12px;overflow:hidden"><div class="skeleton" style="aspect-ratio:1;width:100%"></div><div style="padding:12px"><div class="skeleton skel-ln w80"></div><div class="skeleton skel-ln w50" style="width:50%"></div><div class="skeleton skel-btn" style="height:32px"></div></div></div>
-          <div style="border:1px solid var(--stone-p);border-radius:12px;overflow:hidden"><div class="skeleton" style="aspect-ratio:1;width:100%"></div><div style="padding:12px"><div class="skeleton skel-ln w80"></div><div class="skeleton skel-ln w50" style="width:50%"></div><div class="skeleton skel-btn" style="height:32px"></div></div></div>
-          <div style="border:1px solid var(--stone-p);border-radius:12px;overflow:hidden"><div class="skeleton" style="aspect-ratio:1;width:100%"></div><div style="padding:12px"><div class="skeleton skel-ln w80"></div><div class="skeleton skel-ln w50" style="width:50%"></div><div class="skeleton skel-btn" style="height:32px"></div></div></div>
         </div></div>
       </div>
 
@@ -740,7 +730,6 @@ function switchDashTab(panel){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.dataset.panel===panel));
   if(panel==='profile')loadProfile();
   if(panel==='addresses')loadAddresses();
-  if(panel==='savedItems')loadSavedItems();
 }
 
 /* ── Saved Items (Wishlist) ── */
@@ -856,33 +845,43 @@ function renderOrders(orders){
   if(!orders||!orders.length){el.innerHTML='<div class="orders-empty"><p>No orders yet.</p><a href="products.html" class="btn btn-dark">Start Shopping</a></div>';return}
   el.innerHTML=orders.map(function(o,idx){
     const st=o.order_status||o.status||'placed';
-    // Unpaid = pending status + no payment received
-    const isUnpaid=(st==='pending')&&o.payment_received!==true&&o.payment_status!=='paid';
-    const displayLabel=isUnpaid?'Payment Pending':st;
-    const sc=isUnpaid?'status-payment-pending':(STATUS_CLASS[st]||'status-pending');
+    const isWA=o.payment_method==='whatsapp'||st==='whatsapp_pending';
+    // Unpaid = pending status + no payment received (online orders only)
+    const isUnpaid=!isWA&&(st==='pending')&&o.payment_received!==true&&o.payment_status!=='paid';
+    const displayLabel=isWA?'Via WhatsApp':isUnpaid?'Payment Pending':st;
+    const sc=isWA?'status-whatsapp':isUnpaid?'status-payment-pending':(STATUS_CLASS[st]||'status-pending');
     const items=o.items||[];
     const preview=items.slice(0,3).map(function(i){return(i.name||'Item')+' x'+i.quantity}).join(', ')+(items.length>3?' +'+(items.length-3)+' more':'');
     const orderId=o.invoice_number||o.order_id||('TRK-'+new Date(o.created_at).toISOString().slice(0,10).replace(/-/g,'')+'-'+((o.id||'').slice(-4).toUpperCase()));
     const uid='ord'+idx;
-    // Escape order data for inline onclick
     const rzpOrderId=o.razorpay_order_id||'';
     const dbOrderId=o.id||'';
     const amount=Number(o.total_amount)||0;
     const safeId=dbOrderId.replace(/'/g,"\\'");
     const safeRzp=rzpOrderId.replace(/'/g,"\\'");
+    const waNote=isWA
+      ?'<div class="order-pending-note" style="background:rgba(37,211,102,.08);border-left:3px solid #25D366;color:#1a6e35;display:flex;align-items:flex-start;gap:7px">'
+        +'<svg width="13" height="13" viewBox="0 0 24 24" fill="#25D366" style="flex-shrink:0;margin-top:1px"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 0C5.373 0 0 5.373 0 12c0 2.117.554 4.105 1.523 5.83L.057 23.522a.5.5 0 00.62.607l5.802-1.522A11.938 11.938 0 0012 24c6.627 0 12-5.373 12-12S18.626 0 11.999 0zm0 21.818a9.8 9.8 0 01-5.027-1.38l-.36-.214-3.726.977.995-3.63-.235-.374A9.818 9.818 0 012.182 12c0-5.415 4.403-9.818 9.818-9.818 5.414 0 9.818 4.403 9.818 9.818 0 5.414-4.404 9.818-9.819 9.818z"/></svg>'
+        +'Placed via WhatsApp — payment pending. We\'ll confirm on WhatsApp.'
+        +'</div>'
+      :'';
     return '<div class="order-card">'
       +'<div class="order-row">'
       +'<div><div class="order-id">'+orderId+'</div><div class="order-date">'+fmtDate(o.created_at)+'</div></div>'
       +'<div style="display:flex;align-items:center;gap:12px"><span class="order-status '+sc+'">'+displayLabel+'</span><div class="order-total">₹'+Number(o.total_amount).toLocaleString('en-IN')+'</div></div>'
       +'</div>'
       +(preview?'<div class="order-items-preview">'+preview+'</div>':'')
+      +waNote
       +(isUnpaid
         ?'<div class="order-pending-note">Payment not completed. Complete payment to confirm your order.</div>'
          +(rzpOrderId?'<button class="order-pay-now" onclick="retryPayment(\''+safeId+'\',\''+safeRzp+'\','+amount+')">Complete Payment →</button>':'')
-        :'<div class="order-track">'
-          +'<a href="track-order.html?id='+encodeURIComponent(orderId)+'">Track Order →</a>'
-          +'<button class="od-toggle" id="odt-'+uid+'" onclick="toggleOrderDetail(\''+uid+'\')">Details ↓</button>'
-          +'</div>'
+        :(!isWA
+          ?'<div class="order-track">'
+            +'<a href="track-order.html?id='+encodeURIComponent(orderId)+'">Track Order →</a>'
+            +'<button class="od-toggle" id="odt-'+uid+'" onclick="toggleOrderDetail(\''+uid+'\')">Details ↓</button>'
+            +'</div>'
+          :'<div class="order-track"><button class="od-toggle" id="odt-'+uid+'" onclick="toggleOrderDetail(\''+uid+'\')">Details ↓</button></div>'
+        )
       )
       +buildOrderDetail(o,uid)
       +'</div>';
@@ -904,11 +903,12 @@ async function loadOrders(){
         .eq('user_id',user.id)
         .order('created_at',{ascending:false});
       if(error)throw error;
-      // Normalise order_items → items for renderOrders
+      // Normalise order_items → items; fall back to JSONB items column for WhatsApp orders
       const normalised=(data||[]).map(function(o){
-        return Object.assign({},o,{items:(o.order_items||[]).map(function(i){
+        const fromDB=(o.order_items||[]).map(function(i){
           return {name:(i.products&&i.products.name)||'Item',quantity:i.quantity,unit_price:i.unit_price};
-        })});
+        });
+        return Object.assign({},o,{items:fromDB.length?fromDB:(o.items||[])});
       });
       renderOrders(normalised);
       return;
