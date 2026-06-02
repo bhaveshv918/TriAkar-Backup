@@ -93,29 +93,35 @@ export async function getOrdersByUser(req, res, next) {
       .order('created_at', { ascending: false });
     if (e1) throw e1;
 
-    // Fallback: orders linked by customer_email but missing user_id
-    // Catches orders placed before user_id was properly wired, or via admin entry
-    let byEmail = [];
+    // Fallback: find orphaned orders by email OR phone — catches pre-auth orders and admin entries
+    const seen = new Set((byId || []).map(o => o.id));
+    let extra = [];
+
+    // Fetch user's phone from profile for phone-based lookup
+    const { data: profile } = await supabase.from('profiles').select('mobile, phone').eq('id', userId).maybeSingle();
+    const userPhone = (profile?.mobile || profile?.phone || '').replace(/\D/g, '').slice(-10);
+
+    // Query by email
     if (userEmail) {
-      const { data: emailRows } = await supabase
-        .from('orders')
-        .select(SELECT)
-        .eq('customer_email', userEmail)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false });
-
-      // Only keep rows not already covered by the user_id query
-      const seen = new Set((byId || []).map(o => o.id));
-      byEmail = (emailRows || []).filter(o => !seen.has(o.id));
-
-      // Back-fill user_id on these orphaned rows so future queries find them by id
-      if (byEmail.length) {
-        const ids = byEmail.map(o => o.id);
-        await supabase.from('orders').update({ user_id: userId }).in('id', ids).is('user_id', null);
-      }
+      const { data: rows } = await supabase.from('orders').select(SELECT)
+        .eq('customer_email', userEmail).is('deleted_at', null).order('created_at', { ascending: false });
+      (rows || []).forEach(o => { if (!seen.has(o.id)) { seen.add(o.id); extra.push(o); } });
     }
 
-    const allOrders = [...(byId || []), ...byEmail]
+    // Query by phone (last 10 digits match)
+    if (userPhone) {
+      const { data: rows } = await supabase.from('orders').select(SELECT)
+        .ilike('customer_phone', '%' + userPhone).is('deleted_at', null).order('created_at', { ascending: false });
+      (rows || []).forEach(o => { if (!seen.has(o.id)) { seen.add(o.id); extra.push(o); } });
+    }
+
+    // Back-fill user_id on recovered rows so future queries find them by id
+    if (extra.length) {
+      const orphanIds = extra.filter(o => !o.user_id).map(o => o.id);
+      if (orphanIds.length) await supabase.from('orders').update({ user_id: userId }).in('id', orphanIds);
+    }
+
+    const allOrders = [...(byId || []), ...extra]
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
     res.json({ orders: allOrders });

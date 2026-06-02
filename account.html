@@ -740,8 +740,11 @@ async function handleSignup(e){
 function switchDashTab(panel){
   document.querySelectorAll('.dash-tab').forEach(t=>t.classList.toggle('active',t.dataset.panel===panel));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.dataset.panel===panel));
+  if(panel==='orders')loadOrders();
   if(panel==='profile')loadProfile();
   if(panel==='addresses')loadAddresses();
+  // Update URL hash silently so back/nav links work
+  try{history.replaceState(null,'','#'+panel);}catch(_){}
 }
 
 /* ── Saved Items (Wishlist) ── */
@@ -1523,14 +1526,24 @@ async function showDashboard(){
 
   loadOrders();
 
-  // Hash-based tab routing: #profile → details, #orders → orders, default → profile
-  const hash=window.location.hash.replace('#','');
-  if(hash==='orders')switchDashTab('orders');
-  else if(hash==='saved'||hash==='savedItems'||hash==='wishlist')switchDashTab('savedItems');
+  // Hash-based tab routing — default is Orders (most useful landing tab)
+  _applyHashTab();
+}
+
+function _applyHashTab(){
+  const hash=window.location.hash.replace('#','').toLowerCase();
+  if(!hash||hash==='orders')switchDashTab('orders');
   else if(hash==='addresses')switchDashTab('addresses');
   else if(hash==='settings')switchDashTab('settings');
-  else switchDashTab('profile'); // default: My Account shows personal details
+  else if(hash==='profile')switchDashTab('profile');
+  else switchDashTab('orders');
 }
+
+// Handle nav clicks while already on account.html (e.g. "My Orders" in dropdown)
+window.addEventListener('hashchange',function(){
+  const dash=document.getElementById('dashboard');
+  if(dash&&dash.classList.contains('active'))_applyHashTab();
+});
 
 function splitPhoneValue(id,val){
   const ccEl=document.getElementById(id+'_cc');
