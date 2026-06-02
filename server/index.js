@@ -215,17 +215,16 @@ app.get('/api/track/:id', async (req, res) => {
     const id = (req.params.id || '').trim().toUpperCase();
     if (!id) return res.status(400).json({ error: 'Order ID required' });
 
-    const SEL = 'order_id, invoice_number, order_status, status, payment_received, payment_status, payment_method, total_amount, subtotal, shipping_charge, discount_amount, promo_code, tracking_number, tracking_vendor, estimated_delivery, created_at, shipping_address, items';
-
-    // Use separate .eq() calls — avoids PostgREST .or() misparse on hyphens in TRK IDs
+    // Use select('*') — explicit column lists fail if any migration column is missing
+    // Two separate .eq() calls — avoids PostgREST misparse on hyphens in TRK IDs
     let data = null;
 
-    const r1 = await supabase.from('orders').select(SEL).eq('order_id', id).maybeSingle();
+    const r1 = await supabase.from('orders').select('*').eq('order_id', id).maybeSingle();
     if (r1.error) throw r1.error;
     data = r1.data;
 
     if (!data) {
-      const r2 = await supabase.from('orders').select(SEL).eq('invoice_number', id).maybeSingle();
+      const r2 = await supabase.from('orders').select('*').eq('invoice_number', id).maybeSingle();
       if (r2.error) throw r2.error;
       data = r2.data;
     }
