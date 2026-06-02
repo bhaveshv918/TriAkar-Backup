@@ -10,7 +10,7 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
       <span class="logo-en"><span style="color:var(--accent)">TRI</span>AKAR</span>
       <span class="logo-hi"><span style="color:var(--accent)">त्रि</span>आकार</span>
     </a>
-    <ul class="nav-links"><li><a href="/products.html">Shop</a></li><li><a href="/custom.html">Custom Order</a></li><li><a href="/stories.html">Our Stories</a></li><li><a href="/about.html">About</a></li><li><a href="/contact.html">Contact</a></li><li><a href="/track-order.html">Track Order</a></li></ul>
+    <ul class="nav-links"><li><a href="/products.html">Shop</a></li><li><a href="/order.html">Order</a></li><li><a href="/stories.html">Our Stories</a></li><li><a href="/about.html">About</a></li><li><a href="/contact.html">Contact</a></li><li><a href="/track-order.html">Track Order</a></li></ul>
     <div class="nav-right">
       <form class="nav-search" role="search" onsubmit="return window.taSearch(this);">
         <input type="search" id="navSearchInput" name="q" placeholder="Search products…" aria-label="Search products" autocomplete="off">
@@ -20,7 +20,7 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
         <span class="wishlist-badge" id="wishlistBadge">0</span>
       </a>
-      <a href="/custom.html" class="nav-corp" aria-label="Corporate or bulk order">Corporate Order →</a>
+      <a href="/order.html" class="nav-corp" aria-label="Corporate or bulk order">Corporate Order →</a>
       <a href="#" class="cart-btn" onclick="openCart();return false;">
         <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M1 1h2.5l1.6 8h8.4l1.5-5.5H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="14.5" r="1.2" fill="currentColor"/><circle cx="13" cy="14.5" r="1.2" fill="currentColor"/></svg>
         Cart <span class="cart-badge" id="cartBadge">0</span>
@@ -30,7 +30,7 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
   </div>
 </nav>`;
 
-window._DRAWER_HTML = `<nav class="nav-drawer"><a href="/custom.html" class="drawer-link">Custom Order</a><a href="/custom.html" class="drawer-link">Corporate Order</a><a href="/wishlist.html" class="drawer-link" style="display:none">Wishlist</a><a href="/stories.html" class="drawer-link">Our Stories</a><a href="/about.html" class="drawer-link">About</a><a href="/contact.html" class="drawer-link">Contact</a><a href="/track-order.html" class="drawer-link">Track Order</a><a href="/account.html" class="drawer-login drawer-auth">Login</a></nav>`;
+window._DRAWER_HTML = `<nav class="nav-drawer"><a href="/order.html" class="drawer-link">Order</a><a href="/wishlist.html" class="drawer-link" style="display:none">Wishlist</a><a href="/stories.html" class="drawer-link">Our Stories</a><a href="/about.html" class="drawer-link">About</a><a href="/contact.html" class="drawer-link">Contact</a><a href="/track-order.html" class="drawer-link">Track Order</a><a href="/account.html" class="drawer-login drawer-auth">Login</a></nav>`;
 
 /* Site-wide product search — used by nav + drawer search forms */
 window.taSearch = function(form){
@@ -59,10 +59,9 @@ window._FOOTER_HTML = `<footer>
           <li><a href="/products.html?cat=desk">Desk</a></li>
           <li><a href="/products.html?cat=home">Home</a></li>
           <li><a href="/products.html?cat=gifting">Gifting</a></li>
-          <li><a href="/custom.html">Custom Order</a></li>
+          <li><a href="/order.html">Order</a></li>
           <li><a href="/stories.html">Stories</a></li>
           <li><a href="/services/replacement-parts.html">Replacement Parts</a></li>
-          <li><a href="/services/corporate-gifting.html">Corporate Gifting</a></li>
           <li><a href="/services/personalized-gifts.html">Personalized Gifts</a></li>
         </ul>
       </div>
@@ -72,7 +71,7 @@ window._FOOTER_HTML = `<footer>
           <li><a href="/track-order.html">Track Order</a></li>
           <li><a href="/refund-policy.html">Refund Policy</a></li>
           <li><a href="/about.html">About</a></li>
-          <li><a href="/custom.html">Custom Order</a></li>
+          <li><a href="/order.html">Order</a></li>
         </ul>
       </div>
       <div><div class="foot-col-t">Legal</div>
