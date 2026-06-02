@@ -215,13 +215,24 @@ function showError(msg) {
     + '</div>';
 }
 
+function _waFallback(orderId) {
+  renderOrder({
+    order_id: orderId,
+    payment_method: 'whatsapp',
+    order_status: 'whatsapp_pending',
+    total_amount: 0,
+    created_at: new Date().toISOString(),
+    items: []
+  });
+}
+
 async function loadOrder() {
-  const orderId = new URLSearchParams(window.location.search).get('order_id');
+  const params = new URLSearchParams(window.location.search);
+  const orderId = params.get('order_id');
+  const isWAParam = params.get('via') === 'whatsapp';
   if (!orderId) { showError('No order ID found.'); return; }
 
-  // Direct Supabase query via the shared lazy-loader (_ensureSB from shared.js).
-  // Set auth session first so RLS lets the user read their own order.
-  // Query by order_id (TRK-…) or UUID id.
+  // 1. Try Supabase — query by order_id (TRK-…) only, not by UUID id
   try {
     const sb = (typeof _ensureSB === 'function') ? await _ensureSB() : null;
     if (sb) {
@@ -232,37 +243,42 @@ async function loadOrder() {
       const { data, error } = await sb
         .from('orders')
         .select('*, order_items(quantity, unit_price, customization_notes, products(name, images))')
-        .or('order_id.eq.' + orderId + ',id.eq.' + orderId)
+        .eq('order_id', orderId)
         .maybeSingle();
 
       if (!error && data) {
-        renderOrder(Object.assign({}, data, { items: data.order_items || [] }));
+        // Merge JSONB items as fallback when order_items rows are absent (WA orders)
+        const dbItems = (data.order_items || []).map(function(i) {
+          return { name: (i.products && i.products.name) || 'Item', quantity: i.quantity, unit_price: i.unit_price };
+        });
+        renderOrder(Object.assign({}, data, { items: dbItems.length ? dbItems : (data.items || []) }));
         return;
       }
     }
   } catch (e) { console.error('order-confirmation supabase query failed:', e); }
 
-  // Fallback to Express API (auth required)
+  // 2. No token → can't call Express API
   const token = localStorage.getItem('ta_token');
-  const isWAParam = new URLSearchParams(window.location.search).get('via') === 'whatsapp';
   if (!token) {
-    if (isWAParam) {
-      renderOrder({ order_id: orderId, payment_method: 'whatsapp', order_status: 'whatsapp_pending', total_amount: 0, created_at: new Date().toISOString(), items: [] });
-    } else {
-      showError('Order placed! Your order ID is <strong>' + orderId + '</strong>. Use it to track your order.');
-    }
+    isWAParam
+      ? _waFallback(orderId)
+      : showError('Order placed! Your order ID is <strong>' + orderId + '</strong>. Use it to track your order.');
     return;
   }
 
+  // 3. Express API fallback
   try {
     const res = await fetch(API_BASE + '/api/orders/' + orderId, {
       headers: { Authorization: 'Bearer ' + token }
     });
-    if (!res.ok) throw new Error('Order not found');
+    if (!res.ok) throw new Error('not found');
     const { order } = await res.json();
     renderOrder(order);
   } catch (err) {
-    showError('Could not load order details. Your order ID: <strong>' + orderId + '</strong>');
+    // If WA param is set, always show the WhatsApp confirmation — never generic error
+    isWAParam
+      ? _waFallback(orderId)
+      : showError('Could not load order details. Your order ID: <strong>' + orderId + '</strong>');
   }
 }
 
