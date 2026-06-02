@@ -214,16 +214,27 @@ app.get('/api/track/:id', async (req, res) => {
   try {
     const id = (req.params.id || '').trim().toUpperCase();
     if (!id) return res.status(400).json({ error: 'Order ID required' });
-    const { data, error } = await supabase
-      .from('orders')
-      .select('order_id, invoice_number, order_status, status, payment_received, payment_status, payment_method, total_amount, subtotal, shipping_charge, discount_amount, promo_code, tracking_number, tracking_vendor, estimated_delivery, created_at, shipping_address, items, order_items(quantity, unit_price, customization_notes, products(name))')
-      .or(`order_id.eq.${id},invoice_number.eq.${id}`)
-      .maybeSingle();
-    if (error) throw error;
+
+    const SEL = 'order_id, invoice_number, order_status, status, payment_received, payment_status, payment_method, total_amount, subtotal, shipping_charge, discount_amount, promo_code, tracking_number, tracking_vendor, estimated_delivery, created_at, shipping_address, items';
+
+    // Use separate .eq() calls — avoids PostgREST .or() misparse on hyphens in TRK IDs
+    let data = null;
+
+    const r1 = await supabase.from('orders').select(SEL).eq('order_id', id).maybeSingle();
+    if (r1.error) throw r1.error;
+    data = r1.data;
+
+    if (!data) {
+      const r2 = await supabase.from('orders').select(SEL).eq('invoice_number', id).maybeSingle();
+      if (r2.error) throw r2.error;
+      data = r2.data;
+    }
+
     if (!data) return res.json({ found: false });
     const displayId = data.order_id || data.invoice_number || id;
     res.json({ found: true, order: Object.assign({}, data, { display_id: displayId }) });
   } catch (err) {
+    console.error('[track] error:', err.message || err);
     res.status(500).json({ error: 'Could not fetch order' });
   }
 });
