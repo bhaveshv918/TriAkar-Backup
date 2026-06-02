@@ -1567,6 +1567,16 @@ async function doLogin(){
       return;
     }
 
+    // ── Guard: Supabase can return {user:null,error:null} if project is paused
+    //    or in certain edge-case auth states. Accessing data.user.email without
+    //    this check throws a TypeError caught as a generic "Login error".
+    if(!data||!data.user||!data.user.email){
+      console.error('doLogin: Supabase returned no user object. data=',JSON.stringify(data));
+      showLoginErr('Authentication error. Please try again in a moment.');
+      btn.disabled=false;btn.textContent='Authenticate →';
+      return;
+    }
+
     // ── Admin email whitelist ──
     if(!ADMIN_EMAILS.includes(data.user.email.toLowerCase())){
       await sb.auth.signOut().catch(()=>{});
@@ -1581,8 +1591,15 @@ async function doLogin(){
     showWelcome(data.user);
 
   }catch(err){
-    console.error('doLogin error:',err);
-    showLoginErr('Login error. Please try again.');
+    console.error('doLogin error:',err.message||err);
+    // Show a meaningful message based on what actually failed
+    const msg=err&&err.message?err.message:'';
+    if(msg.toLowerCase().includes('network')||msg.toLowerCase().includes('fetch'))
+      showLoginErr('Network error. Check your connection and try again.');
+    else if(msg.toLowerCase().includes('invalid'))
+      showLoginErr('Invalid credentials. Please check your email and password.');
+    else
+      showLoginErr('Login error ('+((err&&err.message)||'unknown')+')');
     btn.disabled=false;btn.textContent='Authenticate →';
   }
 }
