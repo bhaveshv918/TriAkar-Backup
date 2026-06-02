@@ -50,11 +50,15 @@
 .track-result{margin-top:28px;display:none}
 .track-result.show{display:block}
 .ts-bar{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;position:relative;padding-top:36px}
+/* Grey base track */
 .ts-bar::before{content:"";position:absolute;top:16px;left:16px;right:16px;height:2px;background:var(--stone-p);z-index:0}
-.ts-step{display:flex;flex-direction:column;align-items:center;gap:8px;z-index:1;flex:1}
-.ts-dot{width:32px;height:32px;border-radius:50%;border:2px solid var(--stone-p);background:var(--white);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--stone);transition:all .4s}
+/* Accent filled track — width driven by --prog CSS var */
+.ts-bar::after{content:"";position:absolute;top:16px;left:16px;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent-l));z-index:1;width:var(--prog,0%);max-width:calc(100% - 32px);transition:width .6s cubic-bezier(.4,0,.2,1)}
+.ts-step{display:flex;flex-direction:column;align-items:center;gap:8px;z-index:2;flex:1}
+.ts-dot{width:32px;height:32px;border-radius:50%;border:2px solid var(--stone-p);background:var(--white);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--stone);transition:all .4s;position:relative;z-index:2}
 .ts-dot.done{background:var(--accent);border-color:var(--accent);color:white}
-.ts-dot.active{background:var(--charcoal);border-color:var(--charcoal);color:white}
+.ts-dot.active{background:var(--charcoal);border-color:var(--charcoal);color:white;box-shadow:0 0 0 4px rgba(22,22,20,.12)}
+.ts-dot.active-wa{background:#92400e;border-color:#92400e;color:white;box-shadow:0 0 0 4px rgba(146,64,14,.15)}
 .ts-label{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);text-align:center;font-weight:600;white-space:nowrap}
 .track-detail{background:rgba(255,255,255,.55);-webkit-backdrop-filter:blur(12px) saturate(140%);backdrop-filter:blur(12px) saturate(140%);padding:18px 20px;border:1px solid rgba(255,255,255,.55);border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,.05),inset 0 1px 0 rgba(255,255,255,.6)}
 .td-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--stone-p);font-size:13px}
@@ -116,117 +120,170 @@
 <script>
 const API_BASE=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
 
-const STATUS_MAP={pending:0,confirmed:1,processing:2,shipped:3,delivered:4,cancelled:-1,returned:-2,refunded:-3,placed:1};
+/* Step index for each status (0–4) */
+const STATUS_STEP={whatsapp_pending:0,pending:0,placed:1,confirmed:1,processing:2,shipped:3,delivered:4};
+const STATUS_CANCELLED=new Set(['cancelled','returned','refunded']);
+const STATUS_LABEL={
+  whatsapp_pending:'Awaiting Payment',pending:'Order Placed',placed:'Confirmed',
+  confirmed:'Confirmed',processing:'Printing',shipped:'Dispatched',
+  delivered:'Delivered',cancelled:'Cancelled',returned:'Returned',refunded:'Refunded'
+};
 
-function fmtDate(iso){if(!iso)return'—';return new Date(iso).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}
-function capFirst(s){return s?s.charAt(0).toUpperCase()+s.slice(1):s}
+function fmtDate(iso){if(!iso)return'—';return new Date(iso).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'});}
+function fmtPrice(n){return'₹'+Number(n||0).toLocaleString('en-IN');}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function renderTimeline(st){
+  const cancelled=STATUS_CANCELLED.has(st);
+  const isWA=st==='whatsapp_pending';
+  const step=cancelled?-1:(STATUS_STEP[st]??1);
+  const pct=cancelled?0:Math.round((step/4)*100);
+
+  document.getElementById('tsBar').style.setProperty('--prog',pct+'%');
+
+  for(let i=0;i<5;i++){
+    const d=document.getElementById('ts'+i);
+    if(!d)continue;
+    d.className='ts-dot';
+    if(!cancelled){
+      if(i<step)d.classList.add('done');
+      else if(i===step)d.classList.add(isWA?'active-wa':'active');
+    }
+  }
+}
 
 async function trackOrder(){
-  const input=document.getElementById('trackInput').value.trim();
+  const raw=document.getElementById('trackInput').value.trim();
   const btn=document.getElementById('trackBtn');
-  const res=document.getElementById('trackResult');
+  const resEl=document.getElementById('trackResult');
   const det=document.getElementById('trackDetail');
 
-  if(!input){alert('Please enter your order ID.');return}
-  const orderId=input.toUpperCase().trim();
+  if(!raw){alert('Please enter your order ID.');return;}
+  const orderId=raw.toUpperCase().replace(/\s+/g,'');
   btn.textContent='Searching…';btn.disabled=true;
+  resEl.classList.remove('show');
 
   try{
     const resp=await fetch(API_BASE+'/api/track/'+encodeURIComponent(orderId));
     if(!resp.ok)throw new Error('Server error '+resp.status);
     const json=await resp.json();
-    const data=json.found?json.order:null;
+    resEl.classList.add('show');
 
-    res.classList.add('show');
-
-    if(!data){
-      for(let i=0;i<5;i++)document.getElementById('ts'+i).className='ts-dot';
-      det.innerHTML='<div style="text-align:center;padding:28px 20px">'
-        +'<div style="font-size:14px;font-weight:600;color:var(--charcoal);margin-bottom:8px">Order not found</div>'
-        +'<div style="font-size:13px;color:var(--stone);margin-bottom:16px">No order found for <strong>'+orderId+'</strong>.<br>Make sure you\'re signed in with the account used to place the order.</div>'
-        +'<a href="contact.html" style="color:var(--accent);font-size:13px;font-weight:600">Contact us for help →</a>'
+    if(!json.found){
+      renderTimeline('');
+      document.getElementById('tsBar').style.setProperty('--prog','0%');
+      det.innerHTML='<div style="text-align:center;padding:32px 20px">'
+        +'<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--stone-p)" stroke-width="1.4" style="margin-bottom:14px"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01" stroke-linecap="round"/></svg>'
+        +'<div style="font-size:15px;font-weight:700;color:var(--charcoal);margin-bottom:8px">Order not found</div>'
+        +'<div style="font-size:13px;color:var(--stone);line-height:1.6">No order found for <strong>'+esc(orderId)+'</strong>.<br>Double-check your order ID and try again.</div>'
+        +'<a href="contact.html" style="display:inline-block;margin-top:16px;color:var(--accent);font-size:13px;font-weight:600">Contact us →</a>'
         +'</div>';
       btn.textContent='Track';btn.disabled=false;
       return;
     }
 
-    const order=data;
-    const st=order.order_status||order.status||'confirmed';
+    const order=json.order;
+    const st=order.order_status||order.status||'placed';
+    const isWA=order.payment_method==='whatsapp'||st==='whatsapp_pending';
+    const cancelled=STATUS_CANCELLED.has(st);
     const isPaid=order.payment_received===true||order.payment_status==='paid';
-    const statusIdx=isPaid?(STATUS_MAP[st]??1):0;
+    const displayId=order.display_id||order.order_id||order.invoice_number||orderId;
 
-    /* Update step tracker dots */
-    for(let i=0;i<5;i++){
-      const d=document.getElementById('ts'+i);
-      if(statusIdx<0)d.className='ts-dot';
-      else if(i<statusIdx)d.className='ts-dot done';
-      else if(i===statusIdx)d.className='ts-dot active';
-      else d.className='ts-dot';
-    }
+    renderTimeline(st);
 
-    const addr=order.shipping_address||{};
-    const invNum=order.display_id||order.order_id||order.invoice_number||orderId;
-    const addrLine=[addr.address_line1,addr.address_line2,addr.city,addr.state,addr.pincode].filter(Boolean).join(', ');
+    /* Status badge colour */
+    const [sBg,sCol]=cancelled?['#FEF2F2','#B91C1C']:isWA?['rgba(37,211,102,.14)','#1a6e35']:isPaid?['#DCFCE7','#14532D']:['#FFF7ED','#92400e'];
+    const sLabel=STATUS_LABEL[st]||(st.charAt(0).toUpperCase()+st.slice(1));
 
     let html='';
 
-    /* Order summary */
-    html+='<div style="margin-bottom:12px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:600">Order Summary</div>';
-    html+='<div class="td-row"><span class="td-l">Invoice No.</span><span class="td-v" style="font-family:monospace;letter-spacing:.04em;color:var(--accent)">'+invNum+'</span></div>';
-    html+='<div class="td-row"><span class="td-l">Order Date</span><span class="td-v">'+fmtDate(order.created_at)+'</span></div>';
-    html+='<div class="td-row"><span class="td-l">Status</span><span class="td-v">'+capFirst(st)+'</span></div>';
-    html+='<div class="td-row"><span class="td-l">Payment</span><span class="td-v">'+(isPaid?'<span style="color:#16a34a;font-weight:700">✓ Paid</span>':'<span style="color:#9A3412;font-weight:600">Pending</span>')+'</span></div>';
+    /* WhatsApp pending banner */
+    if(isWA&&!isPaid){
+      html+='<div style="display:flex;gap:10px;padding:12px 14px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.28);border-radius:10px;margin-bottom:16px">'
+        +'<svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366" style="flex-shrink:0;margin-top:1px"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.117.554 4.105 1.523 5.83L.057 23.522a.5.5 0 00.62.607l5.802-1.522A11.938 11.938 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.8 9.8 0 01-5.027-1.38l-.36-.214-3.726.977.995-3.63-.235-.374A9.818 9.818 0 012.182 12c0-5.415 4.403-9.818 9.818-9.818S21.818 6.585 21.818 12c0 5.414-4.403 9.818-9.818 9.818z"/></svg>'
+        +'<div><div style="font-size:12px;font-weight:700;color:#1a6e35;margin-bottom:3px">WhatsApp Order — Payment Pending</div>'
+        +'<div style="font-size:11px;color:#1a6e35;line-height:1.5">Your order details have been received. We\'ll confirm and share payment info on WhatsApp. Production starts after payment.</div></div></div>';
+    }
 
-    /* Items ordered — order_items (Razorpay) or JSONB items (WhatsApp) */
-    const dbItems=(order.order_items||[]).map(function(i){return{name:(i.products&&i.products.name)||'Item',quantity:i.quantity,unit_price:i.unit_price,customization_notes:i.customization_notes};});
+    /* Cancelled banner */
+    if(cancelled){
+      html+='<div style="padding:12px 14px;background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;margin-bottom:16px;font-size:13px;color:#B91C1C;font-weight:600">This order has been '+esc(sLabel.toLowerCase())+'.</div>';
+    }
+
+    /* Summary */
+    html+='<div style="margin-bottom:10px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--stone)">Order Summary</div>';
+    html+='<div class="td-row"><span class="td-l">Order ID</span><span class="td-v" style="font-family:monospace;letter-spacing:.05em;color:var(--accent)">'+esc(displayId)+'</span></div>';
+    html+='<div class="td-row"><span class="td-l">Date</span><span class="td-v">'+fmtDate(order.created_at)+'</span></div>';
+    html+='<div class="td-row"><span class="td-l">Status</span><span class="td-v"><span style="padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:.05em;background:'+sBg+';color:'+sCol+'">'+esc(sLabel)+'</span></span></div>';
+
+    const payMethod=(order.payment_method||'online').replace('whatsapp','WhatsApp').replace('online','Razorpay');
+    html+='<div class="td-row"><span class="td-l">Payment</span><span class="td-v">'
+      +(isPaid?'<span style="color:#16a34a;font-weight:700">✓ Paid via '+esc(payMethod)+'</span>'
+        :isWA?'<span style="color:#92400e;font-weight:600">Pending — via WhatsApp</span>'
+          :'<span style="color:#9A3412;font-weight:600">Pending</span>')
+      +'</span></div>';
+
+    /* Items */
+    const dbItems=(order.order_items||[]).map(function(i){
+      return{name:(i.products&&i.products.name)||'Item',quantity:i.quantity,unit_price:i.unit_price,customization_notes:i.customization_notes};
+    });
     const items=dbItems.length?dbItems:(order.items||[]);
     if(items.length){
-      html+='<div style="margin:18px 0 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:600">Items Ordered</div>';
+      html+='<div style="margin:16px 0 8px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--stone)">Items</div>';
       items.forEach(function(item){
-        const name=item.name||(item.products&&item.products.name)||'Item';
         const qty=item.quantity||1;
         const price=Number(item.unit_price||item.price||0);
-        html+='<div class="td-row"><span class="td-l" style="color:var(--charcoal);font-weight:600">'+name
+        html+='<div class="td-row"><span class="td-l" style="color:var(--charcoal);font-weight:600">'+esc(item.name||'Item')
           +(qty>1?' <span style="font-weight:400;color:var(--stone)">×'+qty+'</span>':'')
-          +'</span><span class="td-v">₹'+(price*qty).toLocaleString('en-IN')+'</span></div>';
+          +'</span><span class="td-v">'+fmtPrice(price*qty)+'</span></div>';
         if(item.customization_notes){
-          html+='<div style="font-size:11px;color:var(--stone);padding:2px 0 8px;border-bottom:1px solid var(--stone-p)">Customisation: '+item.customization_notes+'</div>';
+          html+='<div style="font-size:11px;color:var(--stone);padding:2px 0 8px;border-bottom:1px solid var(--stone-p)">Note: '+esc(item.customization_notes)+'</div>';
         }
       });
     }
 
     /* Price breakdown */
-    html+='<div style="margin:18px 0 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:600">Price Breakdown</div>';
-    if(order.subtotal!=null)html+='<div class="td-row"><span class="td-l">Subtotal</span><span class="td-v">₹'+Number(order.subtotal).toLocaleString('en-IN')+'</span></div>';
-    if(order.shipping_charge!=null)html+='<div class="td-row"><span class="td-l">Shipping</span><span class="td-v">'+(order.shipping_charge===0?'Free':'₹'+Number(order.shipping_charge).toLocaleString('en-IN'))+'</span></div>';
-    if(order.discount_amount>0)html+='<div class="td-row"><span class="td-l">Discount'+(order.promo_code?' ('+order.promo_code+')':'')+'</span><span class="td-v" style="color:#16a34a">−₹'+Number(order.discount_amount).toLocaleString('en-IN')+'</span></div>';
-    html+='<div class="td-row"><span class="td-l" style="font-weight:700">Total</span><span class="td-v" style="font-weight:700;font-size:15px">₹'+Number(order.total_amount).toLocaleString('en-IN')+'</span></div>';
+    if(order.total_amount){
+      html+='<div style="margin:16px 0 8px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--stone)">Price</div>';
+      if(order.subtotal!=null&&Number(order.subtotal)!==Number(order.total_amount))
+        html+='<div class="td-row"><span class="td-l">Subtotal</span><span class="td-v">'+fmtPrice(order.subtotal)+'</span></div>';
+      if(order.shipping_charge!=null)
+        html+='<div class="td-row"><span class="td-l">Shipping</span><span class="td-v">'+(order.shipping_charge===0||order.shipping_charge==='0'?'<span style="color:#16a34a">Free</span>':fmtPrice(order.shipping_charge))+'</span></div>';
+      if(order.discount_amount>0)
+        html+='<div class="td-row"><span class="td-l">Discount'+(order.promo_code?' ('+esc(order.promo_code)+')':'')+'</span><span class="td-v" style="color:#16a34a">−'+fmtPrice(order.discount_amount)+'</span></div>';
+      html+='<div class="td-row" style="border-top:2px solid var(--stone-p);padding-top:10px;margin-top:2px"><span class="td-l" style="font-weight:700;color:var(--charcoal)">Total</span><span class="td-v" style="font-size:16px">'+fmtPrice(order.total_amount)+'</span></div>';
+    }
 
     /* Shipping address */
-    if(addrLine||addr.full_name){
-      html+='<div style="margin:18px 0 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:600">Shipping Address</div>';
-      if(addr.full_name)html+='<div class="td-row"><span class="td-l">Name</span><span class="td-v">'+addr.full_name+'</span></div>';
-      if(addrLine)html+='<div class="td-row"><span class="td-l">Address</span><span class="td-v" style="text-align:right;max-width:65%">'+addrLine+'</span></div>';
+    const addr=order.shipping_address||{};
+    const addrLine=[addr.address_line1,addr.address_line2,addr.city,addr.state,addr.pincode].filter(Boolean).join(', ');
+    if(addr.full_name||addrLine){
+      html+='<div style="margin:16px 0 8px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--stone)">Shipping To</div>';
+      if(addr.full_name)html+='<div class="td-row"><span class="td-l">Name</span><span class="td-v">'+esc(addr.full_name)+'</span></div>';
+      if(addrLine)html+='<div class="td-row"><span class="td-l">Address</span><span class="td-v" style="text-align:right;max-width:68%;line-height:1.4">'+esc(addrLine)+'</span></div>';
     }
 
-    /* Courier / tracking */
+    /* Courier tracking */
     if(order.tracking_vendor||order.tracking_number){
-      html+='<div style="margin:18px 0 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:600">Shipment</div>';
-      if(order.tracking_vendor)html+='<div class="td-row"><span class="td-l">Courier</span><span class="td-v">'+order.tracking_vendor+'</span></div>';
-      if(order.tracking_number)html+='<div class="td-row"><span class="td-l">Tracking #</span><span class="td-v" style="font-family:monospace;letter-spacing:.04em">'+order.tracking_number+'</span></div>';
+      html+='<div style="margin:16px 0 8px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--stone)">Shipment</div>';
+      if(order.tracking_vendor)html+='<div class="td-row"><span class="td-l">Courier</span><span class="td-v">'+esc(order.tracking_vendor)+'</span></div>';
+      if(order.tracking_number)html+='<div class="td-row"><span class="td-l">Tracking #</span><span class="td-v" style="font-family:monospace;letter-spacing:.05em;color:var(--accent)">'+esc(order.tracking_number)+'</span></div>';
     }
 
-    /* Expected delivery */
-    if(order.expected_delivery||order.estimated_delivery){
-      html+='<div class="td-row"><span class="td-l">Expected Delivery</span><span class="td-v">'+fmtDate(order.expected_delivery||order.estimated_delivery)+'</span></div>';
+    /* Estimated delivery */
+    if(order.estimated_delivery||order.expected_delivery){
+      html+='<div class="td-row"><span class="td-l">Est. Delivery</span><span class="td-v">'+fmtDate(order.estimated_delivery||order.expected_delivery)+'</span></div>';
     }
 
     det.innerHTML=html;
 
   }catch(err){
-    res.classList.add('show');
-    for(let i=0;i<5;i++)document.getElementById('ts'+i).className='ts-dot';
-    det.innerHTML='<div style="text-align:center;padding:28px 20px;font-size:13px;color:var(--stone)">Something went wrong. Please <a href="contact.html" style="color:var(--accent)">contact us</a>.</div>';
+    resEl.classList.add('show');
+    document.getElementById('tsBar').style.setProperty('--prog','0%');
+    for(let i=0;i<5;i++){const d=document.getElementById('ts'+i);if(d)d.className='ts-dot';}
+    det.innerHTML='<div style="text-align:center;padding:28px 20px">'
+      +'<div style="font-size:14px;font-weight:700;color:var(--charcoal);margin-bottom:8px">Something went wrong</div>'
+      +'<div style="font-size:13px;color:var(--stone)">Unable to fetch tracking info. Please try again or <a href="contact.html" style="color:var(--accent)">contact us</a>.</div></div>';
     console.error('trackOrder error:',err);
   }
 
@@ -236,10 +293,7 @@ async function trackOrder(){
 /* Auto-track from URL param */
 (function(){
   const p=new URLSearchParams(window.location.search).get('id');
-  if(p){
-    document.getElementById('trackInput').value=decodeURIComponent(p);
-    trackOrder();
-  }
+  if(p){document.getElementById('trackInput').value=decodeURIComponent(p);trackOrder();}
 })();
 
 document.getElementById('trackInput').addEventListener('keydown',function(e){if(e.key==='Enter')trackOrder();});
