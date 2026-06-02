@@ -210,11 +210,13 @@ window._FOOTER_HTML = `<footer>
     /* Product detail has its own sticky mobile buy-bar; skip the tab bar there */
     if(document.getElementById('mobileBuyBar'))return;
     var path=(location.pathname||'').toLowerCase();
-    function on(names){return names.some(function(n){return path===n||path.endsWith('/'+n);});}
-    var isHome=on(['','/','index.html'])||path==='/';
-    var isShop=on(['products.html','product-detail.html']);
-    var isWish=on(['wishlist.html']);
-    var isAcct=on(['account.html']);
+    /* Clean-URL aware: production uses cleanUrls (/products), local/dev may use
+       /products.html — compare the last path segment with any .html stripped. */
+    var seg=(path.split('/').pop()||'').replace(/\.html$/,'');
+    var isHome=(seg===''||seg==='index');
+    var isShop=(seg==='products'||seg==='product-detail');
+    var isWish=(seg==='wishlist');
+    var isAcct=(seg==='account');
 
     var nav=document.createElement('nav');
     nav.id='taBottomNav';nav.className='ta-bottomnav';
