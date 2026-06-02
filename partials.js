@@ -8,7 +8,7 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
     <button class="nav-toggle" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
     <a href="/index.html" class="logo">
       <span class="logo-en"><span style="color:var(--accent)">TRI</span>AKAR</span>
-      <span class="logo-hi">त्रिआकार</span>
+      <span class="logo-hi"><span style="color:var(--accent)">त्रि</span>आकार</span>
     </a>
     <ul class="nav-links"><li><a href="/products.html">Shop</a></li><li><a href="/custom.html">Custom Order</a></li><li><a href="/stories.html">Our Stories</a></li><li><a href="/about.html">About</a></li><li><a href="/contact.html">Contact</a></li><li><a href="/track-order.html">Track Order</a></li></ul>
     <div class="nav-right">
@@ -46,7 +46,7 @@ window._FOOTER_HTML = `<footer>
     <div class="foot-grid">
       <div>
         <div class="foot-brand"><span style="color:var(--accent)">TRI</span><span style="color:#ffffff">AKAR</span></div>
-        <div class="foot-hi">त्रिआकार</div>
+        <div class="foot-hi"><span style="color:var(--accent)">त्रि</span>आकार</div>
         <p class="foot-desc">3D Printing Services, Delhi NCR</p>
         <div class="foot-phone"><a href="tel:+919217555833">+91 9217-555-833</a></div>
         <div class="foot-hours">Open all days, 11 AM to 9 PM</div>
