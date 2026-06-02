@@ -49,3 +49,6 @@ RETURNS JSON AS $$
      OR UPPER(TRIM(o.invoice_number)) = UPPER(TRIM(inv_number))
   LIMIT 1;
 $$ LANGUAGE SQL SECURITY DEFINER;
+
+-- Add max_discount_amount to promo_codes (for percentage caps like "10% off, max ₹500")
+ALTER TABLE promo_codes ADD COLUMN IF NOT EXISTS max_discount_amount NUMERIC(10,2);

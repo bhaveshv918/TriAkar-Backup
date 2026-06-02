@@ -3291,7 +3291,8 @@ async function loadPromoCodes(){
     if(!rows||!rows.length){ document.getElementById('promoList').innerHTML='<tr><td colspan="9" class="tbl-msg">No promo codes yet. Click "+ New Code" to add one.</td></tr>'; return; }
     document.getElementById('promoList').innerHTML=rows.map(p=>{
       const typeLabel=p.discount_type==='free_shipping'?'Free Shipping':p.discount_type==='percent'?'Percent':'Fixed ₹';
-      const valLabel=p.discount_type==='free_shipping'?'—':p.discount_type==='percent'?p.discount_value+'%':'₹'+p.discount_value;
+      const capStr=p.max_discount_amount?'<span style="font-size:10px;color:var(--text-3)"> (max ₹'+p.max_discount_amount+')</span>':'';
+      const valLabel=p.discount_type==='free_shipping'?'—':p.discount_type==='percent'?p.discount_value+'%'+capStr:'₹'+p.discount_value;
       const minLabel=p.min_order_amount>0?'₹'+p.min_order_amount:'—';
       const usesLabel=(p.current_uses||0)+(p.max_uses?' / '+p.max_uses:' / ∞');
       const exp=p.expires_at?new Date(p.expires_at).toLocaleDateString('en-IN'):'—';
@@ -3324,6 +3325,7 @@ function openPromoModal(promo){
   document.getElementById('promoValue').value      = promo ? (promo.discount_value||0) : '';
   document.getElementById('promoMin').value        = promo ? (promo.min_order_amount||0) : 0;
   document.getElementById('promoMax').value        = promo ? (promo.max_uses||'') : '';
+  document.getElementById('promoCapAmount').value  = promo ? (promo.max_discount_amount||'') : '';
   document.getElementById('promoSlug').value       = promo ? (promo.product_slug||'') : '';
   document.getElementById('promoActive').checked   = promo ? promo.is_active : true;
   document.getElementById('promoExpiry').value     = promo && promo.expires_at ? promo.expires_at.slice(0,10) : '';
@@ -3337,6 +3339,8 @@ function closePromoModal(){
 }
 
 function updatePromoValueLabel(){
+  const cap=document.getElementById('promoCapWrap');
+  if(cap)cap.style.display=(document.getElementById('promoType').value==='percent')?'':'none';
   const t=document.getElementById('promoType').value;
   const lbl=document.getElementById('promoValueLabel');
   const wrap=document.getElementById('promoValueWrap');
@@ -3355,6 +3359,7 @@ async function savePromoCode(){
     discount_value: type==='free_shipping'?0:Number(document.getElementById('promoValue').value)||0,
     min_order_amount: Number(document.getElementById('promoMin').value)||0,
     max_uses: document.getElementById('promoMax').value?Number(document.getElementById('promoMax').value):null,
+    max_discount_amount: (document.getElementById('promoType').value==='percent'&&document.getElementById('promoCapAmount').value)?Number(document.getElementById('promoCapAmount').value):null,
     product_slug: document.getElementById('promoSlug').value.trim()||null,
     is_active: document.getElementById('promoActive').checked,
     expires_at: document.getElementById('promoExpiry').value||null,
@@ -3646,6 +3651,11 @@ async function saveReview(){
         </select></div>
       <div id="promoValueWrap"><label class="form-label" id="promoValueLabel">Discount %</label>
         <input id="promoValue" class="form-input" type="number" min="0" placeholder="e.g. 10"></div>
+      <!-- Max discount cap — shown only for percent type -->
+      <div id="promoCapWrap" style="display:none">
+        <label class="form-label">Max Discount ₹ <span style="font-weight:400;color:var(--text-3)">(cap — e.g. 10% but max ₹500)</span></label>
+        <input id="promoCapAmount" class="form-input" type="number" min="0" placeholder="Leave blank = no cap">
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div><label class="form-label">Min Order ₹</label>
           <input id="promoMin" class="form-input" type="number" min="0" value="0" placeholder="0 = no minimum"></div>

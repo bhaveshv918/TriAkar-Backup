@@ -65,9 +65,16 @@ export async function createOrder(req, res, next) {
           (!promo.min_order_amount || subtotal >= promo.min_order_amount) &&
           (!promo.product_slug || items.some(i => i.slug === promo.product_slug))) {
         applied_promo = promo;
-        if (promo.discount_type === 'free_shipping')       discount_amount = shipping_charge;
-        else if (promo.discount_type === 'percent')        discount_amount = Math.round(subtotal * promo.discount_value / 100);
-        else if (promo.discount_type === 'fixed')          discount_amount = Math.min(promo.discount_value, subtotal);
+        if (promo.discount_type === 'free_shipping') {
+          discount_amount = shipping_charge;
+        } else if (promo.discount_type === 'percent') {
+          discount_amount = Math.round(subtotal * promo.discount_value / 100);
+          // Apply max discount cap (e.g. 10% off but max ₹500)
+          if (promo.max_discount_amount && discount_amount > promo.max_discount_amount)
+            discount_amount = promo.max_discount_amount;
+        } else if (promo.discount_type === 'fixed') {
+          discount_amount = Math.min(promo.discount_value, subtotal);
+        }
       }
     }
 
