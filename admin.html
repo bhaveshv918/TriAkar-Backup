@@ -1513,6 +1513,8 @@ function startLockoutTimer(){
 document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 document.getElementById('loginEmail').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginPass').focus()});
 
+function _log(payload){ sb.from('admin_logs').insert(payload).catch(()=>{}); } // fire-and-forget, never blocks auth
+
 async function doLogin(){
   const email=document.getElementById('loginEmail').value.trim();
   const pass=document.getElementById('loginPass').value;
@@ -1521,29 +1523,16 @@ async function doLogin(){
   const errEl=document.getElementById('loginErr');
   const timeTaken=Date.now()-_formLoadTime;
 
-  // ── Honeypot check — bots auto-fill hidden fields ──
+  // ── Honeypot — bots fill hidden fields ──
   if(honeypot){
-    await sb.from('admin_logs').insert({
-      action:'bot_detected',ip:_visitorData.ip,user_agent:_visitorData.userAgent,
-      screen_res:_visitorData.screen,timezone:_visitorData.timezone,
-      language:_visitorData.language,platform:_visitorData.platform,
-      referrer:_visitorData.referrer,email_attempted:email,success:false,
-      extra:{reason:'honeypot_filled',honeypot_value:honeypot,time_ms:timeTaken}
-    });
-    // Show fake error — don't reveal bot detection
+    _log({action:'bot_detected',ip:_visitorData.ip,user_agent:_visitorData.userAgent,email_attempted:email,success:false,extra:{reason:'honeypot_filled',time_ms:timeTaken}});
     showLoginErr('Authentication failed. Access denied.');
     return;
   }
 
-  // ── Speed check — humans take >2s to fill a form ──
-  if(timeTaken<2000){
-    await sb.from('admin_logs').insert({
-      action:'bot_detected',ip:_visitorData.ip,user_agent:_visitorData.userAgent,
-      screen_res:_visitorData.screen,timezone:_visitorData.timezone,
-      language:_visitorData.language,platform:_visitorData.platform,
-      referrer:_visitorData.referrer,email_attempted:email,success:false,
-      extra:{reason:'too_fast',time_ms:timeTaken}
-    });
+  // ── Speed check — 500ms catches bots; allows password managers ──
+  if(timeTaken<500){
+    _log({action:'bot_detected',ip:_visitorData.ip,user_agent:_visitorData.userAgent,email_attempted:email,success:false,extra:{reason:'too_fast',time_ms:timeTaken}});
     showLoginErr('Authentication failed. Please try again.');
     return;
   }
@@ -1555,73 +1544,47 @@ async function doLogin(){
   btn.disabled=true;btn.textContent='Verifying identity…';
   errEl.classList.remove('show');
 
-  // Artificial delay — makes brute force slower, feels more secure
-  await new Promise(r=>setTimeout(r,800+Math.random()*400));
+  try{
+    await new Promise(r=>setTimeout(r,800+Math.random()*400));
 
-  const{data,error}=await sb.auth.signInWithPassword({email,password:pass});
+    const{data,error}=await sb.auth.signInWithPassword({email,password:pass});
 
-  // Log attempt with extra device fingerprint data
-  await sb.from('admin_logs').insert({
-    action:'login_attempt',
-    ip:_visitorData.ip,user_agent:_visitorData.userAgent,
-    screen_res:_visitorData.screen,timezone:_visitorData.timezone,
-    language:_visitorData.language,platform:_visitorData.platform,
-    referrer:_visitorData.referrer,
-    email_attempted:email,success:!error,
-    extra:{
-      error:error?.message||null,
-      time_ms:timeTaken,
-      attempt_number:_failedAttempts+(!error?0:1),
-      colorDepth:screen.colorDepth,
-      deviceMemory:navigator.deviceMemory||null,
-      hardwareConcurrency:navigator.hardwareConcurrency||null,
-      connection:navigator.connection?{type:navigator.connection.effectiveType,downlink:navigator.connection.downlink}:null,
-    }
-  });
+    // Log attempt — non-blocking
+    _log({action:'login_attempt',ip:_visitorData.ip,user_agent:_visitorData.userAgent,email_attempted:email,success:!error,
+      extra:{error:error?.message||null,time_ms:timeTaken,attempt_number:_failedAttempts+(!error?0:1)}});
 
-  if(error){
-    // Refresh lockout state from Supabase (IP-based — survives cookie clear)
-    await checkIPLockout();
-    document.getElementById('attemptBar').classList.add('show');
-
-    // Lockout after MAX_ATTEMPTS
-    if(_failedAttempts>=MAX_ATTEMPTS){
-      _lockedUntil=Date.now()+LOCKOUT_SECONDS*1000;
-      startLockoutTimer();
-      // Log lockout
-      await sb.from('admin_logs').insert({
-        action:'account_locked',ip:_visitorData.ip,user_agent:_visitorData.userAgent,
-        screen_res:_visitorData.screen,timezone:_visitorData.timezone,
-        language:_visitorData.language,platform:_visitorData.platform,
-        referrer:_visitorData.referrer,email_attempted:email,success:false,
-        extra:{failed_attempts:_failedAttempts,lockout_seconds:LOCKOUT_SECONDS}
-      });
+    if(error){
+      _failedAttempts++;
+      await checkIPLockout().catch(()=>{});
+      document.getElementById('attemptBar').classList.add('show');
+      if(_failedAttempts>=MAX_ATTEMPTS){
+        _lockedUntil=Date.now()+LOCKOUT_SECONDS*1000;
+        startLockoutTimer();
+        _log({action:'account_locked',ip:_visitorData.ip,user_agent:_visitorData.userAgent,email_attempted:email,success:false,extra:{failed_attempts:_failedAttempts}});
+      }
+      showLoginErr('Authentication failed. Invalid credentials.');
+      btn.disabled=false;btn.textContent='Authenticate →';
+      return;
     }
 
-    showLoginErr('Authentication failed. Invalid credentials.');
-    btn.disabled=false;btn.textContent='Authenticate →';
-    return;
-  }
+    // ── Admin email whitelist ──
+    if(!ADMIN_EMAILS.includes(data.user.email.toLowerCase())){
+      await sb.auth.signOut().catch(()=>{});
+      _log({action:'unauthorized_access',ip:_visitorData.ip,user_agent:_visitorData.userAgent,email_attempted:email,success:false,extra:{reason:'not_admin_email'}});
+      showLoginErr('Access denied. You are not authorized.');
+      btn.disabled=false;btn.textContent='Authenticate →';
+      return;
+    }
 
-  // ── Admin email whitelist check — block non-admin users ──
-  if(!ADMIN_EMAILS.includes(data.user.email.toLowerCase())){
-    await sb.auth.signOut();
-    await sb.from('admin_logs').insert({
-      action:'unauthorized_access',ip:_visitorData.ip,user_agent:_visitorData.userAgent,
-      screen_res:_visitorData.screen,timezone:_visitorData.timezone,
-      language:_visitorData.language,platform:_visitorData.platform,
-      referrer:_visitorData.referrer,email_attempted:email,success:false,
-      extra:{reason:'not_admin_email'}
-    });
-    showLoginErr('Access denied. You are not authorized.');
-    btn.disabled=false;btn.textContent='Authenticate →';
-    return;
-  }
+    _failedAttempts=0;_lockedUntil=0;
+    _isLoggedIn=true;
+    showWelcome(data.user);
 
-  // Success — reset attempts (state lives in Supabase, just clear local vars)
-  _failedAttempts=0;_lockedUntil=0;
-  _isLoggedIn=true;
-  showWelcome(data.user);
+  }catch(err){
+    console.error('doLogin error:',err);
+    showLoginErr('Login error. Please try again.');
+    btn.disabled=false;btn.textContent='Authenticate →';
+  }
 }
 
 function showLoginErr(msg){const el=document.getElementById('loginErr');el.textContent=msg;el.classList.add('show')}
