@@ -80,13 +80,45 @@ export async function createWhatsAppOrder(req, res, next) {
 
 export async function getOrdersByUser(req, res, next) {
   try {
-    const { data, error } = await supabase
+    const SELECT = '*, order_items(*, products(name, images))';
+    const userId = req.user.id;
+    const userEmail = req.user.email || '';
+
+    // Primary: orders directly linked to this user_id
+    const { data: byId, error: e1 } = await supabase
       .from('orders')
-      .select('*, order_items(*, products(name, images))')
-      .eq('user_id', req.user.id)
+      .select(SELECT)
+      .eq('user_id', userId)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
-    if (error) throw error;
-    res.json({ orders: data });
+    if (e1) throw e1;
+
+    // Fallback: orders linked by customer_email but missing user_id
+    // Catches orders placed before user_id was properly wired, or via admin entry
+    let byEmail = [];
+    if (userEmail) {
+      const { data: emailRows } = await supabase
+        .from('orders')
+        .select(SELECT)
+        .eq('customer_email', userEmail)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
+
+      // Only keep rows not already covered by the user_id query
+      const seen = new Set((byId || []).map(o => o.id));
+      byEmail = (emailRows || []).filter(o => !seen.has(o.id));
+
+      // Back-fill user_id on these orphaned rows so future queries find them by id
+      if (byEmail.length) {
+        const ids = byEmail.map(o => o.id);
+        await supabase.from('orders').update({ user_id: userId }).in('id', ids).is('user_id', null);
+      }
+    }
+
+    const allOrders = [...(byId || []), ...byEmail]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    res.json({ orders: allOrders });
   } catch (err) { next(err); }
 }
 
