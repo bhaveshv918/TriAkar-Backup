@@ -880,7 +880,7 @@ function renderOrders(orders){
       :'';
     return '<div class="order-card">'
       +'<div class="order-row">'
-      +'<div><div class="order-id">'+orderId+'</div><div class="order-date">'+fmtDate(o.created_at)+'</div></div>'
+      +'<div><div class="order-id" style="display:flex;align-items:center;gap:6px">'+orderId+'<button onclick="event.stopPropagation();_copyOrderId(this,\''+orderId+'\')" title="Copy order ID" style="background:none;border:none;padding:2px;cursor:pointer;color:var(--stone);display:flex;align-items:center;transition:color .18s" onmouseenter="this.style.color=\'var(--accent)\'" onmouseleave="this.style.color=\'var(--stone)\'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div><div class="order-date">'+fmtDate(o.created_at)+'</div></div>'
       +'<div style="display:flex;align-items:center;gap:12px"><span class="order-status '+sc+'">'+displayLabel+'</span><div class="order-total">₹'+Number(o.total_amount).toLocaleString('en-IN')+'</div></div>'
       +'</div>'
       +(preview?'<div class="order-items-preview">'+preview+'</div>':'')
@@ -1127,6 +1127,18 @@ async function saveProfile(e){
 
 /* ── Addresses — uses Express API (service JWT auth, no RLS issue) ── */
 const _API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
+
+function _copyOrderId(btn,id){
+  navigator.clipboard.writeText(id).then(function(){
+    var svg=btn.querySelector('svg');
+    if(svg)svg.style.display='none';
+    btn.innerHTML='<span style="font-size:9px;font-weight:700;color:#16a34a;letter-spacing:.04em">✓</span>';
+    setTimeout(function(){
+      btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+      btn.style.color='var(--stone)';
+    },2000);
+  }).catch(function(){});
+}
 
 function copyUserId(){
   const code=document.getElementById('dashUserId').textContent;
