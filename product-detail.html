@@ -34,13 +34,12 @@
 <link rel="preload" href="assets/fonts/Glorida.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="shared.css">
 <style>
-.detail-layout{display:grid;grid-template-columns:38fr 62fr;grid-template-rows:auto auto;gap:0;align-items:start}
-.detail-gallery-col{grid-column:1;grid-row:1;display:flex;flex-direction:column;background:var(--ivory)}
-.detail-info{grid-column:2;grid-row:1}
-.gallery-dropdowns{grid-column:1;grid-row:2}
+.detail-layout{display:grid;grid-template-columns:38fr 62fr;gap:0;align-items:start}
+.detail-gallery-col{grid-column:1;display:flex;flex-direction:column;background:var(--ivory)}
+.detail-info{grid-column:2}
 /* breadcrumb inside detail-info */
 .detail-breadcrumb{display:flex;gap:6px;font-size:11px;color:var(--stone);padding:0 0 6px;flex-wrap:wrap;align-items:center}
-@media(max-width:1100px){.detail-breadcrumb{display:none}}
+@media(max-width:1100px){.detail-breadcrumb{display:none!important}}
 .detail-breadcrumb a{color:var(--stone);transition:color .2s}
 .detail-breadcrumb a:hover{color:var(--charcoal)}
 .detail-breadcrumb span{color:var(--stone)}
@@ -297,7 +296,7 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
   .detail-breadcrumb{order:1;padding:16px var(--pad) 6px}
   .detail-info{order:3;padding:16px var(--pad) 24px;
     position:relative;top:auto;max-height:none;overflow-y:visible}
-  .gallery-dropdowns{order:4;margin-left:0;margin-right:0}
+  .gallery-dropdowns{margin-left:0;margin-right:0}
   .gallery-sticky{position:relative;top:0}
   .related-grid{grid-template-columns:repeat(2,1fr)}
   .trust-strip-product{grid-template-columns:1fr}
@@ -458,6 +457,9 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
         <span id="detailSaveLabel">Save to Wishlist</span>
       </button>
 
+      <!-- Accordions: desktop JS moves this to left column; mobile stays here -->
+      <div class="gallery-dropdowns" id="galleryDropdowns"></div>
+
       <!-- hidden stock elements kept for JS compatibility -->
       <div id="stockRow" style="display:none"><div id="stockDot"></div><span id="stockLabel"></span></div>
       <div id="stockSub" style="display:none"></div>
@@ -473,9 +475,6 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
       <div class="detail-desc" id="prodLongDesc" style="margin-top:20px;font-size:13px;font-weight:300;display:none"></div>
 
     </div><!-- /detail-info -->
-
-    <!-- Dropdowns: below image on desktop, after wishlist on mobile -->
-    <div class="gallery-dropdowns" id="galleryDropdowns"></div>
 
     <!-- MOBILE STICKY BUY BAR — appears when buy buttons scroll off screen -->
     <div class="buy-bar" id="buyBar">
@@ -1263,14 +1262,23 @@ document.addEventListener('DOMContentLoaded',function(){ try{ _paintDetailWish()
 <script defer src="products-data.js"></script>
 <script defer src="shared.js"></script>
 <script>
-/* Mobile buy bar — slide up on scroll (must run after element exists in DOM) */
+/* On desktop (>1100px) move accordion panel below the image in the left column */
 (function(){
-  var bar=document.getElementById('mobileBuyBar');
-  if(!bar)return;
-  var shown=false;
-  window.addEventListener('scroll',function(){
-    if(!shown&&window.scrollY>100){shown=true;bar.classList.add('visible');}
-  },{passive:true});
+  function placeDropdowns(){
+    var el=document.getElementById('galleryDropdowns');
+    var galleryCol=document.querySelector('.detail-gallery-col');
+    var detailInfo=document.querySelector('.detail-info');
+    if(!el||!galleryCol||!detailInfo)return;
+    if(window.innerWidth>1100){
+      if(el.parentElement!==galleryCol)galleryCol.appendChild(el);
+    }else{
+      /* mobile: after wishlist button, inside detail-info */
+      var wish=document.getElementById('detailSave');
+      if(wish&&el.parentElement!==detailInfo)wish.after(el);
+    }
+  }
+  placeDropdowns();
+  window.addEventListener('resize',placeDropdowns,{passive:true});
 })();
 </script>
 </body>
