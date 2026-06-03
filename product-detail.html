@@ -34,15 +34,15 @@
 <link rel="preload" href="assets/fonts/Glorida.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="shared.css">
 <style>
-.detail-layout{display:grid;grid-template-columns:46fr 54fr;gap:0;grid-template-rows:1fr auto}
-.detail-gallery-col{grid-column:1;grid-row:1/3;display:flex;flex-direction:column;background:var(--white)}
+.detail-layout{display:grid;grid-template-columns:46fr 54fr;gap:0;align-items:start}
+.detail-gallery-col{grid-column:1;display:flex;flex-direction:column;background:var(--white)}
 /* breadcrumb inside detail-info */
 .detail-breadcrumb{display:flex;gap:6px;font-size:11px;color:var(--stone);padding:0 0 6px;flex-wrap:wrap;align-items:center}
 @media(max-width:768px){.detail-breadcrumb{display:none}}
 .detail-breadcrumb a{color:var(--stone);transition:color .2s}
 .detail-breadcrumb a:hover{color:var(--charcoal)}
 .detail-breadcrumb span{color:var(--stone)}
-.gallery-dropdowns{grid-column:1;grid-row:3}
+/* gallery-dropdowns is now inside detail-gallery-col, no grid placement needed */
 
 /* IMAGE GALLERY — compact */
 .detail-gallery{background:#fff}
@@ -113,8 +113,8 @@
 #mainImg[data-square-crop]{background:#fff!important}
 .main-img-inner{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
 
-/* INFO PANEL — normal flow, no sticky (sticky+overflow-y combo causes top gap bug) */
-.detail-info{background:var(--white);padding:0 24px 32px;grid-column:2;grid-row:1/3;}
+/* INFO PANEL — column 2, flows naturally */
+.detail-info{background:var(--white);padding:0 24px 32px;grid-column:2;}
 .detail-breadcrumb{display:flex;gap:8px;font-size:11px;color:var(--stone);margin-bottom:20px;flex-wrap:wrap}
 .detail-breadcrumb a{color:var(--stone);transition:color .2s}
 .detail-breadcrumb a:hover{color:var(--charcoal)}
@@ -297,7 +297,7 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
   .detail-breadcrumb{order:1;padding:16px var(--pad) 6px}
   .detail-info{order:3;padding:16px var(--pad) 24px;
     position:relative;top:auto;max-height:none;overflow-y:visible}
-  .gallery-dropdowns{order:4;margin-left:0;margin-right:0}
+  .gallery-dropdowns{margin-left:0;margin-right:0}
   .gallery-sticky{position:relative;top:0}
   .related-grid{grid-template-columns:repeat(2,1fr)}
   .trust-strip-product{grid-template-columns:1fr}
@@ -344,7 +344,7 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
 <div class="">
   <div class="detail-layout">
 
-    <!-- GALLERY COLUMN: no dropdowns inside -->
+    <!-- GALLERY COLUMN -->
     <div class="detail-gallery-col">
       <div class="detail-gallery" oncontextmenu="return false">
         <div class="gallery-sticky">
@@ -368,6 +368,8 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
           </div>
         </div>
       </div>
+      <!-- Dropdowns flow directly below image — no gap -->
+      <div class="gallery-dropdowns" id="galleryDropdowns"></div>
     </div>
 
     <!-- LIGHTBOX -->
@@ -495,9 +497,6 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
         <button class="btn btn-accent" onclick="buyNow()">Buy Now</button>
       </div>
     </div>
-
-    <!-- DROPDOWNS: direct grid child — last on mobile via order:4 -->
-    <div class="gallery-dropdowns" id="galleryDropdowns"></div>
 
   </div><!-- /detail-layout -->
 </div>
