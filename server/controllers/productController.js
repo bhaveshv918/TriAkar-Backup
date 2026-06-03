@@ -98,6 +98,8 @@ export async function upsertProduct(req, res, next) {
       variants:                Array.isArray(b.variants) ? b.variants : [],
       customization_fields:    Array.isArray(b.customization_fields) ? b.customization_fields : [],
       product_dropdowns:       Array.isArray(b.product_dropdowns) ? b.product_dropdowns : [],
+      // Image display
+      square_crop:             !!b.square_crop,
       // Unified customer options (new schema — supersedes the two above)
       product_options:         Array.isArray(b.product_options) ? b.product_options : [],
       // Structured specifications table [[key, value], ...]

@@ -110,6 +110,7 @@ CREATE TABLE products (
   colors                   TEXT[] DEFAULT '{}',
   homepage_order           INTEGER,
   -- v2 unified fields
+  square_crop              BOOLEAN DEFAULT false,
   product_options          JSONB DEFAULT '[]',
   specifications           JSONB DEFAULT '[]',
   min_order_qty            INTEGER,
@@ -150,6 +151,7 @@ CREATE POLICY "Admin manages products" ON products FOR ALL TO authenticated
 -- ALTER TABLE products ADD COLUMN IF NOT EXISTS description_display_mode TEXT DEFAULT 'all';
 -- ALTER TABLE products ADD COLUMN IF NOT EXISTS notes TEXT;
 -- ALTER TABLE products ADD COLUMN IF NOT EXISTS variants JSONB DEFAULT '[]';
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS square_crop BOOLEAN DEFAULT false;
 -- ALTER TABLE products ADD COLUMN IF NOT EXISTS product_options JSONB DEFAULT '[]';
 -- ALTER TABLE products ADD COLUMN IF NOT EXISTS specifications JSONB DEFAULT '[]';
 -- ALTER TABLE products ADD COLUMN IF NOT EXISTS min_order_qty INTEGER;

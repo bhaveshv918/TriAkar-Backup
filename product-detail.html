@@ -57,11 +57,14 @@
 .thumb.active{border-color:var(--accent)}
 .thumb:hover{opacity:.8}
 .thumb svg{width:80%;height:80%}
-.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb img{width:100%;height:100%;object-fit:var(--thumb-fit,cover)}
 .main-img-box{flex:1;background:#fff;border-radius:14px;overflow:hidden;min-height:460px;display:flex;align-items:center;justify-content:center;padding:28px;box-sizing:border-box}
 .main-img-box svg{width:72%;max-width:340px;transition:transform .4s cubic-bezier(.22,1,.36,1)}
 .main-img-box:hover svg{transform:scale(1.05)}
 .main-img-box img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;-webkit-user-drag:none;border-radius:6px}
+/* Square-crop mode: enabled per-product via data-square-crop on #mainImg */
+#mainImg[data-square-crop] img{object-fit:cover;border-radius:8px}
+#mainImg[data-square-crop]{background:#fff!important}
 .main-img-inner{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
 
 /* INFO PANEL */
@@ -620,7 +623,16 @@ function renderProduct(ap){
     product_dropdowns:ap.product_dropdowns||[],
     customization_fields:ap.customization_fields||[],
   };
-  curProduct={...p, id, slug:id, min_order_qty:ap.min_order_qty||null, qty_step:ap.qty_step||1};
+  curProduct={...p, id, slug:id, min_order_qty:ap.min_order_qty||null, qty_step:ap.qty_step||1, square_crop:!!ap.square_crop};
+  // Apply square crop mode on the image box
+  const mainImgBox=document.getElementById('mainImg');
+  if(mainImgBox){
+    if(ap.square_crop) mainImgBox.setAttribute('data-square-crop','1');
+    else mainImgBox.removeAttribute('data-square-crop');
+  }
+  // Also apply to thumbnails
+  const thumbStyle=ap.square_crop?'object-fit:cover':'object-fit:contain';
+  document.documentElement.style.setProperty('--thumb-fit', ap.square_crop?'cover':'contain');
   window._prodId=id;
   try{ injectProductSchema(ap,p,id); }catch(_){}
   document.getElementById('prodName').textContent=p.name;
