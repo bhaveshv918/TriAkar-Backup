@@ -142,12 +142,22 @@ export async function createOrder(req, res, next) {
     }
 
     /* 6. Create Razorpay order (amount in paise) */
-    const rzpOrder = await razorpay.orders.create({
-      amount:   Math.round(total_amount * 100),
-      currency: 'INR',
-      receipt:  invoiceNumber,                // TRK-YYYYMMDD-XXXX (max 40 chars, safe)
-      notes:    { order_id: invoiceNumber },  // shows in Razorpay dashboard
-    });
+    let rzpOrder;
+    try {
+      rzpOrder = await razorpay.orders.create({
+        amount:   Math.round(total_amount * 100),
+        currency: 'INR',
+        receipt:  invoiceNumber,
+        notes:    { order_id: invoiceNumber },
+      });
+    } catch (rzpErr) {
+      // Razorpay API error — surface the actual reason so it isn't masked as a generic 500
+      const reason = rzpErr?.error?.description || rzpErr?.message || 'Unknown Razorpay error';
+      console.error('[Razorpay] orders.create failed:', reason, rzpErr);
+      const e = new Error('Payment gateway error: ' + reason);
+      e.status = 502;
+      throw e;
+    }
 
     await supabase.from('orders')
       .update({ razorpay_order_id: rzpOrder.id })

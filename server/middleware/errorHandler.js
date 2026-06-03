@@ -10,7 +10,7 @@ export function errorHandler(err, _req, res, _next) {
   // In production, never leak internal error messages / stack traces.
   const isProd = process.env.NODE_ENV === 'production';
   const message = isProd
-    ? (status < 500 ? (err.message || 'Request failed') : 'Something went wrong')
+    ? (status < 500 || status === 502 ? (err.message || 'Request failed') : 'Something went wrong')
     : (err.message || 'Internal server error');
 
   res.status(status).json({ error: message });
