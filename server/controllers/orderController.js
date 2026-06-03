@@ -163,15 +163,31 @@ export async function getOrdersByUser(req, res, next) {
 
 export async function getOrderById(req, res, next) {
   try {
-    const param = req.params.id;
-    // Support both UUID id and TRK-YYYYMMDD-XXXX order_id
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*, order_items(*, products(name, slug, images))')
-      .or(`id.eq.${param},order_id.eq.${param}`)
-      .eq('user_id', req.user.id)
-      .maybeSingle();
-    if (error || !data) return res.status(404).json({ error: 'Order not found' });
+    const param = (req.params.id || '').trim();
+    if (!param) return res.status(400).json({ error: 'Order ID required' });
+
+    const SELECT = '*, order_items(*, products(name, slug, images))';
+    const userId = req.user.id;
+    let data = null;
+
+    // Try UUID match first (strict format check prevents PostgREST injection)
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (UUID_RE.test(param)) {
+      const r = await supabase.from('orders').select(SELECT)
+        .eq('id', param).eq('user_id', userId).maybeSingle();
+      if (r.error) throw r.error;
+      data = r.data;
+    }
+
+    // Fall back to TRK-style order_id (alphanumeric + hyphens only)
+    if (!data && /^[A-Z0-9\-]+$/i.test(param)) {
+      const r = await supabase.from('orders').select(SELECT)
+        .eq('order_id', param).eq('user_id', userId).maybeSingle();
+      if (r.error) throw r.error;
+      data = r.data;
+    }
+
+    if (!data) return res.status(404).json({ error: 'Order not found' });
     res.json({ order: data });
   } catch (err) { next(err); }
 }

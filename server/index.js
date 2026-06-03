@@ -32,6 +32,7 @@ const requiredEnvVars = [
   'SUPABASE_SERVICE_ROLE_KEY',
   'RAZORPAY_KEY_ID',
   'RAZORPAY_KEY_SECRET',
+  'RAZORPAY_WEBHOOK_SECRET',
   'FRONTEND_URL',
 ];
 const missingVars = requiredEnvVars.filter(v => !process.env[v]);

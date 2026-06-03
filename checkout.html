@@ -468,15 +468,17 @@ async function loadSavedAddress() {
     savedAddr = address;
 
     document.getElementById('ckSavedCard').style.display = '';
+    /* _esc is defined in shared.js and HTML-encodes user data before injection */
+    var e = typeof _esc === 'function' ? _esc : function(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); };
     document.getElementById('ckSavedCard').innerHTML =
       '<div class="ck-saved">'
       + '<div>'
       + '  <div class="ck-saved-tag">Saved address</div>'
-      + '  <div class="ck-saved-name">' + address.full_name + '</div>'
+      + '  <div class="ck-saved-name">' + e(address.full_name) + '</div>'
       + '  <div class="ck-saved-detail">'
-      + address.address_line1 + (address.address_line2 ? ', ' + address.address_line2 : '') + '<br>'
-      + address.city + ', ' + address.state + ' ' + address.pincode + '<br>'
-      + address.phone
+      + e(address.address_line1) + (address.address_line2 ? ', ' + e(address.address_line2) : '') + '<br>'
+      + e(address.city) + ', ' + e(address.state) + ' ' + e(address.pincode) + '<br>'
+      + e(address.phone)
       + '  </div>'
       + '</div>'
       + '<div class="ck-saved-actions">'
