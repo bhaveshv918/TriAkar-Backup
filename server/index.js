@@ -238,6 +238,7 @@ app.get('/api/track/:id', async (req, res) => {
   }
 });
 
+app.get('/',       (_req, res) => res.json({ status: 'ok', brand: 'TriAkar' }));
 app.get('/health', (_req, res) => res.json({ status: 'ok', brand: 'TriAkar' }));
 
 /* ── 10. 404 HANDLER ──────────────────────────────────────── */
