@@ -34,9 +34,10 @@
 <link rel="preload" href="assets/fonts/Glorida.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="shared.css">
 <style>
-.detail-layout{display:grid;grid-template-columns:46fr 54fr;gap:0;grid-template-rows:auto 1fr auto}
+.detail-layout{display:grid;grid-template-columns:46fr 54fr;gap:0;grid-template-rows:1fr auto}
 .detail-gallery-col{grid-column:1;grid-row:1/3;display:flex;flex-direction:column;background:var(--white)}
-.detail-breadcrumb{grid-column:2;grid-row:1;display:flex;gap:6px;font-size:11px;color:var(--stone);padding:5px 26px 0;flex-wrap:wrap;align-items:center;background:var(--white)}
+/* breadcrumb now lives inside detail-info — no longer a grid row */
+.detail-breadcrumb{display:flex;gap:6px;font-size:11px;color:var(--stone);padding:0 0 8px;flex-wrap:wrap;align-items:center}
 .detail-breadcrumb a{color:var(--stone);transition:color .2s}
 .detail-breadcrumb a:hover{color:var(--charcoal)}
 .detail-breadcrumb span{color:var(--stone)}
@@ -74,7 +75,7 @@
 .main-img-inner{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
 
 /* INFO PANEL — sticky buy box (desktop) */
-.detail-info{background:var(--white);padding:6px 26px 32px;grid-column:2;grid-row:2/4;
+.detail-info{background:var(--white);padding:12px 26px 32px;grid-column:2;grid-row:1/3;
   position:sticky;top:calc(var(--notice-h,36px) + var(--nav-h,60px) - 2px);
   align-self:start;
   max-height:calc(100vh - var(--notice-h,36px) - var(--nav-h,60px) + 2px);
@@ -309,12 +310,6 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
 
 <div class="">
   <div class="detail-layout">
-    <!-- BREADCRUMB: direct grid child so mobile can reorder it first -->
-    <div class="detail-breadcrumb">
-      <a href="index.html">Home</a><span>›</span>
-      <a href="products.html">Products</a><span>›</span>
-      <span id="breadProd">Product</span>
-    </div>
 
     <!-- GALLERY COLUMN: no dropdowns inside -->
     <div class="detail-gallery-col">
@@ -340,6 +335,12 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
 
     <!-- BUY BOX — sticky on desktop -->
     <div class="detail-info">
+      <!-- Breadcrumb sits inside the panel — no grid row gap -->
+      <div class="detail-breadcrumb">
+        <a href="index.html">Home</a><span>›</span>
+        <a href="products.html">Products</a><span>›</span>
+        <span id="breadProd">Product</span>
+      </div>
       <!-- Badge + Name -->
       <div class="prod-tag" id="prodTag" style="display:none"></div>
       <h1 class="detail-name" id="prodName">
