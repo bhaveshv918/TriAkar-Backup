@@ -157,7 +157,7 @@ const Cart=(function(){
   let items=[];
   try{
     const raw=JSON.parse(localStorage.getItem(CART_KEY)||localStorage.getItem('ta_cart')||'[]');
-    items=raw.map(i=>({id:i.id,name:i.name,price:i.price,quantity:i.quantity||i.qty||1,color:i.color||i.variant||'',image:i.image||i.img||''}));
+    items=raw.map(i=>({id:i.id,name:i.name,price:i.price,quantity:i.quantity||i.qty||1,color:i.color||i.variant||'',image:i.image||i.img||'',customization:i.customization||null}));
     if(localStorage.getItem('ta_cart')){localStorage.removeItem('ta_cart');try{localStorage.setItem(CART_KEY,JSON.stringify(items))}catch(e){}}
   }catch(e){items=[]}
 
@@ -169,18 +169,23 @@ const Cart=(function(){
 
   function save(){try{localStorage.setItem(CART_KEY,JSON.stringify(items))}catch(e){}badge();_syncServer();}
   function badge(){const n=items.reduce((s,i)=>s+i.quantity,0);document.querySelectorAll('.cart-badge').forEach(b=>{b.textContent=n;b.classList.toggle('on',n>0)})}
+  // Build a stable match key from id + color + customization values
+  function _custKey(cust){if(!cust||!Object.keys(cust).length)return '';return JSON.stringify(cust);}
   function add(p){
-    const idx=items.findIndex(i=>i.id===p.id&&i.color===p.color);
+    const ck=_custKey(p.customization||null);
+    const idx=items.findIndex(i=>i.id===p.id&&i.color===p.color&&_custKey(i.customization||null)===ck);
     if(idx>-1){
       items[idx].quantity++;
-      // Update image if this item was stored without one (e.g. added in a previous session)
       if(!items[idx].image&&p.image)items[idx].image=p.image;
     }else{
-      items.push({id:p.id,name:p.name,price:p.price,quantity:1,color:p.color||'',image:p.image||''});
+      items.push({id:p.id,name:p.name,price:p.price,quantity:1,color:p.color||'',image:p.image||'',customization:p.customization||null});
     }
     save();render();openCart();
   }
-  function changeQty(id,color,d){const idx=items.findIndex(i=>i.id===id&&i.color===color);if(idx<0)return;items[idx].quantity+=d;if(items[idx].quantity<=0)items.splice(idx,1);save();render()}
+  function changeQty(id,color,d,custKey){
+    const idx=items.findIndex(i=>i.id===id&&i.color===color&&(custKey===undefined||_custKey(i.customization||null)===custKey));
+    if(idx<0)return;items[idx].quantity+=d;if(items[idx].quantity<=0)items.splice(idx,1);save();render();
+  }
   function total(){return items.reduce((s,i)=>s+i.price*i.quantity,0)}
   function getItems(){return[...items]}
   function clear(){items=[];save();render()}
@@ -192,7 +197,7 @@ const Cart=(function(){
       const res=await fetch(_API+'/api/cart',{headers:{'Authorization':'Bearer '+tok}});
       if(!res.ok)return;
       const {items:srv}=await res.json();
-      if(srv&&srv.length){items=srv.map(i=>({id:i.id,name:i.name,price:i.price,quantity:i.quantity||i.qty||1,color:i.color||i.variant||'',image:i.image||i.img||''}));try{localStorage.setItem(CART_KEY,JSON.stringify(items))}catch(e){}}
+      if(srv&&srv.length){items=srv.map(i=>({id:i.id,name:i.name,price:i.price,quantity:i.quantity||i.qty||1,color:i.color||i.variant||'',image:i.image||i.img||'',customization:i.customization||null}));try{localStorage.setItem(CART_KEY,JSON.stringify(items))}catch(e){}}
       badge();render();
     }catch(_){}
   }
@@ -209,13 +214,14 @@ const Cart=(function(){
       if(res.ok){const j=await res.json();srv=(j&&j.items)||[];}
     }catch(_){return;}
     (srv||[]).forEach(function(s){
-      const sid=s.id,scolor=s.color||s.variant||'',sq=s.quantity||s.qty||1;
-      const idx=items.findIndex(i=>i.id===sid&&i.color===scolor);
+      const sid=s.id,scolor=s.color||s.variant||'',sq=s.quantity||s.qty||1,scust=s.customization||null;
+      const ck=_custKey(scust);
+      const idx=items.findIndex(i=>i.id===sid&&i.color===scolor&&_custKey(i.customization||null)===ck);
       if(idx>-1){
         if(sq>items[idx].quantity)items[idx].quantity=sq;
         if(!items[idx].image&&(s.image||s.img))items[idx].image=s.image||s.img;
       }else{
-        items.push({id:sid,name:s.name,price:s.price,quantity:sq,color:scolor,image:s.image||s.img||''});
+        items.push({id:sid,name:s.name,price:s.price,quantity:sq,color:scolor,image:s.image||s.img||'',customization:scust});
       }
     });
     save(); // persists locally + pushes merged cart to server
@@ -243,20 +249,26 @@ const Cart=(function(){
   }
 
   function _renderCartItems(el){
-    el.innerHTML=items.map(item=>`
-      <div class="cart-item">
+    el.innerHTML=items.map(item=>{
+      const ck=JSON.stringify(_custKey(item.customization||null));
+      const custHtml=item.customization&&Object.keys(item.customization).length
+        ?'<div class="ci-cust">'+Object.entries(item.customization).map(([k,v])=>`<span><b>${_esc(k)}:</b> ${_esc(v)}</span>`).join('')+'</div>'
+        :'';
+      return`<div class="cart-item">
         <div class="ci-img">${item.image
           ?`<img src="${_esc(item.image)}" alt="${_esc(item.name)}" width="56" height="56" loading="eager" decoding="sync" style="width:56px;height:56px;object-fit:cover;border-radius:3px;display:block">`
           :`<svg viewBox="0 0 56 56" fill="none" style="width:32px"><rect x="6" y="6" width="44" height="44" rx="3" fill="#E8E4DC"/></svg>`}</div>
-        <div><div class="ci-name">${_esc(item.name)}</div><div class="ci-var">${_esc(item.color||'')}</div>
+        <div style="flex:1;min-width:0"><div class="ci-name">${_esc(item.name)}</div><div class="ci-var">${_esc(item.color||'')}</div>
+          ${custHtml}
           <div class="ci-qty">
-            <button class="ci-qbtn" onclick="Cart.changeQty('${_esc(item.id)}','${_esc(item.color||'')}',-1)">−</button>
+            <button class="ci-qbtn" onclick="Cart.changeQty('${_esc(item.id)}','${_esc(item.color||'')}', -1, ${ck})">−</button>
             <span class="ci-qn">${_esc(item.quantity)}</span>
-            <button class="ci-qbtn" onclick="Cart.changeQty('${_esc(item.id)}','${_esc(item.color||'')}',1)">+</button>
+            <button class="ci-qbtn" onclick="Cart.changeQty('${_esc(item.id)}','${_esc(item.color||'')}', 1, ${ck})">+</button>
           </div>
         </div>
         <div class="ci-price">₹${(item.price*item.quantity).toLocaleString('en-IN')}</div>
-      </div>`).join('')
+      </div>`;
+    }).join('');
   }
 
   const FREE_SHIP_MIN=999;
@@ -1197,8 +1209,9 @@ function updateNavAuth(){
 }
 
 /* ══ PHONE VALIDATION ═════════════════════════════════════ */
-const PHONE_RULES={'+91':{len:10,label:'Indian'},'+1':{len:10,label:'US/Canada'},'+44':{len:10,label:'UK'},'+971':{len:9,label:'UAE'},'+61':{len:9,label:'Australia'},'+65':{len:8,label:'Singapore'},'+49':{len:10,label:'Germany'}};
-const COUNTRY_CODES=['+91','+1','+44','+971','+61','+65','+49'];
+const PHONE_RULES={'+91':{len:10,label:'Indian'},'+1':{len:10,label:'US/Canada'},'+44':{len:10,label:'UK'},'+971':{len:9,label:'UAE'},'+61':{len:9,label:'Australia'},'+65':{len:8,label:'Singapore'},'+49':{len:10,label:'Germany'},'+974':{len:8,label:'Qatar'},'+966':{len:9,label:'Saudi Arabia'}};
+const COUNTRY_CODES=['+91','+1','+44','+971','+61','+65','+49','+974','+966'];
+const COUNTRY_DISPLAY={'+91':'🇮🇳 +91','+1':'🇺🇸 +1','+44':'🇬🇧 +44','+971':'🇦🇪 +971','+61':'🇦🇺 +61','+65':'🇸🇬 +65','+49':'🇩🇪 +49','+974':'🇶🇦 +974','+966':'🇸🇦 +966'};
 
 function initPhoneField(inputId,options){
   const inp=document.getElementById(inputId);
@@ -1212,7 +1225,7 @@ function initPhoneField(inputId,options){
   const prefix=document.createElement('select');
   prefix.className='ta-phone-prefix';
   prefix.id=inputId+'_cc';
-  COUNTRY_CODES.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;prefix.appendChild(o)});
+  COUNTRY_CODES.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=COUNTRY_DISPLAY[c]||c;prefix.appendChild(o)});
   const numInp=document.createElement('input');
   numInp.type='tel';numInp.className='ta-phone-num';
   numInp.id=inputId+'_num';
