@@ -261,11 +261,26 @@ const Cart=(function(){
   }
 
   function _renderCartItems(el){
+    /* Event delegation — set up once per container element, survives innerHTML
+       rebuilds. Reads id/color/ck from data-* attributes so no quoting issues. */
+    if(!el._taCartBound){
+      el._taCartBound=true;
+      el.addEventListener('click',function(e){
+        var btn=e.target.closest('[data-action]');
+        if(!btn)return;
+        var act=btn.dataset.action,id=btn.dataset.id,col=btn.dataset.color||'',ck=btn.dataset.ck;
+        if(act==='minus') changeQty(id,col,-1,ck);
+        else if(act==='plus') changeQty(id,col,1,ck);
+        else if(act==='remove') remove(id,col,ck);
+      });
+    }
     el.innerHTML=items.map(item=>{
-      const ck=JSON.stringify(_custKey(item.customization||null));
+      const ckRaw=_custKey(item.customization||null);
       const custHtml=item.customization&&Object.keys(item.customization).length
         ?'<div class="ci-cust">'+Object.entries(item.customization).map(([k,v])=>`<span><b>${_esc(k)}:</b> ${_esc(v)}</span>`).join('')+'</div>'
         :'';
+      /* data-* stores id/color/ck safely — no JS quoting inside HTML attributes */
+      const da=`data-id="${_esc(item.id)}" data-color="${_esc(item.color||'')}" data-ck="${_esc(ckRaw)}"`;
       return`<div class="cart-item">
         <div class="ci-img">${item.image
           ?`<img src="${_esc(item.image)}" alt="${_esc(item.name)}" width="56" height="56" loading="eager" decoding="sync" style="width:56px;height:56px;object-fit:cover;border-radius:3px;display:block">`
@@ -273,14 +288,14 @@ const Cart=(function(){
         <div style="flex:1;min-width:0"><div class="ci-name">${_esc(item.name)}</div><div class="ci-var">${_esc(item.color||'')}</div>
           ${custHtml}
           <div class="ci-qty">
-            <button class="ci-qbtn" onclick="Cart.changeQty('${_esc(item.id)}','${_esc(item.color||'')}', -1, ${ck})">−</button>
-            <span class="ci-qn">${_esc(item.quantity)}</span>
-            <button class="ci-qbtn" onclick="Cart.changeQty('${_esc(item.id)}','${_esc(item.color||'')}', 1, ${ck})">+</button>
+            <button class="ci-qbtn" data-action="minus" ${da} aria-label="Decrease quantity">−</button>
+            <span class="ci-qn">${item.quantity}</span>
+            <button class="ci-qbtn" data-action="plus" ${da} aria-label="Increase quantity">+</button>
           </div>
         </div>
         <div class="ci-right">
           <div class="ci-price">₹${(item.price*item.quantity).toLocaleString('en-IN')}</div>
-          <button class="ci-rm" onclick="Cart.remove('${_esc(item.id)}','${_esc(item.color||'')}',${ck})" aria-label="Remove item"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 2l10 10M12 2L2 12"/></svg></button>
+          <button class="ci-rm" data-action="remove" ${da} aria-label="Remove item"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 2l10 10M12 2L2 12"/></svg></button>
         </div>
       </div>`;
     }).join('');
