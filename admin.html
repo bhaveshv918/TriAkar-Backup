@@ -312,6 +312,9 @@ img{display:block;max-width:100%}
   color:var(--text-3);padding:5px 10px;
   border:1px solid var(--border);border-radius:var(--radius);transition:all .2s;
 }
+.btn-email{color:var(--accent);border-color:rgba(196,98,42,.3)}
+.btn-email:hover{background:rgba(196,98,42,.08);border-color:var(--accent)}
+.btn-email:disabled{opacity:.45;cursor:not-allowed}
 .btn-sm:hover{border-color:var(--border-h);color:var(--text)}
 
 /* ═══════════════════════════════════════════════════════════
@@ -2096,6 +2099,20 @@ function renderOrders(orders){
         +'<button class="btn-sm" onclick="window.print()">Print Order</button>'
         +'</div></div>'
 
+        // ── Section 6b: Send Email
+        +'<div class="od-section"><div class="od-label">Send Email to Customer</div>'
+        +(custEmail
+          ?'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">'
+            +'<button class="btn-sm btn-email" onclick="event.stopPropagation();sendOrderEmail(\''+o.id+'\',\'confirmation\',this)" title="Resend order confirmation">✓ Confirmation</button>'
+            +'<button class="btn-sm btn-email" onclick="event.stopPropagation();sendOrderEmail(\''+o.id+'\',\'processing\',this)" title="Notify customer order is being processed">⚙ Processing</button>'
+            +'<button class="btn-sm btn-email" onclick="event.stopPropagation();sendOrderEmail(\''+o.id+'\',\'dispatched\',this)" title="Notify customer order is dispatched with tracking">🚚 Dispatched</button>'
+            +'<button class="btn-sm btn-email" onclick="event.stopPropagation();sendOrderEmail(\''+o.id+'\',\'delivered\',this)" title="Notify customer order is delivered">✓ Delivered</button>'
+            +'</div>'
+            +'<div style="font-size:11px;color:var(--text-3);margin-top:5px;font-family:var(--mono)">→ '+custEmail+'</div>'
+          :'<div style="font-size:12px;color:var(--text-3);margin-top:6px;">No email on record for this order.</div>'
+        )
+        +'</div>'
+
         // ── Section 7: Admin Notes
         +'<div class="od-section" style="grid-column:1/-1"><div class="od-label">Admin Notes</div>'
         +'<div class="od-notes"><textarea id="notes-'+o.id+'" placeholder="Internal notes about this order..." onblur="saveAdminNotes(\''+o.id+'\')">'+esc(o.admin_notes)+'</textarea></div>'
@@ -2172,6 +2189,27 @@ async function savePaymentFields(id){
   const o=_orders.find(x=>x.id===id);
   if(o) Object.assign(o,updates);
   toast('Payment status saved','success');
+}
+
+/* ── sendOrderEmail — manual email trigger from admin panel ── */
+async function sendOrderEmail(orderId, type, btn){
+  const labels={confirmation:'Confirmation',processing:'Processing',dispatched:'Dispatched',delivered:'Delivered'};
+  const orig=btn.textContent;
+  btn.disabled=true;btn.textContent='Sending…';
+  try{
+    const{data:sess}=await sb.auth.getSession();
+    const token=sess&&sess.session&&sess.session.access_token;
+    if(!token){toast('Not authenticated','error');return}
+    const res=await fetch(API+'/api/admin/orders/'+orderId+'/send-email',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({type})
+    });
+    const d=await res.json();
+    if(!res.ok){toast('Email failed: '+(d.error||res.statusText),'error')}
+    else{toast(labels[type]+' email sent to '+d.sent_to,'success')}
+  }catch(e){toast('Error: '+e.message,'error')}
+  finally{btn.disabled=false;btn.textContent=orig}
 }
 
 // ═══════════════════════════════════════════════════════════

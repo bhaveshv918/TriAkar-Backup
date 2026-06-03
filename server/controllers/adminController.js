@@ -145,6 +145,61 @@ export async function updateOrderStatus(req, res, next) {
   }
 }
 
+/* ── POST /api/admin/orders/:id/send-email — manual email trigger ── */
+export async function sendOrderEmail(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { type } = req.body; // 'confirmation' | 'processing' | 'dispatched' | 'delivered'
+    const VALID = ['confirmation', 'processing', 'dispatched', 'delivered'];
+    if (!VALID.includes(type)) return res.status(400).json({ error: 'Invalid email type' });
+
+    const { data: ord, error } = await supabase
+      .from('orders')
+      .select('*, order_items(quantity, unit_price, products(name))')
+      .eq('id', id)
+      .single();
+    if (error || !ord) return res.status(404).json({ error: 'Order not found' });
+    if (!ord.customer_email) return res.status(400).json({ error: 'No customer email on this order' });
+
+    const emailItems = ord.order_items?.length
+      ? ord.order_items.map(it => ({ name: it.products?.name || 'Item', quantity: it.quantity, unit_price: it.unit_price }))
+      : (ord.items || []).map(it => ({ name: it.name || 'Item', quantity: it.quantity, unit_price: it.price || it.unit_price || 0 }));
+
+    const orderData = {
+      order_id:        ord.invoice_number || ord.order_id || ord.id,
+      customer_name:   ord.customer_name  || ord.shipping_address?.full_name || 'Customer',
+      customer_email:  ord.customer_email,
+      customer_phone:  ord.customer_phone || ord.shipping_address?.mobile || ord.shipping_address?.phone || '',
+      total_amount:    ord.total_amount,
+      subtotal:        ord.subtotal,
+      shipping_charge: ord.shipping_charge,
+      discount_amount: ord.discount_amount || 0,
+      promo_code:      ord.promo_code     || null,
+      payment_method:  ord.payment_method || 'online',
+      is_gift:         ord.is_gift        || false,
+      gift_message:    ord.gift_message   || null,
+      tracking_number: ord.tracking_number || null,
+      tracking_vendor: ord.tracking_vendor || null,
+      items:           emailItems,
+      shipping_address: ord.shipping_address || {},
+    };
+
+    const {
+      sendOrderConfirmation,
+      sendOrderProcessingUpdate,
+      sendOrderDispatchedUpdate,
+      sendOrderDeliveredUpdate,
+    } = await import('../services/emailService.js');
+
+    if (type === 'confirmation') await sendOrderConfirmation(orderData);
+    if (type === 'processing')   await sendOrderProcessingUpdate(orderData);
+    if (type === 'dispatched')   await sendOrderDispatchedUpdate(orderData);
+    if (type === 'delivered')    await sendOrderDeliveredUpdate(orderData);
+
+    res.json({ ok: true, sent_to: ord.customer_email, type });
+  } catch (err) { next(err); }
+}
+
 /* ── PUT /api/admin/orders/:id/payment — update payment status ── */
 export async function updateOrderPayment(req, res, next) {
   try {

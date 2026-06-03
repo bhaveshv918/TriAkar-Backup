@@ -180,6 +180,106 @@ export async function sendOrderConfirmation(order) {
   });
 }
 
+/* ── ORDER PROCESSING UPDATE (to customer) ───────────────── */
+export async function sendOrderProcessingUpdate(order) {
+  const trackingUrl = `https://triakar.com/track-order.html?id=${encodeURIComponent(order.order_id || '')}`;
+  const body = `
+    <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 20px;">
+      Great news — your TriAkar order is now being processed. Our team has started crafting your pieces.
+    </p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+      ${row('Invoice No.', order.order_id)}
+      ${row('Items', (order.items || []).map(it => `${esc(it.name)} × ${esc(it.quantity)}`).join(', ') || '—')}
+      ${row('Total', inr(order.total_amount))}
+    </table>
+    <div style="background:#f8f8f8;border-left:3px solid ${ACCENT};padding:14px 18px;border-radius:0 8px 8px 0;margin:0 0 24px;">
+      <p style="margin:0;font-size:13px;color:#555;line-height:1.6;">
+        We will notify you again once your order is dispatched with tracking details. Most orders are dispatched within 3–7 business days.
+      </p>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      ${btn('Track Your Order', trackingUrl)}
+      &nbsp;&nbsp;
+      <a href="https://triakar.com/account.html#orders" style="display:inline-block;color:${ACCENT};text-decoration:none;padding:12px 0;font-weight:600;font-size:14px;">View Account →</a>
+    </div>
+    <p style="font-size:12px;color:#888;margin:28px 0 0;line-height:1.6;">
+      Questions? Email us at <a href="mailto:hello@triakar.com" style="color:${ACCENT};text-decoration:none;">hello@triakar.com</a>
+    </p>
+  `;
+  return send({
+    to: order.customer_email,
+    subject: `Your order is being processed — ${order.order_id} | TriAkar`,
+    html: shell('Your order is in progress ⚙', body),
+  });
+}
+
+/* ── ORDER DISPATCHED UPDATE (to customer) ───────────────── */
+export async function sendOrderDispatchedUpdate(order) {
+  const trackingUrl = `https://triakar.com/track-order.html?id=${encodeURIComponent(order.order_id || '')}`;
+  const trackingBlock = (order.tracking_number)
+    ? `<div style="background:#f0f7f0;border:1px solid #b6e5b6;border-radius:8px;padding:16px 20px;margin:0 0 24px;">
+        <p style="margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#888;">Tracking Details</p>
+        ${order.tracking_vendor ? `<p style="margin:0 0 4px;font-size:14px;color:#1a1a1a;font-weight:600;">${esc(order.tracking_vendor)}</p>` : ''}
+        <p style="margin:0;font-size:15px;font-family:monospace;color:#2a7a2a;font-weight:700;letter-spacing:1px;">${esc(order.tracking_number)}</p>
+      </div>`
+    : '';
+  const body = `
+    <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 20px;">
+      Your TriAkar order is on its way! We have handed it over to our delivery partner and it is headed to you.
+    </p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+      ${row('Invoice No.', order.order_id)}
+      ${row('Items', (order.items || []).map(it => `${esc(it.name)} × ${esc(it.quantity)}`).join(', ') || '—')}
+      ${row('Ship To', [order.shipping_address?.full_name, order.shipping_address?.city, order.shipping_address?.state].filter(Boolean).join(', '))}
+    </table>
+    ${trackingBlock}
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      ${btn('Track Your Order', trackingUrl)}
+      &nbsp;&nbsp;
+      <a href="https://triakar.com/account.html#orders" style="display:inline-block;color:${ACCENT};text-decoration:none;padding:12px 0;font-weight:600;font-size:14px;">View Account →</a>
+    </div>
+    <p style="font-size:12px;color:#888;margin:28px 0 0;line-height:1.6;">
+      Questions? Email us at <a href="mailto:hello@triakar.com" style="color:${ACCENT};text-decoration:none;">hello@triakar.com</a>
+    </p>
+  `;
+  return send({
+    to: order.customer_email,
+    subject: `Your order is dispatched — ${order.order_id} | TriAkar`,
+    html: shell('Your order is on its way 🚚', body),
+  });
+}
+
+/* ── ORDER DELIVERED UPDATE (to customer) ────────────────── */
+export async function sendOrderDeliveredUpdate(order) {
+  const body = `
+    <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 20px;">
+      Your TriAkar order has been delivered. We hope you love every piece — designed globally, made responsibly in India.
+    </p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+      ${row('Invoice No.', order.order_id)}
+      ${row('Items', (order.items || []).map(it => `${esc(it.name)} × ${esc(it.quantity)}`).join(', ') || '—')}
+    </table>
+    <div style="background:#f8f8f8;border-left:3px solid ${ACCENT};padding:14px 18px;border-radius:0 8px 8px 0;margin:0 0 24px;">
+      <p style="margin:0;font-size:13px;color:#555;line-height:1.6;">
+        If anything is not right with your order, please reach out to us within 48 hours and we will make it right.
+      </p>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      ${btn('View My Orders', 'https://triakar.com/account.html#orders')}
+      &nbsp;&nbsp;
+      <a href="https://triakar.com/products.html" style="display:inline-block;color:${ACCENT};text-decoration:none;padding:12px 0;font-weight:600;font-size:14px;">Shop Again →</a>
+    </div>
+    <p style="font-size:12px;color:#888;margin:28px 0 0;line-height:1.6;">
+      Questions or concerns? Email us at <a href="mailto:hello@triakar.com" style="color:${ACCENT};text-decoration:none;">hello@triakar.com</a>
+    </p>
+  `;
+  return send({
+    to: order.customer_email,
+    subject: `Your order has been delivered — ${order.order_id} | TriAkar`,
+    html: shell('Delivered — enjoy your TriAkar pieces ✓', body),
+  });
+}
+
 /* ── ADMIN ORDER ALERT ────────────────────────────────────── */
 export async function sendAdminOrderAlert(order) {
   const subtotalRow = order.subtotal != null
