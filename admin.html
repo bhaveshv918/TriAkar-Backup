@@ -1509,7 +1509,15 @@ function startLockoutTimer(){
 document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 document.getElementById('loginEmail').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginPass').focus()});
 
-function _log(payload){ sb.from('admin_logs').insert(payload).catch(()=>{}); } // fire-and-forget, never blocks auth
+function _log(payload){
+  // Fire-and-forget — must NEVER throw or crash login flow
+  try{
+    if(!sb||typeof sb.from!=='function')return;
+    const p=sb.from('admin_logs').insert(payload);
+    // Supabase v2 builder is thenable but .catch may not exist — use Promise.resolve wrapper
+    Promise.resolve(p).catch(()=>{});
+  }catch(e){ /* silently swallow — logging must never block auth */ }
+}
 
 async function doLogin(){
   const email=document.getElementById('loginEmail').value.trim();
