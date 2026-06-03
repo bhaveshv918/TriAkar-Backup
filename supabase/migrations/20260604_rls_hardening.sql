@@ -18,17 +18,19 @@ CREATE TABLE IF NOT EXISTS phone_otps (
 -- Enable RLS (safe to run even if already enabled)
 ALTER TABLE phone_otps ENABLE ROW LEVEL SECURITY;
 
--- Drop any existing permissive policies before applying strict ones
-DROP POLICY IF EXISTS "Anyone reads otps"          ON phone_otps;
-DROP POLICY IF EXISTS "Anyone manages otps"        ON phone_otps;
-DROP POLICY IF EXISTS "Public insert otp"          ON phone_otps;
-DROP POLICY IF EXISTS "Public read otp"            ON phone_otps;
-DROP POLICY IF EXISTS "Admin manages phone_otps"   ON phone_otps;
+-- Drop ALL existing policies on phone_otps before applying strict ones
+DROP POLICY IF EXISTS "Anyone reads otps"                              ON phone_otps;
+DROP POLICY IF EXISTS "Anyone manages otps"                            ON phone_otps;
+DROP POLICY IF EXISTS "Public insert otp"                              ON phone_otps;
+DROP POLICY IF EXISTS "Public read otp"                                ON phone_otps;
+DROP POLICY IF EXISTS "Admin manages phone_otps"                       ON phone_otps;
+DROP POLICY IF EXISTS "Service role only — no direct client access"    ON phone_otps;
+DROP POLICY IF EXISTS "Service role only - no direct client access"    ON phone_otps;
 
 -- NO public SELECT — OTPs must only be read by the server via service_role key.
 -- The Express backend uses the service_role key (bypasses RLS) for all OTP operations.
 -- Anon and authenticated Supabase clients cannot read or insert OTPs directly.
-CREATE POLICY "Service role only — no direct client access" ON phone_otps
+CREATE POLICY "phone_otps_deny_all" ON phone_otps
   FOR ALL USING (false) WITH CHECK (false);
 
 -- ════════════════════════════════════════════════════════════════════════
