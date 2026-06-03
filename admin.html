@@ -1107,6 +1107,9 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
         </div>
       </div>
 
+      <!-- Hidden: is_customizable — auto-set from product_options in submitProductForm -->
+      <input type="hidden" id="fCustomizable" value="0">
+
       <!-- Form Footer -->
       <div class="form-foot">
         <button class="btn-primary" id="saveBtn" onclick="submitProductForm()">Save Product</button>
@@ -2368,7 +2371,7 @@ function openProductForm(id){
     document.getElementById('fUseCase').value=p.use_case||'';
     document.getElementById('fTags').value=p.tags||'';
     document.getElementById('fNotes').value=p.notes||'';
-    document.getElementById('fCustomizable').checked=!!p.is_customizable;
+    const fcEl=document.getElementById('fCustomizable');if(fcEl)fcEl.value=p.is_customizable?'1':'0';
     // Display mode
     const dm=p.description_display_mode||'all';
     const dmR=document.querySelector('input[name="fDisplayMode"][value="'+dm+'"]');
@@ -2422,7 +2425,7 @@ function openProductForm(id){
     document.getElementById('fHomepage').checked=false;
     document.getElementById('fHomepageOrder').value='';
     document.getElementById('homepageOrderWrap').style.display='none';
-    document.getElementById('fCustomizable').checked=false;
+    const fcEl2=document.getElementById('fCustomizable');if(fcEl2)fcEl2.value='0';
     document.getElementById('fSlug')._manual=false;
     toggleDiscountField();toggleUrgencyField();toggleCustSection();
   }
@@ -2485,7 +2488,7 @@ async function submitProductForm(){
       ?(parseInt(document.getElementById('fHomepageOrder').value)||1)
       :null,
     // is_customizable: true if checkbox is checked OR if any customer options are defined
-    is_customizable:document.getElementById('fCustomizable').checked||(_productOptions.filter(o=>o.label.trim()).length>0),
+    is_customizable:(()=>{const el=document.getElementById('fCustomizable');return (el&&el.value==='1')||(_productOptions.filter(o=>(o.label||'').trim()).length>0);})(),
     description:document.getElementById('fDescription').value.trim()||null,
     short_description:document.getElementById('fShortDesc').value.trim()||null,
     long_description:document.getElementById('fDescription').value.trim()||null,
