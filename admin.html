@@ -24,10 +24,10 @@
    TRIĀKAR ADMIN v2 — Command Center
    ═══════════════════════════════════════════════════════════ */
 :root,html[data-theme="dark"]{
-  --bg:#08080A;--bg-1:#0E0E12;--bg-2:#14141A;--bg-3:#1A1A22;
+  --bg:#070C08;--bg-1:#0C1410;--bg-2:#111C13;--bg-3:#172418;
   --border:rgba(255,255,255,.06);--border-h:rgba(255,255,255,.12);
-  --text:#E8E8EC;--text-2:#9898A0;--text-3:#606068;
-  --accent:#C4622A;--accent-h:#D97B3F;--accent-bg:rgba(196,98,42,.08);
+  --text:#E2EAE4;--text-2:#879E8C;--text-3:#4E6655;
+  --accent:#52B788;--accent-h:#74C69D;--accent-bg:rgba(82,183,136,.08);
   --green:#4ADE80;--green-bg:rgba(74,222,128,.08);
   --red:#F87171;--red-bg:rgba(248,113,113,.08);
   --yellow:#FBBF24;--yellow-bg:rgba(251,191,36,.08);
@@ -35,19 +35,21 @@
   --purple:#A78BFA;
   --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
   --radius:6px;
-  --topbar-bg:rgba(8,8,10,.92);
+  --topbar-bg:rgba(7,12,8,.92);
+  --sidebar-w:210px;
 }
 html[data-theme="light"]{
-  --bg:#F4F4F6;--bg-1:#FFFFFF;--bg-2:#EAEAEE;--bg-3:#DDDDE2;
+  --bg:#EEF3EF;--bg-1:#FFFFFF;--bg-2:#E4ECE6;--bg-3:#D6E2D8;
   --border:rgba(0,0,0,.08);--border-h:rgba(0,0,0,.15);
-  --text:#1A1A22;--text-2:#5A5A68;--text-3:#8A8A98;
-  --accent:#B8521E;--accent-h:#C4622A;--accent-bg:rgba(184,82,30,.06);
+  --text:#1A2B1E;--text-2:#4A6852;--text-3:#7A9880;
+  --accent:#2D6A4F;--accent-h:#40916C;--accent-bg:rgba(45,106,79,.07);
   --green:#16A34A;--green-bg:rgba(22,163,74,.06);
   --red:#DC2626;--red-bg:rgba(220,38,38,.06);
   --yellow:#CA8A04;--yellow-bg:rgba(202,138,4,.06);
   --blue:#2563EB;--blue-bg:rgba(37,99,235,.06);
   --purple:#7C3AED;
-  --topbar-bg:rgba(255,255,255,.92);
+  --topbar-bg:rgba(238,243,239,.96);
+  --sidebar-w:210px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -325,26 +327,62 @@ img{display:block;max-width:100%}
   animation:secPulse 2s ease-in-out infinite;
 }
 
-/* Tab bar */
-.tab-bar{
-  display:flex;gap:0;border-bottom:1px solid var(--border);
-  padding:0 24px;background:var(--bg-1);overflow-x:auto;
+/* Admin shell layout */
+.admin-body{display:flex;min-height:calc(100vh - 56px)}
+
+/* Sidebar */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  background:var(--bg-1);border-right:1px solid var(--border);
+  position:sticky;top:56px;height:calc(100vh - 56px);
+  overflow-y:auto;scrollbar-width:none;
+  display:flex;flex-direction:column;padding:10px 0 24px;
 }
+.sidebar::-webkit-scrollbar{display:none}
+.sidebar-section{
+  font-family:var(--mono);font-size:8px;letter-spacing:.18em;
+  text-transform:uppercase;font-weight:700;color:var(--text-3);
+  padding:18px 16px 5px;
+}
+.sidebar-section:first-child{padding-top:4px}
+
+/* Sidebar tabs */
 .tab{
-  font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+  display:flex;align-items:center;gap:0;
+  width:calc(100% - 16px);margin:1px 8px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.06em;
   text-transform:uppercase;font-weight:500;color:var(--text-3);
-  padding:14px 20px;border-bottom:2px solid transparent;
-  transition:all .2s;white-space:nowrap;
+  padding:9px 12px;border-radius:var(--radius);
+  border:none;background:none;cursor:pointer;text-align:left;
+  transition:background .15s,color .15s;position:relative;white-space:nowrap;
 }
-.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.tab:hover{color:var(--text-2)}
+.tab:hover{background:var(--bg-2);color:var(--text-2)}
+.tab.active{background:var(--accent-bg);color:var(--accent)}
+.tab-icon{
+  font-size:13px;margin-right:9px;flex-shrink:0;
+  line-height:1;display:flex;align-items:center;
+}
+.tab-label{flex:1;overflow:hidden;text-overflow:ellipsis}
 .tab .tab-count{
   font-size:9px;background:var(--bg-3);color:var(--text-3);
-  padding:1px 6px;border-radius:10px;margin-left:6px;
+  padding:1px 6px;border-radius:10px;margin-left:6px;flex-shrink:0;
 }
-.tab{position:relative}
-.tab-dot{display:none;width:7px;height:7px;border-radius:50%;background:#EF4444;position:absolute;top:8px;right:6px;box-shadow:0 0 0 2px var(--bg-1)}
-.tab-dot.visible{display:block}
+.tab.active .tab-count{background:rgba(82,183,136,.15);color:var(--accent)}
+.tab-dot{
+  display:none;width:6px;height:6px;border-radius:50%;
+  background:#EF4444;margin-left:6px;flex-shrink:0;
+  box-shadow:0 0 0 2px var(--bg-1);
+}
+.tab-dot.visible{display:inline-block}
+.callback-count{
+  display:none;font-family:var(--mono);font-size:8px;font-weight:700;
+  background:#DC2626;color:#fff;padding:1px 5px;border-radius:8px;
+  margin-left:6px;letter-spacing:.04em;flex-shrink:0;
+}
+.callback-count.visible{display:inline-block}
+
+/* Main content area */
+.main-area{flex:1;min-width:0}
 
 /* Panel */
 .panel{display:none;padding:28px 24px 64px;max-width:1400px;margin:0 auto}
@@ -439,8 +477,7 @@ td.td-name{color:var(--text);font-weight:500}
 .src-contact{background:#2563EB;color:#fff}
 .src-custom{background:#C4622A;color:#fff}
 .src-callback{background:#7C3AED;color:#fff}
-.callback-count{display:none;font-family:var(--mono);font-size:9px;font-weight:700;background:#DC2626;color:#fff;padding:1px 6px;border-radius:10px;margin-left:6px;letter-spacing:.04em}
-.callback-count.visible{display:inline-block}
+/* .callback-count moved to sidebar tab styles */
 .dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:6px}
 .dot-green{background:var(--green)}.dot-red{background:var(--red)}.dot-yellow{background:var(--yellow)}
 .td-img{width:44px;height:44px;background:var(--bg-2);border-radius:4px;overflow:hidden;flex-shrink:0}
@@ -666,6 +703,14 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
 /* ═══════════════════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════════════════ */
+@media(max-width:900px){
+  :root,html[data-theme="dark"],html[data-theme="light"]{--sidebar-w:52px}
+  .sidebar-section{display:none}
+  .tab{margin:1px 4px;padding:10px 0;justify-content:center;width:calc(100% - 8px)}
+  .tab-label,.tab .tab-count,.tab-dot,.callback-count{display:none!important}
+  .tab .tab-icon{margin-right:0;font-size:15px}
+  .tab.active{border-radius:var(--radius)}
+}
 @media(max-width:768px){
   /* Top bar */
   .top-time,.top-user{display:none}
@@ -675,13 +720,13 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
   .top-btn{padding:5px 9px;font-size:9px}
   .top-status{display:none}
 
-  /* Tab bar — horizontal scroll */
-  .tab-bar{padding:0 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-  .tab-bar::-webkit-scrollbar{display:none}
-  .tab{padding:12px 12px;font-size:9px;letter-spacing:.06em;flex-shrink:0}
+  /* Sidebar — icon-only strip */
+  :root,html[data-theme="dark"],html[data-theme="light"]{--sidebar-w:44px}
+  .sidebar{top:50px;height:calc(100vh - 50px);padding:6px 0}
+  .tab{padding:9px 0}
 
   /* Panels */
-  .panel{padding:16px 12px 64px}
+  .panel{padding:14px 10px 64px}
   .p-head{flex-direction:column;align-items:flex-start;gap:10px;margin-bottom:16px}
   .p-title{font-size:15px}
   .p-actions{width:100%;gap:6px}
@@ -820,20 +865,57 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     </div>
   </div>
 
-  <div class="tab-bar">
-    <button class="tab" data-tab="callbacks" onclick="switchTab('callbacks')">Callbacks<span class="callback-count" id="callbackCount">0</span><span class="tab-dot" id="dotCallbacks"></span></button>
-    <button class="tab active" data-tab="orders" onclick="switchTab('orders')">Orders <span class="tab-count" id="orderCount">0</span><span class="tab-dot" id="dotOrders"></span></button>
-    <button class="tab" data-tab="customers" onclick="switchTab('customers')">Customers <span class="tab-count" id="customerCount">0</span><span class="tab-dot" id="dotCustomers"></span></button>
-    <button class="tab" data-tab="products" onclick="switchTab('products')">Products <span class="tab-count" id="productCount">0</span></button>
-    <button class="tab" data-tab="messages" onclick="switchTab('messages')">Messages <span class="tab-count" id="messageCount">0</span><span class="tab-dot" id="dotMessages"></span></button>
-    <button class="tab" data-tab="enquiries" onclick="switchTab('enquiries')">Custom Enquiries <span class="tab-count" id="enquiryCount">0</span><span class="tab-dot" id="dotEnquiries"></span></button>
-    <button class="tab" data-tab="analytics" onclick="switchTab('analytics')">Analytics</button>
-    <button class="tab" data-tab="categories" onclick="switchTab('categories')">Categories</button>
-    <button class="tab" data-tab="logs" onclick="switchTab('logs')">Security Logs</button>
-    <button class="tab" data-tab="recyclebin" onclick="switchTab('recyclebin')">Recycle Bin <span class="tab-count" id="binCount">0</span></button>
-    <button class="tab" data-tab="promo" onclick="switchTab('promo')">Promo Codes</button>
-    <button class="tab" data-tab="reviews" onclick="switchTab('reviews')">Reviews <span class="tab-count" id="reviewCount">0</span><span class="tab-dot" id="dotReviews"></span></button>
-  </div>
+  <div class="admin-body">
+  <nav class="sidebar">
+
+    <div class="sidebar-section">Operations</div>
+    <button class="tab active" data-tab="orders" onclick="switchTab('orders')">
+      <span class="tab-icon">◈</span><span class="tab-label">Orders</span><span class="tab-count" id="orderCount">0</span><span class="tab-dot" id="dotOrders"></span>
+    </button>
+    <button class="tab" data-tab="callbacks" onclick="switchTab('callbacks')">
+      <span class="tab-icon">↩</span><span class="tab-label">Callbacks</span><span class="callback-count" id="callbackCount">0</span><span class="tab-dot" id="dotCallbacks"></span>
+    </button>
+    <button class="tab" data-tab="customers" onclick="switchTab('customers')">
+      <span class="tab-icon">◯</span><span class="tab-label">Customers</span><span class="tab-count" id="customerCount">0</span><span class="tab-dot" id="dotCustomers"></span>
+    </button>
+
+    <div class="sidebar-section">Catalogue</div>
+    <button class="tab" data-tab="products" onclick="switchTab('products')">
+      <span class="tab-icon">▦</span><span class="tab-label">Products</span><span class="tab-count" id="productCount">0</span>
+    </button>
+    <button class="tab" data-tab="categories" onclick="switchTab('categories')">
+      <span class="tab-icon">≡</span><span class="tab-label">Categories</span>
+    </button>
+    <button class="tab" data-tab="reviews" onclick="switchTab('reviews')">
+      <span class="tab-icon">★</span><span class="tab-label">Reviews</span><span class="tab-count" id="reviewCount">0</span><span class="tab-dot" id="dotReviews"></span>
+    </button>
+
+    <div class="sidebar-section">Inbox</div>
+    <button class="tab" data-tab="messages" onclick="switchTab('messages')">
+      <span class="tab-icon">◻</span><span class="tab-label">Messages</span><span class="tab-count" id="messageCount">0</span><span class="tab-dot" id="dotMessages"></span>
+    </button>
+    <button class="tab" data-tab="enquiries" onclick="switchTab('enquiries')">
+      <span class="tab-icon">✎</span><span class="tab-label">Enquiries</span><span class="tab-count" id="enquiryCount">0</span><span class="tab-dot" id="dotEnquiries"></span>
+    </button>
+
+    <div class="sidebar-section">Marketing</div>
+    <button class="tab" data-tab="promo" onclick="switchTab('promo')">
+      <span class="tab-icon">◊</span><span class="tab-label">Promo Codes</span>
+    </button>
+    <button class="tab" data-tab="analytics" onclick="switchTab('analytics')">
+      <span class="tab-icon">↗</span><span class="tab-label">Analytics</span>
+    </button>
+
+    <div class="sidebar-section">System</div>
+    <button class="tab" data-tab="logs" onclick="switchTab('logs')">
+      <span class="tab-icon">⊘</span><span class="tab-label">Security Logs</span>
+    </button>
+    <button class="tab" data-tab="recyclebin" onclick="switchTab('recyclebin')">
+      <span class="tab-icon">⊗</span><span class="tab-label">Recycle Bin</span><span class="tab-count" id="binCount">0</span>
+    </button>
+
+  </nav>
+  <div class="main-area">
 
   <!-- ── CALLBACKS PANEL ───────────────────────── -->
   <div class="panel" id="panelCallbacks">
@@ -1360,6 +1442,9 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     </div>
   </div>
 
+  </div><!-- /.main-area -->
+  </div><!-- /.admin-body -->
+
 </div>
 
 <!-- Toast -->
@@ -1370,6 +1455,34 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
 <script>
 /* ═══════════════════════════════════════════════════════════
    TRIĀKAR ADMIN v2 — JavaScript
+   ═══════════════════════════════════════════════════════════
+
+   SECURITY NOTE — MIGRATION REQUIRED
+   ───────────────────────────────────
+   This panel currently talks to Supabase directly using the anon key.
+   All data access is protected by RLS policies that gate on auth.email()
+   = ADMIN_EMAILS[0], so a logged-in admin is the only one who can read or
+   write. However, the intended architecture is:
+
+     ALL admin reads/writes  →  Express /api/admin/* routes
+                                authenticated via Bearer token,
+                                executed server-side with the service_role key
+
+   Until that migration is complete, temporary "Admin manages …" RLS
+   policies in schema.sql keep the panel functional. Those policies are
+   marked TEMPORARY and must be dropped once the Express routes are in place.
+
+   MIGRATION CHECKLIST (per panel):
+     [ ] GET  /api/admin/orders      → replace sb.from('orders').select(...)
+     [ ] PUT  /api/admin/orders/:id  → replace sb.from('orders').update(...)
+     [ ] GET  /api/admin/products    → replace sb.from('products').select(...)
+     [ ] POST /api/admin/products    → replace sb.from('products').insert(...)
+     [ ] PUT  /api/admin/products/:id→ replace sb.from('products').update(...)
+     [ ] DEL  /api/admin/products/:id→ replace sb.from('products').delete(...)
+     [ ] GET  /api/admin/customers   → replace sb.from('profiles').select(...)
+     [ ] GET  /api/admin/messages    → replace sb.from('contact_submissions')
+     [ ] GET  /api/admin/logs        → replace sb.from('admin_logs')
+     [ ] POST /api/admin/logs        → replace sb.from('admin_logs').insert(...)
    ═══════════════════════════════════════════════════════════ */
 const SUPA_URL='https://qarjbmogersuaerkhlcu.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
