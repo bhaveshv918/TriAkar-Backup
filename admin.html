@@ -1491,12 +1491,15 @@ async function checkIPLockout(){
 function updateAttemptDots(){
   const dots=document.querySelectorAll('#attemptDots .attempt-dot');
   dots.forEach((d,i)=>d.classList.toggle('used',i<_failedAttempts));
-  document.getElementById('attemptText').textContent=Math.max(0,MAX_ATTEMPTS-_failedAttempts)+' remaining';
-  // Change security status bar color
+  const attemptText=document.getElementById('attemptText');
+  if(attemptText)attemptText.textContent=Math.max(0,MAX_ATTEMPTS-_failedAttempts)+' remaining';
+  // secStatus removed in minimal login — guard to prevent crash
   const sec=document.getElementById('secStatus');
-  if(_failedAttempts>=3)sec.className='sec-status danger';
-  else if(_failedAttempts>=1)sec.className='sec-status warning';
-  else sec.className='sec-status';
+  if(sec){
+    if(_failedAttempts>=3)sec.className='sec-status danger';
+    else if(_failedAttempts>=1)sec.className='sec-status warning';
+    else sec.className='sec-status';
+  }
 }
 
 function startLockoutTimer(){
@@ -1535,8 +1538,11 @@ async function doLogin(){
   const errEl=document.getElementById('loginErr');
   const timeTaken=Date.now()-_formLoadTime;
 
+  console.log('[login] attempt — email:',email,'time_ms:',timeTaken);
+
   // ── Honeypot — bots fill hidden fields ──
   if(honeypot){
+    console.warn('[login] blocked — honeypot filled');
     _log({action:'bot_detected',ip:_visitorData.ip,user_agent:_visitorData.userAgent,email_attempted:email,success:false,extra:{reason:'honeypot_filled',time_ms:timeTaken}});
     showLoginErr('Authentication failed. Access denied.');
     return;
@@ -1544,16 +1550,20 @@ async function doLogin(){
 
   // ── Speed check — 500ms catches bots; allows password managers ──
   if(timeTaken<500){
+    console.warn('[login] blocked — submitted too fast (',timeTaken,'ms). Password manager? Try again.');
     _log({action:'bot_detected',ip:_visitorData.ip,user_agent:_visitorData.userAgent,email_attempted:email,success:false,extra:{reason:'too_fast',time_ms:timeTaken}});
     showLoginErr('Authentication failed. Please try again.');
     return;
   }
 
   // ── Lockout check ──
-  if(_lockedUntil>Date.now()){startLockoutTimer();return}
+  if(_lockedUntil>Date.now()){
+    console.warn('[login] blocked — account locked until',new Date(_lockedUntil).toISOString());
+    startLockoutTimer();return;
+  }
 
   if(!email||!pass){showLoginErr('Enter email and password.');return}
-  btn.disabled=true;btn.textContent='Verifying identity…';
+  btn.disabled=true;btn.textContent='Signing in…';
   errEl.classList.remove('show');
 
   try{
@@ -1566,53 +1576,58 @@ async function doLogin(){
       extra:{error:error?.message||null,time_ms:timeTaken,attempt_number:_failedAttempts+(!error?0:1)}});
 
     if(error){
+      console.error('[login] Supabase auth error — code:',error.status,'message:',error.message);
       _failedAttempts++;
       await checkIPLockout().catch(()=>{});
       document.getElementById('attemptBar').classList.add('show');
       if(_failedAttempts>=MAX_ATTEMPTS){
         _lockedUntil=Date.now()+LOCKOUT_SECONDS*1000;
         startLockoutTimer();
+        console.warn('[login] account locked — too many failures:',_failedAttempts);
         _log({action:'account_locked',ip:_visitorData.ip,user_agent:_visitorData.userAgent,email_attempted:email,success:false,extra:{failed_attempts:_failedAttempts}});
       }
       showLoginErr('Authentication failed. Invalid credentials.');
-      btn.disabled=false;btn.textContent='Authenticate →';
+      btn.disabled=false;btn.textContent='Sign in';
       return;
     }
 
     // ── Guard: Supabase can return {user:null,error:null} if project is paused
-    //    or in certain edge-case auth states. Accessing data.user.email without
-    //    this check throws a TypeError caught as a generic "Login error".
     if(!data||!data.user||!data.user.email){
-      console.error('doLogin: Supabase returned no user object. data=',JSON.stringify(data));
+      console.error('[login] Supabase returned no user object — project may be paused. data=',JSON.stringify(data));
       showLoginErr('Authentication error. Please try again in a moment.');
-      btn.disabled=false;btn.textContent='Authenticate →';
+      btn.disabled=false;btn.textContent='Sign in';
       return;
     }
+
+    console.log('[login] Supabase auth OK — user:',data.user.email);
 
     // ── Admin email whitelist ──
     if(!ADMIN_EMAILS.includes(data.user.email.toLowerCase())){
       await sb.auth.signOut().catch(()=>{});
+      console.error('[login] access denied — email not in ADMIN_EMAILS list:',data.user.email);
       _log({action:'unauthorized_access',ip:_visitorData.ip,user_agent:_visitorData.userAgent,email_attempted:email,success:false,extra:{reason:'not_admin_email'}});
       showLoginErr('Access denied. You are not authorized.');
-      btn.disabled=false;btn.textContent='Authenticate →';
+      btn.disabled=false;btn.textContent='Sign in';
       return;
     }
 
     _failedAttempts=0;_lockedUntil=0;
     _isLoggedIn=true;
+    console.log('[login] success — loading dashboard');
     showWelcome(data.user);
 
   }catch(err){
-    console.error('doLogin error:',err.message||err);
-    // Show a meaningful message based on what actually failed
+    // Full error details in console — not shown to user
+    console.error('[login] unexpected exception —',err);
+    console.error('[login] stack —',err?.stack||'(no stack)');
     const msg=err&&err.message?err.message:'';
     if(msg.toLowerCase().includes('network')||msg.toLowerCase().includes('fetch'))
       showLoginErr('Network error. Check your connection and try again.');
     else if(msg.toLowerCase().includes('invalid'))
       showLoginErr('Invalid credentials. Please check your email and password.');
     else
-      showLoginErr('Login error ('+((err&&err.message)||'unknown')+')');
-    btn.disabled=false;btn.textContent='Authenticate →';
+      showLoginErr('Something went wrong. Please try again.');
+    btn.disabled=false;btn.textContent='Sign in';
   }
 }
 
