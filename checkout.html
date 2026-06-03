@@ -765,7 +765,7 @@ async function ckPlaceOrder() {
     try {
       var addrRes = await fetch(CK_API + '/api/addresses', {
         method: 'POST',
-        headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
+        headers: Object.assign({ 'Content-Type': 'application/json' }, await Auth.authHeaderAsync()),
         body: JSON.stringify({
           full_name:     chosenAddr.full_name,
           phone:         chosenAddr.phone,
@@ -832,7 +832,7 @@ async function ckPlaceOrder() {
 
     var res = await fetch(CK_API + '/api/payments/create-order', {
       method: 'POST',
-      headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
+      headers: Object.assign({ 'Content-Type': 'application/json' }, await Auth.authHeaderAsync()),
       body: JSON.stringify(orderPayload),
     });
     var data = await res.json();
@@ -864,7 +864,7 @@ async function ckPlaceOrder() {
         try {
           var vRes = await fetch(CK_API + '/api/payments/verify', {
             method: 'POST',
-            headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
+            headers: Object.assign({ 'Content-Type': 'application/json' }, await Auth.authHeaderAsync()),
             body: JSON.stringify({
               razorpay_order_id:   response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
