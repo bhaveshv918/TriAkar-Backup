@@ -526,7 +526,8 @@ td.td-name{color:var(--text);font-weight:500}
 
 /* Form footer */
 .form-foot{display:flex;gap:10px;margin-top:24px;flex-wrap:wrap;align-items:center}
-.form-err{font-family:var(--mono);font-size:11px;color:var(--red);margin-left:12px}
+.form-err{font-size:12px;color:#fff;background:#c0392b;padding:8px 12px;border-radius:6px;display:none;line-height:1.5;width:100%;margin-top:4px}
+.form-err:not(:empty){display:block}
 
 /* ═══════════════════════════════════════════════════════════
    CATEGORY MANAGER
@@ -1110,8 +1111,8 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="form-foot">
         <button class="btn-primary" id="saveBtn" onclick="submitProductForm()">Save Product</button>
         <button class="btn-secondary" onclick="closeProductForm()">Cancel</button>
-        <span class="form-err" id="formErr"></span>
       </div>
+      <div class="form-err" id="formErr"></div>
     </div>
 
     <!-- Products Table -->
@@ -2514,17 +2515,40 @@ async function submitProductForm(){
 
   const btn=document.getElementById('saveBtn');
   btn.textContent='Saving…';btn.disabled=true;
-  document.getElementById('formErr').textContent='';
+  const errEl=document.getElementById('formErr');
+  errEl.textContent='';
+
+  // ── Helper: strip unknown columns and retry when Postgres says column doesn't exist ──
+  async function _trySave(data,editId){
+    const r=editId
+      ?await sb.from('products').update(data).eq('id',editId).select()
+      :await sb.from('products').insert(data).select();
+    if(r.error){
+      const msg=r.error.message||'';
+      // Postgres "column X does not exist" — strip that column and retry once
+      const colMatch=msg.match(/column "([^"]+)" of relation/);
+      if(colMatch){
+        const badCol=colMatch[1];
+        console.warn('[save] column "'+badCol+'" not in DB yet — retrying without it. Run migration SQL to add it.');
+        const stripped={...data};
+        delete stripped[badCol];
+        return _trySave(stripped,editId);
+      }
+      throw r.error;
+    }
+    return r;
+  }
 
   try{
-    const result=id
-      ?await sb.from('products').update(productData).eq('id',id).select()
-      :await sb.from('products').insert(productData).select();
-    if(result.error)throw result.error;
+    await _trySave(productData,id||null);
     closeProductForm();loadProducts();
     toast(id?'Product updated':'Product added','success');
   }catch(err){
-    document.getElementById('formErr').textContent=err.message||'Save failed';
+    const detail=err.code?(' ['+err.code+']'):'';
+    const msg=(err.message||'Save failed')+detail;
+    console.error('[save] failed —',err);
+    errEl.textContent=msg;
+    errEl.scrollIntoView({behavior:'smooth',block:'center'});
   }finally{btn.textContent='Save Product';btn.disabled=false}
 }
 
