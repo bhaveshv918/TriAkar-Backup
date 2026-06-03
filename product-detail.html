@@ -87,7 +87,7 @@
 .gallery-prev{left:10px}
 .gallery-next{right:10px}
 
-/* MAGNIFY BUTTON — always visible, brighter on hover */
+/* IMAGE OVERLAY BUTTONS — magnify + wishlist */
 .img-zoom-btn{position:absolute;bottom:10px;right:10px;z-index:5;
   width:34px;height:34px;border-radius:50%;
   background:rgba(0,0,0,.28);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
@@ -95,6 +95,11 @@
   color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;
   opacity:0.75;transition:opacity .2s,background .2s,transform .15s}
 .img-zoom-btn:hover{opacity:1;background:rgba(0,0,0,.5);transform:scale(1.1)}
+/* Wishlist icon — top-right corner */
+.img-wish-btn{bottom:auto;top:10px;right:10px}
+.img-wish-btn svg{transition:fill .2s,stroke .2s,transform .2s}
+.img-wish-btn.saved{background:rgba(196,98,42,.55)}
+.img-wish-btn.saved svg{fill:#fff;stroke:#fff}
 
 /* LIGHTBOX */
 .img-lightbox{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);
@@ -231,7 +236,7 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
 .scroll-top,.a11y-fab,.a11y-panel{display:none!important}
 
 /* ACCORDION with animation (FIX from PDF p6) */
-.gallery-dropdowns{margin-left:84px;margin-right:16px;padding:20px 0 36px;margin-top:16px;display:flex;flex-direction:column;gap:8px}
+.gallery-dropdowns{padding:16px 12px 28px;margin-top:0;display:flex;flex-direction:column;gap:8px}
 .acc-item{border-radius:12px;overflow:hidden;background:rgba(255,255,255,0.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.7);box-shadow:0 2px 12px rgba(0,0,0,.06);transition:box-shadow .3s,background .3s,transform .2s}
 .acc-item:hover{background:rgba(255,255,255,0.78);box-shadow:0 4px 20px rgba(0,0,0,.10);transform:translateY(-1px)}
 .acc-item.open{background:rgba(255,255,255,0.88);box-shadow:0 6px 24px rgba(0,0,0,.12)}
@@ -241,7 +246,6 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
 .acc-body{max-height:0;overflow:hidden;opacity:0;transition:max-height .45s cubic-bezier(.22,1,.36,1),opacity .3s ease}
 .acc-body.open{max-height:300px;opacity:1}
 .acc-body-inner{padding:0 16px 14px;font-size:13px;color:var(--warm);line-height:1.8;font-weight:300}
-@media(max-width:600px){.gallery-dropdowns{margin-left:0;margin-right:0}}
 
 .detail-discount{font-size:12px;font-weight:700;background:#e8f5e9;color:#2D8A4E;padding:3px 8px;border-radius:4px;border:1px solid #c8e6c9}
 .prod-tag{display:inline-block;font-size:9px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;padding:5px 12px;border-radius:4px;background:var(--accent);color:#fff;margin-bottom:10px;line-height:1}
@@ -252,7 +256,6 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
 .key-features-list li{font-size:13px;color:var(--charcoal);font-weight:500;line-height:1.65;padding:5px 0 5px 20px;position:relative;border-bottom:1px solid rgba(0,0,0,.04)}
 .key-features-list li:last-child{border-bottom:none}
 .key-features-list li::before{content:"●";position:absolute;left:0;color:var(--accent);font-size:8px;top:10px;line-height:1}
-.gallery-dropdowns{padding:0 20px 36px}
 /* SWIPE HINT — mobile only */
 .swipe-hint{display:none;position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:5;align-items:center;gap:5px;background:rgba(0,0,0,.42);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:#fff;font-size:11px;font-weight:500;padding:5px 14px;border-radius:20px;pointer-events:none;white-space:nowrap;animation:swipeHintFade 3s ease forwards}
 @keyframes swipeHintFade{0%{opacity:0;transform:translateX(-50%) translateY(4px)}15%{opacity:1;transform:translateX(-50%) translateY(0)}75%{opacity:1}100%{opacity:0}}
@@ -314,7 +317,6 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
 @media(max-width:600px){
   .detail-info{padding:14px var(--pad) 90px}
   .detail-breadcrumb{padding:12px var(--pad) 4px}
-  .detail-actions{grid-template-columns:1fr}
   .related-grid{grid-template-columns:1fr}
   /* on mobile keep trust strip as single column */
   .trust-strip-product{grid-template-columns:1fr}
@@ -355,6 +357,10 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
               </svg>
             </div>
             <button class="gallery-nav gallery-next" onclick="nextImage()" aria-label="Next">&#8250;</button>
+            <!-- Wishlist icon — top right of image -->
+            <button class="img-zoom-btn img-wish-btn" id="detailSave" onclick="_toggleDetailWish()" aria-pressed="false" aria-label="Save to wishlist" title="Save to Wishlist">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </button>
             <!-- Magnify button — glass effect -->
             <button class="img-zoom-btn" onclick="openLightbox()" aria-label="Zoom image" title="View full size">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
@@ -450,12 +456,6 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
         </button>
         <button class="btn btn-accent" onclick="buyNow()">Buy Now &rarr;</button>
       </div>
-
-      <!-- Wishlist -->
-      <button class="detail-save" id="detailSave" onclick="_toggleDetailWish()" aria-pressed="false">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span id="detailSaveLabel">Save to Wishlist</span>
-      </button>
 
       <!-- Accordions: desktop JS moves this to left column; mobile stays here -->
       <div class="gallery-dropdowns" id="galleryDropdowns"></div>
@@ -885,8 +885,7 @@ function _paintDetailWish(){
   const on=Wishlist.has(slug);
   btn.classList.toggle('saved',on);
   btn.setAttribute('aria-pressed',on?'true':'false');
-  const lbl=document.getElementById('detailSaveLabel');
-  if(lbl)lbl.textContent=on?'Saved to Wishlist':'Save to Wishlist';
+  btn.title=on?'Saved to Wishlist':'Save to Wishlist';
 }
 function _toggleDetailWish(){
   const btn=document.getElementById('detailSave');
@@ -1047,10 +1046,10 @@ function renderDropdowns(p){
       return`<div class="acc-item" id="acc-${a.id}"><button class="acc-trigger" onclick="toggleAcc('${a.id}')">${a.title} <div class="acc-icon">+</div></button><div class="acc-body" id="acc-body-${a.id}"><div class="acc-body-inner">${a.content}</div></div></div>`;
     }).join('');
 
-  // open the confirm accordion by default only if there are customisation options
+  // always open the first accordion by default
   const confirmItem=document.getElementById('acc-confirm');
   const confirmBody=document.getElementById('acc-body-confirm');
-  if(confirmItem&&confirmBody&&opts.length){confirmItem.classList.add('open');confirmBody.classList.add('open');}
+  if(confirmItem&&confirmBody){confirmItem.classList.add('open');confirmBody.classList.add('open');}
 }
 
 /* Collect all customisation field values from the product options form */
