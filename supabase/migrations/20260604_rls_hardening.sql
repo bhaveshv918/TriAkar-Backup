@@ -39,10 +39,11 @@ CREATE POLICY "phone_otps_deny_all" ON phone_otps
 -- ════════════════════════════════════════════════════════════════════════
 DROP POLICY IF EXISTS "Auth users read promos"  ON promo_codes;
 DROP POLICY IF EXISTS "Admin write promos"      ON promo_codes;
+DROP POLICY IF EXISTS "Admin manages promos"    ON promo_codes;
 
 -- Only the admin can read or write promo codes via Supabase client.
 -- Backend validation uses service_role key (bypasses RLS) so checkout still works.
-CREATE POLICY "Admin manages promos" ON promo_codes
+CREATE POLICY "promo_codes_admin_only" ON promo_codes
   FOR ALL TO authenticated
   USING     (auth.email() = 'bhaveshv918@gmail.com')
   WITH CHECK(auth.email() = 'bhaveshv918@gmail.com');
