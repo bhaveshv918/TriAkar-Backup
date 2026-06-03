@@ -49,7 +49,7 @@ export async function createOrder(req, res, next) {
         return res.status(400).json({ error: `Insufficient stock for "${p.name}"` });
       subtotal += p.price * item.quantity;
     }
-    const shipping_charge = subtotal >= 999 ? 0 : 49;
+    const shipping_charge = subtotal >= 999 ? 0 : 99;
 
     /* Validate promo code server-side (never trust client discount) */
     let discount_amount = 0;
