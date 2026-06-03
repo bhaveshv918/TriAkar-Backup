@@ -158,6 +158,11 @@ const Cart=(function(){
   try{
     const raw=JSON.parse(localStorage.getItem(CART_KEY)||localStorage.getItem('ta_cart')||'[]');
     items=raw.map(i=>({id:i.id,name:i.name,price:i.price,quantity:i.quantity||i.qty||1,color:i.color||i.variant||'',image:i.image||i.img||'',customization:i.customization||null}));
+    /* Dedup on load — cleans any dupes that accumulated from the color
+       normalisation bug (undefined vs '' mismatch in add()).  Later entries
+       are dropped; quantities are preserved on the first entry. */
+    var _seen=new Set();
+    items=items.filter(function(i){var k=i.id+'|'+(i.color||'')+'|'+_custKey(i.customization||null);if(_seen.has(k))return false;_seen.add(k);return true;});
     if(localStorage.getItem('ta_cart')){localStorage.removeItem('ta_cart');try{localStorage.setItem(CART_KEY,JSON.stringify(items))}catch(e){}}
   }catch(e){items=[]}
 
@@ -173,7 +178,8 @@ const Cart=(function(){
   function _custKey(cust){if(!cust||!Object.keys(cust).length)return '';return JSON.stringify(cust);}
   function add(p){
     const ck=_custKey(p.customization||null);
-    const idx=items.findIndex(i=>i.id===p.id&&i.color===p.color&&_custKey(i.customization||null)===ck);
+    const nc=p.color||''; /* normalise — storage always uses '' not undefined */
+    const idx=items.findIndex(i=>i.id===p.id&&i.color===nc&&_custKey(i.customization||null)===ck);
     if(idx>-1){
       items[idx].quantity++;
       if(!items[idx].image&&p.image)items[idx].image=p.image;
@@ -183,8 +189,14 @@ const Cart=(function(){
     save();render();openCart();
   }
   function changeQty(id,color,d,custKey){
-    const idx=items.findIndex(i=>i.id===id&&i.color===color&&(custKey===undefined||_custKey(i.customization||null)===custKey));
+    const nc=color||'';
+    const idx=items.findIndex(i=>i.id===id&&i.color===nc&&(custKey===undefined||_custKey(i.customization||null)===custKey));
     if(idx<0)return;items[idx].quantity+=d;if(items[idx].quantity<=0)items.splice(idx,1);save();render();
+  }
+  function remove(id,color,custKey){
+    const nc=color||'';
+    const idx=items.findIndex(i=>i.id===id&&i.color===nc&&(custKey===undefined||_custKey(i.customization||null)===custKey));
+    if(idx<0)return;items.splice(idx,1);save();render();
   }
   function total(){return items.reduce((s,i)=>s+i.price*i.quantity,0)}
   function getItems(){return[...items]}
@@ -266,7 +278,10 @@ const Cart=(function(){
             <button class="ci-qbtn" onclick="Cart.changeQty('${_esc(item.id)}','${_esc(item.color||'')}', 1, ${ck})">+</button>
           </div>
         </div>
-        <div class="ci-price">₹${(item.price*item.quantity).toLocaleString('en-IN')}</div>
+        <div class="ci-right">
+          <div class="ci-price">₹${(item.price*item.quantity).toLocaleString('en-IN')}</div>
+          <button class="ci-rm" onclick="Cart.remove('${_esc(item.id)}','${_esc(item.color||'')}',${ck})" aria-label="Remove item"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 2l10 10M12 2L2 12"/></svg></button>
+        </div>
       </div>`;
     }).join('');
   }
@@ -321,7 +336,7 @@ const Cart=(function(){
       _enrichImages().then(changed=>{if(changed)_renderCartItems(el);});
     }
   }
-  return{add,changeQty,total,getItems,clear,render,badge,loadFromServer,mergeOnLogin,_enrichImages};
+  return{add,changeQty,remove,total,getItems,clear,render,badge,loadFromServer,mergeOnLogin,_enrichImages};
 })();
 
 /* ══ WISHLIST ════════════════════════════════════════════════
