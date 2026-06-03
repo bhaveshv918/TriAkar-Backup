@@ -96,6 +96,12 @@ CREATE TABLE products (
   product_dropdowns        JSONB DEFAULT '[]',
   colors                   TEXT[] DEFAULT '{}',
   homepage_order           INTEGER,
+  -- v2 unified fields
+  product_options          JSONB DEFAULT '[]',
+  specifications           JSONB DEFAULT '[]',
+  min_order_qty            INTEGER,
+  qty_step                 INTEGER,
+  key_features_label       TEXT,
   created_at               TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
@@ -127,6 +133,11 @@ CREATE POLICY "Anyone reads active products" ON products FOR SELECT USING (is_ac
 -- ALTER TABLE products ADD COLUMN IF NOT EXISTS description_display_mode TEXT DEFAULT 'all';
 -- ALTER TABLE products ADD COLUMN IF NOT EXISTS notes TEXT;
 -- ALTER TABLE products ADD COLUMN IF NOT EXISTS variants JSONB DEFAULT '[]';
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS product_options JSONB DEFAULT '[]';
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS specifications JSONB DEFAULT '[]';
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS min_order_qty INTEGER;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS qty_step INTEGER;
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS key_features_label TEXT;
 -- ALTER TABLE products ADD COLUMN IF NOT EXISTS product_dropdowns JSONB DEFAULT '[]';
 -- ALTER TABLE products ADD COLUMN IF NOT EXISTS colors TEXT[] DEFAULT '{}';
 -- ALTER TABLE products ADD COLUMN IF NOT EXISTS homepage_order INTEGER;

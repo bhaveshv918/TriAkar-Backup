@@ -98,6 +98,15 @@ export async function upsertProduct(req, res, next) {
       variants:                Array.isArray(b.variants) ? b.variants : [],
       customization_fields:    Array.isArray(b.customization_fields) ? b.customization_fields : [],
       product_dropdowns:       Array.isArray(b.product_dropdowns) ? b.product_dropdowns : [],
+      // Unified customer options (new schema — supersedes the two above)
+      product_options:         Array.isArray(b.product_options) ? b.product_options : [],
+      // Structured specifications table [[key, value], ...]
+      specifications:          Array.isArray(b.specifications) ? b.specifications : [],
+      // Quantity rules
+      min_order_qty:           b.min_order_qty ? Number(b.min_order_qty) : null,
+      qty_step:                b.qty_step ? Number(b.qty_step) : null,
+      // Key features section label
+      key_features_label:      b.key_features_label || null,
       colors:                  Array.isArray(b.colors) ? b.colors : [],
     };
     const { data, error } = await supabase

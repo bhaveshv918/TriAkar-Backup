@@ -550,28 +550,28 @@ td.td-name{color:var(--text);font-weight:500}
 .variant-add-img:hover{border-color:var(--border-h)}
 .variant-add-img input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
 
-/* Customization fields builder */
+/* Legacy stubs (kept for backward compat) */
 .cust-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
-.cust-row{
-  display:grid;grid-template-columns:1fr 120px 60px auto;gap:8px;
-  align-items:center;padding:10px;background:var(--bg);
-  border:1px solid var(--border);border-radius:var(--radius);
-}
+.cust-row{display:grid;grid-template-columns:1fr 120px 60px auto;gap:8px;align-items:center;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)}
 .cust-row input,.cust-row select{font-size:12px;padding:7px 10px}
-
-/* Dropdown builder */
 .dd-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
 .dd-row{padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)}
 .dd-row-head{display:flex;gap:8px;align-items:center;margin-bottom:8px}
 .dd-row-head input{flex:1;font-size:12px;padding:7px 10px}
 .dd-opts{display:flex;gap:6px;flex-wrap:wrap}
-.dd-opt{
-  display:flex;align-items:center;gap:4px;
-  background:var(--bg-2);padding:4px 8px;border-radius:3px;
-  font-size:11px;color:var(--text-2);
-}
+.dd-opt{display:flex;align-items:center;gap:4px;background:var(--bg-2);padding:4px 8px;border-radius:3px;font-size:11px;color:var(--text-2)}
 .dd-opt button{color:var(--text-3);font-size:12px;line-height:1}
 .dd-opt button:hover{color:var(--red)}
+
+/* Unified Customer Options builder */
+.cust-opts-list{display:flex;flex-direction:column;gap:0;margin-top:8px}
+.cust-opt-row .fg{margin-bottom:0}
+.cust-opt-row input,.cust-opt-row select{font-size:12px;padding:7px 10px}
+
+/* Spec builder */
+.spec-builder{margin-top:6px}
+.spec-b-row input:focus{background:var(--bg-2) !important;outline:none}
+.spec-b-row:last-child{border-bottom:none !important}
 .dd-opt-input{
   background:transparent;border:1px solid var(--border);color:var(--text);
   font-size:11px;padding:4px 8px;border-radius:3px;width:100px;
@@ -1093,20 +1093,50 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="variant-list" id="variantList"></div>
       <button class="btn-sm" style="margin-top:8px" onclick="addVariant()">+ Add Variant</button>
 
-      <!-- Customization Fields -->
-      <div class="form-section">Customization Fields</div>
-      <label class="fcheck" style="margin-bottom:8px"><input type="checkbox" id="fCustomizable" onchange="toggleCustSection()"> This product is customizable</label>
-      <div id="custSection" style="display:none">
-        <p style="font-size:11px;color:var(--text-3);margin-bottom:8px">Define what you want to ask the customer when they order this.</p>
-        <div class="cust-list" id="custList"></div>
-        <button class="btn-sm" style="margin-top:8px" onclick="addCustField()">+ Add Question</button>
+      <!-- Specifications Table Builder -->
+      <div class="form-section">Specifications <span class="hint">(shown as a table on the product page)</span></div>
+      <p style="font-size:11px;color:var(--text-3);margin-bottom:10px">Add key specs like Material, Dimensions, Weight etc. These appear as a clean table on the product page.</p>
+      <div class="spec-builder" id="specBuilderList"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn-sm" onclick="addSpecRow()">+ Add Row</button>
+        <button class="btn-sm" onclick="addSpecPreset('Material','PLA+')">+ Material</button>
+        <button class="btn-sm" onclick="addSpecPreset('Dimensions','')">+ Dimensions</button>
+        <button class="btn-sm" onclick="addSpecPreset('Weight','')">+ Weight</button>
+        <button class="btn-sm" onclick="addSpecPreset('Production Time','2–3 business days')">+ Production</button>
+        <button class="btn-sm" onclick="addSpecPreset('Colour Options','')">+ Colours</button>
       </div>
 
-      <!-- Product Dropdowns -->
-      <div class="form-section">Product Dropdowns <span class="hint">(material, size, etc.)</span></div>
-      <p style="font-size:11px;color:var(--text-3);margin-bottom:8px">Add dropdown menus shown on the product page.</p>
-      <div class="dd-list" id="ddList"></div>
-      <button class="btn-sm" style="margin-top:8px" onclick="addDropdown()">+ Add Dropdown</button>
+      <!-- Customer Options — unified: replaces Customization Fields + Product Dropdowns -->
+      <div class="form-section">Customer Options <span class="hint">(what customers fill in on the product page)</span></div>
+      <p style="font-size:11px;color:var(--text-3);margin-bottom:8px">
+        Everything here appears as a form on the product page. Customers must fill these before adding to cart.
+        The values are saved in the order and shown here in the admin panel.
+      </p>
+      <div class="cust-opts-list" id="custOptsList"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn-sm" onclick="addCustOpt('text',true,true)">+ Name field</button>
+        <button class="btn-sm" onclick="addCustOpt('textarea',false,false)">+ Message / Note</button>
+        <button class="btn-sm" onclick="addCustOpt('select',false,false)">+ Dropdown choice</button>
+        <button class="btn-sm" onclick="addCustOpt('text',false,false)">+ Free text</button>
+        <button class="btn-sm" onclick="addCustOpt('number',false,false)">+ Number input</button>
+      </div>
+
+      <!-- Product Rules -->
+      <div class="form-section">Product Rules <span class="hint">(order limits, batch sizes, time-bound offers)</span></div>
+      <div class="fg">
+        <div class="ff">
+          <label>Minimum Order Quantity <span class="hint">(e.g. 100 for corporate packs — leave blank for 1)</span></label>
+          <input type="number" id="fMinOrderQty" min="1" step="1" placeholder="e.g. 100">
+        </div>
+        <div class="ff">
+          <label>Order in Multiples of <span class="hint">(batch size — e.g. 10 means 10, 20, 30…)</span></label>
+          <input type="number" id="fQtyStep" min="1" step="1" placeholder="e.g. 10">
+        </div>
+        <div class="ff">
+          <label>Key Features Section Label <span class="hint">(default: "Key Features")</span></label>
+          <input type="text" id="fKeyFeaturesLabel" placeholder="e.g. Care &amp; Use, What's Included">
+        </div>
+      </div>
 
       <!-- Form Footer -->
       <div class="form-foot">
@@ -1347,8 +1377,12 @@ const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
 const ADMIN_EMAILS=['bhaveshv918@gmail.com']; // Only these emails can access the admin panel
 const API=(location.hostname==='localhost')?'http://localhost:3000':'https://triakar.onrender.com';
 
+// ── Global HTML escape helper ──────────────────────────────
+function esc(s){return(s===null||s===undefined)?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
 // ── State ──────────────────────────────────────────────────
 let _products=[],_orders=[],_categories=[],_uploadedImages=[],_variants=[],_custFields=[],_dropdowns=[],_bulletPoints=[];
+let _productOptions=[],_specifications=[];  // new unified fields
 let _visitorData={};
 
 // ═══════════════════════════════════════════════════════════
@@ -1972,7 +2006,13 @@ function renderOrders(orders){
       const pname=(i.products||{}).name||i.name||'Item';
       const cat=(i.products||{}).category||'';
       const catBadge=cat?'<span style="font-size:9px;background:var(--bg-3);padding:2px 6px;border-radius:3px;margin-left:6px;color:var(--text-3)">'+cat+'</span>':'';
-      const cust=i.customization_notes?'<div style="margin-top:4px;padding:4px 8px;background:var(--accent-bg);border-left:2px solid var(--accent);border-radius:2px;font-size:11px;color:var(--accent)">Customization: '+i.customization_notes+'</div>':'';
+      // Show customization: parse "Key: Value | Key: Value" into pills
+      let cust='';
+      if(i.customization_notes){
+        const pairs=i.customization_notes.split('|').map(s=>s.trim()).filter(Boolean);
+        const pills=pairs.map(p=>{const ci=p.indexOf(':');const k=ci>-1?p.slice(0,ci).trim():p;const v=ci>-1?p.slice(ci+1).trim():'';return`<span style="display:inline-flex;gap:4px;align-items:center"><b style="color:var(--text-2)">${esc(k)}:</b>${esc(v)}</span>`;}).join('<span style="color:var(--text-3);margin:0 4px">·</span>');
+        cust=`<div style="margin-top:5px;padding:5px 9px;background:var(--accent-bg);border-left:2px solid var(--accent);border-radius:2px 6px 6px 2px;font-size:11px;line-height:1.7">🎨 ${pills}</div>`;
+      }
       const unitP=i.unit_price||i.price||0;
       return '<div class="od-item" style="flex-direction:column;gap:2px;padding:6px 8px">'
         +'<div style="display:flex;justify-content:space-between;align-items:center">'
@@ -2271,7 +2311,7 @@ function toggleUrgencyField(){
 }
 
 function toggleCustSection(){
-  document.getElementById('custSection').style.display=document.getElementById('fCustomizable').checked?'block':'none';
+  // Customer Options section is always visible — no-op (kept for backward compat)
 }
 
 /* Markdown toolbar helpers */
@@ -2296,6 +2336,7 @@ function openProductForm(id){
   wrap.scrollIntoView({behavior:'smooth',block:'nearest'});
   document.getElementById('formErr').textContent='';
   _uploadedImages=[];_variants=[];_custFields=[];_dropdowns=[];_bulletPoints=[];
+  _productOptions=[];_specifications=[];
 
   if(id){
     const p=_products.find(x=>x.id===id);
@@ -2344,19 +2385,36 @@ function openProductForm(id){
     _bulletPoints=Array.isArray(p.bullet_points)?[...p.bullet_points]:[];
     renderBulletPoints();
     _variants=(p.variants||[]).map(v=>({...v}));
+    // Load new unified options — prefer product_options, else migrate from legacy fields
+    if(p.product_options&&p.product_options.length){
+      _productOptions=p.product_options.map(o=>({...o,options:[...(o.options||[])]}));
+    }else{
+      _productOptions=[];
+      (p.customization_fields||[]).forEach(f=>{if(f.label||f.title)_productOptions.push({label:f.label||f.title,type:f.type||'text',required:!!f.required,is_name_field:false,placeholder:f.placeholder||'',hint:'',options:[...(f.options||[])],default_value:''});});
+      (p.product_dropdowns||[]).forEach(d=>{if(d.title&&!_productOptions.some(o=>o.label===d.title))_productOptions.push({label:d.title,type:'select',required:false,is_name_field:false,placeholder:'',hint:'',options:[...(d.options||[])],default_value:''});});
+    }
+    // Load specifications
+    _specifications=(p.specifications||[]).map(s=>([s[0]||'',s[1]||'']));
+    // Load qty rules
+    document.getElementById('fMinOrderQty').value=p.min_order_qty||'';
+    document.getElementById('fQtyStep').value=p.qty_step||'';
+    document.getElementById('fKeyFeaturesLabel').value=p.key_features_label||'';
+    // legacy — still keep in memory for old format compat
     _custFields=(p.customization_fields||[]).map(f=>({...f}));
     _dropdowns=(p.product_dropdowns||[]).map(d=>({...d,options:[...(d.options||[])]}));
   }else{
     document.getElementById('formTitle').textContent='Add Product';
     document.getElementById('editingId').value='';
     ['fName','fSlug','fPrice','fDiscountValue','fDescription','fShortDesc','fNotes','fUrgencyText',
-     'fSku','fDesigner','fKeyFeatures','fCustomizationOptions','fDimensions','fTargetAudience','fUseCase','fTags'
-    ].forEach(id=>document.getElementById(id).value='');
+     'fSku','fDesigner','fKeyFeatures','fCustomizationOptions','fDimensions','fTargetAudience','fUseCase','fTags',
+     'fMinOrderQty','fQtyStep','fKeyFeaturesLabel'
+    ].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     document.getElementById('fStockStatus').value='Made to Order';
     document.getElementById('fShortDescCount').textContent='0';
     const defDm=document.querySelector('input[name="fDisplayMode"][value="all"]');
     if(defDm)defDm.checked=true;
     _bulletPoints=[];renderBulletPoints();
+    _productOptions=[];_specifications=[];
     document.getElementById('fCategory').value='';
     document.getElementById('fMaterial').value='PLA+';
     document.getElementById('fCompareAt').value='';
@@ -2373,7 +2431,7 @@ function openProductForm(id){
     document.getElementById('fSlug')._manual=false;
     toggleDiscountField();toggleUrgencyField();toggleCustSection();
   }
-  renderImgGrid();renderVariants();renderCustFields();renderDropdowns();
+  renderImgGrid();renderVariants();renderCustOpts();renderSpecBuilder();
 }
 
 function closeProductForm(){document.getElementById('productFormWrap').classList.remove('open')}
@@ -2431,7 +2489,8 @@ async function submitProductForm(){
     homepage_order:document.getElementById('fHomepage').checked
       ?(parseInt(document.getElementById('fHomepageOrder').value)||1)
       :null,
-    is_customizable:document.getElementById('fCustomizable').checked,
+    // is_customizable: true if checkbox is checked OR if any customer options are defined
+    is_customizable:document.getElementById('fCustomizable').checked||(_productOptions.filter(o=>o.label.trim()).length>0),
     description:document.getElementById('fDescription').value.trim()||null,
     short_description:document.getElementById('fShortDesc').value.trim()||null,
     long_description:document.getElementById('fDescription').value.trim()||null,
@@ -2446,8 +2505,15 @@ async function submitProductForm(){
     notes:document.getElementById('fNotes').value.trim()||null,
     images:_uploadedImages,
     variants:_variants,
-    customization_fields:_custFields,
-    product_dropdowns:_dropdowns,
+    // New unified schema
+    product_options:_productOptions.filter(o=>o.label.trim()),
+    specifications:_specifications.filter(s=>s[0]&&s[0].trim()),
+    min_order_qty:parseInt(document.getElementById('fMinOrderQty').value)||null,
+    qty_step:parseInt(document.getElementById('fQtyStep').value)||null,
+    key_features_label:document.getElementById('fKeyFeaturesLabel').value.trim()||null,
+    // Keep legacy fields for backward compat
+    customization_fields:_productOptions.filter(o=>o.label.trim()),
+    product_dropdowns:_productOptions.filter(o=>o.type==='select'&&o.label.trim()).map(o=>({title:o.label,options:o.options})),
     colors:_variants.map(v=>v.name).filter(Boolean),
   };
 
@@ -2824,48 +2890,122 @@ async function uploadVariantImg(varIdx,files){
 }
 function removeVariantImg(vi,ii){_variants[vi].images.splice(ii,1);renderVariants()}
 
-// ── Customization Fields ───────────────────────────────────
-function addCustField(){_custFields.push({label:'',type:'text',required:false});renderCustFields()}
-function removeCustField(i){_custFields.splice(i,1);renderCustFields()}
+// ══════════════════════════════════════════════════════════
+// UNIFIED CUSTOMER OPTIONS  (replaces custFields + dropdowns)
+// ══════════════════════════════════════════════════════════
+let _productOptions=[];  // [{label, type, required, is_name_field, placeholder, hint, options:[], default_value}]
 
-function renderCustFields(){
-  document.getElementById('custList').innerHTML=_custFields.map((f,i)=>`
-    <div class="cust-row">
-      <input value="${f.label||''}" onchange="_custFields[${i}].label=this.value" placeholder="e.g. Enter your name">
-      <select onchange="_custFields[${i}].type=this.value">
-        <option value="text" ${f.type==='text'?'selected':''}>Text</option>
-        <option value="textarea" ${f.type==='textarea'?'selected':''}>Long Text</option>
-        <option value="number" ${f.type==='number'?'selected':''}>Number</option>
-        <option value="file" ${f.type==='file'?'selected':''}>File Upload</option>
-        <option value="select" ${f.type==='select'?'selected':''}>Dropdown</option>
-      </select>
-      <label class="fcheck" style="font-size:10px"><input type="checkbox" ${f.required?'checked':''} onchange="_custFields[${i}].required=this.checked"> Req</label>
-      <button class="btn-danger" onclick="removeCustField(${i})">×</button>
-    </div>
-  `).join('');
+function addCustOpt(type,required,isName){
+  _productOptions.push({label:'',type:type||'text',required:!!required,is_name_field:!!isName,placeholder:'',hint:'',options:[],default_value:''});
+  renderCustOpts();
+  // scroll to newly added row
+  const list=document.getElementById('custOptsList');
+  if(list)list.lastElementChild&&list.lastElementChild.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function removeCustOpt(i){_productOptions.splice(i,1);renderCustOpts();}
+function addCustOptOption(i,val){if(!val.trim())return;_productOptions[i].options.push(val.trim());renderCustOpts();}
+function removeCustOptOption(i,j){_productOptions[i].options.splice(j,1);renderCustOpts();}
+
+function renderCustOpts(){
+  const el=document.getElementById('custOptsList');
+  if(!el)return;
+  if(!_productOptions.length){
+    el.innerHTML='<div style="font-size:11px;color:var(--text-3);padding:8px 0">No customer options yet. Use the buttons above to add fields.</div>';
+    return;
+  }
+  el.innerHTML=_productOptions.map((opt,i)=>{
+    const typeOpts=['text','textarea','select','number'].map(t=>`<option value="${t}"${opt.type===t?' selected':''}>${{text:'Text',textarea:'Long Text',select:'Dropdown',number:'Number'}[t]}</option>`).join('');
+    const optsHtml=opt.type==='select'?`
+      <div style="margin-top:8px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);margin-bottom:5px">Dropdown Options</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px" id="coOpts${i}">
+          ${(opt.options||[]).map((o,j)=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;font-size:11px">${o}<button type="button" onclick="removeCustOptOption(${i},${j})" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:11px;padding:0;line-height:1">×</button></span>`).join('')}
+        </div>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="coOptInput${i}" placeholder="Add option, press Enter" style="flex:1;padding:5px 9px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text)"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();addCustOptOption(${i},this.value);this.value=''}">
+          <button type="button" class="btn-sm" onclick="addCustOptOption(${i},document.getElementById('coOptInput${i}').value);document.getElementById('coOptInput${i}').value=''">Add</button>
+        </div>
+      </div>`:'';
+    return`<div class="cust-opt-row" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.07em">Option ${i+1}</span>
+        <button type="button" class="btn-danger" onclick="removeCustOpt(${i})">Remove</button>
+      </div>
+      <div class="fg" style="margin-bottom:0">
+        <div class="ff">
+          <label>Label <span class="hint">(what customer sees)</span></label>
+          <input type="text" value="${esc(opt.label||'')}" onchange="_productOptions[${i}].label=this.value" placeholder="e.g. Name to print, Choose message">
+        </div>
+        <div class="ff">
+          <label>Input Type</label>
+          <select onchange="_productOptions[${i}].type=this.value;renderCustOpts()">${typeOpts}</select>
+        </div>
+        <div class="ff">
+          <label>Placeholder text <span class="hint">(inside the field)</span></label>
+          <input type="text" value="${esc(opt.placeholder||'')}" onchange="_productOptions[${i}].placeholder=this.value" placeholder="e.g. e.g. Rahul">
+        </div>
+        <div class="ff">
+          <label>Hint / note <span class="hint">(shown below field)</span></label>
+          <input type="text" value="${esc(opt.hint||'')}" onchange="_productOptions[${i}].hint=this.value" placeholder="e.g. Max 20 characters">
+        </div>
+      </div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:8px;align-items:center">
+        <label class="fcheck" style="font-size:11px">
+          <input type="checkbox" ${opt.required?'checked':''} onchange="_productOptions[${i}].required=this.checked">
+          Required (customer must fill)
+        </label>
+        <label class="fcheck" style="font-size:11px">
+          <input type="checkbox" ${opt.is_name_field?'checked':''} onchange="_productOptions[${i}].is_name_field=this.checked">
+          This is the personalization name field
+        </label>
+      </div>
+      ${optsHtml}
+    </div>`;
+  }).join('');
 }
 
-// ── Product Dropdowns ──────────────────────────────────────
-function addDropdown(){_dropdowns.push({title:'',options:[]});renderDropdowns()}
-function removeDropdown(i){_dropdowns.splice(i,1);renderDropdowns()}
+// ══════════════════════════════════════════════════════════
+// SPECIFICATIONS BUILDER
+// ══════════════════════════════════════════════════════════
+let _specifications=[];  // [[key, value], ...]
 
-function renderDropdowns(){
-  document.getElementById('ddList').innerHTML=_dropdowns.map((d,i)=>`
-    <div class="dd-row">
-      <div class="dd-row-head">
-        <input value="${d.title||''}" onchange="_dropdowns[${i}].title=this.value" placeholder="Dropdown title (e.g. Size, Material)">
-        <button class="btn-danger" onclick="removeDropdown(${i})">×</button>
-      </div>
-      <div class="dd-opts" id="ddOpts${i}">
-        ${(d.options||[]).map((o,j)=>'<div class="dd-opt">'+o+'<button onclick="removeDdOpt('+i+','+j+')">×</button></div>').join('')}
-        <input class="dd-opt-input" placeholder="+ option" onkeydown="if(event.key==='Enter'){addDdOpt(${i},this.value);this.value=''}">
-      </div>
+function addSpecRow(){_specifications.push(['','']);renderSpecBuilder();}
+function addSpecPreset(key,val){
+  // avoid adding duplicate key
+  const existing=_specifications.findIndex(s=>s[0]===key);
+  if(existing>-1){document.querySelector(`#specBuilderList .spec-b-row:nth-child(${existing+1}) input`)&&document.querySelectorAll('#specBuilderList .spec-b-row')[existing].querySelector('input').focus();return;}
+  _specifications.push([key,val]);renderSpecBuilder();
+}
+function removeSpecRow(i){_specifications.splice(i,1);renderSpecBuilder();}
+
+function renderSpecBuilder(){
+  const el=document.getElementById('specBuilderList');
+  if(!el)return;
+  if(!_specifications.length){
+    el.innerHTML='<div style="font-size:11px;color:var(--text-3);padding:8px 0">No specs yet. Use the preset buttons or add a row.</div>';
+    return;
+  }
+  el.innerHTML=`<div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;background:var(--bg-2);padding:6px 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);border-bottom:1px solid var(--border)">
+      <span>Property</span><span>Value</span><span></span>
     </div>
-  `).join('');
+    ${_specifications.map((s,i)=>`
+    <div class="spec-b-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:0;border-bottom:1px solid var(--border)">
+      <input value="${esc(s[0]||'')}" onchange="_specifications[${i}][0]=this.value" placeholder="e.g. Material"
+        style="padding:8px 10px;background:var(--bg);border:none;border-right:1px solid var(--border);font-size:12px;color:var(--text);font-family:inherit;outline:none">
+      <input value="${esc(s[1]||'')}" onchange="_specifications[${i}][1]=this.value" placeholder="e.g. PLA+"
+        style="padding:8px 10px;background:var(--bg);border:none;border-right:1px solid var(--border);font-size:12px;color:var(--text);font-family:inherit;outline:none">
+      <button type="button" onclick="removeSpecRow(${i})" style="padding:0 10px;background:none;border:none;cursor:pointer;color:var(--text-3);font-size:14px" title="Remove">×</button>
+    </div>`).join('')}
+  </div>`;
 }
 
-function addDdOpt(di,val){if(!val.trim())return;_dropdowns[di].options.push(val.trim());renderDropdowns()}
-function removeDdOpt(di,oi){_dropdowns[di].options.splice(oi,1);renderDropdowns()}
+// Keep legacy stubs so no runtime errors if old code references them
+function addCustField(){addCustOpt('text',false,false);}
+function addDropdown(){addCustOpt('select',false,false);}
+function renderCustFields(){renderCustOpts();}
+function renderDropdownsAdmin(){renderCustOpts();}
 
 // ═══════════════════════════════════════════════════════════
 // SECURITY LOGS

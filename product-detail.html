@@ -113,10 +113,38 @@
 .detail-save.saved svg{fill:var(--accent);stroke:var(--accent);transform:scale(1.1)}
 
 /* SPEC TABLE */
-.spec-table{margin:22px 0}
-.spec-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--stone-p);font-size:13px}
-.spec-key{color:var(--stone);font-weight:500}
-.spec-val{color:var(--charcoal);font-weight:600;text-align:right}
+.spec-table{margin:22px 0;border:1px solid var(--stone-p);border-radius:10px;overflow:hidden}
+.spec-row{display:grid;grid-template-columns:40% 1fr;padding:9px 14px;border-bottom:1px solid var(--stone-p);font-size:13px;gap:8px}
+.spec-row:last-child{border-bottom:none}
+.spec-row:nth-child(even){background:rgba(0,0,0,.02)}
+.spec-key{color:var(--stone);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding-top:1px}
+.spec-val{color:var(--charcoal);font-weight:500;line-height:1.5}
+
+/* MARKDOWN BODY STYLES */
+.md-h2{font-size:18px;font-weight:700;color:var(--charcoal);margin:26px 0 10px}
+.md-h3{font-size:16px;font-weight:700;color:var(--charcoal);margin:22px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--stone-p)}
+.md-h4{font-size:14px;font-weight:700;color:var(--charcoal);margin:16px 0 6px;letter-spacing:.02em}
+.md-ul{padding-left:18px;margin:10px 0;line-height:1.9}
+.md-ul li{margin-bottom:3px;color:var(--warm)}
+.md-p{margin:10px 0;line-height:1.85;color:var(--warm)}
+
+/* PRODUCT OPTIONS — customer customisation block */
+.prod-opts-wrap{margin:18px 0;padding:18px 20px;background:var(--ivory);border:1px solid var(--stone-p);border-radius:12px}
+.prod-opts-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--accent);margin-bottom:14px;display:flex;align-items:center;gap:6px}
+.prod-opts-label::after{content:"";flex:1;height:1px;background:linear-gradient(to right,rgba(228,106,46,.25),transparent)}
+.prod-opt-row{margin-bottom:12px}
+.prod-opt-row:last-child{margin-bottom:0}
+.prod-opt-label{font-size:12px;font-weight:600;color:var(--charcoal);display:block;margin-bottom:5px}
+.prod-opt-required{color:var(--accent);margin-left:2px}
+.prod-opt-hint{font-size:10px;color:var(--stone);margin-top:3px}
+.prod-opt-field{width:100%;padding:9px 12px;border:1.5px solid var(--stone-p);border-radius:8px;font-size:13px;font-family:var(--font-b);background:#fff;color:var(--charcoal);outline:none;box-sizing:border-box;transition:border-color .2s}
+.prod-opt-field:focus{border-color:var(--accent)}
+.prod-opt-field[type=textarea],.prod-opt-textarea{resize:vertical;min-height:80px}
+select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23999'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:28px}
+
+/* MIN QTY NOTICE */
+.min-qty-notice{font-size:11px;color:var(--stone);padding:6px 10px;background:var(--ivory);border-radius:6px;border:1px solid var(--stone-p);margin-top:6px;line-height:1.5}
+.min-qty-notice b{color:var(--charcoal)}
 
 /* ACCORDION with animation (FIX from PDF p6) */
 .gallery-dropdowns{margin-left:84px;margin-right:16px;padding:20px 0 36px;margin-top:16px;display:flex;flex-direction:column;gap:8px}
@@ -296,6 +324,7 @@
         <span class="qty-n" id="qtyNum">1</span>
         <button class="qty-btn" onclick="changeQty(1)">+</button>
       </div>
+      <div class="min-qty-notice" id="minQtyNotice" style="display:none"></div>
 
       <div id="dispatchNote" class="dispatch-note" style="display:none"></div>
 
@@ -313,7 +342,7 @@
       </button>
 
       <div id="keyFeaturesWrap" style="display:none">
-        <div class="key-features-label">Care &amp; Use</div>
+        <div class="key-features-label" id="keyFeaturesLabel">Key Features</div>
         <ul class="key-features-list" id="keyFeaturesList"></ul>
       </div>
 
@@ -407,22 +436,45 @@ const THUMB_SVGS = {
 let qty=1, selVariant='', curProduct=null, currentImgIdx=0;
 function _mdRender(t){
   if(!t)return'';
-  var h=t
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/^### (.+)$/gm,'<h4 style="font-size:15px;font-weight:700;color:var(--charcoal);margin:20px 0 6px">$1</h4>')
-    .replace(/^## (.+)$/gm,'<h3 style="font-size:17px;font-weight:700;color:var(--charcoal);margin:24px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--stone-p)">$1</h3>')
-    .replace(/^# (.+)$/gm,'<h2 style="font-size:20px;font-weight:700;color:var(--charcoal);margin:28px 0 10px">$1</h2>')
-    .replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>')
-    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g,'<em>$1</em>')
-    .replace(/^[-•] (.+)$/gm,'<li>$1</li>');
-  h=h.replace(/(<li>[\s\S]*?<\/li>)(\n<li>[\s\S]*?<\/li>)*/g,function(m){return'<ul style="padding-left:20px;margin:10px 0;line-height:1.8">'+m+'</ul>';});
+  var h=t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  // ── Markdown tables: lines starting/ending with | ─────────
+  h=h.replace(/((?:^\|.+\|\r?\n?)+)/gm,function(block){
+    var rows=block.trim().split(/\r?\n/).filter(function(r){return r.trim();});
+    var sepIdx=rows.findIndex(function(r){return /^\|[\s:|-]+\|/.test(r);});
+    var headRows=sepIdx>0?rows.slice(0,sepIdx):[];
+    var bodyRows=sepIdx>=0?rows.slice(sepIdx+1):rows;
+    function thCell(c){return'<th style="padding:9px 14px;border:1px solid var(--stone-p);background:var(--ivory);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--charcoal);text-align:left">'+c.trim()+'</th>';}
+    function tdCell(c){return'<td style="padding:9px 14px;border:1px solid var(--stone-p);font-size:13px;color:var(--warm);line-height:1.6;vertical-align:top">'+c.trim()+'</td>';}
+    function parseRow(r,fn){return r.replace(/^\||\|$/g,'').split('|').map(fn).join('');}
+    var thead=headRows.length?'<thead><tr>'+parseRow(headRows[0],thCell)+'</tr></thead>':'';
+    var tbody='<tbody>'+bodyRows.map(function(r){return'<tr>'+parseRow(r,tdCell)+'</tr>';}).join('')+'</tbody>';
+    return'<div style="overflow-x:auto;margin:16px 0"><table style="width:100%;border-collapse:collapse;font-family:inherit">'+thead+tbody+'</table></div>\n\n';
+  });
+
+  // ── Headings ─────────────────────────────────────────────
+  h=h.replace(/^### (.+)$/gm,'<h4 class="md-h4">$1</h4>');
+  h=h.replace(/^## (.+)$/gm,'<h3 class="md-h3">$1</h3>');
+  h=h.replace(/^# (.+)$/gm,'<h2 class="md-h2">$1</h2>');
+
+  // ── Inline ────────────────────────────────────────────────
+  h=h.replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>');
+  h=h.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  h=h.replace(/\*(.+?)\*/g,'<em>$1</em>');
+
+  // ── Lists ─────────────────────────────────────────────────
+  h=h.replace(/^[-•]\s(.+)$/gm,'<li>$1</li>');
+  h=h.replace(/(<li>[\s\S]*?<\/li>)(\n<li>[\s\S]*?<\/li>)*/g,function(m){
+    return'<ul class="md-ul">'+m+'</ul>';
+  });
+
+  // ── Paragraphs ────────────────────────────────────────────
   var parts=h.split(/\n{2,}/);
   return parts.map(function(b){
     b=b.trim();
     if(!b)return'';
-    if(/^<(h[2-4]|ul)/.test(b))return b;
-    return'<p style="margin:10px 0;line-height:1.8;color:var(--warm)">'+b.replace(/\n/g,'<br>')+'</p>';
+    if(/^<(h[2-4]|ul|div)/.test(b))return b;
+    return'<p class="md-p">'+b.replace(/\n/g,'<br>')+'</p>';
   }).join('');
 }
 
@@ -556,12 +608,16 @@ function renderProduct(ap){
     variants:rawVariants.length?rawVariants:['Default'],
     specs:ap.specifications||ap.specs||[],
     key_features:ap.key_features||ap.bullet_points||[],
+    key_features_label:ap.key_features_label||null,
     urgency_type:ap.urgency_type||null,
     urgency_text:ap.urgency_text||null,
     images:ap.images||[],
+    // Unified product options: new schema (product_options) takes priority, else fall back
+    product_options:ap.product_options||null,
     product_dropdowns:ap.product_dropdowns||[],
+    customization_fields:ap.customization_fields||[],
   };
-  curProduct={...p, id, slug:id};
+  curProduct={...p, id, slug:id, min_order_qty:ap.min_order_qty||null, qty_step:ap.qty_step||1};
   window._prodId=id;
   try{ injectProductSchema(ap,p,id); }catch(_){}
   document.getElementById('prodName').textContent=p.name;
@@ -595,10 +651,13 @@ function renderProduct(ap){
   const isSize=id.includes('loop')||id.includes('bookmark');
   document.getElementById('variantLabel').textContent=isSize?'Pack Size':'Colour';
   document.getElementById('variantRow').innerHTML=vArr.map((v,i)=>{const vn=typeof v==='object'?v.name:v;return `<button class="variant-btn${i===0?' active':''}" onclick="selectVariant(this,'${vn}')">${vn}</button>`;}).join('');
-  // specs — filter out Material and Production rows
-  const filteredSpecs=(p.specs||[]).filter(s=>!['Material','Production'].includes(s[0]));
+  // specs — show all rows in a clean table
+  const allSpecs=p.specs||[];
   const specTableEl=document.getElementById('specTable');
-  if(filteredSpecs.length){specTableEl.innerHTML=filteredSpecs.map(s=>`<div class="spec-row"><span class="spec-key">${s[0]}</span><span class="spec-val">${s[1]}</span></div>`).join('');specTableEl.style.display='';}else{specTableEl.style.display='none';}
+  if(allSpecs.length){
+    specTableEl.innerHTML=allSpecs.map(s=>`<div class="spec-row"><span class="spec-key">${_esc(String(s[0]||''))}</span><span class="spec-val">${_esc(String(s[1]||''))}</span></div>`).join('');
+    specTableEl.style.display='';
+  }else{specTableEl.style.display='none';}
   // thumbnails: API images take priority, else use THUMB_SVGS
   const thumbRow=document.getElementById('thumbRow');
   const mainBox=document.getElementById('mainImg');
@@ -616,10 +675,32 @@ function renderProduct(ap){
   // dispatch note
   const dispEl=document.getElementById('dispatchNote');
   if(dispEl){if(p.urgency_type==='next_day'||(p.urgency_text&&p.urgency_text.toLowerCase().includes('dispatch'))){dispEl.textContent=p.urgency_text||'';dispEl.style.display='';}else{dispEl.style.display='none';}}
-  // key features
+  // key features — use dynamic label from product data
   const kfWrap=document.getElementById('keyFeaturesWrap');
   const kfList=document.getElementById('keyFeaturesList');
-  if(kfWrap&&kfList){if(p.key_features&&p.key_features.length){kfList.innerHTML=p.key_features.map(f=>`<li>${f}</li>`).join('');kfWrap.style.display='';}else{kfWrap.style.display='none';}}
+  const kfLabel=document.getElementById('keyFeaturesLabel');
+  if(kfWrap&&kfList){
+    if(p.key_features&&p.key_features.length){
+      if(kfLabel)kfLabel.textContent=p.key_features_label||'Key Features';
+      // key_features can be array or newline-separated string
+      const kfArr=Array.isArray(p.key_features)?p.key_features:p.key_features.split('\n').filter(Boolean);
+      kfList.innerHTML=kfArr.map(f=>`<li>${_esc(f.replace(/^[•\-]\s*/,''))}</li>`).join('');
+      kfWrap.style.display='';
+    }else{kfWrap.style.display='none';}
+  }
+  // min order qty — update qty controls
+  const minQty=ap.min_order_qty||1;
+  const qtyStep=ap.qty_step||1;
+  if(minQty>1){qty=minQty;document.getElementById('qtyNum').textContent=qty;}
+  const minNotice=document.getElementById('minQtyNotice');
+  if(minNotice){
+    if(minQty>1||qtyStep>1){
+      let msg='';
+      if(minQty>1)msg+=`Minimum order: <b>${minQty} units</b>`;
+      if(qtyStep>1)msg+=(msg?' · ':'')+`Order in multiples of <b>${qtyStep}</b>`;
+      minNotice.innerHTML=msg;minNotice.style.display='';
+    }else{minNotice.style.display='none';}
+  }
   // wishlist heart state
   const saveBtn=document.getElementById('detailSave');
   if(saveBtn){saveBtn.dataset.slug=id;saveBtn.dataset.name=p.name;}
@@ -678,7 +759,12 @@ function renderRecentlyViewed(currentSlug){
     .catch(()=>{section.style.display='none';});
 }
 function selectVariant(btn,v){document.querySelectorAll('.variant-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selVariant=v}
-function changeQty(d){qty=Math.max(1,qty+d);document.getElementById('qtyNum').textContent=qty}
+function changeQty(d){
+  const minQ=curProduct&&curProduct.min_order_qty||1;
+  const step=curProduct&&curProduct.qty_step||1;
+  qty=Math.max(minQ,qty+d*step);
+  document.getElementById('qtyNum').textContent=qty;
+}
 function switchThumb(thumb,idx){
   currentImgIdx=idx;
   document.querySelectorAll('.thumb').forEach(t=>t.classList.remove('active'));
@@ -703,8 +789,26 @@ function switchImgUrl(thumb,src){
   const box=document.getElementById('mainImg');
   if(box){box.style.background='#fff';box.innerHTML='<img loading="lazy" src="'+src+'" alt="" draggable="false" style="width:100%;height:100%;object-fit:contain;display:block;">';}
 }
-function addToCartFromDetail(){Cart.add({id:window._prodId,name:curProduct.name,price:curProduct.price,color:selVariant});openCart()}
-function buyNow(){Cart.add({id:window._prodId,name:curProduct.name,price:curProduct.price,color:selVariant});checkout()}
+function addToCartFromDetail(){
+  if(!_validateCustomization()){
+    const wrap=document.querySelector('.prod-opts-wrap');
+    if(wrap)wrap.scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
+  const cust=_collectCustomization();
+  Cart.add({id:window._prodId,name:curProduct.name,price:curProduct.price,color:selVariant,customization:cust});
+  openCart();
+}
+function buyNow(){
+  if(!_validateCustomization()){
+    const wrap=document.querySelector('.prod-opts-wrap');
+    if(wrap)wrap.scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
+  const cust=_collectCustomization();
+  Cart.add({id:window._prodId,name:curProduct.name,price:curProduct.price,color:selVariant,customization:cust});
+  checkout();
+}
 function toggleAcc(id){
   const item=document.getElementById('acc-'+id);
   const body=document.getElementById('acc-body-'+id);
@@ -715,9 +819,31 @@ function toggleAcc(id){
   if(!isOpen){item.classList.add('open');body.classList.add('open')}
 }
 
+function _buildProductOptions(p){
+  /* Unified product options: prefer product_options (new schema),
+     else merge customization_fields + product_dropdowns (legacy). */
+  if(p.product_options&&p.product_options.length) return p.product_options;
+  const merged=[];
+  // legacy customization_fields: {label, type, required, options:[]}
+  (p.customization_fields||[]).forEach(function(f){
+    if(!f.label&&!f.title)return;
+    merged.push({label:f.label||f.title,type:f.type||'text',required:!!f.required,options:f.options||[],placeholder:f.placeholder||''});
+  });
+  // legacy product_dropdowns: {title, options:[]}
+  (p.product_dropdowns||[]).forEach(function(d){
+    if(!d.title)return;
+    // avoid duplicates by title
+    if(merged.some(function(m){return m.label===d.title;}))return;
+    const t=d.options&&d.options.length?'select':'text';
+    merged.push({label:d.title,type:t,required:false,options:d.options||[],placeholder:''});
+  });
+  return merged;
+}
+
 function renderDropdowns(p){
   const container=document.getElementById('galleryDropdowns');
   if(!container)return;
+
   const staticAccs=[
     {id:'confirm',title:'Order Confirmation &amp; Customisation',content:'After you place your order, we will contact you personally to confirm all customisation details and complete every requirement — because your order is our responsibility. Nothing goes into production until you are 100% happy with the plan.'},
     {id:'shipping',title:'Shipping',content:'India: 3 to 5 business days via tracked courier.<br>International: cost-effective rates — confirmed at checkout. Full tracking shared by email.'},
@@ -725,22 +851,67 @@ function renderDropdowns(p){
     {id:'returns',title:'Returns and Damage Policy',content:'7-day return window for standard products. If your item arrives damaged or incorrect, email us a photo within 24 hours of delivery and we will reprint and reship at no charge. Custom orders are non-refundable once the design is approved and production begins. <a href="refund-policy.html" style="color:var(--accent)">Full policy</a>'},
     {id:'material',title:'Material and Sustainability',content:'Made from PLA+ — a plant-based bioplastic derived from corn starch, not petroleum. Non-toxic and significantly more eco-friendly than conventional plastics.'}
   ];
-  // Customer-facing dropdowns/inputs from admin
-  const custDropdowns=(p.product_dropdowns||[]).filter(d=>d.title);
-  const custHtml=custDropdowns.length?'<div class="prod-cust-fields" style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;padding:16px 18px;background:var(--ivory);border:1px solid var(--stone-p);border-radius:12px">'
-    +'<div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--stone);margin-bottom:2px">Customisation Details</div>'
-    +custDropdowns.map((d,i)=>{
-      const fid='cust-'+i;
-      if(d.options&&d.options.length){
-        return `<div><label style="font-size:12px;font-weight:600;color:var(--charcoal);display:block;margin-bottom:5px">${d.title}</label><select id="${fid}" name="${d.title}" style="width:100%;padding:9px 12px;border:1.5px solid var(--stone-p);border-radius:8px;font-size:13px;font-family:var(--font-b);background:#fff;color:var(--charcoal);outline:none"><option value="">Select ${d.title}</option>${d.options.map(o=>`<option value="${o}">${o}</option>`).join('')}</select></div>`;
-      }
-      return `<div><label style="font-size:12px;font-weight:600;color:var(--charcoal);display:block;margin-bottom:5px">${d.title}</label><input id="${fid}" name="${d.title}" type="text" placeholder="Enter ${d.title}" style="width:100%;padding:9px 12px;border:1.5px solid var(--stone-p);border-radius:8px;font-size:13px;font-family:var(--font-b);background:#fff;color:var(--charcoal);outline:none;box-sizing:border-box"></div>`;
-    }).join('')
-    +'</div>':'';
-  container.innerHTML=custHtml+staticAccs.map(a=>`<div class="acc-item" id="acc-${a.id}"><button class="acc-trigger" onclick="toggleAcc('${a.id}')">${a.title} <div class="acc-icon">+</div></button><div class="acc-body" id="acc-body-${a.id}"><div class="acc-body-inner">${a.content}</div></div></div>`).join('');
+
+  const opts=_buildProductOptions(p);
+  let custHtml='';
+  if(opts.length){
+    custHtml='<div class="prod-opts-wrap">'
+      +'<div class="prod-opts-label">Customisation Details</div>'
+      +opts.map(function(opt,i){
+        const fid='prod-opt-'+i;
+        const req=opt.required?'<span class="prod-opt-required">*</span>':'';
+        const ph=opt.placeholder||(opt.type==='select'?'Select '+opt.label:'Enter '+opt.label);
+        let input='';
+        if(opt.type==='select'&&opt.options&&opt.options.length){
+          input=`<select id="${fid}" name="${_esc(opt.label)}" class="prod-opt-field" data-opt-label="${_esc(opt.label)}" data-opt-required="${opt.required?'1':'0'}">`
+            +`<option value="">${ph}</option>`
+            +opt.options.map(function(o){const def=opt.default_value===o;return`<option value="${_esc(o)}"${def?' selected':''}>${_esc(o)}</option>`;}).join('')
+            +'</select>';
+        }else if(opt.type==='textarea'){
+          input=`<textarea id="${fid}" name="${_esc(opt.label)}" class="prod-opt-field prod-opt-textarea" data-opt-label="${_esc(opt.label)}" data-opt-required="${opt.required?'1':'0'}" placeholder="${_esc(ph)}"></textarea>`;
+        }else{
+          const itype=opt.type==='number'?'number':'text';
+          input=`<input type="${itype}" id="${fid}" name="${_esc(opt.label)}" class="prod-opt-field" data-opt-label="${_esc(opt.label)}" data-opt-required="${opt.required?'1':'0'}" placeholder="${_esc(ph)}"${opt.default_value?` value="${_esc(opt.default_value)}"`:''}${opt.is_name_field?' autocomplete="given-name"':''}>`;
+        }
+        const hint=opt.hint?`<div class="prod-opt-hint">${_esc(opt.hint)}</div>`:'';
+        return`<div class="prod-opt-row"><label class="prod-opt-label" for="${fid}">${_esc(opt.label)}${req}</label>${input}${hint}</div>`;
+      }).join('')
+      +'</div>';
+  }
+
+  container.innerHTML=custHtml
+    +staticAccs.map(function(a){
+      return`<div class="acc-item" id="acc-${a.id}"><button class="acc-trigger" onclick="toggleAcc('${a.id}')">${a.title} <div class="acc-icon">+</div></button><div class="acc-body" id="acc-body-${a.id}"><div class="acc-body-inner">${a.content}</div></div></div>`;
+    }).join('');
+
+  // open the confirm accordion by default only if there are customisation options
   const confirmItem=document.getElementById('acc-confirm');
   const confirmBody=document.getElementById('acc-body-confirm');
-  if(confirmItem&&confirmBody){confirmItem.classList.add('open');confirmBody.classList.add('open');}
+  if(confirmItem&&confirmBody&&opts.length){confirmItem.classList.add('open');confirmBody.classList.add('open');}
+}
+
+/* Collect all customisation field values from the product options form */
+function _collectCustomization(){
+  const cust={};
+  document.querySelectorAll('.prod-opt-field').forEach(function(el){
+    const label=el.getAttribute('data-opt-label');
+    const required=el.getAttribute('data-opt-required')==='1';
+    const val=(el.value||'').trim();
+    if(val) cust[label]=val;
+    else if(required) cust[label]=''; // keep slot so validation can detect empty
+  });
+  return Object.keys(cust).length?cust:null;
+}
+
+/* Validate required fields — returns true if ok, false if any required field empty */
+function _validateCustomization(){
+  let ok=true;
+  document.querySelectorAll('.prod-opt-field[data-opt-required="1"]').forEach(function(el){
+    const empty=!(el.value||'').trim();
+    el.style.borderColor=empty?'#e53e3e':'';
+    if(empty)ok=false;
+  });
+  return ok;
 }
 
 let _reviewRating=0;
