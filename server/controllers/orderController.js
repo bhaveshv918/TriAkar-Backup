@@ -46,34 +46,67 @@ export async function createWhatsAppOrder(req, res, next) {
   try {
     const user_id = req.user.id;
     const { order_id, items, shipping_address, subtotal, shipping_charge, total_amount,
-            customer_name, customer_phone, customer_email, special_instructions } = req.body;
+            customer_name, customer_phone, customer_email, special_instructions,
+            promo_code, discount_amount, is_gift, gift_message } = req.body;
 
     if (!items?.length) return res.status(400).json({ error: 'items are required' });
     if (!total_amount)  return res.status(400).json({ error: 'total_amount is required' });
 
+    const insert = {
+      order_id:            order_id || null,
+      invoice_number:      order_id || null,   // prevent TAINV trigger
+      user_id,
+      customer_name:       customer_name  || null,
+      customer_phone:      customer_phone || null,
+      customer_email:      customer_email || null,
+      shipping_address:    shipping_address || {},
+      items:               items,
+      subtotal:            subtotal || total_amount,
+      shipping_charge:     shipping_charge || 0,
+      total_amount:        Number(total_amount),
+      payment_method:      'whatsapp',
+      payment_status:      'pending',
+      order_status:        'whatsapp_pending',
+      status:              'pending',
+      special_instructions: special_instructions || null,
+    };
+    if (promo_code)      insert.promo_code      = String(promo_code).toUpperCase().trim();
+    if (discount_amount) insert.discount_amount = Number(discount_amount);
+    if (is_gift)         insert.is_gift         = true;
+    if (gift_message)    insert.gift_message    = String(gift_message).slice(0, 150);
+
     const { data: order, error } = await supabase
       .from('orders')
-      .insert({
-        order_id:            order_id || null,
-        invoice_number:      order_id || null,   // prevent TAINV trigger
-        user_id,
-        customer_name:       customer_name  || null,
-        customer_phone:      customer_phone || null,
-        customer_email:      customer_email || null,
-        shipping_address:    shipping_address || {},
-        items:               items,
-        subtotal:            subtotal || total_amount,
-        shipping_charge:     shipping_charge || 0,
-        total_amount:        Number(total_amount),
-        payment_method:      'whatsapp',
-        payment_status:      'pending',
-        order_status:        'whatsapp_pending',
-        status:              'pending',
-        special_instructions: special_instructions || null,
-      })
+      .insert(insert)
       .select().single();
 
     if (error) throw error;
+
+    /* Best-effort confirmation emails for WhatsApp orders */
+    try {
+      const orderData = {
+        order_id:        order.invoice_number || order.order_id || order.id,
+        customer_name:   customer_name || shipping_address?.full_name || 'Customer',
+        customer_email:  customer_email || null,
+        customer_phone:  customer_phone || shipping_address?.mobile || shipping_address?.phone || '',
+        total_amount:    order.total_amount,
+        subtotal:        order.subtotal,
+        shipping_charge: order.shipping_charge,
+        discount_amount: order.discount_amount || 0,
+        promo_code:      order.promo_code || null,
+        payment_method:  'whatsapp',
+        is_gift:         order.is_gift || false,
+        gift_message:    order.gift_message || null,
+        items:           Array.isArray(items) ? items.map(it => ({
+          name: it.name || 'Item', quantity: it.quantity, unit_price: it.price || it.unit_price || 0,
+        })) : [],
+        shipping_address: shipping_address || {},
+      };
+      const { sendOrderConfirmation, sendAdminOrderAlert } = await import('../services/emailService.js');
+      if (orderData.customer_email) { try { await sendOrderConfirmation(orderData); } catch (e) { console.error('WA email error:', e.message); } }
+      try { await sendAdminOrderAlert(orderData); } catch (e) { console.error('WA admin email error:', e.message); }
+    } catch (e) { console.error('WA order email failed:', e.message); }
+
     res.status(201).json({ order });
   } catch (err) { next(err); }
 }

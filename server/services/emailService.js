@@ -130,19 +130,33 @@ export async function sendOrderConfirmation(order) {
   const shippingRow = order.shipping_charge != null
     ? `<tr><td style="padding:6px 0;font-size:13px;color:#666;">Shipping</td><td style="padding:6px 0;font-size:13px;color:#1a1a1a;text-align:right;">${order.shipping_charge === 0 ? 'FREE' : inr(order.shipping_charge)}</td></tr>`
     : '';
+  const discountRow = (order.discount_amount > 0 || order.promo_code)
+    ? `<tr>
+        <td style="padding:6px 0;font-size:13px;color:#2a7a2a;">
+          Promo discount${order.promo_code ? ` <span style="background:#eafaea;color:#2a7a2a;font-size:11px;font-weight:700;letter-spacing:1px;padding:2px 7px;border-radius:4px;border:1px solid #b6e5b6;">${esc(order.promo_code)}</span>` : ''}
+        </td>
+        <td style="padding:6px 0;font-size:13px;color:#2a7a2a;text-align:right;font-weight:600;">−${inr(order.discount_amount || 0)}</td>
+      </tr>`
+    : '';
   const trackingUrl = `https://triakar.com/track-order.html?id=${encodeURIComponent(order.order_id || '')}`;
+  const paymentLabel = order.payment_method === 'whatsapp'
+    ? 'WhatsApp Order (Pay on delivery / as agreed)'
+    : (order.payment_method || 'online').replace('online', 'Razorpay');
   const body = `
     <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 20px;">
       Thank you for your order. We have received your payment and your TriAkar pieces are now in our hands.
     </p>
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
       ${row('Invoice No.', order.order_id)}
-      ${row('Payment', (order.payment_method || 'online').replace('online', 'Razorpay'))}
+      ${row('Payment', paymentLabel)}
+      ${order.is_gift ? row('Gift Order', 'Yes — gift packaging included') : ''}
+      ${order.is_gift && order.gift_message ? row('Gift Message', order.gift_message) : ''}
     </table>
     ${itemsTable(order.items)}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border-top:1px solid #eee;padding-top:8px;">
       ${subtotalRow}
       ${shippingRow}
+      ${discountRow}
       <tr>
         <td style="padding:10px 0 6px;font-size:15px;font-weight:700;color:#0e0e0e;border-top:2px solid #0e0e0e;">Total Paid</td>
         <td style="padding:10px 0 6px;font-size:18px;font-weight:700;color:${ACCENT};text-align:right;border-top:2px solid #0e0e0e;">${inr(order.total_amount)}</td>
@@ -174,14 +188,23 @@ export async function sendAdminOrderAlert(order) {
   const shippingRow = order.shipping_charge != null
     ? `<tr><td style="padding:6px 0;font-size:13px;color:#666;">Shipping</td><td style="padding:6px 0;font-size:13px;color:#1a1a1a;text-align:right;">${order.shipping_charge === 0 ? 'FREE' : inr(order.shipping_charge)}</td></tr>`
     : '';
+  const discountRow = (order.discount_amount > 0 || order.promo_code)
+    ? `<tr>
+        <td style="padding:6px 0;font-size:13px;color:#2a7a2a;">Promo discount${order.promo_code ? ` (${esc(order.promo_code)})` : ''}</td>
+        <td style="padding:6px 0;font-size:13px;color:#2a7a2a;text-align:right;font-weight:600;">−${inr(order.discount_amount || 0)}</td>
+      </tr>`
+    : '';
+  const isWA = order.payment_method === 'whatsapp';
   const body = `
-    <p style="font-size:15px;color:#444;margin:0 0 20px;">A new order has been placed and payment received.</p>
+    <p style="font-size:15px;color:#444;margin:0 0 20px;">${isWA ? 'A new WhatsApp order has been placed — payment to be collected.' : 'A new order has been placed and payment received.'}</p>
     <table role="presentation" cellpadding="0" cellspacing="0">
       ${row('Invoice No.', order.order_id)}
       ${row('Customer', order.customer_name)}
       ${row('Phone', order.customer_phone)}
       ${row('Email', order.customer_email)}
-      ${row('Payment', (order.payment_method || 'online').replace('online', 'Razorpay'))}
+      ${row('Payment', isWA ? 'WhatsApp Order' : (order.payment_method || 'online').replace('online', 'Razorpay'))}
+      ${order.promo_code ? row('Promo Code', order.promo_code) : ''}
+      ${order.discount_amount > 0 ? row('Discount Given', '−' + inr(order.discount_amount)) : ''}
       ${order.is_gift ? row('Gift Order', '🎁 Yes') : ''}
       ${order.is_gift && order.gift_message ? row('Gift Message', order.gift_message) : ''}
     </table>
@@ -189,8 +212,9 @@ export async function sendAdminOrderAlert(order) {
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border-top:1px solid #eee;padding-top:8px;">
       ${subtotalRow}
       ${shippingRow}
+      ${discountRow}
       <tr>
-        <td style="padding:10px 0 6px;font-size:15px;font-weight:700;color:#0e0e0e;border-top:2px solid #0e0e0e;">Total Received</td>
+        <td style="padding:10px 0 6px;font-size:15px;font-weight:700;color:#0e0e0e;border-top:2px solid #0e0e0e;">${isWA ? 'Order Total' : 'Total Received'}</td>
         <td style="padding:10px 0 6px;font-size:18px;font-weight:700;color:${ACCENT};text-align:right;border-top:2px solid #0e0e0e;">${inr(order.total_amount)}</td>
       </tr>
     </table>
@@ -198,10 +222,12 @@ export async function sendAdminOrderAlert(order) {
     <p style="font-size:14px;color:#444;line-height:1.7;margin:0 0 24px;">${formatAddress(order.shipping_address)}</p>
     ${btn('Open Admin Panel', ADMIN_LINK)}
   `;
+  const subjectPrefix = isWA ? '📲 WA ORDER — ' : (order.is_gift ? '🎁 GIFT ORDER — ' : '');
+  const titleText     = isWA ? '📲 New WhatsApp order' : (order.is_gift ? '🎁 New gift order received' : 'New order received');
   return send({
     to: ADMIN_EMAIL,
-    subject: `${order.is_gift ? '🎁 GIFT ORDER — ' : ''}New Order ${order.order_id} — ${inr(order.total_amount)} | TriAkar`,
-    html: shell(order.is_gift ? '🎁 New gift order received' : 'New order received', body),
+    subject: `${subjectPrefix}New Order ${order.order_id} — ${inr(order.total_amount)} | TriAkar`,
+    html: shell(titleText, body),
   });
 }
 

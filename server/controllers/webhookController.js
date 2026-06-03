@@ -73,7 +73,11 @@ async function confirmOrderByRazorpayId(razorpay_order_id, razorpay_payment_id) 
         total_amount:    ord.total_amount,
         subtotal:        ord.subtotal,
         shipping_charge: ord.shipping_charge,
+        discount_amount: ord.discount_amount || 0,
+        promo_code:      ord.promo_code || null,
         payment_method:  ord.payment_method || 'online',
+        is_gift:         ord.is_gift || false,
+        gift_message:    ord.gift_message || null,
         items,
         shipping_address: ord.shipping_address || {},
       };
