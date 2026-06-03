@@ -67,11 +67,50 @@
 #mainImg[data-square-crop]{background:#fff!important}
 .main-img-inner{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
 
-/* INFO PANEL */
-.detail-info{background:var(--white);padding:44px 40px;grid-column:2;grid-row:2/4}
+/* INFO PANEL — sticky buy box (desktop) */
+.detail-info{background:var(--white);padding:36px 38px 48px;grid-column:2;grid-row:2/4;
+  position:sticky;top:calc(var(--notice-h,36px) + var(--nav-h,60px) - 2px);
+  align-self:start;
+  max-height:calc(100vh - var(--notice-h,36px) - var(--nav-h,60px) + 2px);
+  overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--stone-p) transparent}
+.detail-info::-webkit-scrollbar{width:3px}
+.detail-info::-webkit-scrollbar-thumb{background:var(--stone-p);border-radius:3px}
 .detail-breadcrumb{display:flex;gap:8px;font-size:11px;color:var(--stone);margin-bottom:20px;flex-wrap:wrap}
 .detail-breadcrumb a{color:var(--stone);transition:color .2s}
 .detail-breadcrumb a:hover{color:var(--charcoal)}
+
+/* STOCK + DELIVERY INFO */
+.stock-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.stock-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.stock-dot.green{background:#2D8A4E;box-shadow:0 0 0 3px rgba(45,138,78,.15)}
+.stock-dot.orange{background:#d97706;box-shadow:0 0 0 3px rgba(217,119,6,.15)}
+.stock-dot.red{background:#c0392b;box-shadow:0 0 0 3px rgba(192,57,43,.15)}
+.stock-label{font-size:12px;font-weight:600;color:var(--charcoal)}
+.stock-sub{font-size:11px;color:var(--stone);margin-left:16px;margin-bottom:14px}
+
+.delivery-box{background:var(--ivory);border:1px solid var(--stone-p);border-radius:10px;padding:13px 15px;margin-bottom:18px;display:flex;flex-direction:column;gap:7px}
+.delivery-row{display:flex;align-items:flex-start;gap:10px;font-size:12px}
+.delivery-icon{color:var(--accent);flex-shrink:0;margin-top:1px}
+.delivery-label{font-weight:600;color:var(--charcoal);margin-bottom:1px;font-size:12px}
+.delivery-sub{color:var(--stone);font-size:11px;line-height:1.5}
+
+/* DIVIDER */
+.info-divider{height:1px;background:var(--stone-p);margin:18px 0;opacity:.5}
+
+/* MOBILE STICKY BUY BAR */
+.buy-bar{position:fixed;bottom:0;left:0;right:0;z-index:900;
+  background:rgba(255,255,255,.96);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-top:1px solid var(--stone-p);
+  padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));
+  display:flex;align-items:center;gap:10px;
+  transform:translateY(110%);transition:transform .4s cubic-bezier(.22,1,.36,1);
+  box-shadow:0 -4px 20px rgba(0,0,0,.08);}
+.buy-bar.show{transform:translateY(0)}
+.buy-bar-info{flex:1;min-width:0}
+.buy-bar-name{font-size:12px;font-weight:600;color:var(--charcoal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.buy-bar-price{font-size:15px;font-weight:800;color:var(--charcoal)}
+.buy-bar-btns{display:flex;gap:8px;flex-shrink:0}
+.buy-bar-btns .btn{padding:11px 18px;font-size:12px;white-space:nowrap}
 .detail-name{font-size:clamp(22px,3vw,32px);font-weight:700;color:var(--charcoal);line-height:1.2;margin-bottom:8px}
 .price-row{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
 .detail-price{font-size:28px;font-weight:800;color:var(--charcoal)}
@@ -216,7 +255,8 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
   .detail-layout{display:flex;flex-direction:column}
   .detail-gallery-col{order:2}
   .detail-breadcrumb{order:1;padding:16px var(--pad) 6px}
-  .detail-info{order:3;padding-top:20px}
+  .detail-info{order:3;padding:20px var(--pad);
+    position:relative;top:auto;max-height:none;overflow-y:visible}
   .gallery-dropdowns{order:4;margin-left:0;margin-right:0}
   .gallery-sticky{position:relative;top:0}
   .related-grid{grid-template-columns:repeat(2,1fr)}
@@ -292,38 +332,39 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
       </div>
     </div>
 
-    <!-- INFO: breadcrumb removed (now above) -->
+    <!-- BUY BOX — sticky on desktop -->
     <div class="detail-info">
+      <!-- Badge + Name -->
       <div class="prod-tag" id="prodTag" style="display:none"></div>
-      <h1 class="detail-name" id="prodName"><span class="skeleton skel-ln w80" style="display:block;height:30px;margin-bottom:6px"></span><span class="skeleton skel-ln w50" style="display:block;height:20px;width:50%"></span></h1>
+      <h1 class="detail-name" id="prodName">
+        <span class="skeleton skel-ln w80" style="display:block;height:30px;margin-bottom:6px"></span>
+        <span class="skeleton skel-ln w50" style="display:block;height:20px;width:50%"></span>
+      </h1>
+
+      <!-- Price row -->
       <div class="price-row">
         <span class="detail-price" id="prodPrice"><span class="skeleton" style="display:inline-block;width:120px;height:28px;border-radius:6px"></span></span>
         <del class="detail-mrp" id="prodMrp" style="display:none"></del>
         <span class="detail-discount" id="prodDiscount" style="display:none"></span>
-        <span class="detail-usd" id="prodUsd"></span>
       </div>
+
+      <!-- Stock status -->
+      <div class="stock-row" id="stockRow" style="margin-top:8px;display:none">
+        <div class="stock-dot green" id="stockDot"></div>
+        <span class="stock-label" id="stockLabel"></span>
+      </div>
+      <div class="stock-sub" id="stockSub" style="display:none"></div>
+
+      <!-- Short description -->
       <p class="detail-desc" id="prodDesc"></p>
-      <div class="detail-desc" id="prodLongDesc" style="margin-top:-10px;font-size:13px;font-weight:300"></div>
 
-      <!-- TRUST ICONS — Amazon style (FIX annotation PDF p7) -->
-      <div class="trust-strip-product">
-        <div class="tsp-item">
-          <div class="tsp-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M8 1L2 4v4c0 3.5 2.6 6.7 6 7.4C14.4 14.7 14 11.5 14 8V4L8 1z"/></svg></div>
-          <div><div class="tsp-t">7-Day Returns</div><div class="tsp-s">Damaged? Free reprint</div></div>
-        </div>
-        <div class="tsp-item">
-          <div class="tsp-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--accent)" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2" stroke-linecap="round"/></svg></div>
-          <div><div class="tsp-t">Printed Fresh For You</div><div class="tsp-s">Made when you order</div></div>
-        </div>
-        <div class="tsp-item">
-          <div class="tsp-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M2 8l4 4 8-8"/></svg></div>
-          <div><div class="tsp-t">Quality Checked</div><div class="tsp-s">Before every dispatch</div></div>
-        </div>
-      </div>
+      <div class="info-divider"></div>
 
+      <!-- Variant selector -->
       <div class="variant-label" id="variantLabel">Colour</div>
       <div class="variant-row" id="variantRow"></div>
 
+      <!-- Quantity -->
       <div class="qty-label">Quantity</div>
       <div class="qty-row">
         <button class="qty-btn" onclick="changeQty(-1)">−</button>
@@ -332,9 +373,10 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
       </div>
       <div class="min-qty-notice" id="minQtyNotice" style="display:none"></div>
 
-      <div id="dispatchNote" class="dispatch-note" style="display:none"></div>
+      <div class="info-divider" style="margin-top:14px"></div>
 
-      <div class="detail-actions">
+      <!-- Buy buttons — anchor for mobile buy bar IntersectionObserver -->
+      <div class="detail-actions" id="buyButtons">
         <button class="btn btn-outline" onclick="addToCartFromDetail()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
           Add to Cart
@@ -342,19 +384,67 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
         <button class="btn btn-accent" onclick="buyNow()">Buy Now &rarr;</button>
       </div>
 
+      <!-- Wishlist -->
       <button class="detail-save" id="detailSave" onclick="_toggleDetailWish()" aria-pressed="false">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span id="detailSaveLabel">Save to Wishlist</span>
       </button>
 
+      <!-- Delivery + dispatch info -->
+      <div class="delivery-box" id="deliveryBox">
+        <div class="delivery-row">
+          <div class="delivery-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="1.5"/><circle cx="18.5" cy="18.5" r="1.5"/></svg></div>
+          <div><div class="delivery-label">Delivery</div><div class="delivery-sub" id="deliveryText">Usually dispatched in 2–3 business days · Free above ₹999</div></div>
+        </div>
+        <div class="delivery-row" id="dispatchNote" style="display:none">
+          <div class="delivery-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2D8A4E" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 2"/></svg></div>
+          <div><div class="delivery-label" style="color:#2D8A4E" id="dispatchNoteText"></div></div>
+        </div>
+        <div class="delivery-row">
+          <div class="delivery-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg></div>
+          <div><div class="delivery-sub">Made in India · 100% Copper-free PLA+ · Eco-friendly</div></div>
+        </div>
+      </div>
+
+      <!-- Trust strip -->
+      <div class="trust-strip-product">
+        <div class="tsp-item">
+          <div class="tsp-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M8 1L2 4v4c0 3.5 2.6 6.7 6 7.4C14.4 14.7 14 11.5 14 8V4L8 1z"/></svg></div>
+          <div><div class="tsp-t">7-Day Returns</div><div class="tsp-s">Damaged? Free reprint</div></div>
+        </div>
+        <div class="tsp-item">
+          <div class="tsp-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--accent)" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2" stroke-linecap="round"/></svg></div>
+          <div><div class="tsp-t">Printed Fresh</div><div class="tsp-s">Made when you order</div></div>
+        </div>
+        <div class="tsp-item">
+          <div class="tsp-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M2 8l4 4 8-8"/></svg></div>
+          <div><div class="tsp-t">Quality Checked</div><div class="tsp-s">Before every dispatch</div></div>
+        </div>
+      </div>
+
+      <!-- Key features + spec table -->
       <div id="keyFeaturesWrap" style="display:none">
         <div class="key-features-label" id="keyFeaturesLabel">Key Features</div>
         <ul class="key-features-list" id="keyFeaturesList"></ul>
       </div>
-
       <div class="spec-table" id="specTable"></div>
 
+      <!-- Long description (below fold in sticky panel) -->
+      <div class="detail-desc" id="prodLongDesc" style="margin-top:20px;font-size:13px;font-weight:300;display:none"></div>
+
     </div><!-- /detail-info -->
+
+    <!-- MOBILE STICKY BUY BAR — appears when buy buttons scroll off screen -->
+    <div class="buy-bar" id="buyBar">
+      <div class="buy-bar-info">
+        <div class="buy-bar-name" id="buyBarName">Loading…</div>
+        <div class="buy-bar-price" id="buyBarPrice"></div>
+      </div>
+      <div class="buy-bar-btns">
+        <button class="btn btn-outline" onclick="addToCartFromDetail()">Cart</button>
+        <button class="btn btn-accent" onclick="buyNow()">Buy Now</button>
+      </div>
+    </div>
 
     <!-- DROPDOWNS: direct grid child — last on mobile via order:4 -->
     <div class="gallery-dropdowns" id="galleryDropdowns"></div>
@@ -639,8 +729,13 @@ function renderProduct(ap){
   document.getElementById('breadProd').textContent=p.name;
   document.title=p.name+' — TriAkar';
   document.getElementById('prodPrice').textContent='₹'+p.price.toLocaleString('en-IN');
+  // Mobile buy bar info
+  const bbName=document.getElementById('buyBarName');
+  const bbPrice=document.getElementById('buyBarPrice');
+  if(bbName)bbName.textContent=p.name;
+  if(bbPrice)bbPrice.textContent='₹'+p.price.toLocaleString('en-IN');
   // INR-only brand: never show a USD price
-  document.getElementById('prodUsd').textContent='';
+  document.getElementById('prodUsd')&&(document.getElementById('prodUsd').textContent='');
   document.getElementById('prodDesc').textContent=p.desc;
   // long desc
   const ldEl=document.getElementById('prodLongDesc');
@@ -687,9 +782,44 @@ function renderProduct(ap){
     thumbRow.innerHTML=thumbs.map((svg,i)=>`<div class="thumb${i===0?' active':''}" onclick="switchThumb(this,${i})"><svg viewBox="0 0 200 200" fill="none">${svg}</svg></div>`).join('');
     if(window._thumbData.length){const d=window._thumbData[0];const mi=document.getElementById('mainImgContent');const mt=mi||mainBox;if(mt){if(mainBox)mainBox.style.background=d.bg;mt.innerHTML='<svg id="mainSvg" viewBox="0 0 200 200" fill="none" style="width:72%;max-width:340px">'+d.svg+'</svg>';}}
   }
-  // dispatch note
-  const dispEl=document.getElementById('dispatchNote');
-  if(dispEl){if(p.urgency_type==='next_day'||(p.urgency_text&&p.urgency_text.toLowerCase().includes('dispatch'))){dispEl.textContent=p.urgency_text||'';dispEl.style.display='';}else{dispEl.style.display='none';}}
+  // Stock badge
+  const stockRow=document.getElementById('stockRow');
+  const stockDot=document.getElementById('stockDot');
+  const stockLabel=document.getElementById('stockLabel');
+  const stockSub=document.getElementById('stockSub');
+  if(stockRow&&stockLabel){
+    const ss=ap.stock_status||'Made to Order';
+    const qty=ap.stock_qty;
+    let dot='green',label='',sub='';
+    if(ss==='In Stock'||ss==='in_stock'){
+      dot='green';label='In Stock';
+      sub=qty&&qty<10?'Only '+qty+' left — order soon':'';
+    }else if(ss==='Out of Stock'||ss==='out_of_stock'){
+      dot='red';label='Currently Out of Stock';sub='';
+    }else if(ss==='Coming Soon'){
+      dot='orange';label='Coming Soon';sub='';
+    }else{
+      dot='green';label='Made to Order';sub='Printed fresh when you place your order';
+    }
+    stockDot.className='stock-dot '+dot;
+    stockLabel.textContent=label;
+    stockRow.style.display='';
+    if(stockSub){stockSub.textContent=sub;stockSub.style.display=sub?'':'none';}
+  }
+  // Dispatch / urgency note inside delivery box
+  const dispNoteRow=document.getElementById('dispatchNote');
+  const dispNoteText=document.getElementById('dispatchNoteText');
+  if(dispNoteRow&&dispNoteText){
+    if(p.urgency_text){
+      dispNoteText.textContent=p.urgency_text;dispNoteRow.style.display='';
+    }else{dispNoteRow.style.display='none';}
+  }
+  // Delivery text — customise based on production_days
+  const daysEl=document.getElementById('deliveryText');
+  if(daysEl){
+    const pd=ap.production_days||3;
+    daysEl.textContent='Dispatched in '+pd+'–'+(pd+1)+' business days · Free shipping above ₹999';
+  }
   // key features — use dynamic label from product data
   const kfWrap=document.getElementById('keyFeaturesWrap');
   const kfList=document.getElementById('keyFeaturesList');
@@ -720,6 +850,8 @@ function renderProduct(ap){
   const saveBtn=document.getElementById('detailSave');
   if(saveBtn){saveBtn.dataset.slug=id;saveBtn.dataset.name=p.name;}
   _paintDetailWish();
+  // Mobile buy bar — show when buy buttons scroll off screen
+  _initBuyBar();
   // dropdowns in gallery column
   renderDropdowns(p);
   loadReviews(id);
@@ -927,6 +1059,20 @@ function _validateCustomization(){
     if(empty)ok=false;
   });
   return ok;
+}
+
+/* MOBILE BUY BAR — shows when buy buttons scroll out of viewport */
+let _buyBarObs=null;
+function _initBuyBar(){
+  const bar=document.getElementById('buyBar');
+  const anchor=document.getElementById('buyButtons');
+  if(!bar||!anchor)return;
+  if(_buyBarObs)_buyBarObs.disconnect();
+  _buyBarObs=new IntersectionObserver(function(entries){
+    // Show bar when buy buttons are NOT visible
+    bar.classList.toggle('show',!entries[0].isIntersecting);
+  },{threshold:0.1});
+  _buyBarObs.observe(anchor);
 }
 
 let _reviewRating=0;
