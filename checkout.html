@@ -758,17 +758,33 @@ async function ckPlaceOrder() {
   }
 
   /* ── Online (Razorpay) ── */
-  if (!chosenAddr.id) {
-    alert('Could not save your address. Please check your connection and try again.');
-    btn.disabled = false;
-    return;
-  }
-
   btn.disabled = true; btn.textContent = 'Processing…';
+
+  /* If address was not saved to DB (network error during step 1), retry save now */
+  if (!chosenAddr.id) {
+    try {
+      var addrRes = await fetch(CK_API + '/api/addresses', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
+        body: JSON.stringify({
+          full_name:     chosenAddr.full_name,
+          phone:         chosenAddr.phone,
+          address_line1: chosenAddr.address_line1,
+          address_line2: chosenAddr.address_line2 || '',
+          city:          chosenAddr.city,
+          state:         chosenAddr.state,
+          pincode:       chosenAddr.pincode,
+          country:       chosenAddr.country || 'India',
+          is_default:    false,
+        }),
+      });
+      var addrResult = await addrRes.json();
+      if (addrRes.ok && addrResult.address) chosenAddr = addrResult.address;
+    } catch (_) { /* address save retry failed — will fall back to inline address */ }
+  }
 
   try {
     var cartItems = items.map(function(i) {
-      // Format customization object into a readable string for orders/admin
       var custNotes = null;
       if(i.customization && Object.keys(i.customization).length){
         custNotes = Object.entries(i.customization)
@@ -789,20 +805,35 @@ async function ckPlaceOrder() {
       || (_authUser && _authUser.email)
       || '';
 
+    var orderPayload = {
+      items: cartItems,
+      customer_name:  chosenAddr.full_name,
+      customer_email: customerEmail,
+      customer_phone: chosenAddr.phone,
+      special_instructions: chosenAddr.notes || null,
+      promo_code: ckPromo ? ckPromo.code : null,
+      is_gift: (function(){ var g = document.getElementById('ckIsGift'); return !!(g && g.checked); })(),
+      gift_message: (function(){ var g = document.getElementById('ckIsGift'); var m = document.getElementById('ckGiftMsg'); return (g && g.checked && m) ? m.value.trim() : null; })(),
+    };
+    if (chosenAddr.id) {
+      orderPayload.address_id = chosenAddr.id;
+    } else {
+      orderPayload.shipping_address = {
+        full_name:     chosenAddr.full_name,
+        phone:         chosenAddr.phone,
+        address_line1: chosenAddr.address_line1,
+        address_line2: chosenAddr.address_line2 || null,
+        city:          chosenAddr.city,
+        state:         chosenAddr.state,
+        pincode:       chosenAddr.pincode,
+        country:       chosenAddr.country || 'India',
+      };
+    }
+
     var res = await fetch(CK_API + '/api/payments/create-order', {
       method: 'POST',
       headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
-      body: JSON.stringify({
-        items: cartItems,
-        address_id: chosenAddr.id,
-        customer_name:  chosenAddr.full_name,
-        customer_email: customerEmail,
-        customer_phone: chosenAddr.phone,
-        special_instructions: chosenAddr.notes || null,
-        promo_code: ckPromo ? ckPromo.code : null,
-        is_gift: (function(){ var g = document.getElementById('ckIsGift'); return !!(g && g.checked); })(),
-        gift_message: (function(){ var g = document.getElementById('ckIsGift'); var m = document.getElementById('ckGiftMsg'); return (g && g.checked && m) ? m.value.trim() : null; })(),
-      }),
+      body: JSON.stringify(orderPayload),
     });
     var data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Could not initiate payment');

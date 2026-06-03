@@ -23,7 +23,8 @@ export async function createOrder(req, res, next) {
     const user_id = req.user.id;
 
     if (!items?.length) return res.status(400).json({ error: 'Cart is empty' });
-    if (!address_id)    return res.status(400).json({ error: 'Shipping address is required' });
+    if (!address_id && !req.body.shipping_address)
+      return res.status(400).json({ error: 'Shipping address is required' });
 
     /* 1. Ensure profile exists (safety-net for FK) */
     await supabase.from('profiles').upsert(
@@ -80,25 +81,36 @@ export async function createOrder(req, res, next) {
 
     const total_amount = Math.max(0, subtotal + shipping_charge - discount_amount);
 
-    /* 3. Fetch shipping address */
-    const { data: addr, error: aErr } = await supabase
-      .from('user_addresses')
-      .select('*')
-      .eq('id', address_id)
-      .eq('user_id', user_id)
-      .single();
-    if (aErr || !addr) return res.status(400).json({ error: 'Address not found' });
-
-    const shipping_address = {
-      full_name: addr.full_name, phone: addr.phone,
-      address_line1: addr.address_line1, address_line2: addr.address_line2,
-      city: addr.city, state: addr.state, pincode: addr.pincode, country: addr.country,
-    };
+    /* 3. Resolve shipping address — from saved address or inline fields */
+    let shipping_address;
+    if (address_id) {
+      const { data: addr, error: aErr } = await supabase
+        .from('user_addresses')
+        .select('*')
+        .eq('id', address_id)
+        .eq('user_id', user_id)
+        .single();
+      if (aErr || !addr) return res.status(400).json({ error: 'Address not found' });
+      shipping_address = {
+        full_name: addr.full_name, phone: addr.phone,
+        address_line1: addr.address_line1, address_line2: addr.address_line2,
+        city: addr.city, state: addr.state, pincode: addr.pincode, country: addr.country,
+      };
+    } else {
+      const sa = req.body.shipping_address;
+      if (!sa.full_name || !sa.phone || !sa.address_line1 || !sa.city || !sa.state || !sa.pincode)
+        return res.status(400).json({ error: 'Incomplete shipping address' });
+      shipping_address = {
+        full_name: sa.full_name, phone: sa.phone,
+        address_line1: sa.address_line1, address_line2: sa.address_line2 || null,
+        city: sa.city, state: sa.state, pincode: sa.pincode, country: sa.country || 'India',
+      };
+    }
 
     /* 4. Create DB order — generate invoice number server-side, always TRK-YYYYMMDD-XXXX */
     const invoiceNumber = generateInvoiceNumber();
     const orderInsert = {
-      user_id, address_id, status: 'pending', total_amount, subtotal, shipping_charge, shipping_address,
+      user_id, ...(address_id ? { address_id } : {}), status: 'pending', total_amount, subtotal, shipping_charge, shipping_address,
       invoice_number: invoiceNumber,
       order_id:       invoiceNumber,   // keep order_id in sync for legacy compatibility
     };
