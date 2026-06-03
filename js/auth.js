@@ -89,8 +89,12 @@ const Auth = (function () {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, full_name, phone: phone || undefined }),
     });
+    if (!res.ok) {
+      let msg = 'Signup failed';
+      try { const e = await res.json(); msg = e.error || msg; } catch (_) {}
+      throw new Error(msg);
+    }
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Signup failed');
     return data;
   }
 
@@ -100,8 +104,12 @@ const Auth = (function () {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
+    if (!res.ok) {
+      let msg = 'Login failed';
+      try { const e = await res.json(); msg = e.error || msg; } catch (_) {}
+      throw new Error(msg);
+    }
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Login failed');
     _save(data.access_token, data.user, data.refresh_token, data.expires_in);
     _updateNav();
     // Merge any guest cart with the server cart so nothing added while
