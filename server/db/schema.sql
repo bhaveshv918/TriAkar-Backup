@@ -5,14 +5,19 @@
 -- ════════════════════════════════════════════════════════════════════════
 -- 1. DROP dependents first (reverse dependency order)
 -- ════════════════════════════════════════════════════════════════════════
-DROP TABLE IF EXISTS order_items    CASCADE;
-DROP TABLE IF EXISTS orders         CASCADE;
-DROP TABLE IF EXISTS carts          CASCADE;
-DROP TABLE IF EXISTS user_addresses CASCADE;
-DROP TABLE IF EXISTS products       CASCADE;
-DROP TABLE IF EXISTS profiles       CASCADE;
+DROP TABLE IF EXISTS order_items         CASCADE;
+DROP TABLE IF EXISTS orders              CASCADE;
+DROP TABLE IF EXISTS carts               CASCADE;
+DROP TABLE IF EXISTS user_addresses      CASCADE;
+DROP TABLE IF EXISTS products            CASCADE;
+DROP TABLE IF EXISTS profiles            CASCADE;
 DROP TABLE IF EXISTS corporate_inquiries CASCADE;
-DROP TYPE  IF EXISTS order_status   CASCADE;
+DROP TABLE IF EXISTS contact_submissions CASCADE;
+DROP TABLE IF EXISTS admin_logs          CASCADE;
+DROP TABLE IF EXISTS categories          CASCADE;
+DROP TABLE IF EXISTS custom_enquiries    CASCADE;
+DROP TABLE IF EXISTS callback_requests   CASCADE;
+DROP TYPE  IF EXISTS order_status        CASCADE;
 
 -- ════════════════════════════════════════════════════════════════════════
 -- 2. PROFILES
@@ -27,6 +32,10 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users read own profile"   ON profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
 CREATE POLICY "Users update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+-- TEMPORARY: remove once admin reads are served through Express /api/admin/* routes
+CREATE POLICY "Admin manages profiles" ON profiles FOR ALL TO authenticated
+  USING     (auth.email() = 'bhaveshv918@gmail.com')
+  WITH CHECK(auth.email() = 'bhaveshv918@gmail.com');
 
 -- ════════════════════════════════════════════════════════════════════════
 -- 3. USER ADDRESSES
@@ -54,6 +63,10 @@ CREATE TABLE user_addresses (
 -- ALTER TABLE user_addresses ADD COLUMN IF NOT EXISTS district TEXT;
 ALTER TABLE user_addresses ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users manage own addresses" ON user_addresses FOR ALL USING (auth.uid() = user_id);
+-- TEMPORARY: remove once admin reads are served through Express /api/admin/* routes
+CREATE POLICY "Admin manages addresses" ON user_addresses FOR ALL TO authenticated
+  USING     (auth.email() = 'bhaveshv918@gmail.com')
+  WITH CHECK(auth.email() = 'bhaveshv918@gmail.com');
 
 -- ════════════════════════════════════════════════════════════════════════
 -- 4. PRODUCTS
@@ -106,6 +119,10 @@ CREATE TABLE products (
 );
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone reads active products" ON products FOR SELECT USING (is_active = true);
+-- TEMPORARY: remove once admin writes are served through Express /api/admin/* routes with service_role key
+CREATE POLICY "Admin manages products" ON products FOR ALL TO authenticated
+  USING     (auth.email() = 'bhaveshv918@gmail.com')
+  WITH CHECK(auth.email() = 'bhaveshv918@gmail.com');
 
 -- Migration helper: add new columns to an existing products table without full re-create.
 -- Run these in Supabase SQL Editor if the table already exists:
@@ -160,6 +177,10 @@ ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users read own orders"   ON orders FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users insert own orders" ON orders FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users update own orders" ON orders FOR UPDATE USING (auth.uid() = user_id);
+-- TEMPORARY: remove once admin reads/writes are served through Express /api/admin/* routes
+CREATE POLICY "Admin manages orders" ON orders FOR ALL TO authenticated
+  USING     (auth.email() = 'bhaveshv918@gmail.com')
+  WITH CHECK(auth.email() = 'bhaveshv918@gmail.com');
 
 -- ════════════════════════════════════════════════════════════════════════
 -- 6. ORDER ITEMS
@@ -178,6 +199,10 @@ CREATE POLICY "Users read own order items" ON order_items FOR SELECT
   USING (EXISTS (SELECT 1 FROM orders WHERE orders.id = order_id AND orders.user_id = auth.uid()));
 CREATE POLICY "Users insert own order items" ON order_items FOR INSERT
   WITH CHECK (EXISTS (SELECT 1 FROM orders WHERE orders.id = order_id AND orders.user_id = auth.uid()));
+-- TEMPORARY: remove once admin reads are served through Express /api/admin/* routes
+CREATE POLICY "Admin manages order items" ON order_items FOR ALL TO authenticated
+  USING     (auth.email() = 'bhaveshv918@gmail.com')
+  WITH CHECK(auth.email() = 'bhaveshv918@gmail.com');
 
 -- ════════════════════════════════════════════════════════════════════════
 -- 7. CARTS (JSONB-based, one row per user)
@@ -189,9 +214,13 @@ CREATE TABLE carts (
 );
 ALTER TABLE carts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users manage own cart" ON carts FOR ALL USING (auth.uid() = user_id);
+-- TEMPORARY: remove once admin reads are served through Express /api/admin/* routes
+CREATE POLICY "Admin manages carts" ON carts FOR ALL TO authenticated
+  USING     (auth.email() = 'bhaveshv918@gmail.com')
+  WITH CHECK(auth.email() = 'bhaveshv918@gmail.com');
 
 -- ════════════════════════════════════════════════════════════════════════
--- 8. CORPORATE INQUIRIES (public insert, no auth needed)
+-- 8. CORPORATE INQUIRIES (public insert, admin-only read)
 -- ════════════════════════════════════════════════════════════════════════
 CREATE TABLE corporate_inquiries (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -203,6 +232,14 @@ CREATE TABLE corporate_inquiries (
   product_interest TEXT,
   created_at       TIMESTAMPTZ DEFAULT now()
 );
+ALTER TABLE corporate_inquiries ENABLE ROW LEVEL SECURITY;
+-- Anyone (including anonymous visitors) can submit an inquiry via the website form.
+-- Only the admin can read or manage submitted inquiries.
+CREATE POLICY "Anyone submits inquiry" ON corporate_inquiries
+  FOR INSERT WITH CHECK (true);
+CREATE POLICY "Admin manages inquiries" ON corporate_inquiries FOR ALL TO authenticated
+  USING     (auth.email() = 'bhaveshv918@gmail.com')
+  WITH CHECK(auth.email() = 'bhaveshv918@gmail.com');
 
 -- ════════════════════════════════════════════════════════════════════════
 -- 9. AUTO-CREATE PROFILE ON SIGNUP
@@ -332,6 +369,118 @@ CREATE POLICY "Admin manages reviews" ON reviews
 -- ALTER TABLE reviews ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'website';
 -- ALTER TABLE reviews ADD COLUMN IF NOT EXISTS city TEXT;
 -- ALTER TABLE reviews ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 16. CATEGORIES
+-- ════════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS categories (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name          TEXT NOT NULL,
+  slug          TEXT NOT NULL UNIQUE,
+  description   TEXT,
+  display_order INTEGER DEFAULT 0,
+  is_active     BOOLEAN DEFAULT true,
+  created_at    TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone reads active categories" ON categories
+  FOR SELECT USING (is_active = true);
+CREATE POLICY "Admin manages categories" ON categories FOR ALL TO authenticated
+  USING     (auth.email() = 'bhaveshv918@gmail.com')
+  WITH CHECK(auth.email() = 'bhaveshv918@gmail.com');
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 17. ADMIN LOGS
+-- Stores page-visit and auth-attempt events from admin.html.
+-- Write is open (anon visitors trigger pre-login events); reads are admin-only.
+-- FUTURE: move write to the Express backend so anon INSERT can be removed.
+-- ════════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS admin_logs (
+  id             UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  action         TEXT,
+  ip             TEXT,
+  user_agent     TEXT,
+  screen_res     TEXT,
+  timezone       TEXT,
+  language       TEXT,
+  platform       TEXT,
+  referrer       TEXT,
+  email_attempted TEXT,
+  success        BOOLEAN,
+  extra          JSONB   DEFAULT '{}',
+  created_at     TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE admin_logs ENABLE ROW LEVEL SECURITY;
+-- Pre-login visit/failure events are written before a JWT exists.
+-- FUTURE: restrict to authenticated only once admin.html writes via Express API.
+CREATE POLICY "Anyone inserts log" ON admin_logs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Admin manages logs" ON admin_logs FOR ALL TO authenticated
+  USING     (auth.email() = 'bhaveshv918@gmail.com')
+  WITH CHECK(auth.email() = 'bhaveshv918@gmail.com');
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 18. CONTACT SUBMISSIONS
+-- ════════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS contact_submissions (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name       TEXT,
+  email      TEXT,
+  phone      TEXT,
+  subject    TEXT,
+  message    TEXT,
+  deleted_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE contact_submissions ENABLE ROW LEVEL SECURITY;
+-- Anyone can submit a contact form.
+CREATE POLICY "Anyone submits contact" ON contact_submissions FOR INSERT WITH CHECK (true);
+CREATE POLICY "Admin manages contact submissions" ON contact_submissions FOR ALL TO authenticated
+  USING     (auth.email() = 'bhaveshv918@gmail.com')
+  WITH CHECK(auth.email() = 'bhaveshv918@gmail.com');
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 19. CUSTOM ENQUIRIES
+-- ════════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS custom_enquiries (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  reference_id        TEXT,
+  name                TEXT,
+  email               TEXT,
+  phone               TEXT,
+  what_needed         TEXT,
+  budget_range        TEXT,
+  material_preference TEXT,
+  is_read             BOOLEAN DEFAULT false,
+  deleted_at          TIMESTAMPTZ,
+  created_at          TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE custom_enquiries ENABLE ROW LEVEL SECURITY;
+-- Anyone can submit a custom enquiry from the website.
+CREATE POLICY "Anyone submits enquiry" ON custom_enquiries FOR INSERT WITH CHECK (true);
+CREATE POLICY "Admin manages enquiries" ON custom_enquiries FOR ALL TO authenticated
+  USING     (auth.email() = 'bhaveshv918@gmail.com')
+  WITH CHECK(auth.email() = 'bhaveshv918@gmail.com');
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 20. CALLBACK REQUESTS
+-- ════════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS callback_requests (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  reference_id   TEXT,
+  name           TEXT,
+  phone          TEXT,
+  topic          TEXT,
+  preferred_time TEXT,
+  is_called      BOOLEAN DEFAULT false,
+  deleted_at     TIMESTAMPTZ,
+  created_at     TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE callback_requests ENABLE ROW LEVEL SECURITY;
+-- Anyone can request a callback.
+CREATE POLICY "Anyone submits callback" ON callback_requests FOR INSERT WITH CHECK (true);
+CREATE POLICY "Admin manages callbacks" ON callback_requests FOR ALL TO authenticated
+  USING     (auth.email() = 'bhaveshv918@gmail.com')
+  WITH CHECK(auth.email() = 'bhaveshv918@gmail.com');
 CREATE TABLE IF NOT EXISTS promo_codes (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   code             TEXT UNIQUE NOT NULL,
