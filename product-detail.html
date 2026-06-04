@@ -546,7 +546,7 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
     <div class="reviews-grid" id="reviewsGrid"></div>
     <div class="review-form-wrap" id="reviewFormWrap" style="display:none">
       <h3 style="font-size:16px;font-weight:700;margin-bottom:6px;color:var(--charcoal)">Write Your Review</h3>
-      <p style="font-size:12px;color:var(--stone);margin-bottom:18px">Your review will appear after approval. Only verified purchases are shown with a ✓ badge.</p>
+      <p style="font-size:12px;color:var(--stone);margin-bottom:18px">Your review goes to our team for approval before it's published — usually within 24 hours. Verified purchases are shown with a ✓ badge.</p>
       <!-- Star rating -->
       <div class="star-input" id="starInput" style="margin-bottom:16px">
         <span onclick="setReviewStar(1)">★</span>
@@ -1237,21 +1237,46 @@ function setReviewStar(n){
   document.querySelectorAll('.star-input span').forEach((s,i)=>{s.classList.toggle('active',i<n);});
 }
 
-function previewReviewImages(input){
+// Tracks selected review image files independently (FileList is read-only)
+let _reviewFiles=[];
+
+function _renderReviewPreviews(){
   const previews=document.getElementById('reviewImgPreviews');
-  // Remove existing previews (keep the upload button)
-  previews.querySelectorAll('.rv-preview').forEach(el=>el.remove());
-  const files=Array.from(input.files).slice(0,3);
-  // Update input to only hold the first 3
-  files.forEach(file=>{
+  const uploadBtn=document.getElementById('reviewImgUploadBtn');
+  // Remove existing previews
+  previews.querySelectorAll('.rv-preview-wrap').forEach(el=>el.remove());
+  _reviewFiles.forEach((file,idx)=>{
     const url=URL.createObjectURL(file);
+    const wrap=document.createElement('div');
+    wrap.className='rv-preview-wrap';
+    wrap.style.cssText='position:relative;width:64px;height:64px;flex-shrink:0';
     const img=document.createElement('img');
-    img.src=url; img.className='rv-preview';
-    img.style.cssText='width:64px;height:64px;object-fit:cover;border-radius:8px;border:1.5px solid rgba(0,0,0,.1)';
-    previews.insertBefore(img, document.getElementById('reviewImgUploadBtn'));
+    img.src=url;
+    img.style.cssText='width:64px;height:64px;object-fit:cover;border-radius:8px;border:1.5px solid rgba(0,0,0,.1);display:block';
+    const del=document.createElement('button');
+    del.type='button';
+    del.textContent='✕';
+    del.title='Remove photo';
+    del.style.cssText='position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--charcoal);color:#fff;border:none;font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;z-index:2';
+    del.onclick=function(){
+      _reviewFiles.splice(idx,1);
+      _renderReviewPreviews();
+    };
+    wrap.appendChild(img);
+    wrap.appendChild(del);
+    previews.insertBefore(wrap,uploadBtn);
   });
-  // hide upload button if 3 already selected
-  document.getElementById('reviewImgUploadBtn').style.display=files.length>=3?'none':'flex';
+  uploadBtn.style.display=_reviewFiles.length>=3?'none':'flex';
+}
+
+function previewReviewImages(input){
+  const newFiles=Array.from(input.files);
+  newFiles.forEach(f=>{
+    if(_reviewFiles.length<3) _reviewFiles.push(f);
+  });
+  // reset input so same file can be re-added after removal
+  input.value='';
+  _renderReviewPreviews();
 }
 
 async function submitReview(){
@@ -1273,10 +1298,7 @@ async function submitReview(){
     fd.append('review',text);
     fd.append('reviewer_name',name);
     if(city)fd.append('city',city);
-    const imgInput=document.getElementById('reviewImages');
-    if(imgInput&&imgInput.files.length){
-      Array.from(imgInput.files).slice(0,3).forEach(f=>fd.append('images',f));
-    }
+    _reviewFiles.slice(0,3).forEach(f=>fd.append('images',f));
     const res=await fetch(API+'/api/reviews',{
       method:'POST',
       headers:{'Authorization':'Bearer '+token},
@@ -1285,7 +1307,8 @@ async function submitReview(){
     const d=await res.json();
     if(!res.ok)throw new Error(d.error||'Submit failed');
     document.getElementById('reviewFormWrap').style.display='none';
-    showToast('Review submitted — it will appear after approval','success');
+    _reviewFiles=[];_renderReviewPreviews();
+    showToast('Review submitted — our team will approve it shortly','success');
     loadReviews(window._prodId);
   }catch(e){
     showToast('Could not submit review — please try again','error');
