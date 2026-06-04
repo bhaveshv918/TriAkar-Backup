@@ -32,9 +32,9 @@ const requiredEnvVars = [
   'SUPABASE_SERVICE_ROLE_KEY',
   'RAZORPAY_KEY_ID',
   'RAZORPAY_KEY_SECRET',
-  'RAZORPAY_WEBHOOK_SECRET',
   'FRONTEND_URL',
 ];
+// RAZORPAY_WEBHOOK_SECRET is optional at boot — webhook controller handles it gracefully at request time
 const missingVars = requiredEnvVars.filter(v => !process.env[v]);
 if (missingVars.length > 0) {
   console.error('Missing required environment variables:', missingVars.join(', '));
