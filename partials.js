@@ -206,16 +206,55 @@ window._FOOTER_HTML = `<footer>
 (function(){
   function build(){
     if(document.getElementById('taBottomNav'))return;
-    /* Product detail has its own sticky mobile buy-bar; skip the tab bar there */
-    if(document.getElementById('mobileBuyBar'))return;
     var path=(location.pathname||'').toLowerCase();
-    /* Clean-URL aware: production uses cleanUrls (/products), local/dev may use
-       /products.html — compare the last path segment with any .html stripped. */
     var seg=(path.split('/').pop()||'').replace(/\.html$/,'');
     var isHome=(seg===''||seg==='index');
     var isShop=(seg==='products'||seg==='product-detail');
     var isWish=(seg==='wishlist');
     var isAcct=(seg==='account');
+
+    /* ── PRODUCT DETAIL: price + Add to Cart + Buy Now bar ────── */
+    if(seg==='product-detail'){
+      var pdpNav=document.createElement('nav');
+      pdpNav.id='taBottomNav';
+      pdpNav.className='ta-bottomnav ta-bottomnav--pdp';
+      pdpNav.setAttribute('aria-label','Product actions');
+      pdpNav.innerHTML=
+        '<div class="tabn-pdp-info">'+
+          '<div class="tabn-pdp-label">Price</div>'+
+          '<div class="tabn-pdp-price" id="tabnPdpPrice">—</div>'+
+        '</div>'+
+        '<div class="tabn-pdp-actions">'+
+          '<button class="tabn-pdp-cart" onclick="if(window.addToCartFromDetail)addToCartFromDetail()" aria-label="Add to cart">'+
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>'+
+            'Add to Cart'+
+          '</button>'+
+          '<button class="tabn-pdp-buy" onclick="if(window.buyNow)buyNow()" aria-label="Buy now">'+
+            'Buy Now →'+
+          '</button>'+
+        '</div>';
+      document.body.appendChild(pdpNav);
+      document.body.classList.add('has-bottomnav');
+      /* Sync price from product JS once it loads */
+      try{
+        var _syncPrice=function(){
+          var src=document.getElementById('buyBarPrice');
+          var dst=document.getElementById('tabnPdpPrice');
+          if(src&&dst){
+            var t=(src.textContent||'').replace(/\s+/g,' ').trim();
+            if(t&&t.indexOf('₹')!==-1){dst.textContent=t;}
+          }
+        };
+        var _priceEl=document.getElementById('buyBarPrice');
+        if(_priceEl){
+          var _obs=new MutationObserver(_syncPrice);
+          _obs.observe(_priceEl,{childList:true,subtree:true,characterData:true});
+        }
+        /* Fallback polls in case MutationObserver misses the initial render */
+        setTimeout(_syncPrice,600);setTimeout(_syncPrice,1500);setTimeout(_syncPrice,3000);
+      }catch(_){}
+      return;
+    }
 
     var nav=document.createElement('nav');
     nav.id='taBottomNav';nav.className='ta-bottomnav';
