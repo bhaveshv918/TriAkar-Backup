@@ -235,6 +235,21 @@ window._FOOTER_HTML = `<footer>
         '</div>';
       document.body.appendChild(pdpNav);
       document.body.classList.add('has-bottomnav');
+
+      /* Hide bar when on-page buy buttons are visible; show when they scroll off */
+      try{
+        var _watchBuyButtons=function(){
+          var anchor=document.getElementById('buyButtons');
+          if(!anchor)return;
+          new IntersectionObserver(function(entries){
+            pdpNav.classList.toggle('tabn-peek-hidden',entries[0].isIntersecting);
+          },{threshold:0.1}).observe(anchor);
+        };
+        /* buyButtons is rendered after JS init — wait for it */
+        if(document.getElementById('buyButtons')){_watchBuyButtons();}
+        else{setTimeout(_watchBuyButtons,800);setTimeout(_watchBuyButtons,2000);}
+      }catch(_){}
+
       /* Sync price from product JS once it loads */
       try{
         var _syncPrice=function(){
@@ -250,7 +265,6 @@ window._FOOTER_HTML = `<footer>
           var _obs=new MutationObserver(_syncPrice);
           _obs.observe(_priceEl,{childList:true,subtree:true,characterData:true});
         }
-        /* Fallback polls in case MutationObserver misses the initial render */
         setTimeout(_syncPrice,600);setTimeout(_syncPrice,1500);setTimeout(_syncPrice,3000);
       }catch(_){}
       return;
