@@ -167,6 +167,93 @@ router.post('/login', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+/* ── POST /api/auth/send-verification-email ─────────────── */
+router.post('/send-verification-email', requireAuth, async (req, res, next) => {
+  try {
+    const email = req.user.email;
+    if (!email) return res.status(400).json({ error: 'No email on account' });
+
+    // Rate-limit: max 3 per 10 minutes
+    const windowStart = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { count } = await supabase
+      .from('phone_otps')
+      .select('*', { count: 'exact', head: true })
+      .eq('phone', 'email:' + email)
+      .gte('created_at', windowStart);
+    if (count >= 3) return res.status(429).json({ error: 'Too many requests. Please wait 10 minutes.' });
+
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const expires_at = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
+    await supabase.from('phone_otps').insert({ phone: 'email:' + email, otp, expires_at });
+
+    try {
+      const { sendEmailVerification } = await import('../services/emailService.js');
+      await sendEmailVerification({ email, otp });
+    } catch (mailErr) {
+      console.error('Verification email failed:', mailErr.message);
+    }
+
+    res.json({ sent: true });
+  } catch (err) { next(err); }
+});
+
+/* ── POST /api/auth/verify-email-otp ────────────────────── */
+router.post('/verify-email-otp', requireAuth, async (req, res, next) => {
+  try {
+    const { otp } = req.body;
+    if (!otp) return res.status(400).json({ error: 'otp is required' });
+    const email = req.user.email;
+
+    const { data: record } = await supabase
+      .from('phone_otps')
+      .select('*')
+      .eq('phone', 'email:' + email)
+      .eq('otp', String(otp).trim())
+      .eq('verified', false)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!record) return res.status(400).json({ error: 'Invalid or expired code. Please try again.' });
+
+    await supabase.from('phone_otps').update({ verified: true }).eq('id', record.id);
+
+    // Best-effort: mark email_verified in profiles (column may not exist yet)
+    try {
+      await supabase.from('profiles').update({ email_verified: true }).eq('id', req.user.id);
+    } catch (_) {}
+
+    res.json({ verified: true });
+  } catch (err) { next(err); }
+});
+
+/* ── GET /api/auth/email-verified-status ─────────────────── */
+router.get('/email-verified-status', requireAuth, async (req, res, next) => {
+  try {
+    // Check profiles.email_verified first (if column exists)
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email_verified')
+        .eq('id', req.user.id)
+        .maybeSingle();
+      if (profile && profile.email_verified === true) return res.json({ verified: true });
+    } catch (_) {}
+
+    // Fallback: check phone_otps for a verified email OTP row
+    const { data } = await supabase
+      .from('phone_otps')
+      .select('id')
+      .eq('phone', 'email:' + req.user.email)
+      .eq('verified', true)
+      .limit(1);
+
+    res.json({ verified: !!(data && data.length) });
+  } catch (err) { next(err); }
+});
+
 router.post('/logout', async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];

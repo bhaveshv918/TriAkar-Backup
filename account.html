@@ -215,6 +215,20 @@
 .danger-btn{background:none;border:1px solid #FCA5A5;color:#B91C1C;font-family:var(--font-b);font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;padding:8px 16px;cursor:pointer;transition:all .2s;border-radius:6px}
 .danger-btn:hover{background:#FEF2F2;border-color:#B91C1C}
 
+/* ── FIXED PHONE PREFIX (IN +91, no country selector) ─── */
+.ta-phone-prefix-fixed{display:inline-flex;align-items:center;justify-content:center;padding:0 12px;min-width:72px;background:rgba(22,22,20,.05);border:1px solid rgba(22,22,20,.14);border-right:none;border-radius:10px 0 0 10px;font-size:13px;font-weight:600;color:var(--warm);white-space:nowrap;user-select:none;height:44px;box-sizing:border-box}
+.ta-phone-wrap .ta-phone-prefix-fixed+.ta-phone-num{border-radius:0 10px 10px 0}
+
+/* ── EMAIL VERIFY BANNER ──────────────────────────── */
+.email-verify-banner{background:rgba(196,98,42,.07);border:1px solid rgba(196,98,42,.28);border-radius:12px;padding:16px 20px;margin-bottom:24px;display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.email-verify-banner-text .evb-title{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:2px}
+.email-verify-banner-text .evb-sub{font-size:12px;color:var(--warm)}
+.evb-inputs{display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap}
+#emailOtpInput{width:130px;padding:9px 12px;border:1px solid rgba(22,22,20,.2);border-radius:8px;font-family:monospace;font-size:15px;letter-spacing:4px;text-align:center;outline:none;background:rgba(250,250,248,.9);color:var(--charcoal)}
+#emailOtpInput:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(196,98,42,.1)}
+.evb-resend{background:none;border:none;font-size:11px;color:var(--stone);cursor:pointer;text-decoration:underline;padding:0;font-family:var(--font-b)}
+#emailOtpMsg{width:100%;font-size:12px;margin-top:2px;min-height:16px}
+
 /* ── CHANGE PASSWORD MODAL ────────────────────────── */
 .cp-overlay{position:fixed;inset:0;background:rgba(15,15,15,.6);display:none;align-items:center;justify-content:center;z-index:9999;padding:20px}
 .cp-overlay.show{display:flex}
@@ -364,6 +378,20 @@
     <!-- Ivory content body -->
     <div class="dash-body">
       <div class="dash-body-inner">
+
+        <!-- Email verify banner — only visible when email is unverified -->
+        <div class="email-verify-banner" id="emailVerifyBanner" style="display:none">
+          <div class="email-verify-banner-text" style="flex:1;min-width:180px">
+            <div class="evb-title">Your email is not verified</div>
+            <div class="evb-sub">Enter the code we sent to your email to verify your account.</div>
+          </div>
+          <div class="evb-inputs">
+            <input type="text" id="emailOtpInput" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+            <button class="btn btn-dark" style="font-size:11px;padding:9px 16px;white-space:nowrap" onclick="submitEmailOTP()">Verify →</button>
+            <button type="button" class="evb-resend" onclick="resendVerificationEmail()">Resend code</button>
+          </div>
+          <div id="emailOtpMsg"></div>
+        </div>
 
         <div class="dash-tabs-wrap" id="dashTabsWrap">
           <div class="dash-tabs" id="dashTabs">
@@ -710,15 +738,8 @@ async function handleLogin(e){
 
 async function handleSignup(e){
   e.preventDefault();
-  // OTP verification paused — will be re-enabled when DLT registration is done
-  // if(!_phoneVerified){
-  //   showMsg('signupMsg','Please verify your mobile number with OTP before creating an account.','err');
-  //   document.getElementById('signupPhone').focus();
-  //   return;
-  // }
   const phoneInp=document.getElementById('signupPhone');
   if(phoneInp&&phoneInp._validatePhone&&!phoneInp._validatePhone())return;
-  // Password rules
   if(window._signupPwValidate&&!window._signupPwValidate()){
     showMsg('signupMsg','Password must be 8+ chars and include uppercase, lowercase, and a number.','err');
     return;
@@ -734,36 +755,97 @@ async function handleSignup(e){
   const sb2=(typeof getSB==='function')?getSB():sb;
   try{
     // Unique mobile check
-    if(sb2 && fullPhone){
+    if(sb2&&fullPhone){
       const {data:dup}=await sb2.from('profiles').select('id').eq('mobile',fullPhone).limit(1);
-      if(dup && dup.length){
+      if(dup&&dup.length){
         showMsg('signupMsg','This mobile number is already registered. Try signing in or use a different number.','err');
         btn.textContent='Create Account →';btn.disabled=false;return;
       }
     }
+
+    // Create account in Supabase (email_confirm: true on server — no email gate)
     await Auth.signup(email,password,fullName,fullPhone||null);
-    // Persist profile row so it appears in admin Customers tab.
-    // If signup created a session, getUser() returns the user immediately.
-    if(sb2){
-      try{
-        const {data:sess}=await sb2.auth.getUser();
-        const uid=sess&&sess.user&&sess.user.id;
-        if(uid){
-          await sb2.from('profiles').upsert({
-            id:uid,full_name:fullName,mobile:fullPhone||null,email:email
-          },{onConflict:'id'});
-        }else{
-          // No session yet (email-confirmation flow). Stash so loadProfile can write on first sign-in.
-          try{sessionStorage.setItem('ta_pending_profile',JSON.stringify({full_name:fullName,mobile:fullPhone||null,email:email}))}catch(_){}
-        }
-      }catch(_){}
+
+    // Auto-login immediately — no re-enter credentials, no redirect to login page
+    btn.textContent='Logging in...';
+    await Auth.login(email,password);
+
+    // Fire background email verification OTP — never blocks account creation or login
+    fetch(Auth.API_BASE+'/api/auth/send-verification-email',{
+      method:'POST',
+      headers:Object.assign({'Content-Type':'application/json'},Auth.authHeader())
+    }).catch(function(){});
+
+    // Non-blocking toast at bottom of screen
+    if(window.showToast)showToast('A verification code was sent to your email. Verify anytime from your account page.','info');
+
+    // Redirect: checkout-next > return URL > homepage
+    const params=new URLSearchParams(window.location.search);
+    if(sessionStorage.getItem('after_login')==='checkout'||params.get('next')==='checkout'){
+      sessionStorage.removeItem('after_login');
+      window.location.href='checkout.html';return;
     }
-    showMsg('signupMsg','Account created! Check your email to verify, then sign in.','ok');
-    document.getElementById('signupForm').reset();
-    // Re-render rule checklist back to empty state
-    if(window._signupPwValidate){const ev=new Event('input');document.getElementById('signupPassword').dispatchEvent(ev)}
-  }catch(err){showMsg('signupMsg',err.message,'err')}
-  finally{btn.textContent='Create Account →';btn.disabled=false}
+    const returnUrl=sessionStorage.getItem('ta_return_url');
+    if(returnUrl&&!returnUrl.includes('account.html')){
+      sessionStorage.removeItem('ta_return_url');
+      window.location.href=returnUrl;return;
+    }
+    window.location.href='index.html';
+  }catch(err){showMsg('signupMsg',err.message,'err');btn.textContent='Create Account →';btn.disabled=false}
+}
+
+/* ── Email verification (Fix 4) ── */
+async function loadEmailVerifiedStatus(){
+  const banner=document.getElementById('emailVerifyBanner');
+  if(!banner)return;
+  try{
+    const res=await Auth.apiFetch(Auth.API_BASE+'/api/auth/email-verified-status');
+    if(!res.ok)return;
+    const d=await res.json();
+    banner.style.display=d.verified?'none':'';
+  }catch(_){}
+}
+
+async function submitEmailOTP(){
+  const code=(document.getElementById('emailOtpInput').value||'').trim();
+  const msgEl=document.getElementById('emailOtpMsg');
+  if(!code||code.length!==6){
+    msgEl.textContent='Please enter the 6-digit code.';
+    msgEl.style.color='#dc2626';return;
+  }
+  try{
+    const res=await Auth.apiFetch(Auth.API_BASE+'/api/auth/verify-email-otp',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({otp:code})
+    });
+    const d=await res.json();
+    if(!res.ok)throw new Error(d.error||'Invalid code');
+    document.getElementById('emailVerifyBanner').style.display='none';
+    if(window.showToast)showToast('Email verified!','success');
+  }catch(err){
+    msgEl.textContent=err.message;
+    msgEl.style.color='#dc2626';
+  }
+}
+
+async function resendVerificationEmail(){
+  const msgEl=document.getElementById('emailOtpMsg');
+  try{
+    const res=await Auth.apiFetch(Auth.API_BASE+'/api/auth/send-verification-email',{
+      method:'POST',headers:{'Content-Type':'application/json'}
+    });
+    if(res.status===429){
+      const d=await res.json();
+      msgEl.textContent=d.error||'Please wait before requesting another code.';
+      msgEl.style.color='#dc2626';return;
+    }
+    msgEl.textContent='A new code was sent to your email.';
+    msgEl.style.color='#16a34a';
+    document.getElementById('emailOtpInput').value='';
+  }catch(_){
+    msgEl.textContent='Could not send code. Please try again.';
+    msgEl.style.color='#dc2626';
+  }
 }
 
 /* ── Tab swipe arrows ── */
@@ -1609,6 +1691,7 @@ async function showDashboard(){
   if(typeof updateNavAuth==='function')updateNavAuth();
 
   loadOrders();
+  loadEmailVerifiedStatus();
 
   // Hash-based tab routing — default is Orders (most useful landing tab)
   _applyHashTab();
@@ -1642,6 +1725,27 @@ function splitPhoneValue(id,val){
 document.addEventListener('DOMContentLoaded',function(){
   // Init phone field on signup form only — profile mobile is initialised on demand.
   initPhoneField('signupPhone');
+
+  // Fix 1: Hide country-code selector on signup — hardcode IN +91 as plain text.
+  // initPhoneField inserts .ta-phone-wrap after the hidden #signupPhone input.
+  (function(){
+    var ph=document.getElementById('signupPhone');
+    if(!ph)return;
+    var wrap=ph.nextElementSibling;
+    if(!wrap||!wrap.classList.contains('ta-phone-wrap'))return;
+    wrap.style.flex='1'; // restore flex growth lost when original input was hidden
+    var sel=wrap.querySelector('select.ta-phone-prefix');
+    if(sel){
+      sel.style.display='none'; // keep functional (syncValue still reads it) but invisible
+      var span=document.createElement('span');
+      span.className='ta-phone-prefix-fixed';
+      span.textContent='IN +91';
+      wrap.insertBefore(span,sel.nextSibling);
+    }
+    // Hide Send OTP button — OTP no longer required before creating account
+    var otpBtn=document.getElementById('sendOtpBtn');
+    if(otpBtn)otpBtn.style.display='none';
+  })();
 
   // Live password-rule checklists
   window._signupPwValidate=attachPasswordRules('signupPassword','signupPwRules');

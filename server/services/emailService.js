@@ -352,6 +352,32 @@ export async function sendPasswordReset({ email, reset_link, name }) {
   });
 }
 
+/* ── EMAIL VERIFICATION OTP (to customer) ────────────────── */
+export async function sendEmailVerification({ email, otp }) {
+  const body = `
+    <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 20px;">
+      Use the code below to verify your email address on TriAkar. This code is valid for 30 minutes.
+    </p>
+    <div style="text-align:center;margin:28px 0;">
+      <div style="display:inline-block;background:#f5f5f5;border:2px solid ${ACCENT};border-radius:12px;padding:20px 40px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#888;margin-bottom:8px;">Verification Code</div>
+        <div style="font-size:36px;font-weight:700;font-family:monospace;color:#0e0e0e;letter-spacing:8px;">${esc(otp)}</div>
+      </div>
+    </div>
+    <p style="font-size:13px;color:#888;margin:0 0 16px;line-height:1.6;">
+      This code expires in 30 minutes. If you did not create a TriAkar account, please ignore this email.
+    </p>
+    <p style="font-size:12px;color:#aaa;margin:0;">
+      Questions? Email us at <a href="mailto:hello@triakar.com" style="color:${ACCENT};text-decoration:none;">hello@triakar.com</a>
+    </p>
+  `;
+  return send({
+    to: email,
+    subject: `Your TriAkar verification code: ${otp}`,
+    html: shell('Verify your email address', body),
+  });
+}
+
 /* ── ENQUIRY CONFIRMATION (to customer) ───────────────────── */
 export async function sendEnquiryConfirmation(enquiry) {
   const body = `
