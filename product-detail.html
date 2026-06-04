@@ -1221,14 +1221,14 @@ function openWriteReview(){
   const wrap=document.getElementById('reviewFormWrap');
   if(!wrap)return;
   const token=localStorage.getItem('ta_token');
-  if(!token){alert('Please log in to write a review.');return;}
+  if(!token){showToast('Please log in to write a review','info');return;}
   const API='https://triakar.onrender.com';
   fetch(API+'/api/orders/check-purchase?slug='+encodeURIComponent(window._prodId||''),{
     headers:{'Authorization':'Bearer '+token}
   }).then(r=>r.json())
   .then(d=>{
     if(d.purchased){wrap.style.display='';wrap.scrollIntoView({behavior:'smooth',block:'start'});}
-    else{alert('You can only review products you have purchased.');}
+    else{showToast('Only verified purchases can leave a review','info');}
   }).catch(()=>{wrap.style.display='';wrap.scrollIntoView({behavior:'smooth',block:'start'});});
 }
 
@@ -1256,11 +1256,11 @@ function previewReviewImages(input){
 
 async function submitReview(){
   const token=localStorage.getItem('ta_token');
-  if(!token){alert('Please log in to submit a review.');return;}
+  if(!token){showToast('Please log in to submit a review','info');return;}
   const text=document.getElementById('reviewText')?.value?.trim();
   const name=document.getElementById('reviewerName')?.value?.trim()||'Customer';
   const city=document.getElementById('reviewerCity')?.value?.trim()||'';
-  if(!text||!_reviewRating){alert('Please select a star rating and write your review.');return;}
+  if(!text||!_reviewRating){showToast('Please select a rating and write your review','error');return;}
 
   const btn=document.getElementById('reviewSubmitBtn');
   if(btn){btn.disabled=true;btn.textContent='Submitting…';}
@@ -1285,10 +1285,10 @@ async function submitReview(){
     const d=await res.json();
     if(!res.ok)throw new Error(d.error||'Submit failed');
     document.getElementById('reviewFormWrap').style.display='none';
-    alert('Thank you! Your review has been submitted and will appear after approval.');
+    showToast('Review submitted — it will appear after approval','success');
     loadReviews(window._prodId);
   }catch(e){
-    alert('Could not submit review: '+(e.message||'Please try again.'));
+    showToast('Could not submit review — please try again','error');
   }finally{
     if(btn){btn.disabled=false;btn.textContent='Submit Review';}
   }

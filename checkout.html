@@ -435,16 +435,16 @@ document.addEventListener('DOMContentLoaded', function() {
       line1El.focus(); return;
     }
     var pin = document.getElementById('ckPincode');
-    if (pin && !/^\d{6}$/.test(pin.value.trim())) { pin.focus(); alert('Please enter a valid 6-digit PIN code.'); return; }
+    if (pin && !/^\d{6}$/.test(pin.value.trim())) { pin.focus(); showToast('Please enter a valid 6-digit PIN code','error'); return; }
     var st = document.getElementById('ckState');
-    if (st && !st.value.trim()) { alert('Please select a state.'); return; }
+    if (st && !st.value.trim()) { showToast('Please select a state','error'); return; }
     if (pincodeExpectedState && st && st.value.trim() && st.value.trim() !== pincodeExpectedState) {
       var errEl = document.getElementById('ckPincodeInfo');
       if (errEl) { errEl.style.color = '#B91C1C'; errEl.textContent = '⚠ State doesn\'t match PIN code (' + pincodeExpectedState + ')'; }
       st.focus(); return;
     }
     var em = document.getElementById('ckEmail');
-    if (em && !em.value.trim()) { em.focus(); alert('Please enter your email address.'); return; }
+    if (em && !em.value.trim()) { em.focus(); showToast('Please enter your email address','error'); return; }
     submitAddress();
   });
 });
@@ -689,7 +689,7 @@ async function ckPlaceOrder() {
   var payment = document.querySelector('input[name="ckPay"]:checked');
   var payMethod = payment ? payment.value : 'online';
 
-  if (!chosenAddr) { alert('Please provide a shipping address.'); showStep(1); return; }
+  if (!chosenAddr) { showToast('Please add a shipping address first','error'); showStep(1); return; }
 
   var subtotal = Cart.total();
   var shipping = subtotal >= 999 ? 0 : 99;
@@ -886,7 +886,7 @@ async function ckPlaceOrder() {
           window.location.href = 'order-confirmation.html?order_id=' + trkId;
         } catch (e) {
           /* Payment received but verification had a network issue — still treat as success */
-          alert('Payment received! Your order ID: ' + trkId + '. We will confirm shortly.');
+          showToast('Payment received! Order ID: ' + trkId,'success');
           Cart.clear();
           window.location.href = 'order-confirmation.html?order_id=' + trkId;
         }
@@ -901,14 +901,14 @@ async function ckPlaceOrder() {
     rzp.on('payment.failed', function(r) {
       btn.disabled = false;
       btn.innerHTML = 'Pay · <span id="ckPayAmt">₹' + total.toLocaleString('en-IN') + '</span> →';
-      alert('Payment failed: ' + r.error.description);
+      showToast('Payment failed: ' + r.error.description,'error');
     });
     rzp.open();
 
   } catch (err) {
     btn.disabled = false;
     btn.innerHTML = 'Pay · <span id="ckPayAmt">₹' + total.toLocaleString('en-IN') + '</span> →';
-    alert('Checkout error: ' + err.message);
+    showToast('Checkout error — please try again','error');
   }
 }
 </script>

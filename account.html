@@ -1009,7 +1009,7 @@ async function loadOrders(){
 
 /* ── Retry Payment for Pending Orders ── */
 async function retryPayment(dbOrderId, rzpOrderId, amount){
-  if(!rzpOrderId){alert('Payment details not available. Please contact support.');return;}
+  if(!rzpOrderId){showToast('Payment details unavailable — please contact support','error');return;}
   const btn=event.target;
   btn.disabled=true;
   btn.textContent='Loading…';
@@ -1052,7 +1052,7 @@ async function retryPayment(dbOrderId, rzpOrderId, amount){
           // Reload orders to show updated status
           loadOrders();
         }catch(e){
-          alert('Payment received but verification issue: '+e.message+'. Contact support with order ID: '+dbOrderId);
+          showToast('Payment received. Contact support with order ID: '+dbOrderId,'info');
           loadOrders();
         }
       },
@@ -1065,7 +1065,7 @@ async function retryPayment(dbOrderId, rzpOrderId, amount){
     btn.disabled=false;btn.textContent='Complete Payment →';
   }catch(err){
     btn.disabled=false;btn.textContent='Complete Payment →';
-    alert('Error: '+err.message);
+    showToast('Error: '+err.message,'error');
   }
 }
 
@@ -1367,16 +1367,16 @@ async function saveAddress(){
 
   /* Validation */
   if(phoneInp&&phoneInp._validatePhone&&!phoneInp._validatePhone())return;
-  if(!name){alert('Please enter the full name.');return;}
-  if(!phone){alert('Please enter a phone number.');return;}
+  if(!name){showToast('Please enter the full name','error');return;}
+  if(!phone){showToast('Please enter a phone number','error');return;}
   if(!line1||line1.length<8){
     const errEl=document.getElementById('addrLine1Err');
     if(errEl){errEl.textContent='Please enter a complete address (house no. + building name).';errEl.style.display='block';}
-    alert('Address Line 1 is too short. Please enter a complete address.');return;
+    showToast('Address line 1 is too short — add house no. and street','error');return;
   }
-  if(!pin||!/^\d{6}$/.test(pin)){alert('Please enter a valid 6-digit PIN code.');return;}
-  if(!city){alert('Please enter the city/town.');return;}
-  if(!state){alert('Please select the state.');return;}
+  if(!pin||!/^\d{6}$/.test(pin)){showToast('Please enter a valid 6-digit PIN code','error');return;}
+  if(!city){showToast('Please enter the city or town','error');return;}
+  if(!state){showToast('Please select a state','error');return;}
 
   const btn=document.querySelector('#addrFormInner .btn-dark');
   if(btn){btn.disabled=true;btn.textContent='Saving…';}
@@ -1404,7 +1404,7 @@ async function saveAddress(){
     loadAddresses();
   }catch(err){
     if(btn){btn.disabled=false;btn.textContent='Save Address →';}
-    alert('Error saving address: '+err.message);
+    showToast('Error saving address — please try again','error');
   }
 }
 
@@ -1421,7 +1421,7 @@ async function deleteAddress(id){
     const {error}=await sb.from('user_addresses').delete().eq('id',id);
     if(error)throw error;
     loadAddresses();
-  }catch(err){alert('Error: '+err.message)}
+  }catch(err){showToast('Error: '+err.message,'error')}
 }
 
 async function setDefaultAddr(id){
@@ -1432,7 +1432,7 @@ async function setDefaultAddr(id){
     await sb.from('user_addresses').update({is_default:false}).eq('user_id',user.id);
     await sb.from('user_addresses').update({is_default:true}).eq('id',id);
     loadAddresses();
-  }catch(err){alert('Error: '+err.message)}
+  }catch(err){showToast('Error: '+err.message,'error')}
 }
 
 /* ── Settings ── */
@@ -1539,7 +1539,7 @@ async function saveMobile(){
 
 function requestDeleteAccount(){
   if(!confirm('Are you sure? This will permanently delete your account and all data. This cannot be undone.'))return;
-  alert('To delete your account, please contact us at +91 9217-555-833 or email hello@triakar.com');
+  showToast('To delete your account, call +91 9217-555-833 or email hello@triakar.com','info');
 }
 
 /* ── Keep localStorage user metadata in sync so nav + greeting show real name ── */
