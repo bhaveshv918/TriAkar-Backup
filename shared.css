@@ -19,6 +19,13 @@
   --stone:#88847E; --stone-l:#C0BCB4; --stone-p:#E2DED7;
   --warm:#645F59;
   --accent:#C4622A; --accent-l:#D98B50; --accent-d:#A9521F; /* base / light / dark(hover) — the only oranges */
+  /* Part 4 — simplified colour aliases (single canonical names) */
+  --orange:#C4622A;     /* = --accent — every orange on site must use this */
+  --black:#161614;      /* = --charcoal */
+  --grey-dark:#3A3A38;
+  --grey-mid:#6B6B68;
+  --grey-light:#A8A8A4;
+  --bg:#FAF9F6;
 
   /* ── LIQUID GLASS SYSTEM — 3 standard variants ──────────
      A = light frosted  → on light / ivory surfaces
@@ -1206,3 +1213,224 @@ html.a11y-reduce-motion *,html.a11y-reduce-motion *::before,html.a11y-reduce-mot
 .fetch-error svg{color:var(--stone-p);margin-bottom:4px}
 .fetch-error-title{font-size:16px;font-weight:700;color:var(--charcoal)}
 .fetch-error-sub{font-size:13px;color:var(--stone);max-width:320px;line-height:1.6}
+
+/* ══════════════════════════════════════════════════════════════
+   PART 3 — SHARED PAGE HERO  (track-order, contact, stories,
+   products, order). About page is exempt — keep its own style.
+   ══════════════════════════════════════════════════════════════ */
+.page-hero{
+  background:var(--charcoal);
+  text-align:center;
+  padding:60px var(--pad) 50px;
+}
+.page-hero .hero-eyebrow{
+  font-size:11px;
+  letter-spacing:.5em;
+  text-transform:uppercase;
+  color:var(--stone-l);
+  margin-bottom:14px;
+  display:block;
+}
+.page-hero h1,.page-hero .hero-h1{
+  font-family:var(--font-g);
+  font-size:clamp(28px,5vw,48px);
+  font-weight:400;
+  color:var(--ivory);
+  line-height:1.1;
+  margin-bottom:14px;
+}
+.page-hero .hero-sub{
+  font-size:15px;
+  color:rgba(255,255,255,.6);
+  max-width:480px;
+  margin:0 auto;
+  line-height:1.65;
+  font-weight:300;
+}
+@media(max-width:600px){
+  .page-hero{padding:40px var(--pad) 36px}
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PART 1 — PRODUCTS GRID (strict responsive column system)
+   ══════════════════════════════════════════════════════════════ */
+/* Products mobile: strict 2-column grid, vertical cards */
+@media(max-width:600px){
+  /* 2-col grid — overrides the existing horizontal list layout */
+  .products-grid{
+    grid-template-columns:repeat(2,1fr)!important;
+    gap:10px!important;
+    padding:10px 0!important;
+  }
+  /* Card: vertical column layout (reset horizontal-list overrides) */
+  .prod-card{
+    display:flex!important;
+    flex-direction:column!important;
+    min-height:0!important;
+  }
+  /* Image wrapper: full width, remove fixed 120px */
+  .prod-img-wrap{
+    width:100%!important;
+    flex-shrink:1!important;
+    align-self:auto!important;
+  }
+  /* Image: 1:1 aspect ratio, cover, rounded top corners */
+  .prod-img{
+    width:100%!important;
+    height:auto!important;
+    aspect-ratio:1!important;
+    border-radius:10px 10px 0 0!important;
+  }
+  .prod-img img{object-fit:cover!important}
+  /* Body: tight on small cards */
+  .prod-body{
+    padding:8px 10px 10px!important;
+    gap:2px!important;
+  }
+  .prod-brand{display:none}
+  .prod-name{font-size:12px!important;font-weight:700!important;line-height:1.35!important;margin-bottom:2px!important;display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important;overflow:hidden!important}
+  .prod-short{display:none!important}
+  .prod-rating{margin-bottom:2px}
+  .prod-price-wrap{flex-direction:column!important;gap:1px!important;margin-bottom:4px!important}
+  .prod-price{font-size:14px!important;font-weight:800!important}
+  .prod-mrp{font-size:10px!important}
+  .prod-off{font-size:10px!important}
+  /* Footer: price left, button right */
+  .prod-foot{
+    flex-direction:row!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    gap:4px!important;
+    margin-top:auto!important;
+  }
+  /* Add-to-cart: small, never clips */
+  .add-to-cart-btn{
+    width:auto!important;
+    min-width:0!important;
+    font-size:9px!important;
+    padding:7px 8px!important;
+    letter-spacing:.02em!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:clip!important;
+    line-height:1.2!important;
+  }
+  .prod-delivery{display:none}
+  .prod-wl{width:26px!important;height:26px!important;top:5px!important;right:5px!important}
+  .prod-badge{font-size:7.5px!important;padding:2px 6px!important;top:5px!important;left:5px!important}
+  .prod-qv{display:none}
+  .prod-sold span{font-size:11px}
+  .qv-modal{grid-template-columns:1fr}
+  .qv-img{min-height:200px}
+}
+
+/* Filter pills fade-gradient on right edge */
+.fcat-strip{position:relative}
+.fcat-strip::after{
+  content:'';
+  position:absolute;
+  top:0;right:0;bottom:0;
+  width:48px;
+  pointer-events:none;
+  background:linear-gradient(to right,transparent,rgba(250,250,248,.95));
+}
+
+/* Consistent card shadow */
+.prod-card{box-shadow:0 2px 10px rgba(22,22,20,.06)!important}
+.prod-card:hover{box-shadow:0 12px 36px rgba(22,22,20,.13)!important}
+
+/* ══════════════════════════════════════════════════════════════
+   PART 5 — SKELETON: shimmer, correct dimensions, fade-in
+   ══════════════════════════════════════════════════════════════ */
+/* Better shimmer — sharp left-to-right sweep */
+@keyframes ta-shimmer{
+  0%{background-position:-800px 0}
+  100%{background-position:800px 0}
+}
+.skeleton{
+  background:#ece9e2;
+  background:linear-gradient(90deg,#ece9e2 30%,#f7f4ed 50%,#ece9e2 70%);
+  background-size:800px 100%;
+  animation:ta-shimmer 1.5s linear infinite;
+  border-radius:6px;
+  display:block;
+}
+/* Skeleton card matches exact product-card structure */
+.skel-img-ph{aspect-ratio:1;width:100%;border-radius:10px 10px 0 0!important;margin-bottom:0}
+.skel-body{padding:10px 10px 12px}
+/* Fade-in when real cards replace skeletons */
+@keyframes ta-card-fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.prod-card-fade{animation:ta-card-fadein .2s ease-out both}
+
+/* ══════════════════════════════════════════════════════════════
+   PART 6 — PWA INSTALL BANNER (mobile-only, bottom)
+   ══════════════════════════════════════════════════════════════ */
+.pwa-install-bar{
+  position:fixed;
+  left:0;right:0;bottom:0;
+  z-index:1500;
+  background:var(--charcoal);
+  color:var(--ivory);
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:14px 16px;
+  padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));
+  box-shadow:0 -4px 24px rgba(0,0,0,.22);
+  transform:translateY(110%);
+  transition:transform .4s cubic-bezier(.22,1,.36,1);
+}
+.pwa-install-bar.show{transform:translateY(0)}
+.pwa-install-bar-text{flex:1;min-width:0}
+.pwa-install-bar-title{font-size:13px;font-weight:700;margin-bottom:1px}
+.pwa-install-bar-sub{font-size:11px;color:var(--stone-l)}
+.pwa-install-bar-btn{
+  background:var(--orange);
+  color:#fff;
+  border:none;
+  border-radius:8px;
+  padding:10px 16px;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  white-space:nowrap;
+  cursor:pointer;
+  flex-shrink:0;
+  font-family:var(--font-b);
+}
+.pwa-install-bar-dismiss{
+  background:none;
+  border:none;
+  color:var(--stone);
+  font-size:20px;
+  line-height:1;
+  cursor:pointer;
+  padding:0 2px;
+  flex-shrink:0;
+}
+.pwa-ios-tip{
+  position:fixed;
+  left:12px;right:12px;bottom:calc(20px + env(safe-area-inset-bottom,0px));
+  z-index:1500;
+  background:var(--charcoal);
+  color:var(--ivory);
+  padding:14px 16px;
+  border-radius:12px;
+  font-size:12px;
+  line-height:1.7;
+  box-shadow:0 8px 32px rgba(0,0,0,.3);
+  text-align:center;
+  display:none;
+}
+.pwa-ios-tip.show{display:block}
+.pwa-ios-tip b{color:var(--orange)}
+
+/* ══════════════════════════════════════════════════════════════
+   SCROLL-TO-TOP: clear bottom navbar by ≥70px on mobile
+   ══════════════════════════════════════════════════════════════ */
+@media(max-width:768px){
+  body.has-bottomnav .scroll-top{
+    bottom:calc(80px + env(safe-area-inset-bottom,0px))!important;
+  }
+}
