@@ -136,28 +136,38 @@
 .prod-off{font-size:11px;font-weight:700;color:#2D8A4E;letter-spacing:.02em;white-space:nowrap}
 .add-btn{width:34px;height:34px;background:var(--charcoal);color:var(--ivory);border:none;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s,transform .2s}
 .add-btn:hover{background:var(--accent);transform:scale(1.1)}
-/* Cart button — icon-only perfect circle on mobile */
+/* Cart button — circle by default, oval when hovered / tapped / added
+   max-width trick: animates from 36px circle → pill without JS           */
 .add-to-cart-btn{
-  width:36px;height:36px;
-  min-width:36px;min-height:36px; /* prevent flex compression */
-  border-radius:50%;
-  box-sizing:border-box;
+  width:100%;max-width:36px;  /* collapses to circle */
+  height:36px;min-height:36px;
+  border-radius:999px;        /* always pill-radius; circle when narrow */
+  box-sizing:border-box;overflow:hidden;
   background:#fff;border:1px solid #E8E6E1;
-  display:flex;align-items:center;justify-content:center;gap:6px;
+  display:flex;align-items:center;justify-content:center;
+  gap:0;padding:0;
   cursor:pointer;flex-shrink:0;
   color:var(--orange,var(--accent));
-  transition:border-color .2s,box-shadow .2s,transform .2s;
-  padding:0;
+  transition:
+    max-width .28s cubic-bezier(.4,0,.2,1),
+    gap       .28s cubic-bezier(.4,0,.2,1),
+    padding   .28s cubic-bezier(.4,0,.2,1),
+    border-color .2s,box-shadow .2s,background .2s,transform .12s;
 }
-.add-to-cart-btn:hover{border-color:var(--accent);box-shadow:0 4px 14px rgba(196,98,42,.2);transform:scale(1.08)}
-.add-to-cart-btn svg{width:17px;height:17px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
-/* Text label — hidden by default (icon-only on mobile) */
-.atc-text{display:none;font-size:11px;font-weight:700;letter-spacing:.04em;white-space:nowrap;line-height:1}
-/* ≥768px: raise image cap only — button stays icon-only circle */
-@media(min-width:768px){
-  .prod-img{max-height:280px}
+.add-to-cart-btn:hover,
+.add-to-cart-btn:active{
+  max-width:160px;gap:6px;padding:0 14px 0 10px;
+  border-color:var(--accent);box-shadow:0 4px 14px rgba(196,98,42,.2);
 }
-/* Button stays icon-only 36×36 circle at all sizes — never clips */
+.add-to-cart-btn svg{
+  width:17px;height:17px;flex-shrink:0;
+  stroke:currentColor;fill:none;stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round;pointer-events:none
+}
+/* Text always in DOM — hidden by overflow:hidden when collapsed */
+.atc-text{display:inline;font-size:11px;font-weight:700;letter-spacing:.04em;white-space:nowrap;line-height:1;flex-shrink:0}
+/* ≥768px: raise image cap */
+@media(min-width:768px){.prod-img{max-height:280px}}
 
 .no-results{grid-column:1/-1;text-align:center;padding:80px 0;color:var(--stone);font-size:14px}
 
