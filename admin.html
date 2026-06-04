@@ -3783,6 +3783,8 @@ function openReviewModal(r){
   document.getElementById('rvSource').value=r?(r.source||'website'):'website';
   document.getElementById('rvAdminNote').value=r?(r.admin_note||''):'';
   document.getElementById('rvImagesVal').value=r&&r.images?r.images.join('\n'):'';
+  const rvDate=document.getElementById('rvDate');
+  if(rvDate)rvDate.value=r&&r.created_at?r.created_at.slice(0,10):new Date().toISOString().slice(0,10);
   document.getElementById('reviewModal').style.display='flex';
 }
 
@@ -3815,6 +3817,8 @@ async function saveReview(){
     admin_note:document.getElementById('rvAdminNote').value.trim()||null,
     images,
   };
+  const rvDateVal=document.getElementById('rvDate')?.value;
+  if(rvDateVal)body.created_at=new Date(rvDateVal+'T12:00:00').toISOString();
 
   try{
     const token=localStorage.getItem('ta_token');
@@ -3889,9 +3893,13 @@ async function saveReview(){
         <textarea id="rvReview" class="form-input" rows="4" placeholder="Customer's review text…" style="resize:vertical"></textarea></div>
       <div><label class="form-label">Image URLs (one per line, optional)</label>
         <textarea id="rvImagesVal" class="form-input" rows="3" placeholder="https://res.cloudinary.com/…&#10;https://res.cloudinary.com/…" style="resize:vertical;font-size:11px"></textarea></div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <input type="checkbox" id="rvVerified" style="width:16px;height:16px;accent-color:var(--accent)">
-        <label for="rvVerified" style="font-size:13px;cursor:pointer">Verified Purchase</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center">
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="rvVerified" style="width:16px;height:16px;accent-color:var(--accent)">
+          <label for="rvVerified" style="font-size:13px;cursor:pointer">Verified Purchase</label>
+        </div>
+        <div><label class="form-label">Review Date</label>
+          <input type="date" id="rvDate" class="form-input"></div>
       </div>
       <div><label class="form-label">Admin Note (internal only)</label>
         <input id="rvAdminNote" class="form-input" placeholder="e.g. Imported from Google Reviews"></div>

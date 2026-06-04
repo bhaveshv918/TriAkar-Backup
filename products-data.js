@@ -259,10 +259,10 @@ function enrichProduct(p, slug){
   };
   var isCustom = p.customizable || p.is_customizable;
   if (!p.rating && !p.rating_score){
-    p.rating = {
-      score: Math.round((4.6 + s * 0.39) * 10) / 10,   // 4.6 – 4.9
-      count: 12 + Math.round(s * 84)                    // 12 – 96
-    };
+    var _rs = window.REVIEW_STATS && window.REVIEW_STATS[slug];
+    p.rating = _rs
+      ? { score: _rs.score, count: _rs.count }
+      : { score: Math.round((4.6 + s * 0.39) * 10) / 10, count: 12 + Math.round(s * 84) };
   } else if (!p.rating && p.rating_score){
     p.rating = { score: p.rating_score, count: p.rating_count || 0 };
   }
