@@ -418,6 +418,9 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
         <span class="skeleton skel-ln w50" style="display:block;height:20px;width:50%"></span>
       </h1>
 
+      <!-- Inline rating badge — populated by loadReviews() -->
+      <div id="prodDetailRating" style="display:none;align-items:center;gap:6px;margin-bottom:8px;margin-top:2px"></div>
+
       <!-- Price row -->
       <div class="price-row">
         <span class="detail-price" id="prodPrice"><span class="skeleton" style="display:inline-block;width:120px;height:28px;border-radius:6px"></span></span>
@@ -1168,7 +1171,14 @@ function _renderReviewCards(reviews,section,grid,summary){
     '<span style="font-size:26px;font-weight:800;color:var(--charcoal)">'+roundedAvg.toFixed(1)+'</span>'
     +' <span style="color:#2D8A4E;font-size:18px;letter-spacing:2px">'+starsBar+'</span>'
     +' <span style="color:var(--stone);font-size:13px;margin-left:4px">('+reviews.length+' reviews)</span>';
-
+  // also update inline rating badge near product title
+  const badge=document.getElementById('prodDetailRating');
+  if(badge){
+    badge.innerHTML='<span style="color:#2D8A4E;font-size:13px;letter-spacing:1px">'+'★'.repeat(starsFull)+'</span>'
+      +' <span style="font-size:13px;font-weight:700;color:var(--charcoal)">'+roundedAvg.toFixed(1)+'</span>'
+      +' <span style="font-size:12px;color:var(--stone)">('+reviews.length+')</span>';
+    badge.style.display='flex';
+  }
   if(grid)grid.innerHTML=reviews.map(r=>{
     const n=r.author_name||r.reviewer_name||r.name||'Customer';
     const initials=n.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'C';
