@@ -141,7 +141,7 @@
 /* DIVIDER */
 .info-divider{height:1px;background:var(--stone-p);margin:8px 0;opacity:.5}
 
-/* MOBILE STICKY BUY BAR */
+/* MOBILE STICKY BUY BAR — Zone 5 */
 .buy-bar{position:fixed;bottom:0;left:0;right:0;z-index:900;
   background:rgba(255,255,255,.96);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
   border-top:1px solid var(--stone-p);
@@ -150,6 +150,10 @@
   transform:translateY(110%);transition:transform .4s cubic-bezier(.22,1,.36,1);
   box-shadow:0 -4px 20px rgba(0,0,0,.08);}
 .buy-bar.show{transform:translateY(0)}
+/* Zone 5: clear bottom tab bar (navbar height 74px + 16px breathing room) */
+body.has-bottomnav .buy-bar{
+  padding-bottom:calc(74px + 16px + env(safe-area-inset-bottom,0px));
+}
 .buy-bar-info{flex:1;min-width:0}
 .buy-bar-name{font-size:12px;font-weight:600;color:var(--charcoal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .buy-bar-price{font-size:15px;font-weight:800;color:var(--charcoal)}
@@ -163,9 +167,10 @@
 .detail-usd{font-size:12px;color:var(--stone)}
 .detail-desc{font-size:13px;color:var(--charcoal);font-weight:400;line-height:1.65;margin:10px 0 14px;max-width:440px}
 
-/* TRUST STRIP */
-.trust-strip-product{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px}
-.tsp-item{background:rgba(255,255,255,0.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.7);box-shadow:0 2px 8px rgba(0,0,0,.05);border-radius:8px;padding:8px 10px;display:flex;align-items:flex-start;gap:7px;transition:box-shadow .3s,background .25s,transform .2s}
+/* TRUST STRIP — Zone 4: single horizontal row of 4, scrollable on mobile */
+.trust-strip-product{display:flex;flex-direction:row;gap:6px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none}
+.trust-strip-product::-webkit-scrollbar{display:none}
+.tsp-item{flex:1;min-width:120px;background:rgba(255,255,255,0.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.7);box-shadow:0 2px 8px rgba(0,0,0,.05);border-radius:8px;padding:8px 10px;display:flex;align-items:flex-start;gap:7px;transition:box-shadow .3s,background .25s,transform .2s}
 .tsp-item:hover{background:rgba(255,255,255,0.85);border-color:rgba(196,98,42,.2);box-shadow:0 6px 16px rgba(0,0,0,.08);transform:translateY(-2px)}
 .tsp-icon{color:var(--accent);flex-shrink:0;margin-top:1px}
 .tsp-t{font-size:10px;font-weight:700;color:var(--charcoal);margin-bottom:1px}
@@ -304,7 +309,7 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
   .gallery-dropdowns{margin-left:0;margin-right:0}
   .gallery-sticky{position:relative;top:0}
   .related-grid{grid-template-columns:repeat(2,1fr)}
-  .trust-strip-product{grid-template-columns:1fr}
+  .trust-strip-product{flex-wrap:wrap}
   .gallery-nav{display:none}
   .swipe-hint{display:flex}
   .main-img-box{position:relative}
@@ -321,7 +326,7 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
   .detail-breadcrumb{padding:12px var(--pad) 4px}
   .related-grid{grid-template-columns:1fr}
   /* on mobile keep trust strip as single column */
-  .trust-strip-product{grid-template-columns:1fr}
+  .trust-strip-product{flex-wrap:wrap}
   /* mobile buy bar always visible on small screens */
   .buy-bar{transform:translateY(0)!important}
 }
@@ -424,7 +429,7 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
       <div class="delivery-box" id="deliveryBox">
         <div class="delivery-row">
           <div class="delivery-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="1.5"/><circle cx="18.5" cy="18.5" r="1.5"/></svg></div>
-          <div><div class="delivery-label">Delivery</div><div class="delivery-sub" id="deliveryText">Dispatched in 2–3 business days · Free above ₹999</div></div>
+          <div><div class="delivery-label">Delivery</div><div class="delivery-sub" id="deliveryText">Ships in 3–5 days after printing · Free above ₹999</div></div>
         </div>
         <div class="delivery-row" id="dispatchNote" style="display:none">
           <div class="delivery-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2D8A4E" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 2"/></svg></div>
@@ -445,6 +450,10 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
         <div class="tsp-item">
           <div class="tsp-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M2 8l4 4 8-8"/></svg></div>
           <div><div class="tsp-t">Quality Checked</div><div class="tsp-s">Before every dispatch</div></div>
+        </div>
+        <div class="tsp-item">
+          <div class="tsp-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--accent)" stroke-width="1.5"><rect x="1" y="4" width="10" height="9" rx="1"/><path d="M11 7h3l2 3v3h-5V7z"/><circle cx="4" cy="13.5" r="1.2"/><circle cx="12.5" cy="13.5" r="1.2"/></svg></div>
+          <div><div class="tsp-t">Ships in 3–5 days</div><div class="tsp-s">After printing is done</div></div>
         </div>
       </div>
 
@@ -836,7 +845,7 @@ function renderProduct(ap){
   const daysEl=document.getElementById('deliveryText');
   if(daysEl){
     const pd=ap.production_days||3;
-    daysEl.textContent='Dispatched in '+pd+'–'+(pd+1)+' business days · Free shipping above ₹999 · ₹99 below ₹999';
+    daysEl.textContent='Ships in 3–5 days after printing · Free shipping above ₹999';
   }
   // key features — use dynamic label from product data
   const kfWrap=document.getElementById('keyFeaturesWrap');

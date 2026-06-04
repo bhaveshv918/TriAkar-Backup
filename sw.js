@@ -2,7 +2,7 @@
    Strategy: Cache-First for assets, Network-First for HTML + API.
    Version bump (CACHE_VER) forces all clients to re-fetch on deploy. */
 
-const CACHE_VER = 'ta-v31';
+const CACHE_VER = 'ta-v32';
 const CACHE_NAME = 'triakar-' + CACHE_VER;
 
 /* Assets to pre-cache on install (shell) */
@@ -13,6 +13,9 @@ const PRECACHE = [
   '/assets/fonts/Glorida.woff2',
   '/favicon.svg',
   '/offline.html',
+  '/index.html',
+  '/products.html',
+  '/product-detail.html',
 ];
 
 /* ── INSTALL ────────────────────────────────────────────── */

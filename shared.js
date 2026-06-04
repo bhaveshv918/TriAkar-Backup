@@ -1442,6 +1442,75 @@ if('serviceWorker' in navigator){
   });
 }
 
+/* ══ PWA INSTALL PROMPT — mobile only, once per session ════
+   Triggers after 2 page views OR 30 s on site, whichever first.
+   iOS: shows manual instructions. Android: uses beforeinstallprompt. */
+(function(){
+  if(window.matchMedia('(display-mode: standalone)').matches) return; // already installed
+  if(!/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) return;  // desktop only skipped
+
+  var _deferredPrompt = null;
+  var _shown = sessionStorage.getItem('_pwaPromptShown');
+  if(_shown) return;
+
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    _deferredPrompt = e;
+  });
+
+  function _showBanner(){
+    if(sessionStorage.getItem('_pwaPromptShown')) return;
+    sessionStorage.setItem('_pwaPromptShown','1');
+
+    var isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.MSStream;
+
+    if(isIOS){
+      // iOS: no beforeinstallprompt — show manual tip
+      var tip = document.createElement('div');
+      tip.className = 'pwa-ios-tip show';
+      tip.innerHTML = 'Add to your home screen: tap <b>Share ⬆</b> then <b>"Add to Home Screen"</b>';
+      document.body.appendChild(tip);
+      setTimeout(function(){ tip.classList.remove('show'); setTimeout(function(){ tip.remove(); }, 400); }, 6000);
+      return;
+    }
+
+    var bar = document.createElement('div');
+    bar.className = 'pwa-install-bar';
+    bar.innerHTML =
+      '<div class="pwa-install-bar-text">'
+      + '<div class="pwa-install-bar-title">Add TriAkar to home screen</div>'
+      + '<div class="pwa-install-bar-sub">Opens instantly, works offline</div>'
+      + '</div>'
+      + '<button class="pwa-install-bar-btn" id="_pwaInstallBtn">Add to homescreen</button>'
+      + '<button class="pwa-install-bar-dismiss" aria-label="Dismiss">×</button>';
+    document.body.appendChild(bar);
+    requestAnimationFrame(function(){ bar.classList.add('show'); });
+
+    bar.querySelector('._pwaInstallBtn, .pwa-install-bar-btn').addEventListener('click', function(){
+      if(_deferredPrompt){
+        _deferredPrompt.prompt();
+        _deferredPrompt.userChoice.then(function(){ _deferredPrompt = null; });
+      }
+      bar.classList.remove('show');
+      setTimeout(function(){ bar.remove(); }, 400);
+    });
+    bar.querySelector('.pwa-install-bar-dismiss').addEventListener('click', function(){
+      bar.classList.remove('show');
+      setTimeout(function(){ bar.remove(); }, 400);
+    });
+  }
+
+  // Track page views in session
+  var views = parseInt(sessionStorage.getItem('_pwaViews')||'0', 10) + 1;
+  sessionStorage.setItem('_pwaViews', String(views));
+
+  if(views >= 2){
+    setTimeout(_showBanner, 1200);
+  } else {
+    setTimeout(_showBanner, 30000);
+  }
+})();
+
 /* ════════════════════════════════════════════════════════════════════
    LIQUID GLASS — micro-interactions (toast, ripple, scroll-reveal)
    ════════════════════════════════════════════════════════════════════ */
