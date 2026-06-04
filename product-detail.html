@@ -141,8 +141,10 @@
 /* DIVIDER */
 .info-divider{height:1px;background:var(--stone-p);margin:8px 0;opacity:.5}
 
-/* MOBILE STICKY BUY BAR — Zone 5 */
-.buy-bar{position:fixed;bottom:0;left:0;right:0;z-index:900;
+/* MOBILE STICKY BUY BAR — Zone 5
+   z-index 890 keeps it below the mobile navbar (z-index 1000+ in shared.css)
+   bottom: calc(64px + 16px) = 80px clears the 64px navbar + 16px breathing room */
+.buy-bar{position:fixed;bottom:calc(64px + 16px);left:0;right:0;z-index:890;
   background:rgba(255,255,255,.96);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
   border-top:1px solid var(--stone-p);
   padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));
@@ -150,10 +152,6 @@
   transform:translateY(110%);transition:transform .4s cubic-bezier(.22,1,.36,1);
   box-shadow:0 -4px 20px rgba(0,0,0,.08);}
 .buy-bar.show{transform:translateY(0)}
-/* Zone 5: clear bottom tab bar (navbar height 74px + 16px breathing room) */
-body.has-bottomnav .buy-bar{
-  padding-bottom:calc(74px + 16px + env(safe-area-inset-bottom,0px));
-}
 .buy-bar-info{flex:1;min-width:0}
 .buy-bar-name{font-size:12px;font-weight:600;color:var(--charcoal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .buy-bar-price{font-size:15px;font-weight:800;color:var(--charcoal)}
@@ -239,6 +237,31 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
 
 /* Hide scroll-to-top and accessibility FAB on product detail page */
 .scroll-top,.a11y-fab,.a11y-panel{display:none!important}
+
+/* ── Detail-page skeleton zones (use shared ta-shimmer keyframe) ── */
+/* Zone 1: image column — full-fill shimmer inside main-img-box */
+.skel-gallery-fill{
+  position:absolute;inset:0;border-radius:12px;
+  background:#ece9e2;
+  background:linear-gradient(90deg,#ece9e2 30%,#f7f4ed 50%,#ece9e2 70%);
+  background-size:800px 100%;
+  animation:ta-shimmer 1.5s linear infinite;
+  display:block;z-index:1
+}
+/* Zone 2: description lines under price */
+.skel-desc-ph{display:flex;flex-direction:column;gap:8px;margin:10px 0 14px;max-width:440px}
+/* Zone 3: variant pill row */
+.skel-variant-pill{
+  display:inline-block;width:76px;height:30px;border-radius:999px;
+  background:#ece9e2;
+  background:linear-gradient(90deg,#ece9e2 30%,#f7f4ed 50%,#ece9e2 70%);
+  background-size:800px 100%;
+  animation:ta-shimmer 1.5s linear infinite;
+}
+/* Zone 4: trust strip — 4 skeleton cards matching tsp-item height (~70px) */
+.skel-tsp{flex:1;min-width:120px;height:70px;border-radius:8px}
+/* Zone 5: buy bar name + price skeleton */
+.buy-bar-name .skel-bb,.buy-bar-price .skel-bb{display:block}
 
 /* ACCORDION with animation (FIX from PDF p6) */
 .gallery-dropdowns{padding:16px 12px 28px;margin-top:0;display:flex;flex-direction:column;gap:8px}
@@ -357,11 +380,8 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
             <span class="img-badge badge-best" id="prodBadge" style="display:none"></span>
             <button class="gallery-nav gallery-prev" onclick="prevImage()" aria-label="Previous">&#8249;</button>
             <div class="main-img-inner" id="mainImgContent">
-              <svg id="mainSvg" viewBox="0 0 300 300" fill="none">
-                <rect x="35" y="55" width="230" height="190" rx="3" fill="#D4D0C8" stroke="#B8B4AA" stroke-width="1.5"/>
-                <rect x="65" y="12" width="70" height="160" rx="2" fill="#BEBAB0" stroke="#A8A49C" stroke-width="1.5"/>
-                <rect x="160" y="36" width="70" height="138" rx="2" fill="#C8C4BC" stroke="#B0ACA4" stroke-width="1.5"/>
-              </svg>
+              <!-- Zone 1 skeleton: fills the image box until API loads image -->
+              <span class="skel-gallery-fill" aria-hidden="true"></span>
             </div>
             <button class="gallery-nav gallery-next" onclick="nextImage()" aria-label="Next">&#8250;</button>
             <!-- Wishlist icon — top right of image -->
@@ -405,14 +425,25 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
         <span class="detail-discount" id="prodDiscount" style="display:none"></span>
       </div>
 
-      <!-- Short description -->
-      <p class="detail-desc" id="prodDesc"></p>
+      <!-- Short description — skeleton lines replaced by textContent on load -->
+      <p class="detail-desc" id="prodDesc">
+        <span class="skel-desc-ph" aria-hidden="true">
+          <span class="skeleton skel-ln w80" style="height:13px"></span>
+          <span class="skeleton skel-ln w60" style="height:13px"></span>
+          <span class="skeleton skel-ln w40" style="height:13px"></span>
+        </span>
+      </p>
 
       <div class="info-divider"></div>
 
       <!-- Variant selector -->
       <div class="variant-label" id="variantLabel">Colour</div>
-      <div class="variant-row" id="variantRow"></div>
+      <!-- Zone 3 skeleton: variant pills — replaced by innerHTML on load -->
+      <div class="variant-row" id="variantRow">
+        <span class="skel-variant-pill" aria-hidden="true"></span>
+        <span class="skel-variant-pill" aria-hidden="true"></span>
+        <span class="skel-variant-pill" aria-hidden="true"></span>
+      </div>
 
       <!-- Quantity -->
       <div class="qty-label">Quantity</div>
@@ -437,7 +468,7 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
         </div>
       </div>
 
-      <!-- Trust strip -->
+      <!-- Trust strip — Zone 4: static 4-item row, always visible at correct height -->
       <div class="trust-strip-product">
         <div class="tsp-item">
           <div class="tsp-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M8 1L2 4v4c0 3.5 2.6 6.7 6 7.4C14.4 14.7 14 11.5 14 8V4L8 1z"/></svg></div>
@@ -488,10 +519,11 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
     </div><!-- /detail-info -->
 
     <!-- MOBILE STICKY BUY BAR — appears when buy buttons scroll off screen -->
+    <!-- Zone 5 skeleton: buy bar name/price replaced by textContent on load -->
     <div class="buy-bar" id="buyBar">
       <div class="buy-bar-info">
-        <div class="buy-bar-name" id="buyBarName">Loading…</div>
-        <div class="buy-bar-price" id="buyBarPrice"></div>
+        <div class="buy-bar-name" id="buyBarName"><span class="skeleton skel-bb" style="height:12px;width:130px;border-radius:4px" aria-hidden="true"></span></div>
+        <div class="buy-bar-price" id="buyBarPrice"><span class="skeleton skel-bb" style="height:17px;width:70px;border-radius:4px;margin-top:3px" aria-hidden="true"></span></div>
       </div>
       <div class="buy-bar-btns">
         <button class="btn btn-outline" onclick="addToCartFromDetail()">Cart</button>
