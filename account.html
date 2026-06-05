@@ -333,6 +333,7 @@
           <div class="auth-msg" id="signupOtpMsg"></div>
           <div style="text-align:center;margin-top:16px">
             <button type="button" class="evb-resend" id="signupResendBtn" onclick="resendSignupOtp()">Resend code</button>
+            <span id="signupResendCountdown" style="display:none;font-size:12px;color:var(--stone);font-family:var(--font-b)"></span>
           </div>
         </div><!-- /signupOtpStep -->
       </form>
@@ -831,23 +832,23 @@ async function verifySignupOtp(){
 
 async function resendSignupOtp(){
   const btn=document.getElementById('signupResendBtn');
-  btn.disabled=true;
+  btn.style.display='none';
   try{
     const res=await Auth.apiFetch(Auth.API_BASE+'/api/auth/send-verification-email',{
       method:'POST',headers:{'Content-Type':'application/json'}
     });
-    if(res.status===429){const d=await res.json();showMsg('signupOtpMsg',d.error||'Please wait before requesting another code.','err');btn.disabled=false;return;}
+    if(res.status===429){const d=await res.json();showMsg('signupOtpMsg',d.error||'Please wait before requesting another code.','err');btn.style.display='';return;}
     document.getElementById('signupOtpInput').value='';
     showMsg('signupOtpMsg','A new code was sent to your email.','ok');
-  }catch(_){showMsg('signupOtpMsg','Could not send code. Please try again.','err');btn.disabled=false;return;}
-  // 60s countdown before resend is allowed again
-  let secs=60;
-  const orig='Resend code';
-  btn.textContent='Resend ('+secs+'s)';
+  }catch(_){showMsg('signupOtpMsg','Could not send code. Please try again.','err');btn.style.display='';return;}
+  // 45s countdown — button hides, counter appears
+  const cd=document.getElementById('signupResendCountdown');
+  let secs=45;
+  if(cd){cd.textContent='Resend in '+secs+'s';cd.style.display='';}
   const iv=setInterval(function(){
     secs--;
-    if(secs<=0){clearInterval(iv);btn.textContent=orig;btn.disabled=false;}
-    else btn.textContent='Resend ('+secs+'s)';
+    if(secs<=0){clearInterval(iv);if(cd)cd.style.display='none';btn.style.display='';}
+    else if(cd)cd.textContent='Resend in '+secs+'s';
   },1000);
 }
 
