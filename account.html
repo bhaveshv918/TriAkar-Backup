@@ -839,8 +839,16 @@ async function resendSignupOtp(){
     if(res.status===429){const d=await res.json();showMsg('signupOtpMsg',d.error||'Please wait before requesting another code.','err');btn.disabled=false;return;}
     document.getElementById('signupOtpInput').value='';
     showMsg('signupOtpMsg','A new code was sent to your email.','ok');
-  }catch(_){showMsg('signupOtpMsg','Could not send code. Please try again.','err');}
-  btn.disabled=false;
+  }catch(_){showMsg('signupOtpMsg','Could not send code. Please try again.','err');btn.disabled=false;return;}
+  // 60s countdown before resend is allowed again
+  let secs=60;
+  const orig='Resend code';
+  btn.textContent='Resend ('+secs+'s)';
+  const iv=setInterval(function(){
+    secs--;
+    if(secs<=0){clearInterval(iv);btn.textContent=orig;btn.disabled=false;}
+    else btn.textContent='Resend ('+secs+'s)';
+  },1000);
 }
 
 /* ── Email verification (Fix 4) ── */
