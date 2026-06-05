@@ -435,7 +435,7 @@
             </div>
             <div class="field"><label>Email</label><input type="email" id="profEmail" disabled style="opacity:.6"></div>
             <div class="field" id="mobileFieldWrap">
-              <label>Mobile *</label>
+              <label>Mobile</label>
               <div id="mobileDisplay" class="mobile-display-row">
                 <input type="text" id="mobileDisplayInput" readonly disabled style="opacity:.7;background:var(--ivory)">
                 <button type="button" class="mobile-update-btn" onclick="enableMobileEdit()">Update</button>
@@ -788,14 +788,21 @@ async function handleSignup(e){
     // Send OTP — use Auth.apiFetch so token refresh is handled automatically
     btn.textContent='Sending code...';
     let emailOk=false;
-    try{
-      const otpRes=await Auth.apiFetch(Auth.API_BASE+'/api/auth/send-verification-email',{
+    async function _trySendOtp(){
+      const r=await Auth.apiFetch(Auth.API_BASE+'/api/auth/send-verification-email',{
         method:'POST',headers:{'Content-Type':'application/json'}
       });
-      const otpData=await otpRes.json().catch(function(){return{};});
-      emailOk=!!(otpData.emailDelivered);
-      // Log full response so browser console shows exact Resend error if any
-      console.log('[signup] send-verification-email →',otpData);
+      const d=await r.json().catch(function(){return{};});
+      console.log('[signup] send-verification-email →',d);
+      return !!(d.emailDelivered);
+    }
+    try{
+      emailOk=await _trySendOtp();
+      if(!emailOk){
+        // Silent auto-retry once after 1.5s — first cold-start sometimes fails
+        await new Promise(function(res){setTimeout(res,1500);});
+        emailOk=await _trySendOtp();
+      }
     }catch(sendErr){console.error('[signup] OTP send error:',sendErr);}
 
     // Store redirect destination for after verification
@@ -1248,16 +1255,9 @@ async function loadProfile(){
       const mDisp=document.getElementById('mobileDisplayInput');
       if(mDisp){
         mDisp.value=mobileVal||'Not set';
-        // Show verified badge next to mobile
+        // Remove any leftover badge from a previous load
         const existingBadge=document.getElementById('profileVerifiedBadge');
         if(existingBadge)existingBadge.remove();
-        if(mobileVal && data.phone_verified){
-          const badge=document.createElement('span');
-          badge.id='profileVerifiedBadge';
-          badge.textContent='✓ Verified';
-          badge.style.cssText='display:inline-block;background:#dcfce7;color:#16a34a;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;margin-left:8px;vertical-align:middle';
-          mDisp.insertAdjacentElement('afterend',badge);
-        }
       }
       document.getElementById('profGender').value=data.gender||'';
       document.getElementById('profDob').value=data.date_of_birth||'';
@@ -1681,7 +1681,10 @@ async function saveMobile(){
       msgEl.textContent='This mobile number is already registered to another account.';
       msgEl.className='profile-msg show auth-msg err';return;
     }
-    const {error}=await sb2.from('profiles').upsert({id:user.id,mobile:fullPhone,updated_at:new Date().toISOString()},{onConflict:'id'});
+    const oldMobile=(document.getElementById('mobileDisplayInput').value||'').trim();
+    const upsertPayload={id:user.id,mobile:fullPhone,updated_at:new Date().toISOString()};
+    if(oldMobile&&oldMobile!=='Not set'&&oldMobile!==fullPhone)upsertPayload.previous_mobile=oldMobile;
+    const {error}=await sb2.from('profiles').upsert(upsertPayload,{onConflict:'id'});
     if(error)throw error;
     document.getElementById('mobileDisplayInput').value=fullPhone;
     cancelMobileEdit();

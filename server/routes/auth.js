@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import supabase from '../db/supabaseClient.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
+import { sendEmailVerification, sendPasswordReset } from '../services/emailService.js';
 
 /* Generate 12-digit UserID: DDMMYY + 6 random (e.g. 020626847391 = 2-Jun-2026) */
 function generateUserCode(date = new Date()) {
@@ -207,7 +208,6 @@ router.post('/send-verification-email', requireAuth, async (req, res, next) => {
       console.error('[send-verification-email]', emailError);
     } else {
       try {
-        const { sendEmailVerification } = await import('../services/emailService.js');
         await sendEmailVerification({ email, otp });
         emailDelivered = true;
         console.log('[send-verification-email] email sent to:', emailKey);
@@ -311,7 +311,6 @@ router.post('/forgot-password', async (req, res, next) => {
     // Always respond successfully — do not leak whether the email exists
     if (!linkErr && linkData?.properties?.action_link) {
       try {
-        const { sendPasswordReset } = await import('../services/emailService.js');
         await sendPasswordReset({ email, reset_link: linkData.properties.action_link });
       } catch (mailErr) {
         console.error('Password reset email failed:', mailErr.message);
