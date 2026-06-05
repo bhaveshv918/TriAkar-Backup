@@ -293,6 +293,7 @@
       </form>
 
       <form class="auth-form" id="signupForm" onsubmit="handleSignup(event)">
+        <div id="signupStep1">
         <div class="auth-form-title">Create account</div>
         <p class="auth-form-sub">Join TriAkar to track orders, save addresses, and check out faster.</p>
         <div class="field"><label for="signupName">Full Name</label><input type="text" id="signupName" placeholder="Your full name" required autocomplete="name" minlength="2"></div>
@@ -321,6 +322,19 @@
         </div>
         <button type="submit" class="btn btn-dark auth-submit btn-magnetic" id="signupBtn">Create Account →</button>
         <div class="auth-msg" id="signupMsg"></div>
+        </div><!-- /signupStep1 -->
+        <div id="signupOtpStep" style="display:none">
+          <div class="auth-form-title">Check your email</div>
+          <p class="auth-form-sub">We sent a 6-digit code to <strong id="signupOtpEmail"></strong> — enter it to continue.</p>
+          <div class="field">
+            <input type="text" id="signupOtpInput" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code" oninput="this.value=this.value.replace(/\D/g,'');if(this.value.length===6)verifySignupOtp();" style="width:100%;padding:14px 12px;border:1px solid rgba(22,22,20,.18);border-radius:10px;font-family:monospace;font-size:26px;letter-spacing:8px;text-align:center;background:rgba(250,250,248,.9);color:var(--charcoal);outline:none;box-sizing:border-box">
+          </div>
+          <button type="button" class="btn btn-dark auth-submit btn-magnetic" id="signupOtpBtn" onclick="verifySignupOtp()">Verify &amp; Continue →</button>
+          <div class="auth-msg" id="signupOtpMsg"></div>
+          <div style="text-align:center;margin-top:16px">
+            <button type="button" class="evb-resend" id="signupResendBtn" onclick="resendSignupOtp()">Resend code</button>
+          </div>
+        </div><!-- /signupOtpStep -->
       </form>
 
       <form class="auth-form" id="forgotForm" onsubmit="handleForgot(event)">
@@ -766,32 +780,67 @@ async function handleSignup(e){
     // Create account in Supabase (email_confirm: true on server — no email gate)
     await Auth.signup(email,password,fullName,fullPhone||null);
 
-    // Auto-login immediately — no re-enter credentials, no redirect to login page
+    // Auto-login immediately so we have a token to call send-verification-email
     btn.textContent='Logging in...';
     await Auth.login(email,password);
 
-    // Fire background email verification OTP — never blocks account creation or login
-    fetch(Auth.API_BASE+'/api/auth/send-verification-email',{
-      method:'POST',
-      headers:Object.assign({'Content-Type':'application/json'},Auth.authHeader())
-    }).catch(function(){});
+    // Send OTP — await so we know it's stored before showing the step
+    btn.textContent='Sending code...';
+    try{
+      await Auth.apiFetch(Auth.API_BASE+'/api/auth/send-verification-email',{
+        method:'POST',headers:{'Content-Type':'application/json'}
+      });
+    }catch(_){}
 
-    // Non-blocking toast at bottom of screen
-    if(window.showToast)showToast('A verification code was sent to your email. Verify anytime from your account page.','info');
-
-    // Redirect: checkout-next > return URL > homepage
+    // Store redirect destination for after verification
     const params=new URLSearchParams(window.location.search);
-    if(sessionStorage.getItem('after_login')==='checkout'||params.get('next')==='checkout'){
-      sessionStorage.removeItem('after_login');
-      window.location.href='checkout.html';return;
-    }
-    const returnUrl=sessionStorage.getItem('ta_return_url');
-    if(returnUrl&&!returnUrl.includes('account.html')){
-      sessionStorage.removeItem('ta_return_url');
-      window.location.href=returnUrl;return;
-    }
-    window.location.href='index.html';
+    window._signupRedirect=
+      (sessionStorage.getItem('after_login')==='checkout'||params.get('next')==='checkout')
+        ?'checkout':(sessionStorage.getItem('ta_return_url')||'index.html');
+
+    // Morph form — hide fields, show OTP step
+    document.getElementById('signupStep1').style.display='none';
+    document.getElementById('signupOtpEmail').textContent=email;
+    document.getElementById('signupOtpStep').style.display='';
+    const otpInp=document.getElementById('signupOtpInput');
+    if(otpInp){otpInp.value='';otpInp.focus();}
   }catch(err){showMsg('signupMsg',err.message,'err');btn.textContent='Create Account →';btn.disabled=false}
+}
+
+async function verifySignupOtp(){
+  const code=(document.getElementById('signupOtpInput').value||'').trim();
+  if(!code||code.length!==6){showMsg('signupOtpMsg','Please enter the 6-digit code.','err');return;}
+  const btn=document.getElementById('signupOtpBtn');
+  btn.textContent='Verifying...';btn.disabled=true;
+  try{
+    const res=await Auth.apiFetch(Auth.API_BASE+'/api/auth/verify-email-otp',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({otp:code})
+    });
+    const d=await res.json();
+    if(!res.ok)throw new Error(d.error||'Invalid code');
+    const dest=window._signupRedirect||'index.html';
+    if(dest==='checkout'){sessionStorage.removeItem('after_login');window.location.href='checkout.html';}
+    else if(dest&&!dest.includes('account.html')&&dest!=='index.html'){sessionStorage.removeItem('ta_return_url');window.location.href=dest;}
+    else window.location.href='index.html';
+  }catch(err){
+    showMsg('signupOtpMsg',err.message,'err');
+    btn.textContent='Verify & Continue →';btn.disabled=false;
+  }
+}
+
+async function resendSignupOtp(){
+  const btn=document.getElementById('signupResendBtn');
+  btn.disabled=true;
+  try{
+    const res=await Auth.apiFetch(Auth.API_BASE+'/api/auth/send-verification-email',{
+      method:'POST',headers:{'Content-Type':'application/json'}
+    });
+    if(res.status===429){const d=await res.json();showMsg('signupOtpMsg',d.error||'Please wait before requesting another code.','err');btn.disabled=false;return;}
+    document.getElementById('signupOtpInput').value='';
+    showMsg('signupOtpMsg','A new code was sent to your email.','ok');
+  }catch(_){showMsg('signupOtpMsg','Could not send code. Please try again.','err');}
+  btn.disabled=false;
 }
 
 /* ── Email verification (Fix 4) ── */
