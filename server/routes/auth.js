@@ -201,13 +201,17 @@ router.post('/send-verification-email', requireAuth, async (req, res, next) => {
     console.log('[send-verification-email] OTP stored for:', emailKey);
 
     let emailDelivered = false;
-    try {
-      const { sendEmailVerification } = await import('../services/emailService.js');
-      await sendEmailVerification({ email, otp });
-      emailDelivered = true;
-      console.log('[send-verification-email] email sent to:', emailKey);
-    } catch (mailErr) {
-      console.error('[send-verification-email] Resend failed for', emailKey, '—', mailErr.message);
+    if (!process.env.RESEND_API_KEY) {
+      console.error('[send-verification-email] RESEND_API_KEY is not set — add it to Render environment variables');
+    } else {
+      try {
+        const { sendEmailVerification } = await import('../services/emailService.js');
+        await sendEmailVerification({ email, otp });
+        emailDelivered = true;
+        console.log('[send-verification-email] email sent to:', emailKey);
+      } catch (mailErr) {
+        console.error('[send-verification-email] Resend failed for', emailKey, '—', mailErr.message);
+      }
     }
 
     res.json({ sent: true, emailDelivered });

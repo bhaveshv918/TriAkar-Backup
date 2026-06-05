@@ -810,11 +810,12 @@ async function handleSignup(e){
     document.getElementById('signupOtpStep').style.display='';
     const otpInp=document.getElementById('signupOtpInput');
     if(otpInp){otpInp.value='';otpInp.focus();}
-    // If email delivery failed, show a warning instead of starting the countdown
-    if(!emailOk){
-      showMsg('signupOtpMsg','We had trouble sending the code. Please check your spam folder or click Resend.','err');
-    }else{
+    if(emailOk){
       startResendCountdown();
+    }else{
+      // Email delivery failed — show resend button immediately, no alarming error
+      const hint=document.getElementById('signupOtpMsg');
+      if(hint){hint.textContent="Didn't get the code? Check spam or click Resend.";hint.style.color='var(--stone)';hint.style.display='block';}
     }
   }catch(err){showMsg('signupMsg',err.message,'err');btn.textContent='Create Account →';btn.disabled=false}
 }
