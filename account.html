@@ -785,14 +785,18 @@ async function handleSignup(e){
     btn.textContent='Logging in...';
     await Auth.login(email,password);
 
-    // Send OTP — await so we know it's stored before showing the step
+    // Send OTP — await so we know the result before showing the step
     btn.textContent='Sending code...';
+    let emailOk=false;
     try{
-      await fetch(Auth.API_BASE+'/api/auth/send-verification-email',{
+      const otpRes=await fetch(Auth.API_BASE+'/api/auth/send-verification-email',{
         method:'POST',
         headers:Object.assign({'Content-Type':'application/json'},Auth.authHeader())
       });
-    }catch(sendErr){console.error('[signup] OTP send failed:',sendErr);}
+      const otpData=await otpRes.json().catch(function(){return{};});
+      emailOk=!!(otpData.emailDelivered);
+      if(!otpRes.ok)console.error('[signup] send-verification-email failed:',otpData);
+    }catch(sendErr){console.error('[signup] OTP send error:',sendErr);}
 
     // Store redirect destination for after verification
     const params=new URLSearchParams(window.location.search);
@@ -806,7 +810,12 @@ async function handleSignup(e){
     document.getElementById('signupOtpStep').style.display='';
     const otpInp=document.getElementById('signupOtpInput');
     if(otpInp){otpInp.value='';otpInp.focus();}
-    startResendCountdown();
+    // If email delivery failed, show a warning instead of starting the countdown
+    if(!emailOk){
+      showMsg('signupOtpMsg','We had trouble sending the code. Please check your spam folder or click Resend.','err');
+    }else{
+      startResendCountdown();
+    }
   }catch(err){showMsg('signupMsg',err.message,'err');btn.textContent='Create Account →';btn.disabled=false}
 }
 
