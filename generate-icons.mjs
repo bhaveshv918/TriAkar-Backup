@@ -17,7 +17,7 @@ const WHITE   = '#FFFFFF';
 const TEXT    = 'त्रि'; // त्रि — explicit Unicode codepoints
 
 // SPLIT: 'lr' = left/right, 'tb' = top/bottom
-const SPLIT = 'lr';
+const SPLIT = 'tb';
 
 function drawIcon(size) {
   const canvas = createCanvas(size, size);
