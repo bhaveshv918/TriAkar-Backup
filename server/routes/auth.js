@@ -201,8 +201,10 @@ router.post('/send-verification-email', requireAuth, async (req, res, next) => {
     console.log('[send-verification-email] OTP stored for:', emailKey);
 
     let emailDelivered = false;
+    let emailError = null;
     if (!process.env.RESEND_API_KEY) {
-      console.error('[send-verification-email] RESEND_API_KEY is not set — add it to Render environment variables');
+      emailError = 'RESEND_API_KEY not set on server — add it to Render environment variables';
+      console.error('[send-verification-email]', emailError);
     } else {
       try {
         const { sendEmailVerification } = await import('../services/emailService.js');
@@ -210,11 +212,17 @@ router.post('/send-verification-email', requireAuth, async (req, res, next) => {
         emailDelivered = true;
         console.log('[send-verification-email] email sent to:', emailKey);
       } catch (mailErr) {
+        emailError = mailErr.message;
         console.error('[send-verification-email] Resend failed for', emailKey, '—', mailErr.message);
       }
     }
 
-    res.json({ sent: true, emailDelivered });
+    // _debug only included in non-production so browser console can show the exact failure reason
+    res.json({
+      sent: true,
+      emailDelivered,
+      ...(process.env.NODE_ENV !== 'production' && emailError ? { _debug: emailError } : {}),
+    });
   } catch (err) { next(err); }
 });
 

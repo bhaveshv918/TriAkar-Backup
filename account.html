@@ -785,17 +785,17 @@ async function handleSignup(e){
     btn.textContent='Logging in...';
     await Auth.login(email,password);
 
-    // Send OTP — await so we know the result before showing the step
+    // Send OTP — use Auth.apiFetch so token refresh is handled automatically
     btn.textContent='Sending code...';
     let emailOk=false;
     try{
-      const otpRes=await fetch(Auth.API_BASE+'/api/auth/send-verification-email',{
-        method:'POST',
-        headers:Object.assign({'Content-Type':'application/json'},Auth.authHeader())
+      const otpRes=await Auth.apiFetch(Auth.API_BASE+'/api/auth/send-verification-email',{
+        method:'POST',headers:{'Content-Type':'application/json'}
       });
       const otpData=await otpRes.json().catch(function(){return{};});
       emailOk=!!(otpData.emailDelivered);
-      if(!otpRes.ok)console.error('[signup] send-verification-email failed:',otpData);
+      // Log full response so browser console shows exact Resend error if any
+      console.log('[signup] send-verification-email →',otpData);
     }catch(sendErr){console.error('[signup] OTP send error:',sendErr);}
 
     // Store redirect destination for after verification
