@@ -788,10 +788,11 @@ async function handleSignup(e){
     // Send OTP — await so we know it's stored before showing the step
     btn.textContent='Sending code...';
     try{
-      await Auth.apiFetch(Auth.API_BASE+'/api/auth/send-verification-email',{
-        method:'POST',headers:{'Content-Type':'application/json'}
+      await fetch(Auth.API_BASE+'/api/auth/send-verification-email',{
+        method:'POST',
+        headers:Object.assign({'Content-Type':'application/json'},Auth.authHeader())
       });
-    }catch(_){}
+    }catch(sendErr){console.error('[signup] OTP send failed:',sendErr);}
 
     // Store redirect destination for after verification
     const params=new URLSearchParams(window.location.search);
@@ -805,6 +806,7 @@ async function handleSignup(e){
     document.getElementById('signupOtpStep').style.display='';
     const otpInp=document.getElementById('signupOtpInput');
     if(otpInp){otpInp.value='';otpInp.focus();}
+    startResendCountdown();
   }catch(err){showMsg('signupMsg',err.message,'err');btn.textContent='Create Account →';btn.disabled=false}
 }
 
@@ -841,13 +843,18 @@ async function resendSignupOtp(){
     document.getElementById('signupOtpInput').value='';
     showMsg('signupOtpMsg','A new code was sent to your email.','ok');
   }catch(_){showMsg('signupOtpMsg','Could not send code. Please try again.','err');btn.style.display='';return;}
-  // 45s countdown — button hides, counter appears
+  startResendCountdown();
+}
+
+function startResendCountdown(){
+  const btn=document.getElementById('signupResendBtn');
   const cd=document.getElementById('signupResendCountdown');
+  if(btn)btn.style.display='none';
   let secs=45;
   if(cd){cd.textContent='Resend in '+secs+'s';cd.style.display='';}
   const iv=setInterval(function(){
     secs--;
-    if(secs<=0){clearInterval(iv);if(cd)cd.style.display='none';btn.style.display='';}
+    if(secs<=0){clearInterval(iv);if(cd){cd.style.display='none';}if(btn)btn.style.display='';}
     else if(cd)cd.textContent='Resend in '+secs+'s';
   },1000);
 }
