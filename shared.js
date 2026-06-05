@@ -1435,12 +1435,7 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 });
 
-/* ══ SERVICE WORKER — register for static asset caching ════ */
-if('serviceWorker' in navigator){
-  window.addEventListener('load',function(){
-    navigator.serviceWorker.register('/sw.js').catch(function(){});
-  });
-}
+/* SERVICE WORKER — registered by partials.js (single registration) */
 
 /* ══ PWA INSTALL PROMPT — mobile only, once per session ════
    Triggers after 2 page views OR 30 s on site, whichever first.

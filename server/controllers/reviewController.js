@@ -67,15 +67,20 @@ export async function createReview(req, res) {
       return res.status(400).json({ error: 'Rating must be between 1 and 5' });
     }
 
-    // Upload up to 3 images to Cloudinary
+    // Upload up to 3 images to Cloudinary (non-blocking — review saves even if upload fails)
     let imageUrls = [];
     if (req.files && req.files.length > 0) {
-      const uploads = await Promise.all(
-        req.files.slice(0, 3).map(f =>
-          uploadBufferToCloudinary(f.buffer, { folder: 'triakar/reviews' })
-        )
-      );
-      imageUrls = uploads.map(u => u.secure_url);
+      try {
+        const uploads = await Promise.all(
+          req.files.slice(0, 3).map(f =>
+            uploadBufferToCloudinary(f.buffer, { folder: 'triakar/reviews' })
+          )
+        );
+        imageUrls = uploads.map(u => u.secure_url);
+      } catch (uploadErr) {
+        console.error('Cloudinary upload failed — saving review without images:', uploadErr.message);
+        // Review still gets saved, just without images
+      }
     }
 
     // Determine verified purchase status
