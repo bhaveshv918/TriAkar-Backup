@@ -1,11 +1,8 @@
 import { createCanvas, GlobalFonts } from '@napi-rs/canvas';
 import { writeFileSync, mkdirSync } from 'fs';
 
-// Register Adobe Devanagari Bold — the only Devanagari font on this machine
-GlobalFonts.registerFromPath(
-  'C:\\Windows\\Fonts\\AdobeDevanagari-Bold.otf',
-  'AdobeDevanagari'
-);
+// Nirmala UI — Windows' native Devanagari font, properly shapes conjuncts via HarfBuzz
+// AdobeDevanagari does not load correctly into Skia on this platform
 
 const OUT = 'assets/icons';
 mkdirSync(OUT, { recursive: true });
@@ -47,7 +44,7 @@ function drawIcon(size) {
 
   // त्रि — scale font proportionally from 160px at 512
   const fontSize = Math.round((160 / 512) * size);
-  ctx.font      = `bold ${fontSize}px AdobeDevanagari`;
+  ctx.font      = `bold ${fontSize}px "Nirmala UI"`;
   ctx.fillStyle = ORANGE;
   ctx.textAlign = 'left'; // we'll compute x manually for precision
 
