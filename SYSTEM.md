@@ -32,6 +32,7 @@
 | Product reviews | `server/routes/reviews.js` | `reviews.js` |
 | Email (order confirm, admin alert) | `server/services/emailService.js` | `emailService.js` |
 | Phone OTP send/verify | `server/routes/auth.js` | `auth.js:17-92` |
+| Email OTP send/verify/status | `server/routes/auth.js` | `auth.js` → `send-verification-email`, `verify-email-otp`, `email-verified-status` |
 | Search overlay | `shared.js` → search IIFE | `shared.js:795+` |
 | Callback modal | `shared.js` → `openCallbackModal()` | `shared.js` |
 | Corporate inquiry | `server/routes/inquiries.js` | `inquiries.js` |
@@ -95,4 +96,27 @@
 
 ---
 
-*Last updated: 2026-06-04 — post-audit stabilisation pass*
+## Supabase Configuration (Manual Changes — Applied 2026-06-05)
+
+These changes were made directly in Supabase dashboard/SQL editor and are not reflected in migration files:
+
+| Change | Detail |
+|--------|--------|
+| `handle_new_user` trigger | Updated to `SECURITY DEFINER` so profile row creation bypasses RLS |
+| `profiles.phone` column | Made nullable — phone is optional at signup |
+| `phone_otps.email` column | Added manually via SQL (`ALTER TABLE phone_otps ADD COLUMN email text`) — used as key for email OTP flow |
+| Supabase SMTP | Configured with Resend: host `smtp.resend.com`, port `465`, username `resend`, sender `hello@triakar.com` |
+| Email confirmation | Disabled in Supabase Auth → Settings → Email — signup no longer requires clicking a confirm link |
+
+---
+
+## Auth Flow (Current State — 2026-06-05)
+
+- **Signup:** creates Supabase user with `email_confirm: true` (server bypasses email gate via admin API), then immediately auto-logs in the user — no re-entering credentials
+- **Background email OTP:** after signup, a verification OTP is sent to the user's email in the background (non-blocking); user can verify any time from their account page
+- **Email OTP storage:** stored in `phone_otps` table using `email` column as key, `phone = '0000000000'` as placeholder, 30-minute expiry
+- **Email OTP verification:** looks up by `LOWER(email)`, checks `expires_at > NOW()` and `verified = false`; on success sets `phone_otps.verified = true` and `profiles.email_verified = true`
+
+---
+
+*Last updated: 2026-06-05 — email OTP fix + manual Supabase config documented*
