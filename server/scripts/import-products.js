@@ -88,7 +88,7 @@ async function main() {
   const rows = parseCSV(fs.readFileSync(csvPath, 'utf8'));
   console.log(`Read ${rows.length} row(s) from ${csvPath}\n`);
 
-  let ok = 0, failed = 0;
+  let ok = 0, failed = 0, liveCount = 0;
   const warnings = [];
 
   for (const r of rows) {
@@ -104,7 +104,13 @@ async function main() {
     const commercial_ok = truthy(r.commercial_ok);
     if (!commercial_ok) warnings.push(`${r.slug}: ⚠ commercial_ok=false (licence: ${r.license || 'unknown'}) → flagged for review in admin`);
 
-    const { price, compare_at_price, _quote } = computePrice(r);
+    // Only price a product when it has real print specs. Without grams + hours we
+    // refuse to invent a price: price stays 0 and the row is forced to draft.
+    const hasSpecs = Number(r.est_grams) > 0 && Number(r.est_print_hours) > 0;
+    const { price, compare_at_price, _quote } = hasSpecs
+      ? computePrice(r)
+      : { price: 0, compare_at_price: null, _quote: null };
+    if (!hasSpecs) warnings.push(`${r.slug}: ⚠ no print specs (grams/hours) → not priced, kept as draft`);
 
     const product = {
       slug: r.slug,
@@ -134,23 +140,31 @@ async function main() {
       est_print_hours: r.est_print_hours ? Number(r.est_print_hours) : null,
       size_class: r.size_class ? r.size_class.toUpperCase() : null,
       stock_qty: r.stock_qty ? Number(r.stock_qty) : 99,
-      // Drafts by default — nothing goes live until QA'd & published.
-      is_active: publish ? true : false,
+      // Drafts by default; also forced to draft when unpriced (no specs) or licence not cleared.
+      is_active: publish && hasSpecs && commercial_ok ? true : false,
     };
 
     const { error } = await supabase.from('products').upsert(product, { onConflict: 'slug' });
     if (error) { warnings.push(`${r.slug}: DB error — ${error.message}`); failed++; continue; }
-    console.log(`  ✓ ${r.slug.padEnd(28)} cost ₹${_quote.cost}+ship ₹${_quote.shipping} → list ₹${price}  MRP ₹${compare_at_price} (-${_quote.discountPct}%)  [${publish ? 'LIVE' : 'draft'}]`);
+    const liveState = product.is_active ? 'LIVE' : 'draft';
+    const priceStr = hasSpecs
+      ? `cost ₹${_quote.cost}+ship ₹${_quote.shipping} → list ₹${price}  MRP ₹${compare_at_price} (-${_quote.discountPct}%)`
+      : 'unpriced (needs grams/hours)';
+    console.log(`  ✓ ${r.slug.padEnd(34)} ${priceStr}  [${liveState}]`);
+    if (product.is_active) liveCount++;
     ok++;
   }
 
   console.log(`\n${'─'.repeat(60)}`);
-  console.log(`Imported: ${ok}   Failed: ${failed}   ${publish ? 'PUBLISHED LIVE' : 'saved as DRAFTS (is_active=false)'}`);
+  console.log(`Imported: ${ok}   Live: ${liveCount}   Drafts: ${ok - liveCount}   Failed: ${failed}`);
   if (warnings.length) {
-    console.log(`\n⚠ ${warnings.length} warning(s) — review in admin before publishing:`);
+    console.log(`\n⚠ ${warnings.length} warning(s) — review in admin:`);
     warnings.forEach((w) => console.log('   • ' + w));
   }
-  if (!publish) console.log('\nNext: review in admin, then re-run with --publish, or flip is_active in admin.');
+  if (liveCount < ok) {
+    console.log('\nDrafts stay hidden until: (a) they have print specs (grams/hours), and');
+    console.log('(b) you clear the licence — set commercial_ok in the CSV, or flip Active in admin.');
+  }
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
