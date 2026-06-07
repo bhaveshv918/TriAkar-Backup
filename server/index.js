@@ -239,8 +239,10 @@ app.get('/api/track/:id', async (req, res) => {
   }
 });
 
-app.get('/',       (_req, res) => res.json({ status: 'ok', brand: 'TriAkar' }));
-app.get('/health', (_req, res) => res.json({ status: 'ok', brand: 'TriAkar' }));
+/* Bump DEPLOY_VERSION on every deploy so /health confirms which build is live */
+const DEPLOY_VERSION = '2026-06-07-otp-fix-3';
+app.get('/',       (_req, res) => res.json({ status: 'ok', brand: 'TriAkar', version: DEPLOY_VERSION }));
+app.get('/health', (_req, res) => res.json({ status: 'ok', brand: 'TriAkar', version: DEPLOY_VERSION }));
 
 /* ── 10. 404 HANDLER ──────────────────────────────────────── */
 app.use((_req, res) => {
