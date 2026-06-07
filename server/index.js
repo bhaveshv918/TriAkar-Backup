@@ -240,7 +240,7 @@ app.get('/api/track/:id', async (req, res) => {
 });
 
 /* Bump DEPLOY_VERSION on every deploy so /health confirms which build is live */
-const DEPLOY_VERSION = '2026-06-07-otp-fix-3';
+const DEPLOY_VERSION = '2026-06-07-otp-fix-4';
 app.get('/',       (_req, res) => res.json({ status: 'ok', brand: 'TriAkar', version: DEPLOY_VERSION }));
 app.get('/health', (_req, res) => res.json({ status: 'ok', brand: 'TriAkar', version: DEPLOY_VERSION }));
 

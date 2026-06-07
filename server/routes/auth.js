@@ -194,6 +194,11 @@ router.post('/send-verification-email', requireAuth, async (req, res, next) => {
     // Always log OTP — visible in Render logs so you can verify/debug without email
     console.log(`[otp] generated for ${emailKey}: ${otp}`);
 
+    // Store the OTP. Try the email-column layout first; if that fails for ANY
+    // reason, fall back to the original phone-based key (phone = 'email:<addr>')
+    // which works with the legacy phone_otps schema. We never block OTP delivery
+    // on a storage hiccup — the email is what the user actually needs.
+    let storeError = null;
     const { error: insertErr } = await supabase.from('phone_otps').insert({
       phone: '0000000000',
       email: emailKey,
@@ -201,11 +206,18 @@ router.post('/send-verification-email', requireAuth, async (req, res, next) => {
       expires_at,
     });
     if (insertErr) {
-      console.error('[otp] insert error:', insertErr.message);
-      // If email column doesn't exist, proceed anyway — email will still be sent.
-      // Fix: run email-verification-schema.sql in Supabase SQL Editor.
-      if (insertErr.message && !insertErr.message.includes('column')) {
-        return res.status(500).json({ error: 'Failed to generate OTP. Please try again.' });
+      console.error('[otp] insert (email-column) failed:', insertErr.message);
+      // Fallback: legacy phone-based key — no email column required
+      const { error: fbErr } = await supabase.from('phone_otps').insert({
+        phone: 'email:' + emailKey,
+        otp,
+        expires_at,
+      });
+      if (fbErr) {
+        console.error('[otp] insert (phone-key fallback) failed:', fbErr.message);
+        storeError = `primary: ${insertErr.message} | fallback: ${fbErr.message}`;
+      } else {
+        console.log('[otp] stored via phone-key fallback for:', emailKey);
       }
     }
 
@@ -225,11 +237,13 @@ router.post('/send-verification-email', requireAuth, async (req, res, next) => {
       }
     }
 
-    // Always include _debug so browser console shows the real failure reason
+    // Surface the real reason (store + email) so the browser console can show it
+    const debug = [storeError && `store: ${storeError}`, emailError && `email: ${emailError}`]
+      .filter(Boolean).join(' || ');
     res.json({
       sent: true,
       emailDelivered,
-      ...(!emailDelivered && emailError ? { _debug: emailError } : {}),
+      ...(debug ? { _debug: debug } : {}),
     });
   } catch (err) { next(err); }
 });
@@ -241,15 +255,16 @@ router.post('/verify-email-otp', requireAuth, async (req, res, next) => {
     if (!otp) return res.status(400).json({ error: 'otp is required' });
     const emailKey = req.user.email.toLowerCase();
 
-    // Fetch the most recent unverified OTP row for this email
-    const { data: record } = await supabase
+    // Fetch the most recent unverified OTP row — match either storage layout:
+    // the email column OR the legacy phone-based key (phone = 'email:<addr>')
+    const { data: rows } = await supabase
       .from('phone_otps')
       .select('*')
-      .eq('email', emailKey)
+      .or(`email.eq.${emailKey},phone.eq.email:${emailKey}`)
       .eq('verified', false)
       .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
+    const record = rows && rows[0];
 
     if (!record) return res.status(400).json({ error: 'No pending code found. Please request a new one.' });
 
