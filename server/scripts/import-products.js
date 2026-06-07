@@ -130,7 +130,8 @@ async function main() {
       material: r.material || 'PLA+',
       stock_status: r.stock_status || 'Made to Order',
       sku: r.sku || null,
-      tags: r.tags || null,
+      // tags column is Postgres text[] — send an array, not a comma string
+      tags: r.tags ? r.tags.split(',').map((s) => s.trim()).filter(Boolean) : [],
       images: splitPipes(r.images),
       designer: r.designer || null,
       source_url: r.source_url || null,
