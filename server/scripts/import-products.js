@@ -19,7 +19,6 @@
 import 'dotenv/config';
 import fs from 'node:fs';
 import path from 'node:path';
-import supabase from '../db/supabaseClient.js';
 import TriakarPricing from '../../pricing.js'; // single source of truth (see pricing.js)
 
 const CATEGORIES = ['desk', 'home', 'gifting', 'custom'];
@@ -78,9 +77,12 @@ async function main() {
     process.exit(1);
   }
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.error('✗ Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in env.');
+    console.error('✗ Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY.');
+    console.error('  Set them in server/.env (see server/.env.example), then re-run.');
     process.exit(1);
   }
+  // Load the DB client only after env is validated (avoids a raw crash on missing env).
+  const { default: supabase } = await import('../db/supabaseClient.js');
 
   const csvPath = path.resolve(file);
   const rows = parseCSV(fs.readFileSync(csvPath, 'utf8'));
