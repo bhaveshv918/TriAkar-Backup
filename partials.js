@@ -49,7 +49,7 @@ window._FOOTER_HTML = `<footer>
         <div class="foot-hi"><span style="color:var(--accent)">त्रि</span>आकार</div>
         <p class="foot-desc">3D Printing Services, Delhi NCR</p>
         <div class="foot-phone"><a href="tel:+919217555833">+91 9217-555-833</a></div>
-        <div class="foot-hours">Open Monday to Saturday, 11 AM to 9 PM. Closed Sundays &amp; public holidays.</div>
+        <div class="foot-hours">Open Mon–Sat · 11 AM – 8 PM</div>
         <div class="foot-addr">Shop No. 25, Karan Singh Market<br>Chhoti Milak, Greater Noida West, UP – 201318</div>
         <a href="https://maps.app.goo.gl/Ki2GXFgi6JUZMb7z6" class="foot-dir" target="_blank">Get Directions →</a>
       </div>
@@ -100,7 +100,7 @@ window._FOOTER_HTML = `<footer>
   var NOTES=[
     'Free shipping above ₹999 · ₹99 fee below ₹999',
     'Custom 3D printing — your design, made in Greater Noida',
-    'Noida pickup available · Open Mon–Sat, 11 AM–9 PM. Closed Sundays.'
+    'Noida pickup available · Open Mon–Sat, 11 AM – 8 PM'
   ];
   /* Inject CSS first (head exists during parse) so per-page .notice-bar
      is hidden before it paints — prevents a double-bar flash. */
