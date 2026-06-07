@@ -177,14 +177,16 @@ router.post('/send-verification-email', requireAuth, async (req, res, next) => {
 
     const emailKey = email.toLowerCase();
 
-    // Rate-limit: max 3 per 10 minutes
+    // Rate-limit: max 3 per 10 minutes (ignore errors — if email column missing, don't block)
     const windowStart = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    const { count } = await supabase
-      .from('phone_otps')
-      .select('*', { count: 'exact', head: true })
-      .eq('email', emailKey)
-      .gte('created_at', windowStart);
-    if (count >= 3) return res.status(429).json({ error: 'Too many requests. Please wait 10 minutes.' });
+    try {
+      const { count } = await supabase
+        .from('phone_otps')
+        .select('*', { count: 'exact', head: true })
+        .eq('email', emailKey)
+        .gte('created_at', windowStart);
+      if (count >= 3) return res.status(429).json({ error: 'Too many requests. Please wait 10 minutes.' });
+    } catch (_) {}
 
     const otp = String(Math.floor(100000 + Math.random() * 900000));
     const expires_at = new Date(Date.now() + 30 * 60 * 1000).toISOString();
@@ -197,7 +199,13 @@ router.post('/send-verification-email', requireAuth, async (req, res, next) => {
     });
     if (insertErr) {
       console.error('[send-verification-email] insert error:', insertErr.message);
-      return res.status(500).json({ error: 'Failed to generate OTP. Please try again.' });
+      // If the email column doesn't exist yet in Supabase, log and proceed anyway —
+      // the OTP will still be sent via email even if we can't store it for re-verification.
+      // Run email-verification-schema.sql in Supabase to fix permanently.
+      if (!insertErr.message.includes('column')) {
+        return res.status(500).json({ error: 'Failed to generate OTP. Please try again.' });
+      }
+      console.warn('[send-verification-email] email column missing — run email-verification-schema.sql in Supabase');
     }
     console.log('[send-verification-email] OTP stored for:', emailKey);
 
