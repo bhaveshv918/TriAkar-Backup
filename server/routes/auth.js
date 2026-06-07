@@ -173,11 +173,11 @@ router.post('/send-verification-email', requireAuth, async (req, res, next) => {
   try {
     const email = req.user.email;
     if (!email) return res.status(400).json({ error: 'No email on account' });
-    console.log('[send-verification-email] request for:', email);
+    console.log('[otp] request for:', email);
 
     const emailKey = email.toLowerCase();
 
-    // Rate-limit: max 3 per 10 minutes (ignore errors — if email column missing, don't block)
+    // Rate-limit: max 3 per 10 minutes (wrapped — if email column not yet added, skip silently)
     const windowStart = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     try {
       const { count } = await supabase
@@ -191,6 +191,9 @@ router.post('/send-verification-email', requireAuth, async (req, res, next) => {
     const otp = String(Math.floor(100000 + Math.random() * 900000));
     const expires_at = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
+    // Always log OTP — visible in Render logs so you can verify/debug without email
+    console.log(`[otp] generated for ${emailKey}: ${otp}`);
+
     const { error: insertErr } = await supabase.from('phone_otps').insert({
       phone: '0000000000',
       email: emailKey,
@@ -198,38 +201,35 @@ router.post('/send-verification-email', requireAuth, async (req, res, next) => {
       expires_at,
     });
     if (insertErr) {
-      console.error('[send-verification-email] insert error:', insertErr.message);
-      // If the email column doesn't exist yet in Supabase, log and proceed anyway —
-      // the OTP will still be sent via email even if we can't store it for re-verification.
-      // Run email-verification-schema.sql in Supabase to fix permanently.
-      if (!insertErr.message.includes('column')) {
+      console.error('[otp] insert error:', insertErr.message);
+      // If email column doesn't exist, proceed anyway — email will still be sent.
+      // Fix: run email-verification-schema.sql in Supabase SQL Editor.
+      if (insertErr.message && !insertErr.message.includes('column')) {
         return res.status(500).json({ error: 'Failed to generate OTP. Please try again.' });
       }
-      console.warn('[send-verification-email] email column missing — run email-verification-schema.sql in Supabase');
     }
-    console.log('[send-verification-email] OTP stored for:', emailKey);
 
     let emailDelivered = false;
     let emailError = null;
     if (!process.env.RESEND_API_KEY) {
-      emailError = 'RESEND_API_KEY not set on server — add it to Render environment variables';
-      console.error('[send-verification-email]', emailError);
+      emailError = 'RESEND_API_KEY not configured on Render — add it in Environment Variables';
+      console.error('[otp]', emailError);
     } else {
       try {
         await sendEmailVerification({ email, otp });
         emailDelivered = true;
-        console.log('[send-verification-email] email sent to:', emailKey);
+        console.log('[otp] email delivered to:', emailKey);
       } catch (mailErr) {
         emailError = mailErr.message;
-        console.error('[send-verification-email] Resend failed for', emailKey, '—', mailErr.message);
+        console.error('[otp] Resend failed for', emailKey, '—', mailErr.message);
       }
     }
 
-    // _debug only included in non-production so browser console can show the exact failure reason
+    // Always include _debug so browser console shows the real failure reason
     res.json({
       sent: true,
       emailDelivered,
-      ...(process.env.NODE_ENV !== 'production' && emailError ? { _debug: emailError } : {}),
+      ...(!emailDelivered && emailError ? { _debug: emailError } : {}),
     });
   } catch (err) { next(err); }
 });

@@ -856,7 +856,10 @@ async function resendSignupOtp(){
     const res=await Auth.apiFetch(Auth.API_BASE+'/api/auth/send-verification-email',{
       method:'POST',headers:{'Content-Type':'application/json'}
     });
-    if(res.status===429){const d=await res.json();showMsg('signupOtpMsg',d.error||'Please wait before requesting another code.','err');btn.style.display='';return;}
+    const d=await res.json().catch(function(){return{};});
+    if(res.status===429){showMsg('signupOtpMsg',d.error||'Please wait before requesting another code.','err');btn.style.display='';return;}
+    if(!res.ok){showMsg('signupOtpMsg',d.error||'Could not send code. Please try again.','err');btn.style.display='';return;}
+    if(d._debug){console.warn('[OTP debug]',d._debug);}
     document.getElementById('signupOtpInput').value='';
     showMsg('signupOtpMsg','A new code was sent to your email.','ok');
   }catch(_){showMsg('signupOtpMsg','Could not send code. Please try again.','err');btn.style.display='';return;}
