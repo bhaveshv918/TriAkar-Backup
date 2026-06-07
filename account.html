@@ -1775,9 +1775,10 @@ async function signInWithGoogle(){
   }
   ['googleLoginBtn','googleSignupBtn'].forEach(id=>{const b=document.getElementById(id);if(b)b.disabled=true;});
   try{
+    // Return to THIS exact page (handles www vs non-www and clean URLs like /account).
     const {error}=await sb2.auth.signInWithOAuth({
       provider:'google',
-      options:{redirectTo:window.location.origin+'/account.html'}
+      options:{redirectTo:window.location.origin+window.location.pathname}
     });
     if(error)throw error;
     // Browser now navigates to Google's consent screen…
