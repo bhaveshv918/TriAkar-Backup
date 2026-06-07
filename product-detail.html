@@ -158,6 +158,10 @@
 .buy-bar-btns{display:flex;gap:8px;flex-shrink:0}
 .buy-bar-btns .btn{padding:11px 18px;font-size:12px;white-space:nowrap}
 .detail-name{font-size:clamp(16px,2vw,22px);font-weight:700;color:var(--charcoal);line-height:1.25;margin-bottom:5px;margin-top:4px}
+.detail-designer{font-size:12px;color:var(--stone);margin-bottom:10px;line-height:1.4}
+.detail-designer strong{color:var(--charcoal);font-weight:600}
+.detail-designer-link{color:var(--accent);text-decoration:none;font-weight:600;margin-left:6px;white-space:nowrap}
+.detail-designer-link:hover{text-decoration:underline}
 .price-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:3px}
 .detail-price{font-size:22px;font-weight:800;color:var(--charcoal)}
 .detail-mrp{font-size:13px;color:var(--stone);text-decoration:line-through;font-weight:400}
@@ -420,6 +424,9 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
 
       <!-- Inline rating badge — populated by loadReviews() -->
       <div id="prodDetailRating" style="display:none;align-items:center;gap:6px;margin-bottom:8px;margin-top:2px"></div>
+
+      <!-- Designer credit — name only; links to the site-wide credits page -->
+      <div id="prodDesigner" class="detail-designer" style="display:none"></div>
 
       <!-- Price row -->
       <div class="price-row">
@@ -797,6 +804,17 @@ function renderProduct(ap){
   document.getElementById('prodName').textContent=p.name;
   document.getElementById('breadProd').textContent=p.name;
   document.title=p.name+' — TriAkar';
+  // Designer credit — name only (no outbound link); links to site-wide credits page
+  const designerEl=document.getElementById('prodDesigner');
+  if(designerEl){
+    if(ap.designer){
+      designerEl.innerHTML='Designed by <strong>'+_esc(ap.designer)+'</strong> '
+        +'<a href="/credits.html" class="detail-designer-link">About design credits ›</a>';
+      designerEl.style.display='';
+    }else{
+      designerEl.style.display='none';
+    }
+  }
   document.getElementById('prodPrice').textContent='₹'+p.price.toLocaleString('en-IN');
   // Mobile buy bar info
   const bbName=document.getElementById('buyBarName');

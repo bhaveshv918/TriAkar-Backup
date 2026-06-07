@@ -78,6 +78,7 @@ window._FOOTER_HTML = `<footer>
         <ul class="foot-links">
           <li><a href="/terms.html">Terms &amp; Conditions</a></li>
           <li><a href="/privacy.html">Privacy Policy</a></li>
+          <li><a href="/credits.html">Design Credits</a></li>
         </ul>
       </div>
     </div>

@@ -89,6 +89,14 @@ export async function upsertProduct(req, res, next) {
       meta_description:        b.meta_description || null,
       // Excel / product listing fields
       designer:                b.designer || null,
+      // Listing v2 — occasions, licence record, pricing inputs (migration 004)
+      occasions:               Array.isArray(b.occasions) ? b.occasions : [],
+      source_url:              b.source_url || null,
+      license:                 b.license || null,
+      commercial_ok:           !!b.commercial_ok,
+      est_grams:               (b.est_grams === undefined || b.est_grams === null || b.est_grams === '') ? null : Number(b.est_grams),
+      est_print_hours:         (b.est_print_hours === undefined || b.est_print_hours === null || b.est_print_hours === '') ? null : Number(b.est_print_hours),
+      size_class:              b.size_class || null,
       stock_status:            b.stock_status || 'Made to Order',
       key_features:            b.key_features || null,
       customization_options:   b.customization_options || null,

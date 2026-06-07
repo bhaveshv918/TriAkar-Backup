@@ -66,8 +66,14 @@ function enrichProduct(p, slug){
     p.delivery_text = p.ready_to_ship ? 'Ships today' : 'Delivers in 5–7 days';
   }
   if (!p.occasion){
-    p.occasion = (OCC[cat] || OCC.gifting).slice();
-    if (isCustom && p.occasion.indexOf('birthday') < 0) p.occasion.unshift('birthday');
+    // Prefer occasions stored on the product (migration 004). Derive only as a
+    // fallback when the DB column is empty — keeps old rows working unchanged.
+    if (Array.isArray(p.occasions) && p.occasions.length){
+      p.occasion = p.occasions.slice();
+    } else {
+      p.occasion = (OCC[cat] || OCC.gifting).slice();
+      if (isCustom && p.occasion.indexOf('birthday') < 0) p.occasion.unshift('birthday');
+    }
   }
   if (!p.recipient)         p.recipient = (REC[cat] || REC.gifting).slice();
   if (!p.materials)         p.materials = (MAT[cat] || MAT.gifting).slice();

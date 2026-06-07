@@ -912,6 +912,13 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
           <div id="pricingHint" style="font-size:10px;color:var(--accent);margin-top:4px;display:none"></div>
         </div>
       </div>
+      <div class="fg fg-full" style="margin-top:4px">
+        <div class="ff">
+          <button type="button" class="btn-sm" onclick="autoCalcPrice()">⚙ Auto-calculate price from print specs</button>
+          <span class="hint">Cost (material + machine + handling + waste) + shipping + margin → Selling Price; MRP = 2.5×. Fill grams / hours / material / size in “Listing &amp; Licence” below first.</span>
+          <div id="priceCalcBreakdown" style="font-size:11px;color:var(--text-2);margin-top:6px;display:none;line-height:1.7;font-family:var(--mono)"></div>
+        </div>
+      </div>
       <input type="hidden" id="fDiscountType" value="percentage">
 
       <!-- Tags & Urgency -->
@@ -1034,6 +1041,54 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
         <div class="ff">
           <label>Tags / Keywords <span class="hint">(comma-separated)</span></label>
           <input type="text" id="fTags" placeholder="keychain, custom keychain, personalized, gift">
+        </div>
+      </div>
+
+      <!-- Listing & Licence (designer credit + occasions + rule-based pricing inputs) -->
+      <div class="form-section">Listing &amp; Licence <span class="hint">(occasions, designer source, rule-based pricing inputs)</span></div>
+      <div class="fg fg-full" style="margin-top:0">
+        <div class="ff">
+          <label>Occasions <span class="hint">(drives the storefront occasion filter — pick all that fit)</span></label>
+          <div id="fOccasions" style="display:flex;flex-wrap:wrap;gap:14px;padding:4px 0">
+            <label class="fcheck" style="font-size:12px"><input type="checkbox" class="fOcc" value="birthday"> Birthday</label>
+            <label class="fcheck" style="font-size:12px"><input type="checkbox" class="fOcc" value="anniversary"> Anniversary</label>
+            <label class="fcheck" style="font-size:12px"><input type="checkbox" class="fOcc" value="corporate"> Corporate</label>
+            <label class="fcheck" style="font-size:12px"><input type="checkbox" class="fOcc" value="housewarming"> Housewarming</label>
+            <label class="fcheck" style="font-size:12px"><input type="checkbox" class="fOcc" value="last-minute"> Last Minute ⚡</label>
+          </div>
+        </div>
+      </div>
+      <div class="fg">
+        <div class="ff"><label>Size Class <span class="hint">(for pricing)</span></label>
+          <select id="fSizeClass">
+            <option value="">—</option>
+            <option value="S">S — Small</option>
+            <option value="M">M — Medium</option>
+            <option value="L">L — Large</option>
+            <option value="XL">XL — Extra Large</option>
+          </select>
+        </div>
+        <div class="ff"><label>Est. Filament (grams) <span class="hint">(for pricing)</span></label><input type="number" id="fEstGrams" placeholder="180" min="0" step="1"></div>
+        <div class="ff"><label>Est. Print Time (hours) <span class="hint">(for pricing)</span></label><input type="number" id="fEstPrintHours" placeholder="6.5" min="0" step="0.1"></div>
+      </div>
+      <div class="fg">
+        <div class="ff"><label>Source URL <span class="hint">(original model — internal, never shown publicly)</span></label><input type="text" id="fSourceUrl" placeholder="https://makerworld.com/en/models/…"></div>
+        <div class="ff"><label>Licence</label>
+          <select id="fLicense">
+            <option value="">— Unknown —</option>
+            <option value="own">TriAkar original</option>
+            <option value="CC-BY">CC-BY (credit)</option>
+            <option value="CC-BY-SA">CC-BY-SA</option>
+            <option value="CC-BY-NC">CC-BY-NC (non-commercial)</option>
+            <option value="CC-BY-ND">CC-BY-ND (no derivatives)</option>
+            <option value="commercial">Commercial / licensed</option>
+            <option value="permission">Permission from designer</option>
+          </select>
+        </div>
+        <div class="ff" style="display:flex;align-items:flex-end">
+          <label class="fcheck" style="font-size:12px">
+            <input type="checkbox" id="fCommercialOk"> Commercial use OK <span class="hint">(safe to sell — uncheck to flag for review)</span>
+          </label>
         </div>
       </div>
 
@@ -1343,6 +1398,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<script src="/pricing.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.js" crossorigin="anonymous"></script>
 <script>if(!window.supabase){document.write('<scr'+'ipt src="https://unpkg.com/@supabase/supabase-js@2.39.0/dist/umd/supabase.js"><\/scr'+'ipt>');}</script>
 <script defer src="/products-data.js"></script>
@@ -2231,6 +2287,13 @@ function renderProductsTable(){
     const badgeHtml=p.badge?'<span class="badge badge-accent">'+p.badge+'</span>':'<span style="color:var(--text-3)">—</span>';
     const priceHtml=p.discount_type?'<span style="text-decoration:line-through;color:var(--text-3);font-size:11px">'+fmtPrice(p.price)+'</span> <span style="color:var(--green)">'+fmtPrice(getDiscountedPrice(p))+'</span>':fmtPrice(p.price);
     const safe=p.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    // Licence-review flag (migration 004): externally-sourced item not cleared for commercial sale.
+    // Stays quiet on legacy rows (no licence/source recorded).
+    const _nonCommLic=p.license&&['cc-by-nc','cc-by-nd','unknown'].indexOf(String(p.license).toLowerCase())!==-1;
+    const _needsReview=!p.commercial_ok&&(p.source_url||_nonCommLic);
+    const licFlag=_needsReview
+      ?'<div style="margin-top:3px"><span class="badge" style="background:rgba(234,179,8,.15);color:var(--yellow);font-size:9px" title="Licence: '+(p.license||'unknown')+' — not marked commercial-OK. Review before selling.">⚠ Licence: review</span></div>'
+      :'';
     const qty=p.stock_qty??0;
     const stockColor=qty===0?'var(--red)':qty<=5?'var(--yellow)':'var(--green)';
     const stockCell='<td style="text-align:center">'
@@ -2251,7 +2314,7 @@ function renderProductsTable(){
       +'</td>';
     return '<tr>'
       +'<td>'+img+'</td>'
-      +'<td class="td-name">'+p.name+'<div style="font-family:var(--mono);font-size:10px;color:var(--text-3);margin-top:2px">/'+p.slug+'</div></td>'
+      +'<td class="td-name">'+p.name+'<div style="font-family:var(--mono);font-size:10px;color:var(--text-3);margin-top:2px">/'+p.slug+'</div>'+licFlag+'</td>'
       +'<td><span class="badge badge-cat">'+p.category+'</span></td>'
       +'<td>'+priceHtml+'</td>'
       +stockCell
@@ -2408,6 +2471,15 @@ function openProductForm(id){
     document.getElementById('fTargetAudience').value=p.target_audience||'';
     document.getElementById('fUseCase').value=p.use_case||'';
     document.getElementById('fTags').value=p.tags||'';
+    // Listing & Licence fields (migration 004)
+    const _occ=Array.isArray(p.occasions)?p.occasions:[];
+    document.querySelectorAll('.fOcc').forEach(cb=>{cb.checked=_occ.indexOf(cb.value)!==-1;});
+    document.getElementById('fSizeClass').value=p.size_class||'';
+    document.getElementById('fEstGrams').value=(p.est_grams!=null?p.est_grams:'');
+    document.getElementById('fEstPrintHours').value=(p.est_print_hours!=null?p.est_print_hours:'');
+    document.getElementById('fSourceUrl').value=p.source_url||'';
+    document.getElementById('fLicense').value=p.license||'';
+    document.getElementById('fCommercialOk').checked=!!p.commercial_ok;
     document.getElementById('fNotes').value=p.notes||'';
     const fcEl=document.getElementById('fCustomizable');if(fcEl)fcEl.value=p.is_customizable?'1':'0';
     // Display mode
@@ -2500,6 +2572,37 @@ document.getElementById('fName').addEventListener('input',function(){
 });
 document.getElementById('fSlug').addEventListener('input',function(){this._manual=true});
 
+// ── Auto-calculate price from print specs via the shared pricing engine (pricing.js) ──
+function autoCalcPrice(){
+  const out=document.getElementById('priceCalcBreakdown');
+  if(typeof TriakarPricing==='undefined'||!TriakarPricing.quote){
+    if(out){out.style.display='';out.style.color='var(--red)';out.textContent='pricing.js not loaded.';}
+    return;
+  }
+  const grams=Number(document.getElementById('fEstGrams').value)||0;
+  const hours=Number(document.getElementById('fEstPrintHours').value)||0;
+  const material=document.getElementById('fMaterial').value.trim()||'PLA+';
+  const size=document.getElementById('fSizeClass').value||'M';
+  if(!grams||!hours){
+    if(out){out.style.display='';out.style.color='var(--yellow)';out.textContent='Enter Est. Filament (grams) and Est. Print Time (hours) in “Listing & Licence” first.';}
+    return;
+  }
+  const q=TriakarPricing.quote({grams,hours,material,size});
+  // Fill the price + MRP fields
+  document.getElementById('fPrice').value=q.price;
+  document.getElementById('fCompareAt').value=q.mrp;
+  // Recompute the discount % the form shows
+  if(typeof _syncPricing==='function')_syncPricing('mrp');
+  // Show a transparent breakdown
+  if(out){
+    out.style.display='';out.style.color='var(--text-2)';
+    out.innerHTML=
+      'Material '+q.materialCost+'  +  Machine '+q.machineCost+'  +  Setup '+q.setup+'  +  Handling '+q.sizeHandling+'  +  Waste '+q.waste+'<br>'+
+      '= Cost ₹'+q.cost+'   +  Shipping ₹'+q.shipping+'   +  Margin ₹'+q.marginAmount+'<br>'+
+      '<b style="color:var(--green)">→ Selling Price ₹'+q.price+'</b>   ·   MRP ₹'+q.mrp+' (−'+q.discountPct+'%)';
+  }
+}
+
 async function submitProductForm(){
   const id=document.getElementById('editingId').value;
   const name=document.getElementById('fName').value.trim();
@@ -2538,6 +2641,14 @@ async function submitProductForm(){
     target_audience:document.getElementById('fTargetAudience').value.trim()||null,
     use_case:document.getElementById('fUseCase').value.trim()||null,
     tags:document.getElementById('fTags').value.trim()||null,
+    // Listing & Licence fields (migration 004)
+    occasions:Array.from(document.querySelectorAll('.fOcc:checked')).map(cb=>cb.value),
+    size_class:document.getElementById('fSizeClass').value||null,
+    est_grams:document.getElementById('fEstGrams').value!==''?Number(document.getElementById('fEstGrams').value):null,
+    est_print_hours:document.getElementById('fEstPrintHours').value!==''?Number(document.getElementById('fEstPrintHours').value):null,
+    source_url:document.getElementById('fSourceUrl').value.trim()||null,
+    license:document.getElementById('fLicense').value||null,
+    commercial_ok:!!(document.getElementById('fCommercialOk')&&document.getElementById('fCommercialOk').checked),
     notes:document.getElementById('fNotes').value.trim()||null,
     images:_uploadedImages,
     square_crop:!!(document.getElementById('fSquareCrop')&&document.getElementById('fSquareCrop').checked),
