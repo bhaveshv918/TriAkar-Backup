@@ -1788,17 +1788,21 @@ async function signInWithGoogle(){
 }
 
 // On return from Google, bridge the Supabase session into the app's Auth storage.
+// Handles BOTH flows: implicit (#access_token=) and PKCE (?code=).
 // Returns true if a session was found and applied.
 async function _handleOAuthReturn(){
   const sb2=(typeof getSB==='function')?getSB():sb;
   if(!sb2)return false;
-  const hasHashToken=/access_token=/.test(window.location.hash||'');
   let session=null;
-  try{const {data}=await sb2.auth.getSession();session=data&&data.session;}catch(_){}
-  if(!session&&hasHashToken){
-    // supabase-js parses the URL hash asynchronously — give it a moment
-    await new Promise(r=>setTimeout(r,400));
+  // supabase-js (detectSessionInUrl) exchanges the code/hash asynchronously on
+  // init — poll getSession briefly until the session lands.
+  for(let i=0;i<12&&!session;i++){
     try{const {data}=await sb2.auth.getSession();session=data&&data.session;}catch(_){}
+    if(!session)await new Promise(r=>setTimeout(r,300));
+  }
+  // PKCE fallback: explicitly exchange the ?code= if auto-detect didn't run
+  if(!session&&/[?&]code=/.test(window.location.search||'')&&sb2.auth.exchangeCodeForSession){
+    try{const {data}=await sb2.auth.exchangeCodeForSession(window.location.href);session=data&&data.session;}catch(_){}
   }
   if(!session||!session.user)return false;
   const u=session.user;
@@ -1990,9 +1994,11 @@ document.addEventListener('DOMContentLoaded',function(){
   }
 
   // Returning from Google OAuth? Bridge the session, then route the user onward.
+  // PKCE flow returns ?code= in the query; implicit returns #access_token= in the hash.
   (async function(){
     let oauthApplied=false;
-    if(/access_token=/.test(window.location.hash||'')){
+    const urlHasOAuth=/access_token=/.test(window.location.hash||'')||/[?&]code=/.test(window.location.search||'');
+    if(urlHasOAuth){
       try{oauthApplied=await _handleOAuthReturn();}catch(_){}
     }
     if(oauthApplied){
