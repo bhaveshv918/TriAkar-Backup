@@ -240,7 +240,12 @@ app.get('/api/track/:id', async (req, res) => {
 });
 
 /* Bump DEPLOY_VERSION on every deploy so /health confirms which build is live */
-const DEPLOY_VERSION = '2026-06-07-otp-fix-6';
+const DEPLOY_VERSION = '2026-06-07-otp-fix-7';
+import crypto from 'crypto';
+function keyFingerprint() {
+  const k = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  return crypto.createHash('sha256').update(k).digest('hex').slice(0, 16);
+}
 /* Diagnose the configured key WITHOUT exposing the secret.
    - For old JWT keys: decode the role claim (service_role vs anon)
    - For new keys: report the format prefix (sb_secret_ good, sb_publishable_ bad) */
@@ -257,8 +262,8 @@ function keyInfo() {
   if (k.startsWith('sb_publishable_')) return { format: 'new-publishable (WRONG — this is anon-level)', len };
   return { format: 'unknown/' + k.slice(0, 6), len };
 }
-app.get('/',       (_req, res) => res.json({ status: 'ok', brand: 'TriAkar', version: DEPLOY_VERSION, key: keyInfo() }));
-app.get('/health', (_req, res) => res.json({ status: 'ok', brand: 'TriAkar', version: DEPLOY_VERSION, key: keyInfo() }));
+app.get('/',       (_req, res) => res.json({ status: 'ok', brand: 'TriAkar', version: DEPLOY_VERSION, key: keyInfo(), fp: keyFingerprint() }));
+app.get('/health', (_req, res) => res.json({ status: 'ok', brand: 'TriAkar', version: DEPLOY_VERSION, key: keyInfo(), fp: keyFingerprint() }));
 
 /* ── 10. 404 HANDLER ──────────────────────────────────────── */
 app.use((_req, res) => {
