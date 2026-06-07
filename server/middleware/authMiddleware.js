@@ -7,12 +7,17 @@ export async function requireAuth(req, res, next) {
   }
 
   const token = header.split(' ')[1];
-  const { data: { user }, error } = await supabase.auth.getUser(token);
-
-  if (error || !user) {
-    return res.status(401).json({ error: 'Unauthorised — invalid or expired token' });
+  try {
+    const { data, error } = await supabase.auth.getUser(token);
+    const user = data?.user;
+    if (error || !user) {
+      console.warn('[requireAuth] rejected —', error?.message || 'no user');
+      return res.status(401).json({ error: 'Unauthorised — invalid or expired token' });
+    }
+    req.user = user;
+    next();
+  } catch (err) {
+    console.error('[requireAuth] threw unexpectedly:', err.message);
+    return res.status(401).json({ error: 'Unauthorised — token verification failed' });
   }
-
-  req.user = user;
-  next();
 }
