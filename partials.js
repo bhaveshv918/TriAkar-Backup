@@ -51,7 +51,7 @@ window._FOOTER_HTML = `<footer>
         <div class="foot-phone"><a href="tel:+919217555833">+91 9217-555-833</a></div>
         <div class="foot-hours">Open Monday to Saturday, 11 AM to 9 PM. Closed Sundays &amp; public holidays.</div>
         <div class="foot-addr">Shop No. 25, Karan Singh Market<br>Chhoti Milak, Greater Noida West, UP – 201318</div>
-        <a href="https://share.google/TE3dTnNaOEAMmGpk6" class="foot-dir" target="_blank">Get Directions →</a>
+        <a href="https://maps.app.goo.gl/Ki2GXFgi6JUZMb7z6" class="foot-dir" target="_blank">Get Directions →</a>
       </div>
       <div><div class="foot-col-t">Shop</div>
         <ul class="foot-links">
