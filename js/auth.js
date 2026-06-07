@@ -120,6 +120,17 @@ const Auth = (function () {
     return data;
   }
 
+  // Bridge an externally-obtained Supabase session (e.g. Google OAuth) into the
+  // app's auth storage so the rest of the site — which is token-based — works
+  // identically to a password login. The OAuth access_token is a normal Supabase
+  // token and passes the server's requireAuth check.
+  async function setSession(token, user, refresh, expiresIn) {
+    _save(token, user, refresh, expiresIn);
+    _updateNav();
+    try { if (typeof Cart !== 'undefined' && Cart.mergeOnLogin) await Cart.mergeOnLogin(); } catch (_) {}
+    try { if (typeof Wishlist !== 'undefined' && Wishlist.mergeOnLogin) await Wishlist.mergeOnLogin(); } catch (_) {}
+  }
+
   async function logout() {
     const token = getToken();
     if (token) {
@@ -193,5 +204,5 @@ const Auth = (function () {
     }
   }
 
-  return { signup, login, logout, getToken, getUser, isLoggedIn, authHeader, authHeaderAsync, apiFetch, isExpired, init, API_BASE };
+  return { signup, login, setSession, logout, getToken, getUser, isLoggedIn, authHeader, authHeaderAsync, apiFetch, isExpired, init, API_BASE };
 })();
