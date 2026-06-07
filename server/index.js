@@ -240,9 +240,17 @@ app.get('/api/track/:id', async (req, res) => {
 });
 
 /* Bump DEPLOY_VERSION on every deploy so /health confirms which build is live */
-const DEPLOY_VERSION = '2026-06-07-otp-fix-4';
-app.get('/',       (_req, res) => res.json({ status: 'ok', brand: 'TriAkar', version: DEPLOY_VERSION }));
-app.get('/health', (_req, res) => res.json({ status: 'ok', brand: 'TriAkar', version: DEPLOY_VERSION }));
+const DEPLOY_VERSION = '2026-06-07-otp-fix-5';
+/* Decode ONLY the role claim of the configured key — never exposes the secret.
+   Lets us confirm Render has a real service_role key (which bypasses RLS). */
+function keyRole() {
+  try {
+    const jwt = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    return JSON.parse(Buffer.from(jwt.split('.')[1], 'base64').toString()).role || 'unknown';
+  } catch { return 'unparseable'; }
+}
+app.get('/',       (_req, res) => res.json({ status: 'ok', brand: 'TriAkar', version: DEPLOY_VERSION, keyRole: keyRole() }));
+app.get('/health', (_req, res) => res.json({ status: 'ok', brand: 'TriAkar', version: DEPLOY_VERSION, keyRole: keyRole() }));
 
 /* ── 10. 404 HANDLER ──────────────────────────────────────── */
 app.use((_req, res) => {
