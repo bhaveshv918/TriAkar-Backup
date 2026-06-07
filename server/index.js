@@ -240,7 +240,7 @@ app.get('/api/track/:id', async (req, res) => {
 });
 
 /* Bump DEPLOY_VERSION on every deploy so /health confirms which build is live */
-const DEPLOY_VERSION = '2026-06-07-otp-fix-7';
+const DEPLOY_VERSION = '2026-06-07-otp-fix-8';
 import crypto from 'crypto';
 function keyFingerprint() {
   const k = process.env.SUPABASE_SERVICE_ROLE_KEY || '';

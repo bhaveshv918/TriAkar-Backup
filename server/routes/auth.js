@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import supabase from '../db/supabaseClient.js';
+import supabase, { createSignInClient } from '../db/supabaseClient.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { sendEmailVerification, sendPasswordReset } from '../services/emailService.js';
 
@@ -137,7 +137,10 @@ router.post('/login', async (req, res, next) => {
     if (!email || !password) {
       return res.status(400).json({ error: 'email and password are required' });
     }
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    // Use a dedicated client — signInWithPassword would otherwise poison the shared
+    // service-role client's session, downgrading later data writes to RLS-enforced.
+    const signInClient = createSignInClient();
+    const { data, error } = await signInClient.auth.signInWithPassword({ email, password });
     if (error) return res.status(401).json({ error: error.message });
 
     // Fetch user_code from profiles (ensures it's always fresh)
