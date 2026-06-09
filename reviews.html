@@ -159,17 +159,24 @@
   </div>
 </section>
 
-<!-- ████ REAL GOOGLE REVIEWS GO HERE ████
-     This list is intentionally EMPTY so no invented/fake reviews are published.
-     Paste your genuine Google Business Profile reviews below — one object per
-     review, copied straight from your listing (maps.app.goo.gl/Ki2GXFgi6JUZMb7z6).
-     Format (keep the structure exactly):
-        { reviewer_name:'Full Name', city:'City', rating:5, date:'2026-05-12',
-          review:"The exact review text from Google." },
-     The Google badge score, totals and schema all recompute automatically. -->
+<!-- ████ REAL GOOGLE REVIEWS ████
+     Transcribed from the TriAkar Google Business Profile
+     (maps.app.goo.gl/Ki2GXFgi6JUZMb7z6). Listing shows 5.0 ★ from 13 reviews;
+     the 9 below are the ones with written text (the rest are ratings-only).
+     No city/date shown — Google only gives relative dates and no location.
+     To add a new one later, copy just the reviewer name, rating and text. -->
 <script>
+window.GOOGLE_RATING = { score: 5.0, count: 13 }; // true listing stats for the badge
 window.GOOGLE_REVIEWS = [
-  // e.g. { reviewer_name:'', city:'', rating:5, date:'2026-01-01', review:"" },
+  { reviewer_name:'Tejasvi Vishwakarma', rating:5, review:"Really happy with my experience at TriAkar. They have a huge variety of products and can also create custom products exactly as per your requirements. The quality is excellent, and everything was delivered on time as promised. One thing I truly appreciated was how supportive and knowledgeable the owner is. He takes the time to understand your needs and provides valuable suggestions. It's rare to find such a combination of quality products, good service, and a customer-focused approach." },
+  { reviewer_name:'dileep pathak',        rating:5, review:"I needed a customized gift for my wife on our anniversary. He helped me a lot and got the delivery at the right time." },
+  { reviewer_name:'Purnima Thakur',       rating:5, review:"Excellent customer support and attention to the details." },
+  { reviewer_name:'ANIMESH SINGH',        rating:5, review:"Awesome experience for a customised 3D printing gift at a reasonable price. Thank you!" },
+  { reviewer_name:'Himani b',             rating:5, review:"Very nice. Unique items for gifting purpose at very reasonable price." },
+  { reviewer_name:'ADITYA',               rating:5, review:"It's really trustworthy." },
+  { reviewer_name:'ekta chauhan',         rating:5, review:"Great experience with them." },
+  { reviewer_name:'Bhavna Arora',         rating:5, review:"It's wonderful." },
+  { reviewer_name:'Aryan Verma',          rating:5, review:"Good service." }
 ];
 </script>
 <script src="reviews-data.js"></script>
@@ -213,14 +220,22 @@ window.GOOGLE_REVIEWS = [
       all.push({ source:'product', name:r.reviewer_name, city:r.city, rating:Number(r.rating)||5, date:r.created_at, text:r.review, verified:!!r.verified_purchase, slug:slug });
     });
   });
-  all.sort(function(a,b){ return new Date(b.date) - new Date(a.date); });
+  // Google reviews carry no date → sort them to the top (featured), then product by newest.
+  all.sort(function(a,b){
+    var ad = a.date ? new Date(a.date).getTime() : Infinity;
+    var bd = b.date ? new Date(b.date).getTime() : Infinity;
+    return bd - ad;
+  });
 
   // ── Aggregate stats ──
   var total = all.length;
   var sum = all.reduce(function(t,r){ return t+r.rating; },0);
   var avg = total ? Math.round((sum/total)*10)/10 : 0;
   var gTotal = g.length;
-  var gAvg = gTotal ? Math.round((g.reduce(function(t,r){return t+(Number(r.rating)||0);},0)/gTotal)*10)/10 : 0;
+  // Prefer the true listing stats (count includes ratings-only reviews we don't display).
+  var gStat = window.GOOGLE_RATING || null;
+  var gShownCount = gStat ? gStat.count : gTotal;
+  var gShownAvg = gStat ? gStat.score : (gTotal ? Math.round((g.reduce(function(t,r){return t+(Number(r.rating)||0);},0)/gTotal)*10)/10 : 0);
 
   // ── Hero stats ──
   document.getElementById('rvSummary').innerHTML =
@@ -230,9 +245,9 @@ window.GOOGLE_REVIEWS = [
 
   // ── Google badge ──
   if (gTotal){
-    document.getElementById('gScore').textContent = gAvg.toFixed(1);
-    document.getElementById('gStars').textContent = stars(gAvg);
-    document.getElementById('gMeta').textContent = 'Based on '+gTotal+' Google reviews · Greater Noida West';
+    document.getElementById('gScore').textContent = gShownAvg.toFixed(1);
+    document.getElementById('gStars').textContent = stars(gShownAvg);
+    document.getElementById('gMeta').textContent = 'Based on '+gShownCount+' Google reviews · Greater Noida West';
   } else {
     // No verified Google reviews loaded yet — don't show a fabricated score.
     document.getElementById('gScore').style.display = 'none';
@@ -265,7 +280,7 @@ window.GOOGLE_REVIEWS = [
       ? '<span class="rv-src-tag">From Google</span>'
       : (r.verified ? '<span class="rv-verified">✓ Verified</span>' : '');
     var sub = isG
-      ? '<div class="rv-sub">'+esc(r.city||'')+' · '+esc(fmtDate(r.date))+'</div>'
+      ? ''  // Google reviews: no location/date available, so show neither
       : '<div class="rv-sub">'+esc(r.city||'')+' · '+esc(fmtDate(r.date))+'</div>'+
         (r.slug?'<div class="rv-prod">on <a href="product-detail.html?slug='+esc(r.slug)+'">'+esc(prodName(r.slug))+'</a></div>':'');
     return '<div class="rv-card'+(isG?' g-src':'')+'">'+
