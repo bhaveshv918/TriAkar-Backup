@@ -3,6 +3,31 @@
    Each page loads this synchronously then injects via tiny inline scripts,
    so nav/footer appear before first paint — zero flash. */
 
+/* ── Image optimiser ─────────────────────────────────────────
+   taImg(url, opts) right-sizes Cloudinary delivery URLs so each
+   context requests only the pixels it needs and serves modern
+   formats (AVIF/WebP via f_auto) at smart quality (q_auto).
+   Non-Cloudinary URLs are returned untouched.
+     opts.w     target width  (default 600)
+     opts.h     target height (default = w, square)
+     opts.crop  'fill' (default, square crop) | 'limit' (keep aspect) */
+window.taImg = function (url, opts) {
+  opts = opts || {};
+  if (!url || typeof url !== 'string') return url || '';
+  var marker = '/image/upload/';
+  var i = url.indexOf(marker);
+  if (i === -1) return url;                       // not a Cloudinary URL
+  var head = url.slice(0, i + marker.length);
+  var parts = url.slice(i + marker.length).split('/');
+  // drop an existing leading transformation segment (has an "x_" token)
+  if (parts.length > 1 && /(^|,)[a-z]{1,3}_[^/]+/.test(parts[0])) parts.shift();
+  var w = opts.w || 600;
+  var t = ['f_auto', 'q_auto', 'dpr_auto'];
+  if (opts.crop === 'limit') t.push('c_limit', 'w_' + w);
+  else t.push('c_fill', 'w_' + w, 'h_' + (opts.h || w));
+  return head + t.join(',') + '/' + parts.join('/');
+};
+
 window._NAV_HTML = `<nav class="main-nav" id="mainNav">
   <div class="nav-inner">
     <button class="nav-toggle" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>

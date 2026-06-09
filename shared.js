@@ -1,5 +1,12 @@
 /* TRIAKAR shared.js v7 — Full Order Flow + Supabase */
 
+/* Image optimiser — defined in partials.js; this no-op shim guards against
+   load-order issues so bare taImg(url) never throws. */
+if (typeof window !== 'undefined' && typeof window.taImg !== 'function') {
+  window.taImg = function (u) { return u || ''; };
+}
+var taImg = window.taImg;
+
 /* ── FIX #12: HTML escape helper — use for all user-supplied data in innerHTML ── */
 function _esc(s){
   if(s===null||s===undefined)return'';
@@ -273,7 +280,7 @@ const Cart=(function(){
       const da=`data-id="${_esc(item.id)}" data-color="${_esc(item.color||'')}" data-ck="${_esc(ckRaw)}"`;
       return`<div class="cart-item">
         <div class="ci-img">${item.image
-          ?`<img src="${_esc(item.image)}" alt="${_esc(item.name)}" width="56" height="56" loading="eager" decoding="sync" style="width:56px;height:56px;object-fit:cover;border-radius:3px;display:block">`
+          ?`<img src="${_esc(taImg(item.image,{w:120}))}" alt="${_esc(item.name)}" width="56" height="56" loading="eager" decoding="sync" style="width:56px;height:56px;object-fit:cover;border-radius:3px;display:block">`
           :`<svg viewBox="0 0 56 56" fill="none" style="width:32px"><rect x="6" y="6" width="44" height="44" rx="3" fill="#E8E4DC"/></svg>`}</div>
         <div style="flex:1;min-width:0"><div class="ci-name">${_esc(item.name)}</div><div class="ci-var">${_esc(item.color||'')}</div>
           ${custHtml}
@@ -866,7 +873,7 @@ document.addEventListener('DOMContentLoaded',function(){
     }
     box.innerHTML = _results.map(function(p, i){
       const img = p.image
-        ? '<img src="' + _esc(p.image) + '" alt="" loading="lazy">'
+        ? '<img src="' + _esc(taImg(p.image, {w:96})) + '" alt="" loading="lazy" decoding="async">'
         : '<span class="ta-sr-noimg"></span>';
       return '<a class="ta-search-item" data-i="' + i + '" href="product-detail.html?slug=' + encodeURIComponent(p.slug) + '">'
         + '<span class="ta-sr-img">' + img + '</span>'
