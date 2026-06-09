@@ -55,7 +55,7 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
       <span class="logo-en"><span style="color:var(--accent)">TRI</span>AKAR</span>
       <span class="logo-hi"><span style="color:var(--accent)">त्रि</span>आकार</span>
     </a>
-    <ul class="nav-links"><li><a href="/products.html">Shop</a></li><li><a href="/order.html">Order</a></li><li><a href="/stories.html">Our Stories</a></li><li><a href="/about.html">About</a></li><li><a href="/contact.html">Contact</a></li><li><a href="/track-order.html">Track Order</a></li></ul>
+    <ul class="nav-links"><li><a href="/products.html">Shop</a></li><li><a href="/order.html">Order</a></li><li><a href="/stories.html">Our Stories</a></li><li><a href="/reviews.html">Reviews</a></li><li><a href="/about.html">About</a></li><li><a href="/contact.html">Contact</a></li><li><a href="/track-order.html">Track Order</a></li></ul>
     <div class="nav-right">
       <form class="nav-search" role="search" onsubmit="return window.taSearch(this);">
         <input type="search" id="navSearchInput" name="q" placeholder="Search products…" aria-label="Search products" autocomplete="off">
@@ -75,7 +75,7 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
   </div>
 </nav>`;
 
-window._DRAWER_HTML = `<nav class="nav-drawer"><a href="/order.html" class="drawer-link">Order</a><a href="/wishlist.html" class="drawer-link" style="display:none">Wishlist</a><a href="/stories.html" class="drawer-link">Our Stories</a><a href="/about.html" class="drawer-link">About</a><a href="/contact.html" class="drawer-link">Contact</a><a href="/track-order.html" class="drawer-link">Track Order</a><a href="/account.html" class="drawer-login drawer-auth">Login</a></nav>`;
+window._DRAWER_HTML = `<nav class="nav-drawer"><a href="/order.html" class="drawer-link">Order</a><a href="/wishlist.html" class="drawer-link" style="display:none">Wishlist</a><a href="/stories.html" class="drawer-link">Our Stories</a><a href="/reviews.html" class="drawer-link">Reviews</a><a href="/about.html" class="drawer-link">About</a><a href="/contact.html" class="drawer-link">Contact</a><a href="/track-order.html" class="drawer-link">Track Order</a><a href="/account.html" class="drawer-login drawer-auth">Login</a></nav>`;
 
 /* Site-wide product search — used by nav + drawer search forms */
 window.taSearch = function(form){
@@ -113,6 +113,7 @@ window._FOOTER_HTML = `<footer>
       <div><div class="foot-col-t">Help</div>
         <ul class="foot-links">
           <li><a href="/contact.html">Contact Us</a></li>
+          <li><a href="/reviews.html">Reviews</a></li>
           <li><a href="/track-order.html">Track Order</a></li>
           <li><a href="/refund-policy.html">Refund Policy</a></li>
           <li><a href="/about.html">About</a></li>
