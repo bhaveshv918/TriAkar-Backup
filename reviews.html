@@ -34,9 +34,13 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.triakar.com/"},{"@type":"ListItem","position":2,"name":"Reviews","item":"https://www.triakar.com/reviews"}]}
 </script>
-<!-- Organization + AggregateRating + Reviews — injected at runtime from live review data so the
-     numbers AI assistants and Google read always match what's shown on the page. -->
-<script type="application/ld+json" id="reviewsSchema"></script>
+<!-- Organization + AggregateRating + Reviews — STATIC so AI crawlers that don't run
+     JavaScript (GPTBot, ClaudeBot, PerplexityBot) read the real ratings. Reflects the
+     authentic Google Business Profile rating (5.0 from 13 reviews) + the 9 text reviews.
+     If the Google rating/count changes, update ratingValue/reviewCount here. -->
+<script type="application/ld+json" id="reviewsSchema">
+{"@context":"https://schema.org","@type":"Organization","@id":"https://www.triakar.com/#organization","name":"TriAkar","url":"https://www.triakar.com/","image":"https://www.triakar.com/assets/og-image.jpg","aggregateRating":{"@type":"AggregateRating","ratingValue":"5.0","reviewCount":"13","bestRating":"5","worstRating":"1"},"review":[{"@type":"Review","reviewRating":{"@type":"Rating","ratingValue":"5","bestRating":"5"},"author":{"@type":"Person","name":"Tejasvi Vishwakarma"},"reviewBody":"Really happy with my experience at TriAkar. They have a huge variety of products and can also create custom products exactly as per your requirements. The quality is excellent, and everything was delivered on time as promised. One thing I truly appreciated was how supportive and knowledgeable the owner is. He takes the time to understand your needs and provides valuable suggestions. It's rare to find such a combination of quality products, good service, and a customer-focused approach."},{"@type":"Review","reviewRating":{"@type":"Rating","ratingValue":"5","bestRating":"5"},"author":{"@type":"Person","name":"dileep pathak"},"reviewBody":"I needed a customized gift for my wife on our anniversary. He helped me a lot and got the delivery at the right time."},{"@type":"Review","reviewRating":{"@type":"Rating","ratingValue":"5","bestRating":"5"},"author":{"@type":"Person","name":"Purnima Thakur"},"reviewBody":"Excellent customer support and attention to the details."},{"@type":"Review","reviewRating":{"@type":"Rating","ratingValue":"5","bestRating":"5"},"author":{"@type":"Person","name":"ANIMESH SINGH"},"reviewBody":"Awesome experience for a customised 3D printing gift at a reasonable price. Thank you!"},{"@type":"Review","reviewRating":{"@type":"Rating","ratingValue":"5","bestRating":"5"},"author":{"@type":"Person","name":"Himani b"},"reviewBody":"Very nice. Unique items for gifting purpose at very reasonable price."},{"@type":"Review","reviewRating":{"@type":"Rating","ratingValue":"5","bestRating":"5"},"author":{"@type":"Person","name":"ADITYA"},"reviewBody":"It's really trustworthy."},{"@type":"Review","reviewRating":{"@type":"Rating","ratingValue":"5","bestRating":"5"},"author":{"@type":"Person","name":"ekta chauhan"},"reviewBody":"Great experience with them."},{"@type":"Review","reviewRating":{"@type":"Rating","ratingValue":"5","bestRating":"5"},"author":{"@type":"Person","name":"Bhavna Arora"},"reviewBody":"It's wonderful."},{"@type":"Review","reviewRating":{"@type":"Rating","ratingValue":"5","bestRating":"5"},"author":{"@type":"Person","name":"Aryan Verma"},"reviewBody":"Good service."}]}
+</script>
 
 <link rel="dns-prefetch" href="https://triakar.onrender.com"><link rel="dns-prefetch" href="https://qarjbmogersuaerkhlcu.supabase.co"><link rel="dns-prefetch" href="https://res.cloudinary.com"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
@@ -112,7 +116,12 @@
     <div class="t-label" style="margin-bottom:10px">Customer Reviews</div>
     <h1 class="t-h2">What our customers say</h1>
     <p class="t-body" style="margin-top:8px;max-width:640px">Real, verified feedback from customers across India — and our Google rating from buyers who visited our Greater Noida studio. Every TriAkar product is 3D printed fresh on order, and we are proud of what people say about it.</p>
-    <div class="rv-summary" id="rvSummary"><!-- stats injected --></div>
+    <div class="rv-summary" id="rvSummary">
+      <!-- Static fallback for non-JS crawlers; JS recomputes from the live clubbed list -->
+      <div class="rv-stat"><div class="num">5.0<small>/5</small></div><div class="rv-stars">★★★★★</div><div class="lbl">Google rating</div></div>
+      <div class="rv-stat"><div class="num">13</div><div class="lbl">Google reviews</div></div>
+      <div class="rv-stat"><div class="num">100<small>%</small></div><div class="lbl">Printed fresh in India</div></div>
+    </div>
   </div>
 </div>
 
@@ -144,7 +153,20 @@
       <button class="rv-chip" data-filter="5">5 ★</button>
       <button class="rv-chip" data-filter="4">4 ★</button>
     </div>
-    <div class="rv-grid" id="rvGrid"></div>
+    <!-- Static review cards: real Google reviews baked into HTML so non-JS crawlers
+         (AI assistants) read them. JavaScript replaces these with the full clubbed
+         list (Google + verified product reviews) for live visitors. -->
+    <div class="rv-grid" id="rvGrid">
+      <div class="rv-card g-src"><div class="rv-card-top"><span class="rv-card-stars">★★★★★</span><span class="rv-src-tag">From Google</span></div><div class="rv-text">Really happy with my experience at TriAkar. They have a huge variety of products and can also create custom products exactly as per your requirements. The quality is excellent, and everything was delivered on time as promised. One thing I truly appreciated was how supportive and knowledgeable the owner is. He takes the time to understand your needs and provides valuable suggestions. It's rare to find such a combination of quality products, good service, and a customer-focused approach.</div><div class="rv-foot"><div class="rv-avatar">TV</div><div><div class="rv-author">Tejasvi Vishwakarma</div></div></div></div>
+      <div class="rv-card g-src"><div class="rv-card-top"><span class="rv-card-stars">★★★★★</span><span class="rv-src-tag">From Google</span></div><div class="rv-text">I needed a customized gift for my wife on our anniversary. He helped me a lot and got the delivery at the right time.</div><div class="rv-foot"><div class="rv-avatar">DP</div><div><div class="rv-author">dileep pathak</div></div></div></div>
+      <div class="rv-card g-src"><div class="rv-card-top"><span class="rv-card-stars">★★★★★</span><span class="rv-src-tag">From Google</span></div><div class="rv-text">Excellent customer support and attention to the details.</div><div class="rv-foot"><div class="rv-avatar">PT</div><div><div class="rv-author">Purnima Thakur</div></div></div></div>
+      <div class="rv-card g-src"><div class="rv-card-top"><span class="rv-card-stars">★★★★★</span><span class="rv-src-tag">From Google</span></div><div class="rv-text">Awesome experience for a customised 3D printing gift at a reasonable price. Thank you!</div><div class="rv-foot"><div class="rv-avatar">AS</div><div><div class="rv-author">ANIMESH SINGH</div></div></div></div>
+      <div class="rv-card g-src"><div class="rv-card-top"><span class="rv-card-stars">★★★★★</span><span class="rv-src-tag">From Google</span></div><div class="rv-text">Very nice. Unique items for gifting purpose at very reasonable price.</div><div class="rv-foot"><div class="rv-avatar">HB</div><div><div class="rv-author">Himani b</div></div></div></div>
+      <div class="rv-card g-src"><div class="rv-card-top"><span class="rv-card-stars">★★★★★</span><span class="rv-src-tag">From Google</span></div><div class="rv-text">It's really trustworthy.</div><div class="rv-foot"><div class="rv-avatar">A</div><div><div class="rv-author">ADITYA</div></div></div></div>
+      <div class="rv-card g-src"><div class="rv-card-top"><span class="rv-card-stars">★★★★★</span><span class="rv-src-tag">From Google</span></div><div class="rv-text">Great experience with them.</div><div class="rv-foot"><div class="rv-avatar">EC</div><div><div class="rv-author">ekta chauhan</div></div></div></div>
+      <div class="rv-card g-src"><div class="rv-card-top"><span class="rv-card-stars">★★★★★</span><span class="rv-src-tag">From Google</span></div><div class="rv-text">It's wonderful.</div><div class="rv-foot"><div class="rv-avatar">BA</div><div><div class="rv-author">Bhavna Arora</div></div></div></div>
+      <div class="rv-card g-src"><div class="rv-card-top"><span class="rv-card-stars">★★★★★</span><span class="rv-src-tag">From Google</span></div><div class="rv-text">Good service.</div><div class="rv-foot"><div class="rv-avatar">AV</div><div><div class="rv-author">Aryan Verma</div></div></div></div>
+    </div>
     <div class="rv-more"><button class="btn btn-outline" id="rvMoreBtn">Show more reviews</button></div>
   </div>
 </section>
@@ -311,34 +333,9 @@ window.GOOGLE_REVIEWS = [
   });
   render(true);
 
-  // ── JSON-LD: Organization + AggregateRating + a sample of Reviews ──
-  var topReviews = all.filter(function(r){ return r.rating>=4; }).slice(0,12).map(function(r){
-    var o = {
-      "@type":"Review",
-      "reviewRating":{"@type":"Rating","ratingValue":String(r.rating),"bestRating":"5"},
-      "author":{"@type":"Person","name":r.name},
-      "reviewBody":r.text
-    };
-    if (r.date) o.datePublished = new Date(r.date).toISOString().slice(0,10);
-    return o;
-  });
-  var schema = {
-    "@context":"https://schema.org",
-    "@type":"Organization",
-    "@id":"https://www.triakar.com/#organization",
-    "name":"TriAkar",
-    "url":"https://www.triakar.com/",
-    "image":"https://www.triakar.com/assets/og-image.jpg",
-    "aggregateRating":{
-      "@type":"AggregateRating",
-      "ratingValue":avg.toFixed(1),
-      "reviewCount":String(total),
-      "bestRating":"5",
-      "worstRating":"1"
-    },
-    "review": topReviews
-  };
-  document.getElementById('reviewsSchema').textContent = JSON.stringify(schema);
+  // NOTE: The Review + AggregateRating JSON-LD is NOT injected here. It lives as a
+  // STATIC block in <head> (id="reviewsSchema") so AI crawlers that don't run
+  // JavaScript (GPTBot, ClaudeBot, PerplexityBot) can still read the ratings.
 })();
 </script>
 
