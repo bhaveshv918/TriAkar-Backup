@@ -4,28 +4,48 @@
    so nav/footer appear before first paint — zero flash. */
 
 /* ── Image optimiser ─────────────────────────────────────────
-   taImg(url, opts) right-sizes Cloudinary delivery URLs so each
-   context requests only the pixels it needs and serves modern
-   formats (AVIF/WebP via f_auto) at smart quality (q_auto).
-   Non-Cloudinary URLs are returned untouched.
+   taImg(url, opts) returns a right-sized, modern-format (AVIF/WebP via
+   f_auto) version of an image so each context downloads only the pixels
+   it needs at smart quality (q_auto).
+     • Native Cloudinary URLs  → its transformation segment is rewritten.
+     • Remote URLs (e.g. raw Supabase Storage originals) → routed through
+       Cloudinary's fetch CDN, which downloads the source once, optimises
+       it, and edge-caches the result. This is what shrinks the multi-MB
+       Supabase PNGs down to a few KB.
+     • Relative / data / unknown URLs → returned untouched.
+   Options:
      opts.w     target width  (default 600)
      opts.h     target height (default = w, square)
      opts.crop  'fill' (default, square crop) | 'limit' (keep aspect) */
+window.TA_CLD = 'https://res.cloudinary.com/dtpibsruo';
 window.taImg = function (url, opts) {
   opts = opts || {};
   if (!url || typeof url !== 'string') return url || '';
+
+  // Build the transformation string once.
+  var w = opts.w || 600;
+  var parts = ['f_auto', 'q_auto', 'dpr_auto'];
+  if (opts.crop === 'limit') parts.push('c_limit', 'w_' + w);
+  else parts.push('c_fill', 'w_' + w, 'h_' + (opts.h || w));
+  var t = parts.join(',');
+
+  // 1) Native Cloudinary delivery URL — swap its transformation segment.
   var marker = '/image/upload/';
   var i = url.indexOf(marker);
-  if (i === -1) return url;                       // not a Cloudinary URL
-  var head = url.slice(0, i + marker.length);
-  var parts = url.slice(i + marker.length).split('/');
-  // drop an existing leading transformation segment (has an "x_" token)
-  if (parts.length > 1 && /(^|,)[a-z]{1,3}_[^/]+/.test(parts[0])) parts.shift();
-  var w = opts.w || 600;
-  var t = ['f_auto', 'q_auto', 'dpr_auto'];
-  if (opts.crop === 'limit') t.push('c_limit', 'w_' + w);
-  else t.push('c_fill', 'w_' + w, 'h_' + (opts.h || w));
-  return head + t.join(',') + '/' + parts.join('/');
+  if (i !== -1) {
+    var head = url.slice(0, i + marker.length);
+    var tail = url.slice(i + marker.length).split('/');
+    if (tail.length > 1 && /(^|,)[a-z]{1,3}_[^/]+/.test(tail[0])) tail.shift();
+    return head + t + '/' + tail.join('/');
+  }
+
+  // 2) Remote http(s) image (Supabase Storage, etc.) — optimise via fetch.
+  if (/^https?:\/\//.test(url) && url.indexOf('res.cloudinary.com') === -1) {
+    return window.TA_CLD + '/image/fetch/' + t + '/' + encodeURIComponent(url);
+  }
+
+  // 3) Anything else (relative path, data URI) — leave as-is.
+  return url;
 };
 
 window._NAV_HTML = `<nav class="main-nav" id="mainNav">
