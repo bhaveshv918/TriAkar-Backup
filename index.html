@@ -810,9 +810,10 @@ function _renderHpGrid(prods){
   // ≤5 products = 1 row; 6-10 = 2 rows, max 5 columns
   const cols=n<=5?n:Math.min(Math.ceil(n/2),5);
   grid.style.gridTemplateColumns='repeat('+cols+',1fr)';
-  grid.innerHTML=prods.map(function(p){
+  grid.innerHTML=prods.map(function(p,i){
+    const eager=i<cols; // first row is above the fold
     const imgHtml=(p.images&&p.images.length)
-      ?'<img src="'+_hesc(taImg(p.images[0],{w:400}))+'" alt="'+_hesc(p.name)+'" width="400" height="400" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover">'
+      ?'<img src="'+_hesc(taImg(p.images[0],{w:400}))+'" alt="'+_hesc(p.name)+'" width="400" height="400" '+(eager?'loading="eager" fetchpriority="high"':'loading="lazy"')+' decoding="async" style="width:100%;height:100%;object-fit:cover">'
       :'<svg viewBox="0 0 200 200" fill="none"><rect x="50" y="50" width="100" height="100" rx="6" fill="#D4D0C8"/><rect x="75" y="30" width="50" height="65" rx="3" fill="#C0BCB4"/></svg>';
     const badgeHtml=p.badge
       ?'<span class="prod-badge '+(p.badge.toLowerCase().includes('best')?'badge-best':'badge-new')+'">'+_hesc(p.badge)+'</span>':'';
