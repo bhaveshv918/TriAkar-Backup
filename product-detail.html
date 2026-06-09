@@ -329,12 +329,17 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
 
 @media(max-width:1100px){
   .detail-layout{display:flex;flex-direction:column}
-  .detail-gallery-col{order:2}
+  /* .detail-layout uses align-items:start, so the gallery column would
+     shrink-wrap to its content (and size to each image's intrinsic width —
+     the cause of the inconsistent box). Force full width here so the image
+     box has a stable container to compute its square against. */
+  .detail-gallery-col{order:2;width:100%}
+  .detail-gallery{width:100%}
   .detail-breadcrumb{order:1;padding:16px var(--pad) 6px}
   .detail-info{order:3;padding:16px var(--pad) 24px;
     position:relative;top:auto;max-height:none;overflow-y:visible}
   .gallery-dropdowns{margin-left:0;margin-right:0}
-  .gallery-sticky{position:relative;top:0}
+  .gallery-sticky{position:relative;top:0;width:100%}
   .related-grid{grid-template-columns:repeat(2,1fr)}
   .trust-strip-product{flex-wrap:wrap}
   .gallery-nav{display:none}
@@ -342,11 +347,13 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
   .main-img-box{position:relative}
 }
 @media(max-width:767px){
-  .gallery-sticky{flex-direction:column-reverse;padding:4px}
+  /* height:auto + a fixed square aspect-ratio on the image box reserves the
+     exact space before the photo loads — no oversized white box, no shift. */
+  .gallery-sticky{flex-direction:column-reverse;padding:4px;height:auto}
   .thumb-col{flex-direction:row;width:100%;height:auto;overflow-x:auto;gap:5px;padding:6px 0 3px;scrollbar-width:none}
   .thumb-col::-webkit-scrollbar{display:none}
   .thumb{width:44px;height:44px;flex-shrink:0}
-  .main-img-box{min-height:240px;padding:8px}
+  .main-img-box{flex:none;width:100%;aspect-ratio:1/1;min-height:0;max-height:none;padding:8px}
 }
 @media(max-width:600px){
   .detail-info{padding:14px var(--pad) 90px}
