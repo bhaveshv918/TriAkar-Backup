@@ -762,7 +762,7 @@ function checkout(){
     setTimeout(function(){
       msg.remove();
       window.location.href='account.html?next=checkout';
-    },1200);
+    },500);
     return;
   }
 
