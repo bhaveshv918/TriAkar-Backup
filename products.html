@@ -1171,9 +1171,43 @@ function _showFetchError() {
     + '<button class="btn btn-accent" onclick="retryFetch()" style="margin-top:8px">↺ &nbsp;Retry</button>'
     + '</div>';
 }
-function retryFetch() { _showSkeletons(6); syncFromAPI(); }
+function retryFetch() { _showSkeletons(6); _apiRetried = false; syncFromAPI(); }
 
-// LAYER 2 — sync from API: 25s timeout, error state on failure (no dummy fallback)
+// Catalog cache — lets repeat visitors see products instantly and keeps the
+// page usable while the Render backend cold-starts (or is briefly down).
+const _CATALOG_CACHE_KEY = 'ta_products_cache_v1';
+function _readCatalogCache() {
+  try {
+    const c = JSON.parse(localStorage.getItem(_CATALOG_CACHE_KEY));
+    if (c && Array.isArray(c.products) && c.products.length) return c.products;
+  } catch (_) {}
+  return null;
+}
+function _writeCatalogCache(products) {
+  try { localStorage.setItem(_CATALOG_CACHE_KEY, JSON.stringify({ t: Date.now(), products: products })); } catch (_) {}
+}
+
+function _renderProducts(products) {
+  grid.innerHTML = '';
+  allCards = products.map(buildCard);
+  allCards.forEach(function(c) { grid.appendChild(c); });
+  _buildCatPillsFromData(products);
+  _initFilterPanel(); _initFilterSidebar();
+  const cat = new URLSearchParams(window.location.search).get('cat');
+  const btn = cat ? document.querySelector('[data-filter="' + cat + '"]') : null;
+  if (btn) btn.click(); else applyFilters();
+}
+
+// LAYER 2 — sync from API: 25s timeout, one silent retry, then cached catalog,
+// error state only when there is nothing at all to show.
+let _apiRetried = false;
+function _onFetchFail() {
+  if (!_apiRetried) { _apiRetried = true; setTimeout(syncFromAPI, 2000); return; }
+  if (grid.querySelector('.prod-card:not(.skel-card)')) return; // cache already on screen
+  const cached = _readCatalogCache();
+  if (cached) { _renderProducts(cached); return; }
+  _showFetchError();
+}
 function syncFromAPI() {
   const ctrl = new AbortController();
   const timer = setTimeout(function() { ctrl.abort(); }, 25000);
@@ -1182,17 +1216,11 @@ function syncFromAPI() {
     .then(function(data) {
       clearTimeout(timer);
       const products = data && data.products;
-      if (!products || !products.length) { _showFetchError(); return; }
-      grid.innerHTML = '';
-      allCards = products.map(buildCard);
-      allCards.forEach(function(c) { grid.appendChild(c); });
-      _buildCatPillsFromData(products);
-      _initFilterPanel(); _initFilterSidebar();
-      const cat = new URLSearchParams(window.location.search).get('cat');
-      const btn = cat ? document.querySelector('[data-filter="' + cat + '"]') : null;
-      if (btn) btn.click(); else applyFilters();
+      if (!products || !products.length) { _onFetchFail(); return; }
+      _writeCatalogCache(products);
+      _renderProducts(products);
     })
-    .catch(function() { clearTimeout(timer); _showFetchError(); });
+    .catch(function() { clearTimeout(timer); _onFetchFail(); });
 }
 
 // Build category pills dynamically from actual loaded product data.
@@ -1281,7 +1309,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var ns = document.getElementById('navSearchInput');
     if (ns) ns.value = curSearch;
   }
-  _showSkeletons(6);
+  // Paint instantly from the cached catalog when we have one; the live API
+  // response replaces it (and refreshes the cache) as soon as it arrives.
+  const cached = _readCatalogCache();
+  if (cached) { _renderProducts(cached); } else { _showSkeletons(6); }
   _applyOccasionFromURL();
   syncFromAPI();
   syncCategories();
