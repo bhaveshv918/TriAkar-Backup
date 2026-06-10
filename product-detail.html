@@ -23,7 +23,7 @@
 <meta name="description" content="3D printed design objects from TriAkar.">
 <link rel="preconnect" href="https://js-de.sentry-cdn.com">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
-<link rel="preconnect" href="https://triakar.onrender.com" crossorigin><link rel="dns-prefetch" href="https://qarjbmogersuaerkhlcu.supabase.co"><link rel="dns-prefetch" href="https://res.cloudinary.com"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://triakar.onrender.com" crossorigin><link rel="dns-prefetch" href="https://qarjbmogersuaerkhlcu.supabase.co"><script>var TA_API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:3000':'https://triakar.onrender.com';</script><link rel="dns-prefetch" href="https://res.cloudinary.com"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap"></noscript>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400&text=%E0%A4%A4%E0%A5%8D%E0%A4%B0%E0%A4%BF%E0%A4%86%E0%A4%95%E0%A4%BE%E0%A4%B0&display=swap" media="print" onload="this.media='all'">
@@ -410,7 +410,7 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
 
     <!-- LIGHTBOX -->
     <div class="img-lightbox" id="imgLightbox" onclick="closeLightbox()">
-      <img id="lightboxImg" src="" alt="">
+      <img id="lightboxImg" alt="Product image — enlarged view">
       <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close">&#x2715;</button>
     </div>
 
@@ -678,17 +678,19 @@ function initSwipe(){
   box.addEventListener('touchend',e=>{const dx=sx-e.changedTouches[0].clientX;if(Math.abs(dx)>40){dx>0?nextImage():prevImage();}});
 }
 
-function _showDetailError(slug){
+function _showDetailError(slug,notFound){
   const wrap=document.getElementById('prodName');
   if(wrap&&wrap.querySelector('.skeleton')){
     wrap.closest('.detail-info')||document.querySelector('.detail-info');
     const main=document.querySelector('.detail-info')||document.querySelector('.detail-right');
+    const title=notFound?'Product not found':'Unable to load product';
+    const sub=notFound?'This product may have been removed or the link is out of date.':'Something went wrong. Please try again.';
     if(main)main.innerHTML='<div style="padding:40px 0;text-align:center">'
       +'<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="color:#ccc;margin-bottom:12px"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01" stroke-linecap="round"/></svg>'
-      +'<div style="font-size:16px;font-weight:700;margin-bottom:8px">Unable to load product</div>'
-      +'<p style="font-size:13px;color:var(--stone);margin-bottom:20px">Something went wrong. Please try again.</p>'
-      +'<button class="btn btn-accent" onclick="location.reload()">↺ &nbsp;Retry</button>'
-      +'&nbsp;&nbsp;<a href="products.html" class="btn btn-outline">Browse All Products</a>'
+      +'<div style="font-size:16px;font-weight:700;margin-bottom:8px">'+title+'</div>'
+      +'<p style="font-size:13px;color:var(--stone);margin-bottom:20px">'+sub+'</p>'
+      +(notFound?'':'<button class="btn btn-accent" onclick="location.reload()">↺ &nbsp;Retry</button>&nbsp;&nbsp;')
+      +'<a href="products.html" class="btn btn-outline">Browse All Products</a>'
       +'</div>';
   }
 }
@@ -702,15 +704,23 @@ function init(){
 
   // Silently upgrade with live API data when/if it arrives
   if(slug){
-    fetch('https://triakar.onrender.com/api/products/'+encodeURIComponent(slug))
-      .then(r=>r.json())
+    fetch(TA_API+'/api/products/'+encodeURIComponent(slug))
+      .then(r=>{window._prodFetch404=(r.status===404);return r.json();})
       .then(data=>{
         const ap=data.product||data;
-        if(ap&&ap.name){renderProduct(ap);}
-        else{_showDetailError(slug);}
+        if(ap&&ap.name){_afterHelpers(function(){renderProduct(ap);});}
+        else{_showDetailError(slug,window._prodFetch404);}
       })
-      .catch(()=>_showDetailError(slug));
+      .catch(()=>_showDetailError(slug,false));
   }
+}
+
+// renderProduct needs _esc/taImg from deferred shared.js — if the API answers
+// before those scripts execute, wait for DOMContentLoaded instead of throwing.
+function _afterHelpers(fn){
+  if(typeof _esc==='function'&&typeof taImg==='function')return fn();
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',fn,{once:true});}
+  else{setTimeout(fn,60);}
 }
 
 /* Inject Product + BreadcrumbList structured data for rich results.
@@ -809,6 +819,7 @@ function renderProduct(ap){
   window._prodId=id;
   try{ injectProductSchema(ap,p,id); }catch(_){}
   document.getElementById('prodName').textContent=p.name;
+  window._prodName=p.name;
   document.getElementById('breadProd').textContent=p.name;
   document.title=p.name+' — TriAkar';
   // Designer credit — name only (no outbound link); links to site-wide credits page
@@ -867,7 +878,7 @@ function renderProduct(ap){
   const mainBox=document.getElementById('mainImg');
   if(p.images&&p.images.length){
     window._thumbData=p.images.map(src=>({type:'url',src}));
-    thumbRow.innerHTML=p.images.map((src,i)=>`<div class="thumb${i===0?' active':''}" onclick="switchThumb(this,${i})"><img src="${taImg(src,{w:96})}" alt="" width="96" height="96" loading="lazy" decoding="async"></div>`).join('');
+    thumbRow.innerHTML=p.images.map((src,i)=>`<div class="thumb${i===0?' active':''}" onclick="switchThumb(this,${i})"><img src="${taImg(src,{w:96})}" alt="${_esc(p.name||'Product')} — view ${i+1}" width="96" height="96" loading="lazy" decoding="async"></div>`).join('');
     _setMainImage(p.images[0]);
   } else {
     const thumbs=THUMB_SVGS[id]||[];
@@ -964,7 +975,7 @@ function renderRecentlyViewed(currentSlug){
   if(!grid||!section)return;
   const slugs=getRecentlyViewed().filter(s=>s!==currentSlug).slice(0,4);
   if(!slugs.length){section.style.display='none';return;}
-  fetch('https://triakar.onrender.com/api/products')
+  fetch(TA_API+'/api/products')
     .then(r=>r.json())
     .then(data=>{
       const map={};(data.products||[]).forEach(p=>{map[p.slug]=p;});
@@ -1000,7 +1011,8 @@ function _setMainImage(rawSrc){
   target.style.backgroundSize='contain';
   target.style.backgroundPosition='center';
   target.style.backgroundRepeat='no-repeat';
-  target.innerHTML='<img src="'+hi+'" alt="" draggable="false" fetchpriority="high" decoding="async" style="width:100%;height:100%;object-fit:contain;display:block;">';
+  var _alt=((window._prodName||(document.getElementById('prodName')||{textContent:''}).textContent)||'Product image').trim()+' — 3D printed by TriAkar';
+  target.innerHTML='<img src="'+hi+'" alt="'+_alt.replace(/"/g,'&quot;')+'" draggable="false" fetchpriority="high" decoding="async" style="width:100%;height:100%;object-fit:contain;display:block;">';
 }
 function switchThumb(thumb,idx){
   currentImgIdx=idx;
@@ -1190,7 +1202,7 @@ function loadRelated(currentSlug){
   const grid=document.getElementById('relatedGrid');
   const section=document.getElementById('relatedSection');
   if(!grid||!section)return;
-  fetch('https://triakar.onrender.com/api/products')
+  fetch(TA_API+'/api/products')
     .then(r=>r.json())
     .then(data=>{
       const all=(data.products||[]).filter(p=>p.is_active!==false&&p.slug!==currentSlug);
@@ -1237,7 +1249,7 @@ function loadReviews(slug){
   const section=document.getElementById('reviewsSection');
   const grid=document.getElementById('reviewsGrid');
   const summary=document.getElementById('reviewsSummary');
-  const API='https://triakar.onrender.com';
+  const API=TA_API;
   // localRevs is a getter so it reads REVIEWS_DATA lazily (after deferred scripts load)
   const getLocal=()=>(window.REVIEWS_DATA&&window.REVIEWS_DATA[slug])||[];
   const showEmpty=()=>{
@@ -1266,7 +1278,7 @@ function openWriteReview(){
   if(!wrap)return;
   const token=localStorage.getItem('ta_token');
   if(!token){showToast('Please log in to write a review','info');return;}
-  const API='https://triakar.onrender.com';
+  const API=TA_API;
   fetch(API+'/api/orders/check-purchase?slug='+encodeURIComponent(window._prodId||''),{
     headers:{'Authorization':'Bearer '+token}
   }).then(r=>r.json())
@@ -1334,7 +1346,7 @@ async function submitReview(){
   const btn=document.getElementById('reviewSubmitBtn');
   if(btn){btn.disabled=true;btn.textContent='Submitting…';}
 
-  const API='https://triakar.onrender.com';
+  const API=TA_API;
   try{
     const fd=new FormData();
     fd.append('slug',window._prodId||'');
