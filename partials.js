@@ -110,6 +110,18 @@ window._FOOTER_HTML = `<footer>
           <li><a href="/services/personalized-gifts.html">Personalized Gifts</a></li>
         </ul>
       </div>
+      <div><div class="foot-col-t">Services</div>
+        <ul class="foot-links">
+          <li><a href="/services/corporate-gifting">Corporate Gifting</a></li>
+          <li><a href="/gifts/corporate-gifts-noida">Corporate Gifts Noida</a></li>
+          <li><a href="/gifts/birthday-gifts-noida">Birthday Gifts Noida</a></li>
+          <li><a href="/gifts/housewarming-gifts">Housewarming Gifts</a></li>
+          <li><a href="/3d-printing-noida">3D Printing Noida</a></li>
+          <li><a href="/3d-printing-greater-noida">3D Printing Greater Noida</a></li>
+          <li><a href="/replacement-parts-noida">Replacement Parts Noida</a></li>
+          <li><a href="/3d-printed-gifts-delhi">3D Printed Gifts Delhi</a></li>
+        </ul>
+      </div>
       <div><div class="foot-col-t">Help</div>
         <ul class="foot-links">
           <li><a href="/contact.html">Contact Us</a></li>
