@@ -108,10 +108,18 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
       toggle.setAttribute('aria-expanded',o);
       document.documentElement.classList.toggle('drawer-open',o);
     });
-    drawer.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{
+    const closeDrawer=()=>{
       drawer.classList.remove('open');toggle.classList.remove('open');
+      toggle.setAttribute('aria-expanded','false');
       document.documentElement.classList.remove('drawer-open');
-    }));
+    };
+    drawer.querySelectorAll('a').forEach(a=>a.addEventListener('click',closeDrawer));
+    /* Tap on the dim scrim (anywhere outside the panel/nav) closes the menu */
+    document.addEventListener('click',e=>{
+      if(!document.documentElement.classList.contains('drawer-open'))return;
+      if(e.target.closest('.nav-drawer')||e.target.closest('.main-nav'))return;
+      closeDrawer();
+    });
   }
 })();
 
