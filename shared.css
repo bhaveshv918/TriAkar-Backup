@@ -371,26 +371,20 @@ nav.main-nav.scrolled{
   grid-template-columns:1fr 1fr;
   gap:10px;
   position:fixed;
-  left:0;right:0;bottom:0;top:auto;z-index:997;
-  border-radius:22px 22px 0 0;
+  left:0;right:0;top:var(--total-h);bottom:auto;z-index:997;
+  border-radius:0 0 22px 22px;
   background:rgba(248,246,240,.97);
   -webkit-backdrop-filter:var(--glass-blur-strong);
   backdrop-filter:var(--glass-blur-strong);
-  border:1px solid rgba(22,22,20,.06);border-bottom:none;
-  box-shadow:0 -14px 44px rgba(22,22,20,.20);
-  padding:8px 18px calc(18px + env(safe-area-inset-bottom,0px));
-  max-height:78dvh;
+  border:1px solid rgba(22,22,20,.06);border-top:none;
+  box-shadow:0 14px 44px rgba(22,22,20,.20);
+  padding:14px 18px 18px;
+  max-height:calc(100dvh - var(--total-h) - 24px);
   overflow-y:auto;
   overscroll-behavior:contain;
   visibility:hidden;pointer-events:none;
-  transform:translateY(102%);
+  transform:translateY(calc(-100% - var(--total-h)));
   transition:transform .42s cubic-bezier(.22,1,.36,1),visibility 0s .42s;
-}
-.nav-drawer::before{
-  content:'';grid-column:1/-1;
-  width:38px;height:4px;border-radius:2px;
-  background:rgba(22,22,20,.16);
-  margin:4px auto 2px;
 }
 .nav-drawer.open{
   visibility:visible;pointer-events:auto;
@@ -409,10 +403,18 @@ html.drawer-open body::after{
 }
 @keyframes ta-scrim-in{from{opacity:0}to{opacity:1}}
 
-/* While the sheet is open: lock page scroll and slide the floating bottom
-   tab bar out of the way (the sheet owns the bottom edge). */
+/* While the panel is open: lock page scroll, keep the nav docked full-width
+   (no floating capsule) so the panel stays attached beneath it, and keep the
+   top notice bar visible so there is no gap above the nav. */
 html.drawer-open,html.drawer-open body{overflow:hidden}
-html.drawer-open .ta-bottomnav{transform:translateY(calc(100% + 24px));opacity:0;pointer-events:none}
+html.drawer-open nav.main-nav.scrolled{
+  top:var(--notice-h);left:0;right:0;height:var(--nav-h);border-radius:0;
+  background:var(--ivory);
+  -webkit-backdrop-filter:none;backdrop-filter:none;
+  border-color:transparent;border-bottom-color:rgba(22,22,20,.1);
+  box-shadow:none;
+}
+html.drawer-open.is-scrolled .ta-topbar{transform:none;opacity:1;pointer-events:auto}
 html.drawer-open .a11y-fab{opacity:0;visibility:hidden;pointer-events:none}
 
 /* 2-column icon tiles — white cards on the ivory sheet */
