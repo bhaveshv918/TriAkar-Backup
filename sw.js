@@ -1,8 +1,10 @@
 /* TriAkar Service Worker — static asset cache
-   Strategy: Cache-First for assets, Network-First for HTML + API.
-   Version bump (CACHE_VER) forces all clients to re-fetch on deploy. */
+   Strategy: Stale-While-Revalidate for HTML/CSS/JS (instant page changes,
+   refreshed in the background), Cache-First for fonts/images, network-only
+   for APIs. Version bump (CACHE_VER) forces all clients to re-fetch on
+   deploy, and partials.js auto-reloads once when a new SW takes control. */
 
-const CACHE_VER = 'ta-v36';
+const CACHE_VER = 'ta-v37';
 const CACHE_NAME = 'triakar-' + CACHE_VER;
 
 /* Assets to pre-cache on install (shell) */
@@ -56,36 +58,26 @@ self.addEventListener('fetch', function(e) {
   if (url.includes('razorpay.com')) return;           // Payments — always network
   if (url.includes('googletagmanager.com')) return;   // Analytics — skip
 
-  /* HTML pages: Network-first with cache fallback (content stays fresh) */
-  if (req.headers.get('accept') && req.headers.get('accept').includes('text/html')) {
+  /* HTML + app shell (CSS / JS): Stale-While-Revalidate — serve the cached
+     copy instantly (no network wait between pages), refresh it in the
+     background. Deploys still reach users: CACHE_VER bumps re-fetch
+     everything and the controllerchange hook reloads once. */
+  var isHTML = req.headers.get('accept') && req.headers.get('accept').includes('text/html');
+  if (isHTML || /\.(?:css|js)(?:\?|$)/.test(url)) {
     e.respondWith(
-      fetch(req).then(function(res) {
-        if (res && res.status === 200) {
-          var clone = res.clone();
-          caches.open(CACHE_NAME).then(function(cache) { cache.put(req, clone); });
-        }
-        return res;
-      }).catch(function() {
-        return caches.match(req).then(function(cached) {
-          return cached || caches.match('/offline.html');
+      caches.match(req).then(function(cached) {
+        var network = fetch(req).then(function(res) {
+          if (res && res.status === 200 && res.type !== 'opaque') {
+            var clone = res.clone();
+            caches.open(CACHE_NAME).then(function(cache) { cache.put(req, clone); });
+          }
+          return res;
+        }).catch(function() {
+          if (cached) return cached;
+          if (isHTML) return caches.match('/offline.html');
+          return undefined;
         });
-      })
-    );
-    return;
-  }
-
-  /* App shell (CSS / JS): Network-first so deploys are picked up immediately,
-     with cache fallback for offline. Prevents stale partials.js/shared.css/shared.js. */
-  if (/\.(?:css|js)(?:\?|$)/.test(url)) {
-    e.respondWith(
-      fetch(req).then(function(res) {
-        if (res && res.status === 200 && res.type !== 'opaque') {
-          var clone = res.clone();
-          caches.open(CACHE_NAME).then(function(cache) { cache.put(req, clone); });
-        }
-        return res;
-      }).catch(function() {
-        return caches.match(req);
+        return cached || network;
       })
     );
     return;

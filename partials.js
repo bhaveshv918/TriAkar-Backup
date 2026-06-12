@@ -411,7 +411,11 @@ window._FOOTER_HTML = `<footer>
       }
     }catch(_){}
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',build);
+  /* Build immediately — partials.js is a blocking script at the top of
+     <body>, so the tab bar exists before first paint and stays in the very
+     first frame of cross-page view transitions (no blink between pages). */
+  if(document.body)build();
+  else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',build);
   else build();
 })();
 
