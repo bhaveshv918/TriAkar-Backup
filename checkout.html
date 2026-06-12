@@ -747,7 +747,7 @@ async function ckPlaceOrder() {
       var _custEmail = (chosenAddr.email) || (_emailEl && _emailEl.value.trim()) || (_user && _user.email) || '';
       await Auth.apiFetch(CK_API + '/api/orders/whatsapp', {
         method: 'POST',
-        headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           order_id: trkId,
           customer_name: chosenAddr.full_name,
@@ -874,9 +874,9 @@ async function ckPlaceOrder() {
       };
     }
 
-    var res = await fetch(CK_API + '/api/payments/create-order', {
+    var res = await Auth.apiFetch(CK_API + '/api/payments/create-order', {
       method: 'POST',
-      headers: Object.assign({ 'Content-Type': 'application/json' }, await Auth.authHeaderAsync()),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(orderPayload),
     });
     var data = await res.json();
@@ -906,9 +906,9 @@ async function ckPlaceOrder() {
       handler: async function(response) {
         btn.textContent = 'Verifying payment…';
         try {
-          var vRes = await fetch(CK_API + '/api/payments/verify', {
+          var vRes = await Auth.apiFetch(CK_API + '/api/payments/verify', {
             method: 'POST',
-            headers: Object.assign({ 'Content-Type': 'application/json' }, await Auth.authHeaderAsync()),
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               razorpay_order_id:   response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,

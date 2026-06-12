@@ -1245,9 +1245,8 @@ async function retryPayment(dbOrderId, rzpOrderId, amount){
       theme:    {color:'#161614'},
       handler:  async function(response){
         try{
-          const hdr=Object.assign({'Content-Type':'application/json'},await Auth.authHeaderAsync());
-          const vRes=await fetch(API+'/api/payments/verify',{
-            method:'POST',headers:hdr,
+          const vRes=await Auth.apiFetch(API+'/api/payments/verify',{
+            method:'POST',headers:{'Content-Type':'application/json'},
             body:JSON.stringify({
               razorpay_order_id:  response.razorpay_order_id,
               razorpay_payment_id:response.razorpay_payment_id,
@@ -1267,7 +1266,7 @@ async function retryPayment(dbOrderId, rzpOrderId, amount){
       modal:{ondismiss:function(){btn.disabled=false;btn.textContent='Complete Payment →';}}
     });
     // Fetch key_id from server then open
-    const keyRes=await fetch(API+'/api/payments/key',{headers:await Auth.authHeaderAsync()});
+    const keyRes=await Auth.apiFetch(API+'/api/payments/key');
     if(keyRes.ok){const kd=await keyRes.json();if(kd.key_id)rzp.set('key',kd.key_id);}
     rzp.open();
     btn.disabled=false;btn.textContent='Complete Payment →';

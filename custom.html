@@ -321,7 +321,9 @@ async function submitEnquiry(e){
   if(btn){btn.textContent='Submitting...';btn.disabled=true}
 
   const refId=genEnquiryRef();
-  const sb=getSB();
+  /* _ensureSB loads the Supabase library on demand — getSB() alone is null
+     unless another script already loaded it, so the form always failed */
+  const sb=await _ensureSB();
   if(!sb){
     showEnquiryError("Couldn't reach our servers. Please email us at hello@triakar.com or call +91 9217-555-833.");
     if(btn){btn.textContent='Submit Enquiry';btn.disabled=false}
