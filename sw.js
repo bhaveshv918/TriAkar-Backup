@@ -74,8 +74,13 @@ self.addEventListener('fetch', function(e) {
           return res;
         }).catch(function() {
           if (cached) return cached;
-          if (isHTML) return caches.match('/offline.html');
-          return undefined;
+          if (isHTML) {
+            return caches.match('/offline.html').then(function(off) {
+              return off || new Response('<meta http-equiv="refresh" content="2">Reconnecting…', { status: 503, headers: { 'Content-Type': 'text/html' } });
+            });
+          }
+          /* never resolve undefined — that surfaces as ERR_FAILED ("site can't be reached") */
+          return new Response('', { status: 503 });
         });
         return cached || network;
       })
