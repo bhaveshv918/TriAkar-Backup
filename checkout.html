@@ -71,6 +71,9 @@
 .ck-edit-btn{background:none;color:var(--stone);border:1px solid var(--stone-p)}
 .ck-edit-btn:hover{border-color:var(--charcoal);color:var(--charcoal)}
 
+/* Saved-address loading skeleton (shimmer from shared.css .skeleton) */
+.ck-skel-ln{border-radius:4px}
+
 .ck-or{text-align:center;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);margin:16px 0;position:relative}
 .ck-or::before,.ck-or::after{content:'';position:absolute;top:50%;width:calc(50% - 30px);height:1px;background:var(--stone-p)}
 .ck-or::before{left:0}.ck-or::after{right:0}
@@ -472,16 +475,41 @@ function showStep(n) {
 }
 
 /* ── Load saved default address ─────────────────────────── */
+function _ckHideSavedCard() {
+  var card = document.getElementById('ckSavedCard');
+  card.style.display = 'none';
+  card.innerHTML = '';
+}
+
 async function loadSavedAddress() {
+  if (!Auth.isLoggedIn || !Auth.isLoggedIn()) return;
+
+  /* Skeleton while the saved address is fetched */
+  var card = document.getElementById('ckSavedCard');
+  card.style.display = '';
+  card.innerHTML =
+    '<div class="ck-saved" aria-hidden="true">'
+    + '<div style="flex:1">'
+    + '  <div class="ck-skel-ln skeleton" style="width:78px;height:14px;margin-bottom:8px"></div>'
+    + '  <div class="ck-skel-ln skeleton" style="width:42%;height:13px;margin-bottom:7px"></div>'
+    + '  <div class="ck-skel-ln skeleton" style="width:86%;height:11px;margin-bottom:5px"></div>'
+    + '  <div class="ck-skel-ln skeleton" style="width:60%;height:11px"></div>'
+    + '</div>'
+    + '<div class="ck-saved-actions">'
+    + '  <div class="ck-skel-ln skeleton" style="width:84px;height:28px"></div>'
+    + '  <div class="ck-skel-ln skeleton" style="width:84px;height:28px"></div>'
+    + '</div>'
+    + '</div>';
+
   try {
-    var res = await fetch(CK_API + '/api/addresses/default', { headers: Auth.authHeader() });
-    if (!res.ok) return;
+    /* apiFetch refreshes an expired token and retries once on 401 —
+       a raw fetch with a stale token silently failed here before */
+    var res = await Auth.apiFetch(CK_API + '/api/addresses/default');
+    if (!res.ok) { _ckHideSavedCard(); return; }
     var json = await res.json();
     var address = json.address;
-    if (!address) return;
+    if (!address) { _ckHideSavedCard(); return; }
     savedAddr = address;
-
-    document.getElementById('ckSavedCard').style.display = '';
     /* _esc is defined in shared.js and HTML-encodes user data before injection */
     var e = typeof _esc === 'function' ? _esc : function(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); };
     document.getElementById('ckSavedCard').innerHTML =
@@ -502,7 +530,7 @@ async function loadSavedAddress() {
       + '</div>';
 
     fillForm(address);
-  } catch (_) {}
+  } catch (_) { _ckHideSavedCard(); }
 }
 
 function fillForm(addr) {
@@ -560,9 +588,9 @@ async function submitAddress() {
   btn.disabled = true; btn.textContent = 'Saving…';
 
   try {
-    var res = await fetch(CK_API + '/api/addresses', {
+    var res = await Auth.apiFetch(CK_API + '/api/addresses', {
       method: 'POST',
-      headers: Object.assign({ 'Content-Type': 'application/json' }, Auth.authHeader()),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
     var result = await res.json();
@@ -779,9 +807,9 @@ async function ckPlaceOrder() {
   /* If address was not saved to DB (network error during step 1), retry save now */
   if (!chosenAddr.id) {
     try {
-      var addrRes = await fetch(CK_API + '/api/addresses', {
+      var addrRes = await Auth.apiFetch(CK_API + '/api/addresses', {
         method: 'POST',
-        headers: Object.assign({ 'Content-Type': 'application/json' }, await Auth.authHeaderAsync()),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           full_name:     chosenAddr.full_name,
           phone:         chosenAddr.phone,
