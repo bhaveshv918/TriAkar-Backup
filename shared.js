@@ -106,9 +106,11 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
       const o=drawer.classList.toggle('open');
       toggle.classList.toggle('open',o);
       toggle.setAttribute('aria-expanded',o);
+      document.documentElement.classList.toggle('drawer-open',o);
     });
     drawer.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{
       drawer.classList.remove('open');toggle.classList.remove('open');
+      document.documentElement.classList.remove('drawer-open');
     }));
   }
 })();
