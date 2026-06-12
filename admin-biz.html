@@ -1,0 +1,1728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Business OS — TriAkar</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/x-icon" href="/assets/icons/favicon.ico">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════════════
+   TRIĀKAR BUSINESS OS — same dark theme as admin.html
+   ═══════════════════════════════════════════════════════════ */
+:root{
+  --bg:#070C08;--bg-1:#0C1410;--bg-2:#111C13;--bg-3:#172418;
+  --border:rgba(255,255,255,.06);--border-h:rgba(255,255,255,.12);
+  --text:#E2EAE4;--text-2:#879E8C;--text-3:#4E6655;
+  --accent:#52B788;--accent-h:#74C69D;--accent-bg:rgba(82,183,136,.08);
+  --green:#4ADE80;--green-bg:rgba(74,222,128,.08);
+  --red:#F87171;--red-bg:rgba(248,113,113,.08);
+  --yellow:#FBBF24;--yellow-bg:rgba(251,191,36,.08);
+  --blue:#60A5FA;--blue-bg:rgba(96,165,250,.08);
+  --purple:#A78BFA;--purple-bg:rgba(167,139,250,.08);
+  --orange:#FB923C;--orange-bg:rgba(251,146,60,.08);
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+  --radius:6px;--sidebar-w:200px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;overflow:hidden}
+
+/* ── Auth overlay ─────────────────────────────────────────── */
+#authOverlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:12px}
+#authOverlay .logo{font-family:var(--mono);font-size:11px;letter-spacing:3px;color:var(--text-3);text-transform:uppercase}
+#authOverlay .msg{font-size:12px;color:var(--text-2)}
+
+/* ── Layout ───────────────────────────────────────────────── */
+.shell{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--bg-1);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding:0 0 24px}
+.main-area{flex:1;overflow-y:auto;background:var(--bg)}
+
+/* ── Sidebar header ───────────────────────────────────────── */
+.sb-header{padding:14px 14px 10px;border-bottom:1px solid var(--border);margin-bottom:6px}
+.sb-logo{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text-3);text-transform:uppercase}
+.sb-title{font-size:13px;font-weight:700;color:var(--text);margin-top:3px}
+.sb-back{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-3);text-decoration:none;margin-top:8px;transition:color .15s}
+.sb-back:hover{color:var(--accent)}
+
+.sidebar-section{padding:10px 14px 4px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-3)}
+.tab{width:100%;background:none;border:none;color:var(--text-2);font-family:var(--sans);font-size:12px;text-align:left;padding:8px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;border-radius:0;transition:background .12s,color .12s}
+.tab:hover{background:var(--bg-2);color:var(--text)}
+.tab.active{background:var(--accent-bg);color:var(--accent)}
+.tab-icon{font-size:13px;width:16px;text-align:center;flex-shrink:0}
+.tab-label{flex:1}
+.tab-badge{font-size:9px;font-family:var(--mono);background:var(--bg-3);color:var(--text-3);padding:1px 5px;border-radius:3px}
+.tab.active .tab-badge{background:rgba(82,183,136,.15);color:var(--accent)}
+
+/* ── Panel ────────────────────────────────────────────────── */
+.panel{display:none;padding:24px;max-width:1400px;margin:0 auto}
+.panel.active{display:block}
+.p-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+.p-title{font-size:17px;font-weight:700;color:var(--text)}
+.p-sub{font-size:11px;color:var(--text-3);margin-top:2px}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:var(--radius);border:none;cursor:pointer;font-family:var(--sans);font-size:12px;font-weight:600;transition:all .15s}
+.btn-primary{background:var(--accent);color:#050a06}
+.btn-primary:hover{background:var(--accent-h)}
+.btn-ghost{background:var(--bg-2);color:var(--text-2);border:1px solid var(--border)}
+.btn-ghost:hover{border-color:var(--border-h);color:var(--text)}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,.2)}
+.btn-sm{padding:5px 10px;font-size:11px}
+
+/* ── KPI cards ────────────────────────────────────────────── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:20px}
+.kpi{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.kpi-label{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);margin-bottom:6px}
+.kpi-val{font-size:22px;font-weight:800;font-family:var(--mono);color:var(--text);line-height:1}
+.kpi-sub{font-size:10px;color:var(--text-3);margin-top:4px}
+.kpi.green{border-top:2px solid var(--green)}
+.kpi.red{border-top:2px solid var(--red)}
+.kpi.blue{border-top:2px solid var(--blue)}
+.kpi.yellow{border-top:2px solid var(--yellow)}
+.kpi.purple{border-top:2px solid var(--purple)}
+.kpi.orange{border-top:2px solid var(--orange)}
+
+/* ── Charts ───────────────────────────────────────────────── */
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.chart-box{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.chart-box h3{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);margin-bottom:14px}
+.chart-box canvas{max-height:220px}
+
+/* ── Tables ───────────────────────────────────────────────── */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius)}
+table{width:100%;border-collapse:collapse}
+th{background:var(--bg-2);padding:8px 12px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);white-space:nowrap;border-bottom:1px solid var(--border)}
+td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-2);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg-1)}
+.td-num{font-family:var(--mono);font-size:11px;text-align:right}
+.td-actions{white-space:nowrap;text-align:right}
+
+/* ── Status badges ────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.badge-completed{background:var(--green-bg);color:var(--green)}
+.badge-returned{background:var(--red-bg);color:var(--red)}
+.badge-cancelled{background:var(--yellow-bg);color:var(--yellow)}
+.badge-claimed{background:var(--purple-bg);color:var(--purple)}
+.badge-pending{background:var(--yellow-bg);color:var(--yellow)}
+.badge-won{background:var(--green-bg);color:var(--green)}
+.badge-lost{background:var(--red-bg);color:var(--red)}
+
+/* ── Channel dots ─────────────────────────────────────────── */
+.ch{display:inline-flex;align-items:center;gap:5px;font-size:11px}
+.ch-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.ch-shop    .ch-dot{background:#a78bfa}
+.ch-amazon  .ch-dot{background:#f59e0b}
+.ch-flipkart .ch-dot{background:#3b82f6}
+.ch-website .ch-dot{background:#10b981}
+
+/* ── Forms ────────────────────────────────────────────────── */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:16px}
+.form-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-group label{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3)}
+.form-group input,.form-group select,.form-group textarea{
+  background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);
+  color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 10px;outline:none;
+  transition:border-color .15s}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent)}
+.form-group select option{background:var(--bg-2)}
+.form-sep{grid-column:1/-1;height:1px;background:var(--border);margin:4px 0}
+.calc-row{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.calc-item label{font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);display:block;margin-bottom:3px}
+.calc-item span{font-family:var(--mono);font-size:14px;font-weight:700}
+.calc-item.profit span{color:var(--green)}
+.calc-item.cost span{color:var(--red)}
+.calc-item.revenue span{color:var(--blue)}
+
+/* ── Filter bar ───────────────────────────────────────────── */
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.filter-bar select,.filter-bar input{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-2);font-family:var(--sans);font-size:12px;padding:6px 9px;outline:none;transition:border-color .15s}
+.filter-bar select:focus,.filter-bar input:focus{border-color:var(--accent);color:var(--text)}
+.filter-bar select option{background:var(--bg-2)}
+
+/* ── Import dropzone ──────────────────────────────────────── */
+.dropzone{border:1.5px dashed var(--border-h);border-radius:var(--radius);padding:32px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px}
+.dropzone:hover,.dropzone.drag-over{border-color:var(--accent);background:var(--accent-bg)}
+.dropzone .dz-icon{font-size:28px;margin-bottom:8px}
+.dropzone .dz-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px}
+.dropzone .dz-sub{font-size:11px;color:var(--text-3)}
+#fileInput{display:none}
+
+/* ── Import preview ───────────────────────────────────────── */
+.import-preview{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px;display:none}
+.import-preview h4{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:10px}
+.mapping-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px}
+.mapping-row .col-name{color:var(--text-3);width:160px;font-family:var(--mono);font-size:11px}
+.mapping-row select{flex:1;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;outline:none}
+
+/* ── GST table ────────────────────────────────────────────── */
+.gst-summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:20px}
+.gst-card{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
+.gst-card label{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);display:block;margin-bottom:5px}
+.gst-card .val{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--text)}
+.gst-card .sub{font-size:10px;color:var(--text-3);margin-top:3px}
+
+/* ── Empty state ──────────────────────────────────────────── */
+.empty{text-align:center;padding:48px 24px;color:var(--text-3)}
+.empty .em-icon{font-size:28px;margin-bottom:8px}
+.empty .em-text{font-size:13px}
+
+/* ── Notification toast ───────────────────────────────────── */
+#toast{position:fixed;bottom:20px;right:20px;background:var(--bg-3);border:1px solid var(--border-h);border-radius:var(--radius);padding:10px 16px;font-size:12px;z-index:1000;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;max-width:280px}
+#toast.show{opacity:1;transform:translateY(0)}
+#toast.success{border-color:rgba(74,222,128,.3);color:var(--green)}
+#toast.error{border-color:rgba(248,113,113,.3);color:var(--red)}
+
+/* ── Mobile ───────────────────────────────────────────────── */
+@media(max-width:640px){
+  .sidebar{width:44px;min-width:44px}
+  .sb-header,.sidebar-section,.tab-label,.tab-badge,.sb-back span{display:none}
+  .tab{padding:10px 0;justify-content:center}
+  .tab-icon{margin:0;font-size:16px}
+  .charts-row{grid-template-columns:1fr}
+  .form-grid{grid-template-columns:1fr}
+  .form-grid-2{grid-template-columns:1fr}
+  .panel{padding:14px 10px 60px}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Auth overlay ─────────────────────────────────────── -->
+<div id="authOverlay">
+  <div class="logo">TriĀkar</div>
+  <div class="msg">Checking authentication…</div>
+</div>
+
+<!-- ── Toast ────────────────────────────────────────────── -->
+<div id="toast"></div>
+
+<!-- ── Shell ────────────────────────────────────────────── -->
+<div class="shell" id="shell" style="display:none">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sb-header">
+      <div class="sb-logo">TriĀkar</div>
+      <div class="sb-title">Business OS</div>
+      <a href="/admin.html" class="sb-back">← Admin</a>
+    </div>
+
+    <div class="sidebar-section">Overview</div>
+    <button class="tab active" data-tab="dashboard" onclick="switchTab('dashboard')">
+      <span class="tab-icon">◈</span><span class="tab-label">Dashboard</span>
+    </button>
+
+    <div class="sidebar-section">Sales</div>
+    <button class="tab" data-tab="quickadd" onclick="switchTab('quickadd')">
+      <span class="tab-icon">＋</span><span class="tab-label">Quick Add Sale</span>
+    </button>
+    <button class="tab" data-tab="sales" onclick="switchTab('sales')">
+      <span class="tab-icon">≡</span><span class="tab-label">All Sales</span><span class="tab-badge" id="salesCount">—</span>
+    </button>
+    <button class="tab" data-tab="import" onclick="switchTab('import')">
+      <span class="tab-icon">⇲</span><span class="tab-label">Import CSV</span>
+    </button>
+
+    <div class="sidebar-section">Products</div>
+    <button class="tab" data-tab="products" onclick="switchTab('products')">
+      <span class="tab-icon">▦</span><span class="tab-label">Products & Costs</span><span class="tab-badge" id="prodCount">—</span>
+    </button>
+    <button class="tab" data-tab="stock" onclick="switchTab('stock')">
+      <span class="tab-icon">◫</span><span class="tab-label">Stock</span>
+    </button>
+
+    <div class="sidebar-section">Finance</div>
+    <button class="tab" data-tab="returns" onclick="switchTab('returns')">
+      <span class="tab-icon">↩</span><span class="tab-label">Returns & Claims</span><span class="tab-badge" id="returnCount">—</span>
+    </button>
+    <button class="tab" data-tab="gst" onclick="switchTab('gst')">
+      <span class="tab-icon">◊</span><span class="tab-label">GST Summary</span>
+    </button>
+    <button class="tab" data-tab="reports" onclick="switchTab('reports')">
+      <span class="tab-icon">↗</span><span class="tab-label">Reports & Export</span>
+    </button>
+  </nav>
+
+  <!-- Main area -->
+  <div class="main-area">
+
+    <!-- ══════════════════════════════════════════════════════
+         DASHBOARD
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel active" id="panelDashboard">
+      <div class="p-head">
+        <div>
+          <div class="p-title">Dashboard</div>
+          <div class="p-sub" id="dashPeriodLabel">Loading…</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="dashMonth" class="filter-bar" onchange="loadDashboard()" style="padding:6px 9px">
+            <!-- filled by JS -->
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="exportAllExcel()">↓ Export Excel</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi green"><div class="kpi-label">Total Revenue</div><div class="kpi-val" id="kpiRevenue">—</div><div class="kpi-sub">Selling price incl. GST</div></div>
+        <div class="kpi blue"><div class="kpi-label">Net Revenue</div><div class="kpi-val" id="kpiNet">—</div><div class="kpi-sub">After platform fees</div></div>
+        <div class="kpi green"><div class="kpi-label">Gross Profit</div><div class="kpi-val" id="kpiProfit">—</div><div class="kpi-sub" id="kpiMarginSub">—</div></div>
+        <div class="kpi yellow"><div class="kpi-label">Total GST</div><div class="kpi-val" id="kpiGst">—</div><div class="kpi-sub">Collected (payable)</div></div>
+        <div class="kpi purple"><div class="kpi-label">Orders</div><div class="kpi-val" id="kpiOrders">—</div><div class="kpi-sub" id="kpiUnitsSub">—</div></div>
+        <div class="kpi red"><div class="kpi-label">Returns / Claims</div><div class="kpi-val" id="kpiReturns">—</div><div class="kpi-sub">Loss this period</div></div>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-row">
+        <div class="chart-box">
+          <h3>Revenue by Channel</h3>
+          <canvas id="chartByChannel"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Monthly Revenue Trend</h3>
+          <canvas id="chartMonthly"></canvas>
+        </div>
+      </div>
+
+      <!-- Channel breakdown table -->
+      <div class="chart-box" style="margin-bottom:16px">
+        <h3>Channel Breakdown — <span id="dashMonthName">this month</span></h3>
+        <div class="tbl-wrap" style="border:none;margin-top:12px">
+          <table>
+            <thead><tr>
+              <th>Channel</th><th class="td-num">Orders</th><th class="td-num">Revenue</th>
+              <th class="td-num">Platform Fees</th><th class="td-num">Net Revenue</th>
+              <th class="td-num">COGS</th><th class="td-num">Profit</th><th class="td-num">Margin %</th>
+            </tr></thead>
+            <tbody id="channelBreakdown"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Top products -->
+      <div class="chart-box">
+        <h3>Top Products by Revenue</h3>
+        <div class="tbl-wrap" style="border:none;margin-top:12px">
+          <table>
+            <thead><tr><th>#</th><th>Product</th><th class="td-num">Qty Sold</th><th class="td-num">Revenue</th><th class="td-num">Profit</th></tr></thead>
+            <tbody id="topProducts"></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /dashboard -->
+
+    <!-- ══════════════════════════════════════════════════════
+         QUICK ADD SALE
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelQuickadd">
+      <div class="p-head">
+        <div>
+          <div class="p-title">Quick Add Sale</div>
+          <div class="p-sub">Log a single order fast — channel auto-fills costs</div>
+        </div>
+      </div>
+
+      <form id="quickAddForm" onsubmit="submitQuickAdd(event)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Channel *</label>
+            <select id="qa_channel" onchange="onChannelChange()" required>
+              <option value="">Select channel</option>
+              <option value="shop">🏪 Shop / Offline</option>
+              <option value="amazon">📦 Amazon</option>
+              <option value="flipkart">🛍️ Flipkart</option>
+              <option value="website">🌐 Website</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Order Date *</label>
+            <input type="date" id="qa_date" required>
+          </div>
+          <div class="form-group">
+            <label>Order ID</label>
+            <input type="text" id="qa_orderid" placeholder="Platform order number">
+          </div>
+          <div class="form-group">
+            <label>Payment Mode</label>
+            <select id="qa_payment">
+              <option value="">— optional —</option>
+              <option value="cash">Cash</option>
+              <option value="upi">UPI</option>
+              <option value="card">Card</option>
+              <option value="online">Online / Prepaid</option>
+              <option value="cod">COD</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group" style="grid-column:span 2">
+            <label>Product *</label>
+            <select id="qa_product" onchange="onProductSelect()" required>
+              <option value="">Select product (or type below)</option>
+              <option value="__custom">— Enter manually —</option>
+            </select>
+          </div>
+          <div class="form-group" id="qa_customNameGroup" style="display:none;grid-column:span 2">
+            <label>Product Name (manual) *</label>
+            <input type="text" id="qa_customName" placeholder="Product name">
+          </div>
+          <div class="form-group">
+            <label>Qty *</label>
+            <input type="number" id="qa_qty" value="1" min="1" onchange="recalc()" required>
+          </div>
+          <div class="form-group">
+            <label>Selling Price (₹, incl. GST) *</label>
+            <input type="number" id="qa_price" step="0.01" placeholder="0.00" onchange="recalc()" required>
+          </div>
+          <div class="form-group">
+            <label>Platform Fee (₹)</label>
+            <input type="number" id="qa_platformfee" step="0.01" value="0" onchange="recalc()">
+          </div>
+          <div class="form-group">
+            <label>Shipping Cost (₹)</label>
+            <input type="number" id="qa_shipping" step="0.01" value="0" onchange="recalc()">
+          </div>
+          <div class="form-group">
+            <label>COGS / Making Cost (₹)</label>
+            <input type="number" id="qa_cogs" step="0.01" value="0" onchange="recalc()">
+          </div>
+          <div class="form-group">
+            <label>GST Rate (%)</label>
+            <select id="qa_gst" onchange="recalc()">
+              <option value="0">0%</option>
+              <option value="5">5%</option>
+              <option value="12">12%</option>
+              <option value="18" selected>18%</option>
+              <option value="28">28%</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Live calc -->
+        <div class="calc-row" id="calcRow">
+          <div class="calc-item"><label>Base Price</label><span id="c_base">₹0</span></div>
+          <div class="calc-item"><label>GST Amount</label><span id="c_gst">₹0</span></div>
+          <div class="calc-item revenue"><label>Net Revenue</label><span id="c_net">₹0</span></div>
+          <div class="calc-item cost"><label>Total Cost</label><span id="c_cost">₹0</span></div>
+          <div class="calc-item profit"><label>Gross Profit</label><span id="c_profit">₹0</span></div>
+          <div class="calc-item profit"><label>Margin %</label><span id="c_margin">0%</span></div>
+        </div>
+
+        <!-- Customer (optional, collapsible) -->
+        <details style="margin-bottom:14px">
+          <summary style="cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);padding:6px 0">Customer Info (optional)</summary>
+          <div class="form-grid" style="margin-top:10px">
+            <div class="form-group">
+              <label>Customer Name</label>
+              <input type="text" id="qa_cname" placeholder="Name">
+            </div>
+            <div class="form-group">
+              <label>City</label>
+              <input type="text" id="qa_city" placeholder="City">
+            </div>
+            <div class="form-group">
+              <label>State</label>
+              <input type="text" id="qa_state" placeholder="State">
+            </div>
+            <div class="form-group">
+              <label>Pincode</label>
+              <input type="text" id="qa_pin" placeholder="Pincode">
+            </div>
+          </div>
+        </details>
+
+        <div class="form-group" style="margin-bottom:16px">
+          <label>Notes</label>
+          <textarea id="qa_notes" rows="2" placeholder="Any extra notes…" style="resize:vertical"></textarea>
+        </div>
+
+        <div style="display:flex;gap:8px">
+          <button type="submit" class="btn btn-primary">Save Sale</button>
+          <button type="button" class="btn btn-ghost" onclick="resetQuickAdd()">Clear</button>
+        </div>
+      </form>
+    </div><!-- /quickadd -->
+
+    <!-- ══════════════════════════════════════════════════════
+         ALL SALES
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelSales">
+      <div class="p-head">
+        <div>
+          <div class="p-title">All Sales</div>
+          <div class="p-sub" id="salesSubtitle">—</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="exportTableExcel('salesTable','sales')">↓ Excel</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <select id="sfChannel" onchange="loadSales()">
+          <option value="">All Channels</option>
+          <option value="shop">Shop</option>
+          <option value="amazon">Amazon</option>
+          <option value="flipkart">Flipkart</option>
+          <option value="website">Website</option>
+        </select>
+        <select id="sfStatus" onchange="loadSales()">
+          <option value="">All Status</option>
+          <option value="completed">Completed</option>
+          <option value="returned">Returned</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="claimed">Claimed</option>
+        </select>
+        <input type="month" id="sfMonth" onchange="loadSales()">
+        <input type="text" id="sfSearch" placeholder="Search order/product…" oninput="loadSales()" style="min-width:160px">
+        <button class="btn btn-ghost btn-sm" onclick="clearSalesFilters()">Clear</button>
+      </div>
+      <div class="tbl-wrap">
+        <table id="salesTable">
+          <thead><tr>
+            <th>Date</th><th>Channel</th><th>Order ID</th><th>Product</th>
+            <th class="td-num">Qty</th><th class="td-num">Price</th>
+            <th class="td-num">Platform Fee</th><th class="td-num">COGS</th>
+            <th class="td-num">Profit</th><th>Status</th><th class="td-actions">Actions</th>
+          </tr></thead>
+          <tbody id="salesBody"></tbody>
+        </table>
+      </div>
+    </div><!-- /sales -->
+
+    <!-- ══════════════════════════════════════════════════════
+         IMPORT CSV
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelImport">
+      <div class="p-head">
+        <div>
+          <div class="p-title">Import CSV</div>
+          <div class="p-sub">Upload Amazon or Flipkart order reports — columns auto-detected</div>
+        </div>
+      </div>
+
+      <div class="form-grid-2" style="max-width:500px;margin-bottom:14px">
+        <div class="form-group">
+          <label>Platform</label>
+          <select id="importPlatform">
+            <option value="amazon">Amazon Order Report</option>
+            <option value="flipkart">Flipkart Order Report</option>
+            <option value="generic">Generic (manual mapping)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Default COGS if not in file (₹)</label>
+          <input type="number" id="importDefaultCogs" value="0" step="0.01" placeholder="0">
+        </div>
+      </div>
+
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()" ondragover="dzDragOver(event)" ondragleave="dzDragLeave(event)" ondrop="dzDrop(event)">
+        <div class="dz-icon">📂</div>
+        <div class="dz-title">Click to select or drag & drop CSV / Excel file</div>
+        <div class="dz-sub">Amazon: use "Orders" report  ·  Flipkart: use "Sales report" or "Order report"</div>
+      </div>
+      <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)">
+
+      <!-- Preview + mapping -->
+      <div class="import-preview" id="importPreview">
+        <h4>Column Mapping — <span id="importFileName">file.csv</span></h4>
+        <div id="mappingRows"></div>
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+          <button class="btn btn-primary" onclick="runImport()">Import <span id="importRowCount">0</span> rows</button>
+          <button class="btn btn-ghost btn-sm" onclick="cancelImport()">Cancel</button>
+          <span id="importStatus" style="font-size:11px;color:var(--text-3)"></span>
+        </div>
+      </div>
+
+      <!-- Import guide -->
+      <div style="margin-top:20px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:10px">How to get the report files</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+            <div style="font-size:12px;font-weight:700;color:var(--orange);margin-bottom:8px">📦 Amazon</div>
+            <ol style="font-size:11px;color:var(--text-3);line-height:2;padding-left:16px">
+              <li>Seller Central → Reports → Fulfillment</li>
+              <li>Or: Business Reports → Orders → By ASIN</li>
+              <li>Download as CSV</li>
+              <li>Key columns: order-id, purchase-date, sku, quantity, item-price, shipping-city</li>
+            </ol>
+          </div>
+          <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+            <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:8px">🛍️ Flipkart</div>
+            <ol style="font-size:11px;color:var(--text-3);line-height:2;padding-left:16px">
+              <li>Seller Hub → Reports → Order Report</li>
+              <li>Select date range → Download</li>
+              <li>Key columns: Order ID, Order Date, SKU ID, Product Title, Quantity, Selling Price, City</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div><!-- /import -->
+
+    <!-- ══════════════════════════════════════════════════════
+         PRODUCTS & COSTS
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelProducts">
+      <div class="p-head">
+        <div><div class="p-title">Products & Costs</div><div class="p-sub">Define what each product costs you</div></div>
+        <button class="btn btn-primary btn-sm" onclick="showAddProduct()">+ Add Product</button>
+      </div>
+
+      <!-- Add/edit form (hidden by default) -->
+      <div id="productForm" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:12px" id="productFormTitle">Add Product</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Product Name *</label>
+            <input type="text" id="pf_name" placeholder="e.g. Geometric Vase">
+          </div>
+          <div class="form-group">
+            <label>SKU</label>
+            <input type="text" id="pf_sku" placeholder="e.g. GV-001">
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <input type="text" id="pf_category" placeholder="Home Decor">
+          </div>
+          <div class="form-group">
+            <label>Type *</label>
+            <select id="pf_type">
+              <option value="own">Own (3D Printed)</option>
+              <option value="job_work">Job Work (outsourced)</option>
+              <option value="readymade">Readymade (purchased)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Base Cost (₹/unit) *</label>
+            <input type="number" id="pf_cost" step="0.01" placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label>GST Rate (%)</label>
+            <select id="pf_gst">
+              <option value="0">0%</option>
+              <option value="5">5%</option>
+              <option value="12">12%</option>
+              <option value="18" selected>18%</option>
+              <option value="28">28%</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>HSN Code</label>
+            <input type="text" id="pf_hsn" placeholder="e.g. 3926">
+          </div>
+          <div class="form-group">
+            <label>Notes</label>
+            <input type="text" id="pf_notes" placeholder="Optional notes">
+          </div>
+        </div>
+        <input type="hidden" id="pf_id">
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="btn btn-primary btn-sm" onclick="saveProduct()">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('productForm').style.display='none'">Cancel</button>
+        </div>
+      </div>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Name</th><th>SKU</th><th>Category</th><th>Type</th>
+            <th class="td-num">Base Cost</th><th class="td-num">GST %</th>
+            <th>HSN</th><th class="td-num">Stock</th><th class="td-actions">Actions</th>
+          </tr></thead>
+          <tbody id="productsBody"></tbody>
+        </table>
+      </div>
+    </div><!-- /products -->
+
+    <!-- ══════════════════════════════════════════════════════
+         STOCK
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelStock">
+      <div class="p-head">
+        <div><div class="p-title">Stock</div><div class="p-sub">Current levels + log movements</div></div>
+        <button class="btn btn-primary btn-sm" onclick="showAddStock()">+ Movement</button>
+      </div>
+
+      <!-- Add movement form -->
+      <div id="stockForm" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:12px">Add Stock Movement</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Product *</label>
+            <select id="sm_product" required></select>
+          </div>
+          <div class="form-group">
+            <label>Type *</label>
+            <select id="sm_type">
+              <option value="purchase">Purchase (stock in)</option>
+              <option value="production">Production / Made (stock in)</option>
+              <option value="return">Return (stock in)</option>
+              <option value="sale">Manual Sale Deduction</option>
+              <option value="adjustment">Adjustment</option>
+              <option value="damage">Damage / Loss</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Qty (+ for in, – for out) *</label>
+            <input type="number" id="sm_qty" placeholder="e.g. 10 or -3" required>
+          </div>
+          <div class="form-group">
+            <label>Unit Cost (₹)</label>
+            <input type="number" id="sm_cost" step="0.01" placeholder="Optional">
+          </div>
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="sm_date">
+          </div>
+          <div class="form-group">
+            <label>Reference / Notes</label>
+            <input type="text" id="sm_ref" placeholder="PO number, notes…">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="btn btn-primary btn-sm" onclick="saveStockMovement()">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('stockForm').style.display='none'">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Current stock levels -->
+      <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:10px">Current Stock Levels</div>
+      <div class="tbl-wrap" style="margin-bottom:20px">
+        <table>
+          <thead><tr>
+            <th>Product</th><th>SKU</th><th>Category</th><th>Type</th>
+            <th class="td-num">Stock</th><th class="td-num">Base Cost</th><th class="td-num">Inventory Value</th>
+          </tr></thead>
+          <tbody id="stockBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Movement history -->
+      <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:10px">Recent Movements</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Date</th><th>Product</th><th>Type</th>
+            <th class="td-num">Qty</th><th class="td-num">Unit Cost</th><th>Reference</th>
+          </tr></thead>
+          <tbody id="movementsBody"></tbody>
+        </table>
+      </div>
+    </div><!-- /stock -->
+
+    <!-- ══════════════════════════════════════════════════════
+         RETURNS & CLAIMS
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelReturns">
+      <div class="p-head">
+        <div><div class="p-title">Returns & Claims</div><div class="p-sub">Returns, cancellations, SPF claims, A-to-Z</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="showAddReturn()">+ Add</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportTableExcel('returnsTable','returns')">↓ Excel</button>
+        </div>
+      </div>
+
+      <!-- KPI row -->
+      <div class="kpi-grid" id="returnsKpi" style="margin-bottom:16px"></div>
+
+      <!-- Add form -->
+      <div id="returnForm" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:12px">Log Return / Claim</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Channel *</label>
+            <select id="rf_channel" required>
+              <option value="">Select</option>
+              <option value="shop">Shop</option>
+              <option value="amazon">Amazon</option>
+              <option value="flipkart">Flipkart</option>
+              <option value="website">Website</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Type *</label>
+            <select id="rf_type" required>
+              <option value="return">Return</option>
+              <option value="cancellation">Cancellation</option>
+              <option value="spf_claim">SPF Claim</option>
+              <option value="az_claim">A-to-Z Claim</option>
+              <option value="chargeback">Chargeback</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Order ID</label>
+            <input type="text" id="rf_orderid" placeholder="Platform order ID">
+          </div>
+          <div class="form-group">
+            <label>Date *</label>
+            <input type="date" id="rf_date" required>
+          </div>
+          <div class="form-group">
+            <label>Amount Lost (₹)</label>
+            <input type="number" id="rf_lost" step="0.01" value="0">
+          </div>
+          <div class="form-group">
+            <label>Refund Given (₹)</label>
+            <input type="number" id="rf_refund" step="0.01" value="0">
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="rf_status">
+              <option value="pending">Pending</option>
+              <option value="won">Won</option>
+              <option value="lost">Lost</option>
+              <option value="partial">Partial</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Reason</label>
+            <input type="text" id="rf_reason" placeholder="Brief reason">
+          </div>
+          <div class="form-group" style="grid-column:span 2">
+            <label>Notes</label>
+            <textarea id="rf_notes" rows="2" style="resize:vertical" placeholder="Details…"></textarea>
+          </div>
+        </div>
+        <input type="hidden" id="rf_id">
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="btn btn-primary btn-sm" onclick="saveReturn()">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('returnForm').style.display='none'">Cancel</button>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <select id="rtChannel" onchange="loadReturns()">
+          <option value="">All Channels</option>
+          <option value="shop">Shop</option>
+          <option value="amazon">Amazon</option>
+          <option value="flipkart">Flipkart</option>
+          <option value="website">Website</option>
+        </select>
+        <select id="rtType" onchange="loadReturns()">
+          <option value="">All Types</option>
+          <option value="return">Return</option>
+          <option value="cancellation">Cancellation</option>
+          <option value="spf_claim">SPF Claim</option>
+          <option value="az_claim">A-to-Z</option>
+          <option value="chargeback">Chargeback</option>
+        </select>
+        <select id="rtStatus" onchange="loadReturns()">
+          <option value="">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="won">Won</option>
+          <option value="lost">Lost</option>
+          <option value="partial">Partial</option>
+        </select>
+        <input type="month" id="rtMonth" onchange="loadReturns()">
+      </div>
+      <div class="tbl-wrap">
+        <table id="returnsTable">
+          <thead><tr>
+            <th>Date</th><th>Channel</th><th>Type</th><th>Order ID</th>
+            <th class="td-num">Amount Lost</th><th class="td-num">Refund Given</th>
+            <th>Status</th><th>Reason</th><th class="td-actions">Actions</th>
+          </tr></thead>
+          <tbody id="returnsBody"></tbody>
+        </table>
+      </div>
+    </div><!-- /returns -->
+
+    <!-- ══════════════════════════════════════════════════════
+         GST SUMMARY
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelGst">
+      <div class="p-head">
+        <div><div class="p-title">GST Summary</div><div class="p-sub">Regular scheme — CGST / SGST / IGST breakdown</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="gstYear" onchange="loadGST()"></select>
+          <button class="btn btn-ghost btn-sm" onclick="exportGSTExcel()">↓ Export for CA</button>
+        </div>
+      </div>
+
+      <div class="gst-summary" id="gstKpis"></div>
+
+      <div class="tbl-wrap">
+        <table id="gstTable">
+          <thead><tr>
+            <th>Month</th><th class="td-num">Taxable Sales</th>
+            <th class="td-num">CGST (9%)</th><th class="td-num">SGST (9%)</th>
+            <th class="td-num">IGST (18%)</th><th class="td-num">Total GST</th>
+            <th class="td-num">Orders</th>
+          </tr></thead>
+          <tbody id="gstBody"></tbody>
+        </table>
+      </div>
+
+      <div style="margin-top:16px;padding:12px 14px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--text-3)">
+        <strong style="color:var(--text-2)">Note:</strong> CGST+SGST applies for intra-state sales (same state as your GST registration).
+        IGST applies for inter-state sales. This system uses the customer's state to determine.
+        Please verify with your CA before filing. GST amounts are backed out from GST-inclusive selling prices.
+      </div>
+    </div><!-- /gst -->
+
+    <!-- ══════════════════════════════════════════════════════
+         REPORTS & EXPORT
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelReports">
+      <div class="p-head">
+        <div><div class="p-title">Reports & Export</div><div class="p-sub">Download any data as Excel</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">
+
+        <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">P&L Report</div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">Revenue, costs, profit by channel and month</div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label>Date Range</label>
+            <div style="display:flex;gap:6px">
+              <input type="month" id="plFrom" style="flex:1;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;outline:none">
+              <input type="month" id="plTo" style="flex:1;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;outline:none">
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="exportPLReport()">↓ Download P&L Excel</button>
+        </div>
+
+        <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">GST Report</div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">Full GST workings — share with your CA</div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label>Financial Year</label>
+            <select id="gstExportYear" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;outline:none;width:100%"></select>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="exportGSTReport()">↓ Download GST Excel</button>
+        </div>
+
+        <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Channel Report</div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">All sales from one channel with full details</div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label>Channel</label>
+            <select id="chExportCh" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;outline:none;width:100%">
+              <option value="">All</option>
+              <option value="shop">Shop</option>
+              <option value="amazon">Amazon</option>
+              <option value="flipkart">Flipkart</option>
+              <option value="website">Website</option>
+            </select>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="exportChannelReport()">↓ Download Channel Excel</button>
+        </div>
+
+        <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Full Data Dump</div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">All sales, returns, stock movements in one Excel</div>
+          <button class="btn btn-ghost btn-sm" onclick="exportAllExcel()" style="margin-top:28px">↓ Download Everything</button>
+        </div>
+
+      </div>
+    </div><!-- /reports -->
+
+  </div><!-- /main-area -->
+</div><!-- /shell -->
+
+<!-- ════════════════════════════════════════════════════════
+     SCRIPTS
+═══════════════════════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.js"></script>
+<script>
+// ── Config ─────────────────────────────────────────────────
+const SUPA_URL = 'https://qarjbmogersuaerkhlcu.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+const ADMIN_EMAIL = 'bhaveshv918@gmail.com';
+const MY_STATE = 'Uttar Pradesh'; // your GST registration state — for CGST/SGST vs IGST
+
+// ── Helpers ────────────────────────────────────────────────
+function esc(s){ return (s==null)?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmt(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fmtD(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function today(){ return new Date().toISOString().split('T')[0]; }
+function thisMonth(){ return new Date().toISOString().slice(0,7); }
+
+let _toastTimer;
+function toast(msg, type='success'){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='show '+(type||'');
+  clearTimeout(_toastTimer); _toastTimer=setTimeout(()=>el.className='',3000);
+}
+
+const CH_NAMES = {shop:'Shop',amazon:'Amazon',flipkart:'Flipkart',website:'Website'};
+const CH_COLORS= {shop:'#a78bfa',amazon:'#f59e0b',flipkart:'#3b82f6',website:'#10b981'};
+
+function chHtml(id){
+  return `<span class="ch ch-${esc(id)}"><span class="ch-dot"></span>${esc(CH_NAMES[id]||id)}</span>`;
+}
+
+// ── Auth ────────────────────────────────────────────────────
+async function initAuth(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session || session.user.email !== ADMIN_EMAIL){
+    window.location.href = '/admin.html';
+    return;
+  }
+  document.getElementById('authOverlay').style.display = 'none';
+  document.getElementById('shell').style.display = 'flex';
+  await Promise.all([loadProducts(), initDashMonths()]);
+  loadDashboard();
+  loadSalesBadge();
+  loadReturnsBadge();
+}
+
+// ── Tab switching ───────────────────────────────────────────
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel'+name.charAt(0).toUpperCase()+name.slice(1)));
+  const loaders = {
+    sales:loadSales, products:loadProducts, stock:loadStock,
+    returns:loadReturns, gst:loadGST, dashboard:loadDashboard
+  };
+  if(loaders[name]) loaders[name]();
+}
+
+// ── Products (cached for forms) ─────────────────────────────
+let _products = [];
+async function loadProducts(){
+  const {data,error} = await sb.from('biz_products').select('*').eq('is_active',true).order('name');
+  if(error){ toast('Error loading products: '+error.message,'error'); return; }
+  _products = data||[];
+  document.getElementById('prodCount').textContent = _products.length;
+  renderProductsTable();
+  populateProductSelects();
+}
+
+function renderProductsTable(){
+  const TYPE_LABEL = {own:'Own (3D Print)',job_work:'Job Work',readymade:'Readymade'};
+  const tbody = document.getElementById('productsBody');
+  if(!_products.length){ tbody.innerHTML=`<tr><td colspan="9"><div class="empty"><div class="em-icon">▦</div><div class="em-text">No products yet</div></div></td></tr>`; return; }
+  tbody.innerHTML = _products.map(p=>`
+    <tr>
+      <td>${esc(p.name)}</td>
+      <td><span style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(p.sku||'—')}</span></td>
+      <td>${esc(p.category||'—')}</td>
+      <td><span class="badge badge-completed">${esc(TYPE_LABEL[p.product_type]||p.product_type)}</span></td>
+      <td class="td-num">${fmtD(p.base_cost)}</td>
+      <td class="td-num">${p.gst_rate}%</td>
+      <td style="font-family:var(--mono);font-size:11px">${esc(p.hsn_code||'—')}</td>
+      <td class="td-num" id="stock_${p.id}">—</td>
+      <td class="td-actions">
+        <button class="btn btn-ghost btn-sm" onclick="editProduct('${p.id}')">Edit</button>
+      </td>
+    </tr>`).join('');
+  loadStockForProducts();
+}
+
+async function loadStockForProducts(){
+  const {data} = await sb.from('biz_stock_current').select('id,stock_qty');
+  if(!data) return;
+  data.forEach(r=>{ const el=document.getElementById('stock_'+r.id); if(el) el.textContent=r.stock_qty; });
+}
+
+function populateProductSelects(){
+  const opts = _products.map(p=>`<option value="${p.id}" data-cost="${p.base_cost}" data-gst="${p.gst_rate}">${esc(p.name)}${p.sku?' ('+p.sku+')':''}</option>`).join('');
+  document.getElementById('qa_product').innerHTML = `<option value="">Select product</option><option value="__custom">— Enter manually —</option>${opts}`;
+  document.getElementById('sm_product').innerHTML = `<option value="">Select product</option>${opts}`;
+}
+
+function showAddProduct(){ document.getElementById('pf_id').value=''; document.getElementById('productFormTitle').textContent='Add Product'; document.getElementById('pf_name').value=''; document.getElementById('pf_sku').value=''; document.getElementById('pf_category').value=''; document.getElementById('pf_type').value='own'; document.getElementById('pf_cost').value=''; document.getElementById('pf_gst').value='18'; document.getElementById('pf_hsn').value=''; document.getElementById('pf_notes').value=''; document.getElementById('productForm').style.display='block'; }
+function editProduct(id){ const p=_products.find(x=>x.id===id); if(!p) return; document.getElementById('pf_id').value=p.id; document.getElementById('productFormTitle').textContent='Edit Product'; document.getElementById('pf_name').value=p.name; document.getElementById('pf_sku').value=p.sku||''; document.getElementById('pf_category').value=p.category||''; document.getElementById('pf_type').value=p.product_type; document.getElementById('pf_cost').value=p.base_cost; document.getElementById('pf_gst').value=p.gst_rate; document.getElementById('pf_hsn').value=p.hsn_code||''; document.getElementById('pf_notes').value=p.notes||''; document.getElementById('productForm').style.display='block'; }
+
+async function saveProduct(){
+  const id=document.getElementById('pf_id').value;
+  const payload={
+    name:document.getElementById('pf_name').value.trim(),
+    sku:document.getElementById('pf_sku').value.trim()||null,
+    category:document.getElementById('pf_category').value.trim()||null,
+    product_type:document.getElementById('pf_type').value,
+    base_cost:parseFloat(document.getElementById('pf_cost').value)||0,
+    gst_rate:parseFloat(document.getElementById('pf_gst').value)||18,
+    hsn_code:document.getElementById('pf_hsn').value.trim()||null,
+    notes:document.getElementById('pf_notes').value.trim()||null,
+  };
+  if(!payload.name){ toast('Product name is required','error'); return; }
+  const {error} = id
+    ? await sb.from('biz_products').update(payload).eq('id',id)
+    : await sb.from('biz_products').insert(payload);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast(id?'Product updated':'Product added');
+  document.getElementById('productForm').style.display='none';
+  loadProducts();
+}
+
+// ── Quick Add Sale ──────────────────────────────────────────
+function onChannelChange(){
+  const ch=document.getElementById('qa_channel').value;
+  const feeMap={amazon:15,flipkart:13,website:2,shop:0};
+  const price=parseFloat(document.getElementById('qa_price').value)||0;
+  document.getElementById('qa_platformfee').value=price?(price*((feeMap[ch]||0)/100)).toFixed(2):feeMap[ch]||0;
+  recalc();
+}
+
+function onProductSelect(){
+  const sel=document.getElementById('qa_product');
+  const val=sel.value;
+  document.getElementById('qa_customNameGroup').style.display = (val==='__custom')?'block':'none';
+  if(val && val!=='__custom'){
+    const opt=sel.options[sel.selectedIndex];
+    const cost=parseFloat(opt.dataset.cost)||0;
+    const gst=opt.dataset.gst||'18';
+    document.getElementById('qa_cogs').value=cost;
+    document.getElementById('qa_gst').value=gst;
+    recalc();
+  }
+}
+
+function recalc(){
+  const price=parseFloat(document.getElementById('qa_price').value)||0;
+  const qty=parseInt(document.getElementById('qa_qty').value)||1;
+  const fee=parseFloat(document.getElementById('qa_platformfee').value)||0;
+  const ship=parseFloat(document.getElementById('qa_shipping').value)||0;
+  const cogs=parseFloat(document.getElementById('qa_cogs').value)||0;
+  const gstRate=parseFloat(document.getElementById('qa_gst').value)||18;
+  const totalPrice=price*qty;
+  const gstAmt=totalPrice-(totalPrice/(1+gstRate/100));
+  const basePrice=totalPrice-gstAmt;
+  const netRev=totalPrice-fee-ship;
+  const totalCost=cogs*qty;
+  const profit=netRev-totalCost-gstAmt;
+  const margin=netRev>0?(profit/netRev*100):0;
+  document.getElementById('c_base').textContent=fmt(basePrice);
+  document.getElementById('c_gst').textContent=fmt(gstAmt);
+  document.getElementById('c_net').textContent=fmt(netRev);
+  document.getElementById('c_cost').textContent=fmt(totalCost);
+  document.getElementById('c_profit').textContent=fmt(profit);
+  document.getElementById('c_profit').style.color=profit>=0?'var(--green)':'var(--red)';
+  document.getElementById('c_margin').textContent=margin.toFixed(1)+'%';
+  document.getElementById('c_margin').style.color=margin>=0?'var(--green)':'var(--red)';
+}
+
+function resetQuickAdd(){ document.getElementById('quickAddForm').reset(); recalc(); document.getElementById('qa_customNameGroup').style.display='none'; document.getElementById('qa_date').value=today(); }
+
+async function submitQuickAdd(e){
+  e.preventDefault();
+  const sel=document.getElementById('qa_product');
+  const productId=sel.value&&sel.value!=='__custom'?sel.value:null;
+  const productName=productId?sel.options[sel.selectedIndex].textContent.replace(/\s*\(.*\)$/,'').trim():document.getElementById('qa_customName').value.trim();
+  if(!productName){ toast('Product name required','error'); return; }
+  const price=parseFloat(document.getElementById('qa_price').value)||0;
+  const qty=parseInt(document.getElementById('qa_qty').value)||1;
+  const gstRate=parseFloat(document.getElementById('qa_gst').value)||18;
+  const fee=parseFloat(document.getElementById('qa_platformfee').value)||0;
+  const payload={
+    channel_id:document.getElementById('qa_channel').value,
+    order_date:document.getElementById('qa_date').value,
+    order_id:document.getElementById('qa_orderid').value.trim()||null,
+    payment_mode:document.getElementById('qa_payment').value||null,
+    product_id:productId,
+    product_name:productName,
+    qty,
+    selling_price:price,
+    platform_fee:fee,
+    shipping_fee:parseFloat(document.getElementById('qa_shipping').value)||0,
+    cogs:parseFloat(document.getElementById('qa_cogs').value)||0,
+    gst_rate:gstRate,
+    customer_name:document.getElementById('qa_cname').value.trim()||null,
+    customer_city:document.getElementById('qa_city').value.trim()||null,
+    customer_state:document.getElementById('qa_state').value.trim()||null,
+    customer_pincode:document.getElementById('qa_pin').value.trim()||null,
+    notes:document.getElementById('qa_notes').value.trim()||null,
+    import_source:'manual',
+    status:'completed',
+  };
+  const {error}=await sb.from('biz_sales').insert(payload);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Sale saved!');
+  resetQuickAdd();
+  loadSalesBadge();
+}
+
+// ── Sales list ──────────────────────────────────────────────
+async function loadSalesBadge(){
+  const {count}=await sb.from('biz_sales').select('*',{count:'exact',head:true});
+  document.getElementById('salesCount').textContent=count||0;
+}
+
+async function loadSales(){
+  let q=sb.from('biz_sales').select('*').order('order_date',{ascending:false}).limit(500);
+  const ch=document.getElementById('sfChannel').value;
+  const st=document.getElementById('sfStatus').value;
+  const mo=document.getElementById('sfMonth').value;
+  const se=document.getElementById('sfSearch').value.trim();
+  if(ch) q=q.eq('channel_id',ch);
+  if(st) q=q.eq('status',st);
+  if(mo){ q=q.gte('order_date',mo+'-01').lte('order_date',mo+'-31'); }
+  if(se) q=q.or(`product_name.ilike.%${se}%,order_id.ilike.%${se}%`);
+  const {data,error}=await q;
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  const rows=data||[];
+  document.getElementById('salesSubtitle').textContent=rows.length+' orders shown';
+  const tbody=document.getElementById('salesBody');
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="11"><div class="empty"><div class="em-icon">◈</div><div class="em-text">No sales found</div></div></td></tr>`; return; }
+  tbody.innerHTML=rows.map(s=>{
+    const gstAmt=s.selling_price-(s.selling_price/(1+s.gst_rate/100));
+    const netRev=s.selling_price-s.platform_fee-s.shipping_fee-s.other_deductions;
+    const profit=netRev-s.cogs-gstAmt;
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:11px">${esc(s.order_date)}</td>
+      <td>${chHtml(s.channel_id)}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(s.order_id||'—')}</td>
+      <td>${esc(s.product_name)}<br><span style="font-size:10px;color:var(--text-3)">${esc(s.sku||'')} ×${s.qty}</span></td>
+      <td class="td-num">${s.qty}</td>
+      <td class="td-num">${fmt(s.selling_price)}</td>
+      <td class="td-num" style="color:var(--red)">${fmt(s.platform_fee)}</td>
+      <td class="td-num" style="color:var(--text-3)">${fmt(s.cogs)}</td>
+      <td class="td-num" style="color:${profit>=0?'var(--green)':'var(--red)'}">${fmt(profit)}</td>
+      <td><span class="badge badge-${esc(s.status)}">${esc(s.status)}</span></td>
+      <td class="td-actions">
+        <button class="btn btn-danger btn-sm" onclick="deleteSale('${s.id}')">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function clearSalesFilters(){ document.getElementById('sfChannel').value=''; document.getElementById('sfStatus').value=''; document.getElementById('sfMonth').value=''; document.getElementById('sfSearch').value=''; loadSales(); }
+
+async function deleteSale(id){
+  if(!confirm('Delete this sale?')) return;
+  const {error}=await sb.from('biz_sales').delete().eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Deleted'); loadSales(); loadSalesBadge();
+}
+
+// ── Stock ───────────────────────────────────────────────────
+async function loadStock(){
+  const [{data:levels},{data:moves}] = await Promise.all([
+    sb.from('biz_stock_current').select('*'),
+    sb.from('biz_stock_movements').select('*, biz_products(name)').order('date',{ascending:false}).limit(100)
+  ]);
+  const tbody=document.getElementById('stockBody');
+  const rows=levels||[];
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="em-icon">◫</div><div class="em-text">No products yet</div></div></td></tr>`; }
+  else tbody.innerHTML=rows.map(r=>`<tr>
+    <td>${esc(r.name)}</td>
+    <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(r.sku||'—')}</td>
+    <td>${esc(r.category||'—')}</td>
+    <td>${esc(r.product_type)}</td>
+    <td class="td-num" style="color:${r.stock_qty<=0?'var(--red)':r.stock_qty<=5?'var(--yellow)':'var(--green)'}">${r.stock_qty}</td>
+    <td class="td-num">${fmtD(r.base_cost)}</td>
+    <td class="td-num">${fmt(r.stock_qty*r.base_cost)}</td>
+  </tr>`).join('');
+
+  const mbody=document.getElementById('movementsBody');
+  const mv=moves||[];
+  if(!mv.length){ mbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="em-text">No movements yet</div></div></td></tr>`; }
+  else mbody.innerHTML=mv.map(m=>`<tr>
+    <td style="font-family:var(--mono);font-size:11px">${esc(m.date)}</td>
+    <td>${esc(m.biz_products?.name||'—')}</td>
+    <td>${esc(m.movement_type)}</td>
+    <td class="td-num" style="color:${m.qty>0?'var(--green)':'var(--red)'}">${m.qty>0?'+':''}${m.qty}</td>
+    <td class="td-num">${m.unit_cost?fmtD(m.unit_cost):'—'}</td>
+    <td style="color:var(--text-3);font-size:11px">${esc(m.reference_id||m.notes||'—')}</td>
+  </tr>`).join('');
+}
+
+function showAddStock(){ document.getElementById('stockForm').style.display='block'; document.getElementById('sm_date').value=today(); }
+
+async function saveStockMovement(){
+  const payload={
+    product_id:document.getElementById('sm_product').value,
+    movement_type:document.getElementById('sm_type').value,
+    qty:parseInt(document.getElementById('sm_qty').value)||0,
+    unit_cost:parseFloat(document.getElementById('sm_cost').value)||null,
+    date:document.getElementById('sm_date').value||today(),
+    reference_id:document.getElementById('sm_ref').value.trim()||null,
+  };
+  if(!payload.product_id){ toast('Select a product','error'); return; }
+  if(!payload.qty){ toast('Enter qty','error'); return; }
+  const {error}=await sb.from('biz_stock_movements').insert(payload);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Movement saved');
+  document.getElementById('stockForm').style.display='none';
+  loadStock();
+}
+
+// ── Returns ─────────────────────────────────────────────────
+async function loadReturnsBadge(){
+  const {count}=await sb.from('biz_returns').select('*',{count:'exact',head:true}).eq('status','pending');
+  document.getElementById('returnCount').textContent=count||0;
+}
+
+async function loadReturns(){
+  let q=sb.from('biz_returns').select('*').order('date',{ascending:false}).limit(500);
+  const ch=document.getElementById('rtChannel').value;
+  const ty=document.getElementById('rtType').value;
+  const st=document.getElementById('rtStatus').value;
+  const mo=document.getElementById('rtMonth').value;
+  if(ch) q=q.eq('channel_id',ch);
+  if(ty) q=q.eq('type',ty);
+  if(st) q=q.eq('status',st);
+  if(mo){ q=q.gte('date',mo+'-01').lte('date',mo+'-31'); }
+  const {data,error}=await q;
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  const rows=data||[];
+  // KPIs
+  const totalLost=rows.reduce((s,r)=>s+r.amount_lost,0);
+  const pending=rows.filter(r=>r.status==='pending').length;
+  document.getElementById('returnsKpi').innerHTML=`
+    <div class="kpi red"><div class="kpi-label">Total Lost</div><div class="kpi-val">${fmt(totalLost)}</div></div>
+    <div class="kpi yellow"><div class="kpi-label">Pending Claims</div><div class="kpi-val">${pending}</div></div>
+    <div class="kpi"><div class="kpi-label">Total Cases</div><div class="kpi-val">${rows.length}</div></div>`;
+  const tbody=document.getElementById('returnsBody');
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="9"><div class="empty"><div class="em-icon">↩</div><div class="em-text">No returns yet</div></div></td></tr>`; return; }
+  tbody.innerHTML=rows.map(r=>`<tr>
+    <td style="font-family:var(--mono);font-size:11px">${esc(r.date)}</td>
+    <td>${chHtml(r.channel_id)}</td>
+    <td><span class="badge badge-${r.type==='return'?'returned':r.type==='cancellation'?'cancelled':'claimed'}">${esc(r.type.replace('_',' '))}</span></td>
+    <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(r.order_id||'—')}</td>
+    <td class="td-num" style="color:var(--red)">${fmt(r.amount_lost)}</td>
+    <td class="td-num">${fmt(r.refund_given)}</td>
+    <td><span class="badge badge-${esc(r.status)}">${esc(r.status)}</span></td>
+    <td style="font-size:11px;color:var(--text-3)">${esc(r.reason||'—')}</td>
+    <td class="td-actions">
+      <button class="btn btn-ghost btn-sm" onclick="editReturn('${r.id}')">Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteReturn('${r.id}')">✕</button>
+    </td>
+  </tr>`).join('');
+}
+
+function showAddReturn(){ document.getElementById('rf_id').value=''; document.getElementById('rf_date').value=today(); document.getElementById('returnForm').style.display='block'; }
+function editReturn(id){ /* load and populate form — simplified */ toast('Edit: open form, select return in table',''); }
+async function deleteReturn(id){ if(!confirm('Delete?')) return; await sb.from('biz_returns').delete().eq('id',id); toast('Deleted'); loadReturns(); loadReturnsBadge(); }
+
+async function saveReturn(){
+  const id=document.getElementById('rf_id').value;
+  const payload={
+    channel_id:document.getElementById('rf_channel').value,
+    type:document.getElementById('rf_type').value,
+    order_id:document.getElementById('rf_orderid').value.trim()||null,
+    date:document.getElementById('rf_date').value,
+    amount_lost:parseFloat(document.getElementById('rf_lost').value)||0,
+    refund_given:parseFloat(document.getElementById('rf_refund').value)||0,
+    status:document.getElementById('rf_status').value,
+    reason:document.getElementById('rf_reason').value.trim()||null,
+    notes:document.getElementById('rf_notes').value.trim()||null,
+  };
+  if(!payload.channel_id||!payload.type){ toast('Channel and type required','error'); return; }
+  const {error}=id?await sb.from('biz_returns').update(payload).eq('id',id):await sb.from('biz_returns').insert(payload);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast(id?'Updated':'Saved');
+  document.getElementById('returnForm').style.display='none';
+  loadReturns(); loadReturnsBadge();
+}
+
+// ── GST Summary ─────────────────────────────────────────────
+function initGSTYears(){
+  const yr=new Date().getFullYear();
+  [document.getElementById('gstYear'),document.getElementById('gstExportYear')].forEach(sel=>{
+    if(!sel) return;
+    sel.innerHTML=[yr+1,yr,yr-1].map(y=>`<option value="${y}" ${y===yr?'selected':''}>${y}-${y+1} (Apr–Mar)</option>`).join('');
+  });
+}
+
+async function loadGST(){
+  const yr=parseInt(document.getElementById('gstYear').value);
+  // Financial year: April yr to March yr+1
+  const from=`${yr}-04-01`, to=`${yr+1}-03-31`;
+  const {data,error}=await sb.from('biz_sales').select('order_date,selling_price,gst_rate,customer_state').eq('status','completed').gte('order_date',from).lte('order_date',to);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  const rows=data||[];
+  // Group by month
+  const months={};
+  rows.forEach(r=>{
+    const mo=r.order_date.slice(0,7);
+    if(!months[mo]) months[mo]={taxable:0,cgst:0,sgst:0,igst:0,total:0,count:0};
+    const gstAmt=r.selling_price-(r.selling_price/(1+r.gst_rate/100));
+    const taxable=r.selling_price-gstAmt;
+    const interstate=r.customer_state && r.customer_state.trim().toLowerCase()!==MY_STATE.toLowerCase();
+    months[mo].taxable+=taxable;
+    months[mo].total+=gstAmt;
+    months[mo].count++;
+    if(interstate){ months[mo].igst+=gstAmt; }
+    else { months[mo].cgst+=gstAmt/2; months[mo].sgst+=gstAmt/2; }
+  });
+  // FY months in order
+  const fyMonths=[];
+  for(let m=4;m<=12;m++) fyMonths.push(`${yr}-${String(m).padStart(2,'0')}`);
+  for(let m=1;m<=3;m++) fyMonths.push(`${yr+1}-${String(m).padStart(2,'0')}`);
+  const MONTH_NAMES=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let totTaxable=0,totCgst=0,totSgst=0,totIgst=0,totGst=0,totCount=0;
+  document.getElementById('gstBody').innerHTML=fyMonths.map(mo=>{
+    const d=months[mo]||{taxable:0,cgst:0,sgst:0,igst:0,total:0,count:0};
+    totTaxable+=d.taxable; totCgst+=d.cgst; totSgst+=d.sgst; totIgst+=d.igst; totGst+=d.total; totCount+=d.count;
+    const [y,m]=mo.split('-');
+    return `<tr>
+      <td>${MONTH_NAMES[parseInt(m)]} ${y}</td>
+      <td class="td-num">${fmt(d.taxable)}</td>
+      <td class="td-num">${fmt(d.cgst)}</td>
+      <td class="td-num">${fmt(d.sgst)}</td>
+      <td class="td-num">${fmt(d.igst)}</td>
+      <td class="td-num" style="color:var(--yellow);font-weight:700">${fmt(d.total)}</td>
+      <td class="td-num">${d.count}</td>
+    </tr>`;
+  }).join('')+`<tr style="background:var(--bg-2);font-weight:700">
+    <td>TOTAL</td>
+    <td class="td-num">${fmt(totTaxable)}</td>
+    <td class="td-num">${fmt(totCgst)}</td>
+    <td class="td-num">${fmt(totSgst)}</td>
+    <td class="td-num">${fmt(totIgst)}</td>
+    <td class="td-num" style="color:var(--yellow)">${fmt(totGst)}</td>
+    <td class="td-num">${totCount}</td>
+  </tr>`;
+  document.getElementById('gstKpis').innerHTML=`
+    <div class="gst-card"><label>Total GST Collected</label><div class="val">${fmt(totGst)}</div><div class="sub">FY ${yr}–${yr+1}</div></div>
+    <div class="gst-card"><label>Taxable Turnover</label><div class="val">${fmt(totTaxable)}</div></div>
+    <div class="gst-card"><label>CGST</label><div class="val">${fmt(totCgst)}</div><div class="sub">Intra-state portion</div></div>
+    <div class="gst-card"><label>SGST</label><div class="val">${fmt(totSgst)}</div><div class="sub">Intra-state portion</div></div>
+    <div class="gst-card"><label>IGST</label><div class="val">${fmt(totIgst)}</div><div class="sub">Inter-state sales</div></div>`;
+}
+
+// ── Dashboard ───────────────────────────────────────────────
+function initDashMonths(){
+  const sel=document.getElementById('dashMonth');
+  const now=new Date(); const opts=[];
+  for(let i=0;i<12;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const val=d.toISOString().slice(0,7);
+    const label=d.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+    opts.push(`<option value="${val}" ${i===0?'selected':''}>${label}</option>`);
+  }
+  sel.innerHTML=opts.join('');
+}
+
+let _chartByChannel=null, _chartMonthly=null;
+async function loadDashboard(){
+  const mo=document.getElementById('dashMonth').value;
+  const [y,m]=mo.split('-');
+  const from=`${mo}-01`, to=`${mo}-31`;
+  document.getElementById('dashMonthName').textContent=new Date(y,m-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+
+  const [{data:sales},{data:rets},{data:monthly}]=await Promise.all([
+    sb.from('biz_sales').select('channel_id,selling_price,platform_fee,shipping_fee,other_deductions,cogs,gst_rate,status,qty').gte('order_date',from).lte('order_date',to),
+    sb.from('biz_returns').select('amount_lost').gte('date',from).lte('date',to),
+    sb.from('biz_sales').select('order_date,selling_price,platform_fee,shipping_fee,other_deductions,cogs,gst_rate,status').eq('status','completed').gte('order_date',`${y}-01-01`).lte('order_date',`${y}-12-31`)
+  ]);
+
+  const completed=(sales||[]).filter(s=>s.status==='completed');
+  const totRev=completed.reduce((s,r)=>s+r.selling_price,0);
+  const totNet=completed.reduce((s,r)=>s+r.selling_price-r.platform_fee-r.shipping_fee-r.other_deductions,0);
+  const totGst=completed.reduce((s,r)=>s+(r.selling_price-(r.selling_price/(1+r.gst_rate/100))),0);
+  const totCogs=completed.reduce((s,r)=>s+r.cogs,0);
+  const totProfit=totNet-totCogs-totGst;
+  const totOrders=completed.length;
+  const totUnits=completed.reduce((s,r)=>s+r.qty,0);
+  const totLost=(rets||[]).reduce((s,r)=>s+r.amount_lost,0);
+
+  document.getElementById('kpiRevenue').textContent=fmt(totRev);
+  document.getElementById('kpiNet').textContent=fmt(totNet);
+  document.getElementById('kpiProfit').textContent=fmt(totProfit);
+  document.getElementById('kpiProfit').closest('.kpi').className='kpi '+(totProfit>=0?'green':'red');
+  document.getElementById('kpiMarginSub').textContent='Margin: '+(totNet>0?(totProfit/totNet*100).toFixed(1):'0')+'%';
+  document.getElementById('kpiGst').textContent=fmt(totGst);
+  document.getElementById('kpiOrders').textContent=totOrders;
+  document.getElementById('kpiUnitsSub').textContent=totUnits+' units';
+  document.getElementById('kpiReturns').textContent=fmt(totLost);
+
+  // Channel breakdown
+  const channels=['shop','amazon','flipkart','website'];
+  const byChannel={};
+  channels.forEach(c=>byChannel[c]={orders:0,revenue:0,fees:0,cogs:0,profit:0,net:0,gst:0});
+  completed.forEach(s=>{
+    const c=byChannel[s.channel_id]; if(!c) return;
+    const gst=s.selling_price-(s.selling_price/(1+s.gst_rate/100));
+    const net=s.selling_price-s.platform_fee-s.shipping_fee-s.other_deductions;
+    c.orders++; c.revenue+=s.selling_price; c.fees+=s.platform_fee; c.cogs+=s.cogs; c.net+=net; c.gst+=gst;
+    c.profit+=net-s.cogs-gst;
+  });
+  document.getElementById('channelBreakdown').innerHTML=channels.map(c=>{
+    const d=byChannel[c];
+    return `<tr>
+      <td>${chHtml(c)}</td>
+      <td class="td-num">${d.orders}</td>
+      <td class="td-num">${fmt(d.revenue)}</td>
+      <td class="td-num" style="color:var(--red)">${fmt(d.fees)}</td>
+      <td class="td-num">${fmt(d.net)}</td>
+      <td class="td-num" style="color:var(--text-3)">${fmt(d.cogs)}</td>
+      <td class="td-num" style="color:${d.profit>=0?'var(--green)':'var(--red)'}">${fmt(d.profit)}</td>
+      <td class="td-num">${d.net>0?(d.profit/d.net*100).toFixed(1)+'%':'—'}</td>
+    </tr>`;
+  }).join('');
+
+  // Chart: by channel
+  const ctx1=document.getElementById('chartByChannel').getContext('2d');
+  if(_chartByChannel) _chartByChannel.destroy();
+  _chartByChannel=new Chart(ctx1,{type:'bar',data:{
+    labels:channels.map(c=>CH_NAMES[c]),
+    datasets:[
+      {label:'Revenue',data:channels.map(c=>byChannel[c].revenue),backgroundColor:channels.map(c=>CH_COLORS[c]+'88'),borderColor:channels.map(c=>CH_COLORS[c]),borderWidth:1},
+      {label:'Profit',data:channels.map(c=>byChannel[c].profit),backgroundColor:'rgba(74,222,128,0.3)',borderColor:'#4ADE80',borderWidth:1}
+    ]},options:{responsive:true,plugins:{legend:{labels:{color:'#879E8C',font:{size:10}}}},scales:{x:{ticks:{color:'#4E6655'},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#4E6655',callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'rgba(255,255,255,0.04)'}}}}});
+
+  // Chart: monthly trend (current year)
+  const moMap={}; (monthly||[]).forEach(s=>{const mo2=s.order_date.slice(0,7);if(!moMap[mo2])moMap[mo2]=0;moMap[mo2]+=s.selling_price;});
+  const allMonths=[]; for(let i=1;i<=12;i++) allMonths.push(`${y}-${String(i).padStart(2,'0')}`);
+  const ctx2=document.getElementById('chartMonthly').getContext('2d');
+  if(_chartMonthly) _chartMonthly.destroy();
+  _chartMonthly=new Chart(ctx2,{type:'line',data:{
+    labels:allMonths.map(m=>{const[,mm]=m.split('-');return['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mm)];}),
+    datasets:[{label:'Revenue',data:allMonths.map(m=>moMap[m]||0),borderColor:'#52B788',backgroundColor:'rgba(82,183,136,0.1)',tension:0.4,pointRadius:3,fill:true}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#4E6655'},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#4E6655',callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'rgba(255,255,255,0.04)'}}}}});
+
+  // Top products
+  const prodMap={};
+  completed.forEach(s=>{
+    if(!prodMap[s.product_name]) prodMap[s.product_name]={qty:0,rev:0,profit:0};
+    const gst=s.selling_price-(s.selling_price/(1+s.gst_rate/100));
+    const net=s.selling_price-s.platform_fee-s.shipping_fee-s.other_deductions;
+    prodMap[s.product_name].qty+=s.qty;
+    prodMap[s.product_name].rev+=s.selling_price;
+    prodMap[s.product_name].profit+=net-s.cogs-gst;
+  });
+  const top=Object.entries(prodMap).sort((a,b)=>b[1].rev-a[1].rev).slice(0,8);
+  document.getElementById('topProducts').innerHTML=top.length?top.map(([name,d],i)=>`<tr>
+    <td style="color:var(--text-3);font-family:var(--mono)">${i+1}</td>
+    <td>${esc(name)}</td>
+    <td class="td-num">${d.qty}</td>
+    <td class="td-num">${fmt(d.rev)}</td>
+    <td class="td-num" style="color:${d.profit>=0?'var(--green)':'var(--red)'}">${fmt(d.profit)}</td>
+  </tr>`).join(''):`<tr><td colspan="5" class="empty"><div class="em-text">No sales this month</div></td></tr>`;
+}
+
+// ── CSV Import ──────────────────────────────────────────────
+let _importRows=[], _importCols=[];
+const AMAZON_MAP={
+  'order_id':['order-id','amazon-order-id'],
+  'order_date':['purchase-date','order-date'],
+  'product_name':['product-name','item-name'],
+  'sku':['sku','merchant-sku','seller-sku'],
+  'qty':['quantity-purchased','quantity','qty'],
+  'selling_price':['item-price','selling-price'],
+  'customer_name':['recipient-name','ship-name','buyer-name'],
+  'customer_city':['ship-city','shipping-city'],
+  'customer_state':['ship-state','shipping-state'],
+  'customer_pincode':['ship-postal-code','shipping-postal-code'],
+};
+const FLIPKART_MAP={
+  'order_id':['order id','order_id'],
+  'order_date':['order date','order_date','date'],
+  'product_name':['product title','product_title','item name'],
+  'sku':['sku id','sku','listing id'],
+  'qty':['quantity','qty'],
+  'selling_price':['selling price','mrp','unit selling price'],
+  'customer_name':['buyer name','customer name'],
+  'customer_city':['city','buyer city'],
+  'customer_state':['state','buyer state'],
+  'customer_pincode':['pincode','postal code'],
+};
+
+function dzDragOver(e){ e.preventDefault(); document.getElementById('dropzone').classList.add('drag-over'); }
+function dzDragLeave(){ document.getElementById('dropzone').classList.remove('drag-over'); }
+function dzDrop(e){ e.preventDefault(); dzDragLeave(); const f=e.dataTransfer.files[0]; if(f) parseImportFile(f); }
+function handleFileSelect(e){ const f=e.target.files[0]; if(f) parseImportFile(f); }
+
+function parseImportFile(file){
+  const reader=new FileReader();
+  reader.onload=function(e){
+    let rows;
+    if(file.name.endsWith('.csv')){
+      rows=parseCSV(e.target.result);
+    } else {
+      const wb=XLSX.read(e.target.result,{type:'binary'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+    }
+    if(!rows||!rows.length){ toast('No data found in file','error'); return; }
+    _importRows=rows;
+    _importCols=Object.keys(rows[0]);
+    showImportMapping(file.name);
+  };
+  if(file.name.endsWith('.csv')) reader.readAsText(file);
+  else reader.readAsBinaryString(file);
+}
+
+function parseCSV(text){
+  const lines=text.trim().split('\n');
+  if(lines.length<2) return [];
+  const headers=lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim());
+  return lines.slice(1).filter(l=>l.trim()).map(line=>{
+    const vals=line.split(',').map(v=>v.replace(/^"|"$/g,'').trim());
+    const obj={}; headers.forEach((h,i)=>obj[h]=vals[i]||'');
+    return obj;
+  });
+}
+
+function autoMap(colName){
+  const pl=document.getElementById('importPlatform').value;
+  const map=pl==='amazon'?AMAZON_MAP:pl==='flipkart'?FLIPKART_MAP:{};
+  const lower=colName.toLowerCase();
+  for(const [field,aliases] of Object.entries(map)){
+    if(aliases.some(a=>lower===a||lower.includes(a))) return field;
+  }
+  return '';
+}
+
+const IMPORT_FIELDS=['order_id','order_date','product_name','sku','qty','selling_price','customer_name','customer_city','customer_state','customer_pincode'];
+const FIELD_LABELS={order_id:'Order ID',order_date:'Order Date',product_name:'Product Name',sku:'SKU',qty:'Qty',selling_price:'Selling Price (₹)',customer_name:'Customer Name',customer_city:'City',customer_state:'State',customer_pincode:'Pincode'};
+
+function showImportMapping(fileName){
+  document.getElementById('importFileName').textContent=fileName;
+  document.getElementById('importRowCount').textContent=_importRows.length;
+  const colOpts=`<option value="">— skip —</option>${_importCols.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}`;
+  document.getElementById('mappingRows').innerHTML=IMPORT_FIELDS.map(f=>{
+    const auto=autoMap(f);
+    return `<div class="mapping-row">
+      <span class="col-name">${FIELD_LABELS[f]}</span>
+      <select id="map_${f}">${colOpts}</select>
+    </div>`;
+  }).join('');
+  // Apply auto-mapping
+  IMPORT_FIELDS.forEach(f=>{
+    const auto=autoMap(f); if(!auto) return;
+    const sel=document.getElementById('map_'+f);
+    for(const opt of sel.options){ if(opt.value===auto){ sel.value=auto; break; } }
+    // fuzzy match
+    if(!sel.value){
+      const lower=auto.toLowerCase();
+      for(const opt of sel.options){ if(opt.value.toLowerCase().includes(lower)||lower.includes(opt.value.toLowerCase())){ sel.value=opt.value; break; } }
+    }
+  });
+  document.getElementById('importPreview').style.display='block';
+}
+
+function cancelImport(){ document.getElementById('importPreview').style.display='none'; _importRows=[]; document.getElementById('fileInput').value=''; }
+
+async function runImport(){
+  const getCol=f=>document.getElementById('map_'+f).value;
+  const platform=document.getElementById('importPlatform').value;
+  const defaultCogs=parseFloat(document.getElementById('importDefaultCogs').value)||0;
+  const ch=platform==='amazon'?'amazon':platform==='flipkart'?'flipkart':'shop';
+  const feeMap={amazon:15,flipkart:13,website:2,shop:0};
+  const feePct=feeMap[ch]||0;
+  const statusEl=document.getElementById('importStatus');
+  statusEl.textContent='Importing…';
+  let success=0, skip=0;
+  const batch=[];
+  for(const row of _importRows){
+    const g=f=>{ const c=getCol(f); return c?row[c]||'':''; };
+    const pname=g('product_name'); if(!pname){ skip++; continue; }
+    const price=parseFloat(String(g('selling_price')).replace(/[₹,]/g,''))||0; if(!price){ skip++; continue; }
+    const rawDate=g('order_date');
+    let orderDate=today();
+    if(rawDate){
+      // try to parse various date formats
+      const d=new Date(rawDate); if(!isNaN(d)) orderDate=d.toISOString().split('T')[0];
+    }
+    const qty=parseInt(g('qty'))||1;
+    batch.push({
+      channel_id:ch,
+      order_id:g('order_id')||null,
+      order_date:orderDate,
+      product_name:pname,
+      sku:g('sku')||null,
+      qty,
+      selling_price:price,
+      platform_fee:+(price*feePct/100).toFixed(2),
+      cogs:defaultCogs,
+      gst_rate:18,
+      customer_name:g('customer_name')||null,
+      customer_city:g('customer_city')||null,
+      customer_state:g('customer_state')||null,
+      customer_pincode:g('customer_pincode')||null,
+      import_source:platform+'_csv',
+      status:'completed',
+    });
+  }
+  // Insert in batches of 100
+  for(let i=0;i<batch.length;i+=100){
+    const {error}=await sb.from('biz_sales').insert(batch.slice(i,i+100));
+    if(error){ statusEl.textContent='Error: '+error.message; toast('Import error: '+error.message,'error'); return; }
+    success+=Math.min(100,batch.length-i);
+    statusEl.textContent=`Inserted ${success}…`;
+  }
+  toast(`Imported ${success} rows${skip?' ('+skip+' skipped)':''}`);
+  statusEl.textContent=`Done — ${success} imported, ${skip} skipped`;
+  cancelImport(); loadSalesBadge();
+}
+
+// ── Excel export ────────────────────────────────────────────
+function exportTableExcel(tableId,name){
+  const table=document.getElementById(tableId);
+  if(!table){ toast('No data','error'); return; }
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.table_to_sheet(table);
+  XLSX.utils.book_append_sheet(wb,ws,name);
+  XLSX.writeFile(wb,`triakar_${name}_${thisMonth()}.xlsx`);
+}
+
+async function exportAllExcel(){
+  const [{data:sales},{data:returns},{data:products},{data:stock}]=await Promise.all([
+    sb.from('biz_sales').select('*').order('order_date',{ascending:false}),
+    sb.from('biz_returns').select('*').order('date',{ascending:false}),
+    sb.from('biz_products').select('*'),
+    sb.from('biz_stock_movements').select('*, biz_products(name)').order('date',{ascending:false})
+  ]);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sales||[]),'Sales');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(returns||[]),'Returns');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(products||[]),'Products');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(stock||[]),'Stock');
+  XLSX.writeFile(wb,`triakar_full_dump_${today()}.xlsx`);
+  toast('Exported all data');
+}
+
+async function exportPLReport(){
+  const from=document.getElementById('plFrom').value; const to=document.getElementById('plTo').value;
+  let q=sb.from('biz_pnl').select('*');
+  if(from) q=q.gte('order_date',from+'-01');
+  if(to) q=q.lte('order_date',to+'-31');
+  const {data}=await q;
+  if(!data||!data.length){ toast('No data for range','error'); return; }
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(data),'P&L');
+  XLSX.writeFile(wb,`triakar_pl_${from||'all'}_${to||'all'}.xlsx`);
+  toast('P&L report downloaded');
+}
+
+async function exportGSTReport(){
+  const yr=document.getElementById('gstExportYear').value;
+  const {data}=await sb.from('biz_sales').select('*').eq('status','completed').gte('order_date',`${yr}-04-01`).lte('order_date',`${parseInt(yr)+1}-03-31`);
+  if(!data||!data.length){ toast('No data','error'); return; }
+  const rows=data.map(s=>{
+    const gst=s.selling_price-(s.selling_price/(1+s.gst_rate/100));
+    const taxable=s.selling_price-gst;
+    const inter=s.customer_state&&s.customer_state.trim().toLowerCase()!==MY_STATE.toLowerCase();
+    return {...s,taxable_amount:+taxable.toFixed(2),gst_amount:+gst.toFixed(2),cgst:inter?0:+(gst/2).toFixed(2),sgst:inter?0:+(gst/2).toFixed(2),igst:inter?+gst.toFixed(2):0};
+  });
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),'GST Detail');
+  XLSX.writeFile(wb,`triakar_gst_fy${yr}.xlsx`);
+  toast('GST report downloaded');
+}
+
+async function exportChannelReport(){
+  const ch=document.getElementById('chExportCh').value;
+  let q=sb.from('biz_sales').select('*').order('order_date',{ascending:false});
+  if(ch) q=q.eq('channel_id',ch);
+  const {data}=await q;
+  if(!data||!data.length){ toast('No data','error'); return; }
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(data),'Sales');
+  XLSX.writeFile(wb,`triakar_${ch||'all'}_sales_${today()}.xlsx`);
+  toast('Channel report downloaded');
+}
+
+async function exportGSTExcel(){ await exportGSTReport(); }
+
+// ── Init ────────────────────────────────────────────────────
+document.getElementById('qa_date').value=today();
+document.getElementById('sm_date') && (document.getElementById('sm_date').value=today());
+initGSTYears();
+initAuth();
+</script>
+</body>
+</html>
