@@ -1557,7 +1557,6 @@ function showAddressForm(existing){
 }
 
 async function saveAddress(){
-  if(!sb)return;
   const user=Auth.getUser();
   if(!user)return;
   const editId=document.getElementById('addrEditId').value;
@@ -1597,16 +1596,20 @@ async function saveAddress(){
     is_default:document.getElementById('addrDefault').checked
   };
 
+  /* Writes go through the Express API (service-role) — direct anon-client
+     writes are rejected by RLS, which silently broke save/edit/delete here */
   try{
-    if(rec.is_default){
-      await sb.from('user_addresses').update({is_default:false}).eq('user_id',user.id);
-    }
     if(editId){
-      const {error}=await sb.from('user_addresses').update(rec).eq('id',editId);
-      if(error)throw error;
+      const r=await Auth.apiFetch(_API+'/api/addresses/'+editId,{
+        method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)});
+      if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||'Update failed');
+      if(rec.is_default){
+        await Auth.apiFetch(_API+'/api/addresses/'+editId+'/default',{method:'PUT'});
+      }
     }else{
-      const {error}=await sb.from('user_addresses').insert(rec);
-      if(error)throw error;
+      const r=await Auth.apiFetch(_API+'/api/addresses',{
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)});
+      if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||'Save failed');
     }
     document.getElementById('addrFormWrap').style.display='none';
     loadAddresses();
@@ -1617,28 +1620,28 @@ async function saveAddress(){
 }
 
 async function editAddress(id){
-  if(!sb)return;
-  const {data}=await sb.from('user_addresses').select('*').eq('id',id).single();
-  if(data)showAddressForm(data);
+  try{
+    const r=await Auth.apiFetch(_API+'/api/addresses');
+    const j=await r.json();
+    const data=(j.addresses||[]).find(a=>String(a.id)===String(id));
+    if(data)showAddressForm(data);
+    else showToast('Could not load this address','error');
+  }catch(err){showToast('Could not load this address','error')}
 }
 
 async function deleteAddress(id){
   if(!confirm('Delete this address?'))return;
-  if(!sb)return;
   try{
-    const {error}=await sb.from('user_addresses').delete().eq('id',id);
-    if(error)throw error;
+    const r=await Auth.apiFetch(_API+'/api/addresses/'+id,{method:'DELETE'});
+    if(!r.ok)throw new Error('Delete failed');
     loadAddresses();
   }catch(err){showToast('Error: '+err.message,'error')}
 }
 
 async function setDefaultAddr(id){
-  if(!sb)return;
-  const user=Auth.getUser();
-  if(!user)return;
   try{
-    await sb.from('user_addresses').update({is_default:false}).eq('user_id',user.id);
-    await sb.from('user_addresses').update({is_default:true}).eq('id',id);
+    const r=await Auth.apiFetch(_API+'/api/addresses/'+id+'/default',{method:'PUT'});
+    if(!r.ok)throw new Error('Could not set default');
     loadAddresses();
   }catch(err){showToast('Error: '+err.message,'error')}
 }
