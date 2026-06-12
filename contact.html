@@ -304,11 +304,12 @@ async function submitContact(e){
   try{
     const base={name:name,email:email,phone:phone,subject:subject,message:fullMessage};
     // Try to also store the structured columns; if they don't exist yet, retry with base columns only.
+    /* No .select() — anon role has INSERT but no SELECT policy, and
+       insert-with-returning fails RLS (42501) even when the insert is allowed */
     let res=await sb.from('contact_submissions')
-      .insert([Object.assign({reference_id:refId,is_existing_customer:isExisting,order_id:orderId||null},base)])
-      .select();
+      .insert([Object.assign({reference_id:refId,is_existing_customer:isExisting,order_id:orderId||null},base)]);
     if(res.error){
-      res=await sb.from('contact_submissions').insert([base]).select();
+      res=await sb.from('contact_submissions').insert([base]);
     }
     if(res.error) throw res.error;
     // Analytics + admin email notification (best-effort, non-blocking)

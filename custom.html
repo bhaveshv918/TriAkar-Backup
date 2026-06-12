@@ -333,11 +333,12 @@ async function submitEnquiry(e){
   try{
     const base={reference_id:refId,name:name,email:email,phone:phone,what_needed:need,source:'custom_order'};
     // Try to store optional structured columns; if they don't exist yet, retry with base columns only.
+    /* No .select() — anon role has INSERT but no SELECT policy, and
+       insert-with-returning fails RLS (42501) even when the insert is allowed */
     let res=await sb.from('custom_enquiries')
-      .insert([Object.assign({material_preference:material,budget_range:budget},base)])
-      .select();
+      .insert([Object.assign({material_preference:material,budget_range:budget},base)]);
     if(res.error){
-      res=await sb.from('custom_enquiries').insert([base]).select();
+      res=await sb.from('custom_enquiries').insert([base]);
     }
     if(res.error) throw res.error;
 
