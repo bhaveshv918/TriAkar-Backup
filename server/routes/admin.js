@@ -3,6 +3,7 @@ import {
   getAdminProducts, createProduct, updateProduct, deleteProduct,
   getAdminOrders, updateOrderStatus, updateOrderPayment, sendOrderEmail,
 } from '../controllers/adminController.js';
+import { generateListing } from '../controllers/listingController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 
@@ -15,6 +16,8 @@ router.get('/products',          getAdminProducts);
 router.post('/products',         createProduct);
 router.put('/products/:id',      updateProduct);
 router.delete('/products/:id',   deleteProduct);
+
+router.post('/generate-listing', generateListing);
 
 router.get('/orders',                  getAdminOrders);
 router.put('/orders/:id/status',       updateOrderStatus);

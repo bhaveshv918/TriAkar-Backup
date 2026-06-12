@@ -769,6 +769,9 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     <button class="tab" data-tab="categories" onclick="switchTab('categories')">
       <span class="tab-icon">≡</span><span class="tab-label">Categories</span>
     </button>
+    <button class="tab" data-tab="makerworld" onclick="switchTab('makerworld')">
+      <span class="tab-icon">⇲</span><span class="tab-label">Import from MakerWorld</span>
+    </button>
     <button class="tab" data-tab="reviews" onclick="switchTab('reviews')">
       <span class="tab-icon">★</span><span class="tab-label">Reviews</span><span class="tab-count" id="reviewCount">0</span><span class="tab-dot" id="dotReviews"></span>
     </button>
@@ -857,6 +860,72 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
         </tr></thead>
         <tbody id="ordersBody"><tr><td colspan="9" class="tbl-msg">Loading orders…</td></tr></tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- ── MAKERWORLD IMPORT PANEL ───────────────── -->
+  <div class="panel" id="panelMakerworld">
+    <div class="p-head">
+      <div class="p-title">Import from MakerWorld</div>
+    </div>
+
+    <div class="form-wrap open">
+      <div class="form-title"><span class="accent">▸</span> Model Details</div>
+      <p style="font-size:11px;color:var(--text-3);margin-bottom:14px">Paste a MakerWorld model URL and your print specs. Claude drafts a TriAkar-ready listing you can edit before saving. Check the model licence allows commercial use before listing.</p>
+
+      <div class="fg">
+        <div class="ff" style="grid-column:1/-1"><label>MakerWorld URL <span class="req">*</span></label><input type="text" id="mwUrl" placeholder="https://makerworld.com/en/models/123456-cable-organizer"></div>
+      </div>
+      <div class="fg">
+        <div class="ff"><label>Material <span class="req">*</span></label>
+          <select id="mwMaterial">
+            <option value="PLA">PLA</option>
+            <option value="PETG">PETG</option>
+            <option value="ABS">ABS</option>
+            <option value="TPU">TPU</option>
+          </select>
+        </div>
+        <div class="ff"><label>Print Time (hours) <span class="req">*</span></label><input type="number" id="mwHours" placeholder="3.5" min="0" step="0.1"></div>
+        <div class="ff"><label>Your Filament Cost (₹) <span class="req">*</span></label><input type="number" id="mwCost" placeholder="60" min="0" step="1"></div>
+        <div class="ff"><label>Target Markup <span class="req">*</span></label>
+          <select id="mwMarkup">
+            <option value="1.5">1.5x</option>
+            <option value="2" selected>2x</option>
+            <option value="2.5">2.5x</option>
+            <option value="3">3x</option>
+            <option value="3.5">3.5x</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:4px">
+        <button type="button" id="mwGenBtn" onclick="mwGenerate()" style="background:#C4622A;color:#fff;border:none;border-radius:var(--radius);padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer">Generate Listing</button>
+        <span id="mwErr" style="font-size:12px;color:var(--red)"></span>
+      </div>
+    </div>
+
+    <div class="form-wrap open" id="mwResults" style="display:none">
+      <div class="form-title"><span class="accent">▸</span> Generated Listing <span class="hint">(edit anything before saving)</span></div>
+
+      <div class="fg">
+        <div class="ff"><label>Title <span class="hint">(under 60 chars)</span></label><input type="text" id="mwTitle" maxlength="60"></div>
+        <div class="ff"><label>Category</label><select id="mwCategory"></select><span class="hint" id="mwCategoryHint" style="font-size:10px;color:var(--text-3)"></span></div>
+        <div class="ff"><label>Suggested Price (₹) <span class="hint">(filament + hrs × ₹40) × 1.15 × markup</span></label><input type="number" id="mwPrice" min="0" step="1"></div>
+      </div>
+      <div class="fg">
+        <div class="ff" style="grid-column:1/-1"><label>Short Description <span class="hint">(product card, 2 lines max)</span></label><textarea id="mwShortDesc" rows="2"></textarea></div>
+      </div>
+      <div class="fg">
+        <div class="ff" style="grid-column:1/-1"><label>Long Description <span class="hint">(product detail page)</span></label><textarea id="mwLongDesc" rows="6"></textarea></div>
+      </div>
+      <div class="fg">
+        <div class="ff"><label>Tags <span class="hint">(comma separated)</span></label><input type="text" id="mwTags"></div>
+        <div class="ff"><label>Shipping Note</label><input type="text" id="mwShipping"></div>
+        <div class="ff"><label>Production Note</label><input type="text" id="mwProduction"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:4px">
+        <button type="button" id="mwSaveBtn" onclick="mwSave()" class="btn-primary">Save to Products</button>
+        <span id="mwSaveErr" style="font-size:12px;color:var(--red)"></span>
+      </div>
     </div>
   </div>
 
@@ -1792,7 +1861,7 @@ function fmtPrice(n){return '₹'+Number(n).toLocaleString('en-IN')}
 function toast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type||'')+' show';setTimeout(()=>t.classList.remove('show'),3000)}
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['Callbacks','Orders','Customers','Products','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo','Reviews'].forEach(p=>{
+  ['Callbacks','Orders','Customers','Products','Makerworld','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo','Reviews'].forEach(p=>{
     document.getElementById('panel'+p).classList.toggle('active',p.toLowerCase()===tab);
   });
   // Clear notification dot and save seen count
@@ -2709,6 +2778,122 @@ async function deleteProduct(id,name){
   const{error}=await sb.from('products').delete().eq('id',id);
   if(error){toast('Error: '+error.message,'error');return}
   loadProducts();toast('Product deleted','success');
+}
+
+// ═══════════════════════════════════════════════════════════
+// MAKERWORLD IMPORT — Claude-generated listing via backend
+// ═══════════════════════════════════════════════════════════
+let _mwListing=null;
+
+async function mwGenerate(){
+  const errEl=document.getElementById('mwErr');
+  errEl.textContent='';
+  const url=document.getElementById('mwUrl').value.trim();
+  const material=document.getElementById('mwMaterial').value;
+  const hours=Number(document.getElementById('mwHours').value);
+  const cost=Number(document.getElementById('mwCost').value);
+  const markup=Number(document.getElementById('mwMarkup').value);
+  if(!url||!/makerworld\.com\//i.test(url)){errEl.textContent='Paste a valid MakerWorld model URL.';return}
+  if(!(hours>0)||!(cost>0)){errEl.textContent='Print time and filament cost must be above 0.';return}
+
+  const btn=document.getElementById('mwGenBtn');
+  btn.textContent='Generating…';btn.disabled=true;
+  try{
+    const{data:sess}=await sb.auth.getSession();
+    const token=sess&&sess.session&&sess.session.access_token;
+    if(!token){errEl.textContent='Not authenticated.';return}
+    const res=await fetch(API+'/api/admin/generate-listing',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({url,material,print_hours:hours,filament_cost:cost,markup})
+    });
+    const d=await res.json();
+    if(!res.ok)throw new Error(d.error||res.statusText);
+    _mwListing=d.listing;
+    mwShowResults(d.listing);
+    toast('Listing generated — review and edit before saving','success');
+  }catch(e){
+    console.error('[makerworld] generate failed —',e);
+    errEl.textContent=e.message||'Generation failed';
+  }finally{btn.textContent='Generate Listing';btn.disabled=false}
+}
+
+function mwShowResults(l){
+  document.getElementById('mwTitle').value=l.title||'';
+  document.getElementById('mwShortDesc').value=l.short_description||'';
+  document.getElementById('mwLongDesc').value=l.long_description||'';
+  document.getElementById('mwTags').value=Array.isArray(l.tags)?l.tags.join(', '):(l.tags||'');
+  document.getElementById('mwPrice').value=l.suggested_price_inr||'';
+  document.getElementById('mwShipping').value=l.shipping_note||'Standard: ₹99 / Express available';
+  document.getElementById('mwProduction').value=l.production_note||'72hr average production time';
+  // Category: map Claude's free-text guess to the site's category slugs
+  const sel=document.getElementById('mwCategory');
+  sel.innerHTML='<option value="">Select…</option>'+_categories.filter(c=>c.is_active).map(c=>`<option value="${c.slug}">${c.name}</option>`).join('');
+  const guess=(l.category||'').toLowerCase();
+  const match=_categories.find(c=>c.is_active&&(c.name.toLowerCase()===guess||guess.includes(c.name.toLowerCase())||c.name.toLowerCase().includes(guess)));
+  if(match)sel.value=match.slug;
+  document.getElementById('mwCategoryHint').textContent=match?'':'Claude suggested "'+(l.category||'')+'" — pick the closest TriAkar category.';
+  document.getElementById('mwResults').style.display='';
+  document.getElementById('mwResults').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+async function mwSave(){
+  const errEl=document.getElementById('mwSaveErr');
+  errEl.textContent='';
+  const name=document.getElementById('mwTitle').value.trim();
+  const category=document.getElementById('mwCategory').value;
+  const price=Number(document.getElementById('mwPrice').value);
+  if(!name){errEl.textContent='Title is required.';return}
+  if(!category){errEl.textContent='Pick a category.';return}
+  if(!(price>0)){errEl.textContent='Price must be above 0.';return}
+  const slug=name.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  const longDesc=document.getElementById('mwLongDesc').value.trim()||null;
+
+  const data={
+    name,slug,price,category,
+    material:document.getElementById('mwMaterial').value,
+    stock_status:'Made to Order',
+    is_active:true,
+    is_customizable:false,
+    description:longDesc,
+    short_description:document.getElementById('mwShortDesc').value.trim()||null,
+    long_description:longDesc,
+    tags:document.getElementById('mwTags').value.trim()||null,
+    source_url:document.getElementById('mwUrl').value.trim()||null,
+    est_print_hours:Number(document.getElementById('mwHours').value)||null,
+    notes:[document.getElementById('mwShipping').value.trim(),document.getElementById('mwProduction').value.trim()].filter(Boolean).join(' · ')||null,
+    images:[],
+  };
+
+  const btn=document.getElementById('mwSaveBtn');
+  btn.textContent='Saving…';btn.disabled=true;
+
+  // Same column-strip retry as the main product form — survives missing migration columns
+  async function _mwTrySave(d){
+    const r=await sb.from('products').insert(d).select();
+    if(r.error){
+      const colMatch=(r.error.message||'').match(/column "([^"]+)" of relation/);
+      if(colMatch){
+        console.warn('[makerworld] column "'+colMatch[1]+'" not in DB yet — retrying without it.');
+        const stripped={...d};delete stripped[colMatch[1]];
+        return _mwTrySave(stripped);
+      }
+      throw r.error;
+    }
+    return r;
+  }
+
+  try{
+    await _mwTrySave(data);
+    loadProducts();
+    document.getElementById('mwResults').style.display='none';
+    document.getElementById('mwUrl').value='';
+    _mwListing=null;
+    toast('Product saved — find it in the Products tab','success');
+  }catch(e){
+    console.error('[makerworld] save failed —',e);
+    errEl.textContent=(e.message||'Save failed')+(e.code?' ['+e.code+']':'');
+  }finally{btn.textContent='Save to Products';btn.disabled=false}
 }
 
 // ── Safe import: only adds products NOT already in Supabase (never overwrites) ──
