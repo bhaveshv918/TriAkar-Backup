@@ -81,6 +81,23 @@
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+
+/* ── APP-LIKE PAGE TRANSITIONS (MPA View Transitions) ──
+   Same-origin navigations cross-fade instead of white-flashing.
+   The fixed nav + bottom tab bar get their own snapshot groups so
+   they stay rock-steady while only the page content animates. */
+@view-transition{navigation:auto}
+::view-transition-old(root){animation:ta-vt-out .16s ease both}
+::view-transition-new(root){animation:ta-vt-in .26s cubic-bezier(.22,1,.36,1) both}
+@keyframes ta-vt-out{to{opacity:0}}
+@keyframes ta-vt-in{from{opacity:0;transform:translateY(10px)}}
+@media(max-width:768px){
+  .ta-bottomnav{view-transition-name:ta-tabbar}
+  nav.main-nav{view-transition-name:ta-nav}
+}
+@media(prefers-reduced-motion:reduce){
+  ::view-transition-old(root),::view-transition-new(root){animation:none}
+}
 body{
   background:var(--ivory);
   color:var(--charcoal);

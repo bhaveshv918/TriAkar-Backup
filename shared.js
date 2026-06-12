@@ -149,6 +149,21 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
   }
 })();
 
+/* ── Instant-feel navigation ─────────────────────────────
+   Prefetch the primary tab/menu pages so tapping them skips the
+   network round-trip (pairs with the CSS view transitions). */
+(function(){
+  try{
+    if(!(window.HTMLScriptElement&&HTMLScriptElement.supports&&HTMLScriptElement.supports('speculationrules')))return;
+    var s=document.createElement('script');
+    s.type='speculationrules';
+    s.textContent=JSON.stringify({prefetch:[{urls:[
+      '/index.html','/products.html','/wishlist.html','/account.html','/order.html'
+    ]}]});
+    document.head.appendChild(s);
+  }catch(_){}
+})();
+
 /* ── Nav active state (single source of truth) ──────────── */
 function applyNavActiveState(){
   // Works for both clean URLs (/about) and .html URLs (/about.html)
