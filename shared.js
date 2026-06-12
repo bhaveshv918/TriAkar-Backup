@@ -1217,6 +1217,12 @@ function updateNavAuth(){
         else{localStorage.removeItem('ta_token');localStorage.removeItem('ta_user');window.location.href='index.html';}
       });
       drawer.appendChild(btn);
+    }else{
+      const a=document.createElement('a');
+      a.className='drawer-auth drawer-login';
+      a.href='/account.html';
+      a.textContent='Login';
+      drawer.appendChild(a);
     }
   });
 
