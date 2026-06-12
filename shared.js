@@ -120,6 +120,32 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
       if(e.target.closest('.nav-drawer')||e.target.closest('.main-nav'))return;
       closeDrawer();
     });
+    const openDrawer=()=>{
+      drawer.classList.add('open');toggle.classList.add('open');
+      toggle.setAttribute('aria-expanded','true');
+      document.documentElement.classList.add('drawer-open');
+    };
+    /* App-style swipe gestures (phones only):
+       left-swipe starting from the right edge opens the menu — the 32px
+       edge zone avoids fights with carousels and horizontal scrollers;
+       a right-swipe anywhere while open closes it. */
+    let swX=0,swY=0,swEdge=false,swOpen=false;
+    document.addEventListener('touchstart',e=>{
+      if(window.innerWidth>768)return;
+      const t=e.touches[0];
+      swX=t.clientX;swY=t.clientY;
+      swOpen=document.documentElement.classList.contains('drawer-open');
+      swEdge=!swOpen&&swX>window.innerWidth-32;
+    },{passive:true});
+    document.addEventListener('touchend',e=>{
+      if(window.innerWidth>768||(!swEdge&&!swOpen))return;
+      const t=e.changedTouches[0];
+      const dx=t.clientX-swX,dy=t.clientY-swY;
+      if(Math.abs(dy)>60)return;
+      if(swEdge&&dx<-60)openDrawer();
+      else if(swOpen&&dx>70&&!e.target.closest('.nav-drawer'))closeDrawer();
+      swEdge=false;swOpen=false;
+    },{passive:true});
   }
 })();
 
