@@ -4,10 +4,13 @@
    for APIs. Version bump (CACHE_VER) forces all clients to re-fetch on
    deploy, and partials.js auto-reloads once when a new SW takes control. */
 
-const CACHE_VER = 'ta-v37';
+const CACHE_VER = 'ta-v38';
 const CACHE_NAME = 'triakar-' + CACHE_VER;
 
-/* Assets to pre-cache on install (shell) */
+/* Assets to pre-cache on install (shell).
+   NOTE: page URLs must be the CLEAN (post-redirect) form — caching a
+   redirected response and serving it to a navigation request makes
+   Chrome fail the whole navigation with ERR_FAILED. */
 const PRECACHE = [
   '/partials.js',
   '/shared.css',
@@ -15,9 +18,9 @@ const PRECACHE = [
   '/assets/fonts/Glorida.woff2',
   '/favicon.svg',
   '/offline.html',
-  '/index.html',
-  '/products.html',
-  '/product-detail.html',
+  '/',
+  '/products',
+  '/product-detail',
 ];
 
 /* ── INSTALL ────────────────────────────────────────────── */
@@ -65,9 +68,12 @@ self.addEventListener('fetch', function(e) {
   var isHTML = req.headers.get('accept') && req.headers.get('accept').includes('text/html');
   if (isHTML || /\.(?:css|js)(?:\?|$)/.test(url)) {
     e.respondWith(
-      caches.match(req).then(function(cached) {
+      caches.match(req).then(function(maybeCached) {
+        /* Never serve a redirected response to a navigation — Chrome
+           rejects it (ERR_FAILED) because navigations use redirect:manual */
+        var cached = (maybeCached && maybeCached.redirected) ? undefined : maybeCached;
         var network = fetch(req).then(function(res) {
-          if (res && res.status === 200 && res.type !== 'opaque') {
+          if (res && res.status === 200 && res.type !== 'opaque' && !res.redirected) {
             var clone = res.clone();
             caches.open(CACHE_NAME).then(function(cache) { cache.put(req, clone); });
           }
@@ -91,9 +97,9 @@ self.addEventListener('fetch', function(e) {
   /* Other static assets (fonts, images, favicon): Cache-first */
   e.respondWith(
     caches.match(req).then(function(cached) {
-      if (cached) return cached;
+      if (cached && !cached.redirected) return cached;
       return fetch(req).then(function(res) {
-        if (!res || res.status !== 200 || res.type === 'opaque') return res;
+        if (!res || res.status !== 200 || res.type === 'opaque' || res.redirected) return res;
         var clone = res.clone();
         caches.open(CACHE_NAME).then(function(cache) { cache.put(req, clone); });
         return res;
