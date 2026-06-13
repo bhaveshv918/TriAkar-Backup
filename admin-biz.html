@@ -28,6 +28,12 @@
   --purple:#A78BFA;--purple-bg:rgba(167,139,250,.08);
   --orange:#FB923C;--orange-bg:rgba(251,146,60,.08);
   --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+}
+/* Hide number spinners everywhere */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+:root{
   --radius:6px;--sidebar-w:200px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -259,12 +265,12 @@ tr:hover td{background:var(--bg-1)}
     </div>
 
     <div class="sidebar-section">Overview</div>
-    <button class="tab active" data-tab="dashboard" onclick="switchTab('dashboard')">
+    <button class="tab" data-tab="dashboard" onclick="switchTab('dashboard')">
       <span class="tab-icon">◈</span><span class="tab-label">Dashboard</span>
     </button>
 
     <div class="sidebar-section">Sales</div>
-    <button class="tab" data-tab="quickadd" onclick="switchTab('quickadd')">
+    <button class="tab active" data-tab="quickadd" onclick="switchTab('quickadd')">
       <span class="tab-icon">＋</span><span class="tab-label">Quick Add Sale</span>
     </button>
     <button class="tab" data-tab="sales" onclick="switchTab('sales')">
@@ -306,7 +312,7 @@ tr:hover td{background:var(--bg-1)}
     <!-- ══════════════════════════════════════════════════════
          DASHBOARD
     ═══════════════════════════════════════════════════════ -->
-    <div class="panel active" id="panelDashboard">
+    <div class="panel" id="panelDashboard">
       <div class="p-head">
         <div>
           <div class="p-title">Dashboard</div>
@@ -372,7 +378,7 @@ tr:hover td{background:var(--bg-1)}
     <!-- ══════════════════════════════════════════════════════
          QUICK ADD SALE
     ═══════════════════════════════════════════════════════ -->
-    <div class="panel" id="panelQuickadd">
+    <div class="panel active" id="panelQuickadd">
       <div class="p-head">
         <div>
           <div class="p-title">Quick Add Sale</div>
@@ -410,12 +416,15 @@ tr:hover td{background:var(--bg-1)}
           <div class="form-group">
             <label>Payment Mode</label>
             <select id="qa_payment">
-              <option value="">— select —</option>
+              <option value="upi" selected>UPI</option>
+              <option value="bharatpe">BharatPe</option>
+              <option value="ca_sbi">C/A — SBI</option>
+              <option value="ca_karur">C/A — Karur Vysya</option>
+              <option value="razorpay">Razorpay</option>
               <option value="cash">Cash</option>
-              <option value="upi">UPI</option>
               <option value="card">Card</option>
-              <option value="online">Online / Prepaid</option>
               <option value="cod">COD</option>
+              <option value="online">Online / Prepaid</option>
             </select>
           </div>
           <div class="form-group">
@@ -551,6 +560,7 @@ tr:hover td{background:var(--bg-1)}
                 <option value="bluedart">BlueDart</option>
                 <option value="xpressbees">XpressBees</option>
                 <option value="shadowfax">Shadowfax</option>
+                <option value="pickup_studio">Pickup from Studio</option>
                 <option value="self">Self / Hand Delivery</option>
                 <option value="other">Other</option>
               </select>
@@ -558,32 +568,42 @@ tr:hover td{background:var(--bg-1)}
           </div>
         </details>
 
-        <!-- ── Customer (collapsible) ────────────── -->
-        <details style="margin-bottom:12px">
-          <summary style="cursor:pointer;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);padding:6px 0;user-select:none">Customer Info</summary>
-          <div class="form-grid" style="margin-top:10px">
-            <div class="form-group">
-              <label>Customer Name</label>
-              <input type="text" id="qa_cname" placeholder="Name">
-            </div>
-            <div class="form-group">
-              <label>Phone</label>
-              <input type="tel" id="qa_phone" placeholder="Mobile number">
-            </div>
-            <div class="form-group">
-              <label>City</label>
-              <input type="text" id="qa_city" placeholder="City">
-            </div>
-            <div class="form-group">
-              <label>State</label>
-              <input type="text" id="qa_state" placeholder="State">
-            </div>
-            <div class="form-group">
-              <label>Pincode</label>
-              <input type="text" id="qa_pin" placeholder="Pincode">
-            </div>
+        <!-- ── Customer ──────────────────────────── -->
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px;margin-top:4px">Customer</div>
+        <div class="form-grid" style="margin-bottom:12px">
+          <div class="form-group">
+            <label>Customer Name</label>
+            <input type="text" id="qa_cname" placeholder="Name">
           </div>
-        </details>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" id="qa_phone" placeholder="Mobile number">
+          </div>
+          <div class="form-group" style="grid-column:span 2">
+            <label>Address</label>
+            <input type="text" id="qa_city" placeholder="Full address / city / area">
+          </div>
+          <div class="form-group">
+            <label>State</label>
+            <input type="text" id="qa_state" placeholder="Type state…" list="stateList">
+            <datalist id="stateList">
+              <option value="Andhra Pradesh"><option value="Arunachal Pradesh"><option value="Assam">
+              <option value="Bihar"><option value="Chhattisgarh"><option value="Goa"><option value="Gujarat">
+              <option value="Haryana"><option value="Himachal Pradesh"><option value="Jharkhand">
+              <option value="Karnataka"><option value="Kerala"><option value="Madhya Pradesh">
+              <option value="Maharashtra"><option value="Manipur"><option value="Meghalaya">
+              <option value="Mizoram"><option value="Nagaland"><option value="Odisha"><option value="Punjab">
+              <option value="Rajasthan"><option value="Sikkim"><option value="Tamil Nadu">
+              <option value="Telangana"><option value="Tripura"><option value="Uttar Pradesh">
+              <option value="Uttarakhand"><option value="West Bengal"><option value="Delhi">
+              <option value="Jammu and Kashmir"><option value="Ladakh">
+            </datalist>
+          </div>
+          <div class="form-group">
+            <label>Pincode</label>
+            <input type="text" id="qa_pin" placeholder="6-digit pincode" maxlength="6" inputmode="numeric">
+          </div>
+        </div>
 
         <div class="form-group" style="margin-bottom:16px">
           <label>Notes</label>
@@ -607,14 +627,15 @@ tr:hover td{background:var(--bg-1)}
           <div class="p-title">All Sales</div>
           <div class="p-sub" id="salesSubtitle">—</div>
         </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-ghost btn-sm" onclick="exportTableExcel('salesTable','sales')">↓ Excel</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="month" id="sfExportMonth" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:5px 8px;font-size:12px;outline:none">
+          <button class="btn btn-ghost btn-sm" onclick="exportSalesExcel()">↓ Excel</button>
         </div>
       </div>
       <div class="filter-bar">
         <select id="sfChannel" onchange="loadSales()">
           <option value="">All Channels</option>
-          <option value="shop">Shop</option>
+          <option value="shop">Studio</option>
           <option value="amazon">Amazon</option>
           <option value="flipkart">Flipkart</option>
           <option value="website">Website</option>
@@ -633,13 +654,41 @@ tr:hover td{background:var(--bg-1)}
       <div class="tbl-wrap">
         <table id="salesTable">
           <thead><tr>
+            <th style="width:32px"><input type="checkbox" id="selectAllSales" onchange="toggleSelectAllSales(this)"></th>
+            <th style="width:36px">#</th>
             <th>Date</th><th>Channel</th><th>Order ID</th><th>Product</th>
             <th class="td-num">Qty</th><th class="td-num">Price</th>
-            <th class="td-num">Platform Fee</th><th class="td-num">COGS</th>
-            <th class="td-num">Profit</th><th>Status</th><th class="td-actions">Actions</th>
+            <th class="td-num">COGS</th><th class="td-num">Profit</th>
+            <th>Status</th><th>Paid</th><th class="td-actions">Actions</th>
           </tr></thead>
           <tbody id="salesBody"></tbody>
         </table>
+      </div>
+      <!-- Edit Sale Modal -->
+      <div id="editSaleModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;overflow-y:auto;padding:20px">
+        <div style="max-width:560px;margin:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:20px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <div style="font-size:14px;font-weight:700">Edit Sale</div>
+            <button onclick="closeEditSale()" style="background:none;border:none;color:var(--text-3);font-size:18px;cursor:pointer">✕</button>
+          </div>
+          <input type="hidden" id="es_id">
+          <div class="form-grid">
+            <div class="form-group"><label>Product Name</label><input type="text" id="es_product"></div>
+            <div class="form-group"><label>Order ID</label><input type="text" id="es_orderid"></div>
+            <div class="form-group"><label>Order Date</label><input type="date" id="es_date"></div>
+            <div class="form-group"><label>Delivery Date</label><input type="date" id="es_delivery"></div>
+            <div class="form-group"><label>Qty</label><input type="number" id="es_qty"></div>
+            <div class="form-group"><label>Selling Price (₹)</label><input type="number" id="es_price" step="0.01"></div>
+            <div class="form-group"><label>COGS (₹)</label><input type="number" id="es_cogs" step="0.01"></div>
+            <div class="form-group"><label>Customer Name</label><input type="text" id="es_cname"></div>
+            <div class="form-group"><label>Tracking</label><input type="text" id="es_tracking"></div>
+            <div class="form-group"><label>Notes</label><input type="text" id="es_notes"></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button class="btn btn-primary" onclick="saveEditSale()">Save</button>
+            <button class="btn btn-ghost" onclick="closeEditSale()">Cancel</button>
+          </div>
+        </div>
       </div>
     </div><!-- /sales -->
 
@@ -1545,6 +1594,7 @@ async function loadSalesBadge(){
   document.getElementById('salesCount').textContent=count||0;
 }
 
+let _salesCache=[];
 async function loadSales(){
   let q=sb.from('biz_sales').select('*').order('order_date',{ascending:false}).limit(500);
   const ch=document.getElementById('sfChannel').value;
@@ -1558,38 +1608,119 @@ async function loadSales(){
   const {data,error}=await q;
   if(error){ toast('Error: '+error.message,'error'); return; }
   const rows=data||[];
+  _salesCache=rows;
   document.getElementById('salesSubtitle').textContent=rows.length+' orders shown';
   const tbody=document.getElementById('salesBody');
-  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="11"><div class="empty"><div class="em-icon">◈</div><div class="em-text">No sales found</div></div></td></tr>`; return; }
-  tbody.innerHTML=rows.map(s=>{
-    const gstAmt=s.selling_price-(s.selling_price/(1+s.gst_rate/100));
-    const netRev=s.selling_price-s.platform_fee-s.shipping_fee-s.other_deductions;
-    const profit=netRev-s.cogs-gstAmt;
-    return `<tr>
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="13"><div class="empty"><div class="em-icon">◈</div><div class="em-text">No sales found</div></div></td></tr>`; return; }
+  tbody.innerHTML=rows.map((s,idx)=>{
+    const gstAmt=(s.selling_price||0)-((s.selling_price||0)/(1+(s.gst_rate||0)/100));
+    const netRev=(s.selling_price||0)-(s.platform_fee||0)-(s.shipping_fee||0)-(s.other_deductions||0);
+    const profit=netRev-(s.cogs||0)-gstAmt;
+    const locked=s.is_paid;
+    return `<tr style="${locked?'opacity:.75':''}">
+      <td><input type="checkbox" class="sale-cb" data-id="${s.id}"></td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${idx+1}</td>
       <td style="font-family:var(--mono);font-size:11px">${esc(s.order_date)}</td>
       <td>${chHtml(s.channel_id)}</td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(s.order_id||'—')}</td>
-      <td>${esc(s.product_name)}<br><span style="font-size:10px;color:var(--text-3)">${esc(s.sku||'')} ×${s.qty}</span></td>
-      <td class="td-num">${s.qty}</td>
+      <td>${esc(s.product_name)}<br><span style="font-size:10px;color:var(--text-3)">×${s.qty||1}</span></td>
+      <td class="td-num">${s.qty||1}</td>
       <td class="td-num">${fmt(s.selling_price)}</td>
-      <td class="td-num" style="color:var(--red)">${fmt(s.platform_fee)}</td>
       <td class="td-num" style="color:var(--text-3)">${fmt(s.cogs)}</td>
       <td class="td-num" style="color:${profit>=0?'var(--green)':'var(--red)'}">${fmt(profit)}</td>
       <td>
-        <select onchange="updateSaleStatus('${s.id}',this.value)"
-          style="background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;padding:3px 6px;cursor:pointer">
+        <select onchange="updateSaleStatus('${s.id}',this.value)" ${locked?'disabled':''} style="background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;padding:3px 6px;cursor:pointer">
           <option value="completed" ${s.status==='completed'?'selected':''}>Completed</option>
           <option value="returned"  ${s.status==='returned'?'selected':''}>Returned</option>
           <option value="cancelled" ${s.status==='cancelled'?'selected':''}>Cancelled</option>
           <option value="claimed"   ${s.status==='claimed'?'selected':''}>Claimed</option>
         </select>
       </td>
+      <td>
+        <button onclick="togglePaid('${s.id}',${locked})"
+          style="font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid;cursor:pointer;
+          background:${locked?'var(--green-bg)':'var(--bg-2)'};
+          color:${locked?'var(--green)':'var(--text-3)'};
+          border-color:${locked?'var(--green)':'var(--border)'}">
+          ${locked?'✓ Paid':'Unpaid'}
+        </button>
+      </td>
       <td class="td-actions" style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="fetchAndPrintInvoice('${s.id}')">🧾</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteSale('${s.id}')">✕</button>
+        ${locked?'':`<button class="btn btn-ghost btn-sm" onclick="openEditSale('${s.id}')">✎</button>`}
+        ${locked?'':`<button class="btn btn-danger btn-sm" onclick="deleteSale('${s.id}')">✕</button>`}
       </td>
     </tr>`;
   }).join('');
+}
+
+function toggleSelectAllSales(cb){
+  document.querySelectorAll('.sale-cb').forEach(c=>c.checked=cb.checked);
+}
+
+async function togglePaid(id, currentlyPaid){
+  const newVal=!currentlyPaid;
+  const {error}=await sb.from('biz_sales').update({is_paid:newVal}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast(newVal?'Marked as Paid':'Marked as Unpaid');
+  loadSales();
+}
+
+function openEditSale(id){
+  const s=_salesCache.find(x=>x.id===id); if(!s) return;
+  document.getElementById('es_id').value=s.id;
+  document.getElementById('es_product').value=s.product_name||'';
+  document.getElementById('es_orderid').value=s.order_id||'';
+  document.getElementById('es_date').value=s.order_date||'';
+  document.getElementById('es_delivery').value=s.delivery_date||'';
+  document.getElementById('es_qty').value=s.qty||1;
+  document.getElementById('es_price').value=s.selling_price||'';
+  document.getElementById('es_cogs').value=s.cogs||'';
+  document.getElementById('es_cname').value=s.customer_name||'';
+  document.getElementById('es_tracking').value=s.tracking_number||'';
+  document.getElementById('es_notes').value=s.notes||'';
+  document.getElementById('editSaleModal').style.display='block';
+}
+function closeEditSale(){ document.getElementById('editSaleModal').style.display='none'; }
+async function saveEditSale(){
+  const id=document.getElementById('es_id').value;
+  const payload={
+    product_name:document.getElementById('es_product').value.trim(),
+    order_id:document.getElementById('es_orderid').value.trim()||null,
+    order_date:document.getElementById('es_date').value||today(),
+    delivery_date:document.getElementById('es_delivery').value||null,
+    qty:parseInt(document.getElementById('es_qty').value)||1,
+    selling_price:parseFloat(document.getElementById('es_price').value)||0,
+    cogs:parseFloat(document.getElementById('es_cogs').value)||0,
+    customer_name:document.getElementById('es_cname').value.trim()||null,
+    tracking_number:document.getElementById('es_tracking').value.trim()||null,
+    notes:document.getElementById('es_notes').value.trim()||null,
+  };
+  const {error}=await sb.from('biz_sales').update(payload).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast('Sale updated'); closeEditSale(); loadSales();
+}
+
+function exportSalesExcel(){
+  const mo=document.getElementById('sfExportMonth').value||thisMonth();
+  const [yr,mn]=mo.split('-');
+  const monthName=new Date(parseInt(yr),parseInt(mn)-1,1).toLocaleString('en-IN',{month:'long'});
+  const filename=`TAF-WS_${monthName}_${yr}`;
+  const rows=_salesCache.filter(s=>{
+    if(!s.order_date) return true;
+    return s.order_date.startsWith(mo);
+  });
+  if(!rows.length){toast('No data for selected month','error');return;}
+  const wsData=[['#','Date','Channel','Order ID','Product','Qty','Selling Price','Platform Fee','COGS','Profit','Status','Paid','Customer','Tracking']];
+  rows.forEach((s,i)=>{
+    const gstAmt=(s.selling_price||0)-((s.selling_price||0)/(1+(s.gst_rate||0)/100));
+    const netRev=(s.selling_price||0)-(s.platform_fee||0)-(s.shipping_fee||0)-(s.other_deductions||0);
+    const profit=netRev-(s.cogs||0)-gstAmt;
+    wsData.push([i+1,s.order_date,CH_NAMES[s.channel_id]||s.channel_id,s.order_id||'',s.product_name,s.qty||1,s.selling_price||0,s.platform_fee||0,s.cogs||0,Math.round(profit),s.status,s.is_paid?'Yes':'No',s.customer_name||'',s.tracking_number||'']);
+  });
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(wsData),'Sales');
+  XLSX.writeFile(wb,filename+'.xlsx');
 }
 
 function clearSalesFilters(){ document.getElementById('sfChannel').value=''; document.getElementById('sfStatus').value=''; document.getElementById('sfMonth').value=''; document.getElementById('sfSearch').value=''; loadSales(); }
@@ -2193,183 +2324,180 @@ async function saveAndPrint(){
   loadSalesBadge();
 }
 
+function nextDocNumber(){
+  const key='triakar_doc_seq';
+  const mo=thisMonth().replace('-','');
+  const stored=JSON.parse(localStorage.getItem(key)||'{}');
+  const seq=(stored.mo===mo?stored.seq:0)+1;
+  localStorage.setItem(key,JSON.stringify({mo,seq}));
+  return `TRK-${mo}-${String(seq).padStart(3,'0')}`;
+}
+
 function printInvoice(d, type){
-  const gstRate=parseFloat(d.gst_rate)||0;
-  const hasGst=(type==='gst' && gstRate>0);
-  const qty=parseInt(d.qty)||1;
-  const unitPrice=parseFloat(d.selling_price)||0;
-  const totalPrice=unitPrice*qty;
-  const disc=parseFloat(d.discount_amount)||0;
-  const subtotal=totalPrice-disc;
-  const gstAmt=hasGst ? subtotal-(subtotal/(1+gstRate/100)) : 0;
-  const taxable=subtotal-gstAmt;
-  const isIntraState=!d.customer_state||d.customer_state.trim().toLowerCase()===MY_STATE.toLowerCase();
-  const invoiceNo=d.order_id||('TRK-'+Date.now().toString().slice(-6));
-  const invoiceDate=d.order_date||today();
-  const variantLine=[d.size,d.color,d.variant].filter(Boolean).join(' · ');
   const cfg=getBizSettings();
   const SELLER_NAME=cfg.name||'TriAkar';
-  const SELLER_ADDR=cfg.addr||'India';
+  const SELLER_ADDR=cfg.addr||'';
   const SELLER_GSTIN=cfg.gstin||'';
   const SELLER_PAN=cfg.pan||'';
   const SELLER_EMAIL=cfg.email||'';
   const SELLER_PHONE=cfg.phone||'';
   const SELLER_WEB=cfg.web||'triakar.com';
-  const SELLER_FOOTER=cfg.footer||'';
+  const SELLER_FOOTER=cfg.footer||'Crafted with care · Every piece is made to order · Thank you for supporting Indian design';
 
-  const gstBlock = hasGst ? `
-    <tr><td colspan="3" class="td-r muted">Taxable Amount</td><td class="td-r">₹${taxable.toFixed(2)}</td></tr>
-    ${isIntraState
-      ? `<tr><td colspan="3" class="td-r muted">CGST @ ${gstRate/2}%</td><td class="td-r">₹${(gstAmt/2).toFixed(2)}</td></tr>
-         <tr><td colspan="3" class="td-r muted">SGST @ ${gstRate/2}%</td><td class="td-r">₹${(gstAmt/2).toFixed(2)}</td></tr>`
-      : `<tr><td colspan="3" class="td-r muted">IGST @ ${gstRate}%</td><td class="td-r">₹${gstAmt.toFixed(2)}</td></tr>`
-    }` : (gstRate===0 && type==='gst'
-      ? `<tr><td colspan="3" class="td-r muted">GST @ 0%</td><td class="td-r">₹0.00</td></tr>` : '');
-
+  const gstRate=parseFloat(d.gst_rate)||0;
+  const hasGst=(type==='gst'&&gstRate>0);
+  const qty=parseInt(d.qty)||1;
+  const unitPrice=parseFloat(d.selling_price)||0;
+  const totalPrice=unitPrice*qty;
+  const disc=parseFloat(d.discount_amount)||0;
+  const subtotal=totalPrice-disc;
+  const gstAmt=hasGst?subtotal-(subtotal/(1+gstRate/100)):0;
+  const taxable=subtotal-gstAmt;
+  const isIntraState=!d.customer_state||d.customer_state.trim().toLowerCase()===MY_STATE.toLowerCase();
+  const docNo=d.order_id||nextDocNumber();
+  const docDate=d.order_date||today();
+  const variantLine=[d.size,d.color,d.variant].filter(Boolean).join(' · ');
   const amtWords=amountInWords(subtotal);
 
+  const gstBlock=hasGst?`
+    <tr><td colspan="3" style="text-align:right;color:#3a8a60;font-size:12px;padding:5px 14px;border:none">Taxable Amount</td><td style="text-align:right;padding:5px 14px;border:none">₹${taxable.toFixed(2)}</td></tr>
+    ${isIntraState
+      ?`<tr><td colspan="3" style="text-align:right;color:#3a8a60;font-size:12px;padding:4px 14px;border:none">CGST @ ${gstRate/2}%</td><td style="text-align:right;padding:4px 14px;border:none">₹${(gstAmt/2).toFixed(2)}</td></tr>
+        <tr><td colspan="3" style="text-align:right;color:#3a8a60;font-size:12px;padding:4px 14px;border:none">SGST @ ${gstRate/2}%</td><td style="text-align:right;padding:4px 14px;border:none">₹${(gstAmt/2).toFixed(2)}</td></tr>`
+      :`<tr><td colspan="3" style="text-align:right;color:#3a8a60;font-size:12px;padding:4px 14px;border:none">IGST @ ${gstRate}%</td><td style="text-align:right;padding:4px 14px;border:none">₹${gstAmt.toFixed(2)}</td></tr>`
+    }`:'';
+
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${type==='gst'?'Tax Invoice':'Bill of Supply'} — ${invoiceNo}</title>
+<title>Order Record — ${esc(docNo)}</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;color:#1a1a1a;background:#fff;padding:32px;max-width:720px;margin:0 auto}
-.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:3px solid #1a1a1a;margin-bottom:24px}
-.brand{font-size:26px;font-weight:900;letter-spacing:.04em;color:#1a1a1a}
-.brand-tag{font-size:9px;color:#888;letter-spacing:.14em;text-transform:uppercase;margin-top:2px}
-.seller-info{font-size:11px;color:#555;margin-top:8px;line-height:1.8}
-.inv-box{text-align:right}
-.inv-type{font-size:18px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#1a1a1a;margin-bottom:6px}
-.inv-meta{font-size:12px;color:#555;line-height:1.9}
-.inv-meta strong{color:#1a1a1a}
-.parties{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px}
-.party-box{border:1px solid #e8e8e8;border-radius:6px;padding:14px}
-.party-label{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#aaa;margin-bottom:8px}
-.party-name{font-size:14px;font-weight:700;color:#1a1a1a;margin-bottom:4px}
-.party-detail{font-size:12px;color:#555;line-height:1.7}
-.tbl-wrap{border:1px solid #e0e0e0;border-radius:6px;overflow:hidden;margin-bottom:4px}
+body{font-family:'Inter',sans-serif;font-size:13px;color:#1a1a1a;background:#fff;max-width:720px;margin:0 auto}
+.hdr-band{background:linear-gradient(135deg,#0a2218 0%,#1a4a32 60%,#0f3024 100%);padding:28px 32px;display:flex;justify-content:space-between;align-items:flex-start}
+.logo-en{font-size:28px;font-weight:900;letter-spacing:.06em;color:#fff}
+.logo-hi{font-size:15px;color:#74c69d;letter-spacing:.04em;margin-top:2px;font-weight:600}
+.tagline{font-size:9px;color:rgba(255,255,255,.45);letter-spacing:.16em;text-transform:uppercase;margin-top:6px}
+.doc-box{text-align:right}
+.doc-type{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#74c69d;margin-bottom:5px}
+.doc-no{font-size:20px;font-weight:900;color:#fff;letter-spacing:.04em;font-family:monospace}
+.doc-meta{font-size:11px;color:rgba(255,255,255,.5);margin-top:6px;line-height:1.9}
+.body{padding:24px 32px}
+.seller-strip{background:#f7fdf9;border-left:3px solid #52b788;border-radius:4px;padding:10px 14px;font-size:11px;color:#444;line-height:1.8;margin-bottom:18px}
+.seller-strip b{color:#1a1a1a;font-size:12px}
+.customer-box{background:#fff;border:1.5px solid #d0e8d8;border-radius:8px;padding:16px;margin-bottom:18px}
+.section-lbl{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#52b788;margin-bottom:7px}
+.cust-name{font-size:15px;font-weight:700;color:#1a1a1a;margin-bottom:3px}
+.cust-detail{font-size:12px;color:#555;line-height:1.9}
+.tbl-wrap{border:1.5px solid #d0e8d8;border-radius:8px;overflow:hidden;margin-bottom:4px}
 table{width:100%;border-collapse:collapse}
-thead th{background:#f5f5f5;padding:9px 12px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#666;border-bottom:1px solid #e0e0e0;text-align:left}
-td{padding:11px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;vertical-align:top}
+thead th{background:#f0faf4;padding:9px 14px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#3a8a60;border-bottom:1.5px solid #d0e8d8;text-align:left}
+td{padding:12px 14px;border-bottom:1px solid #edf5f0;font-size:13px;vertical-align:top}
 .td-r{text-align:right}
-.muted{color:#666;font-size:12px}
-.totals td{border:none;padding:5px 12px}
-.total-final td{font-size:15px;font-weight:900;border-top:2px solid #1a1a1a;padding-top:10px;color:#1a1a1a}
-.words-row{font-size:11px;color:#888;padding:10px 12px;border-top:1px solid #f0f0f0;font-style:italic}
-.shipping-box{border:1px solid #e8e8e8;border-radius:6px;padding:12px;margin-top:16px;font-size:12px;color:#555}
-.shipping-box strong{color:#1a1a1a;display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#aaa;margin-bottom:6px;font-weight:700}
-.footer{margin-top:28px;padding-top:16px;border-top:1px solid #e8e8e8;font-size:11px;color:#aaa;display:flex;justify-content:space-between;align-items:flex-end}
-.footer-left{line-height:1.8}
-.sign-box{border-top:1px solid #1a1a1a;width:140px;text-align:center;padding-top:6px;font-size:10px;color:#888}
-.notice{background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:8px 12px;font-size:11px;color:#92400e;margin-bottom:16px}
-.chip{display:inline-block;background:#f0f0f0;border-radius:3px;padding:2px 7px;font-size:10px;color:#555;font-family:monospace}
-@media print{body{padding:12px}.print-btn{display:none!important}}
+.total-row td{font-size:16px;font-weight:900;border-top:2px solid #52b788;padding-top:10px;color:#0a2218;border-bottom:none}
+.words-row{font-size:11px;color:#3a8a60;padding:9px 14px;font-style:italic;background:#f0faf4;border-top:1px solid #d0e8d8}
+.info-strip{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.info-card{background:#f7fdf9;border:1px solid #d0e8d8;border-radius:6px;padding:12px 14px;font-size:12px;color:#444;line-height:1.8}
+.info-lbl{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#52b788;margin-bottom:4px}
+.chip{display:inline-block;background:#e8f5ed;border-radius:3px;padding:2px 8px;font-size:10px;color:#2a6a44;font-family:monospace}
+.footer-band{background:#f0faf4;margin-top:24px;padding:16px 32px;display:flex;justify-content:space-between;align-items:center;border-top:2px solid #d0e8d8}
+.footer-msg{font-size:11px;color:#555;line-height:1.8}
+.footer-brand{font-size:11px;font-weight:800;color:#1a4a32;margin-bottom:3px;letter-spacing:.04em}
+@media print{.print-btn{display:none!important}body{max-width:100%}}
 </style></head><body>
-<div class="hdr">
+
+<div class="hdr-band">
   <div>
-    <div class="brand">TRIĀKAR</div>
-    <div class="brand-tag">Designed globally · Made responsibly in India</div>
-    <div class="seller-info">
-      ${SELLER_ADDR}<br>
-      ${type==='gst'&&SELLER_GSTIN?`<strong>GSTIN:</strong> ${esc(SELLER_GSTIN)}${SELLER_PAN?` &nbsp;|&nbsp; <strong>PAN:</strong> ${esc(SELLER_PAN)}`:''}<br>`:''}
-      ${[SELLER_PHONE,SELLER_EMAIL,SELLER_WEB].filter(Boolean).map(esc).join(' &nbsp;|&nbsp; ')}
-    </div>
+    <div class="logo-en">TRIĀKAR</div>
+    <div class="logo-hi">त्रिआकार</div>
+    <div class="tagline">Creation of Three Dimensions</div>
   </div>
-  <div class="inv-box">
-    <div class="inv-type">${type==='gst'?'Tax Invoice':'Bill of Supply'}</div>
-    <div class="inv-meta">
-      <strong>Invoice No:</strong> ${esc(invoiceNo)}<br>
-      <strong>Date:</strong> ${esc(invoiceDate)}<br>
-      ${d.delivery_date?`<strong>Delivery:</strong> ${esc(d.delivery_date)}<br>`:''}
-      ${d.channel_id?`<strong>Channel:</strong> ${esc(CH_NAMES?.[d.channel_id]||String(d.channel_id))}`:'' }
+  <div class="doc-box">
+    <div class="doc-type">Order Record</div>
+    <div class="doc-no">${esc(docNo)}</div>
+    <div class="doc-meta">
+      ${esc(docDate)}<br>
+      ${d.delivery_date?`Delivery: ${esc(d.delivery_date)}<br>`:''}
+      ${d.channel_id?esc(CH_NAMES?.[d.channel_id]||d.channel_id):''}
     </div>
   </div>
 </div>
 
-${type==='nongst'?'<div class="notice">Bill of Supply — No GST applicable on this transaction. No input tax credit available to buyer.</div>':''}
+<div class="body">
 
-<div class="parties">
-  <div class="party-box">
-    <div class="party-label">Sold By</div>
-    <div class="party-name">${SELLER_NAME}</div>
-    <div class="party-detail">${SELLER_ADDR}<br>${SELLER_EMAIL}<br>${SELLER_PHONE}</div>
-  </div>
-  <div class="party-box">
-    <div class="party-label">Bill To / Ship To</div>
-    ${d.customer_name?`<div class="party-name">${esc(d.customer_name)}</div>`:'<div class="party-name" style="color:#aaa">—</div>'}
-    <div class="party-detail">
-      ${d.customer_phone?esc(d.customer_phone)+'<br>':''}
-      ${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' — '+esc(d.customer_pincode):''}
-      ${d.order_id?`<br>Order ID: <span class="chip">${esc(d.order_id)}</span>`:''}
-    </div>
+${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
+<div class="seller-strip">
+  <b>${esc(SELLER_NAME)}</b>${SELLER_ADDR?' &nbsp;·&nbsp; '+esc(SELLER_ADDR):''}
+  ${SELLER_GSTIN||SELLER_PAN?`<br>${SELLER_GSTIN?'GSTIN: '+esc(SELLER_GSTIN)+' &nbsp; ':''  }${SELLER_PAN?'PAN: '+esc(SELLER_PAN):''}`:''  }
+  ${SELLER_PHONE||SELLER_EMAIL||SELLER_WEB?`<br>${[SELLER_PHONE,SELLER_EMAIL,SELLER_WEB].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ')}`:''}
+</div>`:''}
+
+<div class="customer-box">
+  <div class="section-lbl">Prepared for</div>
+  ${d.customer_name?`<div class="cust-name">${esc(d.customer_name)}</div>`:''}
+  <div class="cust-detail">
+    ${d.customer_phone?esc(d.customer_phone)+'<br>':''}
+    ${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' &mdash; '+esc(d.customer_pincode):''}
+    ${d.order_id?`<br>Order Ref: <span class="chip">${esc(d.order_id)}</span>`:''}
   </div>
 </div>
 
 <div class="tbl-wrap">
 <table>
-  <thead>
-    <tr>
-      <th style="width:50%">Item / Description</th>
-      ${type==='gst'?'<th class="td-r">HSN/SAC</th>':''}
-      <th class="td-r">Qty</th>
-      <th class="td-r">Unit Price</th>
-      <th class="td-r">Amount</th>
-    </tr>
-  </thead>
+  <thead><tr>
+    <th style="width:55%">Item</th>
+    <th style="text-align:right">Qty</th>
+    <th style="text-align:right">Rate</th>
+    <th style="text-align:right">Amount</th>
+  </tr></thead>
   <tbody>
     <tr>
       <td>
         <strong>${esc(d.product_name||'—')}</strong>
         ${variantLine?`<br><span style="font-size:11px;color:#777">${esc(variantLine)}</span>`:''}
-        ${d.notes?`<br><span style="font-size:11px;color:#999">${esc(d.notes)}</span>`:''}
+        ${d.notes?`<br><span style="font-size:11px;color:#888">${esc(d.notes)}</span>`:''}
       </td>
-      ${type==='gst'?`<td class="td-r muted">—</td>`:''}
       <td class="td-r">${qty}</td>
       <td class="td-r">₹${unitPrice.toFixed(2)}</td>
       <td class="td-r">₹${totalPrice.toFixed(2)}</td>
     </tr>
-    ${disc>0?`<tr><td colspan="${type==='gst'?5:4}" class="td-r muted">Discount</td></tr>
-    <tr><td colspan="${type==='gst'?3:2}"></td><td class="td-r muted">Discount</td><td class="td-r" style="color:#b91c1c">-₹${disc.toFixed(2)}</td></tr>`:''}
+    ${disc>0?`<tr><td colspan="3" class="td-r" style="color:#b91c1c;font-size:12px;border:none;padding:4px 14px">Discount</td><td class="td-r" style="color:#b91c1c;border:none;padding:4px 14px">-₹${disc.toFixed(2)}</td></tr>`:''}
   </tbody>
 </table>
-<table class="totals">
-  <tbody>
-    ${gstBlock}
-    <tr class="total-final">
-      <td colspan="${type==='gst'?4:3}" class="td-r">TOTAL AMOUNT</td>
-      <td class="td-r">₹${subtotal.toFixed(2)}</td>
-    </tr>
-  </tbody>
-</table>
-<div class="words-row">Amount in words: <em>${amtWords}</em></div>
+<table><tbody>
+  ${gstBlock}
+  <tr class="total-row">
+    <td colspan="3" style="text-align:right;padding:12px 14px">Total</td>
+    <td style="text-align:right;padding:12px 14px">₹${subtotal.toFixed(2)}</td>
+  </tr>
+</tbody></table>
+<div class="words-row">${esc(amtWords)}</div>
 </div>
 
-${(d.tracking_number||d.courier_partner||d.payment_mode)?`
-<div class="shipping-box">
-  <strong>Dispatch &amp; Payment</strong>
-  ${d.payment_mode?`Payment Mode: <strong>${esc(d.payment_mode)}</strong><br>`:''}
-  ${d.courier_partner?`Courier: <strong>${esc(d.courier_partner)}</strong><br>`:''}
-  ${d.tracking_number?`Tracking: <span class="chip">${esc(d.tracking_number)}</span><br>`:''}
-  ${d.dispatch_date?`Dispatch Date: ${esc(d.dispatch_date)}`:''}
+${d.payment_mode||d.tracking_number||d.courier_partner?`
+<div class="info-strip">
+  <div class="info-card"><div class="info-lbl">Payment</div>${esc(d.payment_mode||'—')}</div>
+  <div class="info-card"><div class="info-lbl">Shipping</div>
+    ${d.courier_partner?esc(d.courier_partner)+'<br>':''}
+    ${d.tracking_number?`<span class="chip">${esc(d.tracking_number)}</span>`:''}
+    ${d.dispatch_date?`<br>Dispatched: ${esc(d.dispatch_date)}`:''}
+  </div>
 </div>`:''}
 
-<div class="footer">
-  <div class="footer-left">
-    This is a computer-generated document.<br>
-    ${[SELLER_NAME,SELLER_WEB,SELLER_EMAIL].filter(Boolean).map(esc).join(' · ')}<br>
-    ${SELLER_FOOTER?esc(SELLER_FOOTER)+'<br>':''}Thank you for your purchase!
-  </div>
-  <div>
-    <div class="sign-box">Authorised Signatory</div>
-  </div>
 </div>
 
-<div style="text-align:center;margin-top:20px" class="print-btn">
-  <button onclick="window.print()" style="padding:10px 28px;background:#1a1a1a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:13px;font-weight:600">🖨 Print / Save as PDF</button>
+<div class="footer-band">
+  <div class="footer-msg">
+    <div class="footer-brand">TRIĀKAR &nbsp;·&nbsp; त्रिआकार</div>
+    ${esc(SELLER_FOOTER)}
+  </div>
+  <div class="print-btn">
+    <button onclick="window.print()" style="padding:9px 22px;background:#52b788;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700">🖨 Print / PDF</button>
+  </div>
 </div>
 </body></html>`;
 
   const win=window.open('','_blank');
-  if(!win){toast('Allow popups to open invoice','error');return;}
+  if(!win){toast('Allow popups to open document','error');return;}
   win.document.write(html);
   win.document.close();
 }
@@ -2454,36 +2582,70 @@ function parseLabelText(){
 }
 
 function extractLabelData(text,platform){
-  // Order ID
-  let orderId='';
+  let orderId='', qty=1, productName='', customerName='';
+  let city='', state='', pincode='', tracking='', paymentMode='', orderDate='', deliveryDate='', courier='', price='';
+
   if(platform==='amazon'){
-    const m=text.match(/\b(\d{3}-\d{7}-\d{7})\b/);
-    if(m) orderId=m[1];
-  } else {
-    const m=text.match(/\b(OD\d{10,20})\b/i);
-    if(m) orderId=m[1];
+    // Order Number: 402-1962179-6689120
+    const om=text.match(/Order[\s\w]*Number[:\s]+(\d{3}-\d{7}-\d{7})/i); if(om) orderId=om[1];
+    // AWB / Transaction ID
+    const aw=text.match(/(?:AWB|tracking)[^\w]*([\w]{10,})/i); if(aw) tracking=aw[1];
+    // Payment mode
+    const pm=text.match(/Mode of Payment[:\s]+(\w[\w\s\/]*)/i); if(pm) paymentMode=pm[1].trim();
+    // Order date
+    const od=text.match(/Order Date[:\s]+([\d.\/\-]+)/i); if(od) orderDate=od[1].trim();
+    // Price
+    const pr=text.match(/(?:Invoice Value|Total Amount)[:\s]+[₹Rs.]*\s*([\d,]+\.?\d*)/i); if(pr) price=pr[1].replace(',','');
+    // Product name — line before HSN or between item number and price
+    const pn=text.match(/\d\s+TRIAKAR\s+(.{5,80}?)\s*\(\s*[A-Z0-9\-]{5,}/i);
+    if(pn) productName=pn[1].trim();
+    else { const pn2=text.match(/1\s+([A-Z][^₹\n]{10,80}?)\s*[₹₹]/); if(pn2) productName=pn2[1].trim().replace(/\s+/g,' '); }
+    // Shipping address block — "Shipping Address :" then name
+    const sa=text.match(/Shipping Address\s*:?\s*\n?\s*([A-Za-z][^\n\r]{2,40})/i); if(sa) customerName=sa[1].trim();
+    // City, state, pin from address: "MUMBAI, MAHARASHTRA, 400034"
+    const adr=text.match(/([A-Z][A-Z\s]{2,20}),\s*([A-Z][A-Z\s]{3,20}),\s*(\d{6})/);
+    if(adr){city=adr[1].trim();state=adr[2].trim();pincode=adr[3];}
+    else{const p6=text.match(/\b(\d{6})\b/);if(p6)pincode=p6[1];}
+    courier='Amazon Logistics';
+    // Payment mode fallback
+    if(!paymentMode){ const upi=text.match(/UPI|COD|Card|NetBanking/i); if(upi) paymentMode=upi[0]; }
+
+  } else { // flipkart
+    // Order ID: OD336936622599309400
+    const om=text.match(/Order[\s\w]*Id[:\s]+(OD\d{10,25})/i)||(text.match(/\b(OD\d{14,25})\b/i));
+    if(om) orderId=om[1]||om[0];
+    // AWB
+    const aw=text.match(/AWB[\s\n]+No\.?\s*\n?([\w]+)/i)||(text.match(/\bFMPC[\w]+\b/i));
+    if(aw) tracking=aw[1]||aw[0];
+    // Product name from "SKU ID | Description QTY" table
+    const pn=text.match(/\|\s*([^|]{5,80}?)\s*\|\s*(?:For|Praying|Office|1\b)/i);
+    if(pn) productName=pn[1].trim();
+    else { const pn2=text.match(/(?:Description|QTY)\s*\n([^\n]{5,80})/i); if(pn2) productName=pn2[1].trim(); }
+    // Customer name from "Name: Ayush ,"
+    const cn=text.match(/Name[:\s]+([A-Za-z][^\n,]{1,40})/i); if(cn) customerName=cn[1].trim().replace(/,$/,'').trim();
+    // Address and pin: "Kanpur - 208017, IN-UP"
+    const adr=text.match(/([A-Za-z][\w\s]+)\s*[-–]\s*(\d{6})/);
+    if(adr){city=adr[1].trim();}
+    const p6=text.match(/\b(\d{6})\b/); if(p6) pincode=p6[1];
+    // State from IN-UP pattern
+    const st=text.match(/IN-([A-Z]{2})\b/); if(st) state=st[1];
+    // HBD = Handover By Date = dispatch date, CPD = Customer Promise Date = delivery
+    const hbd=text.match(/HBD[:\s]+([\d\s\-]+)/i); if(hbd) orderDate=hbd[1].trim().replace(/\s/g,'');
+    const cpd=text.match(/CPD[:\s]+([\d\s\-]+)/i); if(cpd) deliveryDate=cpd[1].trim().replace(/\s/g,'');
+    // COD from header
+    const cod=text.match(/\bCOD\b/i); if(cod) paymentMode='COD';
+    else paymentMode='Prepaid';
+    courier='Ekart';
+    // Price
+    const pr=text.match(/TOTAL PRICE[:\s]+([\d.]+)/i); if(pr) price=pr[1];
+    // Qty
+    const qm=text.match(/TOTAL QTY[:\s]+(\d+)/i); if(qm) qty=parseInt(qm[1])||1;
   }
-  // Qty
-  let qty=1;
-  const qm=text.match(/(?:qty|quantity|units?)[\s:]+(\d+)/i);
-  if(qm) qty=parseInt(qm[1])||1;
-  // Product name — try common label patterns
-  let productName='';
-  const itemM=text.match(/(?:item|product|title|description)[\s:]+([^\n\r,]{5,60})/i);
-  if(itemM) productName=itemM[1].trim();
-  // Customer name — usually first line of address block
-  let customerName='', city='', state='', pincode='';
-  // Look for "Ship To:" or "Deliver To:" block
-  const shipM=text.match(/(?:ship[\s-]?to|deliver[\s-]?to|buyer|recipient)[\s:]*\n?\r?([A-Za-z][^\n\r]{2,40})/i);
-  if(shipM) customerName=shipM[1].trim();
-  // City, State — look for PIN code pattern (6 digits) and surrounding text
-  const pinM=text.match(/([A-Za-z\s]{3,25})[,\s]+([A-Za-z\s]{2,20})[,\s-]+(\d{6})\b/);
-  if(pinM){city=pinM[1].trim();state=pinM[2].trim();pincode=pinM[3];}
-  else{
-    const pin6=text.match(/\b(\d{6})\b/);
-    if(pin6) pincode=pin6[1];
-  }
-  return {orderId,qty,productName,customerName,city,state,pincode};
+
+  // Fallback qty
+  if(!qty||qty<1){ const qm=text.match(/(?:qty|quantity)[:\s]+(\d+)/i); if(qm) qty=parseInt(qm[1])||1; }
+
+  return {orderId,qty,productName,customerName,city,state,pincode,tracking,paymentMode,orderDate,deliveryDate,courier,price};
 }
 
 function renderExtractedLabels(pages){
@@ -2510,22 +2672,30 @@ function renderExtractedLabels(pages){
 
   const prodOpts=_products.map(p=>`<option value="${p.id}">${esc(p.name)}${p.sku?' ('+p.sku+')':''}</option>`).join('');
 
+  const inp=(v,id,w='100%',ph='')=>`<input type="text" value="${esc(v||'')}" id="${id}" placeholder="${ph}" style="width:${w};background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;font-size:11px">`;
   document.getElementById('lblTableBody').innerHTML=_extractedLabels.map((r,i)=>`
-    <tr style="${!r.orderId?'opacity:.55':''}">
-      <td><input type="text" value="${esc(r.orderId)}" id="lr_oid_${i}" style="width:170px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;font-family:var(--mono);font-size:11px" placeholder="Order ID"></td>
+    <tr style="${!r.orderId?'opacity:.6':''}">
+      <td>${inp(r.orderId,'lr_oid_'+i,'160px','Order ID')}</td>
       <td style="font-size:11px;color:var(--text-3)">${esc(CH_NAMES[platform])}</td>
-      <td><input type="number" value="${r.qty}" id="lr_qty_${i}" min="1" style="width:50px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;text-align:center"></td>
+      <td><input type="number" value="${r.qty||1}" id="lr_qty_${i}" style="width:46px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;text-align:center"></td>
       <td>
-        <select id="lr_psel_${i}" onchange="onLblProductChange(${i})" style="background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;font-size:11px;max-width:160px">
-          <option value="">— manual —</option>
-          ${prodOpts}
+        <select id="lr_psel_${i}" onchange="onLblProductChange(${i})" style="background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;font-size:11px;max-width:150px;width:100%">
+          <option value="">— manual —</option>${prodOpts}
         </select>
         <input type="text" value="${esc(r.productName)}" id="lr_pname_${i}" style="margin-top:4px;width:100%;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;font-size:11px" placeholder="Product name">
       </td>
-      <td class="td-num"><input type="number" value="${esc(r.sellingPrice)}" id="lr_price_${i}" step="0.01" style="width:80px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;text-align:right;font-family:var(--mono)"></td>
-      <td class="td-num"><input type="number" value="${esc(r.cogs)}" id="lr_cogs_${i}" step="0.01" style="width:70px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;text-align:right;font-family:var(--mono)"></td>
-      <td style="font-size:11px;color:var(--text-3)">${esc(r.customerName||'—')}</td>
-      <td style="font-size:11px;color:var(--text-3)">${esc([r.city,r.state].filter(Boolean).join(', ')||'—')}${r.pincode?' — '+r.pincode:''}</td>
+      <td><input type="number" value="${esc(r.sellingPrice||r.price)}" id="lr_price_${i}" step="0.01" style="width:76px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;text-align:right;font-family:var(--mono)"></td>
+      <td><input type="number" value="${esc(r.cogs)}" id="lr_cogs_${i}" step="0.01" style="width:66px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;text-align:right;font-family:var(--mono)"></td>
+      <td style="font-size:11px">
+        <div style="color:var(--text)">${esc(r.customerName||'—')}</div>
+        <div style="color:var(--text-3);margin-top:2px">${esc([r.city,r.state].filter(Boolean).join(', '))}${r.pincode?' — '+r.pincode:''}</div>
+      </td>
+      <td style="font-size:11px;color:var(--text-3)">
+        ${r.tracking?`<div style="font-family:var(--mono)">${esc(r.tracking)}</div>`:''}
+        ${r.paymentMode?`<div>${esc(r.paymentMode)}</div>`:''}
+        ${r.orderDate?`<div>Ord: ${esc(r.orderDate)}</div>`:''}
+        ${r.deliveryDate?`<div>Del: ${esc(r.deliveryDate)}</div>`:''}
+      </td>
     </tr>`).join('');
 
   // Pre-select default product in each row
@@ -2566,7 +2736,8 @@ async function importExtractedLabels(){
     batch.push({
       channel_id:platform,
       order_id:orderId||null,
-      order_date:today(),
+      order_date:r.orderDate||today(),
+      delivery_date:r.deliveryDate||null,
       product_id:productSel||null,
       product_name:productName||'Unknown',
       sku:null,
@@ -2579,6 +2750,9 @@ async function importExtractedLabels(){
       customer_city:r.city||null,
       customer_state:r.state||null,
       customer_pincode:r.pincode||null,
+      tracking_number:r.tracking||null,
+      courier_partner:r.courier||null,
+      payment_mode:r.paymentMode||null,
       import_source:'label',
       status:'completed',
     });
@@ -2612,6 +2786,7 @@ function populateLabelProductSelect(){
 document.getElementById('qa_date').value=today();
 document.getElementById('qa_delivery_date').value=today();
 document.getElementById('sm_date') && (document.getElementById('sm_date').value=today());
+document.getElementById('sfExportMonth').value=thisMonth();
 initGSTYears();
 initAuth();
 </script>
