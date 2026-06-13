@@ -2,6 +2,7 @@
 -- 2026-06-13
 
 ALTER TABLE biz_sales
+  ADD COLUMN IF NOT EXISTS cogs_breakdown   JSONB,
   ADD COLUMN IF NOT EXISTS delivery_date    DATE,
   ADD COLUMN IF NOT EXISTS dispatch_date    DATE,
   ADD COLUMN IF NOT EXISTS tracking_number  TEXT,
