@@ -14,19 +14,21 @@
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <style>
 /* ═══════════════════════════════════════════════════════════
-   TRIĀKAR BUSINESS OS — same dark theme as admin.html
+   TRIĀKAR BUSINESS OS — light, clean & colorful theme
    ═══════════════════════════════════════════════════════════ */
 :root{
-  --bg:#070C08;--bg-1:#0C1410;--bg-2:#111C13;--bg-3:#172418;
-  --border:rgba(255,255,255,.06);--border-h:rgba(255,255,255,.12);
-  --text:#E2EAE4;--text-2:#879E8C;--text-3:#4E6655;
-  --accent:#52B788;--accent-h:#74C69D;--accent-bg:rgba(82,183,136,.08);
-  --green:#4ADE80;--green-bg:rgba(74,222,128,.08);
-  --red:#F87171;--red-bg:rgba(248,113,113,.08);
-  --yellow:#FBBF24;--yellow-bg:rgba(251,191,36,.08);
-  --blue:#60A5FA;--blue-bg:rgba(96,165,250,.08);
-  --purple:#A78BFA;--purple-bg:rgba(167,139,250,.08);
-  --orange:#FB923C;--orange-bg:rgba(251,146,60,.08);
+  --bg:#F4F6F5;--bg-1:#FFFFFF;--bg-2:#EEF2F0;--bg-3:#E2E9E4;
+  --border:rgba(20,42,30,.10);--border-h:rgba(20,42,30,.22);
+  --text:#16201A;--text-2:#52685A;--text-3:#869488;
+  --accent:#2E9E6B;--accent-h:#27885C;--accent-bg:rgba(46,158,107,.12);
+  --green:#16A34A;--green-bg:rgba(22,163,74,.11);
+  --red:#DC2626;--red-bg:rgba(220,38,38,.10);
+  --yellow:#D97706;--yellow-bg:rgba(217,119,6,.12);
+  --blue:#2563EB;--blue-bg:rgba(37,99,235,.10);
+  --purple:#7C3AED;--purple-bg:rgba(124,58,237,.10);
+  --orange:#EA580C;--orange-bg:rgba(234,88,12,.11);
+  --shadow:0 1px 2px rgba(16,32,24,.05),0 1px 3px rgba(16,32,24,.04);
+  --shadow-h:0 4px 14px rgba(16,32,24,.10);
   --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
 }
 /* Hide number spinners everywhere */
@@ -72,7 +74,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .p-title{font-size:17px;font-weight:700;color:var(--text)}
 .p-sub{font-size:11px;color:var(--text-3);margin-top:2px}
 .btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:var(--radius);border:none;cursor:pointer;font-family:var(--sans);font-size:12px;font-weight:600;transition:all .15s}
-.btn-primary{background:var(--accent);color:#050a06}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 1px 2px rgba(16,32,24,.12)}
 .btn-primary:hover{background:var(--accent-h)}
 .btn-ghost{background:var(--bg-2);color:var(--text-2);border:1px solid var(--border)}
 .btn-ghost:hover{border-color:var(--border-h);color:var(--text)}
@@ -81,30 +83,37 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 
 /* ── KPI cards ────────────────────────────────────────────── */
 .kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:20px}
-.kpi{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.kpi{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);transition:box-shadow .15s,transform .15s}
+.kpi:hover{box-shadow:var(--shadow-h);transform:translateY(-1px)}
 .kpi-label{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);margin-bottom:6px}
 .kpi-val{font-size:22px;font-weight:800;font-family:var(--mono);color:var(--text);line-height:1}
 .kpi-sub{font-size:10px;color:var(--text-3);margin-top:4px}
-.kpi.green{border-top:2px solid var(--green)}
-.kpi.red{border-top:2px solid var(--red)}
-.kpi.blue{border-top:2px solid var(--blue)}
-.kpi.yellow{border-top:2px solid var(--yellow)}
-.kpi.purple{border-top:2px solid var(--purple)}
-.kpi.orange{border-top:2px solid var(--orange)}
+.kpi.green{border-top:2px solid var(--green);background:linear-gradient(var(--green-bg),var(--bg-1) 60%)}
+.kpi.green .kpi-val{color:var(--green)}
+.kpi.red{border-top:2px solid var(--red);background:linear-gradient(var(--red-bg),var(--bg-1) 60%)}
+.kpi.red .kpi-val{color:var(--red)}
+.kpi.blue{border-top:2px solid var(--blue);background:linear-gradient(var(--blue-bg),var(--bg-1) 60%)}
+.kpi.blue .kpi-val{color:var(--blue)}
+.kpi.yellow{border-top:2px solid var(--yellow);background:linear-gradient(var(--yellow-bg),var(--bg-1) 60%)}
+.kpi.yellow .kpi-val{color:var(--yellow)}
+.kpi.purple{border-top:2px solid var(--purple);background:linear-gradient(var(--purple-bg),var(--bg-1) 60%)}
+.kpi.purple .kpi-val{color:var(--purple)}
+.kpi.orange{border-top:2px solid var(--orange);background:linear-gradient(var(--orange-bg),var(--bg-1) 60%)}
+.kpi.orange .kpi-val{color:var(--orange)}
 
 /* ── Charts ───────────────────────────────────────────────── */
 .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
-.chart-box{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.chart-box{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
 .chart-box h3{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);margin-bottom:14px}
 .chart-box canvas{max-height:220px}
 
 /* ── Tables ───────────────────────────────────────────────── */
-.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius)}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-1);box-shadow:var(--shadow)}
 table{width:100%;border-collapse:collapse}
 th{background:var(--bg-2);padding:8px 12px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);white-space:nowrap;border-bottom:1px solid var(--border)}
 td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-2);vertical-align:middle}
 tr:last-child td{border-bottom:none}
-tr:hover td{background:var(--bg-1)}
+tr:hover td{background:var(--bg-2)}
 .td-num{font-family:var(--mono);font-size:11px;text-align:right}
 .td-actions{white-space:nowrap;text-align:right}
 
@@ -129,11 +138,12 @@ tr:hover td{background:var(--bg-1)}
 /* ── Forms ────────────────────────────────────────────────── */
 .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:16px}
 .form-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
-.form-group{display:flex;flex-direction:column;gap:4px}
+.form-group{display:flex;flex-direction:column;gap:4px;min-width:0}
 .form-group label{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3)}
 .form-group input,.form-group select,.form-group textarea{
   background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);
   color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 10px;outline:none;
+  width:100%;max-width:100%;min-width:0;
   transition:border-color .15s}
 .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent)}
 .form-group select option{background:var(--bg-2)}
@@ -168,7 +178,7 @@ tr:hover td{background:var(--bg-1)}
 
 /* ── GST table ────────────────────────────────────────────── */
 .gst-summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:20px}
-.gst-card{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
+.gst-card{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow)}
 .gst-card label{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);display:block;margin-bottom:5px}
 .gst-card .val{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--text)}
 .gst-card .sub{font-size:10px;color:var(--text-3);margin-top:3px}
@@ -650,6 +660,16 @@ tr:hover td{background:var(--bg-1)}
         <input type="text" id="sfSearch" placeholder="Search order/product…" oninput="loadSales()" style="min-width:160px">
         <button class="btn btn-ghost btn-sm" onclick="clearSalesFilters()">Clear</button>
       </div>
+      <!-- Bulk action bar — shown only when rows are selected -->
+      <div id="bulkBar" style="display:none;background:var(--accent);color:#fff;border-radius:7px;padding:10px 16px;margin-bottom:10px;display:none;align-items:center;gap:10px;flex-wrap:wrap">
+        <span id="bulkCount" style="font-size:12px;font-weight:700;margin-right:4px">0 selected</span>
+        <button class="btn btn-sm" onclick="bulkMarkPaid()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">✓ Mark Paid</button>
+        <button class="btn btn-sm" onclick="bulkMarkStatus('returned')" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">↩ Mark Return</button>
+        <button class="btn btn-sm" onclick="bulkMarkStatus('cancelled')" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">✕ Cancel</button>
+        <button class="btn btn-sm" onclick="bulkExport()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">↓ Export Selected</button>
+        <button class="btn btn-sm" onclick="bulkDelete()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2);margin-left:auto">🗑 Delete</button>
+      </div>
+
       <div class="tbl-wrap">
         <table id="salesTable">
           <thead><tr>
@@ -1630,7 +1650,7 @@ async function loadSales(){
     const profit=netRev-(s.cogs||0)-gstAmt;
     const locked=s.is_paid;
     return `<tr style="${locked?'opacity:.75':''}">
-      <td><input type="checkbox" class="sale-cb" data-id="${s.id}"></td>
+      <td><input type="checkbox" class="sale-cb" data-id="${s.id}" onchange="updateBulkBar()"></td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${idx+1}</td>
       <td style="font-family:var(--mono);font-size:11px">${esc(s.order_date)}</td>
       <td>${chHtml(s.channel_id)}</td>
@@ -1668,6 +1688,54 @@ async function loadSales(){
 
 function toggleSelectAllSales(cb){
   document.querySelectorAll('.sale-cb').forEach(c=>c.checked=cb.checked);
+  updateBulkBar();
+}
+function updateBulkBar(){
+  const n=getSelectedIds().length;
+  const bar=document.getElementById('bulkBar');
+  if(n>0){bar.style.display='flex';document.getElementById('bulkCount').textContent=n+' selected';}
+  else bar.style.display='none';
+}
+function getSelectedIds(){
+  return [...document.querySelectorAll('.sale-cb:checked')].map(c=>c.dataset.id);
+}
+async function bulkMarkPaid(){
+  const ids=getSelectedIds(); if(!ids.length) return;
+  if(!confirm('Mark '+ids.length+' order(s) as PAID? This will lock them.')) return;
+  const {error}=await sb.from('biz_sales').update({is_paid:true}).in('id',ids);
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast(ids.length+' orders marked paid'); loadSales();
+}
+async function bulkMarkStatus(status){
+  const ids=getSelectedIds(); if(!ids.length) return;
+  const label={returned:'Returned',cancelled:'Cancelled'}[status]||status;
+  if(!confirm('Mark '+ids.length+' order(s) as '+label+'?')) return;
+  const {error}=await sb.from('biz_sales').update({status}).in('id',ids);
+  if(error){toast('Error: '+error.message,'error');return;}
+  if(status==='returned'){
+    const sales=_salesCache.filter(s=>ids.includes(s.id));
+    const rows=sales.map(s=>({sale_id:s.id,channel_id:s.channel_id,order_id:s.order_id,type:'return',date:today(),amount_lost:s.selling_price||0,refund_given:s.selling_price||0,status:'pending',reason:'Bulk marked'}));
+    if(rows.length) await sb.from('biz_returns').insert(rows);
+  }
+  toast(ids.length+' orders -> '+label); loadSales();
+}
+async function bulkDelete(){
+  const ids=getSelectedIds(); if(!ids.length) return;
+  const locked=ids.filter(id=>_salesCache.find(s=>s.id===id&&s.is_paid));
+  if(locked.length){toast(locked.length+' paid order(s) cannot be deleted — unmark paid first','error');return;}
+  if(!confirm('Delete '+ids.length+' order(s)? Cannot be undone.')) return;
+  const {error}=await sb.from('biz_sales').delete().in('id',ids);
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast(ids.length+' orders deleted'); loadSales();
+}
+function bulkExport(){
+  const ids=new Set(getSelectedIds()); if(!ids.size) return;
+  const rows=_salesCache.filter(s=>ids.has(s.id));
+  const data=rows.map((s,i)=>({'#':i+1,'Date':s.order_date,'Channel':CH_NAMES[s.channel_id]||s.channel_id,'Order ID':s.order_id||'','Product':s.product_name,'Qty':s.qty,'Price':s.selling_price,'COGS':s.cogs||0,'Customer':s.customer_name||'','State':s.customer_state||'','Status':s.status,'Paid':s.is_paid?'Yes':'No','Tracking':s.tracking_number||''}));
+  const ws=XLSX.utils.json_to_sheet(data);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Selected');
+  XLSX.writeFile(wb,'TriAkar_Selected_'+today()+'.xlsx');
 }
 
 async function togglePaid(id, currentlyPaid){
@@ -2062,7 +2130,7 @@ async function loadDashboard(){
     datasets:[
       {label:'Revenue',data:channels.map(c=>byChannel[c].revenue),backgroundColor:channels.map(c=>CH_COLORS[c]+'88'),borderColor:channels.map(c=>CH_COLORS[c]),borderWidth:1},
       {label:'Profit',data:channels.map(c=>byChannel[c].profit),backgroundColor:'rgba(74,222,128,0.3)',borderColor:'#4ADE80',borderWidth:1}
-    ]},options:{responsive:true,plugins:{legend:{labels:{color:'#879E8C',font:{size:10}}}},scales:{x:{ticks:{color:'#4E6655'},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#4E6655',callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'rgba(255,255,255,0.04)'}}}}});
+    ]},options:{responsive:true,plugins:{legend:{labels:{color:'#52685A',font:{size:10}}}},scales:{x:{ticks:{color:'#869488'},grid:{color:'rgba(20,42,30,0.07)'}},y:{ticks:{color:'#869488',callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'rgba(20,42,30,0.07)'}}}}});
 
   // Chart: monthly trend (current year)
   const moMap={}; (monthly||[]).forEach(s=>{const mo2=s.order_date.slice(0,7);if(!moMap[mo2])moMap[mo2]=0;moMap[mo2]+=s.selling_price;});
@@ -2072,7 +2140,7 @@ async function loadDashboard(){
   _chartMonthly=new Chart(ctx2,{type:'line',data:{
     labels:allMonths.map(m=>{const[,mm]=m.split('-');return['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mm)];}),
     datasets:[{label:'Revenue',data:allMonths.map(m=>moMap[m]||0),borderColor:'#52B788',backgroundColor:'rgba(82,183,136,0.1)',tension:0.4,pointRadius:3,fill:true}]},
-    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#4E6655'},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#4E6655',callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'rgba(255,255,255,0.04)'}}}}});
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#869488'},grid:{color:'rgba(20,42,30,0.07)'}},y:{ticks:{color:'#869488',callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'rgba(20,42,30,0.07)'}}}}});
 
   // Top products
   const prodMap={};
