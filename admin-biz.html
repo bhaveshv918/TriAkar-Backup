@@ -2628,6 +2628,27 @@ function parseLabelText(){
   renderExtractedLabels(pages.length>1?pages:[raw]);
 }
 
+// Convert label-extracted date strings to YYYY-MM-DD
+function parseLabelDate(str, isFlipkartDDMM){
+  if(!str) return null;
+  str=str.trim().replace(/\s/g,'');
+  // Flipkart DD-MM (no year): "05-03" → current year
+  if(isFlipkartDDMM){
+    const m=str.match(/^(\d{1,2})[-–](\d{1,2})$/);
+    if(m){
+      const day=m[1].padStart(2,'0'), mon=m[2].padStart(2,'0');
+      return `${new Date().getFullYear()}-${mon}-${day}`;
+    }
+    return null;
+  }
+  // Amazon DD.MM.YYYY or DD/MM/YYYY
+  const dot=str.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/);
+  if(dot) return `${dot[3]}-${dot[2].padStart(2,'0')}-${dot[1].padStart(2,'0')}`;
+  // Already ISO YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  return null;
+}
+
 function extractLabelData(text,platform){
   let orderId='', qty=1, productName='', customerName='';
   let city='', state='', pincode='', tracking='', paymentMode='', orderDate='', deliveryDate='', courier='', price='';
@@ -2635,61 +2656,70 @@ function extractLabelData(text,platform){
   if(platform==='amazon'){
     // Order Number: 402-1962179-6689120
     const om=text.match(/Order[\s\w]*Number[:\s]+(\d{3}-\d{7}-\d{7})/i); if(om) orderId=om[1];
-    // AWB / Transaction ID
-    const aw=text.match(/(?:AWB|tracking)[^\w]*([\w]{10,})/i); if(aw) tracking=aw[1];
+    // Transaction ID as tracking (long alphanum after Payment Transaction ID)
+    const aw=text.match(/Payment Transaction ID[^\n]*\n([A-Za-z0-9]{15,})/i)
+      || text.match(/(?:AWB|tracking)[^\w]*([\w]{10,})/i);
+    if(aw) tracking=aw[1];
     // Payment mode
     const pm=text.match(/Mode of Payment[:\s]+(\w[\w\s\/]*)/i); if(pm) paymentMode=pm[1].trim();
-    // Order date
-    const od=text.match(/Order Date[:\s]+([\d.\/\-]+)/i); if(od) orderDate=od[1].trim();
-    // Price
-    const pr=text.match(/(?:Invoice Value|Total Amount)[:\s]+[₹Rs.]*\s*([\d,]+\.?\d*)/i); if(pr) price=pr[1].replace(',','');
-    // Product name — line before HSN or between item number and price
-    const pn=text.match(/\d\s+TRIAKAR\s+(.{5,80}?)\s*\(\s*[A-Z0-9\-]{5,}/i);
-    if(pn) productName=pn[1].trim();
-    else { const pn2=text.match(/1\s+([A-Z][^₹\n]{10,80}?)\s*[₹₹]/); if(pn2) productName=pn2[1].trim().replace(/\s+/g,' '); }
-    // Shipping address block — "Shipping Address :" then name
-    const sa=text.match(/Shipping Address\s*:?\s*\n?\s*([A-Za-z][^\n\r]{2,40})/i); if(sa) customerName=sa[1].trim();
-    // City, state, pin from address: "MUMBAI, MAHARASHTRA, 400034"
+    if(!paymentMode){const upi=text.match(/\b(UPI|COD|Card|NetBanking|Prepaid)\b/i);if(upi)paymentMode=upi[1];}
+    // Order date: "05.06.2026"
+    const od=text.match(/Order Date[:\s]+([\d.\/]+)/i);
+    if(od) orderDate=parseLabelDate(od[1].trim())||od[1].trim();
+    // Price: "Invoice Value: ... 999.00"
+    const pr=text.match(/Invoice Value[:\s]*[₹Rs.]*\s*([\d,]+\.?\d*)/i)
+      || text.match(/TOTAL[:\s]*[₹]*\s*([\d,]+\.?\d*)\s*$/im);
+    if(pr) price=pr[1].replace(/,/g,'');
+    // Product name: "TRIAKAR [name] | ASIN" — use [\s\S] to span lines, stop at ASIN B0...
+    const pn=text.match(/TRIAKAR\s+([\s\S]{5,250}?)\s*\|\s*B0[A-Z0-9]{7,10}/i)
+      || text.match(/TRIAKAR\s+([\s\S]{5,200}?)\s*\(\s*[A-Z]{2}-[A-Z0-9]+/i)
+      || text.match(/TRIAKAR\s+([\s\S]{5,200}?)\s*HSN:/i);
+    if(pn) productName=pn[1].trim().replace(/[\s]+/g,' ');
+    // Shipping address: customer name on line after "Shipping Address"
+    const sa=text.match(/Shipping Address\s*:?\s*[\r\n]+\s*([A-Za-z][^\r\n]{2,50})/i)
+      || text.match(/Shipping\/Customer address[:\s\r\n]+(?:Name:\s*)?([A-Za-z][^\r\n,]{2,40})/i);
+    if(sa) customerName=sa[1].trim().replace(/,$/,'');
+    // City, state, pin: "MUMBAI, MAHARASHTRA, 400034"
     const adr=text.match(/([A-Z][A-Z\s]{2,20}),\s*([A-Z][A-Z\s]{3,20}),\s*(\d{6})/);
     if(adr){city=adr[1].trim();state=adr[2].trim();pincode=adr[3];}
     else{const p6=text.match(/\b(\d{6})\b/);if(p6)pincode=p6[1];}
     courier='Amazon Logistics';
-    // Payment mode fallback
-    if(!paymentMode){ const upi=text.match(/UPI|COD|Card|NetBanking/i); if(upi) paymentMode=upi[0]; }
 
   } else { // flipkart
     // Order ID: OD336936622599309400
-    const om=text.match(/Order[\s\w]*Id[:\s]+(OD\d{10,25})/i)||(text.match(/\b(OD\d{14,25})\b/i));
+    const om=text.match(/Order[\s\w]*Id[:\s]+(OD\d{10,25})/i)||text.match(/\b(OD\d{14,25})\b/i);
     if(om) orderId=om[1]||om[0];
-    // AWB
-    const aw=text.match(/AWB[\s\n]+No\.?\s*\n?([\w]+)/i)||(text.match(/\bFMPC[\w]+\b/i));
-    if(aw) tracking=aw[1]||aw[0];
-    // Product name from "SKU ID | Description QTY" table
-    const pn=text.match(/\|\s*([^|]{5,80}?)\s*\|\s*(?:For|Praying|Office|1\b)/i);
+    // AWB / tracking: FMPC... or explicit AWB No.
+    const aw=text.match(/AWB[\s\r\n]+No\.?\s*[\r\n]*([\w]+)/i)||text.match(/\b(FMPC[\w]+)\b/i);
+    if(aw) tracking=(aw[1]||aw[0]).replace(/^.*?(FMPC)/,'$1');
+    // Product name: line with "SKU | Description | Qty" — extract the description column
+    // Pattern: "SKU-code | Product Name | For..." or just "| Product Name |"
+    const pn=text.match(/[\w-]+\s*\|\s*([\w][^|\r\n]{5,120}?)\s*\|/i)
+      || text.match(/Description\s*QTY[\r\n]+[\w-]+\s*\|\s*([^|\r\n]{5,100})/i);
     if(pn) productName=pn[1].trim();
-    else { const pn2=text.match(/(?:Description|QTY)\s*\n([^\n]{5,80})/i); if(pn2) productName=pn2[1].trim(); }
-    // Customer name from "Name: Ayush ,"
-    const cn=text.match(/Name[:\s]+([A-Za-z][^\n,]{1,40})/i); if(cn) customerName=cn[1].trim().replace(/,$/,'').trim();
-    // Address and pin: "Kanpur - 208017, IN-UP"
-    const adr=text.match(/([A-Za-z][\w\s]+)\s*[-–]\s*(\d{6})/);
-    if(adr){city=adr[1].trim();}
+    // Customer name: "Name: Ayush ,"
+    const cn=text.match(/Name[:\s]+([A-Za-z][^\r\n,]{1,40})/i);
+    if(cn) customerName=cn[1].trim().replace(/,\s*$/,'');
+    // City from "Kanpur - 208017"
+    const adr=text.match(/([A-Za-z][A-Za-z\s]{3,30})\s*[-–]\s*(\d{6})/);
+    if(adr) city=adr[1].trim();
+    // Pincode
     const p6=text.match(/\b(\d{6})\b/); if(p6) pincode=p6[1];
-    // State from IN-UP pattern
+    // State from "IN-UP"
     const st=text.match(/IN-([A-Z]{2})\b/); if(st) state=st[1];
-    // HBD = Handover By Date = dispatch date, CPD = Customer Promise Date = delivery
-    const hbd=text.match(/HBD[:\s]+([\d\s\-]+)/i); if(hbd) orderDate=hbd[1].trim().replace(/\s/g,'');
-    const cpd=text.match(/CPD[:\s]+([\d\s\-]+)/i); if(cpd) deliveryDate=cpd[1].trim().replace(/\s/g,'');
-    // COD from header
-    const cod=text.match(/\bCOD\b/i); if(cod) paymentMode='COD';
-    else paymentMode='Prepaid';
+    // HBD = dispatch date, CPD = delivery date — format: "05 - 03" (DD-MM)
+    const hbd=text.match(/HBD[:\s]+([\d\s\-–]+)/i);
+    if(hbd) orderDate=parseLabelDate(hbd[1],true)||'';
+    const cpd=text.match(/CPD[:\s]+([\d\s\-–]+)/i);
+    if(cpd) deliveryDate=parseLabelDate(cpd[1],true)||'';
+    // Payment
+    const cod=text.match(/\bCOD\b/i); paymentMode=cod?'COD':'Prepaid';
     courier='Ekart';
-    // Price
+    // Price and qty
     const pr=text.match(/TOTAL PRICE[:\s]+([\d.]+)/i); if(pr) price=pr[1];
-    // Qty
     const qm=text.match(/TOTAL QTY[:\s]+(\d+)/i); if(qm) qty=parseInt(qm[1])||1;
   }
 
-  // Fallback qty
   if(!qty||qty<1){ const qm=text.match(/(?:qty|quantity)[:\s]+(\d+)/i); if(qm) qty=parseInt(qm[1])||1; }
 
   return {orderId,qty,productName,customerName,city,state,pincode,tracking,paymentMode,orderDate,deliveryDate,courier,price};
