@@ -380,9 +380,10 @@ nav.main-nav.scrolled{
 .nav-toggle.open span:nth-child(2){opacity:0}
 .nav-toggle.open span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
 
-/* Mobile drawer */
-/* Bottom sheet — slides up from the bottom edge, thumb-friendly.
-   Light ivory panel with a grab handle; dim scrim behind. */
+/* ═══ MOBILE MENU — admin-selectable style via html[data-menu-style] ═══
+   DEFAULT / "7" = top dropdown 2-col icon-tile grid (the rules right below).
+   "6" = left full-height slide drawer · "4" = bottom sheet.
+   The 6/4 override blocks live just after the tile/login/signout rules. */
 .nav-drawer{
   display:grid;
   grid-template-columns:1fr 1fr;
@@ -499,6 +500,55 @@ html.drawer-open .a11y-fab{opacity:0;visibility:hidden;pointer-events:none}
 /* Sign Out button in mobile drawer — small, tucked at bottom */
 .drawer-signout{display:block;width:100%;grid-column:1/-1;background:none;border:none;text-align:center;padding:8px 4px 0;font-family:var(--font-b);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--stone);cursor:pointer;transition:color .2s}
 .drawer-signout:hover{color:#991B1B}
+
+/* ═══ MENU STYLE 6 — LEFT FULL-HEIGHT SLIDE DRAWER ═══════════════════ */
+html[data-menu-style="6"] .nav-drawer{
+  display:flex;flex-direction:column;gap:2px;
+  left:0;right:auto;top:var(--total-h);bottom:0;
+  width:82%;max-width:330px;
+  border-radius:0 18px 18px 0;border:1px solid rgba(22,22,20,.06);border-left:none;
+  box-shadow:14px 0 44px rgba(22,22,20,.22);
+  padding:16px 16px calc(20px + env(safe-area-inset-bottom,0px));
+  max-height:none;
+  transform:translateX(-102%);
+}
+html[data-menu-style="6"] .nav-drawer.open{transform:none}
+/* list rows instead of tiles */
+html[data-menu-style="6"] .drawer-link,
+html[data-menu-style="4"] .drawer-link{
+  flex-direction:row;align-items:center;justify-content:flex-start;gap:14px;
+  text-align:left;background:none;border:none;box-shadow:none;
+  font-size:13px;letter-spacing:.06em;
+}
+html[data-menu-style="6"] .drawer-link svg,
+html[data-menu-style="4"] .drawer-link svg{width:20px;height:20px}
+html[data-menu-style="6"] .drawer-link{border-radius:10px;padding:13px 12px}
+html[data-menu-style="6"] .drawer-link:hover,
+html[data-menu-style="6"] .drawer-link:active{background:rgba(196,98,42,.07);transform:none;box-shadow:none}
+html[data-menu-style="6"] .drawer-link.nav-active{background:rgba(196,98,42,.1)}
+html[data-menu-style="6"] .drawer-login{margin-top:auto}
+
+/* ═══ MENU STYLE 4 — BOTTOM SHEET (slides up) ═══════════════════════ */
+html[data-menu-style="4"] .nav-drawer{
+  display:flex;flex-direction:column;gap:0;
+  left:0;right:0;top:auto;bottom:0;
+  border-radius:22px 22px 0 0;border:1px solid rgba(22,22,20,.06);border-bottom:none;
+  box-shadow:0 -14px 44px rgba(22,22,20,.22);
+  padding:8px 20px calc(18px + env(safe-area-inset-bottom,0px));
+  max-height:80dvh;
+  transform:translateY(102%);
+}
+html[data-menu-style="4"] .nav-drawer.open{transform:none}
+html[data-menu-style="4"] .nav-drawer::before{
+  content:'';flex:0 0 auto;width:38px;height:4px;border-radius:2px;
+  background:rgba(22,22,20,.16);margin:4px auto 8px;
+}
+html[data-menu-style="4"] .drawer-link{
+  border-bottom:1px solid rgba(22,22,20,.07);border-radius:0;padding:13px 4px;
+}
+html[data-menu-style="4"] .drawer-link:hover,
+html[data-menu-style="4"] .drawer-link:active{color:var(--accent);padding-left:8px;transform:none;box-shadow:none}
+html[data-menu-style="4"] .drawer-login{margin-top:12px}
 
 /* On phones the wishlist + cart live in the bottom tab bar, so hide the
    duplicates in the top nav (keeps the top bar clean). */

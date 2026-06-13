@@ -817,6 +817,9 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     <button class="tab" data-tab="recyclebin" onclick="switchTab('recyclebin')">
       <span class="tab-icon">⊗</span><span class="tab-label">Recycle Bin</span><span class="tab-count" id="binCount">0</span>
     </button>
+    <button class="tab" data-tab="appearance" onclick="switchTab('appearance')">
+      <span class="tab-icon">◐</span><span class="tab-label">Appearance</span>
+    </button>
 
   </nav>
   <div class="main-area">
@@ -1477,6 +1480,66 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     </div>
   </div>
 
+  <!-- ── APPEARANCE PANEL ──────────────────────── -->
+  <div class="panel" id="panelAppearance">
+    <div class="p-head">
+      <div class="p-title">Mobile Menu Style</div>
+      <div class="p-actions"><button class="btn-secondary" onclick="loadMenuStyleSetting()">⟳ Refresh</button></div>
+    </div>
+    <p style="color:var(--text-3,#888);font-size:13px;max-width:620px;margin:0 0 4px">
+      Pick how the navigation menu opens on phones. The choice is saved instantly and
+      goes live for every visitor (their browser picks it up on the next page load).
+    </p>
+    <div id="menuStyleMsg" style="font-size:13px;font-weight:600;min-height:20px;margin:8px 0"></div>
+    <style>
+      .ms-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:6px;max-width:760px}
+      .ms-card{text-align:left;background:var(--surface-2,#fff);border:1.5px solid var(--border,#e3e1da);border-radius:14px;padding:16px;cursor:pointer;transition:border-color .18s,box-shadow .18s,transform .18s;font-family:inherit}
+      .ms-card:hover{border-color:var(--accent,#C4622A);transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.08)}
+      .ms-card.active{border-color:var(--accent,#C4622A);box-shadow:0 0 0 3px rgba(196,98,42,.15)}
+      .ms-card.active .ms-badge{display:inline-block}
+      .ms-phone{position:relative;width:100%;height:120px;background:#EAE7DF;border-radius:10px;overflow:hidden;margin-bottom:12px;border:1px solid rgba(0,0,0,.06)}
+      .ms-phone .bar{position:absolute;top:0;left:0;right:0;height:18px;background:#F4F2EC;border-bottom:1px solid rgba(0,0,0,.08)}
+      .ms-panel{position:absolute;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+      .ms-scrim{position:absolute;inset:18px 0 0;background:rgba(22,22,20,.32)}
+      .ms-title{font-size:14px;font-weight:700;color:var(--text,#222);margin-bottom:3px}
+      .ms-desc{font-size:12px;color:var(--text-3,#888);line-height:1.5}
+      .ms-badge{display:none;margin-top:9px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:var(--accent,#C4622A);padding:3px 9px;border-radius:20px}
+    </style>
+    <div class="ms-grid">
+      <button class="ms-card" data-style="7" onclick="setMenuStyle('7')">
+        <div class="ms-phone"><div class="bar"></div><div class="ms-scrim" style="inset:18px 0 0;background:rgba(22,22,20,.25)"></div>
+          <div class="ms-panel" style="top:18px;left:8px;right:8px;border-radius:0 0 8px 8px;padding:7px;display:grid;grid-template-columns:1fr 1fr;gap:5px">
+            <div style="height:20px;background:#fff;border:1px solid #eee;border-radius:4px"></div><div style="height:20px;background:#fff;border:1px solid #eee;border-radius:4px"></div>
+            <div style="height:20px;background:#fff;border:1px solid #eee;border-radius:4px"></div><div style="height:20px;background:#fff;border:1px solid #eee;border-radius:4px"></div>
+          </div></div>
+        <div class="ms-title">7 · Icon tile grid <span style="font-weight:400;color:var(--text-3,#888)">(default)</span></div>
+        <div class="ms-desc">Drops down from the top as a 2-column grid of icon tiles.</div>
+        <span class="ms-badge">● Live</span>
+      </button>
+      <button class="ms-card" data-style="6" onclick="setMenuStyle('6')">
+        <div class="ms-phone"><div class="bar"></div><div class="ms-scrim"></div>
+          <div class="ms-panel" style="top:18px;bottom:0;left:0;width:62%;border-radius:0 8px 8px 0;padding:8px;display:flex;flex-direction:column;gap:6px">
+            <div style="height:9px;width:80%;background:#eee;border-radius:3px"></div><div style="height:9px;width:70%;background:#eee;border-radius:3px"></div>
+            <div style="height:9px;width:85%;background:#eee;border-radius:3px"></div><div style="height:9px;width:65%;background:#eee;border-radius:3px"></div>
+          </div></div>
+        <div class="ms-title">6 · Left slide drawer</div>
+        <div class="ms-desc">Full-height panel slides in from the left, list of links.</div>
+        <span class="ms-badge">● Live</span>
+      </button>
+      <button class="ms-card" data-style="4" onclick="setMenuStyle('4')">
+        <div class="ms-phone"><div class="bar"></div><div class="ms-scrim"></div>
+          <div class="ms-panel" style="bottom:0;left:0;right:0;height:58%;border-radius:10px 10px 0 0;padding:8px;display:flex;flex-direction:column;gap:6px">
+            <div style="height:4px;width:28px;background:#ddd;border-radius:2px;margin:0 auto 4px"></div>
+            <div style="height:9px;width:80%;background:#eee;border-radius:3px"></div><div style="height:9px;width:70%;background:#eee;border-radius:3px"></div>
+            <div style="height:9px;width:85%;background:#eee;border-radius:3px"></div>
+          </div></div>
+        <div class="ms-title">4 · Bottom sheet</div>
+        <div class="ms-desc">Slides up from the bottom edge — thumb-friendly.</div>
+        <span class="ms-badge">● Live</span>
+      </button>
+    </div>
+  </div>
+
   </div><!-- /.main-area -->
   </div><!-- /.admin-body -->
 
@@ -1879,13 +1942,15 @@ function fmtPrice(n){return '₹'+Number(n).toLocaleString('en-IN')}
 function toast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type||'')+' show';setTimeout(()=>t.classList.remove('show'),3000)}
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['Callbacks','Orders','Customers','Products','Makerworld','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo','Reviews'].forEach(p=>{
-    document.getElementById('panel'+p).classList.toggle('active',p.toLowerCase()===tab);
+  ['Callbacks','Orders','Customers','Products','Makerworld','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo','Reviews','Appearance'].forEach(p=>{
+    const el=document.getElementById('panel'+p);
+    if(el)el.classList.toggle('active',p.toLowerCase()===tab);
   });
   // Clear notification dot and save seen count
   if(tab==='analytics')loadAnalytics();
   if(tab==='promo')loadPromoCodes();
   if(tab==='reviews')loadReviewsAdmin();
+  if(tab==='appearance')loadMenuStyleSetting();
   const dotMap={orders:'dotOrders',customers:'dotCustomers',messages:'dotMessages',enquiries:'dotEnquiries',callbacks:'dotCallbacks'};
   const countEls={orders:'orderCount',customers:'customerCount',messages:'messageCount',enquiries:'enquiryCount',callbacks:'callbackCount'};
   if(dotMap[tab]){
@@ -1893,6 +1958,44 @@ function switchTab(tab){
     if(dot)dot.classList.remove('visible');
     const countEl=document.getElementById(countEls[tab]);
     if(countEl)localStorage.setItem('ta_seen_'+tab,countEl.textContent);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// APPEARANCE — mobile menu style (site_settings.mobile_menu_style)
+// ═══════════════════════════════════════════════════════════
+function _msHighlight(v){
+  document.querySelectorAll('.ms-card').forEach(c=>c.classList.toggle('active',c.dataset.style===String(v)));
+}
+async function loadMenuStyleSetting(){
+  const msg=document.getElementById('menuStyleMsg');
+  if(msg){msg.textContent='Loading current style…';msg.style.color='var(--text-3,#888)';}
+  try{
+    const{data,error}=await sb.from('site_settings').select('value').eq('key','mobile_menu_style').maybeSingle();
+    if(error)throw error;
+    const cur=(data&&data.value)?String(data.value):'7';
+    _msHighlight(cur);
+    if(msg){msg.textContent='';}
+  }catch(err){
+    _msHighlight('7');
+    if(msg){msg.textContent='Could not load setting — table may be missing. Run the site_settings migration in Supabase.';msg.style.color='#B91C1C';}
+  }
+}
+async function setMenuStyle(v){
+  if(!['4','6','7'].includes(String(v)))return;
+  const msg=document.getElementById('menuStyleMsg');
+  _msHighlight(v);
+  if(msg){msg.textContent='Saving…';msg.style.color='var(--text-3,#888)';}
+  try{
+    const{error}=await sb.from('site_settings')
+      .upsert({key:'mobile_menu_style',value:String(v),updated_at:new Date().toISOString()},{onConflict:'key'});
+    if(error)throw error;
+    if(msg){msg.textContent='Saved — live on the site within a few seconds.';msg.style.color='#16a34a';}
+    toast('Mobile menu style updated','success');
+  }catch(err){
+    if(msg){msg.textContent='Save failed: '+(err.message||'unknown error');msg.style.color='#B91C1C';}
+    toast('Could not save menu style','error');
+    loadMenuStyleSetting();
   }
 }
 

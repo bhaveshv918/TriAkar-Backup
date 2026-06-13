@@ -48,6 +48,27 @@ window.taImg = function (url, opts) {
   return url;
 };
 
+/* ── Mobile menu style (admin-selectable, site-wide) ──────────────
+   Applies the cached / default style instantly (no flash) by setting
+   <html data-menu-style>, then refreshes from Supabase in the background.
+   Values: '7' = top tile grid (default) · '6' = left drawer · '4' = bottom sheet.
+   Falls back to '7' if the setting/table is missing — always safe. */
+(function(){
+  var KEY='ta_menu_style', OK={'4':1,'6':1,'7':1};
+  function apply(v){ if(OK[v]) document.documentElement.setAttribute('data-menu-style', v); }
+  var cached=null; try{cached=localStorage.getItem(KEY);}catch(_){}
+  apply(cached||'7');
+  var SB='https://qarjbmogersuaerkhlcu.supabase.co';
+  var ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
+  fetch(SB+'/rest/v1/site_settings?select=value&key=eq.mobile_menu_style',{headers:{apikey:ANON,Authorization:'Bearer '+ANON}})
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(rows){
+      if(!rows||!rows.length)return;
+      var v=String(rows[0].value==null?'':rows[0].value).replace(/"/g,'').trim();
+      if(OK[v]){ apply(v); try{localStorage.setItem(KEY,v);}catch(_){} }
+    }).catch(function(){});
+})();
+
 window._NAV_HTML = `<nav class="main-nav" id="mainNav">
   <div class="nav-inner">
     <button class="nav-toggle" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
