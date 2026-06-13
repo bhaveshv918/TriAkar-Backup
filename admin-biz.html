@@ -589,8 +589,7 @@ tr:hover td{background:var(--bg-1)}
 
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button type="submit" class="btn btn-primary">Save Sale</button>
-          <button type="button" class="btn btn-ghost" onclick="saveAndPrint('gst')">Save & GST Invoice</button>
-          <button type="button" class="btn btn-ghost" onclick="saveAndPrint('nongst')">Save & Non-GST Bill</button>
+          <button type="button" class="btn btn-ghost" onclick="saveAndPrint()">Save & Invoice</button>
           <button type="button" class="btn btn-ghost" onclick="resetQuickAdd()">Clear</button>
         </div>
       </form>
@@ -1339,26 +1338,37 @@ function removeCogs(i){
   renderCogsRows();
 }
 function renderCogsRows(){
+  // Only called on add/remove — NOT on every keystroke, so DOM stays stable
   document.getElementById('cogsRows').innerHTML=_cogsItems.map((item,i)=>`
     <div style="display:flex;gap:6px;margin-bottom:4px;align-items:center">
       <input type="text" value="${esc(item.label)}" placeholder="Expense name"
-        oninput="_cogsItems[${i}].label=this.value"
+        onchange="_cogsItems[${i}].label=this.value"
         style="flex:1;min-width:80px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:5px 8px;font-size:12px">
       <input type="number" value="${item.amount||''}" placeholder="0.00" step="0.01"
-        oninput="_cogsItems[${i}].amount=this.value;recalc()"
+        id="cogsAmt_${i}"
+        oninput="updateCogsAmount(${i},this.value)"
         style="width:90px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:5px 8px;font-size:12px;text-align:right;font-family:var(--mono)">
       <button type="button" onclick="removeCogs(${i})"
         style="background:var(--red-bg);border:1px solid rgba(248,113,113,.2);color:var(--red);border-radius:4px;padding:4px 8px;cursor:pointer;font-size:11px;flex-shrink:0">✕</button>
     </div>`).join('');
+  updateCogsTotal();
+}
+function updateCogsAmount(i,val){
+  // Update value WITHOUT re-rendering DOM — fixes multi-digit typing
+  _cogsItems[i].amount=val;
+  updateCogsTotal();
+}
+function updateCogsTotal(){
   const total=getTotalCogs();
-  document.getElementById('cogsTotalDisplay').textContent=fmtD(total);
+  const el=document.getElementById('cogsTotalDisplay');
+  if(el) el.textContent=fmtD(total);
   recalcDisplay();
 }
 function getTotalCogs(){
   return _cogsItems.reduce((s,i)=>s+(parseFloat(i.amount)||0),0);
 }
 
-function recalc(){ renderCogsRows(); }
+function recalc(){ updateCogsTotal(); }
 function recalcDisplay(){
   const price=parseFloat(document.getElementById('qa_price').value)||0;
   const qty=parseInt(document.getElementById('qa_qty').value)||1;
@@ -1473,8 +1483,17 @@ async function loadSales(){
       <td class="td-num" style="color:var(--red)">${fmt(s.platform_fee)}</td>
       <td class="td-num" style="color:var(--text-3)">${fmt(s.cogs)}</td>
       <td class="td-num" style="color:${profit>=0?'var(--green)':'var(--red)'}">${fmt(profit)}</td>
-      <td><span class="badge badge-${esc(s.status)}">${esc(s.status)}</span></td>
-      <td class="td-actions">
+      <td>
+        <select onchange="updateSaleStatus('${s.id}',this.value)"
+          style="background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;padding:3px 6px;cursor:pointer">
+          <option value="completed" ${s.status==='completed'?'selected':''}>Completed</option>
+          <option value="returned"  ${s.status==='returned'?'selected':''}>Returned</option>
+          <option value="cancelled" ${s.status==='cancelled'?'selected':''}>Cancelled</option>
+          <option value="claimed"   ${s.status==='claimed'?'selected':''}>Claimed</option>
+        </select>
+      </td>
+      <td class="td-actions" style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="fetchAndPrintInvoice('${s.id}')">🧾</button>
         <button class="btn btn-danger btn-sm" onclick="deleteSale('${s.id}')">✕</button>
       </td>
     </tr>`;
@@ -1561,6 +1580,7 @@ async function loadReturns(){
   const {data,error}=await q;
   if(error){ toast('Error: '+error.message,'error'); return; }
   const rows=data||[];
+  _returnsCache=rows;
   // KPIs
   const totalLost=rows.reduce((s,r)=>s+r.amount_lost,0);
   const pending=rows.filter(r=>r.status==='pending').length;
@@ -1586,8 +1606,31 @@ async function loadReturns(){
   </tr>`).join('');
 }
 
-function showAddReturn(){ document.getElementById('rf_id').value=''; document.getElementById('rf_date').value=today(); document.getElementById('returnForm').style.display='block'; }
-function editReturn(id){ /* load and populate form — simplified */ toast('Edit: open form, select return in table',''); }
+function showAddReturn(){
+  document.getElementById('rf_id').value='';
+  ['rf_channel','rf_type','rf_orderid','rf_reason','rf_notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('rf_lost').value='0';
+  document.getElementById('rf_refund').value='0';
+  document.getElementById('rf_status').value='pending';
+  document.getElementById('rf_date').value=today();
+  document.getElementById('returnForm').style.display='block';
+  document.getElementById('returnForm').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function editReturn(id){
+  const r=_returnsCache.find(x=>x.id===id); if(!r) return;
+  document.getElementById('rf_id').value=r.id;
+  document.getElementById('rf_channel').value=r.channel_id||'';
+  document.getElementById('rf_type').value=r.type||'return';
+  document.getElementById('rf_orderid').value=r.order_id||'';
+  document.getElementById('rf_date').value=r.date||today();
+  document.getElementById('rf_lost').value=r.amount_lost||0;
+  document.getElementById('rf_refund').value=r.refund_given||0;
+  document.getElementById('rf_status').value=r.status||'pending';
+  document.getElementById('rf_reason').value=r.reason||'';
+  document.getElementById('rf_notes').value=r.notes||'';
+  document.getElementById('returnForm').style.display='block';
+  document.getElementById('returnForm').scrollIntoView({behavior:'smooth',block:'start'});
+}
 async function deleteReturn(id){ if(!confirm('Delete?')) return; await sb.from('biz_returns').delete().eq('id',id); toast('Deleted'); loadReturns(); loadReturnsBadge(); }
 
 async function saveReturn(){
@@ -2014,7 +2057,7 @@ async function exportChannelReport(){
 async function exportGSTExcel(){ await exportGSTReport(); }
 
 // ── Print Invoice ───────────────────────────────────────────
-async function saveAndPrint(type){
+async function saveAndPrint(){
   // Build payload same as submitQuickAdd but return the data
   const sel=document.getElementById('qa_product');
   const productId=sel.value&&sel.value!=='__custom'?sel.value:null;
@@ -2053,127 +2096,227 @@ async function saveAndPrint(type){
   const {error}=await sb.from('biz_sales').insert(payload);
   if(error){toast('Error: '+error.message,'error');return;}
   toast('Sale saved!');
-  printInvoice(payload,type);
+  printInvoice(payload, (parseFloat(payload.gst_rate)>0 ? 'gst' : 'nongst'));
   resetQuickAdd();
   loadSalesBadge();
 }
 
 function printInvoice(d, type){
   const gstRate=parseFloat(d.gst_rate)||0;
-  const totalPrice=(d.selling_price||0)*(d.qty||1);
-  const gstAmt=totalPrice-(totalPrice/(1+gstRate/100));
-  const taxable=totalPrice-gstAmt;
+  const hasGst=(type==='gst' && gstRate>0);
+  const qty=parseInt(d.qty)||1;
+  const unitPrice=parseFloat(d.selling_price)||0;
+  const totalPrice=unitPrice*qty;
+  const disc=parseFloat(d.discount_amount)||0;
+  const subtotal=totalPrice-disc;
+  const gstAmt=hasGst ? subtotal-(subtotal/(1+gstRate/100)) : 0;
+  const taxable=subtotal-gstAmt;
   const isIntraState=!d.customer_state||d.customer_state.trim().toLowerCase()===MY_STATE.toLowerCase();
   const invoiceNo=d.order_id||('TRK-'+Date.now().toString().slice(-6));
+  const invoiceDate=d.order_date||today();
   const variantLine=[d.size,d.color,d.variant].filter(Boolean).join(' · ');
+  const SELLER_NAME='TriAkar';
+  const SELLER_ADDR='Uttar Pradesh, India';
+  const SELLER_GSTIN='[Your GSTIN]';
+  const SELLER_PAN='[Your PAN]';
+  const SELLER_EMAIL='hello@triakar.com';
+  const SELLER_PHONE='+91 [Your Phone]';
+  const SELLER_WEB='triakar.com';
 
-  const gstBlock = type==='gst' && gstRate>0 ? `
-    <tr><td colspan="3" style="text-align:right;color:#555;font-size:12px">Taxable Amount</td><td style="text-align:right">₹${taxable.toFixed(2)}</td></tr>
+  const gstBlock = hasGst ? `
+    <tr><td colspan="3" class="td-r muted">Taxable Amount</td><td class="td-r">₹${taxable.toFixed(2)}</td></tr>
     ${isIntraState
-      ? `<tr><td colspan="3" style="text-align:right;color:#555;font-size:12px">CGST @ ${gstRate/2}%</td><td style="text-align:right">₹${(gstAmt/2).toFixed(2)}</td></tr>
-         <tr><td colspan="3" style="text-align:right;color:#555;font-size:12px">SGST @ ${gstRate/2}%</td><td style="text-align:right">₹${(gstAmt/2).toFixed(2)}</td></tr>`
-      : `<tr><td colspan="3" style="text-align:right;color:#555;font-size:12px">IGST @ ${gstRate}%</td><td style="text-align:right">₹${gstAmt.toFixed(2)}</td></tr>`
-    }` : (type==='gst' && gstRate===0
-      ? `<tr><td colspan="3" style="text-align:right;color:#555;font-size:12px">GST @ 0%</td><td style="text-align:right">₹0.00</td></tr>` : '');
+      ? `<tr><td colspan="3" class="td-r muted">CGST @ ${gstRate/2}%</td><td class="td-r">₹${(gstAmt/2).toFixed(2)}</td></tr>
+         <tr><td colspan="3" class="td-r muted">SGST @ ${gstRate/2}%</td><td class="td-r">₹${(gstAmt/2).toFixed(2)}</td></tr>`
+      : `<tr><td colspan="3" class="td-r muted">IGST @ ${gstRate}%</td><td class="td-r">₹${gstAmt.toFixed(2)}</td></tr>`
+    }` : (gstRate===0 && type==='gst'
+      ? `<tr><td colspan="3" class="td-r muted">GST @ 0%</td><td class="td-r">₹0.00</td></tr>` : '');
 
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>Invoice ${invoiceNo}</title>
+  const amtWords=amountInWords(subtotal);
+
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${type==='gst'?'Tax Invoice':'Bill of Supply'} — ${invoiceNo}</title>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;color:#1a1a1a;padding:32px;max-width:680px;margin:0 auto}
-  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:18px;border-bottom:2px solid #1a1a1a}
-  .brand{font-size:22px;font-weight:800;letter-spacing:.05em}
-  .brand-sub{font-size:10px;color:#666;letter-spacing:.12em;text-transform:uppercase;margin-top:3px}
-  .inv-meta{text-align:right;font-size:12px;color:#444}
-  .inv-meta strong{display:block;font-size:16px;font-weight:700;color:#1a1a1a;margin-bottom:4px}
-  .section{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
-  .section h4{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#999;margin-bottom:6px}
-  .section p{font-size:13px;line-height:1.6;color:#333}
-  table{width:100%;border-collapse:collapse;margin-bottom:0}
-  th{background:#f5f5f5;padding:9px 12px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#666;border-bottom:1px solid #e0e0e0}
-  td{padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;vertical-align:top}
-  .tbl-wrap{border:1px solid #e8e8e8;border-radius:6px;overflow:hidden;margin-bottom:4px}
-  .totals{margin-top:4px}
-  .totals td{border:none;padding:5px 12px}
-  .total-row td{font-size:15px;font-weight:800;border-top:2px solid #1a1a1a;padding-top:10px}
-  .footer{margin-top:28px;padding-top:16px;border-top:1px solid #e8e8e8;font-size:11px;color:#999;text-align:center;line-height:1.8}
-  .nongst-notice{background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:8px 12px;font-size:11px;color:#92400e;margin-bottom:16px}
-  @media print{body{padding:16px}button{display:none}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;color:#1a1a1a;background:#fff;padding:32px;max-width:720px;margin:0 auto}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:3px solid #1a1a1a;margin-bottom:24px}
+.brand{font-size:26px;font-weight:900;letter-spacing:.04em;color:#1a1a1a}
+.brand-tag{font-size:9px;color:#888;letter-spacing:.14em;text-transform:uppercase;margin-top:2px}
+.seller-info{font-size:11px;color:#555;margin-top:8px;line-height:1.8}
+.inv-box{text-align:right}
+.inv-type{font-size:18px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#1a1a1a;margin-bottom:6px}
+.inv-meta{font-size:12px;color:#555;line-height:1.9}
+.inv-meta strong{color:#1a1a1a}
+.parties{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px}
+.party-box{border:1px solid #e8e8e8;border-radius:6px;padding:14px}
+.party-label{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#aaa;margin-bottom:8px}
+.party-name{font-size:14px;font-weight:700;color:#1a1a1a;margin-bottom:4px}
+.party-detail{font-size:12px;color:#555;line-height:1.7}
+.tbl-wrap{border:1px solid #e0e0e0;border-radius:6px;overflow:hidden;margin-bottom:4px}
+table{width:100%;border-collapse:collapse}
+thead th{background:#f5f5f5;padding:9px 12px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#666;border-bottom:1px solid #e0e0e0;text-align:left}
+td{padding:11px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;vertical-align:top}
+.td-r{text-align:right}
+.muted{color:#666;font-size:12px}
+.totals td{border:none;padding:5px 12px}
+.total-final td{font-size:15px;font-weight:900;border-top:2px solid #1a1a1a;padding-top:10px;color:#1a1a1a}
+.words-row{font-size:11px;color:#888;padding:10px 12px;border-top:1px solid #f0f0f0;font-style:italic}
+.shipping-box{border:1px solid #e8e8e8;border-radius:6px;padding:12px;margin-top:16px;font-size:12px;color:#555}
+.shipping-box strong{color:#1a1a1a;display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#aaa;margin-bottom:6px;font-weight:700}
+.footer{margin-top:28px;padding-top:16px;border-top:1px solid #e8e8e8;font-size:11px;color:#aaa;display:flex;justify-content:space-between;align-items:flex-end}
+.footer-left{line-height:1.8}
+.sign-box{border-top:1px solid #1a1a1a;width:140px;text-align:center;padding-top:6px;font-size:10px;color:#888}
+.notice{background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:8px 12px;font-size:11px;color:#92400e;margin-bottom:16px}
+.chip{display:inline-block;background:#f0f0f0;border-radius:3px;padding:2px 7px;font-size:10px;color:#555;font-family:monospace}
+@media print{body{padding:12px}.print-btn{display:none!important}}
 </style></head><body>
-<div class="header">
+<div class="hdr">
   <div>
     <div class="brand">TRIĀKAR</div>
-    <div class="brand-sub">Designed globally · Made in India</div>
-    <div style="font-size:11px;color:#666;margin-top:6px;line-height:1.7">
-      ${type==='gst'?'<strong>GSTIN: [Your GSTIN]</strong><br>':''}
-      triakar.com · hello@triakar.com
+    <div class="brand-tag">Designed globally · Made responsibly in India</div>
+    <div class="seller-info">
+      ${SELLER_ADDR}<br>
+      ${type==='gst'?`<strong>GSTIN:</strong> ${SELLER_GSTIN} &nbsp;|&nbsp; <strong>PAN:</strong> ${SELLER_PAN}<br>`:''}
+      ${SELLER_PHONE} &nbsp;|&nbsp; ${SELLER_EMAIL} &nbsp;|&nbsp; ${SELLER_WEB}
     </div>
   </div>
-  <div class="inv-meta">
-    <strong>${type==='gst'?'TAX INVOICE':'BILL OF SUPPLY'}</strong>
-    Invoice No: ${esc(invoiceNo)}<br>
-    Date: ${esc(d.order_date||today())}<br>
-    ${d.delivery_date?'Delivery: '+esc(d.delivery_date)+'<br>':''}
-    ${d.channel_id?'Channel: '+esc(CH_NAMES[d.channel_id]||d.channel_id):''}
+  <div class="inv-box">
+    <div class="inv-type">${type==='gst'?'Tax Invoice':'Bill of Supply'}</div>
+    <div class="inv-meta">
+      <strong>Invoice No:</strong> ${esc(invoiceNo)}<br>
+      <strong>Date:</strong> ${esc(invoiceDate)}<br>
+      ${d.delivery_date?`<strong>Delivery:</strong> ${esc(d.delivery_date)}<br>`:''}
+      ${d.channel_id?`<strong>Channel:</strong> ${esc(CH_NAMES?.[d.channel_id]||String(d.channel_id))}`:'' }
+    </div>
   </div>
 </div>
 
-${type==='nongst'?'<div class="nongst-notice">Bill of Supply — Issued under composition scheme / exempt supply. No input tax credit available to buyer.</div>':''}
+${type==='nongst'?'<div class="notice">Bill of Supply — No GST applicable on this transaction. No input tax credit available to buyer.</div>':''}
 
-<div class="section">
-  <div>
-    <h4>Bill To</h4>
-    <p>
-      ${d.customer_name?'<strong>'+esc(d.customer_name)+'</strong><br>':''}
-      ${d.customer_phone?esc(d.customer_phone)+'<br>':''}
-      ${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}
-      ${d.customer_pincode?' — '+esc(d.customer_pincode):''}
-    </p>
+<div class="parties">
+  <div class="party-box">
+    <div class="party-label">Sold By</div>
+    <div class="party-name">${SELLER_NAME}</div>
+    <div class="party-detail">${SELLER_ADDR}<br>${SELLER_EMAIL}<br>${SELLER_PHONE}</div>
   </div>
-  <div>
-    <h4>Payment</h4>
-    <p>${d.payment_mode?esc(d.payment_mode.toUpperCase()):'—'}<br>
-    ${d.tracking_number?'Tracking: '+esc(d.tracking_number)+'<br>':''}
-    ${d.courier_partner?esc(d.courier_partner):''}
-    </p>
+  <div class="party-box">
+    <div class="party-label">Bill To / Ship To</div>
+    ${d.customer_name?`<div class="party-name">${esc(d.customer_name)}</div>`:'<div class="party-name" style="color:#aaa">—</div>'}
+    <div class="party-detail">
+      ${d.customer_phone?esc(d.customer_phone)+'<br>':''}
+      ${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' — '+esc(d.customer_pincode):''}
+      ${d.order_id?`<br>Order ID: <span class="chip">${esc(d.order_id)}</span>`:''}
+    </div>
   </div>
 </div>
 
 <div class="tbl-wrap">
 <table>
-  <thead><tr><th>Product</th><th>Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr></thead>
+  <thead>
+    <tr>
+      <th style="width:50%">Item / Description</th>
+      ${type==='gst'?'<th class="td-r">HSN/SAC</th>':''}
+      <th class="td-r">Qty</th>
+      <th class="td-r">Unit Price</th>
+      <th class="td-r">Amount</th>
+    </tr>
+  </thead>
   <tbody>
     <tr>
       <td>
         <strong>${esc(d.product_name||'—')}</strong>
-        ${variantLine?'<br><span style="font-size:11px;color:#666">'+esc(variantLine)+'</span>':''}
-        ${d.notes?'<br><span style="font-size:11px;color:#999">'+esc(d.notes)+'</span>':''}
+        ${variantLine?`<br><span style="font-size:11px;color:#777">${esc(variantLine)}</span>`:''}
+        ${d.notes?`<br><span style="font-size:11px;color:#999">${esc(d.notes)}</span>`:''}
       </td>
-      <td>${d.qty||1}</td>
-      <td style="text-align:right">₹${((d.selling_price||0)).toFixed(2)}</td>
-      <td style="text-align:right">₹${totalPrice.toFixed(2)}</td>
+      ${type==='gst'?`<td class="td-r muted">—</td>`:''}
+      <td class="td-r">${qty}</td>
+      <td class="td-r">₹${unitPrice.toFixed(2)}</td>
+      <td class="td-r">₹${totalPrice.toFixed(2)}</td>
     </tr>
-    ${d.discount_amount>0?`<tr><td colspan="3" style="text-align:right;color:#555;font-size:12px">Discount</td><td style="text-align:right;color:#b91c1c">-₹${(d.discount_amount).toFixed(2)}</td></tr>`:''}
+    ${disc>0?`<tr><td colspan="${type==='gst'?5:4}" class="td-r muted">Discount</td></tr>
+    <tr><td colspan="${type==='gst'?3:2}"></td><td class="td-r muted">Discount</td><td class="td-r" style="color:#b91c1c">-₹${disc.toFixed(2)}</td></tr>`:''}
   </tbody>
 </table>
 <table class="totals">
   <tbody>
     ${gstBlock}
-    <tr class="total-row"><td colspan="3" style="text-align:right;font-weight:800">TOTAL</td><td style="text-align:right">₹${(totalPrice-(d.discount_amount||0)).toFixed(2)}</td></tr>
+    <tr class="total-final">
+      <td colspan="${type==='gst'?4:3}" class="td-r">TOTAL AMOUNT</td>
+      <td class="td-r">₹${subtotal.toFixed(2)}</td>
+    </tr>
   </tbody>
 </table>
+<div class="words-row">Amount in words: <em>${amtWords}</em></div>
 </div>
 
+${(d.tracking_number||d.courier_partner||d.payment_mode)?`
+<div class="shipping-box">
+  <strong>Dispatch &amp; Payment</strong>
+  ${d.payment_mode?`Payment Mode: <strong>${esc(d.payment_mode)}</strong><br>`:''}
+  ${d.courier_partner?`Courier: <strong>${esc(d.courier_partner)}</strong><br>`:''}
+  ${d.tracking_number?`Tracking: <span class="chip">${esc(d.tracking_number)}</span><br>`:''}
+  ${d.dispatch_date?`Dispatch Date: ${esc(d.dispatch_date)}`:''}
+</div>`:''}
+
 <div class="footer">
-  This is a computer-generated invoice · TriAkar · triakar.com<br>
-  Thank you for your purchase!
-  <div style="margin-top:12px"><button onclick="window.print()" style="padding:8px 20px;background:#1a1a1a;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px">🖨 Print / Save as PDF</button></div>
+  <div class="footer-left">
+    This is a computer-generated document.<br>
+    TriAkar · ${SELLER_WEB} · ${SELLER_EMAIL}<br>
+    Thank you for your purchase!
+  </div>
+  <div>
+    <div class="sign-box">Authorised Signatory</div>
+  </div>
+</div>
+
+<div style="text-align:center;margin-top:20px" class="print-btn">
+  <button onclick="window.print()" style="padding:10px 28px;background:#1a1a1a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:13px;font-weight:600">🖨 Print / Save as PDF</button>
 </div>
 </body></html>`;
 
   const win=window.open('','_blank');
+  if(!win){toast('Allow popups to open invoice','error');return;}
   win.document.write(html);
   win.document.close();
+}
+
+function amountInWords(amount){
+  const ones=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine',
+    'Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+  const tens=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  function twoDigit(n){
+    if(n<20) return ones[n];
+    return tens[Math.floor(n/10)]+(n%10?' '+ones[n%10]:'');
+  }
+  function threeDigit(n){
+    if(n>=100) return ones[Math.floor(n/100)]+' Hundred'+(n%100?' '+twoDigit(n%100):'');
+    return twoDigit(n);
+  }
+  const rupees=Math.floor(amount);
+  const paise=Math.round((amount-rupees)*100);
+  let words='';
+  if(rupees>=10000000) words+=threeDigit(Math.floor(rupees/10000000))+' Crore ';
+  if(rupees>=100000) words+=threeDigit(Math.floor((rupees%10000000)/100000))+' Lakh ';
+  if(rupees>=1000) words+=threeDigit(Math.floor((rupees%100000)/1000))+' Thousand ';
+  if(rupees>=100) words+=threeDigit(Math.floor((rupees%1000)/100))+' Hundred ';
+  words+=twoDigit(rupees%100);
+  words=words.trim()+' Rupees';
+  if(paise>0) words+=' and '+twoDigit(paise)+' Paise';
+  words+=' Only';
+  return words||'Zero Rupees Only';
+}
+
+async function updateSaleStatus(id, status){
+  const {error}=await sb.from('biz_sales').update({status}).eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Status updated');
+}
+
+async function fetchAndPrintInvoice(id){
+  const {data,error}=await sb.from('biz_sales').select('*').eq('id',id).single();
+  if(error||!data){ toast('Could not load sale','error'); return; }
+  const gstRate=parseFloat(data.gst_rate)||0;
+  printInvoice(data, gstRate>0?'gst':'nongst');
 }
 
 // ── Label Import ────────────────────────────────────────────
