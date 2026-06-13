@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS biz_channels (
 );
 
 INSERT INTO biz_channels (id, name, color, platform_fee_pct) VALUES
-  ('shop',     'Shop / Offline', '#a78bfa', 0),
+  ('shop',     'Studio / Offline', '#a78bfa', 0),
   ('amazon',   'Amazon',         '#f59e0b', 15),
   ('flipkart', 'Flipkart',       '#3b82f6', 13),
   ('website',  'Website',        '#10b981', 2)
