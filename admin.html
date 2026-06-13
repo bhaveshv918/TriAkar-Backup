@@ -615,69 +615,80 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
 .badge-refunded{background:rgba(251,191,36,.1);color:var(--yellow)}
 
 /* ═══════════════════════════════════════════════════════════
-   RESPONSIVE
+   RESPONSIVE — mobile-first bottom nav
    ═══════════════════════════════════════════════════════════ */
-@media(max-width:900px){
-  :root,html[data-theme="dark"],html[data-theme="light"]{--sidebar-w:52px}
-  .sidebar-section{display:none}
-  .tab{margin:1px 4px;padding:10px 0;justify-content:center;width:calc(100% - 8px)}
-  .tab-label,.tab .tab-count,.tab-dot,.callback-count{display:none!important}
-  .tab .tab-icon{margin-right:0;font-size:15px}
-  .tab.active{border-radius:var(--radius)}
-}
 @media(max-width:768px){
   /* Top bar */
-  .top-time,.top-user{display:none}
-  .top-bar{padding:0 14px;height:50px}
-  .top-logo{font-size:12px;letter-spacing:.12em}
-  .top-right{gap:6px}
-  .top-btn{padding:5px 9px;font-size:9px}
-  .top-status{display:none}
+  .top-time,.top-user,.top-status{display:none}
+  .top-bar{padding:0 12px;height:48px}
+  .top-logo{font-size:12px;letter-spacing:.1em}
+  .top-right{gap:5px}
+  .top-btn{padding:5px 8px;font-size:9px}
 
-  /* Sidebar — icon-only strip */
-  :root,html[data-theme="dark"],html[data-theme="light"]{--sidebar-w:44px}
-  .sidebar{top:50px;height:calc(100vh - 50px);padding:6px 0}
-  .tab{padding:9px 0}
+  /* Sidebar → fixed bottom nav bar */
+  :root,html[data-theme="dark"],html[data-theme="light"]{--sidebar-w:0px}
+  .admin-body{flex-direction:column;min-height:calc(100vh - 48px)}
+  .sidebar{
+    position:fixed;bottom:0;left:0;right:0;top:auto!important;
+    width:100%!important;height:auto!important;min-width:unset;
+    flex-direction:row;overflow-x:auto;overflow-y:hidden;
+    padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px)) 4px;
+    border-right:none;border-top:1px solid var(--border);
+    z-index:200;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  }
+  .sidebar::-webkit-scrollbar{display:none}
+  .sidebar-section{display:none}
+  .tab{
+    flex-direction:column;align-items:center;justify-content:center;
+    min-width:54px;flex-shrink:0;width:auto!important;
+    padding:5px 6px;gap:2px;border-radius:6px;margin:0 1px;
+    text-align:center;letter-spacing:.02em;
+  }
+  .tab-icon{font-size:17px;width:auto;margin:0;line-height:1.2}
+  .tab-label{display:block!important;font-size:8px;letter-spacing:.03em;
+    text-overflow:ellipsis;overflow:hidden;max-width:52px}
+  .tab-count,.tab-dot,.callback-count{display:none!important}
 
-  /* Panels */
-  .panel{padding:14px 10px 64px}
-  .p-head{flex-direction:column;align-items:flex-start;gap:10px;margin-bottom:16px}
+  /* Main area — leave room for bottom nav */
+  .main-area{width:100%;overflow-y:auto}
+  .panel{padding:14px 12px 90px}
+  .p-head{flex-direction:column;align-items:flex-start;gap:8px;margin-bottom:14px}
   .p-title{font-size:15px}
-  .p-actions{width:100%;gap:6px}
-  .p-actions button,.p-actions a,.p-actions input{font-size:10px;padding:7px 10px}
+  .p-actions{width:100%;flex-wrap:wrap;gap:6px}
+  .p-actions button,.p-actions a{font-size:10px;padding:7px 10px}
   .p-actions input[type=text]{width:100%;min-width:unset!important;box-sizing:border-box}
 
-  /* Tables */
-  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .tbl-wrap table{min-width:520px}
+  /* Tables — horizontal scroll with touch */
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--radius)}
+  .tbl-wrap table{min-width:480px}
+  td,th{padding:8px 10px;font-size:11px}
   .tbl-msg{min-width:unset!important}
 
-  /* Form grids */
-  .fg{grid-template-columns:1fr}
-  .fg-2{grid-template-columns:1fr}
-  .fg-3{grid-template-columns:1fr}
-  .variant-row{grid-template-columns:1fr;gap:6px}
-  .cust-row{grid-template-columns:1fr;gap:6px}
+  /* Form grids — single column on phone */
+  .fg,.fg-2,.fg-3{grid-template-columns:1fr!important}
+  .variant-row,.cust-row{grid-template-columns:1fr;gap:6px}
 
-  /* Filter bar */
-  .filter-bar{flex-direction:column;align-items:stretch}
+  /* Filter bar — wrap nicely */
+  .filter-bar{flex-wrap:wrap;gap:6px}
+  .filter-bar select,.filter-bar input[type=text]{flex:1;min-width:100px}
   .filter-sep{display:none}
 
   /* Login */
-  .login-box{padding:24px 16px 20px}
+  .login-box{padding:24px 16px 20px;margin:0 12px}
 
-  /* Stat cards — stack 2 per row */
+  /* Stat cards — 2 per row */
   .stat-grid{grid-template-columns:1fr 1fr!important}
 
   /* Analytics */
   .analytics-grid{grid-template-columns:1fr!important}
-  .chart-card{padding:16px 12px!important}
+  .chart-card{padding:14px 10px!important}
 
-  /* Button groups */
-  .btn-primary,.btn-secondary{padding:9px 14px}
+  /* Modals */
+  #recordModal>div,#promoModal>div{padding:18px 14px!important;border-radius:10px!important;margin:0 8px}
 
-  /* Record/promo modals */
-  #recordModal>div,#promoModal>div{padding:18px 14px!important;border-radius:8px!important}
+  /* Touch targets — larger interactive elements */
+  input,select,textarea{font-size:16px!important} /* prevents iOS zoom */
+  .btn-primary,.btn-secondary{padding:10px 16px;font-size:12px}
 }
 </style>
 <script defer src="/_vercel/insights/script.js"></script>

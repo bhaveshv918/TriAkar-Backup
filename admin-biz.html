@@ -11,6 +11,7 @@
 <link rel="icon" type="image/x-icon" href="/assets/icons/favicon.ico">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <style>
 /* ═══════════════════════════════════════════════════════════
    TRIĀKAR BUSINESS OS — same dark theme as admin.html
@@ -177,16 +178,61 @@ tr:hover td{background:var(--bg-1)}
 #toast.success{border-color:rgba(74,222,128,.3);color:var(--green)}
 #toast.error{border-color:rgba(248,113,113,.3);color:var(--red)}
 
-/* ── Mobile ───────────────────────────────────────────────── */
-@media(max-width:640px){
-  .sidebar{width:44px;min-width:44px}
-  .sb-header,.sidebar-section,.tab-label,.tab-badge,.sb-back span{display:none}
-  .tab{padding:10px 0;justify-content:center}
-  .tab-icon{margin:0;font-size:16px}
+/* ── Mobile — bottom nav ──────────────────────────────────── */
+@media(max-width:768px){
+  /* Shell: stack vertically, sidebar → bottom */
+  .shell{flex-direction:column}
+
+  /* Sidebar → fixed bottom nav */
+  .sidebar{
+    position:fixed;bottom:0;left:0;right:0;top:auto;
+    width:100%!important;min-width:unset;height:auto;
+    flex-direction:row;overflow-x:auto;overflow-y:hidden;
+    padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px)) 4px;
+    border-right:none;border-top:1px solid var(--border);
+    z-index:200;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  }
+  .sidebar::-webkit-scrollbar{display:none}
+  .sb-header,.sidebar-section,.sb-back{display:none}
+  .tab{
+    flex-direction:column;align-items:center;justify-content:center;
+    min-width:54px;flex-shrink:0;width:auto;
+    padding:5px 5px;gap:2px;border-radius:6px;margin:0 1px;
+  }
+  .tab-icon{font-size:17px;width:auto;margin:0;line-height:1.2}
+  .tab-label{display:block!important;font-size:8px;text-overflow:ellipsis;
+    overflow:hidden;max-width:52px;text-align:center}
+  .tab-badge{display:none!important}
+
+  /* Main area */
+  .main-area{height:100vh;overflow-y:auto;width:100%}
+  .panel{padding:14px 12px 90px}
+  .p-head{flex-direction:column;align-items:flex-start;gap:8px}
+
+  /* Charts: stack */
   .charts-row{grid-template-columns:1fr}
+
+  /* Forms: single column */
   .form-grid{grid-template-columns:1fr}
   .form-grid-2{grid-template-columns:1fr}
-  .panel{padding:14px 10px 60px}
+  .calc-row{grid-template-columns:1fr 1fr 1fr}
+
+  /* Tables: horizontal scroll */
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  td,th{padding:8px 10px;font-size:11px}
+
+  /* GST grid: 2 col */
+  .gst-summary{grid-template-columns:1fr 1fr}
+
+  /* Filter bar */
+  .filter-bar{flex-wrap:wrap;gap:6px}
+  .filter-bar select,.filter-bar input{flex:1;min-width:120px}
+
+  /* KPI grid: 2 col */
+  .kpi-grid{grid-template-columns:1fr 1fr}
+
+  /* iOS zoom prevention */
+  input,select,textarea{font-size:16px!important}
 }
 </style>
 </head>
@@ -226,6 +272,9 @@ tr:hover td{background:var(--bg-1)}
     </button>
     <button class="tab" data-tab="import" onclick="switchTab('import')">
       <span class="tab-icon">⇲</span><span class="tab-label">Import CSV</span>
+    </button>
+    <button class="tab" data-tab="labels" onclick="switchTab('labels')">
+      <span class="tab-icon">🏷</span><span class="tab-label">Labels</span>
     </button>
 
     <div class="sidebar-section">Products</div>
@@ -563,6 +612,108 @@ tr:hover td{background:var(--bg-1)}
         </div>
       </div>
     </div><!-- /import -->
+
+    <!-- ══════════════════════════════════════════════════════
+         LABEL IMPORT
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelLabels">
+      <div class="p-head">
+        <div>
+          <div class="p-title">Label Import</div>
+          <div class="p-sub">Upload daily Amazon / Flipkart shipping label PDFs — order IDs & addresses auto-extracted</div>
+        </div>
+      </div>
+
+      <!-- Step 1: Settings -->
+      <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:10px">Step 1 — Set defaults (applied to all labels in this batch)</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Platform *</label>
+            <select id="lbl_platform">
+              <option value="amazon">Amazon</option>
+              <option value="flipkart">Flipkart</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Default Product</label>
+            <select id="lbl_product">
+              <option value="">— select from catalog (optional) —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Default Selling Price (₹)</label>
+            <input type="number" id="lbl_price" step="0.01" placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label>Default COGS / Making Cost (₹)</label>
+            <input type="number" id="lbl_cogs" step="0.01" placeholder="0.00">
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Upload -->
+      <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Step 2 — Upload label PDF(s)</div>
+      <div class="dropzone" id="lblDropzone" onclick="document.getElementById('lblFile').click()" ondragover="dzDragOver2(event)" ondragleave="dzDragLeave2(event)" ondrop="dzDrop2(event)">
+        <div class="dz-icon">🏷</div>
+        <div class="dz-title">Click to select label PDF(s) or drag & drop</div>
+        <div class="dz-sub">Supports Amazon & Flipkart label PDFs — one label per page</div>
+      </div>
+      <input type="file" id="lblFile" accept=".pdf" multiple onchange="handleLabelFiles(event)">
+
+      <!-- OR paste text -->
+      <details style="margin-bottom:14px">
+        <summary style="cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);padding:6px 0">Or paste label text manually</summary>
+        <div style="margin-top:8px">
+          <div class="form-group" style="margin-bottom:8px">
+            <label>Paste label text (one label or multiple, separated by dashes)</label>
+            <textarea id="lbl_pastetext" rows="6" placeholder="Copy and paste the text content from your label PDF here…" style="resize:vertical;font-family:var(--mono);font-size:11px"></textarea>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="parseLabelText()">Parse Pasted Text</button>
+        </div>
+      </details>
+
+      <!-- Step 3: Review extracted orders -->
+      <div id="lblExtracted" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3)">Step 3 — Review extracted orders (<span id="lblCount">0</span> found)</div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-primary btn-sm" onclick="importExtractedLabels()">Import All</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearLabels()">Clear</button>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-3);margin-bottom:8px">Edit product / price per row if needed. Greyed rows = order ID not found (will be skipped unless you fill Order ID).</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>Order ID</th><th>Platform</th><th>Qty</th>
+              <th>Product Name</th><th class="td-num">Selling Price (₹)</th>
+              <th class="td-num">COGS (₹)</th><th>Customer</th><th>City / State</th>
+            </tr></thead>
+            <tbody id="lblTableBody"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+          <button class="btn btn-primary" onclick="importExtractedLabels()">Import <span id="lblCount2">0</span> Orders</button>
+          <span id="lblImportStatus" style="font-size:11px;color:var(--text-3)"></span>
+        </div>
+      </div>
+
+      <!-- How-to guide -->
+      <div style="margin-top:20px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-2);margin-bottom:8px">How label import works</div>
+        <ol style="font-size:11px;color:var(--text-3);line-height:2;padding-left:16px">
+          <li>Every day when you print labels, also upload the label PDF here</li>
+          <li>The system reads each page as one label and extracts the order ID + customer address</li>
+          <li>Set the default product + selling price (saves time if most orders are the same product)</li>
+          <li>Review the table — edit any row that needs changes — then hit Import</li>
+          <li>Orders are created in your Sales log automatically</li>
+        </ol>
+        <div style="margin-top:10px;font-size:11px;color:var(--text-3)">
+          <strong style="color:var(--yellow)">Tip:</strong> If PDF extraction doesn't work well for your label format, use "Paste label text" — open the PDF in any viewer, select all text, paste here.
+        </div>
+      </div>
+    </div><!-- /labels -->
 
     <!-- ══════════════════════════════════════════════════════
          PRODUCTS & COSTS
@@ -981,7 +1132,8 @@ function switchTab(name){
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel'+name.charAt(0).toUpperCase()+name.slice(1)));
   const loaders = {
     sales:loadSales, products:loadProducts, stock:loadStock,
-    returns:loadReturns, gst:loadGST, dashboard:loadDashboard
+    returns:loadReturns, gst:loadGST, dashboard:loadDashboard,
+    labels:populateLabelProductSelect
   };
   if(loaders[name]) loaders[name]();
 }
@@ -995,6 +1147,7 @@ async function loadProducts(){
   document.getElementById('prodCount').textContent = _products.length;
   renderProductsTable();
   populateProductSelects();
+  populateLabelProductSelect();
 }
 
 function renderProductsTable(){
@@ -1717,6 +1870,201 @@ async function exportChannelReport(){
 }
 
 async function exportGSTExcel(){ await exportGSTReport(); }
+
+// ── Label Import ────────────────────────────────────────────
+if(typeof pdfjsLib!=='undefined'){
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+}
+
+let _extractedLabels=[];
+
+function dzDragOver2(e){e.preventDefault();document.getElementById('lblDropzone').classList.add('drag-over');}
+function dzDragLeave2(){document.getElementById('lblDropzone').classList.remove('drag-over');}
+function dzDrop2(e){e.preventDefault();dzDragLeave2();const files=Array.from(e.dataTransfer.files).filter(f=>f.name.endsWith('.pdf'));if(files.length) processLabelFiles(files);}
+function handleLabelFiles(e){const files=Array.from(e.target.files);if(files.length) processLabelFiles(files);}
+
+async function processLabelFiles(files){
+  document.getElementById('lblDropzone').querySelector('.dz-title').textContent='Processing PDFs…';
+  const allText=[];
+  for(const file of files){
+    try{
+      const buf=await file.arrayBuffer();
+      const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+      for(let i=1;i<=pdf.numPages;i++){
+        const page=await pdf.getPage(i);
+        const content=await page.getTextContent();
+        const text=content.items.map(it=>it.str).join(' ');
+        allText.push(text);
+      }
+    }catch(err){ toast('PDF read error: '+err.message,'error'); }
+  }
+  document.getElementById('lblDropzone').querySelector('.dz-title').textContent='Click to select label PDF(s) or drag & drop';
+  if(allText.length) renderExtractedLabels(allText);
+  else toast('No text found in PDF(s)','error');
+}
+
+function parseLabelText(){
+  const raw=document.getElementById('lbl_pastetext').value.trim();
+  if(!raw){toast('Paste some label text first','error');return;}
+  // Split by common separators (dashes, page breaks)
+  const pages=raw.split(/[-─═]{5,}/).map(p=>p.trim()).filter(Boolean);
+  renderExtractedLabels(pages.length>1?pages:[raw]);
+}
+
+function extractLabelData(text,platform){
+  // Order ID
+  let orderId='';
+  if(platform==='amazon'){
+    const m=text.match(/\b(\d{3}-\d{7}-\d{7})\b/);
+    if(m) orderId=m[1];
+  } else {
+    const m=text.match(/\b(OD\d{10,20})\b/i);
+    if(m) orderId=m[1];
+  }
+  // Qty
+  let qty=1;
+  const qm=text.match(/(?:qty|quantity|units?)[\s:]+(\d+)/i);
+  if(qm) qty=parseInt(qm[1])||1;
+  // Product name — try common label patterns
+  let productName='';
+  const itemM=text.match(/(?:item|product|title|description)[\s:]+([^\n\r,]{5,60})/i);
+  if(itemM) productName=itemM[1].trim();
+  // Customer name — usually first line of address block
+  let customerName='', city='', state='', pincode='';
+  // Look for "Ship To:" or "Deliver To:" block
+  const shipM=text.match(/(?:ship[\s-]?to|deliver[\s-]?to|buyer|recipient)[\s:]*\n?\r?([A-Za-z][^\n\r]{2,40})/i);
+  if(shipM) customerName=shipM[1].trim();
+  // City, State — look for PIN code pattern (6 digits) and surrounding text
+  const pinM=text.match(/([A-Za-z\s]{3,25})[,\s]+([A-Za-z\s]{2,20})[,\s-]+(\d{6})\b/);
+  if(pinM){city=pinM[1].trim();state=pinM[2].trim();pincode=pinM[3];}
+  else{
+    const pin6=text.match(/\b(\d{6})\b/);
+    if(pin6) pincode=pin6[1];
+  }
+  return {orderId,qty,productName,customerName,city,state,pincode};
+}
+
+function renderExtractedLabels(pages){
+  const platform=document.getElementById('lbl_platform').value;
+  const defProduct=document.getElementById('lbl_product');
+  const defProductName=defProduct.options[defProduct.selectedIndex]?.textContent||'';
+  const defPrice=document.getElementById('lbl_price').value||'';
+  const defCogs=document.getElementById('lbl_cogs').value||'';
+
+  _extractedLabels=pages.map((text,i)=>{
+    const d=extractLabelData(text,platform);
+    return {...d,
+      productName:d.productName||(defProduct.value?defProductName.replace(/\s*\(.*\)$/,'').trim():''),
+      productId:defProduct.value||'',
+      sellingPrice:defPrice,
+      cogs:defCogs,
+      _raw:text,
+    };
+  });
+
+  document.getElementById('lblCount').textContent=_extractedLabels.length;
+  document.getElementById('lblCount2').textContent=_extractedLabels.length;
+  document.getElementById('lblExtracted').style.display='block';
+
+  const prodOpts=_products.map(p=>`<option value="${p.id}">${esc(p.name)}${p.sku?' ('+p.sku+')':''}</option>`).join('');
+
+  document.getElementById('lblTableBody').innerHTML=_extractedLabels.map((r,i)=>`
+    <tr style="${!r.orderId?'opacity:.55':''}">
+      <td><input type="text" value="${esc(r.orderId)}" id="lr_oid_${i}" style="width:170px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;font-family:var(--mono);font-size:11px" placeholder="Order ID"></td>
+      <td style="font-size:11px;color:var(--text-3)">${esc(CH_NAMES[platform])}</td>
+      <td><input type="number" value="${r.qty}" id="lr_qty_${i}" min="1" style="width:50px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;text-align:center"></td>
+      <td>
+        <select id="lr_psel_${i}" onchange="onLblProductChange(${i})" style="background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;font-size:11px;max-width:160px">
+          <option value="">— manual —</option>
+          ${prodOpts}
+        </select>
+        <input type="text" value="${esc(r.productName)}" id="lr_pname_${i}" style="margin-top:4px;width:100%;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;font-size:11px" placeholder="Product name">
+      </td>
+      <td class="td-num"><input type="number" value="${esc(r.sellingPrice)}" id="lr_price_${i}" step="0.01" style="width:80px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;text-align:right;font-family:var(--mono)"></td>
+      <td class="td-num"><input type="number" value="${esc(r.cogs)}" id="lr_cogs_${i}" step="0.01" style="width:70px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;text-align:right;font-family:var(--mono)"></td>
+      <td style="font-size:11px;color:var(--text-3)">${esc(r.customerName||'—')}</td>
+      <td style="font-size:11px;color:var(--text-3)">${esc([r.city,r.state].filter(Boolean).join(', ')||'—')}${r.pincode?' — '+r.pincode:''}</td>
+    </tr>`).join('');
+
+  // Pre-select default product in each row
+  if(defProduct.value){
+    _extractedLabels.forEach((_,i)=>{
+      const sel=document.getElementById('lr_psel_'+i);
+      if(sel) sel.value=defProduct.value;
+    });
+  }
+}
+
+function onLblProductChange(i){
+  const sel=document.getElementById('lr_psel_'+i);
+  if(!sel.value) return;
+  const p=_products.find(x=>x.id===sel.value);
+  if(!p) return;
+  const nameEl=document.getElementById('lr_pname_'+i);
+  if(nameEl&&!nameEl.value) nameEl.value=p.name;
+  const cogsEl=document.getElementById('lr_cogs_'+i);
+  if(cogsEl&&!cogsEl.value) cogsEl.value=p.base_cost;
+}
+
+async function importExtractedLabels(){
+  const platform=document.getElementById('lbl_platform').value;
+  const feeMap={amazon:15,flipkart:13,website:2,shop:0};
+  const feePct=feeMap[platform]||0;
+  const statusEl=document.getElementById('lblImportStatus');
+  const batch=[];
+  _extractedLabels.forEach((_,i)=>{
+    const orderId=(document.getElementById('lr_oid_'+i)?.value||'').trim();
+    const qty=parseInt(document.getElementById('lr_qty_'+i)?.value)||1;
+    const productSel=document.getElementById('lr_psel_'+i)?.value||'';
+    const productName=(document.getElementById('lr_pname_'+i)?.value||'').trim();
+    const price=parseFloat(document.getElementById('lr_price_'+i)?.value)||0;
+    const cogs=parseFloat(document.getElementById('lr_cogs_'+i)?.value)||0;
+    if(!price&&!productName) return; // skip empty rows
+    const r=_extractedLabels[i];
+    batch.push({
+      channel_id:platform,
+      order_id:orderId||null,
+      order_date:today(),
+      product_id:productSel||null,
+      product_name:productName||'Unknown',
+      sku:null,
+      qty,
+      selling_price:price,
+      platform_fee:+(price*feePct/100).toFixed(2),
+      cogs,
+      gst_rate:18,
+      customer_name:r.customerName||null,
+      customer_city:r.city||null,
+      customer_state:r.state||null,
+      customer_pincode:r.pincode||null,
+      import_source:'label',
+      status:'completed',
+    });
+  });
+  if(!batch.length){toast('Nothing to import','error');return;}
+  statusEl.textContent='Importing…';
+  for(let i=0;i<batch.length;i+=100){
+    const {error}=await sb.from('biz_sales').insert(batch.slice(i,i+100));
+    if(error){statusEl.textContent='Error: '+error.message;toast('Error: '+error.message,'error');return;}
+  }
+  toast(`Imported ${batch.length} orders from labels`);
+  statusEl.textContent=`Done — ${batch.length} orders imported`;
+  clearLabels();
+  loadSalesBadge();
+}
+
+function clearLabels(){
+  _extractedLabels=[];
+  document.getElementById('lblExtracted').style.display='none';
+  document.getElementById('lblFile').value='';
+  document.getElementById('lbl_pastetext').value='';
+}
+
+function populateLabelProductSelect(){
+  const opts=_products.map(p=>`<option value="${p.id}">${esc(p.name)}${p.sku?' ('+p.sku+')':''}</option>`).join('');
+  const sel=document.getElementById('lbl_product');
+  if(sel) sel.innerHTML=`<option value="">— select from catalog (optional) —</option>${opts}`;
+}
 
 // ── Init ────────────────────────────────────────────────────
 document.getElementById('qa_date').value=today();
