@@ -394,8 +394,7 @@ tr:hover td{background:var(--bg-1)}
           <div class="form-group">
             <label>Channel</label>
             <select id="qa_channel" onchange="onChannelChange()">
-              <option value="">— select —</option>
-              <option value="shop">🏠 Studio / Offline</option>
+              <option value="shop" selected>🏠 Studio / Offline</option>
               <option value="amazon">📦 Amazon</option>
               <option value="flipkart">🛍️ Flipkart</option>
               <option value="website">🌐 Website</option>
@@ -1537,7 +1536,7 @@ function recalcDisplay(){
   document.getElementById('c_margin').style.color=margin>=0?'var(--green)':'var(--red)';
 }
 
-function resetQuickAdd(){ document.getElementById('quickAddForm').reset(); _cogsItems=[]; renderCogsRows(); document.getElementById('qa_date').value=today(); document.getElementById('qa_delivery_date').value=today(); }
+function resetQuickAdd(){ document.getElementById('quickAddForm').reset(); _cogsItems=[]; renderCogsRows(); document.getElementById('qa_date').value=today(); document.getElementById('qa_delivery_date').value=today(); document.getElementById('qa_state').value='Uttar Pradesh'; document.getElementById('qa_channel').value='shop'; }
 
 async function submitQuickAdd(e){
   e.preventDefault();
@@ -2367,50 +2366,82 @@ function printInvoice(d, type){
       :`<tr><td colspan="3" style="text-align:right;color:#3a8a60;font-size:12px;padding:4px 14px;border:none">IGST @ ${gstRate}%</td><td style="text-align:right;padding:4px 14px;border:none">₹${gstAmt.toFixed(2)}</td></tr>`
     }`:'';
 
+  const LOGO_SVG=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 160" width="260" height="80">
+    <defs><clipPath id="mc"><rect x="8" y="8" width="144" height="144" rx="14"/></clipPath></defs>
+    <rect x="8" y="8" width="144" height="72" fill="#C4622A" clip-path="url(#mc)"/>
+    <rect x="8" y="80" width="144" height="72" fill="#252320" clip-path="url(#mc)"/>
+    <rect x="8" y="8" width="144" height="144" rx="14" fill="none" stroke="rgba(0,0,0,0.1)" stroke-width="1"/>
+    <circle cx="80" cy="80" r="52" fill="#F4F2EC"/>
+    <text x="80" y="80" font-family="'Noto Sans Devanagari',sans-serif" font-size="60" font-weight="700" fill="#C4622A" text-anchor="middle" dominant-baseline="central">त्रि</text>
+    <line x1="168" y1="24" x2="168" y2="136" stroke="rgba(0,0,0,0.1)" stroke-width="1"/>
+    <text x="184" y="82" font-family="'Manrope','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="52" font-weight="700" fill="#161614" dominant-baseline="middle">TriAkar</text>
+    <text x="188" y="120" font-family="'Noto Sans Devanagari',sans-serif" font-size="18" font-weight="400" fill="#C4622A" dominant-baseline="middle">त्रिआकार</text>
+  </svg>`;
+
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Order Record — ${esc(docNo)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Manrope:wght@700&family=Noto+Sans+Devanagari:wght@400;700&display=swap" rel="stylesheet">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',sans-serif;font-size:13px;color:#1a1a1a;background:#fff;max-width:720px;margin:0 auto}
-.hdr-band{background:linear-gradient(135deg,#0a2218 0%,#1a4a32 60%,#0f3024 100%);padding:28px 32px;display:flex;justify-content:space-between;align-items:flex-start}
-.logo-en{font-size:28px;font-weight:900;letter-spacing:.06em;color:#fff}
-.logo-hi{font-size:15px;color:#74c69d;letter-spacing:.04em;margin-top:2px;font-weight:600}
-.tagline{font-size:9px;color:rgba(255,255,255,.45);letter-spacing:.16em;text-transform:uppercase;margin-top:6px}
+body{font-family:'Inter',sans-serif;font-size:13px;color:#161614;background:#F4F2EC;max-width:740px;margin:0 auto}
+/* ── Header ── */
+.hdr{background:#161614;padding:24px 32px;display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #C4622A}
 .doc-box{text-align:right}
-.doc-type{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#74c69d;margin-bottom:5px}
-.doc-no{font-size:20px;font-weight:900;color:#fff;letter-spacing:.04em;font-family:monospace}
-.doc-meta{font-size:11px;color:rgba(255,255,255,.5);margin-top:6px;line-height:1.9}
-.body{padding:24px 32px}
-.seller-strip{background:#f7fdf9;border-left:3px solid #52b788;border-radius:4px;padding:10px 14px;font-size:11px;color:#444;line-height:1.8;margin-bottom:18px}
-.seller-strip b{color:#1a1a1a;font-size:12px}
-.customer-box{background:#fff;border:1.5px solid #d0e8d8;border-radius:8px;padding:16px;margin-bottom:18px}
-.section-lbl{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#52b788;margin-bottom:7px}
-.cust-name{font-size:15px;font-weight:700;color:#1a1a1a;margin-bottom:3px}
+.doc-type{font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#C4622A;margin-bottom:4px}
+.doc-no{font-size:18px;font-weight:900;color:#F4F2EC;letter-spacing:.05em;font-family:monospace}
+.doc-meta{font-size:11px;color:rgba(244,242,236,.5);margin-top:5px;line-height:1.9}
+/* ── Body ── */
+.body{padding:24px 32px;background:#F4F2EC}
+/* Seller strip */
+.seller-strip{background:#fff;border-left:3px solid #C4622A;border-radius:0 4px 4px 0;padding:10px 14px;font-size:11px;color:#555;line-height:1.9;margin-bottom:18px}
+.seller-strip b{color:#161614;font-size:12px}
+/* Customer box */
+.customer-box{background:#fff;border:1.5px solid #e8e4dd;border-radius:8px;padding:16px;margin-bottom:18px}
+.section-lbl{font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#C4622A;margin-bottom:6px}
+.cust-name{font-size:15px;font-weight:700;color:#161614;margin-bottom:3px}
 .cust-detail{font-size:12px;color:#555;line-height:1.9}
-.tbl-wrap{border:1.5px solid #d0e8d8;border-radius:8px;overflow:hidden;margin-bottom:4px}
+/* Table */
+.tbl-wrap{border:1.5px solid #e8e4dd;border-radius:8px;overflow:hidden;margin-bottom:4px;background:#fff}
 table{width:100%;border-collapse:collapse}
-thead th{background:#f0faf4;padding:9px 14px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#3a8a60;border-bottom:1.5px solid #d0e8d8;text-align:left}
-td{padding:12px 14px;border-bottom:1px solid #edf5f0;font-size:13px;vertical-align:top}
+thead th{background:#161614;padding:9px 14px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#F4F2EC;border-bottom:2px solid #C4622A;text-align:left}
+td{padding:12px 14px;border-bottom:1px solid #f0ede8;font-size:13px;vertical-align:top;background:#fff}
 .td-r{text-align:right}
-.total-row td{font-size:16px;font-weight:900;border-top:2px solid #52b788;padding-top:10px;color:#0a2218;border-bottom:none}
-.words-row{font-size:11px;color:#3a8a60;padding:9px 14px;font-style:italic;background:#f0faf4;border-top:1px solid #d0e8d8}
+.total-row td{font-size:16px;font-weight:900;border-top:2px solid #C4622A;padding-top:11px;color:#161614;border-bottom:none;background:#fff}
+.words-row{font-size:11px;color:#C4622A;padding:9px 14px;font-style:italic;background:#faf7f4;border-top:1px solid #e8e4dd}
+/* Info strip */
 .info-strip{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
-.info-card{background:#f7fdf9;border:1px solid #d0e8d8;border-radius:6px;padding:12px 14px;font-size:12px;color:#444;line-height:1.8}
-.info-lbl{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#52b788;margin-bottom:4px}
-.chip{display:inline-block;background:#e8f5ed;border-radius:3px;padding:2px 8px;font-size:10px;color:#2a6a44;font-family:monospace}
-.footer-band{background:#f0faf4;margin-top:24px;padding:16px 32px;display:flex;justify-content:space-between;align-items:center;border-top:2px solid #d0e8d8}
-.footer-msg{font-size:11px;color:#555;line-height:1.8}
-.footer-brand{font-size:11px;font-weight:800;color:#1a4a32;margin-bottom:3px;letter-spacing:.04em}
-@media print{.print-btn{display:none!important}body{max-width:100%}}
+.info-card{background:#fff;border:1.5px solid #e8e4dd;border-radius:6px;padding:12px 14px;font-size:12px;color:#444;line-height:1.8}
+.info-lbl{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#C4622A;margin-bottom:5px}
+.chip{display:inline-block;background:#fdf0e8;border-radius:3px;padding:2px 8px;font-size:10px;color:#7a3010;font-family:monospace}
+/* Footer */
+.footer-band{background:#161614;margin-top:24px;padding:16px 32px;display:flex;justify-content:space-between;align-items:center}
+.footer-msg{font-size:11px;color:rgba(244,242,236,.6);line-height:1.9}
+.footer-brand{font-size:12px;font-weight:800;color:#C4622A;margin-bottom:3px;letter-spacing:.04em}
+/* ── B&W Print ── */
+@media print{
+  .print-btn{display:none!important}
+  body{background:#fff!important;max-width:100%}
+  .hdr{background:#fff!important;border-bottom:2px solid #000!important;padding:16px 24px}
+  .hdr .doc-meta{color:#555!important}
+  .hdr .doc-no{color:#000!important}
+  .hdr .doc-type{color:#000!important}
+  thead th{background:#222!important;color:#fff!important;border-bottom:1px solid #000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .tbl-wrap,.customer-box,.info-card{border-color:#ccc!important;background:#fff!important}
+  .total-row td{border-top:2px solid #000!important}
+  .seller-strip{border-left-color:#000!important;background:#f5f5f5!important}
+  .footer-band{background:#f0f0f0!important;border-top:1px solid #ccc}
+  .footer-msg{color:#333!important}
+  .footer-brand{color:#000!important}
+  .section-lbl,.info-lbl,.words-row{color:#333!important}
+  .chip{background:#eee!important;color:#000!important}
+  td{background:#fff!important}
+  .words-row{background:#f5f5f5!important;border-top:1px solid #ccc!important}
+}
 </style></head><body>
 
-<div class="hdr-band">
-  <div>
-    <div class="logo-en">TRIĀKAR</div>
-    <div class="logo-hi">त्रिआकार</div>
-    <div class="tagline">Creation of Three Dimensions</div>
-  </div>
+<div class="hdr">
+  ${LOGO_SVG}
   <div class="doc-box">
     <div class="doc-type">Order Record</div>
     <div class="doc-no">${esc(docNo)}</div>
@@ -2427,7 +2458,7 @@ td{padding:12px 14px;border-bottom:1px solid #edf5f0;font-size:13px;vertical-ali
 ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
 <div class="seller-strip">
   <b>${esc(SELLER_NAME)}</b>${SELLER_ADDR?' &nbsp;·&nbsp; '+esc(SELLER_ADDR):''}
-  ${SELLER_GSTIN||SELLER_PAN?`<br>${SELLER_GSTIN?'GSTIN: '+esc(SELLER_GSTIN)+' &nbsp; ':''  }${SELLER_PAN?'PAN: '+esc(SELLER_PAN):''}`:''  }
+  ${SELLER_GSTIN||SELLER_PAN?`<br>${SELLER_GSTIN?'GSTIN: '+esc(SELLER_GSTIN)+' &nbsp;':''  }${SELLER_PAN?'PAN: '+esc(SELLER_PAN):''}`:''  }
   ${SELLER_PHONE||SELLER_EMAIL||SELLER_WEB?`<br>${[SELLER_PHONE,SELLER_EMAIL,SELLER_WEB].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ')}`:''}
 </div>`:''}
 
@@ -2453,14 +2484,14 @@ ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
     <tr>
       <td>
         <strong>${esc(d.product_name||'—')}</strong>
-        ${variantLine?`<br><span style="font-size:11px;color:#777">${esc(variantLine)}</span>`:''}
-        ${d.notes?`<br><span style="font-size:11px;color:#888">${esc(d.notes)}</span>`:''}
+        ${variantLine?`<br><span style="font-size:11px;color:#888">${esc(variantLine)}</span>`:''}
+        ${d.notes?`<br><span style="font-size:11px;color:#999">${esc(d.notes)}</span>`:''}
       </td>
       <td class="td-r">${qty}</td>
       <td class="td-r">₹${unitPrice.toFixed(2)}</td>
       <td class="td-r">₹${totalPrice.toFixed(2)}</td>
     </tr>
-    ${disc>0?`<tr><td colspan="3" class="td-r" style="color:#b91c1c;font-size:12px;border:none;padding:4px 14px">Discount</td><td class="td-r" style="color:#b91c1c;border:none;padding:4px 14px">-₹${disc.toFixed(2)}</td></tr>`:''}
+    ${disc>0?`<tr><td colspan="3" class="td-r" style="color:#b91c1c;font-size:12px;padding:4px 14px">Discount</td><td class="td-r" style="color:#b91c1c;padding:4px 14px">-₹${disc.toFixed(2)}</td></tr>`:''}
   </tbody>
 </table>
 <table><tbody>
@@ -2487,11 +2518,11 @@ ${d.payment_mode||d.tracking_number||d.courier_partner?`
 
 <div class="footer-band">
   <div class="footer-msg">
-    <div class="footer-brand">TRIĀKAR &nbsp;·&nbsp; त्रिआकार</div>
+    <div class="footer-brand">TriAkar &nbsp;·&nbsp; त्रिआकार</div>
     ${esc(SELLER_FOOTER)}
   </div>
   <div class="print-btn">
-    <button onclick="window.print()" style="padding:9px 22px;background:#52b788;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700">🖨 Print / PDF</button>
+    <button onclick="window.print()" style="padding:9px 22px;background:#C4622A;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.03em">🖨 Print / PDF</button>
   </div>
 </div>
 </body></html>`;
@@ -2785,6 +2816,7 @@ function populateLabelProductSelect(){
 // ── Init ────────────────────────────────────────────────────
 document.getElementById('qa_date').value=today();
 document.getElementById('qa_delivery_date').value=today();
+document.getElementById('qa_state').value='Uttar Pradesh';
 document.getElementById('sm_date') && (document.getElementById('sm_date').value=today());
 document.getElementById('sfExportMonth').value=thisMonth();
 initGSTYears();
