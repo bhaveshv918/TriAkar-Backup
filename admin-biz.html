@@ -220,18 +220,21 @@ tr:hover td{background:var(--bg-2)}
     overflow:hidden;max-width:52px;text-align:center}
   .tab-badge{display:none!important}
 
-  /* Main area */
-  .main-area{height:100vh;overflow-y:auto;width:100%}
-  .panel{padding:14px 12px 90px}
+  /* Main area — guard against any horizontal overflow */
+  .main-area{height:100vh;overflow-y:auto;overflow-x:hidden;width:100%;max-width:100vw}
+  .panel{padding:14px 12px 96px;max-width:100%;overflow-x:hidden}
   .p-head{flex-direction:column;align-items:flex-start;gap:8px}
 
   /* Charts: stack */
   .charts-row{grid-template-columns:1fr}
 
-  /* Forms: single column */
+  /* Forms: single column — and cancel any desktop "span 2" that would
+     otherwise add a second track and push content off the screen */
   .form-grid{grid-template-columns:1fr}
   .form-grid-2{grid-template-columns:1fr}
-  .calc-row{grid-template-columns:1fr 1fr 1fr}
+  .form-grid .form-group,.form-grid-2 .form-group{grid-column:auto!important}
+  .calc-row{grid-template-columns:1fr 1fr}
+  .calc-item span{font-size:13px;word-break:break-all}
 
   /* Tables: horizontal scroll */
   .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -249,6 +252,11 @@ tr:hover td{background:var(--bg-2)}
 
   /* iOS zoom prevention */
   input,select,textarea{font-size:16px!important}
+
+  /* Bigger touch targets; let primary actions fill the row */
+  .btn{padding:11px 14px;min-height:42px}
+  #quickAddForm > div:last-child .btn,
+  form > div[style*="flex"] .btn{flex:1 1 auto;justify-content:center}
 }
 </style>
 </head>
@@ -639,6 +647,7 @@ tr:hover td{background:var(--bg-2)}
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input type="month" id="sfExportMonth" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:5px 8px;font-size:12px;outline:none">
           <button class="btn btn-ghost btn-sm" onclick="exportSalesExcel()">↓ Excel</button>
+          <button class="btn btn-ghost btn-sm" onclick="openRecycleBin()" title="Recycle Bin">🗑️</button>
         </div>
       </div>
       <div class="filter-bar">
@@ -719,6 +728,21 @@ tr:hover td{background:var(--bg-2)}
             <button class="btn btn-primary" onclick="saveEditSale()">Save</button>
             <button class="btn btn-ghost" onclick="closeEditSale()">Cancel</button>
             <button class="btn btn-danger btn-sm" onclick="markReturn()" style="margin-left:auto" title="Mark as returned and log in Returns">↩ Mark Return</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recycle Bin Modal -->
+      <div id="recycleBinModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1100;overflow-y:auto;padding:20px">
+        <div style="max-width:800px;margin:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:20px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <div style="font-size:14px;font-weight:700">🗑️ Recycle Bin</div>
+            <button onclick="document.getElementById('recycleBinModal').style.display='none'" style="background:none;border:none;color:var(--text-3);font-size:18px;cursor:pointer">✕</button>
+          </div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">Deleted orders — restore or permanently delete.</div>
+          <div id="recycleBinBody" style="overflow-x:auto"></div>
+          <div style="margin-top:12px;display:flex;gap:8px">
+            <button class="btn btn-danger btn-sm" onclick="emptyRecycleBin()">Empty Recycle Bin (permanent)</button>
           </div>
         </div>
       </div>
@@ -1622,13 +1646,13 @@ async function submitQuickAdd(e){
 
 // ── Sales list ──────────────────────────────────────────────
 async function loadSalesBadge(){
-  const {count}=await sb.from('biz_sales').select('*',{count:'exact',head:true});
+  const {count}=await sb.from('biz_sales').select('*',{count:'exact',head:true}).eq('is_deleted',false);
   document.getElementById('salesCount').textContent=count||0;
 }
 
 let _salesCache=[];
 async function loadSales(){
-  let q=sb.from('biz_sales').select('*').order('order_date',{ascending:false}).limit(500);
+  let q=sb.from('biz_sales').select('*').eq('is_deleted',false).order('order_date',{ascending:false}).limit(500);
   const ch=document.getElementById('sfChannel').value;
   const st=document.getElementById('sfStatus').value;
   const mo=document.getElementById('sfMonth').value;
@@ -1723,10 +1747,10 @@ async function bulkDelete(){
   const ids=getSelectedIds(); if(!ids.length) return;
   const locked=ids.filter(id=>_salesCache.find(s=>s.id===id&&s.is_paid));
   if(locked.length){toast(locked.length+' paid order(s) cannot be deleted — unmark paid first','error');return;}
-  if(!confirm('Delete '+ids.length+' order(s)? Cannot be undone.')) return;
-  const {error}=await sb.from('biz_sales').delete().in('id',ids);
+  if(!confirm('Move '+ids.length+' order(s) to Recycle Bin?')) return;
+  const {error}=await sb.from('biz_sales').update({is_deleted:true,deleted_at:new Date().toISOString()}).in('id',ids);
   if(error){toast('Error: '+error.message,'error');return;}
-  toast(ids.length+' orders deleted'); loadSales();
+  toast(ids.length+' orders moved to Recycle Bin'); loadSales(); loadSalesBadge();
 }
 function bulkExport(){
   const ids=new Set(getSelectedIds()); if(!ids.size) return;
@@ -1833,11 +1857,60 @@ function exportSalesExcel(){
 
 function clearSalesFilters(){ document.getElementById('sfChannel').value=''; document.getElementById('sfStatus').value=''; document.getElementById('sfMonth').value=''; document.getElementById('sfSearch').value=''; loadSales(); }
 
-async function deleteSale(id){
-  if(!confirm('Delete this sale?')) return;
+// ── Recycle Bin ────────────────────────────────────────────
+async function openRecycleBin(){
+  document.getElementById('recycleBinModal').style.display='block';
+  const {data,error}=await sb.from('biz_sales').select('id,order_date,channel_id,order_id,product_name,qty,selling_price,customer_name,deleted_at').eq('is_deleted',true).order('deleted_at',{ascending:false}).limit(200);
+  if(error){document.getElementById('recycleBinBody').innerHTML='Error: '+error.message;return;}
+  if(!data||!data.length){document.getElementById('recycleBinBody').innerHTML='<p style="color:var(--text-3);padding:16px 0">Recycle Bin is empty.</p>';return;}
+  const rows=data.map(s=>{
+    const del=s.deleted_at?new Date(s.deleted_at).toLocaleDateString('en-IN'):'';
+    return '<tr style="border-bottom:1px solid var(--border-2)">'
+      +'<td style="padding:7px;font-family:var(--mono)">'+esc(s.order_date||'')+'</td>'
+      +'<td style="padding:7px">'+esc(CH_NAMES[s.channel_id]||s.channel_id||'')+'</td>'
+      +'<td style="padding:7px">'+esc(s.product_name||'')+' <span style="color:var(--text-3);font-size:10px">'+esc(s.order_id||'')+'</span></td>'
+      +'<td style="padding:7px;text-align:right;font-family:var(--mono)">&#8377;'+parseFloat(s.selling_price||0).toFixed(2)+'</td>'
+      +'<td style="padding:7px">'+esc(s.customer_name||'')+'</td>'
+      +'<td style="padding:7px;color:var(--text-3);font-size:11px">'+del+'</td>'
+      +'<td style="padding:7px;white-space:nowrap">'
+      +'<button class="btn btn-ghost btn-sm" onclick="restoreSale(\''+s.id+'\')">Restore</button> '
+      +'<button class="btn btn-danger btn-sm" onclick="permDeleteSale(\''+s.id+'\')">Delete</button>'
+      +'</td></tr>';
+  }).join('');
+  document.getElementById('recycleBinBody').innerHTML='<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<thead><tr style="border-bottom:1px solid var(--border)">'
+    +'<th style="padding:7px;text-align:left">Date</th>'
+    +'<th style="padding:7px;text-align:left">Channel</th>'
+    +'<th style="padding:7px;text-align:left">Product</th>'
+    +'<th style="padding:7px;text-align:right">Price</th>'
+    +'<th style="padding:7px;text-align:left">Customer</th>'
+    +'<th style="padding:7px;text-align:left">Deleted On</th>'
+    +'<th style="padding:7px"></th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table>';
+}
+async function restoreSale(id){
+  const {error}=await sb.from('biz_sales').update({is_deleted:false,deleted_at:null}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast('Restored'); openRecycleBin(); loadSales(); loadSalesBadge();
+}
+async function permDeleteSale(id){
+  if(!confirm('Permanently delete? Cannot be undone.')) return;
   const {error}=await sb.from('biz_sales').delete().eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast('Permanently deleted'); openRecycleBin(); loadSalesBadge();
+}
+async function emptyRecycleBin(){
+  if(!confirm('Permanently delete ALL items in Recycle Bin? Cannot be undone.')) return;
+  const {error}=await sb.from('biz_sales').delete().eq('is_deleted',true);
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast('Recycle Bin emptied'); openRecycleBin(); loadSalesBadge();
+}
+
+async function deleteSale(id){
+  if(!confirm('Move to Recycle Bin?')) return;
+  const {error}=await sb.from('biz_sales').update({is_deleted:true,deleted_at:new Date().toISOString()}).eq('id',id);
   if(error){ toast('Error: '+error.message,'error'); return; }
-  toast('Deleted'); loadSales(); loadSalesBadge();
+  toast('Moved to Recycle Bin'); loadSales(); loadSalesBadge();
 }
 
 // ── Stock ───────────────────────────────────────────────────
