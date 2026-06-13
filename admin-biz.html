@@ -673,19 +673,32 @@ tr:hover td{background:var(--bg-1)}
           <input type="hidden" id="es_id">
           <div class="form-grid">
             <div class="form-group"><label>Product Name</label><input type="text" id="es_product"></div>
-            <div class="form-group"><label>Order ID</label><input type="text" id="es_orderid"></div>
+            <div class="form-group"><label>Order ID (Platform)</label><input type="text" id="es_orderid"></div>
             <div class="form-group"><label>Order Date</label><input type="date" id="es_date"></div>
+            <div class="form-group"><label>Ship Date</label><input type="date" id="es_dispatch"></div>
             <div class="form-group"><label>Delivery Date</label><input type="date" id="es_delivery"></div>
             <div class="form-group"><label>Qty</label><input type="number" id="es_qty"></div>
             <div class="form-group"><label>Selling Price (₹)</label><input type="number" id="es_price" step="0.01"></div>
             <div class="form-group"><label>COGS (₹)</label><input type="number" id="es_cogs" step="0.01"></div>
             <div class="form-group"><label>Customer Name</label><input type="text" id="es_cname"></div>
-            <div class="form-group"><label>Tracking</label><input type="text" id="es_tracking"></div>
-            <div class="form-group"><label>Notes</label><input type="text" id="es_notes"></div>
+            <div class="form-group"><label>Tracking Number</label><input type="text" id="es_tracking"></div>
+            <div class="form-group"><label>Payment Mode</label>
+              <select id="es_payment"><option value="">—</option><option>COD</option><option>Prepaid</option><option>UPI</option><option>Cash</option><option>BharatPe</option><option>Razorpay</option></select>
+            </div>
+            <div class="form-group"><label>Status</label>
+              <select id="es_status">
+                <option value="completed">Completed</option>
+                <option value="returned">Returned</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="claimed">Claimed (A-Z / SPF)</option>
+              </select>
+            </div>
+            <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="es_notes"></div>
           </div>
-          <div style="display:flex;gap:8px;margin-top:12px">
+          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
             <button class="btn btn-primary" onclick="saveEditSale()">Save</button>
             <button class="btn btn-ghost" onclick="closeEditSale()">Cancel</button>
+            <button class="btn btn-danger btn-sm" onclick="markReturn()" style="margin-left:auto" title="Mark as returned and log in Returns">↩ Mark Return</button>
           </div>
         </div>
       </div>
@@ -1671,12 +1684,15 @@ function openEditSale(id){
   document.getElementById('es_product').value=s.product_name||'';
   document.getElementById('es_orderid').value=s.order_id||'';
   document.getElementById('es_date').value=s.order_date||'';
+  document.getElementById('es_dispatch').value=s.dispatch_date||'';
   document.getElementById('es_delivery').value=s.delivery_date||'';
   document.getElementById('es_qty').value=s.qty||1;
   document.getElementById('es_price').value=s.selling_price||'';
   document.getElementById('es_cogs').value=s.cogs||'';
   document.getElementById('es_cname').value=s.customer_name||'';
   document.getElementById('es_tracking').value=s.tracking_number||'';
+  document.getElementById('es_payment').value=s.payment_mode||'';
+  document.getElementById('es_status').value=s.status||'completed';
   document.getElementById('es_notes').value=s.notes||'';
   document.getElementById('editSaleModal').style.display='block';
 }
@@ -1687,17 +1703,42 @@ async function saveEditSale(){
     product_name:document.getElementById('es_product').value.trim(),
     order_id:document.getElementById('es_orderid').value.trim()||null,
     order_date:document.getElementById('es_date').value||today(),
+    dispatch_date:document.getElementById('es_dispatch').value||null,
     delivery_date:document.getElementById('es_delivery').value||null,
     qty:parseInt(document.getElementById('es_qty').value)||1,
     selling_price:parseFloat(document.getElementById('es_price').value)||0,
     cogs:parseFloat(document.getElementById('es_cogs').value)||0,
     customer_name:document.getElementById('es_cname').value.trim()||null,
     tracking_number:document.getElementById('es_tracking').value.trim()||null,
+    payment_mode:document.getElementById('es_payment').value||null,
+    status:document.getElementById('es_status').value||'completed',
     notes:document.getElementById('es_notes').value.trim()||null,
   };
   const {error}=await sb.from('biz_sales').update(payload).eq('id',id);
   if(error){toast('Error: '+error.message,'error');return;}
   toast('Sale updated'); closeEditSale(); loadSales();
+}
+async function markReturn(){
+  const id=document.getElementById('es_id').value;
+  const s=_salesCache.find(x=>x.id===id); if(!s) return;
+  if(!confirm('Mark this order as Returned and log in Returns?')) return;
+  // Update sale status
+  const {error:e1}=await sb.from('biz_sales').update({status:'returned'}).eq('id',id);
+  if(e1){toast('Error: '+e1.message,'error');return;}
+  // Insert return record
+  const {error:e2}=await sb.from('biz_returns').insert({
+    sale_id:id,
+    channel_id:s.channel_id,
+    order_id:s.order_id,
+    type:'return',
+    date:today(),
+    amount_lost:s.selling_price||0,
+    refund_given:s.selling_price||0,
+    status:'pending',
+    reason:'Marked from All Sales',
+  });
+  if(e2){toast('Sale marked returned but return log failed: '+e2.message,'error');return;}
+  toast('Marked as returned'); closeEditSale(); loadSales();
 }
 
 function exportSalesExcel(){
@@ -2454,7 +2495,10 @@ tbody tr:last-child td{border-bottom:none}
     <div class="doc-type">Order Record</div>
     <div class="doc-no">${esc(docNo)}</div>
     <div class="doc-meta">${esc(docDate)}${d.delivery_date?' &rarr; '+esc(d.delivery_date):''}</div>
-    ${d.channel_id?`<div class="doc-badge">${esc(CH_NAMES?.[d.channel_id]||d.channel_id)}</div>`:''}
+    <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;margin-top:5px">
+      ${d.channel_id?`<div class="doc-badge">${esc(CH_NAMES?.[d.channel_id]||d.channel_id)}</div>`:''}
+      ${d.order_id&&d.channel_id!=='shop'?`<div class="doc-badge" style="font-family:monospace;letter-spacing:.02em;font-size:9px">${esc(d.order_id)}</div>`:''}
+    </div>
   </div>
 </div>
 
@@ -2628,101 +2672,119 @@ function parseLabelText(){
   renderExtractedLabels(pages.length>1?pages:[raw]);
 }
 
-// Convert label-extracted date strings to YYYY-MM-DD
+// Convert label date strings to YYYY-MM-DD
 function parseLabelDate(str, isFlipkartDDMM){
   if(!str) return null;
   str=str.trim().replace(/\s/g,'');
-  // Flipkart DD-MM (no year): "05-03" → current year
   if(isFlipkartDDMM){
     const m=str.match(/^(\d{1,2})[-–](\d{1,2})$/);
-    if(m){
-      const day=m[1].padStart(2,'0'), mon=m[2].padStart(2,'0');
-      return `${new Date().getFullYear()}-${mon}-${day}`;
-    }
+    if(m) return `${new Date().getFullYear()}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
     return null;
   }
-  // Amazon DD.MM.YYYY or DD/MM/YYYY
   const dot=str.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/);
   if(dot) return `${dot[3]}-${dot[2].padStart(2,'0')}-${dot[1].padStart(2,'0')}`;
-  // Already ISO YYYY-MM-DD
   if(/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
   return null;
 }
 
 function extractLabelData(text,platform){
   let orderId='', qty=1, productName='', customerName='';
-  let city='', state='', pincode='', tracking='', paymentMode='', orderDate='', deliveryDate='', courier='', price='';
+  let city='', state='', pincode='', tracking='', paymentMode='', orderDate='', deliveryDate='', dispatchDate='', courier='', price='';
 
   if(platform==='amazon'){
-    // Order Number: 402-1962179-6689120
+    // Order Number: 402-XXXXXXX-XXXXXXX
     const om=text.match(/Order[\s\w]*Number[:\s]+(\d{3}-\d{7}-\d{7})/i); if(om) orderId=om[1];
-    // Transaction ID as tracking (long alphanum after Payment Transaction ID)
-    const aw=text.match(/Payment Transaction ID[^\n]*\n([A-Za-z0-9]{15,})/i)
-      || text.match(/(?:AWB|tracking)[^\w]*([\w]{10,})/i);
-    if(aw) tracking=aw[1];
-    // Payment mode
-    const pm=text.match(/Mode of Payment[:\s]+(\w[\w\s\/]*)/i); if(pm) paymentMode=pm[1].trim();
-    if(!paymentMode){const upi=text.match(/\b(UPI|COD|Card|NetBanking|Prepaid)\b/i);if(upi)paymentMode=upi[1];}
-    // Order date: "05.06.2026"
+
+    // Payment: "Mode of Payment: UPI/COD/Card" → map to COD or Prepaid
+    const pm=text.match(/Mode of Payment[:\s]+(\w[\w\/\s]*?)(?:\n|$)/i);
+    if(pm){ const v=pm[1].trim().toUpperCase(); paymentMode=v.includes('COD')?'COD':'Prepaid'; }
+    else{ paymentMode=text.match(/\bCOD\b/i)?'COD':'Prepaid'; }
+
+    // Dates: Order Date → order_date, Invoice Date → dispatch_date (Amazon invoices on ship date)
     const od=text.match(/Order Date[:\s]+([\d.\/]+)/i);
     if(od) orderDate=parseLabelDate(od[1].trim())||od[1].trim();
-    // Price: "Invoice Value: ... 999.00"
-    const pr=text.match(/Invoice Value[:\s]*[₹Rs.]*\s*([\d,]+\.?\d*)/i)
-      || text.match(/TOTAL[:\s]*[₹]*\s*([\d,]+\.?\d*)\s*$/im);
+    const id=text.match(/Invoice Date\s*:?\s*([\d.\/]+)/i);
+    if(id) dispatchDate=parseLabelDate(id[1].trim())||'';
+
+    // Price from Invoice Value
+    const pr=text.match(/Invoice Value[:\s]*[₹Rs.]*\s*([\d,]+\.?\d*)/i);
     if(pr) price=pr[1].replace(/,/g,'');
-    // Product name: "TRIAKAR [name] | ASIN" — use [\s\S] to span lines, stop at ASIN B0...
-    const pn=text.match(/TRIAKAR\s+([\s\S]{5,250}?)\s*\|\s*B0[A-Z0-9]{7,10}/i)
-      || text.match(/TRIAKAR\s+([\s\S]{5,200}?)\s*\(\s*[A-Z]{2}-[A-Z0-9]+/i)
+
+    // Product name: from "TRIAKAR [name]" to ASIN (B0XXXXXXX) or HSN or SKU bracket
+    const pn=text.match(/TRIAKAR\s+([\s\S]{5,300}?)\s*\|\s*B0[A-Z0-9]{7,10}/i)
+      || text.match(/TRIAKAR\s+([\s\S]{5,200}?)\s*\(\s*[A-Z]{2}-[A-Z0-9-]+\s*\)/i)
       || text.match(/TRIAKAR\s+([\s\S]{5,200}?)\s*HSN:/i);
-    if(pn) productName=pn[1].trim().replace(/[\s]+/g,' ');
-    // Shipping address: customer name on line after "Shipping Address"
-    const sa=text.match(/Shipping Address\s*:?\s*[\r\n]+\s*([A-Za-z][^\r\n]{2,50})/i)
-      || text.match(/Shipping\/Customer address[:\s\r\n]+(?:Name:\s*)?([A-Za-z][^\r\n,]{2,40})/i);
-    if(sa) customerName=sa[1].trim().replace(/,$/,'');
-    // City, state, pin: "MUMBAI, MAHARASHTRA, 400034"
-    const adr=text.match(/([A-Z][A-Z\s]{2,20}),\s*([A-Z][A-Z\s]{3,20}),\s*(\d{6})/);
-    if(adr){city=adr[1].trim();state=adr[2].trim();pincode=adr[3];}
-    else{const p6=text.match(/\b(\d{6})\b/);if(p6)pincode=p6[1];}
+    if(pn) productName=pn[1].trim().replace(/\s+/g,' ');
+
+    // AWB tracking — only on shipping labels, not on tax invoices; skip transaction ID
+    const aw=text.match(/AWB\s*(?:No\.?|#)?\s*:?\s*([A-Z0-9]{10,})/i);
+    if(aw) tracking=aw[1];
+
+    // Customer name: first real name line after "Shipping Address"
+    const sa=text.match(/Shipping Address\s*:?\s*[\r\n]+\s*([A-Za-z][^\r\n]{2,50})/i);
+    if(sa) customerName=sa[1].trim().replace(/,\s*$/,'');
+
+    // Customer state from "Place of delivery: MAHARASHTRA"
+    const pod=text.match(/Place of delivery[:\s]+([A-Za-z][A-Za-z\s]{3,25})/i);
+    if(pod) state=pod[1].trim().toUpperCase();
+
+    // Customer city+pincode: find CITY, STATE, PINCODE where STATE matches delivery state
+    const allAddr=[...text.matchAll(/([A-Z][A-Z\s]{2,20}),\s*([A-Z][A-Z\s]{3,20}),\s*(\d{6})/g)];
+    if(allAddr.length){
+      const match=state?allAddr.find(a=>a[2].trim()===state.trim()):null;
+      const addr=match||allAddr[allAddr.length-1];
+      city=addr[1].trim(); state=state||addr[2].trim(); pincode=addr[3];
+    } else {
+      const p6=text.match(/\b(\d{6})\b/); if(p6) pincode=p6[1];
+    }
     courier='Amazon Logistics';
 
   } else { // flipkart
-    // Order ID: OD336936622599309400
+    // Order ID
     const om=text.match(/Order[\s\w]*Id[:\s]+(OD\d{10,25})/i)||text.match(/\b(OD\d{14,25})\b/i);
     if(om) orderId=om[1]||om[0];
-    // AWB / tracking: FMPC... or explicit AWB No.
+
+    // AWB tracking: FMPC...
     const aw=text.match(/AWB[\s\r\n]+No\.?\s*[\r\n]*([\w]+)/i)||text.match(/\b(FMPC[\w]+)\b/i);
-    if(aw) tracking=(aw[1]||aw[0]).replace(/^.*?(FMPC)/,'$1');
-    // Product name: line with "SKU | Description | Qty" — extract the description column
-    // Pattern: "SKU-code | Product Name | For..." or just "| Product Name |"
-    const pn=text.match(/[\w-]+\s*\|\s*([\w][^|\r\n]{5,120}?)\s*\|/i)
-      || text.match(/Description\s*QTY[\r\n]+[\w-]+\s*\|\s*([^|\r\n]{5,100})/i);
+    if(aw) tracking=(aw[1]||aw[0]);
+
+    // Product name: "SKU | Description | For..." → take only the description part (before second |)
+    // Line looks like: "1Dec-Gidol01-2025 | desiynlabs Ganesh Idol Showpiece | For 1"
+    const pn=text.match(/[\w-]+\s*\|\s*([\w][^|]{5,120}?)\s*\|\s*(?:For\b|1\b|\d+\b)/i)
+      || text.match(/[\w-]+\s*\|\s*([\w][^|\r\n]{5,100}?)\s*\|/i);
     if(pn) productName=pn[1].trim();
+
     // Customer name: "Name: Ayush ,"
     const cn=text.match(/Name[:\s]+([A-Za-z][^\r\n,]{1,40})/i);
     if(cn) customerName=cn[1].trim().replace(/,\s*$/,'');
-    // City from "Kanpur - 208017"
-    const adr=text.match(/([A-Za-z][A-Za-z\s]{3,30})\s*[-–]\s*(\d{6})/);
-    if(adr) city=adr[1].trim();
-    // Pincode
-    const p6=text.match(/\b(\d{6})\b/); if(p6) pincode=p6[1];
+
+    // City from "Kanpur - 208017" (just before the pincode)
+    const adrM=text.match(/([A-Za-z][A-Za-z\s]{2,30})\s*[-–]\s*(\d{6})/);
+    if(adrM){ city=adrM[1].trim(); pincode=adrM[2]; }
+    else { const p6=text.match(/\b(\d{6})\b/); if(p6) pincode=p6[1]; }
+
     // State from "IN-UP"
     const st=text.match(/IN-([A-Z]{2})\b/); if(st) state=st[1];
-    // HBD = dispatch date, CPD = delivery date — format: "05 - 03" (DD-MM)
+
+    // HBD = dispatch date (Handover By Date), CPD = delivery promise date — DD-MM format
     const hbd=text.match(/HBD[:\s]+([\d\s\-–]+)/i);
-    if(hbd) orderDate=parseLabelDate(hbd[1],true)||'';
+    if(hbd) dispatchDate=parseLabelDate(hbd[1],true)||'';
     const cpd=text.match(/CPD[:\s]+([\d\s\-–]+)/i);
     if(cpd) deliveryDate=parseLabelDate(cpd[1],true)||'';
+    // Use dispatch date as order_date for Flipkart (order date not on label)
+    orderDate=dispatchDate;
+
     // Payment
-    const cod=text.match(/\bCOD\b/i); paymentMode=cod?'COD':'Prepaid';
+    paymentMode=text.match(/\bCOD\b/i)?'COD':'Prepaid';
     courier='Ekart';
+
     // Price and qty
     const pr=text.match(/TOTAL PRICE[:\s]+([\d.]+)/i); if(pr) price=pr[1];
     const qm=text.match(/TOTAL QTY[:\s]+(\d+)/i); if(qm) qty=parseInt(qm[1])||1;
   }
 
   if(!qty||qty<1){ const qm=text.match(/(?:qty|quantity)[:\s]+(\d+)/i); if(qm) qty=parseInt(qm[1])||1; }
-
-  return {orderId,qty,productName,customerName,city,state,pincode,tracking,paymentMode,orderDate,deliveryDate,courier,price};
+  return {orderId,qty,productName,customerName,city,state,pincode,tracking,paymentMode,orderDate,deliveryDate,dispatchDate,courier,price};
 }
 
 function renderExtractedLabels(pages){
@@ -2815,6 +2877,7 @@ async function importExtractedLabels(){
       order_id:orderId||null,
       order_date:r.orderDate||today(),
       delivery_date:r.deliveryDate||null,
+      dispatch_date:r.dispatchDate||null,
       product_id:productSel||null,
       product_name:productName||'Unknown',
       sku:null,
