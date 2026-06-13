@@ -55,7 +55,7 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
       <span class="logo-en"><span style="color:var(--accent)">TRI</span>AKAR</span>
       <span class="logo-hi"><span style="color:var(--accent)">त्रि</span>आकार</span>
     </a>
-    <ul class="nav-links"><li><a href="/products.html">Shop</a></li><li><a href="/order.html">Customization</a></li><li><a href="/stories.html">Our Stories</a></li><li><a href="/reviews.html">Reviews</a></li><li><a href="/about.html">About</a></li><li><a href="/contact.html">Contact</a></li><li><a href="/track-order.html">Track Order</a></li></ul>
+    <ul class="nav-links"><li><a href="/products.html">Shop</a></li><li><a href="/order.html">Customization</a></li><li><a href="/stories.html">Our Stories</a></li><li><a href="/about.html">About</a></li><li><a href="/contact.html">Contact</a></li><li><a href="/track-order.html">Track Order</a></li></ul>
     <div class="nav-right">
       <form class="nav-search" role="search" onsubmit="return window.taSearch(this);">
         <input type="search" id="navSearchInput" name="q" placeholder="Search products…" aria-label="Search products" autocomplete="off">

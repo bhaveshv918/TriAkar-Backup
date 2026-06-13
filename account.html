@@ -242,8 +242,15 @@
 .cp-msg.ok{background:#F0FDF4;color:#166534;border:1px solid #BBF7D0}
 
 @media(max-width:640px){
-  .auth-screen{padding:32px var(--pad)}
-  .auth-form{padding:24px 20px 28px}
+  /* Compact the auth card so the whole Sign In form fits on one screen —
+     no scrolling needed to reach any button. The bottom tab bar is hidden
+     on the login screen (see body.acct-auth rule) for a focused flow. */
+  .auth-screen{padding:14px var(--pad) 24px;min-height:auto;justify-content:flex-start}
+  .auth-form{padding:20px 20px 24px}
+  .auth-form-title{font-size:21px}
+  .auth-form-sub{margin-bottom:16px;font-size:12.5px}
+  .field{margin-bottom:12px}
+  .auth-divider{margin:12px 0}
   .dash-hero{padding:36px var(--pad) 32px}
   .dash-greeting{font-size:28px}
   .dash-body-inner{padding:28px var(--pad) 60px}
@@ -253,6 +260,11 @@
   .dash-tabs{gap:2px}
   .dash-tab{padding:11px 16px;font-size:9px}
 }
+
+/* Focused login screen — no bottom tab bar or its page padding while
+   logged out, so the whole auth card sits in view on small phones. */
+body.acct-auth .ta-bottomnav{display:none!important}
+body.acct-auth.has-bottomnav{padding-bottom:0!important}
 
 /* ── Google OAuth button + divider ──────────────────────── */
 .auth-divider{display:flex;align-items:center;gap:14px;margin:18px 0;color:rgba(22,22,20,.32);font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:600}
@@ -275,7 +287,7 @@
 <script defer src="/_vercel/insights/script.js"></script>
 <script defer src="/_vercel/speed-insights/script.js"></script>
 </head>
-<body>
+<body class="acct-auth">
 <script src="/partials.js"></script>
 
 <div class="notice-bar">
@@ -298,6 +310,11 @@
       <form class="auth-form active" id="loginForm" onsubmit="handleLogin(event)">
         <div class="auth-form-title">Welcome back</div>
         <p class="auth-form-sub">Sign in to view your orders and manage your account.</p>
+        <button type="button" class="btn-google" id="googleLoginBtn" onclick="signInWithGoogle()">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
+          <span>Continue with Google</span>
+        </button>
+        <div class="auth-divider">or sign in with email</div>
         <div class="field"><label for="loginEmail">Email</label><input type="email" id="loginEmail" placeholder="you@example.com" required autocomplete="email"></div>
         <div class="field"><label for="loginPassword">Password</label>
           <div class="pw-wrap">
@@ -308,17 +325,17 @@
         <div class="forgot-row"><button type="button" class="auth-link" onclick="showForgotForm()">Forgot password?</button></div>
         <button type="submit" class="btn btn-dark auth-submit" id="loginBtn">Sign In →</button>
         <div class="auth-msg" id="loginMsg"></div>
-        <div class="auth-divider">or</div>
-        <button type="button" class="btn-google" id="googleLoginBtn" onclick="signInWithGoogle()">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
-          <span>Continue with Google</span>
-        </button>
       </form>
 
       <form class="auth-form" id="signupForm" onsubmit="handleSignup(event)">
         <div id="signupStep1">
         <div class="auth-form-title">Create account</div>
         <p class="auth-form-sub">Join TriAkar to track orders, save addresses, and check out faster.</p>
+        <button type="button" class="btn-google" id="googleSignupBtnTop" onclick="signInWithGoogle()">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
+          <span>Continue with Google</span>
+        </button>
+        <div class="auth-divider">or sign up with email</div>
         <div class="field"><label for="signupName">Full Name</label><input type="text" id="signupName" placeholder="Your full name" required autocomplete="name" minlength="2"></div>
         <div class="field"><label for="signupEmail">Email</label><input type="email" id="signupEmail" placeholder="you@example.com" required autocomplete="email"></div>
         <div class="field">
@@ -345,11 +362,6 @@
         </div>
         <button type="submit" class="btn btn-dark auth-submit btn-magnetic" id="signupBtn">Create Account →</button>
         <div class="auth-msg" id="signupMsg"></div>
-        <div class="auth-divider">or</div>
-        <button type="button" class="btn-google" id="googleSignupBtn" onclick="signInWithGoogle()">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
-          <span>Continue with Google</span>
-        </button>
         </div><!-- /signupStep1 -->
         <div id="signupOtpStep" style="display:none">
           <div class="auth-form-title">Check your email</div>
@@ -1870,6 +1882,7 @@ async function showDashboard(){
   document.getElementById('dashEmail').textContent=user.email||'';
   document.getElementById('authCard').style.display='none';
   const _as=document.getElementById('authScreen'); if(_as)_as.style.display='none';
+  document.body.classList.remove('acct-auth'); /* restore bottom tab bar on the dashboard */
   document.getElementById('dashboard').classList.add('active');
 
   // Show Member ID — from stored user object or fetch fresh from profile
