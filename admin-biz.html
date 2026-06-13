@@ -1553,7 +1553,7 @@ async function submitQuickAdd(e){
     order_date:g('qa_date')||today(),
     delivery_date:g('qa_delivery_date'),
     dispatch_date:g('qa_dispatch_date'),
-    order_id:g('qa_orderid'),
+    order_id:g('qa_orderid')||genOrderId(),
     payment_mode:g('qa_payment'),
     status:g('qa_status')||'completed',
     product_id:productId||null,
@@ -2295,7 +2295,7 @@ async function saveAndPrint(){
     order_date:g('qa_date')||today(),
     delivery_date:g('qa_delivery_date'),
     dispatch_date:g('qa_dispatch_date'),
-    order_id:g('qa_orderid'),
+    order_id:g('qa_orderid')||genOrderId(),
     payment_mode:g('qa_payment'),
     status:g('qa_status')||'completed',
     product_id:productId||null,
@@ -2321,6 +2321,18 @@ async function saveAndPrint(){
   printInvoice(payload, (parseFloat(payload.gst_rate)>0 ? 'gst' : 'nongst'));
   resetQuickAdd();
   loadSalesBadge();
+}
+
+function genOrderId(){
+  // TRK-YYYYMMDD-XXXXXXX  (7 random alphanum, uppercase)
+  const d=new Date();
+  const date=d.getFullYear().toString()
+    +(d.getMonth()+1).toString().padStart(2,'0')
+    +d.getDate().toString().padStart(2,'0');
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let rand='';
+  for(let i=0;i<7;i++) rand+=chars[Math.floor(Math.random()*chars.length)];
+  return `TRK-${date}-${rand}`;
 }
 
 function nextDocNumber(){
