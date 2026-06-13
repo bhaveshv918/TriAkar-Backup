@@ -125,7 +125,8 @@ CREATE POLICY "biz_admin_only_returns"   ON biz_returns         FOR ALL TO authe
 CREATE POLICY "biz_admin_only_stock"     ON biz_stock_movements FOR ALL TO authenticated USING (auth.email()='bhaveshv918@gmail.com') WITH CHECK (auth.email()='bhaveshv918@gmail.com');
 
 -- ── Computed view: current stock per product ───────────────────────────
-CREATE OR REPLACE VIEW biz_stock_current AS
+CREATE OR REPLACE VIEW biz_stock_current
+WITH (security_invoker = true) AS
 SELECT
   p.id, p.sku, p.name, p.category, p.product_type, p.base_cost,
   COALESCE(SUM(m.qty), 0) AS stock_qty
@@ -135,7 +136,8 @@ WHERE p.is_active = true
 GROUP BY p.id, p.sku, p.name, p.category, p.product_type, p.base_cost;
 
 -- ── Computed view: P&L per sale ────────────────────────────────────────
-CREATE OR REPLACE VIEW biz_pnl AS
+CREATE OR REPLACE VIEW biz_pnl
+WITH (security_invoker = true) AS
 SELECT
   s.id, s.order_date, s.channel_id, s.product_name, s.sku, s.qty,
   s.status, s.customer_state,
