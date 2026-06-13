@@ -378,11 +378,14 @@ tr:hover td{background:var(--bg-1)}
       </div>
 
       <form id="quickAddForm" onsubmit="submitQuickAdd(event)">
+
+        <!-- ── Order Info ───────────────────────── -->
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Order</div>
         <div class="form-grid">
           <div class="form-group">
-            <label>Channel *</label>
-            <select id="qa_channel" onchange="onChannelChange()" required>
-              <option value="">Select channel</option>
+            <label>Channel</label>
+            <select id="qa_channel" onchange="onChannelChange()">
+              <option value="">— select —</option>
               <option value="shop">🏪 Shop / Offline</option>
               <option value="amazon">📦 Amazon</option>
               <option value="flipkart">🛍️ Flipkart</option>
@@ -390,8 +393,12 @@ tr:hover td{background:var(--bg-1)}
             </select>
           </div>
           <div class="form-group">
-            <label>Order Date *</label>
-            <input type="date" id="qa_date" required>
+            <label>Order Date</label>
+            <input type="date" id="qa_date">
+          </div>
+          <div class="form-group">
+            <label>Delivery Date</label>
+            <input type="date" id="qa_delivery_date">
           </div>
           <div class="form-group">
             <label>Order ID</label>
@@ -400,7 +407,7 @@ tr:hover td{background:var(--bg-1)}
           <div class="form-group">
             <label>Payment Mode</label>
             <select id="qa_payment">
-              <option value="">— optional —</option>
+              <option value="">— select —</option>
               <option value="cash">Cash</option>
               <option value="upi">UPI</option>
               <option value="card">Card</option>
@@ -408,34 +415,70 @@ tr:hover td{background:var(--bg-1)}
               <option value="cod">COD</option>
             </select>
           </div>
+          <div class="form-group">
+            <label>Order Status</label>
+            <select id="qa_status">
+              <option value="completed">Completed</option>
+              <option value="returned">Returned</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="claimed">Claimed</option>
+            </select>
+          </div>
         </div>
 
+        <!-- ── Product ──────────────────────────── -->
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px;margin-top:4px">Product</div>
         <div class="form-grid">
           <div class="form-group" style="grid-column:span 2">
-            <label>Product *</label>
-            <select id="qa_product" onchange="onProductSelect()" required>
-              <option value="">Select product (or type below)</option>
+            <label>Product from catalog</label>
+            <select id="qa_product" onchange="onProductSelect()">
+              <option value="">— select or enter manually below —</option>
               <option value="__custom">— Enter manually —</option>
             </select>
           </div>
-          <div class="form-group" id="qa_customNameGroup" style="display:none;grid-column:span 2">
-            <label>Product Name (manual) *</label>
+          <div class="form-group" id="qa_customNameGroup" style="grid-column:span 2">
+            <label>Product Name</label>
             <input type="text" id="qa_customName" placeholder="Product name">
           </div>
           <div class="form-group">
-            <label>Qty *</label>
-            <input type="number" id="qa_qty" value="1" min="1" onchange="recalc()" required>
+            <label>Size</label>
+            <input type="text" id="qa_size" placeholder="e.g. Small, 6 inch, A4">
           </div>
           <div class="form-group">
-            <label>Selling Price (₹, incl. GST) *</label>
-            <input type="number" id="qa_price" step="0.01" placeholder="0.00" onchange="recalc()" required>
+            <label>Color</label>
+            <input type="text" id="qa_color" placeholder="e.g. Black, White">
+          </div>
+          <div class="form-group">
+            <label>Variant / Customization</label>
+            <input type="text" id="qa_variant" placeholder="e.g. Name engraved, Logo print">
+          </div>
+          <div class="form-group">
+            <label>Qty</label>
+            <input type="number" id="qa_qty" value="1" min="1" onchange="recalc()">
+          </div>
+          <div class="form-group">
+            <label>Weight (grams)</label>
+            <input type="number" id="qa_weight" placeholder="e.g. 250">
+          </div>
+        </div>
+
+        <!-- ── Pricing ──────────────────────────── -->
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px;margin-top:4px">Pricing</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Selling Price (₹, incl. GST)</label>
+            <input type="number" id="qa_price" step="0.01" placeholder="0.00" onchange="recalc()">
+          </div>
+          <div class="form-group">
+            <label>Discount / Coupon (₹)</label>
+            <input type="number" id="qa_discount" step="0.01" value="0" onchange="recalc()">
           </div>
           <div class="form-group">
             <label>Platform Fee (₹)</label>
             <input type="number" id="qa_platformfee" step="0.01" value="0" onchange="recalc()">
           </div>
           <div class="form-group">
-            <label>Shipping Cost (₹)</label>
+            <label>Outward Shipping Cost (₹)</label>
             <input type="number" id="qa_shipping" step="0.01" value="0" onchange="recalc()">
           </div>
           <div class="form-group">
@@ -464,13 +507,49 @@ tr:hover td{background:var(--bg-1)}
           <div class="calc-item profit"><label>Margin %</label><span id="c_margin">0%</span></div>
         </div>
 
-        <!-- Customer (optional, collapsible) -->
-        <details style="margin-bottom:14px">
-          <summary style="cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);padding:6px 0">Customer Info (optional)</summary>
+        <!-- ── Shipping & Tracking (collapsible) ── -->
+        <details style="margin-bottom:12px">
+          <summary style="cursor:pointer;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);padding:6px 0;user-select:none">Shipping & Tracking</summary>
+          <div class="form-grid" style="margin-top:10px">
+            <div class="form-group">
+              <label>Dispatch Date</label>
+              <input type="date" id="qa_dispatch_date">
+            </div>
+            <div class="form-group">
+              <label>Tracking Number</label>
+              <input type="text" id="qa_tracking" placeholder="Tracking ID">
+            </div>
+            <div class="form-group">
+              <label>Courier Partner</label>
+              <select id="qa_courier">
+                <option value="">— select —</option>
+                <option value="delhivery">Delhivery</option>
+                <option value="shiprocket">Shiprocket</option>
+                <option value="amazon_logistics">Amazon Logistics</option>
+                <option value="ekart">Ekart (Flipkart)</option>
+                <option value="india_post">India Post</option>
+                <option value="dtdc">DTDC</option>
+                <option value="bluedart">BlueDart</option>
+                <option value="xpressbees">XpressBees</option>
+                <option value="shadowfax">Shadowfax</option>
+                <option value="self">Self / Hand Delivery</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+        </details>
+
+        <!-- ── Customer (collapsible) ────────────── -->
+        <details style="margin-bottom:12px">
+          <summary style="cursor:pointer;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);padding:6px 0;user-select:none">Customer Info</summary>
           <div class="form-grid" style="margin-top:10px">
             <div class="form-group">
               <label>Customer Name</label>
               <input type="text" id="qa_cname" placeholder="Name">
+            </div>
+            <div class="form-group">
+              <label>Phone</label>
+              <input type="tel" id="qa_phone" placeholder="Mobile number">
             </div>
             <div class="form-group">
               <label>City</label>
@@ -1237,11 +1316,12 @@ function recalc(){
   const fee=parseFloat(document.getElementById('qa_platformfee').value)||0;
   const ship=parseFloat(document.getElementById('qa_shipping').value)||0;
   const cogs=parseFloat(document.getElementById('qa_cogs').value)||0;
+  const discount=parseFloat(document.getElementById('qa_discount').value)||0;
   const gstRate=parseFloat(document.getElementById('qa_gst').value)||18;
   const totalPrice=price*qty;
   const gstAmt=totalPrice-(totalPrice/(1+gstRate/100));
   const basePrice=totalPrice-gstAmt;
-  const netRev=totalPrice-fee-ship;
+  const netRev=totalPrice-fee-ship-discount;
   const totalCost=cogs*qty;
   const profit=netRev-totalCost-gstAmt;
   const margin=netRev>0?(profit/netRev*100):0;
@@ -1255,38 +1335,48 @@ function recalc(){
   document.getElementById('c_margin').style.color=margin>=0?'var(--green)':'var(--red)';
 }
 
-function resetQuickAdd(){ document.getElementById('quickAddForm').reset(); recalc(); document.getElementById('qa_customNameGroup').style.display='none'; document.getElementById('qa_date').value=today(); }
+function resetQuickAdd(){ document.getElementById('quickAddForm').reset(); recalc(); document.getElementById('qa_date').value=today(); }
 
 async function submitQuickAdd(e){
   e.preventDefault();
   const sel=document.getElementById('qa_product');
   const productId=sel.value&&sel.value!=='__custom'?sel.value:null;
-  const productName=productId?sel.options[sel.selectedIndex].textContent.replace(/\s*\(.*\)$/,'').trim():document.getElementById('qa_customName').value.trim();
-  if(!productName){ toast('Product name required','error'); return; }
-  const price=parseFloat(document.getElementById('qa_price').value)||0;
-  const qty=parseInt(document.getElementById('qa_qty').value)||1;
-  const gstRate=parseFloat(document.getElementById('qa_gst').value)||18;
-  const fee=parseFloat(document.getElementById('qa_platformfee').value)||0;
+  const productName=productId
+    ?sel.options[sel.selectedIndex].textContent.replace(/\s*\(.*\)$/,'').trim()
+    :document.getElementById('qa_customName').value.trim();
+  const g=id=>{const el=document.getElementById(id);return el?el.value.trim()||null:null;};
+  const gn=id=>parseFloat(document.getElementById(id)?.value)||0;
+  const gi=id=>parseInt(document.getElementById(id)?.value)||null;
   const payload={
-    channel_id:document.getElementById('qa_channel').value,
-    order_date:document.getElementById('qa_date').value,
-    order_id:document.getElementById('qa_orderid').value.trim()||null,
-    payment_mode:document.getElementById('qa_payment').value||null,
-    product_id:productId,
-    product_name:productName,
-    qty,
-    selling_price:price,
-    platform_fee:fee,
-    shipping_fee:parseFloat(document.getElementById('qa_shipping').value)||0,
-    cogs:parseFloat(document.getElementById('qa_cogs').value)||0,
-    gst_rate:gstRate,
-    customer_name:document.getElementById('qa_cname').value.trim()||null,
-    customer_city:document.getElementById('qa_city').value.trim()||null,
-    customer_state:document.getElementById('qa_state').value.trim()||null,
-    customer_pincode:document.getElementById('qa_pin').value.trim()||null,
-    notes:document.getElementById('qa_notes').value.trim()||null,
+    channel_id:g('qa_channel'),
+    order_date:g('qa_date')||today(),
+    delivery_date:g('qa_delivery_date'),
+    dispatch_date:g('qa_dispatch_date'),
+    order_id:g('qa_orderid'),
+    payment_mode:g('qa_payment'),
+    status:g('qa_status')||'completed',
+    product_id:productId||null,
+    product_name:productName||'—',
+    size:g('qa_size'),
+    color:g('qa_color'),
+    variant:g('qa_variant'),
+    qty:parseInt(document.getElementById('qa_qty')?.value)||1,
+    weight_grams:gi('qa_weight'),
+    selling_price:gn('qa_price'),
+    discount_amount:gn('qa_discount'),
+    platform_fee:gn('qa_platformfee'),
+    shipping_fee:gn('qa_shipping'),
+    cogs:gn('qa_cogs'),
+    gst_rate:gn('qa_gst')||18,
+    tracking_number:g('qa_tracking'),
+    courier_partner:g('qa_courier'),
+    customer_name:g('qa_cname'),
+    customer_phone:g('qa_phone'),
+    customer_city:g('qa_city'),
+    customer_state:g('qa_state'),
+    customer_pincode:g('qa_pin'),
+    notes:g('qa_notes'),
     import_source:'manual',
-    status:'completed',
   };
   const {error}=await sb.from('biz_sales').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
