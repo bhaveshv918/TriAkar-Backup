@@ -295,6 +295,9 @@ tr:hover td{background:var(--bg-1)}
     <button class="tab" data-tab="reports" onclick="switchTab('reports')">
       <span class="tab-icon">↗</span><span class="tab-label">Reports & Export</span>
     </button>
+    <button class="tab" data-tab="settings" onclick="switchTab('settings')">
+      <span class="tab-icon">⚙</span><span class="tab-label">Settings</span>
+    </button>
   </nav>
 
   <!-- Main area -->
@@ -1171,6 +1174,72 @@ tr:hover td{background:var(--bg-1)}
       </div>
     </div><!-- /reports -->
 
+    <!-- ══════════════════════════════════════════════════════
+         SETTINGS
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelSettings">
+      <div class="p-head">
+        <div><div class="p-title">Business Settings</div><div class="p-sub">Invoice details — saved locally on this device</div></div>
+      </div>
+
+      <div style="max-width:560px;display:flex;flex-direction:column;gap:10px">
+
+        <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:14px">Business Identity</div>
+          <div class="form-group">
+            <label>Business / Brand Name</label>
+            <input type="text" id="cfg_name" placeholder="TriAkar">
+          </div>
+          <div class="form-group">
+            <label>Full Address (appears on invoice)</label>
+            <textarea id="cfg_addr" rows="3" style="resize:vertical" placeholder="House / Shop No, Street, City, State — PIN"></textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="form-group">
+              <label>GSTIN</label>
+              <input type="text" id="cfg_gstin" placeholder="09XXXXX0000X0XX" style="font-family:var(--mono);letter-spacing:.05em">
+            </div>
+            <div class="form-group">
+              <label>PAN</label>
+              <input type="text" id="cfg_pan" placeholder="AXXXX0000X" style="font-family:var(--mono);letter-spacing:.05em">
+            </div>
+          </div>
+        </div>
+
+        <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:14px">Contact Details</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="form-group">
+              <label>Phone</label>
+              <input type="text" id="cfg_phone" placeholder="+91 98765 43210">
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" id="cfg_email" placeholder="hello@triakar.com">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Website</label>
+            <input type="text" id="cfg_web" placeholder="triakar.com">
+          </div>
+        </div>
+
+        <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:14px">Invoice Footer Note <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Custom note shown at bottom of every invoice</label>
+            <textarea id="cfg_footer" rows="2" style="resize:vertical" placeholder="e.g. For queries contact us at hello@triakar.com · Returns within 7 days"></textarea>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:center;padding-top:4px">
+          <button class="btn btn-primary" onclick="saveBizSettings()">Save Settings</button>
+          <span id="settingsSavedMsg" style="font-size:12px;color:var(--green);display:none">✓ Saved</span>
+        </div>
+
+      </div>
+    </div><!-- /settings -->
+
   </div><!-- /main-area -->
 </div><!-- /shell -->
 
@@ -1185,6 +1254,28 @@ const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 const ADMIN_EMAIL = 'bhaveshv918@gmail.com';
 const MY_STATE = 'Uttar Pradesh'; // your GST registration state — for CGST/SGST vs IGST
+
+// ── Business Settings (localStorage) ──────────────────────
+const BIZ_SETTINGS_KEY='triakar_biz_settings';
+function getBizSettings(){
+  try{ return JSON.parse(localStorage.getItem(BIZ_SETTINGS_KEY)||'{}'); }
+  catch(e){ return {}; }
+}
+function loadBizSettings(){
+  const cfg=getBizSettings();
+  const map={cfg_name:'name',cfg_addr:'addr',cfg_gstin:'gstin',cfg_pan:'pan',cfg_phone:'phone',cfg_email:'email',cfg_web:'web',cfg_footer:'footer'};
+  Object.entries(map).forEach(([elId,key])=>{
+    const el=document.getElementById(elId); if(el&&cfg[key]) el.value=cfg[key];
+  });
+}
+function saveBizSettings(){
+  const g=id=>(document.getElementById(id)?.value.trim()||'');
+  const cfg={name:g('cfg_name'),addr:g('cfg_addr'),gstin:g('cfg_gstin'),pan:g('cfg_pan'),phone:g('cfg_phone'),email:g('cfg_email'),web:g('cfg_web'),footer:g('cfg_footer')};
+  localStorage.setItem(BIZ_SETTINGS_KEY,JSON.stringify(cfg));
+  const msg=document.getElementById('settingsSavedMsg');
+  msg.style.display='inline';
+  setTimeout(()=>msg.style.display='none',2500);
+}
 
 // ── Helpers ────────────────────────────────────────────────
 function esc(s){ return (s==null)?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -1216,6 +1307,7 @@ async function initAuth(){
   }
   document.getElementById('authOverlay').style.display = 'none';
   document.getElementById('shell').style.display = 'flex';
+  loadBizSettings();
   await Promise.all([loadProducts(), initDashMonths()]);
   loadDashboard();
   loadSalesBadge();
@@ -1229,7 +1321,7 @@ function switchTab(name){
   const loaders = {
     sales:loadSales, products:loadProducts, stock:loadStock,
     returns:loadReturns, gst:loadGST, dashboard:loadDashboard,
-    labels:populateLabelProductSelect
+    labels:populateLabelProductSelect, settings:loadBizSettings
   };
   if(loaders[name]) loaders[name]();
 }
@@ -2115,13 +2207,15 @@ function printInvoice(d, type){
   const invoiceNo=d.order_id||('TRK-'+Date.now().toString().slice(-6));
   const invoiceDate=d.order_date||today();
   const variantLine=[d.size,d.color,d.variant].filter(Boolean).join(' · ');
-  const SELLER_NAME='TriAkar';
-  const SELLER_ADDR='Uttar Pradesh, India';
-  const SELLER_GSTIN='[Your GSTIN]';
-  const SELLER_PAN='[Your PAN]';
-  const SELLER_EMAIL='hello@triakar.com';
-  const SELLER_PHONE='+91 [Your Phone]';
-  const SELLER_WEB='triakar.com';
+  const cfg=getBizSettings();
+  const SELLER_NAME=cfg.name||'TriAkar';
+  const SELLER_ADDR=cfg.addr||'India';
+  const SELLER_GSTIN=cfg.gstin||'';
+  const SELLER_PAN=cfg.pan||'';
+  const SELLER_EMAIL=cfg.email||'';
+  const SELLER_PHONE=cfg.phone||'';
+  const SELLER_WEB=cfg.web||'triakar.com';
+  const SELLER_FOOTER=cfg.footer||'';
 
   const gstBlock = hasGst ? `
     <tr><td colspan="3" class="td-r muted">Taxable Amount</td><td class="td-r">₹${taxable.toFixed(2)}</td></tr>
@@ -2176,8 +2270,8 @@ td{padding:11px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;vertical-ali
     <div class="brand-tag">Designed globally · Made responsibly in India</div>
     <div class="seller-info">
       ${SELLER_ADDR}<br>
-      ${type==='gst'?`<strong>GSTIN:</strong> ${SELLER_GSTIN} &nbsp;|&nbsp; <strong>PAN:</strong> ${SELLER_PAN}<br>`:''}
-      ${SELLER_PHONE} &nbsp;|&nbsp; ${SELLER_EMAIL} &nbsp;|&nbsp; ${SELLER_WEB}
+      ${type==='gst'&&SELLER_GSTIN?`<strong>GSTIN:</strong> ${esc(SELLER_GSTIN)}${SELLER_PAN?` &nbsp;|&nbsp; <strong>PAN:</strong> ${esc(SELLER_PAN)}`:''}<br>`:''}
+      ${[SELLER_PHONE,SELLER_EMAIL,SELLER_WEB].filter(Boolean).map(esc).join(' &nbsp;|&nbsp; ')}
     </div>
   </div>
   <div class="inv-box">
@@ -2261,8 +2355,8 @@ ${(d.tracking_number||d.courier_partner||d.payment_mode)?`
 <div class="footer">
   <div class="footer-left">
     This is a computer-generated document.<br>
-    TriAkar · ${SELLER_WEB} · ${SELLER_EMAIL}<br>
-    Thank you for your purchase!
+    ${[SELLER_NAME,SELLER_WEB,SELLER_EMAIL].filter(Boolean).map(esc).join(' · ')}<br>
+    ${SELLER_FOOTER?esc(SELLER_FOOTER)+'<br>':''}Thank you for your purchase!
   </div>
   <div>
     <div class="sign-box">Authorised Signatory</div>
