@@ -3312,14 +3312,15 @@ async function handleImgFiles(files){
     if(_uploadedImages.length>=10)break;
     if(file.size>15*1024*1024){toast(file.name+' too large (max 15MB)','error');continue}
     if(!['image/jpeg','image/png','image/webp'].includes(file.type)){toast(file.name+' bad format','error');continue}
-    const ext=file.name.split('.').pop().toLowerCase();
-    const fname=Date.now()+'-'+Math.random().toString(36).substr(2,6)+'.'+ext;
     upl.textContent='Uploading '+file.name+'…';
     try{
-      const{error}=await sb.storage.from('product-images').upload(fname,file,{contentType:file.type});
-      if(error)throw error;
-      const{data}=sb.storage.from('product-images').getPublicUrl(fname);
-      _uploadedImages.push(data.publicUrl);renderImgGrid();
+      const{data:sess}=await sb.auth.getSession();
+      const token=sess&&sess.session&&sess.session.access_token;
+      const fd=new FormData();fd.append('image',file);
+      const r=await fetch(API+'/api/admin/upload-image',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+      if(!r.ok)throw new Error((await r.json()).error||'Upload failed');
+      const{url}=await r.json();
+      _uploadedImages.push(url);renderImgGrid();
     }catch(err){toast('Upload failed: '+err.message,'error')}
   }
   upl.style.display='none';upl.textContent='Uploading…';
@@ -3409,14 +3410,15 @@ function renderVariants(){
 
 async function uploadVariantImg(varIdx,files){
   for(const file of files){
-    const ext=file.name.split('.').pop().toLowerCase();
-    const fname='v-'+Date.now()+'-'+Math.random().toString(36).substr(2,4)+'.'+ext;
     try{
-      const{error}=await sb.storage.from('product-images').upload(fname,file,{contentType:file.type});
-      if(error)throw error;
-      const{data}=sb.storage.from('product-images').getPublicUrl(fname);
+      const{data:sess}=await sb.auth.getSession();
+      const token=sess&&sess.session&&sess.session.access_token;
+      const fd=new FormData();fd.append('image',file);
+      const r=await fetch(API+'/api/admin/upload-image',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+      if(!r.ok)throw new Error((await r.json()).error||'Upload failed');
+      const{url}=await r.json();
       if(!_variants[varIdx].images)_variants[varIdx].images=[];
-      _variants[varIdx].images.push(data.publicUrl);renderVariants();
+      _variants[varIdx].images.push(url);renderVariants();
     }catch(err){toast('Upload failed','error')}
   }
 }

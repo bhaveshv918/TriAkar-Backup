@@ -1,12 +1,49 @@
 import supabase from '../db/supabaseClient.js';
 
+// Columns needed for product listing cards — avoids fetching heavy fields
+// (long_description, bullet_points, specifications, variants, product_options, etc.)
+const LISTING_COLS = [
+  'id', 'slug', 'name', 'price', 'compare_at_price',
+  'discount_type', 'discount_value', 'badge',
+  'images', 'category', 'stock_qty', 'stock_status',
+  'is_customizable', 'is_bestseller', 'is_featured',
+  'material', 'square_crop', 'tags', 'occasions',
+].join(', ');
+
+// In-memory TTL cache for product list responses (2-minute TTL)
+// Reduces Supabase round-trips on burst traffic and repeated page loads
+const productCache = new Map();
+const CACHE_TTL_MS = 2 * 60 * 1000;
+
+function getCacheKey(query) {
+  return JSON.stringify(query);
+}
+
+function cacheGet(key) {
+  const entry = productCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL_MS) { productCache.delete(key); return null; }
+  return entry.data;
+}
+
+function cacheSet(key, data) {
+  productCache.set(key, { data, ts: Date.now() });
+}
+
 export async function getAllProducts(req, res, next) {
   try {
     const { category, customizable } = req.query;
+    const cacheKey = getCacheKey({ category, customizable });
+    const cached = cacheGet(cacheKey);
+    if (cached) {
+      res.setHeader('Cache-Control', 'public, max-age=120, stale-while-revalidate=60');
+      res.setHeader('X-Cache', 'HIT');
+      return res.json({ products: cached });
+    }
 
     let query = supabase
       .from('products')
-      .select('*')
+      .select(LISTING_COLS)
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
@@ -16,6 +53,9 @@ export async function getAllProducts(req, res, next) {
     const { data, error } = await query;
     if (error) throw error;
 
+    cacheSet(cacheKey, data);
+    res.setHeader('Cache-Control', 'public, max-age=120, stale-while-revalidate=60');
+    res.setHeader('X-Cache', 'MISS');
     res.json({ products: data });
   } catch (err) {
     next(err);
@@ -25,6 +65,13 @@ export async function getAllProducts(req, res, next) {
 export async function getProductBySlug(req, res, next) {
   try {
     const { slug } = req.params;
+    const cacheKey = `slug:${slug}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) {
+      res.setHeader('Cache-Control', 'public, max-age=120, stale-while-revalidate=60');
+      res.setHeader('X-Cache', 'HIT');
+      return res.json({ product: cached });
+    }
 
     const { data, error } = await supabase
       .from('products')
@@ -37,6 +84,9 @@ export async function getProductBySlug(req, res, next) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
+    cacheSet(cacheKey, data);
+    res.setHeader('Cache-Control', 'public, max-age=120, stale-while-revalidate=60');
+    res.setHeader('X-Cache', 'MISS');
     res.json({ product: data });
   } catch (err) {
     next(err);
@@ -125,6 +175,10 @@ export async function upsertProduct(req, res, next) {
       .select()
       .single();
     if (error) throw error;
+
+    // Invalidate all cached product listings so the new/updated product is visible immediately
+    productCache.clear();
+
     res.json({ ok: true, product: data });
   } catch (err) { next(err); }
 }
@@ -132,16 +186,26 @@ export async function upsertProduct(req, res, next) {
 export async function getProductsByCategory(req, res, next) {
   try {
     const { category } = req.params;
+    const cacheKey = `cat:${category}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) {
+      res.setHeader('Cache-Control', 'public, max-age=120, stale-while-revalidate=60');
+      res.setHeader('X-Cache', 'HIT');
+      return res.json({ products: cached });
+    }
 
     const { data, error } = await supabase
       .from('products')
-      .select('id, name, slug, price, category, images, stock_qty, is_customizable')
+      .select(LISTING_COLS)
       .eq('category', category)
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
+    cacheSet(cacheKey, data);
+    res.setHeader('Cache-Control', 'public, max-age=120, stale-while-revalidate=60');
+    res.setHeader('X-Cache', 'MISS');
     res.json({ products: data });
   } catch (err) {
     next(err);
