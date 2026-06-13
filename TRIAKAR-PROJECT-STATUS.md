@@ -10,7 +10,7 @@
 **What is TriAkar**
 - A premium Indian **3D printing service & design brand** based in Greater Noida West.
 - Sells 3D‑printed desk accessories, home décor, personalised gifts, custom replacement parts, prototypes, and corporate/bulk gifting.
-- **Location / shop:** Shop No. 25, Karan Singh Market, Chhoti Milak, Greater Noida West, Gautam Buddha Nagar, Uttar Pradesh – 201318.
+- **Location / shop:** Shop No. 25, Karan Singh Market, Chhoti Milak, Greater Noida West, Gautam Buddha Nagar, Uttar Pradesh – 201307.
 - **Serving:** Delhi NCR (Noida, Greater Noida, Faridabad, Gurugram, Delhi) + shipping across India.
 - **Phone:** +91 92175 55833 (open all days, 11 AM – 9 PM).
 - **Email:** hello@triakar.com (admin/notification address). *(Note: some older instruction files still reference hello@triakar.in.)*

@@ -1157,7 +1157,7 @@ async function submitCallback(){
 
 /* ══ COPY TO CLIPBOARD ═════════════════════════════════════ */
 function copyAddress(){
-  const addr='Shop No. 25, Karan Singh Market, Chhoti Milak, Greater Noida West, Gautam Buddha Nagar, UP – 201318';
+  const addr='Shop No. 25, Karan Singh Market, Chhoti Milak, Greater Noida West, Gautam Buddha Nagar, UP – 201307';
   navigator.clipboard.writeText(addr).then(()=>{
     const btn=document.querySelector('.copy-btn');
     if(btn){const old=btn.textContent;btn.textContent='Copied!';setTimeout(()=>btn.textContent=old,2000)}

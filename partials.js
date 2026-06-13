@@ -95,7 +95,7 @@ window._FOOTER_HTML = `<footer>
         <p class="foot-desc">3D Printing Services, Delhi NCR</p>
         <div class="foot-phone"><a href="tel:+919217555833">+91 9217-555-833</a></div>
         <div class="foot-hours">Open Mon–Sat · 11 AM – 8 PM</div>
-        <div class="foot-addr">Shop No. 25, Karan Singh Market<br>Chhoti Milak, Greater Noida West, UP – 201318</div>
+        <div class="foot-addr">Shop No. 25, Karan Singh Market<br>Chhoti Milak, Greater Noida West, UP – 201307</div>
         <a href="https://maps.app.goo.gl/Ki2GXFgi6JUZMb7z6" class="foot-dir" target="_blank">Get Directions →</a>
       </div>
       <div><div class="foot-col-t">Shop</div>
