@@ -2359,97 +2359,115 @@ function printInvoice(d, type){
   const amtWords=amountInWords(subtotal);
 
   const gstBlock=hasGst?`
-    <tr><td colspan="3" style="text-align:right;color:#3a8a60;font-size:12px;padding:5px 14px;border:none">Taxable Amount</td><td style="text-align:right;padding:5px 14px;border:none">₹${taxable.toFixed(2)}</td></tr>
+    <tr><td colspan="3" style="text-align:right;color:#999;font-size:12px;padding:5px 14px;border:none">Taxable Amount</td><td style="text-align:right;padding:5px 14px;border:none">₹${taxable.toFixed(2)}</td></tr>
     ${isIntraState
-      ?`<tr><td colspan="3" style="text-align:right;color:#3a8a60;font-size:12px;padding:4px 14px;border:none">CGST @ ${gstRate/2}%</td><td style="text-align:right;padding:4px 14px;border:none">₹${(gstAmt/2).toFixed(2)}</td></tr>
-        <tr><td colspan="3" style="text-align:right;color:#3a8a60;font-size:12px;padding:4px 14px;border:none">SGST @ ${gstRate/2}%</td><td style="text-align:right;padding:4px 14px;border:none">₹${(gstAmt/2).toFixed(2)}</td></tr>`
-      :`<tr><td colspan="3" style="text-align:right;color:#3a8a60;font-size:12px;padding:4px 14px;border:none">IGST @ ${gstRate}%</td><td style="text-align:right;padding:4px 14px;border:none">₹${gstAmt.toFixed(2)}</td></tr>`
+      ?`<tr><td colspan="3" style="text-align:right;color:#999;font-size:12px;padding:4px 14px;border:none">CGST @ ${gstRate/2}%</td><td style="text-align:right;padding:4px 14px;border:none">₹${(gstAmt/2).toFixed(2)}</td></tr>
+        <tr><td colspan="3" style="text-align:right;color:#999;font-size:12px;padding:4px 14px;border:none">SGST @ ${gstRate/2}%</td><td style="text-align:right;padding:4px 14px;border:none">₹${(gstAmt/2).toFixed(2)}</td></tr>`
+      :`<tr><td colspan="3" style="text-align:right;color:#999;font-size:12px;padding:4px 14px;border:none">IGST @ ${gstRate}%</td><td style="text-align:right;padding:4px 14px;border:none">₹${gstAmt.toFixed(2)}</td></tr>`
     }`:'';
-
-  const LOGO_SVG=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 160" width="260" height="80">
-    <defs><clipPath id="mc"><rect x="8" y="8" width="144" height="144" rx="14"/></clipPath></defs>
-    <rect x="8" y="8" width="144" height="72" fill="#C4622A" clip-path="url(#mc)"/>
-    <rect x="8" y="80" width="144" height="72" fill="#252320" clip-path="url(#mc)"/>
-    <rect x="8" y="8" width="144" height="144" rx="14" fill="none" stroke="rgba(0,0,0,0.1)" stroke-width="1"/>
-    <circle cx="80" cy="80" r="52" fill="#F4F2EC"/>
-    <text x="80" y="80" font-family="'Noto Sans Devanagari',sans-serif" font-size="60" font-weight="700" fill="#C4622A" text-anchor="middle" dominant-baseline="central">त्रि</text>
-    <line x1="168" y1="24" x2="168" y2="136" stroke="rgba(0,0,0,0.1)" stroke-width="1"/>
-    <text x="184" y="82" font-family="'Manrope','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="52" font-weight="700" fill="#161614" dominant-baseline="middle">TriAkar</text>
-    <text x="188" y="120" font-family="'Noto Sans Devanagari',sans-serif" font-size="18" font-weight="400" fill="#C4622A" dominant-baseline="middle">त्रिआकार</text>
-  </svg>`;
 
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Order Record — ${esc(docNo)}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Manrope:wght@700&family=Noto+Sans+Devanagari:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Devanagari:wght@400;600&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',sans-serif;font-size:13px;color:#161614;background:#F4F2EC;max-width:740px;margin:0 auto}
-/* ── Header ── */
-.hdr{background:#161614;padding:24px 32px;display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #C4622A}
-.doc-box{text-align:right}
-.doc-type{font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#C4622A;margin-bottom:4px}
-.doc-no{font-size:18px;font-weight:900;color:#F4F2EC;letter-spacing:.05em;font-family:monospace}
-.doc-meta{font-size:11px;color:rgba(244,242,236,.5);margin-top:5px;line-height:1.9}
-/* ── Body ── */
-.body{padding:24px 32px;background:#F4F2EC}
-/* Seller strip */
-.seller-strip{background:#fff;border-left:3px solid #C4622A;border-radius:0 4px 4px 0;padding:10px 14px;font-size:11px;color:#555;line-height:1.9;margin-bottom:18px}
-.seller-strip b{color:#161614;font-size:12px}
-/* Customer box */
-.customer-box{background:#fff;border:1.5px solid #e8e4dd;border-radius:8px;padding:16px;margin-bottom:18px}
-.section-lbl{font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#C4622A;margin-bottom:6px}
-.cust-name{font-size:15px;font-weight:700;color:#161614;margin-bottom:3px}
-.cust-detail{font-size:12px;color:#555;line-height:1.9}
+body{font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#fff;max-width:760px;margin:0 auto}
+/* ── HEADER ── */
+.hdr{background:#161614;display:flex;justify-content:space-between;align-items:stretch;border-bottom:3px solid #C4622A}
+.hdr-logo{display:flex;align-items:center;padding:22px 28px;gap:15px;border-right:1px solid rgba(255,255,255,.07)}
+.mark{width:56px;height:56px;border-radius:11px;overflow:hidden;flex-shrink:0;position:relative}
+.mark-top{position:absolute;top:0;left:0;right:0;height:50%;background:#C4622A}
+.mark-bot{position:absolute;bottom:0;left:0;right:0;height:50%;background:#2a2723}
+.mark-ring{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:36px;height:36px;border-radius:50%;background:#F4F2EC;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#C4622A;font-family:'Noto Sans Devanagari','Mangal','Arial Unicode MS',sans-serif;line-height:1}
+.brand-text{display:flex;flex-direction:column;gap:0}
+.brand-en{font-size:28px;font-weight:800;color:#F4F2EC;letter-spacing:-.01em;line-height:1;font-family:'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif}
+.brand-hi{font-size:11.5px;color:#C4622A;letter-spacing:.06em;font-family:'Noto Sans Devanagari','Mangal',sans-serif;font-weight:500;margin-top:3px;opacity:.9}
+.hdr-doc{display:flex;flex-direction:column;justify-content:center;align-items:flex-end;padding:22px 28px;text-align:right}
+.doc-type{font-size:9px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:rgba(196,98,42,.8);margin-bottom:4px}
+.doc-no{font-size:21px;font-weight:800;color:#F4F2EC;letter-spacing:.04em;font-family:'Courier New',monospace}
+.doc-meta{font-size:11px;color:rgba(244,242,236,.38);margin-top:5px;line-height:1.7}
+.doc-badge{display:inline-block;background:rgba(196,98,42,.18);color:#D98B50;font-size:9.5px;padding:3px 9px;border-radius:20px;margin-top:6px;font-weight:600;letter-spacing:.06em;border:1px solid rgba(196,98,42,.25)}
+/* ── BODY ── */
+.body{padding:28px 32px;background:#fff}
+/* Seller */
+.seller-strip{padding:12px 16px;background:#fafafa;border-left:3px solid #C4622A;border-radius:0 6px 6px 0;margin-bottom:22px}
+.seller-name{font-size:13px;font-weight:700;color:#111}
+.seller-detail{font-size:11px;color:#888;margin-top:2px;line-height:1.75}
+/* Customer */
+.customer-box{border:1px solid #e8e8e8;border-radius:10px;padding:18px 20px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.cust-left{}
+.section-lbl{font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#C4622A;margin-bottom:7px}
+.cust-name{font-size:16px;font-weight:700;color:#111;margin-bottom:4px}
+.cust-detail{font-size:12px;color:#777;line-height:1.85}
+.order-badge{background:#fdf0e8;border:1px solid #f0d0bb;border-radius:6px;padding:6px 12px;font-size:11px;color:#7a3010;font-family:monospace;font-weight:600;white-space:nowrap}
 /* Table */
-.tbl-wrap{border:1.5px solid #e8e4dd;border-radius:8px;overflow:hidden;margin-bottom:4px;background:#fff}
+.tbl-wrap{border:1px solid #e8e8e8;border-radius:10px;overflow:hidden;margin-bottom:6px}
 table{width:100%;border-collapse:collapse}
-thead th{background:#161614;padding:9px 14px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#F4F2EC;border-bottom:2px solid #C4622A;text-align:left}
-td{padding:12px 14px;border-bottom:1px solid #f0ede8;font-size:13px;vertical-align:top;background:#fff}
+thead th{background:#161614;padding:10px 16px;font-size:9.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#F4F2EC;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+thead th:first-child{border-left:3px solid #C4622A}
+td{padding:13px 16px;border-bottom:1px solid #f2f2f2;font-size:13px;vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
 .td-r{text-align:right}
-.total-row td{font-size:16px;font-weight:900;border-top:2px solid #C4622A;padding-top:11px;color:#161614;border-bottom:none;background:#fff}
-.words-row{font-size:11px;color:#C4622A;padding:9px 14px;font-style:italic;background:#faf7f4;border-top:1px solid #e8e4dd}
-/* Info strip */
-.info-strip{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
-.info-card{background:#fff;border:1.5px solid #e8e4dd;border-radius:6px;padding:12px 14px;font-size:12px;color:#444;line-height:1.8}
-.info-lbl{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#C4622A;margin-bottom:5px}
-.chip{display:inline-block;background:#fdf0e8;border-radius:3px;padding:2px 8px;font-size:10px;color:#7a3010;font-family:monospace}
+.item-sub{font-size:11px;color:#aaa;margin-top:3px}
+.discount-row td{font-size:12px;color:#c0392b;padding:4px 16px;border-bottom:none}
+.gst-row td{font-size:11.5px;color:#888;padding:5px 16px;border-bottom:none;background:#fafafa}
+.total-row td{font-size:18px;font-weight:900;color:#111;border-top:2px solid #C4622A;padding:14px 16px;border-bottom:none;background:#fff}
+.words-row{padding:10px 16px;font-size:11px;color:#C4622A;font-style:italic;background:#fffaf7;border-top:1px solid #f0e4da}
+/* Info */
+.info-strip{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.info-card{border:1px solid #e8e8e8;border-radius:8px;padding:14px 16px}
+.info-lbl{font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#C4622A;margin-bottom:6px}
+.info-val{font-size:12.5px;color:#333;line-height:1.8}
+.chip{display:inline-block;background:#fdf0e8;border:1px solid #f0d0bb;border-radius:4px;padding:2px 8px;font-size:11px;color:#7a3010;font-family:monospace;font-weight:600}
 /* Footer */
-.footer-band{background:#161614;margin-top:24px;padding:16px 32px;display:flex;justify-content:space-between;align-items:center}
-.footer-msg{font-size:11px;color:rgba(244,242,236,.6);line-height:1.9}
-.footer-brand{font-size:12px;font-weight:800;color:#C4622A;margin-bottom:3px;letter-spacing:.04em}
+.footer-band{background:#161614;margin-top:28px;padding:18px 32px;display:flex;justify-content:space-between;align-items:center}
+.footer-left{}
+.footer-brand{font-size:13px;font-weight:700;color:#C4622A;margin-bottom:3px;letter-spacing:.03em}
+.footer-tagline{font-size:10.5px;color:rgba(244,242,236,.35);font-style:italic}
 /* ── B&W Print ── */
 @media print{
   .print-btn{display:none!important}
   body{background:#fff!important;max-width:100%}
-  .hdr{background:#fff!important;border-bottom:2px solid #000!important;padding:16px 24px}
-  .hdr .doc-meta{color:#555!important}
-  .hdr .doc-no{color:#000!important}
-  .hdr .doc-type{color:#000!important}
-  thead th{background:#222!important;color:#fff!important;border-bottom:1px solid #000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .tbl-wrap,.customer-box,.info-card{border-color:#ccc!important;background:#fff!important}
-  .total-row td{border-top:2px solid #000!important}
+  .hdr{background:#111!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .mark-top{background:#555!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .mark-bot{background:#222!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .mark-ring{background:#ddd!important;color:#333!important}
+  .brand-en{color:#fff!important}
+  .brand-hi,.doc-badge{color:#aaa!important}
+  .doc-no{color:#fff!important}
+  .doc-type{color:#ccc!important}
+  .doc-meta{color:#999!important}
+  thead th{background:#111!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  thead th:first-child{border-left-color:#555!important}
+  .total-row td{border-top-color:#000!important}
   .seller-strip{border-left-color:#000!important;background:#f5f5f5!important}
-  .footer-band{background:#f0f0f0!important;border-top:1px solid #ccc}
-  .footer-msg{color:#333!important}
-  .footer-brand{color:#000!important}
-  .section-lbl,.info-lbl,.words-row{color:#333!important}
-  .chip{background:#eee!important;color:#000!important}
-  td{background:#fff!important}
-  .words-row{background:#f5f5f5!important;border-top:1px solid #ccc!important}
+  .words-row,.gst-row td{color:#444!important;background:#f5f5f5!important}
+  .section-lbl,.info-lbl{color:#444!important}
+  .chip,.order-badge{background:#eee!important;border-color:#ccc!important;color:#000!important}
+  .footer-band{background:#111!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .footer-brand{color:#ccc!important}
+  .footer-tagline{color:#888!important}
+  .tbl-wrap,.customer-box,.info-card{border-color:#ddd!important}
 }
 </style></head><body>
 
 <div class="hdr">
-  ${LOGO_SVG}
-  <div class="doc-box">
+  <div class="hdr-logo">
+    <div class="mark">
+      <div class="mark-top"></div>
+      <div class="mark-bot"></div>
+      <div class="mark-ring">त्रि</div>
+    </div>
+    <div class="brand-text">
+      <div class="brand-en">TriAkar</div>
+      <div class="brand-hi">त्रिआकार</div>
+    </div>
+  </div>
+  <div class="hdr-doc">
     <div class="doc-type">Order Record</div>
     <div class="doc-no">${esc(docNo)}</div>
-    <div class="doc-meta">
-      ${esc(docDate)}<br>
-      ${d.delivery_date?`Delivery: ${esc(d.delivery_date)}<br>`:''}
-      ${d.channel_id?esc(CH_NAMES?.[d.channel_id]||d.channel_id):''}
-    </div>
+    <div class="doc-meta">${esc(docDate)}${d.delivery_date?' → '+esc(d.delivery_date):''}</div>
+    ${d.channel_id?`<div class="doc-badge">${esc(CH_NAMES?.[d.channel_id]||d.channel_id)}</div>`:''}
   </div>
 </div>
 
@@ -2457,25 +2475,30 @@ td{padding:12px 14px;border-bottom:1px solid #f0ede8;font-size:13px;vertical-ali
 
 ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
 <div class="seller-strip">
-  <b>${esc(SELLER_NAME)}</b>${SELLER_ADDR?' &nbsp;·&nbsp; '+esc(SELLER_ADDR):''}
-  ${SELLER_GSTIN||SELLER_PAN?`<br>${SELLER_GSTIN?'GSTIN: '+esc(SELLER_GSTIN)+' &nbsp;':''  }${SELLER_PAN?'PAN: '+esc(SELLER_PAN):''}`:''  }
-  ${SELLER_PHONE||SELLER_EMAIL||SELLER_WEB?`<br>${[SELLER_PHONE,SELLER_EMAIL,SELLER_WEB].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ')}`:''}
+  <div class="seller-name">${esc(SELLER_NAME)}${SELLER_ADDR?' &nbsp;·&nbsp; <span style="font-weight:400;color:#666">'+esc(SELLER_ADDR)+'</span>':''}</div>
+  <div class="seller-detail">${[
+    SELLER_GSTIN?'GSTIN: '+SELLER_GSTIN:'',
+    SELLER_PAN?'PAN: '+SELLER_PAN:'',
+    SELLER_PHONE,SELLER_EMAIL,SELLER_WEB
+  ].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ')}</div>
 </div>`:''}
 
 <div class="customer-box">
-  <div class="section-lbl">Prepared for</div>
-  ${d.customer_name?`<div class="cust-name">${esc(d.customer_name)}</div>`:''}
-  <div class="cust-detail">
-    ${d.customer_phone?esc(d.customer_phone)+'<br>':''}
-    ${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' &mdash; '+esc(d.customer_pincode):''}
-    ${d.order_id?`<br>Order Ref: <span class="chip">${esc(d.order_id)}</span>`:''}
+  <div class="cust-left">
+    <div class="section-lbl">Prepared for</div>
+    ${d.customer_name?`<div class="cust-name">${esc(d.customer_name)}</div>`:''}
+    <div class="cust-detail">
+      ${d.customer_phone?esc(d.customer_phone)+'<br>':''}
+      ${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' &mdash; '+esc(d.customer_pincode):''}
+    </div>
   </div>
+  ${d.order_id?`<div class="order-badge">${esc(d.order_id)}</div>`:''}
 </div>
 
 <div class="tbl-wrap">
 <table>
   <thead><tr>
-    <th style="width:55%">Item</th>
+    <th style="width:52%">Item</th>
     <th style="text-align:right">Qty</th>
     <th style="text-align:right">Rate</th>
     <th style="text-align:right">Amount</th>
@@ -2484,21 +2507,21 @@ ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
     <tr>
       <td>
         <strong>${esc(d.product_name||'—')}</strong>
-        ${variantLine?`<br><span style="font-size:11px;color:#888">${esc(variantLine)}</span>`:''}
-        ${d.notes?`<br><span style="font-size:11px;color:#999">${esc(d.notes)}</span>`:''}
+        ${variantLine?`<div class="item-sub">${esc(variantLine)}</div>`:''}
+        ${d.notes?`<div class="item-sub" style="color:#bbb">${esc(d.notes)}</div>`:''}
       </td>
       <td class="td-r">${qty}</td>
       <td class="td-r">₹${unitPrice.toFixed(2)}</td>
       <td class="td-r">₹${totalPrice.toFixed(2)}</td>
     </tr>
-    ${disc>0?`<tr><td colspan="3" class="td-r" style="color:#b91c1c;font-size:12px;padding:4px 14px">Discount</td><td class="td-r" style="color:#b91c1c;padding:4px 14px">-₹${disc.toFixed(2)}</td></tr>`:''}
+    ${disc>0?`<tr class="discount-row"><td colspan="3" class="td-r">Discount</td><td class="td-r">−₹${disc.toFixed(2)}</td></tr>`:''}
   </tbody>
 </table>
 <table><tbody>
   ${gstBlock}
   <tr class="total-row">
-    <td colspan="3" style="text-align:right;padding:12px 14px">Total</td>
-    <td style="text-align:right;padding:12px 14px">₹${subtotal.toFixed(2)}</td>
+    <td colspan="3" style="text-align:right">Total</td>
+    <td style="text-align:right">₹${subtotal.toFixed(2)}</td>
   </tr>
 </tbody></table>
 <div class="words-row">${esc(amtWords)}</div>
@@ -2506,23 +2529,29 @@ ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
 
 ${d.payment_mode||d.tracking_number||d.courier_partner?`
 <div class="info-strip">
-  <div class="info-card"><div class="info-lbl">Payment</div>${esc(d.payment_mode||'—')}</div>
-  <div class="info-card"><div class="info-lbl">Shipping</div>
-    ${d.courier_partner?esc(d.courier_partner)+'<br>':''}
-    ${d.tracking_number?`<span class="chip">${esc(d.tracking_number)}</span>`:''}
-    ${d.dispatch_date?`<br>Dispatched: ${esc(d.dispatch_date)}`:''}
+  <div class="info-card">
+    <div class="info-lbl">Payment</div>
+    <div class="info-val">${esc(d.payment_mode||'—')}</div>
+  </div>
+  <div class="info-card">
+    <div class="info-lbl">Shipping</div>
+    <div class="info-val">
+      ${d.courier_partner?esc(d.courier_partner)+'<br>':''}
+      ${d.tracking_number?`<span class="chip">${esc(d.tracking_number)}</span>`:''}
+      ${d.dispatch_date?`<br><span style="font-size:11px;color:#aaa">Dispatched: ${esc(d.dispatch_date)}</span>`:''}
+    </div>
   </div>
 </div>`:''}
 
 </div>
 
 <div class="footer-band">
-  <div class="footer-msg">
+  <div class="footer-left">
     <div class="footer-brand">TriAkar &nbsp;·&nbsp; त्रिआकार</div>
-    ${esc(SELLER_FOOTER)}
+    <div class="footer-tagline">${esc(SELLER_FOOTER||'This is not an invoice')}</div>
   </div>
   <div class="print-btn">
-    <button onclick="window.print()" style="padding:9px 22px;background:#C4622A;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.03em">🖨 Print / PDF</button>
+    <button onclick="window.print()" style="padding:10px 24px;background:#C4622A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.04em;font-family:inherit">Print / PDF</button>
   </div>
 </div>
 </body></html>`;
