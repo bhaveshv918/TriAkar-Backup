@@ -1,27 +1,23 @@
-// Regenerates every favicon / app icon from the single canonical brand mark.
-// Source of truth: assets/icons/favicon-source.svg  (white box, orange त्रि)
+// Regenerates every favicon / app icon.
+// Browser tab favicons → assets/icons/favicon-source.svg  (white box, orange त्रि)
+// App icons (PWA + apple-touch) → assets/logo/triakar-mark.svg  (orange & black split)
 // Run: node scripts/gen-icons.js
 const path = require('path');
 const fs = require('fs');
 const sharp = require(path.join(__dirname, '..', 'server', 'node_modules', 'sharp'));
 
 const ROOT = path.join(__dirname, '..');
-const SRC = path.join(ROOT, 'assets', 'icons', 'favicon-source.svg');
+const FAV_SRC = path.join(ROOT, 'assets', 'icons', 'favicon-source.svg');  // white box
+const APP_SRC = path.join(ROOT, 'assets', 'logo', 'triakar-mark.svg');     // orange & black
 const ICONS = path.join(ROOT, 'assets', 'icons');
 
-// size -> output path (relative to ICONS unless absolute)
-const PNGS = {
-  16:  'favicon-16x16.png',
-  32:  'favicon-32x32.png',
-  96:  'favicon-96x96.png',
-  180: 'apple-touch-icon.png',
-  192: 'icon-192x192.png',
-  512: 'icon-512x512.png',
-};
+// Browser tab favicons — white box source
+const FAV_PNGS = { 16: 'favicon-16x16.png', 32: 'favicon-32x32.png', 96: 'favicon-96x96.png' };
+// App icons — orange & black source
+const APP_PNGS = { 180: 'apple-touch-icon.png', 192: 'icon-192x192.png', 512: 'icon-512x512.png' };
 
-// Render the SVG crisply at a given square size.
-function render(size) {
-  return sharp(SRC, { density: 384 })
+function render(src, size) {
+  return sharp(src, { density: 384 })
     .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png({ compressionLevel: 9 })
     .toBuffer();
@@ -54,28 +50,29 @@ function buildIco(entries) {
 }
 
 (async () => {
-  // PNGs
-  for (const [size, name] of Object.entries(PNGS)) {
-    const buf = await render(Number(size));
+  // Browser tab favicons — white box
+  for (const [size, name] of Object.entries(FAV_PNGS)) {
+    const buf = await render(FAV_SRC, Number(size));
     fs.writeFileSync(path.join(ICONS, name), buf);
     console.log('wrote', name, `(${buf.length}b)`);
   }
 
-  // Multi-size favicon.ico
+  // App icons — orange & black split
+  for (const [size, name] of Object.entries(APP_PNGS)) {
+    const buf = await render(APP_SRC, Number(size));
+    fs.writeFileSync(path.join(ICONS, name), buf);
+    console.log('wrote', name, `(${buf.length}b)`);
+  }
+
+  // Multi-size favicon.ico (white box, browser tab sizes 16/32/48)
   const icoSizes = [16, 32, 48];
   const icoEntries = [];
-  for (const s of icoSizes) icoEntries.push({ size: s, data: await render(s) });
+  for (const s of icoSizes) icoEntries.push({ size: s, data: await render(FAV_SRC, s) });
   const ico = buildIco(icoEntries);
   fs.writeFileSync(path.join(ICONS, 'favicon.ico'), ico);
   console.log('wrote favicon.ico', `(${ico.length}b, sizes ${icoSizes.join('/')})`);
 
-  // Remove stale unused leftovers (old plain-circle design)
-  for (const stale of ['icon-192.png', 'icon-512.png']) {
-    const p = path.join(ICONS, stale);
-    if (fs.existsSync(p)) { fs.unlinkSync(p); console.log('removed stale', stale); }
-  }
-
-  // Root favicon.svg = canonical mark (so the SVG tab icon matches the rest)
-  fs.copyFileSync(SRC, path.join(ROOT, 'favicon.svg'));
-  console.log('wrote favicon.svg (= triakar-mark.svg)');
+  // Root favicon.svg = white box (browser tab)
+  fs.copyFileSync(FAV_SRC, path.join(ROOT, 'favicon.svg'));
+  console.log('wrote favicon.svg (white box)');
 })();
