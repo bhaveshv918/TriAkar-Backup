@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="icon" type="image/x-icon" href="/assets/icons/favicon.ico">
+<link rel="icon" type="image/x-icon" href="/assets/icons/favicon.ico"><link rel="icon" type="image/png" sizes="96x96" href="/assets/icons/favicon-96x96.png"><link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32x32.png"><link rel="icon" type="image/png" sizes="16x16" href="/assets/icons/favicon-16x16.png"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png"><link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#FAF9F6"><meta name="apple-mobile-web-app-title" content="TriAkar"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
@@ -399,6 +399,11 @@ tr:hover td{background:var(--bg-2)}
          QUICK ADD SALE
     ═══════════════════════════════════════════════════════ -->
     <div class="panel active" id="panelQuickadd">
+      <!-- Sticky quick-save — stays put while scrolling the long form -->
+      <button type="button" id="stickySave" class="btn btn-primary"
+        title="Save Sale"
+        onclick="document.getElementById('quickAddForm').requestSubmit()"
+        style="position:fixed;top:14px;right:16px;z-index:150;padding:8px 14px;box-shadow:0 4px 14px rgba(16,32,24,.20)">↓ Save</button>
       <div class="p-head">
         <div>
           <div class="p-title">Quick Add Sale</div>
@@ -1797,14 +1802,18 @@ function printInvoice(d, type){
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Order Record — ${esc(docNo)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Devanagari:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
+/* TriAkar wordmark font — same as the website (Glorida) */
+@font-face{font-family:'Glorida';src:url('${location.origin}/assets/fonts/Glorida.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:13px;color:#111;background:#fff;max-width:760px;margin:0 auto}
 /* ── HEADER — all white, no dark bg ── */
 .hdr{background:#fff;display:flex;justify-content:space-between;align-items:center;padding:24px 32px 20px;border-bottom:2px solid #C4622A}
 .hdr-logo{display:flex;align-items:center;gap:14px}
 .mark-svg{flex-shrink:0}
-.brand-en{font-size:26px;font-weight:800;color:#111;letter-spacing:-.02em;line-height:1;font-family:'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif}
+.brand-en{font-size:30px;font-weight:700;color:#111;letter-spacing:.01em;line-height:1;font-family:'Glorida','Inter','Segoe UI',Arial,sans-serif}
 .brand-hi{font-size:11px;color:#C4622A;letter-spacing:.05em;font-family:'Noto Sans Devanagari','Mangal',sans-serif;font-weight:500;margin-top:4px}
 .hdr-doc{text-align:right}
 .doc-type{font-size:9px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#C4622A;margin-bottom:4px}
@@ -1862,10 +1871,9 @@ tbody tr:last-child td{border-bottom:none}
   <div class="hdr-doc">
     <div class="doc-type">Order Record</div>
     <div class="doc-no">${esc(docNo)}</div>
-    <div class="doc-meta">${esc(docDate)}${d.delivery_date?' &rarr; '+esc(d.delivery_date):''}</div>
+    <div class="doc-meta">Order Date: ${esc(docDate)}<br>Complete Date: ${d.delivery_date?esc(d.delivery_date):'—'}</div>
     <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;margin-top:5px">
       ${d.channel_id?`<div class="doc-badge">${esc(CH_NAMES?.[d.channel_id]||d.channel_id)}</div>`:''}
-      ${d.order_id&&d.channel_id!=='shop'?`<div class="doc-badge" style="font-family:monospace;letter-spacing:.02em;font-size:9px">${esc(d.order_id)}</div>`:''}
     </div>
   </div>
 </div>
@@ -1891,7 +1899,6 @@ ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
       ${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' &mdash; '+esc(d.customer_pincode):''}
     </div>
   </div>
-  ${d.order_id?`<div class="order-badge">${esc(d.order_id)}</div>`:''}
 </div>
 
 <div class="tbl-wrap">
