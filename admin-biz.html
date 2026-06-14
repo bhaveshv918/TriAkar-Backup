@@ -165,6 +165,23 @@ tr:hover td{background:var(--bg-2)}
 .calc-item.cost span{color:var(--red)}
 .calc-item.revenue span{color:var(--blue)}
 
+/* ── Items line grid (Add Sale) ───────────────────────────── */
+.items-wrap{border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-1);overflow-x:auto;-webkit-overflow-scrolling:touch;box-shadow:var(--shadow)}
+.items-grid{display:grid;grid-template-columns:minmax(150px,1.8fr) 52px 86px 70px 64px 78px 92px 32px;align-items:center;min-width:640px}
+.items-head{background:var(--bg-2);font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-3);padding:8px 10px}
+.items-head .r{text-align:right}
+.item-row{border-top:1px solid var(--border);padding:7px 10px;gap:6px}
+.item-row>div{min-width:0}
+.item-row input,.item-row select{width:100%;background:var(--bg-2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:var(--sans);font-size:13px;padding:6px 7px;outline:none;transition:border-color .15s}
+.item-row input:focus,.item-row select:focus{border-color:var(--accent)}
+.item-row .r input{text-align:right;font-family:var(--mono)}
+.item-cell{display:flex;flex-direction:column;gap:4px;padding-right:6px}
+.item-cell input.variant{font-size:11px;padding:4px 7px;color:var(--text-2)}
+.item-row .amt{text-align:right;font-family:var(--mono);font-weight:700;font-size:13px;color:var(--text)}
+.item-row .del{background:none;border:none;color:var(--text-3);cursor:pointer;font-size:15px;padding:2px;width:100%}
+.item-row .del:hover:not(:disabled){color:var(--red)}
+.item-row .del:disabled{opacity:.3;cursor:default}
+
 /* ── Filter bar ───────────────────────────────────────────── */
 .filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
 .filter-bar select,.filter-bar input{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-2);font-family:var(--sans);font-size:12px;padding:6px 9px;outline:none;transition:border-color .15s}
@@ -481,101 +498,53 @@ tr:hover td{background:var(--bg-2)}
           </div>
         </div>
 
-        <!-- ── Product ──────────────────────────── -->
-        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px;margin-top:4px">Product</div>
-        <div class="form-grid">
-          <div class="form-group" style="grid-column:span 2">
-            <label>Product from catalog</label>
-            <select id="qa_product" onchange="onProductSelect()">
-              <option value="">— select or enter manually below —</option>
-              <option value="__custom">— Enter manually —</option>
-            </select>
-          </div>
-          <div class="form-group" id="qa_customNameGroup" style="grid-column:span 2">
-            <label>Product Name</label>
-            <input type="text" id="qa_customName" placeholder="Product name">
-          </div>
-          <div class="form-group">
-            <label>Size</label>
-            <input type="text" id="qa_size" placeholder="e.g. Small, 6 inch, A4">
-          </div>
-          <div class="form-group">
-            <label>Color</label>
-            <input type="text" id="qa_color" placeholder="e.g. Black, White">
-          </div>
-          <div class="form-group">
-            <label>Variant / Customization</label>
-            <input type="text" id="qa_variant" placeholder="e.g. Name engraved, Logo print">
-          </div>
-          <div class="form-group">
-            <label>Qty</label>
-            <input type="number" id="qa_qty" value="1" min="1" onchange="recalc()">
-          </div>
-          <div class="form-group">
-            <label>Weight (grams)</label>
-            <input type="number" id="qa_weight" placeholder="e.g. 250">
-          </div>
+        <!-- ── Items ────────────────────────────── -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 8px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3)">Items</div>
+          <button type="button" class="btn btn-primary btn-sm" onclick="addItem()">＋ Add Item</button>
         </div>
+        <div class="items-wrap">
+          <div class="items-grid items-head">
+            <div>Item</div>
+            <div class="r">Qty</div>
+            <div class="r">Rate ₹<br><span style="font-weight:400;text-transform:none;letter-spacing:0">incl GST</span></div>
+            <div class="r">Disc ₹</div>
+            <div class="r">GST %</div>
+            <div class="r">Cost ₹</div>
+            <div class="r">Amount</div>
+            <div></div>
+          </div>
+          <div id="itemRows"></div>
+        </div>
+        <datalist id="catalogList"></datalist>
 
-        <!-- ── Pricing ──────────────────────────── -->
-        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px;margin-top:4px">Pricing</div>
+        <!-- ── Order charges (our costs) ────────── -->
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin:16px 0 8px">Order Charges <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-3)">— deducted from profit (optional)</span></div>
         <div class="form-grid">
-          <div class="form-group">
-            <label>Selling Price (₹, incl. GST)</label>
-            <input type="number" id="qa_price" step="0.01" placeholder="0.00" onchange="recalc()">
-          </div>
-          <div class="form-group">
-            <label>Discount / Coupon (₹)</label>
-            <input type="number" id="qa_discount" step="0.01" value="0" onchange="recalc()">
-          </div>
           <div class="form-group">
             <label>Platform Fee (₹)</label>
-            <input type="number" id="qa_platformfee" step="0.01" value="0" onchange="recalc()">
+            <input type="number" id="qa_platformfee" step="0.01" value="0" onchange="recalcTotals()">
           </div>
           <div class="form-group">
             <label>Outward Shipping Cost (₹)</label>
-            <input type="number" id="qa_shipping" step="0.01" value="0" onchange="recalc()">
+            <input type="number" id="qa_shipping" step="0.01" value="0" onchange="recalcTotals()">
           </div>
           <div class="form-group">
-            <label>GST Rate (%)</label>
-            <select id="qa_gst" onchange="recalc()">
-              <option value="0">0%</option>
-              <option value="5">5%</option>
-              <option value="12">12%</option>
-              <option value="18" selected>18%</option>
-              <option value="28">28%</option>
-            </select>
+            <label>Round Off (₹)</label>
+            <input type="number" id="qa_roundoff" step="0.01" value="0" onchange="recalcTotals()">
           </div>
         </div>
 
-        <!-- COGS breakdown -->
-        <div style="margin-bottom:14px">
-          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Cost Breakdown (COGS)</div>
-          <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px">
-            <div id="cogsRows"></div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">
-              <button type="button" class="btn btn-ghost btn-sm" onclick="addCogs('Job Work')">+ Job Work</button>
-              <button type="button" class="btn btn-ghost btn-sm" onclick="addCogs('Porter')">+ Porter</button>
-              <button type="button" class="btn btn-ghost btn-sm" onclick="addCogs('Design')">+ Design</button>
-              <button type="button" class="btn btn-ghost btn-sm" onclick="addCogs('Packaging')">+ Packaging</button>
-              <button type="button" class="btn btn-ghost btn-sm" onclick="addCogs('Material')">+ Material</button>
-              <button type="button" class="btn btn-ghost btn-sm" onclick="addCogs('')">+ Other</button>
-            </div>
-            <div style="display:flex;justify-content:flex-end;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);gap:8px">
-              <span style="font-size:11px;color:var(--text-3)">Total COGS</span>
-              <span id="cogsTotalDisplay" style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--red)">₹0</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Live calc -->
-        <div class="calc-row" id="calcRow">
-          <div class="calc-item"><label>Base Price</label><span id="c_base">₹0</span></div>
-          <div class="calc-item"><label>GST Amount</label><span id="c_gst">₹0</span></div>
-          <div class="calc-item revenue"><label>Net Revenue</label><span id="c_net">₹0</span></div>
-          <div class="calc-item cost"><label>Total Cost</label><span id="c_cost">₹0</span></div>
-          <div class="calc-item profit"><label>Gross Profit</label><span id="c_profit">₹0</span></div>
-          <div class="calc-item profit"><label>Margin %</label><span id="c_margin">0%</span></div>
+        <!-- ── Totals / profit ──────────────────── -->
+        <div class="calc-row" id="calcRow" style="grid-template-columns:repeat(auto-fill,minmax(115px,1fr))">
+          <div class="calc-item"><label>Items</label><span id="t_count">0</span></div>
+          <div class="calc-item"><label>Total Qty</label><span id="t_qty">0</span></div>
+          <div class="calc-item revenue"><label>Subtotal (incl GST)</label><span id="t_sub">₹0</span></div>
+          <div class="calc-item"><label>GST Amount</label><span id="t_gst">₹0</span></div>
+          <div class="calc-item cost"><label>Total Cost</label><span id="t_cost">₹0</span></div>
+          <div class="calc-item profit"><label>Gross Profit</label><span id="t_profit">₹0</span></div>
+          <div class="calc-item profit"><label>Margin %</label><span id="t_margin">0%</span></div>
+          <div class="calc-item"><label>Grand Total</label><span id="t_grand" style="color:var(--text);font-size:16px">₹0</span></div>
         </div>
 
         <!-- ── Shipping & Tracking (collapsible) ── -->
@@ -1531,8 +1500,9 @@ async function loadStockForProducts(){
 
 function populateProductSelects(){
   const opts = _products.map(p=>`<option value="${p.id}" data-cost="${p.base_cost}" data-gst="${p.gst_rate}">${esc(p.name)}${p.sku?' ('+p.sku+')':''}</option>`).join('');
-  document.getElementById('qa_product').innerHTML = `<option value="">Select product</option><option value="__custom">— Enter manually —</option>${opts}`;
-  document.getElementById('sm_product').innerHTML = `<option value="">Select product</option>${opts}`;
+  const sm=document.getElementById('sm_product');
+  if(sm) sm.innerHTML = `<option value="">Select product</option>${opts}`;
+  buildCatalog();        // Quick Add now uses a datalist for item search
 }
 
 function showAddProduct(){ document.getElementById('pf_id').value=''; document.getElementById('productFormTitle').textContent='Add Product'; document.getElementById('pf_name').value=''; document.getElementById('pf_sku').value=''; document.getElementById('pf_category').value=''; document.getElementById('pf_type').value='own'; document.getElementById('pf_cost').value=''; document.getElementById('pf_gst').value='18'; document.getElementById('pf_hsn').value=''; document.getElementById('pf_notes').value=''; document.getElementById('productForm').style.display='block'; }
@@ -1560,111 +1530,83 @@ async function saveProduct(){
   loadProducts();
 }
 
-// ── Quick Add Sale ──────────────────────────────────────────
-function onChannelChange(){
-  const ch=document.getElementById('qa_channel').value;
-  const feeMap={amazon:15,flipkart:13,website:2,shop:0};
-  const price=parseFloat(document.getElementById('qa_price').value)||0;
-  document.getElementById('qa_platformfee').value=price?(price*((feeMap[ch]||0)/100)).toFixed(2):feeMap[ch]||0;
-  recalc();
+// ── Quick Add Sale (multi-item) ─────────────────────────────
+let _items=[];
+function blankItem(){ return {productId:null,name:'',variant:'',qty:1,rate:0,disc:0,gst:18,cost:0}; }
+let _catalogByName={};
+
+function buildCatalog(){
+  _catalogByName={};
+  (_products||[]).forEach(p=>{ _catalogByName[(p.name||'').toLowerCase()]=p; });
+  const dl=document.getElementById('catalogList');
+  if(dl) dl.innerHTML=(_products||[]).map(p=>`<option value="${esc(p.name)}">`).join('');
 }
 
-function onProductSelect(){
-  const sel=document.getElementById('qa_product');
-  const val=sel.value;
-  if(val && val!=='__custom'){
-    const opt=sel.options[sel.selectedIndex];
-    const cost=parseFloat(opt.dataset.cost)||0;
-    const gst=opt.dataset.gst||'18';
-    document.getElementById('qa_gst').value=gst;
-    if(cost>0){ _cogsItems=[]; addCogs('Job Work',cost); }
-    recalc();
-  }
-}
+function onChannelChange(){ recalcTotals(); }
 
-// ── COGS breakdown ──────────────────────────────────────────
-let _cogsItems=[];
-
-function addCogs(label,amount){
-  _cogsItems.push({label:label||'',amount:amount||''});
-  renderCogsRows();
-}
-function removeCogs(i){
-  _cogsItems.splice(i,1);
-  renderCogsRows();
-}
-function renderCogsRows(){
-  // Only called on add/remove — NOT on every keystroke, so DOM stays stable
-  document.getElementById('cogsRows').innerHTML=_cogsItems.map((item,i)=>`
-    <div style="display:flex;gap:6px;margin-bottom:4px;align-items:center">
-      <input type="text" value="${esc(item.label)}" placeholder="Expense name"
-        onchange="_cogsItems[${i}].label=this.value"
-        style="flex:1;min-width:80px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:5px 8px;font-size:12px">
-      <input type="number" value="${item.amount||''}" placeholder="0.00" step="0.01"
-        id="cogsAmt_${i}"
-        oninput="updateCogsAmount(${i},this.value)"
-        style="width:90px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:5px 8px;font-size:12px;text-align:right;font-family:var(--mono)">
-      <button type="button" onclick="removeCogs(${i})"
-        style="background:var(--red-bg);border:1px solid rgba(248,113,113,.2);color:var(--red);border-radius:4px;padding:4px 8px;cursor:pointer;font-size:11px;flex-shrink:0">✕</button>
+function renderItems(){
+  const wrap=document.getElementById('itemRows');
+  if(!wrap) return;
+  if(!_items.length) _items=[blankItem()];
+  wrap.innerHTML=_items.map((it,i)=>`
+    <div class="items-grid item-row">
+      <div class="item-cell">
+        <input list="catalogList" value="${esc(it.name)}" placeholder="Item name / type to search" oninput="onItemName(${i},this.value)">
+        <input class="variant" value="${esc(it.variant)}" placeholder="size / colour / customisation (optional)" oninput="_items[${i}].variant=this.value">
+      </div>
+      <div class="r"><input type="number" min="1" value="${it.qty}" oninput="onItemNum(${i},'qty',this.value)"></div>
+      <div class="r"><input type="number" step="0.01" value="${it.rate||''}" placeholder="0" oninput="onItemNum(${i},'rate',this.value)"></div>
+      <div class="r"><input type="number" step="0.01" value="${it.disc||''}" placeholder="0" oninput="onItemNum(${i},'disc',this.value)"></div>
+      <div class="r"><select onchange="onItemNum(${i},'gst',this.value)">${[0,5,12,18,28].map(v=>`<option value="${v}"${v==it.gst?' selected':''}>${v}%</option>`).join('')}</select></div>
+      <div class="r"><input type="number" step="0.01" value="${it.cost||''}" placeholder="0" oninput="onItemNum(${i},'cost',this.value)"></div>
+      <div class="amt" id="amt_${i}">${fmt(it.qty*it.rate-it.disc)}</div>
+      <div><button type="button" class="del" onclick="removeItem(${i})"${_items.length<=1?' disabled':''}>✕</button></div>
     </div>`).join('');
-  updateCogsTotal();
+  recalcTotals();
 }
-function updateCogsAmount(i,val){
-  // Update value WITHOUT re-rendering DOM — fixes multi-digit typing
-  _cogsItems[i].amount=val;
-  updateCogsTotal();
+function addItem(){ _items.push(blankItem()); renderItems(); document.querySelectorAll('#itemRows .item-cell input').forEach(()=>{}); }
+function removeItem(i){ if(_items.length<=1) return; _items.splice(i,1); renderItems(); }
+function onItemName(i,val){
+  _items[i].name=val;
+  const p=_catalogByName[(val||'').trim().toLowerCase()];
+  if(p){ _items[i].productId=p.id; if(!_items[i].cost) _items[i].cost=parseFloat(p.base_cost)||0; _items[i].gst=parseFloat(p.gst_rate)||18; renderItems(); }
+  else { _items[i].productId=null; recalcTotals(); }
 }
-function updateCogsTotal(){
-  const total=getTotalCogs();
-  const el=document.getElementById('cogsTotalDisplay');
-  if(el) el.textContent=fmtD(total);
-  recalcDisplay();
+function onItemNum(i,f,v){
+  _items[i][f]= f==='qty' ? (parseInt(v)||1) : (parseFloat(v)||0);
+  const el=document.getElementById('amt_'+i);
+  if(el) el.textContent=fmt(_items[i].qty*_items[i].rate-_items[i].disc);
+  recalcTotals();
 }
-function getTotalCogs(){
-  return _cogsItems.reduce((s,i)=>s+(parseFloat(i.amount)||0),0);
-}
-
-function recalc(){ updateCogsTotal(); }
-function recalcDisplay(){
-  const price=parseFloat(document.getElementById('qa_price').value)||0;
-  const qty=parseInt(document.getElementById('qa_qty').value)||1;
-  const fee=parseFloat(document.getElementById('qa_platformfee').value)||0;
-  const ship=parseFloat(document.getElementById('qa_shipping').value)||0;
-  const discount=parseFloat(document.getElementById('qa_discount').value)||0;
-  // Fix: read GST as number — 0 is valid, don't fall back to 18
-  const gstEl=document.getElementById('qa_gst');
-  const gstRate=gstEl.value!==''?parseFloat(gstEl.value):18;
-  const cogs=getTotalCogs();
-  const totalPrice=price*qty;
-  const gstAmt=totalPrice-(totalPrice/(1+gstRate/100));
-  const basePrice=totalPrice-gstAmt;
-  const netRev=totalPrice-fee-ship-discount;
-  const totalCost=cogs*qty;
-  const profit=netRev-totalCost-gstAmt;
+function recalcTotals(){
+  let count=0,qty=0,sub=0,gst=0,cost=0;
+  _items.forEach(it=>{
+    const amt=it.qty*it.rate-it.disc;
+    if((it.name&&it.name.trim())||it.rate) count++;
+    qty+=it.qty;
+    sub+=amt;
+    gst+=amt-(amt/(1+(it.gst||0)/100));
+    cost+=it.qty*it.cost;
+  });
+  const fee=parseFloat(document.getElementById('qa_platformfee')?.value)||0;
+  const ship=parseFloat(document.getElementById('qa_shipping')?.value)||0;
+  const round=parseFloat(document.getElementById('qa_roundoff')?.value)||0;
+  const netRev=sub-fee-ship;
+  const profit=netRev-cost-gst;
   const margin=netRev>0?(profit/netRev*100):0;
-  document.getElementById('c_base').textContent=fmt(basePrice);
-  document.getElementById('c_gst').textContent=fmt(gstAmt);
-  document.getElementById('c_net').textContent=fmt(netRev);
-  document.getElementById('c_cost').textContent=fmt(totalCost);
-  document.getElementById('c_profit').textContent=fmt(profit);
-  document.getElementById('c_profit').style.color=profit>=0?'var(--green)':'var(--red)';
-  document.getElementById('c_margin').textContent=margin.toFixed(1)+'%';
-  document.getElementById('c_margin').style.color=margin>=0?'var(--green)':'var(--red)';
+  const grand=sub+round;
+  const S=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  S('t_count',count); S('t_qty',qty);
+  S('t_sub',fmt(sub)); S('t_gst',fmt(gst)); S('t_cost',fmt(cost));
+  S('t_profit',fmt(profit)); S('t_margin',margin.toFixed(1)+'%'); S('t_grand',fmt(grand));
+  const pe=document.getElementById('t_profit'); if(pe) pe.style.color=profit>=0?'var(--green)':'var(--red)';
+  const me=document.getElementById('t_margin'); if(me) me.style.color=margin>=0?'var(--green)':'var(--red)';
 }
+function recalc(){ recalcTotals(); }
 
-function resetQuickAdd(){ document.getElementById('quickAddForm').reset(); _cogsItems=[]; renderCogsRows(); document.getElementById('qa_date').value=today(); document.getElementById('qa_delivery_date').value=today(); document.getElementById('qa_state').value='Uttar Pradesh'; document.getElementById('qa_channel').value='shop'; }
-
-async function submitQuickAdd(e){
-  e.preventDefault();
-  const sel=document.getElementById('qa_product');
-  const productId=sel.value&&sel.value!=='__custom'?sel.value:null;
-  const productName=productId
-    ?sel.options[sel.selectedIndex].textContent.replace(/\s*\(.*\)$/,'').trim()
-    :document.getElementById('qa_customName').value.trim();
+function getOrderFields(){
   const g=id=>{const el=document.getElementById(id);return el?el.value.trim()||null:null;};
-  const gn=id=>parseFloat(document.getElementById(id)?.value)||0;
-  const gi=id=>parseInt(document.getElementById(id)?.value)||null;
-  const payload={
+  return {
     channel_id:g('qa_channel'),
     order_date:g('qa_date')||today(),
     delivery_date:g('qa_delivery_date'),
@@ -1672,20 +1614,6 @@ async function submitQuickAdd(e){
     order_id:g('qa_orderid')||genOrderId(),
     payment_mode:g('qa_payment'),
     status:g('qa_status')||'completed',
-    product_id:productId||null,
-    product_name:productName||'—',
-    size:g('qa_size'),
-    color:g('qa_color'),
-    variant:g('qa_variant'),
-    qty:parseInt(document.getElementById('qa_qty')?.value)||1,
-    weight_grams:gi('qa_weight'),
-    selling_price:gn('qa_price'),
-    discount_amount:gn('qa_discount'),
-    platform_fee:gn('qa_platformfee'),
-    shipping_fee:gn('qa_shipping'),
-    cogs:getTotalCogs(),
-    cogs_breakdown:_cogsItems.filter(i=>i.label||i.amount).length?_cogsItems.filter(i=>i.label||i.amount):null,
-    gst_rate:(()=>{const v=document.getElementById('qa_gst')?.value;return v!==''?parseFloat(v):18;})(),
     tracking_number:g('qa_tracking'),
     courier_partner:g('qa_courier'),
     customer_name:g('qa_cname'),
@@ -1696,9 +1624,46 @@ async function submitQuickAdd(e){
     notes:g('qa_notes'),
     import_source:'manual',
   };
-  const {error}=await sb.from('biz_sales').insert(payload);
+}
+function buildSaleRows(){
+  const order=getOrderFields();
+  const fee=parseFloat(document.getElementById('qa_platformfee')?.value)||0;
+  const ship=parseFloat(document.getElementById('qa_shipping')?.value)||0;
+  const valid=_items.filter(it=>(it.name&&it.name.trim())||it.rate>0);
+  return valid.map((it,idx)=>({
+    ...order,
+    product_id:it.productId||null,
+    product_name:(it.name&&it.name.trim())||'—',
+    variant:it.variant||null,
+    qty:it.qty||1,
+    selling_price:it.rate||0,
+    discount_amount:it.disc||0,
+    gst_rate:it.gst||0,
+    cogs:it.cost||0,
+    platform_fee: idx===0?fee:0,
+    shipping_fee: idx===0?ship:0,
+  }));
+}
+
+function resetQuickAdd(){
+  document.getElementById('quickAddForm').reset();
+  document.getElementById('qa_date').value=today();
+  document.getElementById('qa_delivery_date').value=today();
+  document.getElementById('qa_state').value='Uttar Pradesh';
+  document.getElementById('qa_channel').value='shop';
+  const z=id=>{const e=document.getElementById(id);if(e)e.value='0';};
+  z('qa_platformfee'); z('qa_shipping'); z('qa_roundoff');
+  _items=[blankItem()];
+  renderItems();
+}
+
+async function submitQuickAdd(e){
+  if(e) e.preventDefault();
+  const rows=buildSaleRows();
+  if(!rows.length){ toast('Add at least one item','error'); return; }
+  const {error}=await sb.from('biz_sales').insert(rows);
   if(error){ toast('Error: '+error.message,'error'); return; }
-  toast('Sale saved!');
+  toast(rows.length===1?'Sale saved!':rows.length+' items saved!');
   resetQuickAdd();
   loadSalesBadge();
 }
@@ -2521,45 +2486,14 @@ async function exportGSTExcel(){ await exportGSTReport(); }
 
 // ── Print Invoice ───────────────────────────────────────────
 async function saveAndPrint(){
-  // Build payload same as submitQuickAdd but return the data
-  const sel=document.getElementById('qa_product');
-  const productId=sel.value&&sel.value!=='__custom'?sel.value:null;
-  const productName=productId
-    ?sel.options[sel.selectedIndex].textContent.replace(/\s*\(.*\)$/,'').trim()
-    :document.getElementById('qa_customName')?.value.trim();
-  const g=id=>{const el=document.getElementById(id);return el?el.value.trim()||null:null;};
-  const gn=id=>parseFloat(document.getElementById(id)?.value)||0;
-  const gi=id=>parseInt(document.getElementById(id)?.value)||null;
-  const gstRate=(()=>{const v=document.getElementById('qa_gst')?.value;return v!==''?parseFloat(v):18;})();
-  const payload={
-    channel_id:g('qa_channel'),
-    order_date:g('qa_date')||today(),
-    delivery_date:g('qa_delivery_date'),
-    dispatch_date:g('qa_dispatch_date'),
-    order_id:g('qa_orderid')||genOrderId(),
-    payment_mode:g('qa_payment'),
-    status:g('qa_status')||'completed',
-    product_id:productId||null,
-    product_name:productName||'—',
-    size:g('qa_size'),color:g('qa_color'),variant:g('qa_variant'),
-    qty:parseInt(document.getElementById('qa_qty')?.value)||1,
-    weight_grams:gi('qa_weight'),
-    selling_price:gn('qa_price'),
-    discount_amount:gn('qa_discount'),
-    platform_fee:gn('qa_platformfee'),
-    shipping_fee:gn('qa_shipping'),
-    cogs:getTotalCogs(),
-    cogs_breakdown:_cogsItems.filter(i=>i.label||i.amount).length?_cogsItems.filter(i=>i.label||i.amount):null,
-    gst_rate:gstRate,
-    tracking_number:g('qa_tracking'),courier_partner:g('qa_courier'),
-    customer_name:g('qa_cname'),customer_phone:g('qa_phone'),
-    customer_city:g('qa_city'),customer_state:g('qa_state'),customer_pincode:g('qa_pin'),
-    notes:g('qa_notes'),import_source:'manual',
-  };
-  const {error}=await sb.from('biz_sales').insert(payload);
+  const rows=buildSaleRows();
+  if(!rows.length){ toast('Add at least one item','error'); return; }
+  const {error}=await sb.from('biz_sales').insert(rows);
   if(error){toast('Error: '+error.message,'error');return;}
-  toast('Sale saved!');
-  printInvoice(payload, (parseFloat(payload.gst_rate)>0 ? 'gst' : 'nongst'));
+  toast(rows.length===1?'Sale saved!':rows.length+' items saved!');
+  const anyGst=rows.some(r=>parseFloat(r.gst_rate)>0);
+  const order={...rows[0], items:rows};   // order-level fields + all line items
+  printInvoice(order, anyGst?'gst':'nongst');
   resetQuickAdd();
   loadSalesBadge();
 }
@@ -2596,19 +2530,31 @@ function printInvoice(d, type){
   const SELLER_WEB=cfg.web||'triakar.com';
   const SELLER_FOOTER=cfg.footer||'Crafted with care · Every piece is made to order · Thank you for supporting Indian design';
 
-  const gstRate=parseFloat(d.gst_rate)||0;
-  const hasGst=(type==='gst'&&gstRate>0);
-  const qty=parseInt(d.qty)||1;
-  const unitPrice=parseFloat(d.selling_price)||0;
-  const totalPrice=unitPrice*qty;
-  const disc=parseFloat(d.discount_amount)||0;
-  const subtotal=totalPrice-disc;
-  const gstAmt=hasGst?subtotal-(subtotal/(1+gstRate/100)):0;
+  // Support multi-item orders (d.items) and legacy single rows (d)
+  const items=(d.items&&d.items.length)?d.items:[d];
+  let subtotal=0, gstAmt=0;
+  const rowsHtml=items.map(it=>{
+    const iqty=parseInt(it.qty)||1;
+    const iunit=parseFloat(it.selling_price)||0;
+    const idisc=parseFloat(it.discount_amount)||0;
+    const iamt=iunit*iqty-idisc;
+    const irate=parseFloat(it.gst_rate)||0;
+    const igst=(type==='gst'&&irate>0)?iamt-(iamt/(1+irate/100)):0;
+    subtotal+=iamt; gstAmt+=igst;
+    const vline=[it.size,it.color,it.variant].filter(Boolean).join(' · ');
+    return `<tr>
+      <td><strong>${esc(it.product_name||'—')}</strong>${vline?`<div class="item-sub">${esc(vline)}</div>`:''}${idisc>0?`<div class="item-sub" style="color:#c0392b">Discount −₹${idisc.toFixed(2)}</div>`:''}</td>
+      <td class="td-r">${iqty}</td>
+      <td class="td-r">₹${iunit.toFixed(2)}</td>
+      <td class="td-r">₹${iamt.toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+  const hasGst=(type==='gst'&&gstAmt>0.005);
   const taxable=subtotal-gstAmt;
+  const gstRate=(hasGst&&taxable>0)?Math.round(gstAmt/taxable*100):(parseFloat(d.gst_rate)||0);
   const isIntraState=!d.customer_state||d.customer_state.trim().toLowerCase()===MY_STATE.toLowerCase();
   const docNo=d.order_id||nextDocNumber();
   const docDate=d.order_date||today();
-  const variantLine=[d.size,d.color,d.variant].filter(Boolean).join(' · ');
   const amtWords=amountInWords(subtotal);
 
   const gstBlock=hasGst?`
@@ -2734,17 +2680,8 @@ ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
     <th style="text-align:right">Amount</th>
   </tr></thead>
   <tbody>
-    <tr>
-      <td>
-        <strong>${esc(d.product_name||'—')}</strong>
-        ${variantLine?`<div class="item-sub">${esc(variantLine)}</div>`:''}
-        ${d.notes?`<div class="item-sub" style="color:#bbb">${esc(d.notes)}</div>`:''}
-      </td>
-      <td class="td-r">${qty}</td>
-      <td class="td-r">₹${unitPrice.toFixed(2)}</td>
-      <td class="td-r">₹${totalPrice.toFixed(2)}</td>
-    </tr>
-    ${disc>0?`<tr class="discount-row"><td colspan="3" class="td-r">Discount</td><td class="td-r">−₹${disc.toFixed(2)}</td></tr>`:''}
+    ${rowsHtml}
+    ${d.notes?`<tr><td colspan="4" class="item-sub" style="color:#999;padding:8px 16px">Note: ${esc(d.notes)}</td></tr>`:''}
   </tbody>
 </table>
 <table><tbody>
@@ -3180,6 +3117,8 @@ document.getElementById('qa_state').value='Uttar Pradesh';
 document.getElementById('sm_date') && (document.getElementById('sm_date').value=today());
 document.getElementById('sfExportMonth').value=thisMonth();
 initGSTYears();
+_items=[blankItem()];
+renderItems();
 initAuth();
 </script>
 </body>
