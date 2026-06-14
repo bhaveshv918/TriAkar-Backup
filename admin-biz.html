@@ -556,6 +556,14 @@ tr:hover td{background:var(--bg-2)}
               <input type="date" id="qa_dispatch_date">
             </div>
             <div class="form-group">
+              <label>Invoice No (platform)</label>
+              <input type="text" id="qa_invoiceno" placeholder="e.g. Flipkart invoice no.">
+            </div>
+            <div class="form-group">
+              <label>Packet Size</label>
+              <input type="text" id="qa_packet" placeholder="e.g. 15×15×15 cm">
+            </div>
+            <div class="form-group">
               <label>Tracking Number</label>
               <input type="text" id="qa_tracking" placeholder="Tracking ID">
             </div>
@@ -592,8 +600,12 @@ tr:hover td{background:var(--bg-2)}
             <input type="tel" id="qa_phone" placeholder="Mobile number">
           </div>
           <div class="form-group" style="grid-column:span 2">
-            <label>Address</label>
-            <input type="text" id="qa_city" placeholder="Full address / city / area">
+            <label>Full Address</label>
+            <input type="text" id="qa_address" placeholder="House / street / area / landmark">
+          </div>
+          <div class="form-group">
+            <label>City</label>
+            <input type="text" id="qa_city" placeholder="City">
           </div>
           <div class="form-group">
             <label>State</label>
@@ -1532,7 +1544,7 @@ async function saveProduct(){
 
 // ── Quick Add Sale (multi-item) ─────────────────────────────
 let _items=[];
-function blankItem(){ return {productId:null,name:'',variant:'',qty:1,rate:0,disc:0,gst:18,cost:0}; }
+function blankItem(){ return {productId:null,name:'',variant:'',qty:1,rate:0,disc:0,gst:0,cost:0,hsn:'',sku:''}; }
 let _catalogByName={};
 
 function buildCatalog(){
@@ -1569,7 +1581,7 @@ function removeItem(i){ if(_items.length<=1) return; _items.splice(i,1); renderI
 function onItemName(i,val){
   _items[i].name=val;
   const p=_catalogByName[(val||'').trim().toLowerCase()];
-  if(p){ _items[i].productId=p.id; if(!_items[i].cost) _items[i].cost=parseFloat(p.base_cost)||0; _items[i].gst=parseFloat(p.gst_rate)||18; renderItems(); }
+  if(p){ _items[i].productId=p.id; if(!_items[i].cost) _items[i].cost=parseFloat(p.base_cost)||0; _items[i].gst=parseFloat(p.gst_rate)||0; _items[i].hsn=p.hsn_code||''; _items[i].sku=p.sku||''; renderItems(); }
   else { _items[i].productId=null; recalcTotals(); }
 }
 function onItemNum(i,f,v){
@@ -1616,8 +1628,11 @@ function getOrderFields(){
     status:g('qa_status')||'completed',
     tracking_number:g('qa_tracking'),
     courier_partner:g('qa_courier'),
+    invoice_no:g('qa_invoiceno'),
+    package_size:g('qa_packet'),
     customer_name:g('qa_cname'),
     customer_phone:g('qa_phone'),
+    customer_address:g('qa_address'),
     customer_city:g('qa_city'),
     customer_state:g('qa_state'),
     customer_pincode:g('qa_pin'),
@@ -1635,6 +1650,8 @@ function buildSaleRows(){
     product_id:it.productId||null,
     product_name:(it.name&&it.name.trim())||'—',
     variant:it.variant||null,
+    sku:it.sku||null,
+    hsn_code:it.hsn||null,
     qty:it.qty||1,
     selling_price:it.rate||0,
     discount_amount:it.disc||0,
@@ -2311,15 +2328,28 @@ function parseImportFile(file){
   else reader.readAsBinaryString(file);
 }
 
+// Proper CSV parser — handles quoted commas, escaped quotes ("") and
+// newlines inside quoted cells (e.g. multi-line Flipkart addresses).
 function parseCSV(text){
-  const lines=text.trim().split('\n');
-  if(lines.length<2) return [];
-  const headers=lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim());
-  return lines.slice(1).filter(l=>l.trim()).map(line=>{
-    const vals=line.split(',').map(v=>v.replace(/^"|"$/g,'').trim());
-    const obj={}; headers.forEach((h,i)=>obj[h]=vals[i]||'');
-    return obj;
-  });
+  text=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const rows=[]; let row=[], field='', inQ=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQ){
+      if(c==='"'){ if(text[i+1]==='"'){ field+='"'; i++; } else inQ=false; }
+      else field+=c;
+    } else {
+      if(c==='"') inQ=true;
+      else if(c===','){ row.push(field); field=''; }
+      else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+      else field+=c;
+    }
+  }
+  if(field!==''||row.length){ row.push(field); rows.push(row); }
+  const clean=rows.filter(r=>r.some(c=>(c||'').trim()!==''));
+  if(clean.length<2) return [];
+  const headers=clean[0].map(h=>(h||'').trim());
+  return clean.slice(1).map(r=>{ const o={}; headers.forEach((h,i)=>o[h]=(r[i]!==undefined?r[i]:'').trim()); return o; });
 }
 
 function autoMap(colName){
@@ -2338,6 +2368,21 @@ const FIELD_LABELS={order_id:'Order ID',order_date:'Order Date',product_name:'Pr
 function showImportMapping(fileName){
   document.getElementById('importFileName').textContent=fileName;
   document.getElementById('importRowCount').textContent=_importRows.length;
+  const platform=document.getElementById('importPlatform').value;
+  // Flipkart Order Report → columns are fixed, auto-detect everything
+  if(platform==='flipkart' && isFlipkartReport(_importCols)){
+    const sample=_importRows[0]?buildFlipkartRow(_importRows[0],0):null;
+    document.getElementById('mappingRows').innerHTML=`
+      <div style="background:var(--green-bg);border:1px solid rgba(22,163,74,.25);border-radius:var(--radius);padding:12px 14px">
+        <div style="font-weight:700;color:var(--green);font-size:12px;margin-bottom:6px">✓ Flipkart report detected — all columns auto-mapped</div>
+        <div style="font-size:11px;color:var(--text-2);line-height:1.7">
+          Maps: Order date, Order ID, HSN, Status, SKU, Product, Flipkart invoice no., GST (IGST/CGST+SGST), Invoice amount, Qty, Full address (city &amp; pincode separate), Dispatch date, Tracking ID → courier <b>Ekart</b>, Packet size &amp; weight.
+        </div>
+        ${sample?`<div style="font-size:11px;color:var(--text-3);margin-top:8px">First row preview: <b>${esc(sample.product_name)}</b> · ₹${sample.selling_price} · ${esc(sample.customer_city||'')} ${esc(sample.customer_pincode||'')} · GST ${sample.gst_rate}% · ${esc(sample.status)}</div>`:''}
+      </div>`;
+    document.getElementById('importPreview').style.display='block';
+    return;
+  }
   const colOpts=`<option value="">— skip —</option>${_importCols.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}`;
   document.getElementById('mappingRows').innerHTML=IMPORT_FIELDS.map(f=>{
     const auto=autoMap(f);
@@ -2362,10 +2407,77 @@ function showImportMapping(fileName){
 
 function cancelImport(){ document.getElementById('importPreview').style.display='none'; _importRows=[]; document.getElementById('fileInput').value=''; }
 
+// ── Flipkart Order Report — exact-column import ──────────────
+function _fkNum(v){ return parseFloat(String(v==null?'':v).replace(/[₹,]/g,''))||0; }
+function _ymdLocal(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function _fkDate(v){ if(!v) return null; const d=new Date(String(v).trim()); return isNaN(d)?null:_ymdLocal(d); }
+function _fkStatus(s){ s=(s||'').toLowerCase(); if(s.includes('return')) return 'returned'; if(s.includes('cancel')) return 'cancelled'; if(s.includes('claim')) return 'claimed'; return 'completed'; }
+function _fkClean(v){ v=(v||'').trim(); return (!v||v.toUpperCase()==='NA')?null:v; }
+function isFlipkartReport(cols){ const L=cols.map(c=>c.toLowerCase()); return L.includes('order id')&&L.includes('invoice amount')&&(L.includes('order state')||L.includes('hsn code')); }
+
+function buildFlipkartRow(row, defaultCogs){
+  const igst=_fkNum(row['IGST']), cg=_fkNum(row['CGST']), sg=_fkNum(row['SGST']);
+  const gstRate = igst>0 ? igst : ((cg+sg)>0 ? cg+sg : 0);
+  const addr=[row['Address Line 1'],row['Address Line 2']]
+    .map(x=>(x||'').replace(/\s*\n\s*/g,', ').trim()).filter(Boolean).join(', ').replace(/,\s*,/g,',').trim();
+  const L=_fkNum(row['Package Length (cm)']),B=_fkNum(row['Package Breadth (cm)']),H=_fkNum(row['Package Height (cm)']);
+  const pkg=(L||B||H)?`${L}×${B}×${H} cm`:null;
+  const wt=_fkNum(row['Package Weight (kg)']);
+  const price=_fkNum(row['Invoice Amount']);
+  return {
+    channel_id:'flipkart',
+    order_id:_fkClean(row['Order Id']),
+    order_date:_fkDate(row['Ordered On'])||today(),
+    dispatch_date:_fkDate(row['Dispatch by date']),
+    hsn_code:_fkClean(row['HSN CODE']),
+    status:_fkStatus(row['Order State']),
+    sku:_fkClean(row['SKU']),
+    product_name:_fkClean(row['Product'])||'—',
+    invoice_no:_fkClean(row['Invoice No.']),
+    gst_rate:gstRate,
+    selling_price:price,
+    qty:parseInt(row['Quantity'])||1,
+    customer_name:_fkClean(row['Buyer name'])||_fkClean(row['Ship to name']),
+    customer_address:addr||null,
+    customer_city:_fkClean(row['City']),
+    customer_state:_fkClean(row['State']),
+    customer_pincode:_fkClean(row['PIN Code']),
+    tracking_number:_fkClean(row['Tracking ID']),
+    courier_partner:'ekart',
+    package_size:pkg,
+    weight_grams:wt?Math.round(wt*1000):null,
+    cogs:defaultCogs,
+    platform_fee:0,
+    import_source:'flipkart_csv',
+  };
+}
+
+async function runFlipkartImport(defaultCogs){
+  const statusEl=document.getElementById('importStatus');
+  statusEl.textContent='Importing…';
+  const batch=[]; let skip=0;
+  for(const row of _importRows){
+    const r=buildFlipkartRow(row, defaultCogs);
+    if(!r.product_name||r.product_name==='—'||!r.selling_price){ skip++; continue; }
+    batch.push(r);
+  }
+  let success=0;
+  for(let i=0;i<batch.length;i+=100){
+    const {error}=await sb.from('biz_sales').insert(batch.slice(i,i+100));
+    if(error){ statusEl.textContent='Error: '+error.message; toast('Import error: '+error.message,'error'); return; }
+    success+=Math.min(100,batch.length-i);
+    statusEl.textContent=`Inserted ${success}…`;
+  }
+  toast(`Imported ${success} Flipkart orders${skip?' ('+skip+' skipped)':''}`);
+  statusEl.textContent=`Done — ${success} imported, ${skip} skipped`;
+  cancelImport(); loadSalesBadge();
+}
+
 async function runImport(){
-  const getCol=f=>document.getElementById('map_'+f).value;
   const platform=document.getElementById('importPlatform').value;
   const defaultCogs=parseFloat(document.getElementById('importDefaultCogs').value)||0;
+  if(platform==='flipkart' && isFlipkartReport(_importCols)){ return runFlipkartImport(defaultCogs); }
+  const getCol=f=>document.getElementById('map_'+f).value;
   const ch=platform==='amazon'?'amazon':platform==='flipkart'?'flipkart':'shop';
   const feeMap={amazon:15,flipkart:13,website:2,shop:0};
   const feePct=feeMap[ch]||0;
@@ -2542,8 +2654,9 @@ function printInvoice(d, type){
     const igst=(type==='gst'&&irate>0)?iamt-(iamt/(1+irate/100)):0;
     subtotal+=iamt; gstAmt+=igst;
     const vline=[it.size,it.color,it.variant].filter(Boolean).join(' · ');
+    const metaBits=[it.sku?'SKU: '+it.sku:'', it.hsn_code?'HSN: '+it.hsn_code:''].filter(Boolean).join('  ·  ');
     return `<tr>
-      <td><strong>${esc(it.product_name||'—')}</strong>${vline?`<div class="item-sub">${esc(vline)}</div>`:''}${idisc>0?`<div class="item-sub" style="color:#c0392b">Discount −₹${idisc.toFixed(2)}</div>`:''}</td>
+      <td><strong>${esc(it.product_name||'—')}</strong>${vline?`<div class="item-sub">${esc(vline)}</div>`:''}${metaBits?`<div class="item-sub" style="color:#999">${esc(metaBits)}</div>`:''}${idisc>0?`<div class="item-sub" style="color:#c0392b">Discount −₹${idisc.toFixed(2)}</div>`:''}</td>
       <td class="td-r">${iqty}</td>
       <td class="td-r">₹${iunit.toFixed(2)}</td>
       <td class="td-r">₹${iamt.toFixed(2)}</td>
@@ -2641,7 +2754,7 @@ tbody tr:last-child td{border-bottom:none}
   <div class="hdr-doc">
     <div class="doc-type">Order Record</div>
     <div class="doc-no">${esc(docNo)}</div>
-    <div class="doc-meta">Order Date: ${esc(docDate)}<br>Complete Date: ${d.delivery_date?esc(d.delivery_date):'—'}</div>
+    <div class="doc-meta">${d.invoice_no?'Invoice No: '+esc(d.invoice_no)+'<br>':''}Order Date: ${esc(docDate)}<br>Complete Date: ${d.delivery_date?esc(d.delivery_date):'—'}</div>
     <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;margin-top:5px">
       ${d.channel_id?`<div class="doc-badge">${esc(CH_NAMES?.[d.channel_id]||d.channel_id)}</div>`:''}
     </div>
@@ -2666,6 +2779,7 @@ ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
     ${d.customer_name?`<div class="cust-name">${esc(d.customer_name)}</div>`:''}
     <div class="cust-detail">
       ${d.customer_phone?esc(d.customer_phone)+'<br>':''}
+      ${d.customer_address?esc(d.customer_address)+'<br>':''}
       ${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' &mdash; '+esc(d.customer_pincode):''}
     </div>
   </div>
@@ -2694,16 +2808,16 @@ ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
 <div class="words-row">${esc(amtWords)}</div>
 </div>
 
-${d.payment_mode||d.tracking_number||d.courier_partner?`
+${d.payment_mode||d.tracking_number||d.courier_partner||d.package_size||d.weight_grams?`
 <div class="info-strip">
   <div class="info-card">
     <div class="info-lbl">Payment</div>
-    <div class="info-val">${esc(d.payment_mode||'—')}</div>
+    <div class="info-val">${esc((d.payment_mode||'—')+'')}${(d.package_size||d.weight_grams)?`<br><span style="font-size:11px;color:#aaa">Packet: ${[d.package_size?esc(d.package_size):'',d.weight_grams?esc(d.weight_grams)+' g':''].filter(Boolean).join(' · ')}</span>`:''}</div>
   </div>
   <div class="info-card">
     <div class="info-lbl">Shipping</div>
     <div class="info-val">
-      ${d.courier_partner?esc(d.courier_partner)+'<br>':''}
+      ${d.courier_partner?esc(({ekart:'Ekart (Flipkart)'}[d.courier_partner])||d.courier_partner)+'<br>':''}
       ${d.tracking_number?`<span class="chip">${esc(d.tracking_number)}</span>`:''}
       ${d.dispatch_date?`<br><span style="font-size:11px;color:#aaa">Dispatched: ${esc(d.dispatch_date)}</span>`:''}
     </div>
