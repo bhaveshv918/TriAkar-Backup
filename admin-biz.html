@@ -139,11 +139,11 @@ tr:hover td{background:var(--bg-2)}
 
 /* ── Channel dots ─────────────────────────────────────────── */
 .ch{display:inline-flex;align-items:center;gap:5px;font-size:11px}
-.ch-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.ch-shop    .ch-dot{background:#a78bfa}
-.ch-amazon  .ch-dot{background:#f59e0b}
-.ch-flipkart .ch-dot{background:#3b82f6}
-.ch-website .ch-dot{background:#10b981}
+.ch-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.ch-shop    .ch-dot{background:#16A34A}                                  /* Studio — green */
+.ch-amazon  .ch-dot{background:#FF9900}                                  /* Amazon — orange */
+.ch-flipkart .ch-dot{background:linear-gradient(135deg,#FFE11B 0 50%,#2874F0 50% 100%)} /* Flipkart — yellow + blue */
+.ch-website .ch-dot{background:#A78BFA}                                  /* Website — purple */
 
 /* ── Forms ────────────────────────────────────────────────── */
 .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:16px}
@@ -187,6 +187,13 @@ tr:hover td{background:var(--bg-2)}
 .filter-bar select,.filter-bar input{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-2);font-family:var(--sans);font-size:12px;padding:6px 9px;outline:none;transition:border-color .15s}
 .filter-bar select:focus,.filter-bar input:focus{border-color:var(--accent);color:var(--text)}
 .filter-bar select option{background:var(--bg-2)}
+/* Standalone month / date pickers (dashboard etc.) */
+.month-select,input[type=month],input[type=date]{
+  background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);
+  color:var(--text);font-family:var(--sans);font-size:12px;font-weight:600;
+  padding:7px 11px;outline:none;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.month-select:focus,input[type=month]:focus,input[type=date]:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-bg)}
+.month-select option{background:var(--bg-1);color:var(--text)}
 
 /* ── Import dropzone ──────────────────────────────────────── */
 .dropzone{border:1.5px dashed var(--border-h);border-radius:var(--radius);padding:32px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px}
@@ -375,7 +382,7 @@ tr:hover td{background:var(--bg-2)}
           <div class="p-sub" id="dashPeriodLabel">Loading…</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
-          <select id="dashMonth" class="filter-bar" onchange="loadDashboard()" style="padding:6px 9px">
+          <select id="dashMonth" class="month-select" onchange="loadDashboard()">
             <!-- filled by JS -->
           </select>
           <button class="btn btn-ghost btn-sm" onclick="exportAllExcel()">↓ Export Excel</button>
@@ -420,12 +427,23 @@ tr:hover td{background:var(--bg-2)}
       </div>
 
       <!-- Top products -->
-      <div class="chart-box">
+      <div class="chart-box" style="margin-bottom:16px">
         <h3>Top Products by Revenue</h3>
         <div class="tbl-wrap" style="border:none;margin-top:12px">
           <table>
             <thead><tr><th>#</th><th>Product</th><th class="td-num">Qty Sold</th><th class="td-num">Revenue</th><th class="td-num">Profit</th></tr></thead>
             <tbody id="topProducts"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Returns this month -->
+      <div class="chart-box">
+        <h3>Returns &amp; Claims this month</h3>
+        <div class="tbl-wrap" style="border:none;margin-top:12px">
+          <table>
+            <thead><tr><th>Product / Order</th><th>Channel</th><th>Type</th><th>Reason</th><th class="td-num">Loss</th></tr></thead>
+            <tbody id="dashReturns"><tr><td colspan="5" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
           </table>
         </div>
       </div>
@@ -966,10 +984,10 @@ tr:hover td{background:var(--bg-2)}
           <div class="form-group">
             <label>GST Rate (%)</label>
             <select id="pf_gst">
-              <option value="0">0%</option>
+              <option value="0" selected>0%</option>
               <option value="5">5%</option>
               <option value="12">12%</option>
-              <option value="18" selected>18%</option>
+              <option value="18">18%</option>
               <option value="28">28%</option>
             </select>
           </div>
@@ -977,7 +995,11 @@ tr:hover td{background:var(--bg-2)}
             <label>HSN Code</label>
             <input type="text" id="pf_hsn" placeholder="e.g. 3926">
           </div>
-          <div class="form-group">
+          <div class="form-group" style="grid-column:span 2">
+            <label>Platform SKUs (Amazon / Flipkart)</label>
+            <input type="text" id="pf_platform_skus" placeholder="Comma-separated, e.g. TAF/FIG/BAT/BLK/023, B0XXXX — links platform sales to this product">
+          </div>
+          <div class="form-group" style="grid-column:span 2">
             <label>Notes</label>
             <input type="text" id="pf_notes" placeholder="Optional notes">
           </div>
@@ -1404,7 +1426,7 @@ function toast(msg, type='success'){
 }
 
 const CH_NAMES = {shop:'Studio',amazon:'Amazon',flipkart:'Flipkart',website:'Website'};
-const CH_COLORS= {shop:'#a78bfa',amazon:'#f59e0b',flipkart:'#3b82f6',website:'#10b981'};
+const CH_COLORS= {shop:'#16A34A',amazon:'#FF9900',flipkart:'#2874F0',website:'#A78BFA'};
 
 function chHtml(id){
   return `<span class="ch ch-${esc(id)}"><span class="ch-dot"></span>${esc(CH_NAMES[id]||id)}</span>`;
@@ -1517,8 +1539,8 @@ function populateProductSelects(){
   buildCatalog();        // Quick Add now uses a datalist for item search
 }
 
-function showAddProduct(){ document.getElementById('pf_id').value=''; document.getElementById('productFormTitle').textContent='Add Product'; document.getElementById('pf_name').value=''; document.getElementById('pf_sku').value=''; document.getElementById('pf_category').value=''; document.getElementById('pf_type').value='own'; document.getElementById('pf_cost').value=''; document.getElementById('pf_gst').value='18'; document.getElementById('pf_hsn').value=''; document.getElementById('pf_notes').value=''; document.getElementById('productForm').style.display='block'; }
-function editProduct(id){ const p=_products.find(x=>x.id===id); if(!p) return; document.getElementById('pf_id').value=p.id; document.getElementById('productFormTitle').textContent='Edit Product'; document.getElementById('pf_name').value=p.name; document.getElementById('pf_sku').value=p.sku||''; document.getElementById('pf_category').value=p.category||''; document.getElementById('pf_type').value=p.product_type; document.getElementById('pf_cost').value=p.base_cost; document.getElementById('pf_gst').value=p.gst_rate; document.getElementById('pf_hsn').value=p.hsn_code||''; document.getElementById('pf_notes').value=p.notes||''; document.getElementById('productForm').style.display='block'; }
+function showAddProduct(){ document.getElementById('pf_id').value=''; document.getElementById('productFormTitle').textContent='Add Product'; document.getElementById('pf_name').value=''; document.getElementById('pf_sku').value=''; document.getElementById('pf_category').value=''; document.getElementById('pf_type').value='own'; document.getElementById('pf_cost').value=''; document.getElementById('pf_gst').value='0'; document.getElementById('pf_hsn').value=''; document.getElementById('pf_platform_skus').value=''; document.getElementById('pf_notes').value=''; document.getElementById('productForm').style.display='block'; }
+function editProduct(id){ const p=_products.find(x=>x.id===id); if(!p) return; document.getElementById('pf_id').value=p.id; document.getElementById('productFormTitle').textContent='Edit Product'; document.getElementById('pf_name').value=p.name; document.getElementById('pf_sku').value=p.sku||''; document.getElementById('pf_category').value=p.category||''; document.getElementById('pf_type').value=p.product_type; document.getElementById('pf_cost').value=p.base_cost; document.getElementById('pf_gst').value=p.gst_rate; document.getElementById('pf_hsn').value=p.hsn_code||''; document.getElementById('pf_platform_skus').value=p.platform_skus||''; document.getElementById('pf_notes').value=p.notes||''; document.getElementById('productForm').style.display='block'; }
 
 async function saveProduct(){
   const id=document.getElementById('pf_id').value;
@@ -1528,8 +1550,9 @@ async function saveProduct(){
     category:document.getElementById('pf_category').value.trim()||null,
     product_type:document.getElementById('pf_type').value,
     base_cost:parseFloat(document.getElementById('pf_cost').value)||0,
-    gst_rate:parseFloat(document.getElementById('pf_gst').value)||18,
+    gst_rate:(()=>{const v=document.getElementById('pf_gst').value;return v!==''?parseFloat(v):0;})(),
     hsn_code:document.getElementById('pf_hsn').value.trim()||null,
+    platform_skus:document.getElementById('pf_platform_skus').value.trim()||null,
     notes:document.getElementById('pf_notes').value.trim()||null,
   };
   if(!payload.name){ toast('Product name is required','error'); return; }
@@ -1545,11 +1568,17 @@ async function saveProduct(){
 // ── Quick Add Sale (multi-item) ─────────────────────────────
 let _items=[];
 function blankItem(){ return {productId:null,name:'',variant:'',qty:1,rate:0,disc:0,gst:0,cost:0,hsn:'',sku:''}; }
-let _catalogByName={};
+let _catalogByName={}, _catalogBySku={};
 
 function buildCatalog(){
-  _catalogByName={};
-  (_products||[]).forEach(p=>{ _catalogByName[(p.name||'').toLowerCase()]=p; });
+  _catalogByName={}; _catalogBySku={};
+  (_products||[]).forEach(p=>{
+    _catalogByName[(p.name||'').toLowerCase()]=p;
+    // map main SKU + any platform SKUs (comma/newline/semicolon separated) → product
+    [p.sku].concat(p.platform_skus?String(p.platform_skus).split(/[,\n;]/):[]).forEach(s=>{
+      s=(s||'').trim().toLowerCase(); if(s) _catalogBySku[s]=p;
+    });
+  });
   const dl=document.getElementById('catalogList');
   if(dl) dl.innerHTML=(_products||[]).map(p=>`<option value="${esc(p.name)}">`).join('');
 }
@@ -2171,35 +2200,49 @@ function initDashMonths(){
   const now=new Date(); const opts=[];
   for(let i=0;i<12;i++){
     const d=new Date(now.getFullYear(),now.getMonth()-i,1);
-    const val=d.toISOString().slice(0,7);
+    const val=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');   // local, no UTC shift
     const label=d.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
-    opts.push(`<option value="${val}" ${i===0?'selected':''}>${label}</option>`);
+    opts.push(`<option value="${val}"${i===0?' selected':''}>${label}</option>`);
   }
   sel.innerHTML=opts.join('');
 }
 
 let _chartByChannel=null, _chartMonthly=null;
+
+function _skuToProduct(sku){
+  if(!sku||!_catalogBySku) return null;
+  return _catalogBySku[String(sku).trim().toLowerCase()]||null;
+}
+
 async function loadDashboard(){
+  const sel=document.getElementById('dashMonth');
+  if(!sel||!sel.value){ initDashMonths(); }
   const mo=document.getElementById('dashMonth').value;
-  const [y,m]=mo.split('-');
-  const from=`${mo}-01`, to=`${mo}-31`;
-  document.getElementById('dashMonthName').textContent=new Date(y,m-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  const [y,m]=mo.split('-').map(Number);
+  const from=`${mo}-01`;
+  const nextM=(m===12)?`${y+1}-01-01`:`${y}-${String(m+1).padStart(2,'0')}-01`;   // exclusive — avoids invalid YYYY-MM-31
+  const label=new Date(y,m-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  document.getElementById('dashMonthName').textContent=label;
+  const pl=document.getElementById('dashPeriodLabel'); if(pl) pl.textContent=label;
 
-  const [{data:sales},{data:rets},{data:monthly}]=await Promise.all([
-    sb.from('biz_sales').select('channel_id,selling_price,platform_fee,shipping_fee,other_deductions,cogs,gst_rate,status,qty').gte('order_date',from).lte('order_date',to),
-    sb.from('biz_returns').select('amount_lost').gte('date',from).lte('date',to),
-    sb.from('biz_sales').select('order_date,selling_price,platform_fee,shipping_fee,other_deductions,cogs,gst_rate,status').eq('status','completed').gte('order_date',`${y}-01-01`).lte('order_date',`${y}-12-31`)
+  const [salesRes,retsRes,monthlyRes]=await Promise.all([
+    sb.from('biz_sales').select('channel_id,product_name,sku,selling_price,platform_fee,shipping_fee,other_deductions,cogs,gst_rate,status,qty,payment_mode').eq('is_deleted',false).gte('order_date',from).lt('order_date',nextM),
+    sb.from('biz_returns').select('*, biz_sales(product_name)').gte('date',from).lt('date',nextM),
+    sb.from('biz_sales').select('order_date,selling_price,status').eq('is_deleted',false).eq('status','completed').gte('order_date',`${y}-01-01`).lt('order_date',`${y+1}-01-01`)
   ]);
+  if(salesRes.error){ toast('Dashboard error: '+salesRes.error.message,'error'); }
+  const sales=salesRes.data||[], rets=retsRes.data||[], monthly=monthlyRes.data||[];
 
-  const completed=(sales||[]).filter(s=>s.status==='completed');
-  const totRev=completed.reduce((s,r)=>s+r.selling_price,0);
-  const totNet=completed.reduce((s,r)=>s+r.selling_price-r.platform_fee-r.shipping_fee-r.other_deductions,0);
-  const totGst=completed.reduce((s,r)=>s+(r.selling_price-(r.selling_price/(1+r.gst_rate/100))),0);
-  const totCogs=completed.reduce((s,r)=>s+r.cogs,0);
+  const completed=sales.filter(s=>s.status==='completed');
+  const num=v=>parseFloat(v)||0;
+  const totRev=completed.reduce((s,r)=>s+num(r.selling_price),0);
+  const totNet=completed.reduce((s,r)=>s+num(r.selling_price)-num(r.platform_fee)-num(r.shipping_fee)-num(r.other_deductions),0);
+  const totGst=completed.reduce((s,r)=>s+(num(r.selling_price)-(num(r.selling_price)/(1+num(r.gst_rate)/100))),0);
+  const totCogs=completed.reduce((s,r)=>s+num(r.cogs),0);
   const totProfit=totNet-totCogs-totGst;
   const totOrders=completed.length;
-  const totUnits=completed.reduce((s,r)=>s+r.qty,0);
-  const totLost=(rets||[]).reduce((s,r)=>s+r.amount_lost,0);
+  const totUnits=completed.reduce((s,r)=>s+(parseInt(r.qty)||0),0);
+  const totLost=rets.reduce((s,r)=>s+num(r.amount_lost),0);
 
   document.getElementById('kpiRevenue').textContent=fmt(totRev);
   document.getElementById('kpiNet').textContent=fmt(totNet);
@@ -2211,16 +2254,16 @@ async function loadDashboard(){
   document.getElementById('kpiUnitsSub').textContent=totUnits+' units';
   document.getElementById('kpiReturns').textContent=fmt(totLost);
 
-  // Channel breakdown
+  // Channel breakdown — "sales kaha se kitni"
   const channels=['shop','amazon','flipkart','website'];
   const byChannel={};
-  channels.forEach(c=>byChannel[c]={orders:0,revenue:0,fees:0,cogs:0,profit:0,net:0,gst:0});
+  channels.forEach(c=>byChannel[c]={orders:0,revenue:0,fees:0,cogs:0,profit:0,net:0,gst:0,units:0});
   completed.forEach(s=>{
     const c=byChannel[s.channel_id]; if(!c) return;
-    const gst=s.selling_price-(s.selling_price/(1+s.gst_rate/100));
-    const net=s.selling_price-s.platform_fee-s.shipping_fee-s.other_deductions;
-    c.orders++; c.revenue+=s.selling_price; c.fees+=s.platform_fee; c.cogs+=s.cogs; c.net+=net; c.gst+=gst;
-    c.profit+=net-s.cogs-gst;
+    const gst=num(s.selling_price)-(num(s.selling_price)/(1+num(s.gst_rate)/100));
+    const net=num(s.selling_price)-num(s.platform_fee)-num(s.shipping_fee)-num(s.other_deductions);
+    c.orders++; c.units+=parseInt(s.qty)||0; c.revenue+=num(s.selling_price); c.fees+=num(s.platform_fee); c.cogs+=num(s.cogs); c.net+=net; c.gst+=gst;
+    c.profit+=net-num(s.cogs)-gst;
   });
   document.getElementById('channelBreakdown').innerHTML=channels.map(c=>{
     const d=byChannel[c];
@@ -2242,38 +2285,54 @@ async function loadDashboard(){
   _chartByChannel=new Chart(ctx1,{type:'bar',data:{
     labels:channels.map(c=>CH_NAMES[c]),
     datasets:[
-      {label:'Revenue',data:channels.map(c=>byChannel[c].revenue),backgroundColor:channels.map(c=>CH_COLORS[c]+'88'),borderColor:channels.map(c=>CH_COLORS[c]),borderWidth:1},
-      {label:'Profit',data:channels.map(c=>byChannel[c].profit),backgroundColor:'rgba(74,222,128,0.3)',borderColor:'#4ADE80',borderWidth:1}
+      {label:'Revenue',data:channels.map(c=>byChannel[c].revenue),backgroundColor:channels.map(c=>CH_COLORS[c]+'cc'),borderColor:channels.map(c=>CH_COLORS[c]),borderWidth:1},
+      {label:'Profit',data:channels.map(c=>byChannel[c].profit),backgroundColor:'rgba(22,163,74,0.35)',borderColor:'#16A34A',borderWidth:1}
     ]},options:{responsive:true,plugins:{legend:{labels:{color:'#52685A',font:{size:10}}}},scales:{x:{ticks:{color:'#869488'},grid:{color:'rgba(20,42,30,0.07)'}},y:{ticks:{color:'#869488',callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'rgba(20,42,30,0.07)'}}}}});
 
   // Chart: monthly trend (current year)
-  const moMap={}; (monthly||[]).forEach(s=>{const mo2=s.order_date.slice(0,7);if(!moMap[mo2])moMap[mo2]=0;moMap[mo2]+=s.selling_price;});
+  const moMap={}; monthly.forEach(s=>{const k=String(s.order_date).slice(0,7);moMap[k]=(moMap[k]||0)+num(s.selling_price);});
   const allMonths=[]; for(let i=1;i<=12;i++) allMonths.push(`${y}-${String(i).padStart(2,'0')}`);
   const ctx2=document.getElementById('chartMonthly').getContext('2d');
   if(_chartMonthly) _chartMonthly.destroy();
   _chartMonthly=new Chart(ctx2,{type:'line',data:{
-    labels:allMonths.map(m=>{const[,mm]=m.split('-');return['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mm)];}),
-    datasets:[{label:'Revenue',data:allMonths.map(m=>moMap[m]||0),borderColor:'#52B788',backgroundColor:'rgba(82,183,136,0.1)',tension:0.4,pointRadius:3,fill:true}]},
+    labels:allMonths.map(mm=>['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mm.split('-')[1])]),
+    datasets:[{label:'Revenue',data:allMonths.map(k=>moMap[k]||0),borderColor:'#2E9E6B',backgroundColor:'rgba(46,158,107,0.12)',tension:0.4,pointRadius:3,fill:true}]},
     options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#869488'},grid:{color:'rgba(20,42,30,0.07)'}},y:{ticks:{color:'#869488',callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'rgba(20,42,30,0.07)'}}}}});
 
-  // Top products
+  // Top products — grouped by catalog product (matched via SKU) else by name
   const prodMap={};
   completed.forEach(s=>{
-    if(!prodMap[s.product_name]) prodMap[s.product_name]={qty:0,rev:0,profit:0};
-    const gst=s.selling_price-(s.selling_price/(1+s.gst_rate/100));
-    const net=s.selling_price-s.platform_fee-s.shipping_fee-s.other_deductions;
-    prodMap[s.product_name].qty+=s.qty;
-    prodMap[s.product_name].rev+=s.selling_price;
-    prodMap[s.product_name].profit+=net-s.cogs-gst;
+    const cat=_skuToProduct(s.sku);
+    const key=cat?('cat:'+cat.id):('name:'+(s.product_name||'—'));
+    const disp=cat?cat.name:(s.product_name||'—');
+    if(!prodMap[key]) prodMap[key]={name:disp,sku:(cat&&cat.sku)||s.sku||'',qty:0,rev:0,profit:0};
+    const gst=num(s.selling_price)-(num(s.selling_price)/(1+num(s.gst_rate)/100));
+    const net=num(s.selling_price)-num(s.platform_fee)-num(s.shipping_fee)-num(s.other_deductions);
+    prodMap[key].qty+=parseInt(s.qty)||0; prodMap[key].rev+=num(s.selling_price); prodMap[key].profit+=net-num(s.cogs)-gst;
   });
-  const top=Object.entries(prodMap).sort((a,b)=>b[1].rev-a[1].rev).slice(0,8);
-  document.getElementById('topProducts').innerHTML=top.length?top.map(([name,d],i)=>`<tr>
+  const top=Object.values(prodMap).sort((a,b)=>b.rev-a.rev).slice(0,10);
+  document.getElementById('topProducts').innerHTML=top.length?top.map((d,i)=>`<tr>
     <td style="color:var(--text-3);font-family:var(--mono)">${i+1}</td>
-    <td>${esc(name)}</td>
+    <td>${esc(d.name)}${d.sku?`<div style="font-size:10px;color:var(--text-3);font-family:var(--mono)">${esc(d.sku)}</div>`:''}</td>
     <td class="td-num">${d.qty}</td>
     <td class="td-num">${fmt(d.rev)}</td>
     <td class="td-num" style="color:${d.profit>=0?'var(--green)':'var(--red)'}">${fmt(d.profit)}</td>
   </tr>`).join(''):`<tr><td colspan="5" class="empty"><div class="em-text">No sales this month</div></td></tr>`;
+
+  renderDashReturns(rets);
+}
+
+function renderDashReturns(rets){
+  const el=document.getElementById('dashReturns'); if(!el) return;
+  const TYPE={return:'Return',cancellation:'Cancellation',spf_claim:'SPF Claim',az_claim:'AZ Claim',chargeback:'Chargeback',other:'Other'};
+  const badge=st=>st==='won'?'badge-won':st==='lost'?'badge-lost':'badge-pending';
+  el.innerHTML=rets.length?rets.map(r=>`<tr>
+    <td>${r.biz_sales&&r.biz_sales.product_name?esc(r.biz_sales.product_name):'<span style="color:var(--text-3)">'+esc(r.order_id||'—')+'</span>'}</td>
+    <td>${chHtml(r.channel_id||'shop')}</td>
+    <td><span class="badge ${badge(r.status)}">${esc(TYPE[r.type]||r.type||'—')}</span></td>
+    <td>${esc(r.reason||'—')}</td>
+    <td class="td-num" style="color:var(--red)">${fmt(parseFloat(r.amount_lost)||0)}</td>
+  </tr>`).join(''):`<tr><td colspan="5" class="empty"><div class="em-text">No returns this month 🎉</div></td></tr>`;
 }
 
 // ── CSV Import ──────────────────────────────────────────────
@@ -2424,14 +2483,17 @@ function buildFlipkartRow(row, defaultCogs){
   const pkg=(L||B||H)?`${L}×${B}×${H} cm`:null;
   const wt=_fkNum(row['Package Weight (kg)']);
   const price=_fkNum(row['Invoice Amount']);
+  const sku=_fkClean(row['SKU']);
+  const cat=_skuToProduct(sku);   // link to catalog product if its SKU matches
   return {
     channel_id:'flipkart',
     order_id:_fkClean(row['Order Id']),
     order_date:_fkDate(row['Ordered On'])||today(),
     dispatch_date:_fkDate(row['Dispatch by date']),
-    hsn_code:_fkClean(row['HSN CODE']),
+    hsn_code:_fkClean(row['HSN CODE'])||(cat&&cat.hsn_code)||null,
     status:_fkStatus(row['Order State']),
-    sku:_fkClean(row['SKU']),
+    sku:sku,
+    product_id:cat?cat.id:null,
     product_name:_fkClean(row['Product'])||'—',
     invoice_no:_fkClean(row['Invoice No.']),
     gst_rate:gstRate,
@@ -2506,7 +2568,7 @@ async function runImport(){
       selling_price:price,
       platform_fee:+(price*feePct/100).toFixed(2),
       cogs:defaultCogs,
-      gst_rate:18,
+      gst_rate:0,
       customer_name:g('customer_name')||null,
       customer_city:g('customer_city')||null,
       customer_state:g('customer_state')||null,
@@ -3178,7 +3240,7 @@ async function importExtractedLabels(){
       selling_price:price,
       platform_fee:+(price*feePct/100).toFixed(2),
       cogs,
-      gst_rate:18,
+      gst_rate:0,
       customer_name:r.customerName||null,
       customer_city:r.city||null,
       customer_state:r.state||null,
