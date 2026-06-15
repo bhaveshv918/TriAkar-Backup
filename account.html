@@ -1750,9 +1750,15 @@ async function saveMobile(){
     }
     const oldMobile=(document.getElementById('mobileDisplayInput').value||'').trim();
     const upsertPayload={id:user.id,mobile:fullPhone,updated_at:new Date().toISOString()};
-    if(oldMobile&&oldMobile!=='Not set'&&oldMobile!==fullPhone)upsertPayload.previous_mobile=oldMobile;
     const {error}=await sb2.from('profiles').upsert(upsertPayload,{onConflict:'id'});
     if(error)throw error;
+    // Log phone change to admin_logs so admin has a record
+    if(oldMobile&&oldMobile!=='Not set'&&oldMobile!==fullPhone){
+      sb2.from('admin_logs').insert({
+        action:'phone_changed',
+        extra:{user_id:user.id,email:user.email,old_phone:oldMobile,new_phone:fullPhone}
+      }).then(()=>{});
+    }
     document.getElementById('mobileDisplayInput').value=fullPhone;
     cancelMobileEdit();
     msgEl.textContent='Mobile updated!';
