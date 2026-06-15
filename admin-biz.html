@@ -354,9 +354,6 @@ tr:hover td{background:var(--bg-2)}
     </button>
 
     <div class="sidebar-section">Finance</div>
-    <button class="tab" data-tab="returns" onclick="switchTab('returns')">
-      <span class="tab-icon">↩</span><span class="tab-label">Returns & Claims</span><span class="tab-badge" id="returnCount">—</span>
-    </button>
     <button class="tab" data-tab="gst" onclick="switchTab('gst')">
       <span class="tab-icon">◊</span><span class="tab-label">GST Summary</span>
     </button>
@@ -439,7 +436,9 @@ tr:hover td{background:var(--bg-2)}
       <!-- Returns this month -->
       <div class="chart-box">
         <h3>Returns &amp; Claims this month</h3>
-        <div class="tbl-wrap" style="border:none;margin-top:12px">
+        <!-- per-platform summary -->
+        <div class="gst-summary" id="dashReturnsSummary" style="margin:12px 0"></div>
+        <div class="tbl-wrap" style="border:none;margin-top:4px">
           <table>
             <thead><tr><th>Product / Order</th><th>Channel</th><th>Type</th><th>Reason</th><th class="td-num">Loss</th></tr></thead>
             <tbody id="dashReturns"><tr><td colspan="5" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
@@ -1160,124 +1159,6 @@ tr:hover td{background:var(--bg-2)}
     </div><!-- /stock -->
 
     <!-- ══════════════════════════════════════════════════════
-         RETURNS & CLAIMS
-    ═══════════════════════════════════════════════════════ -->
-    <div class="panel" id="panelReturns">
-      <div class="p-head">
-        <div><div class="p-title">Returns & Claims</div><div class="p-sub">Returns, cancellations, SPF claims, A-to-Z</div></div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-primary btn-sm" onclick="showAddReturn()">+ Add</button>
-          <button class="btn btn-ghost btn-sm" onclick="exportTableExcel('returnsTable','returns')">↓ Excel</button>
-        </div>
-      </div>
-
-      <!-- KPI row -->
-      <div class="kpi-grid" id="returnsKpi" style="margin-bottom:16px"></div>
-
-      <!-- Add form -->
-      <div id="returnForm" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px">
-        <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:12px">Log Return / Claim</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Channel *</label>
-            <select id="rf_channel" required>
-              <option value="">Select</option>
-              <option value="shop">Studio</option>
-              <option value="amazon">Amazon</option>
-              <option value="flipkart">Flipkart</option>
-              <option value="website">Website</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Type *</label>
-            <select id="rf_type" required>
-              <option value="return">Return</option>
-              <option value="cancellation">Cancellation</option>
-              <option value="spf_claim">SPF Claim</option>
-              <option value="az_claim">A-to-Z Claim</option>
-              <option value="chargeback">Chargeback</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Order ID</label>
-            <input type="text" id="rf_orderid" placeholder="Platform order ID">
-          </div>
-          <div class="form-group">
-            <label>Date *</label>
-            <input type="date" id="rf_date" required>
-          </div>
-          <div class="form-group">
-            <label>Amount Lost (₹)</label>
-            <input type="number" id="rf_lost" step="0.01" value="0">
-          </div>
-          <div class="form-group">
-            <label>Refund Given (₹)</label>
-            <input type="number" id="rf_refund" step="0.01" value="0">
-          </div>
-          <div class="form-group">
-            <label>Status</label>
-            <select id="rf_status">
-              <option value="pending">Pending</option>
-              <option value="won">Won</option>
-              <option value="lost">Lost</option>
-              <option value="partial">Partial</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Reason</label>
-            <input type="text" id="rf_reason" placeholder="Brief reason">
-          </div>
-          <div class="form-group" style="grid-column:span 2">
-            <label>Notes</label>
-            <textarea id="rf_notes" rows="2" style="resize:vertical" placeholder="Details…"></textarea>
-          </div>
-        </div>
-        <input type="hidden" id="rf_id">
-        <div style="display:flex;gap:8px;margin-top:4px">
-          <button class="btn btn-primary btn-sm" onclick="saveReturn()">Save</button>
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('returnForm').style.display='none'">Cancel</button>
-        </div>
-      </div>
-
-      <div class="filter-bar">
-        <select id="rtChannel" onchange="loadReturns()">
-          <option value="">All Channels</option>
-          <option value="shop">Shop</option>
-          <option value="amazon">Amazon</option>
-          <option value="flipkart">Flipkart</option>
-          <option value="website">Website</option>
-        </select>
-        <select id="rtType" onchange="loadReturns()">
-          <option value="">All Types</option>
-          <option value="return">Return</option>
-          <option value="cancellation">Cancellation</option>
-          <option value="spf_claim">SPF Claim</option>
-          <option value="az_claim">A-to-Z</option>
-          <option value="chargeback">Chargeback</option>
-        </select>
-        <select id="rtStatus" onchange="loadReturns()">
-          <option value="">All Status</option>
-          <option value="pending">Pending</option>
-          <option value="won">Won</option>
-          <option value="lost">Lost</option>
-          <option value="partial">Partial</option>
-        </select>
-        <input type="month" id="rtMonth" onchange="loadReturns()">
-      </div>
-      <div class="tbl-wrap">
-        <table id="returnsTable">
-          <thead><tr>
-            <th>Date</th><th>Channel</th><th>Type</th><th>Order ID</th>
-            <th class="td-num">Amount Lost</th><th class="td-num">Refund Given</th>
-            <th>Status</th><th>Reason</th><th class="td-actions">Actions</th>
-          </tr></thead>
-          <tbody id="returnsBody"></tbody>
-        </table>
-      </div>
-    </div><!-- /returns -->
-
-    <!-- ══════════════════════════════════════════════════════
          GST SUMMARY
     ═══════════════════════════════════════════════════════ -->
     <div class="panel" id="panelGst">
@@ -1549,7 +1430,7 @@ function switchTab(name){
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel'+name.charAt(0).toUpperCase()+name.slice(1)));
   const loaders = {
     sales:loadSales, products:loadProducts, stock:loadStock,
-    returns:loadReturns, gst:loadGST, dashboard:loadDashboard,
+    gst:loadGST, dashboard:loadDashboard,
     labels:populateLabelProductSelect, settings:loadBizSettings,
     customers:loadCustomers
   };
@@ -2046,15 +1927,30 @@ async function togglePaidOrder(firstId,allPaid){
   if(error){ toast('Error: '+error.message,'error'); return; }
   loadSales();
 }
+// Real money lost on a return = forward shipping + return shipping + box/packing
+// (the product comes back, so its cost isn't lost — these fulfilment costs are).
+function calcReturnLoss(channel, sellingTotal, fwdShip){
+  const plat=(channel==='amazon'||channel==='flipkart');
+  const fwd=(parseFloat(fwdShip)||0) || (plat ? platformDelivery(sellingTotal) : 0);
+  const ret=plat ? platformDelivery(sellingTotal) : fwd;   // return leg (item ships back)
+  const pack=(typeof PACKING_FEE!=='undefined')?PACKING_FEE:45;
+  return +(fwd + ret + pack).toFixed(2);
+}
 async function updateOrderStatus(firstId,status){
-  const items=_orderGroup(firstId), ids=items.map(s=>s.id);
+  const items=_orderGroup(firstId), ids=items.map(s=>s.id), f=items[0];
   const {error}=await sb.from('biz_sales').update({status}).in('id',ids);
   if(error){ toast('Error: '+error.message,'error'); return; }
   if(status==='returned'){
-    const rows=items.map(s=>({sale_id:s.id,channel_id:s.channel_id,order_id:s.order_id,type:'return',date:today(),amount_lost:s.selling_price||0,refund_given:s.selling_price||0,status:'pending',reason:'Marked from sales'}));
-    if(rows.length) await sb.from('biz_returns').insert(rows);
+    // one return record per order; skip if already logged
+    const {data:ex}=await sb.from('biz_returns').select('id').eq('order_id',f.order_id||'').limit(1);
+    if(!f.order_id || !ex || !ex.length){
+      const total=items.reduce((a,s)=>a+(+s.selling_price||0),0);
+      const fwd=items.reduce((a,s)=>a+(+s.shipping_fee||0),0);
+      const loss=calcReturnLoss(f.channel_id,total,fwd);
+      await sb.from('biz_returns').insert({sale_id:f.id,channel_id:f.channel_id,order_id:f.order_id,type:'return',date:today(),amount_lost:loss,refund_given:0,status:'pending',reason:'Marked returned (shipping + return + packing)'});
+    }
   }
-  toast('Order updated'); loadSales();
+  toast('Order updated'); loadSales(); if(typeof loadReturnsBadge==='function') loadReturnsBadge();
 }
 
 function toggleSelectAllSales(cb){
@@ -2089,7 +1985,7 @@ async function bulkMarkStatus(status){
   if(error){toast('Error: '+error.message,'error');return;}
   if(status==='returned'){
     const sales=_salesCache.filter(s=>ids.includes(s.id));
-    const rows=sales.map(s=>({sale_id:s.id,channel_id:s.channel_id,order_id:s.order_id,type:'return',date:today(),amount_lost:s.selling_price||0,refund_given:s.selling_price||0,status:'pending',reason:'Bulk marked'}));
+    const rows=sales.map(s=>({sale_id:s.id,channel_id:s.channel_id,order_id:s.order_id,type:'return',date:today(),amount_lost:calcReturnLoss(s.channel_id,s.selling_price,s.shipping_fee),refund_given:0,status:'pending',reason:'Bulk marked'}));
     if(rows.length) await sb.from('biz_returns').insert(rows);
   }
   toast(ids.length+' orders -> '+label); loadSales();
@@ -2175,8 +2071,8 @@ async function markReturn(){
     order_id:s.order_id,
     type:'return',
     date:today(),
-    amount_lost:s.selling_price||0,
-    refund_given:s.selling_price||0,
+    amount_lost:calcReturnLoss(s.channel_id,s.selling_price,s.shipping_fee),
+    refund_given:0,
     status:'pending',
     reason:'Marked from All Sales',
   });
@@ -2318,8 +2214,9 @@ async function saveStockMovement(){
 
 // ── Returns ─────────────────────────────────────────────────
 async function loadReturnsBadge(){
+  const el=document.getElementById('returnCount'); if(!el) return;
   const {count}=await sb.from('biz_returns').select('*',{count:'exact',head:true}).eq('status','pending');
-  document.getElementById('returnCount').textContent=count||0;
+  el.textContent=count||0;
 }
 
 async function loadReturns(){
@@ -2607,6 +2504,18 @@ function renderDashReturns(rets){
   const el=document.getElementById('dashReturns'); if(!el) return;
   const TYPE={return:'Return',cancellation:'Cancellation',spf_claim:'SPF Claim',az_claim:'AZ Claim',chargeback:'Chargeback',other:'Other'};
   const badge=st=>st==='won'?'badge-won':st==='lost'?'badge-lost':'badge-pending';
+
+  // Per-platform summary cards — how many returns & how much lost, by channel
+  const sum=document.getElementById('dashReturnsSummary');
+  if(sum){
+    const chs=['shop','amazon','flipkart','website'];
+    const agg={}; chs.forEach(c=>agg[c]={n:0,loss:0});
+    let tN=0,tL=0;
+    rets.forEach(r=>{ const c=agg[r.channel_id]||agg.shop; c.n++; c.loss+=parseFloat(r.amount_lost)||0; tN++; tL+=parseFloat(r.amount_lost)||0; });
+    const card=(label,n,loss,dot)=>`<div class="gst-card"><label>${label}</label><div class="val" style="color:var(--red)">${fmt(loss)}</div><div class="sub">${n} return${n!==1?'s':''}</div></div>`;
+    sum.innerHTML=card('All Returns',tN,tL)+chs.filter(c=>agg[c].n>0).map(c=>card(CH_NAMES[c]||c,agg[c].n,agg[c].loss)).join('');
+  }
+
   el.innerHTML=rets.length?rets.map(r=>{
     // resolve a product name from cached sales by order_id (best effort)
     let prod='';
