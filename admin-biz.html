@@ -345,6 +345,9 @@ tr:hover td{background:var(--bg-2)}
     <button class="tab" data-tab="labels" onclick="switchTab('labels')">
       <span class="tab-icon">🏷</span><span class="tab-label">Labels</span>
     </button>
+    <button class="tab" data-tab="customers" onclick="switchTab('customers')">
+      <span class="tab-icon">☺</span><span class="tab-label">Customers</span><span class="tab-badge" id="custCount">—</span>
+    </button>
 
     <div class="sidebar-section">Products</div>
     <button class="tab" data-tab="products" onclick="switchTab('products')">
@@ -611,7 +614,8 @@ tr:hover td{background:var(--bg-2)}
         <div class="form-grid" style="margin-bottom:12px">
           <div class="form-group">
             <label>Customer Name</label>
-            <input type="text" id="qa_cname" placeholder="Name">
+            <input type="text" id="qa_cname" placeholder="Type — existing customers autofill" list="customerList" oninput="onCustomerName(this.value)" autocomplete="off">
+            <datalist id="customerList"></datalist>
           </div>
           <div class="form-group">
             <label>Phone</label>
@@ -973,6 +977,25 @@ tr:hover td{background:var(--bg-2)}
         </div>
       </div>
     </div><!-- /labels -->
+
+    <!-- ══════════════════════════════════════════════════════
+         CUSTOMERS (auto-built from orders)
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelCustomers">
+      <div class="p-head">
+        <div><div class="p-title">Customers</div><div class="p-sub">Built automatically from your orders — type a name in Add Sale to reuse details</div></div>
+        <input type="text" id="custSearch" placeholder="Search name / phone / city…" oninput="renderCustomers()" style="min-width:200px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:7px 11px;outline:none">
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Customer</th><th>Phone</th><th>City / State</th>
+            <th class="td-num">Orders</th><th class="td-num">Items</th><th class="td-num">Total Spent</th><th>Last Order</th>
+          </tr></thead>
+          <tbody id="customersBody"><tr><td colspan="7" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+    </div><!-- /customers -->
 
     <!-- ══════════════════════════════════════════════════════
          PRODUCTS & COSTS
@@ -1509,6 +1532,7 @@ async function startApp(){
   loadDashboard();
   loadSalesBadge();
   loadReturnsBadge();
+  loadCustomers();
 }
 
 // ── Tab switching ───────────────────────────────────────────
@@ -1518,7 +1542,8 @@ function switchTab(name){
   const loaders = {
     sales:loadSales, products:loadProducts, stock:loadStock,
     returns:loadReturns, gst:loadGST, dashboard:loadDashboard,
-    labels:populateLabelProductSelect, settings:loadBizSettings
+    labels:populateLabelProductSelect, settings:loadBizSettings,
+    customers:loadCustomers
   };
   if(loaders[name]) loaders[name]();
 }
@@ -1744,6 +1769,57 @@ async function submitQuickAdd(e){
   loadSalesBadge();
 }
 
+// ── Customers (auto-built from orders) ──────────────────────
+let _customersByName={}, _customersList=[];
+async function loadCustomers(){
+  const {data,error}=await sb.from('biz_sales')
+    .select('customer_name,customer_phone,customer_address,customer_city,customer_state,customer_pincode,order_id,order_date,selling_price')
+    .eq('is_deleted',false).not('customer_name','is',null)
+    .order('order_date',{ascending:false}).limit(5000);
+  if(error){ return; }
+  const map={};
+  (data||[]).forEach(s=>{
+    const name=(s.customer_name||'').trim(); if(!name) return;
+    const k=name.toLowerCase();
+    if(!map[k]) map[k]={name,phone:'',address:'',city:'',state:'',pincode:'',orders:new Set(),items:0,spent:0,last:s.order_date};
+    const c=map[k];
+    if(!c.phone&&s.customer_phone) c.phone=s.customer_phone;        // rows are date-desc → keeps latest
+    if(!c.address&&s.customer_address) c.address=s.customer_address;
+    if(!c.city&&s.customer_city) c.city=s.customer_city;
+    if(!c.state&&s.customer_state) c.state=s.customer_state;
+    if(!c.pincode&&s.customer_pincode) c.pincode=s.customer_pincode;
+    c.orders.add(s.order_id||(s.order_date+'|'+name));
+    c.items+=1; c.spent+=parseFloat(s.selling_price)||0;
+    if(s.order_date>c.last) c.last=s.order_date;
+  });
+  _customersList=Object.values(map).map(c=>({...c,orders:c.orders.size})).sort((a,b)=>b.spent-a.spent);
+  _customersByName={}; _customersList.forEach(c=>{ _customersByName[c.name.toLowerCase()]=c; });
+  const badge=document.getElementById('custCount'); if(badge) badge.textContent=_customersList.length;
+  const dl=document.getElementById('customerList'); if(dl) dl.innerHTML=_customersList.map(c=>`<option value="${esc(c.name)}">`).join('');
+  renderCustomers();
+}
+function renderCustomers(){
+  const body=document.getElementById('customersBody'); if(!body) return;
+  const se=(document.getElementById('custSearch')?.value||'').trim().toLowerCase();
+  let list=_customersList;
+  if(se) list=list.filter(c=>(c.name+' '+c.phone+' '+c.city+' '+c.state).toLowerCase().includes(se));
+  body.innerHTML=list.length?list.map(c=>`<tr>
+    <td>${esc(c.name)}${c.address?`<div style="font-size:10px;color:var(--text-3)">${esc(c.address)}</div>`:''}</td>
+    <td style="font-family:var(--mono);font-size:11px">${esc(c.phone||'—')}</td>
+    <td>${esc([c.city,c.state].filter(Boolean).join(', ')||'—')}${c.pincode?' — '+esc(c.pincode):''}</td>
+    <td class="td-num">${c.orders}</td>
+    <td class="td-num">${c.items}</td>
+    <td class="td-num" style="font-weight:700">${fmt(c.spent)}</td>
+    <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(c.last)}</td>
+  </tr>`).join(''):`<tr><td colspan="7" class="empty"><div class="em-text">No customers found</div></td></tr>`;
+}
+// Autofill saved details when an existing customer name is chosen in Add Sale
+function onCustomerName(val){
+  const c=_customersByName[(val||'').trim().toLowerCase()]; if(!c) return;
+  const set=(id,v)=>{ const e=document.getElementById(id); if(e&&v) e.value=v; };
+  set('qa_phone',c.phone); set('qa_address',c.address); set('qa_city',c.city); set('qa_state',c.state); set('qa_pin',c.pincode);
+}
+
 // ── Sales list ──────────────────────────────────────────────
 async function loadSalesBadge(){
   const {count}=await sb.from('biz_sales').select('*',{count:'exact',head:true}).eq('is_deleted',false);
@@ -1757,7 +1833,7 @@ async function loadSales(){
   const v=id=>{const e=document.getElementById(id);return e?e.value:'';};
   const ch=v('sfChannel'), st=v('sfStatus'), pay=v('sfPayment'), paid=v('sfPaid');
   const mo=v('sfMonth'), from=v('sfFrom'), to=v('sfTo'), sort=v('sfSort')||'date_desc', se=v('sfSearch').trim();
-  let q=sb.from('biz_sales').select('*').eq('is_deleted',false).limit(1000);
+  let q=sb.from('biz_sales').select('*').eq('is_deleted',false).limit(2000);
   if(ch) q=q.eq('channel_id',ch);
   if(st) q=q.eq('status',st);
   if(pay) q=q.eq('payment_mode',pay);
@@ -1772,94 +1848,148 @@ async function loadSales(){
   const {data,error}=await q;
   if(error){ toast('Error: '+error.message,'error'); return; }
   const rows=data||[]; _salesCache=rows;
-  document.getElementById('salesSubtitle').textContent=rows.length+' orders shown';
+  // Group line items into a single order (same order_id) — one entry, one document
+  const gmap={}, groups=[];
+  rows.forEach(s=>{ const key=s.order_id?('o:'+s.order_id):('r:'+s.id); if(!gmap[key]){ gmap[key]={items:[]}; groups.push(gmap[key]); } gmap[key].items.push(s); });
+  document.getElementById('salesSubtitle').textContent=`${groups.length} order${groups.length!==1?'s':''} · ${rows.length} item${rows.length!==1?'s':''}`;
   const tbody=document.getElementById('salesBody');
-  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="11"><div class="empty"><div class="em-icon">◈</div><div class="em-text">No sales found</div></div></td></tr>`; return; }
-  tbody.innerHTML=rows.map((s,idx)=>{
-    const locked=s.is_paid;
-    return `<tr class="sale-row" onclick="toggleSaleRow('${s.id}',event)" style="cursor:pointer;${locked?'opacity:.78':''}">
-      <td><input type="checkbox" class="sale-cb" data-id="${s.id}" onclick="event.stopPropagation()" onchange="updateBulkBar()"></td>
+  if(!groups.length){ tbody.innerHTML=`<tr><td colspan="11"><div class="empty"><div class="em-icon">◈</div><div class="em-text">No sales found</div></div></td></tr>`; return; }
+  tbody.innerHTML=groups.map((g,idx)=>{
+    const items=g.items, f=items[0];
+    const key=f.id;                                   // DOM-safe handle (first item id)
+    const totalQty=items.reduce((a,s)=>a+(parseInt(s.qty)||0),0);
+    const totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
+    const allPaid=items.every(s=>s.is_paid);
+    const sts=[...new Set(items.map(s=>s.status))];
+    const status=sts.length===1?sts[0]:'mixed';
+    const ids=items.map(s=>s.id).join(',');
+    const itemCol=items.length===1?esc(f.product_name):`${esc(f.product_name)} <span style="color:var(--text-3);font-size:10px">+${items.length-1} more · ${items.length} items</span>`;
+    return `<tr class="sale-row" onclick="toggleSaleRow('${key}',event)" style="cursor:pointer;${allPaid?'opacity:.78':''}">
+      <td><input type="checkbox" class="sale-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateBulkBar()"></td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${idx+1}</td>
-      <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(s.order_date)}</td>
-      <td>${chHtml(s.channel_id)}</td>
-      <td style="white-space:nowrap">${esc(s.customer_name||'—')}</td>
-      <td>${esc(s.product_name)}</td>
-      <td class="td-num">${s.qty||1}</td>
-      <td class="td-num" style="font-weight:700">${fmt(s.selling_price)}</td>
-      <td><span class="badge badge-${s.status}">${esc(s.status||'')}</span></td>
-      <td><button onclick="event.stopPropagation();togglePaid('${s.id}',${locked})" style="font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid;cursor:pointer;background:${locked?'var(--green-bg)':'var(--bg-2)'};color:${locked?'var(--green)':'var(--text-3)'};border-color:${locked?'var(--green)':'var(--border)'}">${locked?'✓ Paid':'Unpaid'}</button></td>
-      <td style="color:var(--text-3);font-size:11px;text-align:center" id="chev_${s.id}">▸</td>
+      <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(f.order_date)}</td>
+      <td>${chHtml(f.channel_id)}</td>
+      <td style="white-space:nowrap">${esc(f.customer_name||'—')}</td>
+      <td>${itemCol}</td>
+      <td class="td-num">${totalQty}</td>
+      <td class="td-num" style="font-weight:700">${fmt(totalPrice)}</td>
+      <td>${status==='mixed'?'<span class="badge badge-pending">Mixed</span>':`<span class="badge badge-${status}">${esc(status||'')}</span>`}</td>
+      <td><button onclick="event.stopPropagation();togglePaidOrder('${key}',${allPaid})" style="font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid;cursor:pointer;background:${allPaid?'var(--green-bg)':'var(--bg-2)'};color:${allPaid?'var(--green)':'var(--text-3)'};border-color:${allPaid?'var(--green)':'var(--border)'}">${allPaid?'✓ Paid':'Unpaid'}</button></td>
+      <td style="color:var(--text-3);font-size:11px;text-align:center" id="chev_${key}">▸</td>
     </tr>
-    <tr class="sale-detail" id="det_${s.id}" style="display:none"><td colspan="11" style="background:var(--bg-1);padding:0;border-top:none">${renderSaleDetail(s)}</td></tr>`;
+    <tr class="sale-detail" id="det_${key}" style="display:none"><td colspan="11" style="background:var(--bg-1);padding:0;border-top:none">${renderOrderDetail(items)}</td></tr>`;
   }).join('');
 }
 
-// Click row → customer-safe details (price priority). Cost/profit stays hidden
-// until you tap "Show cost & profit" — safe to open in front of a customer.
-function toggleSaleRow(id,event){
+// Find all line items belonging to the same order as the given first-item id
+function _orderGroup(firstId){
+  const f=_salesCache.find(s=>s.id===firstId); if(!f) return [];
+  return f.order_id ? _salesCache.filter(s=>s.order_id===f.order_id) : [f];
+}
+
+// Click row → customer-safe order details (price priority). Cost/profit hidden
+// until "Show cost & profit" — safe to open in front of a customer.
+function toggleSaleRow(key,event){
   if(event && event.target.closest('input,select,button,a')) return;
-  const det=document.getElementById('det_'+id), chev=document.getElementById('chev_'+id);
+  const det=document.getElementById('det_'+key), chev=document.getElementById('chev_'+key);
   if(!det) return;
   const open=det.style.display!=='none';
   det.style.display=open?'none':'table-row';
   if(chev) chev.textContent=open?'▸':'▾';
 }
-function revealCost(id){
-  const c=document.getElementById('cost_'+id), b=document.getElementById('revealBtn_'+id);
+function revealCost(key){
+  const c=document.getElementById('cost_'+key), b=document.getElementById('revealBtn_'+key);
   if(!c) return;
   const shown=c.style.display!=='none';
   c.style.display=shown?'none':'block';
   if(b) b.textContent=shown?'🔒 Show cost & profit':'🙈 Hide cost & profit';
 }
-function renderSaleDetail(s){
-  const gstAmt=(s.selling_price||0)-((s.selling_price||0)/(1+(s.gst_rate||0)/100));
-  const netRev=(s.selling_price||0)-(s.platform_fee||0)-(s.shipping_fee||0)-(s.other_deductions||0);
-  const profit=netRev-(s.cogs||0)-gstAmt;
-  const margin=netRev>0?(profit/netRev*100):0;
-  const locked=s.is_paid;
-  const vline=[s.size,s.color,s.variant].filter(Boolean).join(' · ');
-  const addr=[s.customer_address,[s.customer_city,s.customer_state].filter(Boolean).join(', ')+(s.customer_pincode?' — '+s.customer_pincode:'')].map(x=>(x||'').trim()).filter(Boolean).join('<br>');
+
+function renderOrderDetail(items){
+  const f=items[0], key=f.id, locked=items.every(s=>s.is_paid);
+  let cogs=0,gstAmt=0,net=0,fees=0;
+  items.forEach(s=>{ const sp=parseFloat(s.selling_price)||0; const ga=sp-(sp/(1+(parseFloat(s.gst_rate)||0)/100)); const nr=sp-(parseFloat(s.platform_fee)||0)-(parseFloat(s.shipping_fee)||0)-(parseFloat(s.other_deductions)||0); cogs+=parseFloat(s.cogs)||0; gstAmt+=ga; net+=nr; fees+=(parseFloat(s.platform_fee)||0)+(parseFloat(s.shipping_fee)||0)+(parseFloat(s.other_deductions)||0); });
+  const totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
+  const profit=net-cogs-gstAmt, margin=net>0?(profit/net*100):0;
+  const addr=[f.customer_address,[f.customer_city,f.customer_state].filter(Boolean).join(', ')+(f.customer_pincode?' — '+f.customer_pincode:'')].map(x=>(x||'').trim()).filter(Boolean).join('<br>');
   const F=(l,val)=>val?`<div><div style="color:var(--text-3);font-size:9px;text-transform:uppercase;letter-spacing:.6px">${l}</div><div style="font-size:12px;margin-top:1px">${val}</div></div>`:'';
+  const itemRows=items.map(s=>{ const vl=[s.size,s.color,s.variant].filter(Boolean).join(' · ');
+    return `<tr>
+      <td>${esc(s.product_name||'—')}${vl?` <span style="color:var(--text-3)">(${esc(vl)})</span>`:''}${s.hsn_code?` <span style="color:var(--text-3);font-size:10px;font-family:var(--mono)">HSN ${esc(s.hsn_code)}</span>`:''}</td>
+      <td class="td-num">${s.qty||1}</td>
+      <td class="td-num">${fmt(s.selling_price)}</td>
+      <td class="td-actions" style="white-space:nowrap">${locked?'':`<button class="btn btn-ghost btn-sm" onclick="openEditSale('${s.id}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteSale('${s.id}')">✕</button>`}</td>
+    </tr>`; }).join('');
   return `<div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;border-top:2px solid var(--accent)">
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:11px">
-      ${F('Order ID',esc(s.order_id||'—'))}
-      ${F('Invoice No',s.invoice_no?esc(s.invoice_no):'')}
-      ${F('Product',esc(s.product_name||'—')+(vline?` <span style="color:var(--text-3)">(${esc(vline)})</span>`:''))}
-      ${F('Qty',s.qty||1)}
-      ${F('Selling Price',`<b style="font-size:13px">${fmt(s.selling_price)}</b>`)}
-      ${F('Discount',s.discount_amount?fmt(s.discount_amount):'')}
-      ${F('GST',(s.gst_rate||0)+'%')}
-      ${F('HSN',s.hsn_code?esc(s.hsn_code):'')}
-      ${F('SKU',s.sku?esc(s.sku):'')}
-      ${F('Customer',esc(s.customer_name||'—'))}
-      ${F('Phone',s.customer_phone?esc(s.customer_phone):'')}
+      ${F('Order ID',esc(f.order_id||'—'))}
+      ${F('Invoice No',f.invoice_no?esc(f.invoice_no):'')}
+      ${F('Date',fmtDay(f.order_date))}
+      ${F('Customer',esc(f.customer_name||'—'))}
+      ${F('Phone',f.customer_phone?esc(f.customer_phone):'')}
       ${F('Address',addr)}
-      ${F('Payment',s.payment_mode?esc(s.payment_mode):'')}
-      ${F('Tracking',s.tracking_number?esc(s.tracking_number):'')}
-      ${F('Courier',s.courier_partner?esc(s.courier_partner):'')}
-      ${F('Dispatch',s.dispatch_date?fmtDay(s.dispatch_date):'')}
-      ${F('Packet',s.package_size?esc(s.package_size):'')}
+      ${F('Payment',f.payment_mode?esc(f.payment_mode):'')}
+      ${F('Tracking',f.tracking_number?esc(f.tracking_number):'')}
+      ${F('Courier',f.courier_partner?esc(f.courier_partner):'')}
+      ${F('Dispatch',f.dispatch_date?fmtDay(f.dispatch_date):'')}
+      ${F('Packet',f.package_size?esc(f.package_size):'')}
     </div>
-    <div id="cost_${s.id}" style="display:none;background:var(--bg-2);border:1px solid var(--border);border-radius:6px;padding:10px 12px">
+    <div class="tbl-wrap" style="box-shadow:none">
+      <table>
+        <thead><tr><th>Item</th><th class="td-num">Qty</th><th class="td-num">Price</th><th class="td-actions"></th></tr></thead>
+        <tbody>${itemRows}
+          <tr><td style="font-weight:700">Total (${items.length} item${items.length>1?'s':''})</td><td class="td-num" style="font-weight:700">${items.reduce((a,s)=>a+(parseInt(s.qty)||0),0)}</td><td class="td-num" style="font-weight:700">${fmt(totalPrice)}</td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="cost_${key}" style="display:none;background:var(--bg-2);border:1px solid var(--border);border-radius:6px;padding:10px 12px">
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:10px">
-        ${F('COGS',fmt(s.cogs))}
+        ${F('Total COGS',fmt(cogs))}
         ${F('GST Amount',fmt(gstAmt))}
-        ${F('Platform Fee',fmt(s.platform_fee))}
-        ${F('Shipping',fmt(s.shipping_fee))}
-        ${F('Other',fmt(s.other_deductions))}
-        ${F('Net Revenue',fmt(netRev))}
+        ${F('Fees (plat+ship+other)',fmt(fees))}
+        ${F('Net Revenue',fmt(net))}
         <div><div style="color:var(--text-3);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Profit</div><div style="font-size:13px;font-weight:700;color:${profit>=0?'var(--green)':'var(--red)'}">${fmt(profit)} · ${margin.toFixed(1)}%</div></div>
       </div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <button class="btn btn-ghost btn-sm" id="revealBtn_${s.id}" onclick="revealCost('${s.id}')">🔒 Show cost &amp; profit</button>
-      <button class="btn btn-ghost btn-sm" onclick="fetchAndPrintInvoice('${s.id}')">🧾 Invoice</button>
+      <button class="btn btn-ghost btn-sm" id="revealBtn_${key}" onclick="revealCost('${key}')">🔒 Show cost &amp; profit</button>
+      <button class="btn btn-ghost btn-sm" onclick="printOrderInvoice('${key}')">🧾 Invoice (all items)</button>
       ${locked?'<span style="font-size:11px;color:var(--text-3)">Paid — unmark to edit</span>'
-        :`<select onchange="updateSaleStatus('${s.id}',this.value)" class="month-select" style="font-size:11px;padding:5px 8px">${['completed','returned','cancelled','claimed'].map(x=>`<option value="${x}"${s.status===x?' selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select>
-          <button class="btn btn-ghost btn-sm" onclick="openEditSale('${s.id}')">✎ Edit</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteSale('${s.id}')">✕ Delete</button>`}
+        :`<select onchange="updateOrderStatus('${key}',this.value)" class="month-select" style="font-size:11px;padding:5px 8px">${['completed','returned','cancelled','claimed'].map(x=>`<option value="${x}"${f.status===x?' selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select>
+          <button class="btn btn-danger btn-sm" onclick="deleteOrder('${key}')">✕ Delete order</button>`}
     </div>
   </div>`;
+}
+
+function printOrderInvoice(firstId){
+  const items=_orderGroup(firstId); if(!items.length){ toast('Could not load order','error'); return; }
+  const anyGst=items.some(s=>parseFloat(s.gst_rate)>0);
+  printInvoice({...items[0], items}, anyGst?'gst':'nongst');
+}
+async function deleteOrder(firstId){
+  const items=_orderGroup(firstId), ids=items.map(s=>s.id);
+  if(items.some(s=>s.is_paid)){ toast('Paid order — unmark paid first','error'); return; }
+  if(!confirm(`Move this order (${ids.length} item${ids.length>1?'s':''}) to Recycle Bin?`)) return;
+  const {error}=await sb.from('biz_sales').update({is_deleted:true,deleted_at:new Date().toISOString()}).in('id',ids);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Order moved to Recycle Bin'); loadSales(); loadSalesBadge();
+}
+async function togglePaidOrder(firstId,allPaid){
+  const items=_orderGroup(firstId), ids=items.map(s=>s.id);
+  if(!allPaid && !confirm('Mark this order as PAID? It will lock the order.')) return;
+  const {error}=await sb.from('biz_sales').update({is_paid:!allPaid}).in('id',ids);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  loadSales();
+}
+async function updateOrderStatus(firstId,status){
+  const items=_orderGroup(firstId), ids=items.map(s=>s.id);
+  const {error}=await sb.from('biz_sales').update({status}).in('id',ids);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  if(status==='returned'){
+    const rows=items.map(s=>({sale_id:s.id,channel_id:s.channel_id,order_id:s.order_id,type:'return',date:today(),amount_lost:s.selling_price||0,refund_given:s.selling_price||0,status:'pending',reason:'Marked from sales'}));
+    if(rows.length) await sb.from('biz_returns').insert(rows);
+  }
+  toast('Order updated'); loadSales();
 }
 
 function toggleSelectAllSales(cb){
@@ -1873,7 +2003,11 @@ function updateBulkBar(){
   else bar.style.display='none';
 }
 function getSelectedIds(){
-  return [...document.querySelectorAll('.sale-cb:checked')].map(c=>c.dataset.id);
+  const out=[];
+  document.querySelectorAll('.sale-cb:checked').forEach(c=>{
+    (c.dataset.ids||c.dataset.id||'').split(',').filter(Boolean).forEach(x=>out.push(x));
+  });
+  return out;
 }
 async function bulkMarkPaid(){
   const ids=getSelectedIds(); if(!ids.length) return;
