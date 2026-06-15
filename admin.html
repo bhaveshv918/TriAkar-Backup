@@ -3910,9 +3910,10 @@ async function bulkSoftDelete(table, tbodyId, loadFnName){
   if(!ids.length){ toast('Select at least one row first','error'); return; }
   if(!confirm('Move '+ids.length+' item(s) to the Recycle Bin?')) return;
   const by=await _adminEmail();
-  const {error}=await sb.from(table).update({deleted_at:new Date().toISOString(), deleted_by:by}).in('id',ids);
+  const {data,error}=await sb.from(table).update({deleted_at:new Date().toISOString(), deleted_by:by}).in('id',ids).select('id');
   if(error){ toast('Error: '+error.message,'error'); return; }
-  toast(ids.length+' moved to Recycle Bin','success');
+  if(!data||!data.length){ toast('Blocked — no permission to delete these (RLS)','error'); return; }
+  toast(data.length+' moved to Recycle Bin','success');
   window[loadFnName]&&window[loadFnName]();
   if(typeof loadRecycleBin==='function') loadRecycleBin();
 }
@@ -3920,8 +3921,9 @@ async function bulkSoftDelete(table, tbodyId, loadFnName){
 async function softDeleteOne(table, id, loadFnName){
   if(!confirm('Move this item to the Recycle Bin?')) return;
   const by=await _adminEmail();
-  const {error}=await sb.from(table).update({deleted_at:new Date().toISOString(), deleted_by:by}).eq('id',id);
+  const {data,error}=await sb.from(table).update({deleted_at:new Date().toISOString(), deleted_by:by}).eq('id',id).select('id');
   if(error){ toast('Error: '+error.message,'error'); return; }
+  if(!data||!data.length){ toast('Blocked — no permission to delete this item (RLS)','error'); return; }
   toast('Moved to Recycle Bin','success');
   window[loadFnName]&&window[loadFnName]();
   if(typeof loadRecycleBin==='function') loadRecycleBin();
@@ -3967,16 +3969,18 @@ function renderRecycleBin(rows){
   }).join('');
 }
 async function restoreOne(table,id){
-  const {error}=await sb.from(table).update({deleted_at:null,deleted_by:null}).eq('id',id);
+  const {data,error}=await sb.from(table).update({deleted_at:null,deleted_by:null}).eq('id',id).select('id');
   if(error){toast('Error: '+error.message,'error');return;}
+  if(!data||!data.length){ toast('Blocked — no permission to restore this (RLS)','error'); return; }
   toast('Restored','success'); loadRecycleBin();
   // refresh the source tab if its loader exists
   ({contact_submissions:loadMessages,custom_enquiries:loadCustomEnquiries,callback_requests:loadCallbacks,orders:loadOrders}[table]||function(){})();
 }
 async function hardDeleteOne(table,id){
   if(!confirm('Permanently delete this item? This cannot be undone.')) return;
-  const {error}=await sb.from(table).delete().eq('id',id);
+  const {data,error}=await sb.from(table).delete().eq('id',id).select('id');
   if(error){toast('Error: '+error.message,'error');return;}
+  if(!data||!data.length){ toast('Blocked — no permission to delete this (RLS)','error'); return; }
   toast('Permanently deleted','success'); loadRecycleBin();
 }
 async function bulkRestore(){
