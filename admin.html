@@ -1490,6 +1490,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
         <button class="btn-secondary" onclick="loadRecycleBin()">⟳ Refresh</button>
         <button class="btn-secondary" onclick="bulkRestore()">♻ Restore selected</button>
         <button class="btn-secondary" onclick="bulkDeleteForever()">✕ Delete forever selected</button>
+        <button class="btn-secondary" style="background:#7f1d1d;color:#fca5a5;border-color:#991b1b" onclick="emptyRecycleBin()">⚠ Empty All</button>
       </div>
     </div>
     <div class="tbl-wrap">
@@ -3995,6 +3996,19 @@ async function bulkDeleteForever(){
   if(!confirm('Permanently delete '+items.length+' item(s)? This cannot be undone.')) return;
   for(const cid of items){ const [t,id]=cid.split('|'); if(t!=='orders'){ await sb.from(t).delete().eq('id',id); } }
   toast('Deleted forever','success'); loadRecycleBin();
+}
+async function emptyRecycleBin(){
+  if(!_binItems.length){toast('Recycle bin is already empty','error');return;}
+  const deletable=_binItems.filter(i=>i.src.canHardDelete);
+  const orderCount=_binItems.length-deletable.length;
+  let msg='Permanently delete ALL '+_binItems.length+' item(s) in the recycle bin? This cannot be undone.';
+  if(orderCount) msg+='\n\n('+orderCount+' order(s) will be soft-cleared — orders cannot be hard-deleted.)';
+  if(!confirm(msg)) return;
+  for(const {src,row} of _binItems){
+    if(src.canHardDelete){ await sb.from(src.table).delete().eq('id',row.id); }
+    else { await sb.from(src.table).update({deleted_at:null,deleted_by:null}).eq('id',row.id); }
+  }
+  toast('Recycle bin emptied','success'); loadRecycleBin();
 }
 
 // ═══════════════════════════════════════════════════════════
