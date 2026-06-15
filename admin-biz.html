@@ -194,6 +194,11 @@ tr:hover td{background:var(--bg-2)}
   padding:7px 11px;outline:none;cursor:pointer;transition:border-color .15s,box-shadow .15s}
 .month-select:focus,input[type=month]:focus,input[type=date]:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-bg)}
 .month-select option{background:var(--bg-1);color:var(--text)}
+/* Segmented selector (platform / channel pick) */
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg-btn{flex:1;min-width:96px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-2);color:var(--text-2);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+.seg-btn:hover{border-color:var(--border-h)}
+.seg-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 1px 2px rgba(16,32,24,.18)}
 
 /* ── Import dropzone ──────────────────────────────────────── */
 .dropzone{border:1.5px dashed var(--border-h);border-radius:var(--radius);padding:32px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px}
@@ -228,71 +233,55 @@ tr:hover td{background:var(--bg-2)}
 #toast.success{border-color:rgba(74,222,128,.3);color:var(--green)}
 #toast.error{border-color:rgba(248,113,113,.3);color:var(--red)}
 
-/* ── Mobile — bottom nav ──────────────────────────────────── */
+/* ── Mobile — top bar + slide-in drawer (no bottom nav) ─────── */
+.mtopbar{display:none}
 @media(max-width:768px){
-  /* Shell: stack vertically, sidebar → bottom */
   .shell{flex-direction:column}
 
-  /* Sidebar → fixed bottom nav */
-  .sidebar{
-    position:fixed;bottom:0;left:0;right:0;top:auto;
-    width:100%!important;min-width:unset;height:auto;
-    flex-direction:row;overflow-x:auto;overflow-y:hidden;
-    padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px)) 4px;
-    border-right:none;border-top:1px solid var(--border);
-    z-index:200;scrollbar-width:none;-webkit-overflow-scrolling:touch;
-  }
-  .sidebar::-webkit-scrollbar{display:none}
-  .sb-header,.sidebar-section,.sb-back{display:none}
-  .tab{
-    flex-direction:column;align-items:center;justify-content:center;
-    min-width:54px;flex-shrink:0;width:auto;
-    padding:5px 5px;gap:2px;border-radius:6px;margin:0 1px;
-  }
-  .tab-icon{font-size:17px;width:auto;margin:0;line-height:1.2}
-  .tab-label{display:block!important;font-size:8px;text-overflow:ellipsis;
-    overflow:hidden;max-width:52px;text-align:center}
-  .tab-badge{display:none!important}
+  /* Fixed top bar with hamburger */
+  .mtopbar{display:flex;align-items:center;gap:12px;position:fixed;top:0;left:0;right:0;height:52px;
+    background:var(--bg-1);border-bottom:1px solid var(--border);z-index:240;padding:0 14px;box-shadow:var(--shadow)}
+  .mtopbar-btn{background:none;border:none;font-size:22px;color:var(--text);cursor:pointer;line-height:1;padding:4px 6px}
+  .mtopbar-title{font-size:13px;font-weight:700;color:var(--text)}
 
-  /* Main area — guard against any horizontal overflow */
-  .main-area{height:100vh;overflow-y:auto;overflow-x:hidden;width:100%;max-width:100vw}
-  /* Bottom padding must clear the fixed nav INCLUDING the phone's
-     safe-area inset (gesture bar), or content hides behind the nav */
-  .panel{padding:14px 12px calc(82px + env(safe-area-inset-bottom,0px));max-width:100%;overflow-x:hidden}
+  /* Sidebar → slide-in drawer below the top bar */
+  .sidebar{
+    position:fixed;top:52px;bottom:0;left:0;width:250px;max-width:84vw;
+    transform:translateX(-100%);transition:transform .25s ease;
+    z-index:230;border-right:1px solid var(--border);border-top:none;
+    overflow-y:auto;box-shadow:2px 0 18px rgba(16,32,24,.18);
+    height:auto;min-width:unset;padding:6px 0 24px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .sidebar.open{transform:none}
+  .sb-header{display:none}              /* title is in the top bar */
+  .nav-backdrop{position:fixed;inset:0;background:rgba(16,24,18,.45);z-index:220;opacity:0;visibility:hidden;transition:opacity .25s}
+  .nav-backdrop.show{opacity:1;visibility:visible}
+  /* Full-width tap rows in the drawer */
+  .tab{padding:11px 16px;font-size:13px}
+  .tab-icon{font-size:15px}
+
+  /* Main area sits below the top bar; normal bottom spacing — no bottom nav */
+  .main-area{height:auto;min-height:calc(100vh - 52px);overflow-x:hidden;width:100%;max-width:100vw;margin-top:52px}
+  .panel{padding:14px 12px calc(40px + env(safe-area-inset-bottom,0px));max-width:100%;overflow-x:hidden}
   .p-head{flex-direction:column;align-items:flex-start;gap:8px}
 
-  /* Charts: stack */
   .charts-row{grid-template-columns:1fr}
-
-  /* Forms: single column — and cancel any desktop "span 2" that would
-     otherwise add a second track and push content off the screen */
-  .form-grid{grid-template-columns:1fr}
-  .form-grid-2{grid-template-columns:1fr}
+  .form-grid,.form-grid-2{grid-template-columns:1fr}
   .form-grid .form-group,.form-grid-2 .form-group{grid-column:auto!important}
   .calc-row{grid-template-columns:1fr 1fr}
   .calc-item span{font-size:13px;word-break:break-all}
-
-  /* Tables: horizontal scroll */
   .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
   td,th{padding:8px 10px;font-size:11px}
-
-  /* GST grid: 2 col */
   .gst-summary{grid-template-columns:1fr 1fr}
-
-  /* Filter bar */
   .filter-bar{flex-wrap:wrap;gap:6px}
   .filter-bar select,.filter-bar input{flex:1;min-width:120px}
-
-  /* KPI grid: 2 col */
   .kpi-grid{grid-template-columns:1fr 1fr}
-
-  /* iOS zoom prevention */
   input,select,textarea{font-size:16px!important}
-
-  /* Bigger touch targets; let primary actions fill the row */
   .btn{padding:11px 14px;min-height:42px}
-  #quickAddForm > div:last-child .btn,
-  form > div[style*="flex"] .btn{flex:1 1 auto;justify-content:center}
+
+  /* Sticky Save → floating action button bottom-right (no bottom nav to clash) */
+  #stickySave{top:auto!important;bottom:calc(18px + env(safe-area-inset-bottom,0px))!important;right:16px!important;z-index:180;border-radius:24px;padding:12px 20px!important;box-shadow:0 6px 18px rgba(16,32,24,.30)}
 }
 </style>
 </head>
@@ -318,6 +307,13 @@ tr:hover td{background:var(--bg-2)}
 
 <!-- ── Shell ────────────────────────────────────────────── -->
 <div class="shell" id="shell" style="display:none">
+
+  <!-- Mobile top bar (hamburger) -->
+  <div class="mtopbar">
+    <button class="mtopbar-btn" onclick="toggleNav()" aria-label="Menu">☰</button>
+    <div class="mtopbar-title">TriĀkar · Business OS</div>
+  </div>
+  <div class="nav-backdrop" id="navBackdrop" onclick="toggleNav(false)"></div>
 
   <!-- Sidebar -->
   <nav class="sidebar">
@@ -675,6 +671,7 @@ tr:hover td{background:var(--bg-2)}
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input type="month" id="sfExportMonth" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:5px 8px;font-size:12px;outline:none">
+          <button class="btn btn-ghost btn-sm" onclick="syncWebsiteOrders({manual:true})" title="Pull new website orders">⟳ Sync website</button>
           <button class="btn btn-ghost btn-sm" onclick="exportSalesExcel()">↓ Excel</button>
           <button class="btn btn-ghost btn-sm" onclick="openRecycleBin()" title="Recycle Bin">🗑️</button>
         </div>
@@ -820,12 +817,13 @@ tr:hover td{background:var(--bg-2)}
 
       <div class="form-grid-2" style="max-width:500px;margin-bottom:14px">
         <div class="form-group">
-          <label>Platform</label>
-          <select id="importPlatform">
-            <option value="amazon">Amazon Order Report</option>
-            <option value="flipkart">Flipkart Order Report</option>
-            <option value="generic">Generic (manual mapping)</option>
-          </select>
+          <label>Platform — select one</label>
+          <input type="hidden" id="importPlatform" value="flipkart">
+          <div class="seg">
+            <button type="button" class="seg-btn active" data-v="flipkart" onclick="setImportPlatform('flipkart')">🛍️ Flipkart</button>
+            <button type="button" class="seg-btn" data-v="amazon" onclick="setImportPlatform('amazon')">📦 Amazon</button>
+            <button type="button" class="seg-btn" data-v="generic" onclick="setImportPlatform('generic')">Other</button>
+          </div>
         </div>
         <div class="form-group">
           <label>Default COGS if not in file (₹)</label>
@@ -984,7 +982,16 @@ tr:hover td{background:var(--bg-2)}
     <div class="panel" id="panelCustomers">
       <div class="p-head">
         <div><div class="p-title">Customers</div><div class="p-sub">Built automatically from your orders — type a name in Add Sale to reuse details</div></div>
-        <input type="text" id="custSearch" placeholder="Search name / phone / city…" oninput="renderCustomers()" style="min-width:200px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:7px 11px;outline:none">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="custChannel" class="month-select" onchange="renderCustomers()">
+            <option value="">All Channels</option>
+            <option value="shop">Studio</option>
+            <option value="amazon">Amazon</option>
+            <option value="flipkart">Flipkart</option>
+            <option value="website">Website</option>
+          </select>
+          <input type="text" id="custSearch" placeholder="Search name / phone / city…" oninput="renderCustomers()" style="min-width:180px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:7px 11px;outline:none">
+        </div>
       </div>
       <div class="tbl-wrap">
         <table>
@@ -1533,6 +1540,7 @@ async function startApp(){
   loadSalesBadge();
   loadReturnsBadge();
   loadCustomers();
+  syncWebsiteOrders();   // auto-pull any new website orders
 }
 
 // ── Tab switching ───────────────────────────────────────────
@@ -1546,6 +1554,16 @@ function switchTab(name){
     customers:loadCustomers
   };
   if(loaders[name]) loaders[name]();
+  toggleNav(false);   // close mobile drawer after choosing a tab
+}
+
+// Mobile nav drawer
+function toggleNav(force){
+  const sb=document.querySelector('.sidebar'); const bd=document.getElementById('navBackdrop');
+  if(!sb) return;
+  const open = (force===undefined) ? !sb.classList.contains('open') : !!force;
+  sb.classList.toggle('open',open);
+  if(bd) bd.classList.toggle('show',open);
 }
 
 // ── Products (cached for forms) ─────────────────────────────
@@ -1773,7 +1791,7 @@ async function submitQuickAdd(e){
 let _customersByName={}, _customersList=[];
 async function loadCustomers(){
   const {data,error}=await sb.from('biz_sales')
-    .select('customer_name,customer_phone,customer_address,customer_city,customer_state,customer_pincode,order_id,order_date,selling_price')
+    .select('customer_name,customer_phone,customer_address,customer_city,customer_state,customer_pincode,order_id,order_date,selling_price,channel_id')
     .eq('is_deleted',false).not('customer_name','is',null)
     .order('order_date',{ascending:false}).limit(5000);
   if(error){ return; }
@@ -1781,7 +1799,7 @@ async function loadCustomers(){
   (data||[]).forEach(s=>{
     const name=(s.customer_name||'').trim(); if(!name) return;
     const k=name.toLowerCase();
-    if(!map[k]) map[k]={name,phone:'',address:'',city:'',state:'',pincode:'',orders:new Set(),items:0,spent:0,last:s.order_date};
+    if(!map[k]) map[k]={name,phone:'',address:'',city:'',state:'',pincode:'',orders:new Set(),items:0,spent:0,last:s.order_date,channels:new Set()};
     const c=map[k];
     if(!c.phone&&s.customer_phone) c.phone=s.customer_phone;        // rows are date-desc → keeps latest
     if(!c.address&&s.customer_address) c.address=s.customer_address;
@@ -1789,10 +1807,11 @@ async function loadCustomers(){
     if(!c.state&&s.customer_state) c.state=s.customer_state;
     if(!c.pincode&&s.customer_pincode) c.pincode=s.customer_pincode;
     c.orders.add(s.order_id||(s.order_date+'|'+name));
+    if(s.channel_id) c.channels.add(s.channel_id);
     c.items+=1; c.spent+=parseFloat(s.selling_price)||0;
     if(s.order_date>c.last) c.last=s.order_date;
   });
-  _customersList=Object.values(map).map(c=>({...c,orders:c.orders.size})).sort((a,b)=>b.spent-a.spent);
+  _customersList=Object.values(map).map(c=>({...c,orders:c.orders.size,channels:[...c.channels]})).sort((a,b)=>b.spent-a.spent);
   _customersByName={}; _customersList.forEach(c=>{ _customersByName[c.name.toLowerCase()]=c; });
   const badge=document.getElementById('custCount'); if(badge) badge.textContent=_customersList.length;
   const dl=document.getElementById('customerList'); if(dl) dl.innerHTML=_customersList.map(c=>`<option value="${esc(c.name)}">`).join('');
@@ -1801,10 +1820,12 @@ async function loadCustomers(){
 function renderCustomers(){
   const body=document.getElementById('customersBody'); if(!body) return;
   const se=(document.getElementById('custSearch')?.value||'').trim().toLowerCase();
+  const chf=(document.getElementById('custChannel')?.value||'');
   let list=_customersList;
+  if(chf) list=list.filter(c=>(c.channels||[]).includes(chf));
   if(se) list=list.filter(c=>(c.name+' '+c.phone+' '+c.city+' '+c.state).toLowerCase().includes(se));
   body.innerHTML=list.length?list.map(c=>`<tr>
-    <td>${esc(c.name)}${c.address?`<div style="font-size:10px;color:var(--text-3)">${esc(c.address)}</div>`:''}</td>
+    <td>${esc(c.name)}${c.address?`<div style="font-size:10px;color:var(--text-3)">${esc(c.address)}</div>`:''}${(c.channels||[]).length?`<div style="margin-top:3px;display:flex;gap:6px;flex-wrap:wrap">${c.channels.map(ch=>chHtml(ch)).join('')}</div>`:''}</td>
     <td style="font-family:var(--mono);font-size:11px">${esc(c.phone||'—')}</td>
     <td>${esc([c.city,c.state].filter(Boolean).join(', ')||'—')}${c.pincode?' — '+esc(c.pincode):''}</td>
     <td class="td-num">${c.orders}</td>
@@ -1818,6 +1839,50 @@ function onCustomerName(val){
   const c=_customersByName[(val||'').trim().toLowerCase()]; if(!c) return;
   const set=(id,v)=>{ const e=document.getElementById(id); if(e&&v) e.value=v; };
   set('qa_phone',c.phone); set('qa_address',c.address); set('qa_city',c.city); set('qa_state',c.state); set('qa_pin',c.pincode);
+}
+
+// ── Auto-sync website orders into Business OS ───────────────
+async function syncWebsiteOrders(opts){
+  opts=opts||{};
+  try{
+    const {data:existing}=await sb.from('biz_sales').select('order_id').eq('import_source','website').limit(5000);
+    const seen=new Set((existing||[]).map(r=>r.order_id).filter(Boolean));
+    const {data:orders,error}=await sb.from('orders')
+      .select('id,order_id,invoice_number,customer_name,customer_phone,shipping_address,total_amount,status,order_status,payment_method,created_at, order_items(quantity,unit_price,products(name))')
+      .order('created_at',{ascending:false}).limit(300);
+    if(error){ if(opts.manual) toast('Website sync: '+error.message,'error'); return 0; }
+    const batch=[];
+    (orders||[]).forEach(o=>{
+      const oid=o.order_id||o.invoice_number||o.id; if(!oid||seen.has(oid)) return;
+      const a=o.shipping_address||{};
+      const addr=[a.line1,a.line2].filter(Boolean).join(', ');
+      const st=String(o.status||o.order_status||'').toLowerCase();
+      const status=st.includes('cancel')?'cancelled':st.includes('return')?'returned':'completed';
+      const items=(o.order_items&&o.order_items.length)?o.order_items:[{quantity:1,unit_price:o.total_amount,products:null}];
+      items.forEach(it=>{
+        batch.push({
+          channel_id:'website', order_id:oid,
+          order_date:String(o.created_at||'').slice(0,10)||today(),
+          product_name:(it.products&&it.products.name)||'Website order',
+          qty:it.quantity||1,
+          selling_price:(parseFloat(it.unit_price)||0)*(it.quantity||1),
+          gst_rate:0, status, payment_mode:o.payment_method||'online',
+          customer_name:o.customer_name||a.name||a.full_name||null,
+          customer_phone:o.customer_phone||a.contact_phone||a.phone||null,
+          customer_address:addr||null, customer_city:a.city||null,
+          customer_state:a.state||null, customer_pincode:a.pincode||a.postal_code||null,
+          import_source:'website',
+        });
+      });
+    });
+    if(!batch.length){ if(opts.manual) toast('Website orders already up to date'); return 0; }
+    await autoCreateProducts(batch);
+    for(let i=0;i<batch.length;i+=100){ const {error:e2}=await sb.from('biz_sales').insert(batch.slice(i,i+100)); if(e2){ if(opts.manual) toast('Sync insert: '+e2.message,'error'); break; } }
+    if(opts.manual){ toast('Synced '+batch.length+' website item(s)'); if(typeof loadSales==='function') loadSales(); }
+    if(typeof loadSalesBadge==='function') loadSalesBadge();
+    if(typeof loadCustomers==='function') loadCustomers();
+    return batch.length;
+  }catch(e){ if(opts.manual) toast('Website sync failed','error'); return 0; }
 }
 
 // ── Sales list ──────────────────────────────────────────────
@@ -2443,7 +2508,7 @@ async function loadDashboard(){
 
   const [salesRes,retsRes,monthlyRes]=await Promise.all([
     sb.from('biz_sales').select('channel_id,product_name,sku,selling_price,platform_fee,shipping_fee,other_deductions,cogs,gst_rate,status,qty,payment_mode').eq('is_deleted',false).gte('order_date',from).lt('order_date',nextM),
-    sb.from('biz_returns').select('*, biz_sales(product_name)').gte('date',from).lt('date',nextM),
+    sb.from('biz_returns').select('*').gte('date',from).lt('date',nextM),
     sb.from('biz_sales').select('order_date,selling_price,status').eq('is_deleted',false).eq('status','completed').gte('order_date',`${y}-01-01`).lt('order_date',`${y+1}-01-01`)
   ]);
   if(salesRes.error){ toast('Dashboard error: '+salesRes.error.message,'error'); }
@@ -2542,13 +2607,17 @@ function renderDashReturns(rets){
   const el=document.getElementById('dashReturns'); if(!el) return;
   const TYPE={return:'Return',cancellation:'Cancellation',spf_claim:'SPF Claim',az_claim:'AZ Claim',chargeback:'Chargeback',other:'Other'};
   const badge=st=>st==='won'?'badge-won':st==='lost'?'badge-lost':'badge-pending';
-  el.innerHTML=rets.length?rets.map(r=>`<tr>
-    <td>${r.biz_sales&&r.biz_sales.product_name?esc(r.biz_sales.product_name):'<span style="color:var(--text-3)">'+esc(r.order_id||'—')+'</span>'}</td>
+  el.innerHTML=rets.length?rets.map(r=>{
+    // resolve a product name from cached sales by order_id (best effort)
+    let prod='';
+    if(r.order_id && Array.isArray(_salesCache)){ const m=_salesCache.find(s=>s.order_id===r.order_id); if(m) prod=m.product_name; }
+    return `<tr>
+    <td>${prod?esc(prod):'<span style="color:var(--text-3);font-family:var(--mono);font-size:11px">'+esc(r.order_id||'—')+'</span>'}</td>
     <td>${chHtml(r.channel_id||'shop')}</td>
     <td><span class="badge ${badge(r.status)}">${esc(TYPE[r.type]||r.type||'—')}</span></td>
     <td>${esc(r.reason||'—')}</td>
     <td class="td-num" style="color:var(--red)">${fmt(parseFloat(r.amount_lost)||0)}</td>
-  </tr>`).join(''):`<tr><td colspan="5" class="empty"><div class="em-text">No returns this month 🎉</div></td></tr>`;
+  </tr>`;}).join(''):`<tr><td colspan="5" class="empty"><div class="em-text">No returns this month 🎉</div></td></tr>`;
 }
 
 // ── CSV Import ──────────────────────────────────────────────
@@ -2578,6 +2647,11 @@ const FLIPKART_MAP={
   'customer_pincode':['pincode','postal code'],
 };
 
+function setImportPlatform(v){
+  document.getElementById('importPlatform').value=v;
+  document.querySelectorAll('#panelImport .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
+  if(_importRows && _importRows.length){ showImportMapping(document.getElementById('importFileName').textContent||'file'); }
+}
 function dzDragOver(e){ e.preventDefault(); document.getElementById('dropzone').classList.add('drag-over'); }
 function dzDragLeave(){ document.getElementById('dropzone').classList.remove('drag-over'); }
 function dzDrop(e){ e.preventDefault(); dzDragLeave(); const f=e.dataTransfer.files[0]; if(f) parseImportFile(f); }
@@ -3295,7 +3369,7 @@ function parseLabelDate(str, isFlipkartDDMM){
 }
 
 function extractLabelData(text,platform){
-  let orderId='', qty=1, productName='', customerName='';
+  let orderId='', qty=1, productName='', customerName='', customerAddress='';
   let city='', state='', pincode='', tracking='', paymentMode='', orderDate='', deliveryDate='', dispatchDate='', courier='', price='';
 
   if(platform==='amazon'){
@@ -3347,31 +3421,44 @@ function extractLabelData(text,platform){
     courier='Amazon Logistics';
 
   } else { // flipkart
+    // IMPORTANT: a Flipkart label has the CUSTOMER address at the top and the
+    // SELLER (TriAkar) "If undelivered, return to" block lower down. Parse the
+    // customer fields ONLY from the part before the seller block, otherwise we
+    // pick up the seller's own address as the customer's.
+    let custText=text;
+    const cut=custText.search(/if\s*undelivered|return\s*(?:to|address)|sold\s*by|ship(?:ped)?\s*by|seller\s*address/i);
+    if(cut>15) custText=custText.slice(0,cut);
+
     // Order ID
     const om=text.match(/Order[\s\w]*Id[:\s]+(OD\d{10,25})/i)||text.match(/\b(OD\d{14,25})\b/i);
     if(om) orderId=om[1]||om[0];
 
     // AWB tracking: FMPC...
-    const aw=text.match(/AWB[\s\r\n]+No\.?\s*[\r\n]*([\w]+)/i)||text.match(/\b(FMPC[\w]+)\b/i);
+    const aw=text.match(/AWB[\s\r\n]+No\.?\s*[\r\n]*([\w]+)/i)||text.match(/\b(FMP[CP][\w]+)\b/i);
     if(aw) tracking=(aw[1]||aw[0]);
 
     // Product name: "SKU | Description | For..." → take only the description part (before second |)
-    // Line looks like: "1Dec-Gidol01-2025 | desiynlabs Ganesh Idol Showpiece | For 1"
     const pn=text.match(/[\w-]+\s*\|\s*([\w][^|]{5,120}?)\s*\|\s*(?:For\b|1\b|\d+\b)/i)
       || text.match(/[\w-]+\s*\|\s*([\w][^|\r\n]{5,100}?)\s*\|/i);
     if(pn) productName=pn[1].trim();
 
-    // Customer name: "Name: Ayush ,"
-    const cn=text.match(/Name[:\s]+([A-Za-z][^\r\n,]{1,40})/i);
+    // Customer name: "Name: Ayush ," — from the customer block only
+    const cn=custText.match(/Name[:\s]+([A-Za-z][^\r\n,]{1,40})/i);
     if(cn) customerName=cn[1].trim().replace(/,\s*$/,'');
 
-    // City from "Kanpur - 208017" (just before the pincode)
-    const adrM=text.match(/([A-Za-z][A-Za-z\s]{2,30})\s*[-–]\s*(\d{6})/);
-    if(adrM){ city=adrM[1].trim(); pincode=adrM[2]; }
-    else { const p6=text.match(/\b(\d{6})\b/); if(p6) pincode=p6[1]; }
+    // City from "Kanpur - 208017" (the word right before the pincode, same line)
+    const adrM=custText.match(/([A-Za-z][A-Za-z .]{1,28})\s*[-–]\s*(\d{6})/);
+    if(adrM){ city=adrM[1].trim().replace(/[.\s]+$/,''); pincode=adrM[2]; }
+    else { const p6=custText.match(/\b(\d{6})\b/); if(p6) pincode=p6[1]; }
+
+    // Full customer address: text between the name and the pincode line
+    if(customerName){
+      const ab=custText.match(new RegExp('Name[:\\s]+'+customerName.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\$&')+'[\\s,]*([\\s\\S]{5,180}?)\\d{6}','i'));
+      if(ab) customerAddress=ab[1].replace(/\s*[\r\n]+\s*/g,', ').replace(/[,\s\-–]+$/,'').replace(/,\s*,/g,',').trim();
+    }
 
     // State from "IN-UP"
-    const st=text.match(/IN-([A-Z]{2})\b/); if(st) state=st[1];
+    const st=custText.match(/IN-([A-Z]{2})\b/); if(st) state=st[1];
 
     // HBD = dispatch date (Handover By Date), CPD = delivery promise date — DD-MM format
     const hbd=text.match(/HBD[:\s]+([\d\s\-–]+)/i);
@@ -3391,7 +3478,7 @@ function extractLabelData(text,platform){
   }
 
   if(!qty||qty<1){ const qm=text.match(/(?:qty|quantity)[:\s]+(\d+)/i); if(qm) qty=parseInt(qm[1])||1; }
-  return {orderId,qty,productName,customerName,city,state,pincode,tracking,paymentMode,orderDate,deliveryDate,dispatchDate,courier,price};
+  return {orderId,qty,productName,customerName,customerAddress,city,state,pincode,tracking,paymentMode,orderDate,deliveryDate,dispatchDate,courier,price};
 }
 
 function renderExtractedLabels(pages){
@@ -3494,6 +3581,7 @@ async function importExtractedLabels(){
       cogs,
       gst_rate:0,
       customer_name:r.customerName||null,
+      customer_address:r.customerAddress||null,
       customer_city:r.city||null,
       customer_state:r.state||null,
       customer_pincode:r.pincode||null,
