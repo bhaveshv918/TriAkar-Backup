@@ -690,8 +690,33 @@ tr:hover td{background:var(--bg-2)}
           <option value="cancelled">Cancelled</option>
           <option value="claimed">Claimed</option>
         </select>
-        <input type="month" id="sfMonth" onchange="loadSales()">
-        <input type="text" id="sfSearch" placeholder="Search order/product…" oninput="loadSales()" style="min-width:160px">
+        <select id="sfPayment" onchange="loadSales()">
+          <option value="">All Payments</option>
+          <option value="upi">UPI</option>
+          <option value="bharatpe">BharatPe</option>
+          <option value="ca_sbi">C/A — SBI</option>
+          <option value="ca_karur">C/A — Karur Vysya</option>
+          <option value="razorpay">Razorpay</option>
+          <option value="cash">Cash</option>
+          <option value="card">Card</option>
+          <option value="cod">COD</option>
+          <option value="online">Online / Prepaid</option>
+        </select>
+        <select id="sfPaid" onchange="loadSales()">
+          <option value="">Paid &amp; Unpaid</option>
+          <option value="1">Paid only</option>
+          <option value="0">Unpaid only</option>
+        </select>
+        <input type="month" id="sfMonth" onchange="loadSales()" title="Month">
+        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-3)">From <input type="date" id="sfFrom" onchange="loadSales()"></label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-3)">To <input type="date" id="sfTo" onchange="loadSales()"></label>
+        <select id="sfSort" onchange="loadSales()">
+          <option value="date_desc">Newest first</option>
+          <option value="date_asc">Oldest first</option>
+          <option value="price_desc">Price: high → low</option>
+          <option value="price_asc">Price: low → high</option>
+        </select>
+        <input type="text" id="sfSearch" placeholder="Search order / product / buyer…" oninput="loadSales()" style="min-width:170px">
         <button class="btn btn-ghost btn-sm" onclick="clearSalesFilters()">Clear</button>
       </div>
       <!-- Bulk action bar — shown only when rows are selected -->
@@ -708,11 +733,16 @@ tr:hover td{background:var(--bg-2)}
         <table id="salesTable">
           <thead><tr>
             <th style="width:32px"><input type="checkbox" id="selectAllSales" onchange="toggleSelectAllSales(this)"></th>
-            <th style="width:36px">#</th>
-            <th>Date</th><th>Channel</th><th>Order ID</th><th>Product</th>
-            <th class="td-num">Qty</th><th class="td-num">Price</th>
-            <th class="td-num">COGS</th><th class="td-num">Profit</th>
-            <th>Status</th><th>Paid</th><th class="td-actions">Actions</th>
+            <th style="width:30px">#</th>
+            <th style="white-space:nowrap">Date</th>
+            <th>Channel</th>
+            <th>Buyer</th>
+            <th>Item</th>
+            <th class="td-num">Qty</th>
+            <th class="td-num">Price</th>
+            <th>Status</th>
+            <th>Paid</th>
+            <th style="width:24px"></th>
           </tr></thead>
           <tbody id="salesBody"></tbody>
         </table>
@@ -1721,63 +1751,115 @@ async function loadSalesBadge(){
 }
 
 let _salesCache=[];
+function fmtDay(s){ if(!s) return '—'; const p=String(s).slice(0,10).split('-'); if(p.length<3) return s; const mon=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(p[1])]||''; return p[2]+' '+mon+' '+p[0].slice(2); }
+
 async function loadSales(){
-  let q=sb.from('biz_sales').select('*').eq('is_deleted',false).order('order_date',{ascending:false}).limit(500);
-  const ch=document.getElementById('sfChannel').value;
-  const st=document.getElementById('sfStatus').value;
-  const mo=document.getElementById('sfMonth').value;
-  const se=document.getElementById('sfSearch').value.trim();
+  const v=id=>{const e=document.getElementById(id);return e?e.value:'';};
+  const ch=v('sfChannel'), st=v('sfStatus'), pay=v('sfPayment'), paid=v('sfPaid');
+  const mo=v('sfMonth'), from=v('sfFrom'), to=v('sfTo'), sort=v('sfSort')||'date_desc', se=v('sfSearch').trim();
+  let q=sb.from('biz_sales').select('*').eq('is_deleted',false).limit(1000);
   if(ch) q=q.eq('channel_id',ch);
   if(st) q=q.eq('status',st);
-  if(mo){ q=q.gte('order_date',mo+'-01').lte('order_date',mo+'-31'); }
-  if(se) q=q.or(`product_name.ilike.%${se}%,order_id.ilike.%${se}%`);
+  if(pay) q=q.eq('payment_mode',pay);
+  if(paid!=='') q=q.eq('is_paid',paid==='1');
+  if(mo){ const [yy,mm]=mo.split('-').map(Number); const nm=(mm===12)?`${yy+1}-01-01`:`${yy}-${String(mm+1).padStart(2,'0')}-01`; q=q.gte('order_date',mo+'-01').lt('order_date',nm); }
+  if(from) q=q.gte('order_date',from);
+  if(to) q=q.lte('order_date',to);
+  if(se) q=q.or(`product_name.ilike.%${se}%,order_id.ilike.%${se}%,customer_name.ilike.%${se}%`);
+  const sortMap={date_desc:['order_date',false],date_asc:['order_date',true],price_desc:['selling_price',false],price_asc:['selling_price',true]};
+  const [col,asc]=sortMap[sort]||['order_date',false];
+  q=q.order(col,{ascending:asc});
   const {data,error}=await q;
   if(error){ toast('Error: '+error.message,'error'); return; }
-  const rows=data||[];
-  _salesCache=rows;
+  const rows=data||[]; _salesCache=rows;
   document.getElementById('salesSubtitle').textContent=rows.length+' orders shown';
   const tbody=document.getElementById('salesBody');
-  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="13"><div class="empty"><div class="em-icon">◈</div><div class="em-text">No sales found</div></div></td></tr>`; return; }
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="11"><div class="empty"><div class="em-icon">◈</div><div class="em-text">No sales found</div></div></td></tr>`; return; }
   tbody.innerHTML=rows.map((s,idx)=>{
-    const gstAmt=(s.selling_price||0)-((s.selling_price||0)/(1+(s.gst_rate||0)/100));
-    const netRev=(s.selling_price||0)-(s.platform_fee||0)-(s.shipping_fee||0)-(s.other_deductions||0);
-    const profit=netRev-(s.cogs||0)-gstAmt;
     const locked=s.is_paid;
-    return `<tr style="${locked?'opacity:.75':''}">
-      <td><input type="checkbox" class="sale-cb" data-id="${s.id}" onchange="updateBulkBar()"></td>
+    return `<tr class="sale-row" onclick="toggleSaleRow('${s.id}',event)" style="cursor:pointer;${locked?'opacity:.78':''}">
+      <td><input type="checkbox" class="sale-cb" data-id="${s.id}" onclick="event.stopPropagation()" onchange="updateBulkBar()"></td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${idx+1}</td>
-      <td style="font-family:var(--mono);font-size:11px">${esc(s.order_date)}</td>
+      <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(s.order_date)}</td>
       <td>${chHtml(s.channel_id)}</td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(s.order_id||'—')}</td>
-      <td>${esc(s.product_name)}<br><span style="font-size:10px;color:var(--text-3)">×${s.qty||1}</span></td>
+      <td style="white-space:nowrap">${esc(s.customer_name||'—')}</td>
+      <td>${esc(s.product_name)}</td>
       <td class="td-num">${s.qty||1}</td>
-      <td class="td-num">${fmt(s.selling_price)}</td>
-      <td class="td-num" style="color:var(--text-3)">${fmt(s.cogs)}</td>
-      <td class="td-num" style="color:${profit>=0?'var(--green)':'var(--red)'}">${fmt(profit)}</td>
-      <td>
-        <select onchange="updateSaleStatus('${s.id}',this.value)" ${locked?'disabled':''} style="background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;padding:3px 6px;cursor:pointer">
-          <option value="completed" ${s.status==='completed'?'selected':''}>Completed</option>
-          <option value="returned"  ${s.status==='returned'?'selected':''}>Returned</option>
-          <option value="cancelled" ${s.status==='cancelled'?'selected':''}>Cancelled</option>
-          <option value="claimed"   ${s.status==='claimed'?'selected':''}>Claimed</option>
-        </select>
-      </td>
-      <td>
-        <button onclick="togglePaid('${s.id}',${locked})"
-          style="font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid;cursor:pointer;
-          background:${locked?'var(--green-bg)':'var(--bg-2)'};
-          color:${locked?'var(--green)':'var(--text-3)'};
-          border-color:${locked?'var(--green)':'var(--border)'}">
-          ${locked?'✓ Paid':'Unpaid'}
-        </button>
-      </td>
-      <td class="td-actions" style="white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="fetchAndPrintInvoice('${s.id}')">🧾</button>
-        ${locked?'':`<button class="btn btn-ghost btn-sm" onclick="openEditSale('${s.id}')">✎</button>`}
-        ${locked?'':`<button class="btn btn-danger btn-sm" onclick="deleteSale('${s.id}')">✕</button>`}
-      </td>
-    </tr>`;
+      <td class="td-num" style="font-weight:700">${fmt(s.selling_price)}</td>
+      <td><span class="badge badge-${s.status}">${esc(s.status||'')}</span></td>
+      <td><button onclick="event.stopPropagation();togglePaid('${s.id}',${locked})" style="font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid;cursor:pointer;background:${locked?'var(--green-bg)':'var(--bg-2)'};color:${locked?'var(--green)':'var(--text-3)'};border-color:${locked?'var(--green)':'var(--border)'}">${locked?'✓ Paid':'Unpaid'}</button></td>
+      <td style="color:var(--text-3);font-size:11px;text-align:center" id="chev_${s.id}">▸</td>
+    </tr>
+    <tr class="sale-detail" id="det_${s.id}" style="display:none"><td colspan="11" style="background:var(--bg-1);padding:0;border-top:none">${renderSaleDetail(s)}</td></tr>`;
   }).join('');
+}
+
+// Click row → customer-safe details (price priority). Cost/profit stays hidden
+// until you tap "Show cost & profit" — safe to open in front of a customer.
+function toggleSaleRow(id,event){
+  if(event && event.target.closest('input,select,button,a')) return;
+  const det=document.getElementById('det_'+id), chev=document.getElementById('chev_'+id);
+  if(!det) return;
+  const open=det.style.display!=='none';
+  det.style.display=open?'none':'table-row';
+  if(chev) chev.textContent=open?'▸':'▾';
+}
+function revealCost(id){
+  const c=document.getElementById('cost_'+id), b=document.getElementById('revealBtn_'+id);
+  if(!c) return;
+  const shown=c.style.display!=='none';
+  c.style.display=shown?'none':'block';
+  if(b) b.textContent=shown?'🔒 Show cost & profit':'🙈 Hide cost & profit';
+}
+function renderSaleDetail(s){
+  const gstAmt=(s.selling_price||0)-((s.selling_price||0)/(1+(s.gst_rate||0)/100));
+  const netRev=(s.selling_price||0)-(s.platform_fee||0)-(s.shipping_fee||0)-(s.other_deductions||0);
+  const profit=netRev-(s.cogs||0)-gstAmt;
+  const margin=netRev>0?(profit/netRev*100):0;
+  const locked=s.is_paid;
+  const vline=[s.size,s.color,s.variant].filter(Boolean).join(' · ');
+  const addr=[s.customer_address,[s.customer_city,s.customer_state].filter(Boolean).join(', ')+(s.customer_pincode?' — '+s.customer_pincode:'')].map(x=>(x||'').trim()).filter(Boolean).join('<br>');
+  const F=(l,val)=>val?`<div><div style="color:var(--text-3);font-size:9px;text-transform:uppercase;letter-spacing:.6px">${l}</div><div style="font-size:12px;margin-top:1px">${val}</div></div>`:'';
+  return `<div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;border-top:2px solid var(--accent)">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:11px">
+      ${F('Order ID',esc(s.order_id||'—'))}
+      ${F('Invoice No',s.invoice_no?esc(s.invoice_no):'')}
+      ${F('Product',esc(s.product_name||'—')+(vline?` <span style="color:var(--text-3)">(${esc(vline)})</span>`:''))}
+      ${F('Qty',s.qty||1)}
+      ${F('Selling Price',`<b style="font-size:13px">${fmt(s.selling_price)}</b>`)}
+      ${F('Discount',s.discount_amount?fmt(s.discount_amount):'')}
+      ${F('GST',(s.gst_rate||0)+'%')}
+      ${F('HSN',s.hsn_code?esc(s.hsn_code):'')}
+      ${F('SKU',s.sku?esc(s.sku):'')}
+      ${F('Customer',esc(s.customer_name||'—'))}
+      ${F('Phone',s.customer_phone?esc(s.customer_phone):'')}
+      ${F('Address',addr)}
+      ${F('Payment',s.payment_mode?esc(s.payment_mode):'')}
+      ${F('Tracking',s.tracking_number?esc(s.tracking_number):'')}
+      ${F('Courier',s.courier_partner?esc(s.courier_partner):'')}
+      ${F('Dispatch',s.dispatch_date?fmtDay(s.dispatch_date):'')}
+      ${F('Packet',s.package_size?esc(s.package_size):'')}
+    </div>
+    <div id="cost_${s.id}" style="display:none;background:var(--bg-2);border:1px solid var(--border);border-radius:6px;padding:10px 12px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:10px">
+        ${F('COGS',fmt(s.cogs))}
+        ${F('GST Amount',fmt(gstAmt))}
+        ${F('Platform Fee',fmt(s.platform_fee))}
+        ${F('Shipping',fmt(s.shipping_fee))}
+        ${F('Other',fmt(s.other_deductions))}
+        ${F('Net Revenue',fmt(netRev))}
+        <div><div style="color:var(--text-3);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Profit</div><div style="font-size:13px;font-weight:700;color:${profit>=0?'var(--green)':'var(--red)'}">${fmt(profit)} · ${margin.toFixed(1)}%</div></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-ghost btn-sm" id="revealBtn_${s.id}" onclick="revealCost('${s.id}')">🔒 Show cost &amp; profit</button>
+      <button class="btn btn-ghost btn-sm" onclick="fetchAndPrintInvoice('${s.id}')">🧾 Invoice</button>
+      ${locked?'<span style="font-size:11px;color:var(--text-3)">Paid — unmark to edit</span>'
+        :`<select onchange="updateSaleStatus('${s.id}',this.value)" class="month-select" style="font-size:11px;padding:5px 8px">${['completed','returned','cancelled','claimed'].map(x=>`<option value="${x}"${s.status===x?' selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select>
+          <button class="btn btn-ghost btn-sm" onclick="openEditSale('${s.id}')">✎ Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSale('${s.id}')">✕ Delete</button>`}
+    </div>
+  </div>`;
 }
 
 function toggleSelectAllSales(cb){
@@ -1925,7 +2007,7 @@ function exportSalesExcel(){
   XLSX.writeFile(wb,filename+'.xlsx');
 }
 
-function clearSalesFilters(){ document.getElementById('sfChannel').value=''; document.getElementById('sfStatus').value=''; document.getElementById('sfMonth').value=''; document.getElementById('sfSearch').value=''; loadSales(); }
+function clearSalesFilters(){ ['sfChannel','sfStatus','sfPayment','sfPaid','sfMonth','sfFrom','sfTo','sfSearch'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';}); const so=document.getElementById('sfSort'); if(so) so.value='date_desc'; loadSales(); }
 
 // ── Recycle Bin ────────────────────────────────────────────
 async function openRecycleBin(){
@@ -2474,6 +2556,30 @@ function _fkStatus(s){ s=(s||'').toLowerCase(); if(s.includes('return')) return 
 function _fkClean(v){ v=(v||'').trim(); return (!v||v.toUpperCase()==='NA')?null:v; }
 function isFlipkartReport(cols){ const L=cols.map(c=>c.toLowerCase()); return L.includes('order id')&&L.includes('invoice amount')&&(L.includes('order state')||L.includes('hsn code')); }
 
+// ── Fixed platform expenses (Amazon / Flipkart), applied per order ──
+function platformDelivery(price){ const p=parseFloat(price)||0; if(p<=500) return 50; if(p<=1000) return 89; return 160; }
+const PACKING_FEE=45;   // shipping box + label + packing, per order
+function applyPlatformFees(r){ r.shipping_fee=platformDelivery(r.selling_price); r.other_deductions=PACKING_FEE; r.platform_fee=0; return r; }
+
+// ── Auto-create catalog products for imported items not already present ──
+async function autoCreateProducts(rows){
+  const toCreate=new Map();
+  rows.forEach(r=>{
+    const name=(r.product_name||'').trim(); if(!name||name==='—') return;
+    const sku=(r.sku||'').trim(); const skuL=sku.toLowerCase(), nameL=name.toLowerCase();
+    if(skuL && _catalogBySku[skuL]) return;        // already mapped by a platform SKU
+    if(!skuL && _catalogByName[nameL]) return;      // already in catalog by name
+    const key=skuL||nameL; if(toCreate.has(key)) return;
+    toCreate.set(key,{name,sku:sku||null,hsn_code:r.hsn_code||null,product_type:'own',base_cost:0,gst_rate:parseFloat(r.gst_rate)||0,is_active:true});
+  });
+  if(toCreate.size){
+    const {error}=await sb.from('biz_products').insert([...toCreate.values()]);
+    if(error){ toast('Product auto-create: '+error.message,'error'); }
+    else { await loadProducts(); }                 // refresh catalog + SKU map
+  }
+  return toCreate.size;
+}
+
 function buildFlipkartRow(row, defaultCogs){
   const igst=_fkNum(row['IGST']), cg=_fkNum(row['CGST']), sg=_fkNum(row['SGST']);
   const gstRate = igst>0 ? igst : ((cg+sg)>0 ? cg+sg : 0);
@@ -2516,13 +2622,18 @@ function buildFlipkartRow(row, defaultCogs){
 
 async function runFlipkartImport(defaultCogs){
   const statusEl=document.getElementById('importStatus');
-  statusEl.textContent='Importing…';
-  const batch=[]; let skip=0;
-  for(const row of _importRows){
-    const r=buildFlipkartRow(row, defaultCogs);
-    if(!r.product_name||r.product_name==='—'||!r.selling_price){ skip++; continue; }
-    batch.push(r);
-  }
+  statusEl.textContent='Reading…';
+  // 1) draft rows
+  const draft=_importRows.map(r=>buildFlipkartRow(r,defaultCogs)).filter(r=>r.product_name&&r.product_name!=='—'&&r.selling_price);
+  const skip=_importRows.length-draft.length;
+  // 2) auto-create any new products so they appear in the catalog
+  const created=await autoCreateProducts(draft);
+  // 3) relink product_id + cost from catalog, apply fixed delivery + packing fees
+  const batch=draft.map(r=>{
+    const cat=_skuToProduct(r.sku);
+    if(cat){ r.product_id=cat.id; if(!r.hsn_code) r.hsn_code=cat.hsn_code||null; if(!r.cogs&&cat.base_cost) r.cogs=parseFloat(cat.base_cost)||0; }
+    return applyPlatformFees(r);
+  });
   let success=0;
   for(let i=0;i<batch.length;i+=100){
     const {error}=await sb.from('biz_sales').insert(batch.slice(i,i+100));
@@ -2530,8 +2641,8 @@ async function runFlipkartImport(defaultCogs){
     success+=Math.min(100,batch.length-i);
     statusEl.textContent=`Inserted ${success}…`;
   }
-  toast(`Imported ${success} Flipkart orders${skip?' ('+skip+' skipped)':''}`);
-  statusEl.textContent=`Done — ${success} imported, ${skip} skipped`;
+  toast(`Imported ${success} Flipkart orders${created?' · '+created+' new product(s)':''}${skip?' ('+skip+' skipped)':''}`);
+  statusEl.textContent=`Done — ${success} imported, ${created} new products, ${skip} skipped`;
   cancelImport(); loadSalesBadge();
 }
 
@@ -2566,7 +2677,7 @@ async function runImport(){
       sku:g('sku')||null,
       qty,
       selling_price:price,
-      platform_fee:+(price*feePct/100).toFixed(2),
+      platform_fee:0,
       cogs:defaultCogs,
       gst_rate:0,
       customer_name:g('customer_name')||null,
@@ -2577,6 +2688,13 @@ async function runImport(){
       status:'completed',
     });
   }
+  // Auto-create products + (for Amazon/Flipkart) apply fixed delivery + packing fees
+  const created=await autoCreateProducts(batch);
+  batch.forEach(r=>{
+    const cat=_skuToProduct(r.sku);
+    if(cat){ r.product_id=cat.id; if(!r.cogs&&cat.base_cost) r.cogs=parseFloat(cat.base_cost)||0; if(!r.hsn_code&&cat.hsn_code) r.hsn_code=cat.hsn_code; }
+    if(ch==='amazon'||ch==='flipkart') applyPlatformFees(r);
+  });
   // Insert in batches of 100
   for(let i=0;i<batch.length;i+=100){
     const {error}=await sb.from('biz_sales').insert(batch.slice(i,i+100));
@@ -3238,7 +3356,7 @@ async function importExtractedLabels(){
       sku:null,
       qty,
       selling_price:price,
-      platform_fee:+(price*feePct/100).toFixed(2),
+      platform_fee:0,
       cogs,
       gst_rate:0,
       customer_name:r.customerName||null,
@@ -3246,20 +3364,23 @@ async function importExtractedLabels(){
       customer_state:r.state||null,
       customer_pincode:r.pincode||null,
       tracking_number:r.tracking||null,
-      courier_partner:r.courier||null,
+      courier_partner:r.courier||(platform==='flipkart'?'ekart':null),
       payment_mode:r.paymentMode||null,
       import_source:'label',
       status:'completed',
     });
   });
   if(!batch.length){toast('Nothing to import','error');return;}
+  // Auto-create products + apply fixed delivery + packing fees for Amazon/Flipkart
+  const created=await autoCreateProducts(batch);
+  batch.forEach(r=>{ if(platform==='amazon'||platform==='flipkart') applyPlatformFees(r); });
   statusEl.textContent='Importing…';
   for(let i=0;i<batch.length;i+=100){
     const {error}=await sb.from('biz_sales').insert(batch.slice(i,i+100));
     if(error){statusEl.textContent='Error: '+error.message;toast('Error: '+error.message,'error');return;}
   }
-  toast(`Imported ${batch.length} orders from labels`);
-  statusEl.textContent=`Done — ${batch.length} orders imported`;
+  toast(`Imported ${batch.length} orders from labels${created?' · '+created+' new product(s)':''}`);
+  statusEl.textContent=`Done — ${batch.length} orders imported${created?', '+created+' new products':''}`;
   clearLabels();
   loadSalesBadge();
 }
