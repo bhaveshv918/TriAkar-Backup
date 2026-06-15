@@ -1733,10 +1733,13 @@ function cancelMobileEdit(){
   document.getElementById('mobileDisplay').style.display='flex';
 }
 async function saveMobile(){
-  const sb2=(typeof getSB==='function')?getSB():sb;
-  if(!sb2)return;
   const user=Auth.getUser();
   if(!user)return;
+  const token=typeof Auth!=='undefined'&&Auth.getToken?Auth.getToken():null;
+  const sb2=token
+    ?window.supabase.createClient(SB_URL,SB_KEY,{global:{headers:{Authorization:'Bearer '+token}}})
+    :(typeof getSB==='function'?getSB():sb);
+  if(!sb2)return;
   const inp=document.getElementById('profMobile');
   if(inp&&inp._validatePhone&&!inp._validatePhone())return;
   const fullPhone=inp.value.trim();
