@@ -381,7 +381,7 @@ tr:hover td{background:var(--bg-2)}
           <select id="dashMonth" class="month-select" onchange="loadDashboard()">
             <!-- filled by JS -->
           </select>
-          <button class="btn btn-ghost btn-sm" onclick="exportAllExcel()">↓ Export Excel</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportMonthExcel()">↓ Export this month</button>
         </div>
       </div>
 
@@ -2832,6 +2832,26 @@ function exportTableExcel(tableId,name){
   const ws=XLSX.utils.table_to_sheet(table);
   XLSX.utils.book_append_sheet(wb,ws,name);
   XLSX.writeFile(wb,`triakar_${name}_${thisMonth()}.xlsx`);
+}
+
+// Dashboard export — only the selected month's sales + returns
+async function exportMonthExcel(){
+  const mo=document.getElementById('dashMonth')?.value;
+  if(!mo){ return exportAllExcel(); }
+  const [y,m]=mo.split('-').map(Number);
+  const from=`${mo}-01`;
+  const nextM=(m===12)?`${y+1}-01-01`:`${y}-${String(m+1).padStart(2,'0')}-01`;
+  const [{data:sales},{data:returns}]=await Promise.all([
+    sb.from('biz_sales').select('*').eq('is_deleted',false).gte('order_date',from).lt('order_date',nextM).order('order_date',{ascending:false}),
+    sb.from('biz_returns').select('*').gte('date',from).lt('date',nextM).order('date',{ascending:false})
+  ]);
+  if(!(sales||[]).length && !(returns||[]).length){ toast('No data for this month','error'); return; }
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sales||[]),'Sales');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(returns||[]),'Returns');
+  const label=new Date(y,m-1,1).toLocaleDateString('en-IN',{month:'short',year:'numeric'}).replace(/\s+/g,'_');
+  XLSX.writeFile(wb,`triakar_${label}.xlsx`);
+  toast('Exported '+label.replace(/_/g,' '));
 }
 
 async function exportAllExcel(){
