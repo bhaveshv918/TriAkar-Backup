@@ -354,6 +354,9 @@ tr:hover td{background:var(--bg-2)}
     </button>
 
     <div class="sidebar-section">Finance</div>
+    <button class="tab" data-tab="fees" onclick="switchTab('fees')">
+      <span class="tab-icon">₹</span><span class="tab-label">Fees & Returns</span>
+    </button>
     <button class="tab" data-tab="gst" onclick="switchTab('gst')">
       <span class="tab-icon">◊</span><span class="tab-label">GST Summary</span>
     </button>
@@ -1159,6 +1162,27 @@ tr:hover td{background:var(--bg-2)}
     </div><!-- /stock -->
 
     <!-- ══════════════════════════════════════════════════════
+         FEES & RETURNS
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelFees">
+      <div class="p-head">
+        <div><div class="p-title">Fees &amp; Return Costs</div><div class="p-sub">Set shipping / return shipping / packing per platform &amp; price range. Used to auto-calculate return loss and import fees.</div></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="feePlatform" class="month-select" onchange="renderFeeEditor()">
+            <option value="amazon">Amazon</option>
+            <option value="flipkart">Flipkart</option>
+            <option value="shop">Studio</option>
+            <option value="website">Website</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="saveFeeRules()">Save</button>
+        </div>
+      </div>
+      <div id="feeEditor"></div>
+      <button class="btn btn-ghost btn-sm" onclick="addFeeRange()" style="margin-top:6px">+ Add price range</button>
+      <div class="p-sub" style="margin-top:12px">When you mark an order <b>Returned</b> in All Sales, the loss = the matching range's Shipping + Return Ship + Packing + Other + any extra expenses.</div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
          GST SUMMARY
     ═══════════════════════════════════════════════════════ -->
     <div class="panel" id="panelGst">
@@ -1421,6 +1445,7 @@ async function startApp(){
   loadSalesBadge();
   loadReturnsBadge();
   loadCustomers();
+  loadFeeRules();        // load fee/return-cost rules (used when marking returns)
   syncWebsiteOrders();   // auto-pull any new website orders
 }
 
@@ -1432,7 +1457,7 @@ function switchTab(name){
     sales:loadSales, products:loadProducts, stock:loadStock,
     gst:loadGST, dashboard:loadDashboard,
     labels:populateLabelProductSelect, settings:loadBizSettings,
-    customers:loadCustomers
+    customers:loadCustomers, fees:loadFeesTab
   };
   if(loaders[name]) loaders[name]();
   toggleNav(false);   // close mobile drawer after choosing a tab
@@ -1927,15 +1952,83 @@ async function togglePaidOrder(firstId,allPaid){
   if(error){ toast('Error: '+error.message,'error'); return; }
   loadSales();
 }
-// Real money lost on a return = forward shipping + return shipping + box/packing
-// (the product comes back, so its cost isn't lost — these fulfilment costs are).
-function calcReturnLoss(channel, sellingTotal, fwdShip){
-  const plat=(channel==='amazon'||channel==='flipkart');
-  const fwd=(parseFloat(fwdShip)||0) || (plat ? platformDelivery(sellingTotal) : 0);
-  const ret=plat ? platformDelivery(sellingTotal) : fwd;   // return leg (item ships back)
-  const pack=(typeof PACKING_FEE!=='undefined')?PACKING_FEE:45;
-  return +(fwd + ret + pack).toFixed(2);
+// ── Configurable fee rules (per platform & price range) ─────
+// Stored in site_settings.biz_fee_rules (shared across devices). Edited in the
+// Fees & Returns tab. Used for return-loss + import forward fees.
+let _feeRules=null;
+function defaultFeeRules(){
+  const R=(min,max,shipping,returnShip)=>({min,max,shipping,returnShip,packing:50,other:0,extra:[]});
+  const plat=[R(0,499,50,55),R(500,999,80,55),R(1000,1999,110,70),R(2000,null,160,90)];
+  const local=[{min:0,max:null,shipping:0,returnShip:0,packing:50,other:0,extra:[]}];
+  return {amazon:JSON.parse(JSON.stringify(plat)),flipkart:JSON.parse(JSON.stringify(plat)),shop:JSON.parse(JSON.stringify(local)),website:JSON.parse(JSON.stringify(local))};
 }
+async function loadFeeRules(){
+  try{
+    const {data}=await sb.from('site_settings').select('value').eq('key','biz_fee_rules').maybeSingle();
+    if(data&&data.value) _feeRules=JSON.parse(data.value);
+  }catch(e){}
+  if(!_feeRules||typeof _feeRules!=='object') _feeRules=defaultFeeRules();
+  ['amazon','flipkart','shop','website'].forEach(c=>{ if(!Array.isArray(_feeRules[c])) _feeRules[c]=defaultFeeRules()[c]; });
+}
+function getFeeRange(channel, amount){
+  if(!_feeRules) return null;
+  const rules=_feeRules[channel]||[]; amount=parseFloat(amount)||0;
+  return rules.find(r=> amount>=(parseFloat(r.min)||0) && (r.max==null||r.max===''||amount<=parseFloat(r.max))) || null;
+}
+function _feeExtra(r){ return (r.extra||[]).reduce((a,e)=>a+(parseFloat(e.amount)||0),0); }
+
+// Real money lost on a return = forward shipping + return shipping + box/packing
+// (+ other/extras), taken from the matching fee rule for that platform & price.
+function calcReturnLoss(channel, sellingTotal, fwdShip){
+  const r=getFeeRange(channel, sellingTotal);
+  if(r) return +((parseFloat(r.shipping)||0)+(parseFloat(r.returnShip)||0)+(parseFloat(r.packing)||0)+(parseFloat(r.other)||0)+_feeExtra(r)).toFixed(2);
+  // fallback if no rule configured
+  const plat=(channel==='amazon'||channel==='flipkart');
+  const fwd=(parseFloat(fwdShip)||0)||(plat?platformDelivery(sellingTotal):0);
+  const ret=plat?platformDelivery(sellingTotal):fwd;
+  return +(fwd+ret+((typeof PACKING_FEE!=='undefined')?PACKING_FEE:45)).toFixed(2);
+}
+// ── Fees & Returns editor ───────────────────────────────────
+async function loadFeesTab(){ if(!_feeRules) await loadFeeRules(); renderFeeEditor(); }
+function renderFeeEditor(){
+  if(!_feeRules) return;
+  const plat=document.getElementById('feePlatform').value;
+  const rules=_feeRules[plat]||(_feeRules[plat]=[]);
+  const box=document.getElementById('feeEditor'); if(!box) return;
+  const inp='background:var(--bg-2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:13px;padding:6px 8px;outline:none;width:100%';
+  box.innerHTML=rules.length?rules.map((r,i)=>`
+    <div class="chart-box" style="margin-bottom:10px;padding:12px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;align-items:end">
+        <div class="form-group"><label>Min ₹</label><input type="number" value="${r.min??''}" oninput="_feeRules['${plat}'][${i}].min=this.value" style="${inp}"></div>
+        <div class="form-group"><label>Max ₹ (blank=∞)</label><input type="number" value="${r.max??''}" oninput="_feeRules['${plat}'][${i}].max=this.value" style="${inp}"></div>
+        <div class="form-group"><label>Shipping ₹</label><input type="number" value="${r.shipping??''}" oninput="_feeRules['${plat}'][${i}].shipping=this.value" style="${inp}"></div>
+        <div class="form-group"><label>Return Ship ₹</label><input type="number" value="${r.returnShip??''}" oninput="_feeRules['${plat}'][${i}].returnShip=this.value" style="${inp}"></div>
+        <div class="form-group"><label>Packing ₹</label><input type="number" value="${r.packing??''}" oninput="_feeRules['${plat}'][${i}].packing=this.value" style="${inp}"></div>
+        <div class="form-group"><label>Other ₹</label><input type="number" value="${r.other??''}" oninput="_feeRules['${plat}'][${i}].other=this.value" style="${inp}"></div>
+      </div>
+      <div style="margin-top:8px">
+        ${(r.extra||[]).map((e,j)=>`<div style="display:flex;gap:6px;margin-top:5px;align-items:center">
+          <input value="${esc(e.label||'')}" placeholder="Expense name" oninput="_feeRules['${plat}'][${i}].extra[${j}].label=this.value" style="${inp};flex:1">
+          <input type="number" value="${e.amount??''}" placeholder="₹" oninput="_feeRules['${plat}'][${i}].extra[${j}].amount=this.value" style="${inp};width:90px;text-align:right">
+          <button class="btn btn-danger btn-sm" onclick="removeFeeExtra('${plat}',${i},${j})">✕</button></div>`).join('')}
+        <div style="display:flex;gap:8px;margin-top:8px;justify-content:space-between;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="addFeeExtra('${plat}',${i})">+ Add expense</button>
+          <span style="font-size:11px;color:var(--text-3)">Return loss for this range: <b style="color:var(--red)">${fmt((parseFloat(r.shipping)||0)+(parseFloat(r.returnShip)||0)+(parseFloat(r.packing)||0)+(parseFloat(r.other)||0)+_feeExtra(r))}</b></span>
+          <button class="btn btn-danger btn-sm" onclick="removeFeeRange('${plat}',${i})">Delete range</button>
+        </div>
+      </div>
+    </div>`).join(''):'<div class="p-sub">No price ranges yet — click “+ Add price range”.</div>';
+}
+function addFeeRange(){ const plat=document.getElementById('feePlatform').value; (_feeRules[plat]=_feeRules[plat]||[]).push({min:0,max:null,shipping:0,returnShip:0,packing:50,other:0,extra:[]}); renderFeeEditor(); }
+function removeFeeRange(plat,i){ _feeRules[plat].splice(i,1); renderFeeEditor(); }
+function addFeeExtra(plat,i){ (_feeRules[plat][i].extra=_feeRules[plat][i].extra||[]).push({label:'',amount:0}); renderFeeEditor(); }
+function removeFeeExtra(plat,i,j){ _feeRules[plat][i].extra.splice(j,1); renderFeeEditor(); }
+async function saveFeeRules(){
+  const {error}=await sb.from('site_settings').upsert({key:'biz_fee_rules',value:JSON.stringify(_feeRules),updated_at:new Date().toISOString()},{onConflict:'key'});
+  if(error){ toast('Save failed: '+error.message,'error'); return; }
+  toast('Fee rules saved');
+}
+
 async function updateOrderStatus(firstId,status){
   const items=_orderGroup(firstId), ids=items.map(s=>s.id), f=items[0];
   const {error}=await sb.from('biz_sales').update({status}).in('id',ids);
@@ -2676,7 +2769,11 @@ function isFlipkartReport(cols){ const L=cols.map(c=>c.toLowerCase()); return L.
 // ── Fixed platform expenses (Amazon / Flipkart), applied per order ──
 function platformDelivery(price){ const p=parseFloat(price)||0; if(p<=500) return 50; if(p<=1000) return 89; return 160; }
 const PACKING_FEE=45;   // shipping box + label + packing, per order
-function applyPlatformFees(r){ r.shipping_fee=platformDelivery(r.selling_price); r.other_deductions=PACKING_FEE; r.platform_fee=0; return r; }
+function applyPlatformFees(r){
+  const rng=getFeeRange(r.channel_id, r.selling_price);
+  if(rng){ r.shipping_fee=parseFloat(rng.shipping)||0; r.other_deductions=(parseFloat(rng.packing)||0)+(parseFloat(rng.other)||0)+_feeExtra(rng); r.platform_fee=0; return r; }
+  r.shipping_fee=platformDelivery(r.selling_price); r.other_deductions=PACKING_FEE; r.platform_fee=0; return r;
+}
 
 // ── Auto-create catalog products for imported items not already present ──
 async function autoCreateProducts(rows){
