@@ -131,7 +131,8 @@ window._FOOTER_HTML = `<footer>
           <li><a href="/services/personalized-gifts.html">Personalized Gifts</a></li>
         </ul>
       </div>
-      <div><div class="foot-col-t">Services</div>
+      <!-- SEO: hidden from the visible footer but kept in the DOM (and in sitemap.xml) so search engines still crawl these local landing pages -->
+      <div style="display:none"><div class="foot-col-t">Services</div>
         <ul class="foot-links">
           <li><a href="/services/corporate-gifting">Corporate Gifting</a></li>
           <li><a href="/gifts/corporate-gifts-noida">Corporate Gifts Noida</a></li>
