@@ -15,11 +15,15 @@ export async function createOrder(req, res, next) {
 
     let total_amount = 0;
     for (const item of items) {
+      // SECURITY: reject non-positive / non-integer quantities (price manipulation)
+      const qty = Number(item.quantity);
+      if (!Number.isInteger(qty) || qty < 1)
+        return res.status(400).json({ error: `Invalid quantity for product ${item.product_id}` });
       const p = products.find(x => x.id === item.product_id);
       if (!p) return res.status(400).json({ error: `Product ${item.product_id} not found` });
-      if (p.stock_qty < item.quantity)
+      if (p.stock_qty < qty)
         return res.status(400).json({ error: `Insufficient stock for "${p.name}"` });
-      total_amount += p.price * item.quantity;
+      total_amount += p.price * qty;
     }
 
     const { data: order, error: oErr } = await supabase
@@ -31,7 +35,7 @@ export async function createOrder(req, res, next) {
     const rows = items.map(item => ({
       order_id: order.id,
       product_id: item.product_id,
-      quantity: item.quantity,
+      quantity: Number(item.quantity),
       unit_price: products.find(x => x.id === item.product_id).price,
       customization_notes: item.customization_notes || null,
     }));
@@ -45,12 +49,58 @@ export async function createOrder(req, res, next) {
 export async function createWhatsAppOrder(req, res, next) {
   try {
     const user_id = req.user.id;
-    const { order_id, items, shipping_address, subtotal, shipping_charge, total_amount,
-            customer_name, customer_phone, customer_email, special_instructions,
-            promo_code, discount_amount, is_gift, gift_message } = req.body;
+    const { order_id, items, shipping_address, customer_name, customer_phone,
+            customer_email, special_instructions, promo_code, is_gift, gift_message } = req.body;
 
     if (!items?.length) return res.status(400).json({ error: 'items are required' });
-    if (!total_amount)  return res.status(400).json({ error: 'total_amount is required' });
+
+    /* SECURITY: never trust client-supplied prices/totals. Re-price every line
+       from the products table using validated quantities, then recompute subtotal,
+       shipping and discount server-side. (Previously subtotal / total_amount /
+       discount were taken verbatim from the request, so a forged ₹1 "order" with
+       real-looking confirmation emails could be created.) */
+    const slugs = [...new Set(items.map(i => i.slug).filter(Boolean))];
+    if (!slugs.length) return res.status(400).json({ error: 'items must reference product slugs' });
+
+    const { data: products, error: pErr } = await supabase
+      .from('products').select('slug, name, price').in('slug', slugs).eq('is_active', true);
+    if (pErr) throw pErr;
+
+    let subtotal = 0;
+    const pricedItems = items.map(i => {
+      const qty = Number(i.quantity);
+      if (!Number.isInteger(qty) || qty < 1) throw Object.assign(new Error(`Invalid quantity for "${i.slug}"`), { status: 400 });
+      const p = products.find(x => x.slug === i.slug);
+      if (!p) throw Object.assign(new Error(`Product "${i.slug}" not found`), { status: 400 });
+      subtotal += p.price * qty;
+      return { slug: i.slug, name: p.name, quantity: qty, unit_price: p.price,
+               customization_notes: i.customization_notes || null };
+    });
+
+    const shipping_charge = subtotal >= 999 ? 0 : 99;
+
+    /* Validate promo server-side (same rules as the paid checkout path) */
+    let discount_amount = 0;
+    let appliedPromoCode = null;
+    if (promo_code) {
+      const { data: promo } = await supabase
+        .from('promo_codes').select('*').eq('code', String(promo_code).toUpperCase().trim()).single();
+      if (promo && promo.is_active &&
+          (!promo.expires_at || new Date(promo.expires_at) > new Date()) &&
+          (!promo.max_uses   || promo.current_uses < promo.max_uses) &&
+          (!promo.min_order_amount || subtotal >= promo.min_order_amount) &&
+          (!promo.product_slug || items.some(i => i.slug === promo.product_slug))) {
+        appliedPromoCode = promo.code;
+        if (promo.discount_type === 'free_shipping')   discount_amount = shipping_charge;
+        else if (promo.discount_type === 'percent') {
+          discount_amount = Math.round(subtotal * promo.discount_value / 100);
+          if (promo.max_discount_amount && discount_amount > promo.max_discount_amount)
+            discount_amount = promo.max_discount_amount;
+        } else if (promo.discount_type === 'fixed')    discount_amount = Math.min(promo.discount_value, subtotal);
+      }
+    }
+
+    const total_amount = Math.max(0, subtotal + shipping_charge - discount_amount);
 
     const insert = {
       order_id:            order_id || null,
@@ -60,18 +110,17 @@ export async function createWhatsAppOrder(req, res, next) {
       customer_phone:      customer_phone || null,
       customer_email:      customer_email || null,
       shipping_address:    shipping_address || {},
-      items:               items,
-      subtotal:            subtotal || total_amount,
-      shipping_charge:     shipping_charge || 0,
-      total_amount:        Number(total_amount),
+      items:               pricedItems,
+      subtotal,
+      shipping_charge,
+      total_amount,
       payment_method:      'whatsapp',
       payment_status:      'pending',
       order_status:        'whatsapp_pending',
       status:              'pending',
       special_instructions: special_instructions || null,
     };
-    if (promo_code)      insert.promo_code      = String(promo_code).toUpperCase().trim();
-    if (discount_amount) insert.discount_amount = Number(discount_amount);
+    if (appliedPromoCode) { insert.promo_code = appliedPromoCode; insert.discount_amount = discount_amount; }
     if (is_gift)         insert.is_gift         = true;
     if (gift_message)    insert.gift_message    = String(gift_message).slice(0, 150);
 
@@ -97,9 +146,9 @@ export async function createWhatsAppOrder(req, res, next) {
         payment_method:  'whatsapp',
         is_gift:         order.is_gift || false,
         gift_message:    order.gift_message || null,
-        items:           Array.isArray(items) ? items.map(it => ({
-          name: it.name || 'Item', quantity: it.quantity, unit_price: it.price || it.unit_price || 0,
-        })) : [],
+        items:           pricedItems.map(it => ({
+          name: it.name || 'Item', quantity: it.quantity, unit_price: it.unit_price,
+        })),
         shipping_address: shipping_address || {},
       };
       const { sendOrderConfirmation, sendAdminOrderAlert } = await import('../services/emailService.js');

@@ -72,18 +72,27 @@ router.post('/verify-otp', async (req, res, next) => {
     const digits = phone.replace(/\D/g, '');
     const mobile = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
 
+    // Fetch the most recent unverified code for this number, then compare in code
+    // so we can enforce a per-code attempt cap (brute-force lockout).
     const { data: record } = await supabase
       .from('phone_otps')
       .select('*')
       .eq('phone', mobile)
-      .eq('otp', String(otp).trim())
       .eq('verified', false)
-      .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (!record) return res.status(400).json({ error: 'Invalid or expired OTP. Please try again.' });
+    if ((record.attempts || 0) >= 5)
+      return res.status(429).json({ error: 'Too many incorrect attempts. Please request a new code.' });
+    if (new Date(record.expires_at) <= new Date())
+      return res.status(400).json({ error: 'Your code has expired. Please request a new one.' });
+
+    if (record.otp !== String(otp).trim()) {
+      await supabase.from('phone_otps').update({ attempts: (record.attempts || 0) + 1 }).eq('id', record.id);
+      return res.status(400).json({ error: 'Invalid or expired OTP. Please try again.' });
+    }
 
     // Mark as verified
     await supabase.from('phone_otps').update({ verified: true }).eq('id', record.id);
@@ -240,13 +249,15 @@ router.post('/send-verification-email', requireAuth, async (req, res, next) => {
       }
     }
 
-    // Surface the real reason (store + email) so the browser console can show it
+    // Surface the real reason ONLY in development — never leak internal store/email
+    // error details (DB column names, provider messages) to production clients.
     const debug = [storeError && `store: ${storeError}`, emailError && `email: ${emailError}`]
       .filter(Boolean).join(' || ');
+    const isDev = process.env.NODE_ENV === 'development';
     res.json({
       sent: true,
       emailDelivered,
-      ...(debug ? { _debug: debug } : {}),
+      ...(isDev && debug ? { _debug: debug } : {}),
     });
   } catch (err) { next(err); }
 });
@@ -271,11 +282,15 @@ router.post('/verify-email-otp', requireAuth, async (req, res, next) => {
 
     if (!record) return res.status(400).json({ error: 'No pending code found. Please request a new one.' });
 
+    if ((record.attempts || 0) >= 5)
+      return res.status(429).json({ error: 'Too many incorrect attempts. Please request a new code.' });
+
     if (new Date(record.expires_at) <= new Date()) {
       return res.status(400).json({ error: 'Your code has expired. Please request a new one.' });
     }
 
     if (record.otp !== String(otp).trim()) {
+      await supabase.from('phone_otps').update({ attempts: (record.attempts || 0) + 1 }).eq('id', record.id);
       return res.status(400).json({ error: 'Incorrect code. Please check and try again.' });
     }
 

@@ -23,6 +23,10 @@ router.post('/', async (req, res, next) => {
     if (!data || typeof data !== 'object' || Array.isArray(data)) {
       return res.status(400).json({ error: 'Missing or invalid data' });
     }
+    // Bound abuse of this public, unauthenticated endpoint
+    if (JSON.stringify(data).length > 8000) {
+      return res.status(400).json({ error: 'Payload too large' });
+    }
 
     try {
       if (type === 'contact') {

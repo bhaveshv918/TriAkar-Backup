@@ -234,7 +234,39 @@ app.get('/api/track/:id', async (req, res) => {
 
     if (!data) return res.json({ found: false });
     const displayId = data.order_id || data.invoice_number || id;
-    res.json({ found: true, order: Object.assign({}, data, { display_id: displayId }) });
+
+    /* SECURITY: this endpoint is public and TRK ids are short/guessable, so return
+       ONLY non-PII tracking fields. Never expose customer_email / customer_phone /
+       customer_name or the street-level address — otherwise order ids could be
+       enumerated to harvest customer contact details. */
+    const addr = data.shipping_address || {};
+    const safeItems = Array.isArray(data.items)
+      ? data.items.map(it => ({ name: it.name || 'Item', quantity: it.quantity, unit_price: it.unit_price ?? it.price }))
+      : [];
+    res.json({ found: true, order: {
+      display_id:         displayId,
+      order_id:           data.order_id,
+      invoice_number:     data.invoice_number,
+      status:             data.status,
+      order_status:       data.order_status,
+      payment_method:     data.payment_method,
+      payment_status:     data.payment_status,
+      payment_received:   data.payment_received,
+      created_at:         data.created_at,
+      updated_at:         data.updated_at,
+      subtotal:           data.subtotal,
+      shipping_charge:    data.shipping_charge,
+      discount_amount:    data.discount_amount,
+      promo_code:         data.promo_code,
+      total_amount:       data.total_amount,
+      tracking_number:    data.tracking_number,
+      tracking_vendor:    data.tracking_vendor,
+      estimated_delivery: data.estimated_delivery,
+      expected_delivery:  data.expected_delivery,
+      items:              safeItems,
+      // city/state/pincode only — enough to recognise the order, no street address
+      shipping_address:   { city: addr.city || null, state: addr.state || null, pincode: addr.pincode || null },
+    } });
   } catch (err) {
     console.error('[track] error:', err.message || err);
     res.status(500).json({ error: 'Could not fetch order' });

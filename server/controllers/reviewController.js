@@ -19,7 +19,7 @@ export async function getReviews(req, res) {
     res.json({ reviews: data || [] });
   } catch (e) {
     console.error('getReviews:', e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 }
 
@@ -47,7 +47,7 @@ export async function getAllReviews(req, res) {
     res.json({ reviews: data || [], total: count || 0 });
   } catch (e) {
     console.error('getAllReviews:', e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 }
 
@@ -129,7 +129,7 @@ export async function createReview(req, res) {
     res.status(201).json({ review: data, message: 'Review submitted — it will appear after approval.' });
   } catch (e) {
     console.error('createReview:', e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 }
 
@@ -161,7 +161,7 @@ export async function updateReview(req, res) {
     res.json({ review: data });
   } catch (e) {
     console.error('updateReview:', e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 }
 
@@ -187,7 +187,7 @@ export async function patchStatus(req, res) {
     res.json({ review: data });
   } catch (e) {
     console.error('patchStatus:', e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 }
 
@@ -206,6 +206,6 @@ export async function deleteReview(req, res) {
     res.json({ message: 'Review deleted' });
   } catch (e) {
     console.error('deleteReview:', e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 }

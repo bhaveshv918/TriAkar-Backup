@@ -43,11 +43,18 @@ export async function createOrder(req, res, next) {
 
     let subtotal = 0;
     for (const item of items) {
+      // SECURITY: quantity must be a positive integer. Without this a negative or
+      // zero quantity drives the subtotal down (pay ₹1 for a ₹5000 item) and the
+      // decrement_stock RPC — stock_qty = GREATEST(0, stock_qty - qty) — would even
+      // ADD phantom stock back for a negative qty.
+      const qty = Number(item.quantity);
+      if (!Number.isInteger(qty) || qty < 1)
+        return res.status(400).json({ error: `Invalid quantity for "${item.slug}"` });
       const p = products.find(x => x.slug === item.slug);
       if (!p) return res.status(400).json({ error: `Product "${item.slug}" not found` });
-      if (p.stock_qty < item.quantity)
+      if (p.stock_qty < qty)
         return res.status(400).json({ error: `Insufficient stock for "${p.name}"` });
-      subtotal += p.price * item.quantity;
+      subtotal += p.price * qty;
     }
     const shipping_charge = subtotal >= 999 ? 0 : 99;
 
@@ -139,7 +146,7 @@ export async function createOrder(req, res, next) {
       const p = products.find(x => x.slug === item.slug);
       return {
         order_id: order.id, product_id: p.id,
-        quantity: item.quantity, unit_price: p.price,
+        quantity: Number(item.quantity), unit_price: p.price,
         customization_notes: item.customization_notes || null,
       };
     });
@@ -200,14 +207,17 @@ export async function verifyPayment(req, res, next) {
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest('hex');
 
-    if (expected !== razorpay_signature) {
+    // Constant-time comparison — avoids a signature timing side-channel
+    const sigBuf = Buffer.from(String(razorpay_signature), 'utf8');
+    const expBuf = Buffer.from(expected, 'utf8');
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
       return res.status(400).json({ error: 'Signature mismatch — payment verification failed' });
     }
 
     // FIX #1: verify this order belongs to the authenticated user
     const { data: existingOrder, error: fetchErr } = await supabase
       .from('orders')
-      .select('id, user_id, status')
+      .select('id, user_id, status, razorpay_order_id')
       .eq('id', order_id)
       .single();
     if (fetchErr || !existingOrder) {
@@ -215,6 +225,13 @@ export async function verifyPayment(req, res, next) {
     }
     if (existingOrder.user_id !== req.user.id) {
       return res.status(403).json({ error: 'Forbidden — order does not belong to you' });
+    }
+    // SECURITY: the signature only proves (razorpay_order_id, payment_id) is a valid
+    // Razorpay-signed pair — it does NOT prove that pair belongs to THIS order. Bind it
+    // to the order's own razorpay_order_id so a cheap order's real payment can't be
+    // replayed to confirm a different, expensive order.
+    if (!existingOrder.razorpay_order_id || existingOrder.razorpay_order_id !== razorpay_order_id) {
+      return res.status(400).json({ error: 'Payment does not match this order' });
     }
     // Idempotency: if already confirmed, return success without re-processing
     if (existingOrder.status === 'confirmed') {

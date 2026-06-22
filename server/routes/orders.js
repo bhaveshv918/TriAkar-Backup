@@ -34,7 +34,7 @@ router.get('/check-purchase', async (req, res) => {
     res.json({ purchased: !!(items && items.length > 0) });
   } catch (e) {
     console.error('check-purchase:', e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Could not check purchase' });
   }
 });
 
