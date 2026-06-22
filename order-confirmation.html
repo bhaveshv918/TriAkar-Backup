@@ -215,30 +215,42 @@ function showError(msg) {
     + '</div>';
 }
 
-function _waFallback(orderId) {
-  renderOrder({
-    order_id: orderId,
-    payment_method: 'whatsapp',
-    order_status: 'whatsapp_pending',
-    total_amount: 0,
-    created_at: new Date().toISOString(),
-    items: []
+/* This page shows private order details (items, totals, address), so the
+   viewer must be signed in AND own the order. Checkout already forces login
+   before an order can be placed (checkout.html), so a legitimate buyer always
+   has a session by the time they land here. Anyone opening a copied/shared
+   link while logged out is sent to sign in and returned to this exact URL
+   afterwards — we never fabricate a confirmation from the URL alone. */
+function _requireLogin() {
+  if (localStorage.getItem('ta_token')) return true;
+  try { sessionStorage.setItem('ta_return_url', window.location.href); } catch (e) {}
+  window.location.replace('account.html');
+  return false;
+}
+
+function _renderFromRow(data) {
+  // Merge JSONB items as fallback when order_items rows are absent (WA orders)
+  const dbItems = (data.order_items || []).map(function(i) {
+    return { name: (i.products && i.products.name) || 'Item', quantity: i.quantity, unit_price: i.unit_price };
   });
+  renderOrder(Object.assign({}, data, { items: dbItems.length ? dbItems : (data.items || []) }));
 }
 
 async function loadOrder() {
+  if (!_requireLogin()) return;            // redirect logged-out visitors to sign in
+
   const params = new URLSearchParams(window.location.search);
   const orderId = params.get('order_id');
-  const isWAParam = params.get('via') === 'whatsapp';
   if (!orderId) { showError('No order ID found.'); return; }
 
-  // 1. Try Supabase — query by order_id (TRK-…) only, not by UUID id
+  const token = localStorage.getItem('ta_token');
+
+  // 1. Supabase — RLS scopes this to the signed-in user's own orders only.
   try {
     const sb = (typeof _ensureSB === 'function') ? await _ensureSB() : null;
     if (sb) {
-      const t = localStorage.getItem('ta_token');
       const r = localStorage.getItem('ta_refresh');
-      if (t) { try { await sb.auth.setSession({ access_token: t, refresh_token: r || '' }); } catch (e) {} }
+      try { await sb.auth.setSession({ access_token: token, refresh_token: r || '' }); } catch (e) {}
 
       const { data, error } = await sb
         .from('orders')
@@ -246,39 +258,22 @@ async function loadOrder() {
         .eq('order_id', orderId)
         .maybeSingle();
 
-      if (!error && data) {
-        // Merge JSONB items as fallback when order_items rows are absent (WA orders)
-        const dbItems = (data.order_items || []).map(function(i) {
-          return { name: (i.products && i.products.name) || 'Item', quantity: i.quantity, unit_price: i.unit_price };
-        });
-        renderOrder(Object.assign({}, data, { items: dbItems.length ? dbItems : (data.items || []) }));
-        return;
-      }
+      if (!error && data) { _renderFromRow(data); return; }
     }
   } catch (e) { console.error('order-confirmation supabase query failed:', e); }
 
-  // 2. No token → can't call Express API
-  const token = localStorage.getItem('ta_token');
-  if (!token) {
-    isWAParam
-      ? _waFallback(orderId)
-      : showError('Order placed! Your order ID is <strong>' + orderId + '</strong>. Use it to track your order.');
-    return;
-  }
-
-  // 3. Express API fallback
+  // 2. Express API fallback — server re-verifies the order belongs to this user.
   try {
-    const res = await fetch(API_BASE + '/api/orders/' + orderId, {
+    const res = await fetch(API_BASE + '/api/orders/' + encodeURIComponent(orderId), {
       headers: { Authorization: 'Bearer ' + token }
     });
     if (!res.ok) throw new Error('not found');
     const { order } = await res.json();
     renderOrder(order);
   } catch (err) {
-    // If WA param is set, always show the WhatsApp confirmation — never generic error
-    isWAParam
-      ? _waFallback(orderId)
-      : showError('Could not load order details. Your order ID: <strong>' + orderId + '</strong>');
+    // Not this user's order (or it doesn't exist) — show an honest message,
+    // never a fabricated confirmation.
+    showError('We couldn\'t find this order in your account. If you just placed it, check <a href="account.html" style="color:var(--accent)">My Orders</a>.');
   }
 }
 
