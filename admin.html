@@ -2244,36 +2244,36 @@ function renderOrders(orders){
   tbody.innerHTML=orders.map(o=>{
     const inv=fmtInvoice(o);
     const p=o.profiles||{};
-    const name=o.customer_name||p.full_name||p.email||'Guest';
-    const custEmail=o.customer_email||p.email||'';
+    const name=esc(o.customer_name||p.full_name||p.email||'Guest');
+    const custEmail=esc(o.customer_email||p.email||'');
     const email=custEmail?'<div style="font-size:10px;color:var(--text-3);font-family:var(--mono)">'+custEmail+'</div>':'';
-    const custPhone=o.customer_phone||p.phone||'';
+    const custPhone=esc(o.customer_phone||p.phone||'');
     const phone=custPhone?(' ('+custPhone+')'):'';
-    const userCode=p.user_code||'';
+    const userCode=esc(p.user_code||'');
     const uidTag=userCode?'<div style="font-size:9px;font-family:var(--mono);font-weight:700;letter-spacing:.05em;color:var(--accent);margin-top:2px">ID: '+userCode+'</div>':'';
     const addr=o.shipping_address||{};
     const addrObj=o.user_addresses||{};
-    const loc=addr.city||addrObj.city||addr.state||addrObj.state||'—';
+    const loc=esc(addr.city||addrObj.city||addr.state||addrObj.state||'—');
     // Support both order_items (old) and items JSONB (new)
     const orderItems=o.order_items||[];
     const jsonItems=o.items||[];
-    const itemsList=orderItems.length?orderItems.map(i=>((i.products||{}).name||'Item')+' x'+i.quantity).join(', '):jsonItems.map(i=>(i.name||'Item')+' x'+i.quantity).join(', ')||'—';
+    const itemsList=orderItems.length?orderItems.map(i=>esc((i.products||{}).name||'Item')+' x'+esc(i.quantity)).join(', '):jsonItems.map(i=>esc(i.name||'Item')+' x'+esc(i.quantity)).join(', ')||'—';
     const items=itemsList;
     const curStatus=o.order_status||o.status||'placed';
     const selOpts=STATUS_OPTIONS.map(s=>'<option value="'+s+'"'+(curStatus===s?' selected':'')+'>'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>').join('');
     const trackTag=o.tracking_number?'<div style="font-size:10px;color:var(--accent);font-family:var(--mono);margin-top:2px">'+(o.tracking_vendor||'')+' '+o.tracking_number+'</div>':'';
 
     // Full address for detail row
-    const fullAddr=[addr.full_name||addrObj.full_name,addr.address_line1||addrObj.address_line1,addr.address_line2||addrObj.address_line2,
-      [addr.city||addrObj.city,addr.state||addrObj.state,addr.pincode||addrObj.pincode].filter(Boolean).join(', '),
-      addr.country||addrObj.country,
-      (addr.phone||addrObj.phone)?'Ph: '+(addr.phone||addrObj.phone):''].filter(Boolean).join('<br>')||'—';
+    const fullAddr=[esc(addr.full_name||addrObj.full_name),esc(addr.address_line1||addrObj.address_line1),esc(addr.address_line2||addrObj.address_line2),
+      [esc(addr.city||addrObj.city),esc(addr.state||addrObj.state),esc(addr.pincode||addrObj.pincode)].filter(Boolean).join(', '),
+      esc(addr.country||addrObj.country),
+      (addr.phone||addrObj.phone)?'Ph: '+esc(addr.phone||addrObj.phone):''].filter(Boolean).join('<br>')||'—';
 
     // Items list for detail — join from order_items + fallback to items JSONB
     const rawItems=o.order_items&&o.order_items.length?o.order_items:(o.items||[]);
     const itemsDetail=rawItems.length?rawItems.map(i=>{
-      const pname=(i.products||{}).name||i.name||'Item';
-      const cat=(i.products||{}).category||'';
+      const pname=esc((i.products||{}).name||i.name||'Item');
+      const cat=esc((i.products||{}).category||'');
       const catBadge=cat?'<span style="font-size:9px;background:var(--bg-3);padding:2px 6px;border-radius:3px;margin-left:6px;color:var(--text-3)">'+cat+'</span>':'';
       // Show customization: parse "Key: Value | Key: Value" into pills
       let cust='';
@@ -2301,8 +2301,6 @@ function renderOrders(orders){
     const waBadge=isWAOrder?'<span style="display:inline-block;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:3px;background:#25D366;color:#fff;margin-left:5px;vertical-align:middle">WA</span>':'';
     const payStatusLabel=isPaid?'<span style="color:var(--green);font-weight:600">Received</span>':isAdv?'<span style="color:var(--yellow);font-weight:600">50% Advance</span>':'<span style="color:var(--text-3)">Pending</span>';
 
-    const esc=s=>(s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
-
     return '<tr onclick="toggleOrderDetail(\''+o.id+'\')" style="cursor:pointer">'
       +'<td onclick="event.stopPropagation()"><input type="checkbox" class="row-check" data-id="'+o.id+'"></td>'
       +'<td><span class="order-expand-btn" id="exp-'+o.id+'">&#9654;</span></td>'
@@ -2327,7 +2325,7 @@ function renderOrders(orders){
         // ── Section 2: Shipping Address
         +'<div class="od-section"><div class="od-label">Shipping Address</div><div class="od-value">'
         +fullAddr
-        +((o.shipping_address||{}).contact_phone?'<br><span style="font-size:11px;color:var(--text-2)">Delivery contact: '+(o.shipping_address.contact_phone)+'</span>':'')
+        +((o.shipping_address||{}).contact_phone?'<br><span style="font-size:11px;color:var(--text-2)">Delivery contact: '+esc(o.shipping_address.contact_phone)+'</span>':'')
         +'</div></div>'
 
         // ── Section 3: Order Items
@@ -3625,13 +3623,13 @@ function renderCustomers(list){
     const spent=c._spent||0;
     const spentFmt=spent?fmtPrice(spent):'₹0';
     const uidCell=c.user_code
-      ?'<span style="font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.06em;background:var(--bg-3);padding:3px 7px;border-radius:4px;color:var(--text)">'+c.user_code+'</span>'
+      ?'<span style="font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.06em;background:var(--bg-3);padding:3px 7px;border-radius:4px;color:var(--text)">'+esc(c.user_code)+'</span>'
       :'<span style="color:var(--text-3);font-size:11px">—</span>';
     return '<tr>'
       +'<td>'+uidCell+'</td>'
-      +'<td class="td-name">'+(c.full_name||'—')+(c.nickname?'<div style="font-size:10px;color:var(--text-3)">aka '+c.nickname+'</div>':'')+'</td>'
-      +'<td style="font-family:var(--mono);font-size:11px">'+(c.email||'—')+'</td>'
-      +'<td>'+(c.mobile||'—')+(c.previous_mobile&&c.previous_mobile!==c.mobile?'<div style="font-size:10px;color:var(--text-3);margin-top:2px">prev: '+c.previous_mobile+'</div>':'')+'</td>'
+      +'<td class="td-name">'+esc(c.full_name||'—')+(c.nickname?'<div style="font-size:10px;color:var(--text-3)">aka '+esc(c.nickname)+'</div>':'')+'</td>'
+      +'<td style="font-family:var(--mono);font-size:11px">'+esc(c.email||'—')+'</td>'
+      +'<td>'+esc(c.mobile||'—')+(c.previous_mobile&&c.previous_mobile!==c.mobile?'<div style="font-size:10px;color:var(--text-3);margin-top:2px">prev: '+esc(c.previous_mobile)+'</div>':'')+'</td>'
       +'<td style="font-weight:600;color:'+(orderCount?'var(--text)':'var(--text-3)')+'">'+orderCount+'</td>'
       +'<td style="font-weight:600;color:'+(spent?'var(--green)':'var(--text-3)')+'">'+spentFmt+'</td>'
       +'<td>'+joined+'</td>'
@@ -3694,12 +3692,12 @@ function renderMessages(list){
       +'<td><input type="checkbox" class="row-check" data-id="'+m.id+'"></td>'
       +'<td><span class="src-badge src-contact">Contact</span></td>'
       +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(m.created_at)+'</td>'
-      +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+(ref||'—')+'</td>'
-      +'<td class="td-name">'+(m.name||'—')+'</td>'
-      +'<td style="font-family:var(--mono);font-size:11px">'+(m.email||'—')+'</td>'
-      +'<td>'+(m.phone||'—')+'</td>'
-      +'<td>'+(m.subject||'—')+'</td>'
-      +'<td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;color:var(--accent)" onclick="viewMessage(\''+m.id+'\')" title="Click to view full message">'+(m.message||'—')+'</td>'
+      +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+esc(ref||'—')+'</td>'
+      +'<td class="td-name">'+esc(m.name||'—')+'</td>'
+      +'<td style="font-family:var(--mono);font-size:11px">'+esc(m.email||'—')+'</td>'
+      +'<td>'+esc(m.phone||'—')+'</td>'
+      +'<td>'+esc(m.subject||'—')+'</td>'
+      +'<td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;color:var(--accent)" onclick="viewMessage(\''+m.id+'\')" title="Click to view full message">'+esc(m.message||'—')+'</td>'
       +'<td>'+badge+'</td>'
       +'<td onclick="event.stopPropagation()">'
         +'<button class="btn-secondary" onclick="viewMessage(\''+m.id+'\')" style="margin-right:6px">View</button>'
@@ -3796,12 +3794,12 @@ function renderCustomEnquiries(list){
     return '<tr '+rowStyle+'>'
       +'<td><input type="checkbox" class="row-check" data-id="'+e.id+'"></td>'
       +'<td><span class="src-badge src-custom">Custom Order</span></td>'
-      +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+(e.reference_id||'—')+'</td>'
-      +'<td class="td-name">'+(e.name||'—')+'</td>'
-      +'<td>'+(e.phone||'—')+'</td>'
-      +'<td style="font-size:11px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;color:var(--accent)" onclick="viewEnquiry(\''+e.id+'\')" title="Click to view full enquiry">'+need+'</td>'
-      +'<td style="font-size:11px;white-space:nowrap">'+(e.budget_range||'—')+'</td>'
-      +'<td style="font-size:11px">'+(e.material_preference||'—')+'</td>'
+      +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+esc(e.reference_id||'—')+'</td>'
+      +'<td class="td-name">'+esc(e.name||'—')+'</td>'
+      +'<td>'+esc(e.phone||'—')+'</td>'
+      +'<td style="font-size:11px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;color:var(--accent)" onclick="viewEnquiry(\''+e.id+'\')" title="Click to view full enquiry">'+esc(need)+'</td>'
+      +'<td style="font-size:11px;white-space:nowrap">'+esc(e.budget_range||'—')+'</td>'
+      +'<td style="font-size:11px">'+esc(e.material_preference||'—')+'</td>'
       +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(e.created_at)+'</td>'
       +'<td>'+badge+'</td>'
       +'<td onclick="event.stopPropagation()">'
@@ -3867,11 +3865,11 @@ function renderCallbacks(list){
     return '<tr '+rowStyle+'>'
       +'<td><input type="checkbox" class="row-check" data-id="'+c.id+'"></td>'
       +'<td><span class="src-badge src-callback">Callback</span></td>'
-      +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+(c.reference_id||'—')+'</td>'
-      +'<td class="td-name">'+(c.name||'—')+'</td>'
-      +'<td>'+(c.phone||'—')+'</td>'
-      +'<td style="font-size:12px">'+(c.topic||'—')+'</td>'
-      +'<td style="font-size:11px">'+(c.preferred_time||'—')+'</td>'
+      +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+esc(c.reference_id||'—')+'</td>'
+      +'<td class="td-name">'+esc(c.name||'—')+'</td>'
+      +'<td>'+esc(c.phone||'—')+'</td>'
+      +'<td style="font-size:12px">'+esc(c.topic||'—')+'</td>'
+      +'<td style="font-size:11px">'+esc(c.preferred_time||'—')+'</td>'
       +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(c.created_at)+'</td>'
       +'<td>'+statusBadge+'</td>'
       +'<td onclick="event.stopPropagation()">'+action+'</td>'

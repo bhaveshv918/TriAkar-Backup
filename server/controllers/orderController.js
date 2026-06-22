@@ -179,25 +179,19 @@ export async function getOrdersByUser(req, res, next) {
     const seen = new Set((byId || []).map(o => o.id));
     let extra = [];
 
-    // Fetch user's phone from profile for phone-based lookup
-    const { data: profile } = await supabase.from('profiles').select('mobile, phone').eq('id', userId).maybeSingle();
-    const userPhone = (profile?.mobile || profile?.phone || '').replace(/\D/g, '').slice(-10);
-
-    // Query by email
+    // Fallback: link orphaned orders by the user's VERIFIED auth email only.
+    // SECURITY: phone-based matching was removed. profiles.phone is user-editable
+    // (PUT /profile) with no real verification, so matching orders on it let any
+    // user read AND claim another customer's orders simply by setting their own
+    // profile phone to the victim's number (IDOR + PII disclosure). The auth email
+    // (req.user.email) is not freely editable, so email matching is safe.
     if (userEmail) {
       const { data: rows } = await supabase.from('orders').select(SELECT)
         .eq('customer_email', userEmail).is('deleted_at', null).order('created_at', { ascending: false });
       (rows || []).forEach(o => { if (!seen.has(o.id)) { seen.add(o.id); extra.push(o); } });
     }
 
-    // Query by phone (last 10 digits match)
-    if (userPhone) {
-      const { data: rows } = await supabase.from('orders').select(SELECT)
-        .ilike('customer_phone', '%' + userPhone).is('deleted_at', null).order('created_at', { ascending: false });
-      (rows || []).forEach(o => { if (!seen.has(o.id)) { seen.add(o.id); extra.push(o); } });
-    }
-
-    // Back-fill user_id on recovered rows so future queries find them by id
+    // Back-fill user_id on recovered (email-matched) rows so future queries find them by id
     if (extra.length) {
       const orphanIds = extra.filter(o => !o.user_id).map(o => o.id);
       if (orphanIds.length) await supabase.from('orders').update({ user_id: userId }).in('id', orphanIds);
