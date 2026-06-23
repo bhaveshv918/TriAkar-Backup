@@ -238,6 +238,38 @@ window._FOOTER_HTML = `<footer>
 })();
 
 /* ════════════════════════════════════════════════════════════════════
+   SITE CONTENT hydration (Module 4) — applies admin-editable values from
+   site_settings onto the already-rendered footer/top-bar. Purely additive
+   and fully guarded: any failure leaves the hardcoded defaults untouched.
+   ════════════════════════════════════════════════════════════════════ */
+(function(){
+  function apply(s){
+    try{
+      if(s.whatsapp_number){
+        var num=String(s.whatsapp_number).replace(/[^0-9]/g,'');
+        if(num.length>=10) document.querySelectorAll('a[href*="wa.me/"]').forEach(function(a){ a.href=a.href.replace(/wa\.me\/\d+/, 'wa.me/'+num); });
+      }
+      if(s.social_instagram){
+        document.querySelectorAll('a[href*="instagram.com"]').forEach(function(a){ a.href=s.social_instagram; });
+      }
+      var notes=[s.announcement_1,s.announcement_2,s.announcement_3];
+      var slides=document.querySelectorAll('#taTopbar .notice-slide');
+      for(var i=0;i<slides.length && i<notes.length;i++){
+        if(notes[i] && String(notes[i]).trim()) slides[i].textContent=String(notes[i]);
+      }
+    }catch(_){}
+  }
+  function run(){
+    try{
+      var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:3000':'https://triakar.onrender.com';
+      fetch(API+'/api/site-settings').then(function(r){return r.json();}).then(function(d){ apply((d&&d.settings)||{}); }).catch(function(){});
+    }catch(_){}
+  }
+  if(document.readyState==='complete') setTimeout(run,300);
+  else window.addEventListener('load',function(){ setTimeout(run,300); });
+})();
+
+/* ════════════════════════════════════════════════════════════════════
    PWA — manifest link, theme-color, and service-worker registration.
    Injected here so it runs site-wide without editing every page <head>.
    ════════════════════════════════════════════════════════════════════ */

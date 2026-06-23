@@ -841,6 +841,9 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     <button class="tab" data-tab="activity" onclick="switchTab('activity')">
       <span class="tab-icon">≣</span><span class="tab-label">Activity Log</span>
     </button>
+    <button class="tab" data-tab="content" onclick="switchTab('content')">
+      <span class="tab-icon">▤</span><span class="tab-label">Site Content</span>
+    </button>
 
     <div class="sidebar-section">Business</div>
     <a href="/admin-biz.html" style="text-decoration:none">
@@ -1582,6 +1585,37 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     </div>
   </div>
 
+  <!-- ── SITE CONTENT PANEL (Module 4) ────────────── -->
+  <div class="panel" id="panelContent">
+    <div class="p-head">
+      <div class="p-title">Site Content</div>
+      <div class="p-actions">
+        <button class="btn-secondary" onclick="loadContentSettings()">⟳ Refresh</button>
+      </div>
+    </div>
+    <div style="max-width:680px">
+      <div style="padding:14px 16px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:10px">Announcement bar <span style="font-weight:400;color:var(--text-3);font-size:11px">· the rotating notices at the very top of every page</span></div>
+        <label class="form-label">Notice 1</label><input id="cAnn1" class="form-input" placeholder="Free shipping above ₹999 · ₹99 below ₹999">
+        <label class="form-label" style="margin-top:8px">Notice 2</label><input id="cAnn2" class="form-input" placeholder="Custom 3D printing · made in Greater Noida">
+        <label class="form-label" style="margin-top:8px">Notice 3</label><input id="cAnn3" class="form-input" placeholder="Noida pickup available · Mon to Sat, 11 AM to 8 PM">
+      </div>
+      <div style="padding:14px 16px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:10px">Social &amp; contact</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><label class="form-label">Instagram URL</label><input id="cInsta" class="form-input" placeholder="https://www.instagram.com/triakarofficial"></div>
+          <div><label class="form-label">WhatsApp number</label><input id="cWa" class="form-input" placeholder="919217555833"></div>
+          <div><label class="form-label">Contact email</label><input id="cEmail" class="form-input" placeholder="hello@triakar.com"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-primary" onclick="saveContentSettings()">Save site content</button>
+        <span id="cStatus" style="font-size:12px;color:var(--text-3)"></span>
+      </div>
+      <p style="font-size:11px;color:var(--text-3);margin-top:12px;line-height:1.6">Changes apply to the live site within a minute, no code deploy. Featured / homepage products are managed from the <b>Products</b> tab using the ★ Home column.</p>
+    </div>
+  </div>
+
   <!-- ── APPEARANCE PANEL ──────────────────────── -->
   <div class="panel" id="panelAppearance">
     <div class="p-head">
@@ -2129,7 +2163,7 @@ setInterval(refreshNotifBadge, 20000);
 
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['Callbacks','Orders','Customers','Products','Makerworld','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo','Reviews','Appearance','Activity'].forEach(p=>{
+  ['Callbacks','Orders','Customers','Products','Makerworld','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo','Reviews','Appearance','Activity','Content'].forEach(p=>{
     const el=document.getElementById('panel'+p);
     if(el)el.classList.toggle('active',p.toLowerCase()===tab);
   });
@@ -2138,6 +2172,7 @@ function switchTab(tab){
   if(tab==='promo')loadPromoCodes();
   if(tab==='reviews'){loadReviewsAdmin();loadGoogleSettings();}
   if(tab==='activity')loadActivity();
+  if(tab==='content')loadContentSettings();
   if(tab==='appearance')loadMenuStyleSetting();
   const dotMap={orders:'dotOrders',customers:'dotCustomers',messages:'dotMessages',enquiries:'dotEnquiries',callbacks:'dotCallbacks'};
   const countEls={orders:'orderCount',customers:'customerCount',messages:'messageCount',enquiries:'enquiryCount',callbacks:'callbackCount'};
@@ -4636,6 +4671,39 @@ async function saveGoogleSettings(){
     if(error)throw error;
     const st=g('grStatus'); if(st){st.textContent='Saved ✓'; setTimeout(()=>{st.textContent='';},2500);}
     toast('Google stats saved','success');
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+/* ── Site Content (Module 4) — announcement notices + social/contact ── */
+async function loadContentSettings(){
+  try{
+    const {data}=await sb.from('site_settings').select('key,value')
+      .in('key',['announcement_1','announcement_2','announcement_3','social_instagram','whatsapp_number','contact_email']);
+    const m={}; (data||[]).forEach(r=>m[r.key]=r.value);
+    const g=id=>document.getElementById(id);
+    if(g('cAnn1')) g('cAnn1').value=m.announcement_1||'';
+    if(g('cAnn2')) g('cAnn2').value=m.announcement_2||'';
+    if(g('cAnn3')) g('cAnn3').value=m.announcement_3||'';
+    if(g('cInsta'))g('cInsta').value=m.social_instagram||'';
+    if(g('cWa'))   g('cWa').value=m.whatsapp_number||'';
+    if(g('cEmail'))g('cEmail').value=m.contact_email||'';
+  }catch(e){ console.warn('loadContentSettings:',e.message); }
+}
+async function saveContentSettings(){
+  const g=id=>document.getElementById(id), now=new Date().toISOString();
+  const rows=[
+    {key:'announcement_1',  value:(g('cAnn1').value||'').trim(), updated_at:now},
+    {key:'announcement_2',  value:(g('cAnn2').value||'').trim(), updated_at:now},
+    {key:'announcement_3',  value:(g('cAnn3').value||'').trim(), updated_at:now},
+    {key:'social_instagram',value:(g('cInsta').value||'').trim(),updated_at:now},
+    {key:'whatsapp_number', value:(g('cWa').value||'').trim(),   updated_at:now},
+    {key:'contact_email',   value:(g('cEmail').value||'').trim(),updated_at:now},
+  ];
+  try{
+    const {error}=await sb.from('site_settings').upsert(rows,{onConflict:'key'});
+    if(error)throw error;
+    const st=g('cStatus'); if(st){st.textContent='Saved ✓'; setTimeout(()=>{st.textContent='';},2500);}
+    toast('Site content saved','success');
   }catch(e){ toast('Error: '+e.message,'error'); }
 }
 

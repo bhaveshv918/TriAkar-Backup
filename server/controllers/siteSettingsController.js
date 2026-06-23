@@ -9,6 +9,9 @@ import supabase from '../db/supabaseClient.js';
 const PUBLIC_KEYS = [
   'mobile_menu_style',
   'google_rating', 'google_review_count', 'google_profile_url', 'google_snippets',
+  // Content Center (Module 4)
+  'social_instagram', 'whatsapp_number', 'contact_email',
+  'announcement_1', 'announcement_2', 'announcement_3',
 ];
 
 export async function getPublicSettings(req, res, next) {
