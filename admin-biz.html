@@ -410,6 +410,18 @@ tr:hover td{background:var(--bg-2)}
         </div>
       </div>
 
+      <!-- Charts row 2 (Module 6) -->
+      <div class="charts-row">
+        <div class="chart-box">
+          <h3>Top Products by Revenue</h3>
+          <canvas id="chartTopProducts"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Revenue Share by Channel</h3>
+          <canvas id="chartChannelShare"></canvas>
+        </div>
+      </div>
+
       <!-- Channel breakdown table -->
       <div class="chart-box" style="margin-bottom:16px">
         <h3>Channel Breakdown — <span id="dashMonthName">this month</span></h3>
@@ -2478,7 +2490,7 @@ function initDashMonths(){
   sel.innerHTML=opts.join('');
 }
 
-let _chartByChannel=null, _chartMonthly=null;
+let _chartByChannel=null, _chartMonthly=null, _chartTopProducts=null, _chartChannelShare=null;
 
 function _skuToProduct(sku){
   if(!sku||!_catalogBySku) return null;
@@ -2589,6 +2601,26 @@ async function loadDashboard(){
     <td class="td-num">${fmt(d.rev)}</td>
     <td class="td-num" style="color:${d.profit>=0?'var(--green)':'var(--red)'}">${fmt(d.profit)}</td>
   </tr>`).join(''):`<tr><td colspan="5" class="empty"><div class="em-text">No sales this month</div></td></tr>`;
+
+  // Chart: Top products by revenue (Module 6) — reuses the `top` data above.
+  const ctxTP=document.getElementById('chartTopProducts');
+  if(ctxTP){
+    if(_chartTopProducts) _chartTopProducts.destroy();
+    const tp=top.slice(0,8);
+    _chartTopProducts=new Chart(ctxTP.getContext('2d'),{type:'bar',data:{
+      labels:tp.map(d=>d.name.length>22?d.name.slice(0,21)+'…':d.name),
+      datasets:[{label:'Revenue',data:tp.map(d=>d.rev),backgroundColor:'rgba(46,158,107,0.75)',borderColor:'#2E9E6B',borderWidth:1}]},
+      options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#869488',callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'rgba(20,42,30,0.07)'}},y:{ticks:{color:'#869488',font:{size:10}},grid:{display:false}}}}});
+  }
+  // Chart: Revenue share by channel (Module 6) — reuses byChannel/channels above.
+  const ctxCS=document.getElementById('chartChannelShare');
+  if(ctxCS){
+    if(_chartChannelShare) _chartChannelShare.destroy();
+    _chartChannelShare=new Chart(ctxCS.getContext('2d'),{type:'doughnut',data:{
+      labels:channels.map(c=>CH_NAMES[c]),
+      datasets:[{data:channels.map(c=>byChannel[c].revenue),backgroundColor:channels.map(c=>CH_COLORS[c]+'cc'),borderColor:'#fff',borderWidth:2}]},
+      options:{responsive:true,plugins:{legend:{position:'right',labels:{color:'#52685A',font:{size:10},boxWidth:12}}}}});
+  }
 
   renderDashReturns(rets);
 }
