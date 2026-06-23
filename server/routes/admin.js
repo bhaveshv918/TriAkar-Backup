@@ -3,6 +3,13 @@ import {
   getAdminProducts, createProduct, updateProduct, deleteProduct,
   getAdminOrders, updateOrderStatus, updateOrderPayment, sendOrderEmail,
 } from '../controllers/adminController.js';
+import {
+  listUsers, getUser, updateUser, setUserDisabled, setUserRole,
+  softDeleteUser, exportUsersCsv,
+} from '../controllers/adminUserController.js';
+import {
+  listRecycleBin, restoreItem, purgeItem,
+} from '../controllers/adminRecycleController.js';
 import { generateListing } from '../controllers/listingController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
@@ -42,5 +49,20 @@ router.get('/orders',                  getAdminOrders);
 router.put('/orders/:id/status',       updateOrderStatus);
 router.put('/orders/:id/payment',      updateOrderPayment);
 router.post('/orders/:id/send-email',  sendOrderEmail);
+
+// ── Users (Module 2) — service-role, RLS-bypass. NOTE: export.csv before :id ──
+router.get('/users/export.csv',     exportUsersCsv);
+router.get('/users',                listUsers);
+router.get('/users/:id',            getUser);
+router.put('/users/:id',            updateUser);
+router.put('/users/:id/role',       setUserRole);
+router.post('/users/:id/disable',   setUserDisabled(true));
+router.post('/users/:id/enable',    setUserDisabled(false));
+router.delete('/users/:id',         softDeleteUser);
+
+// ── Recycle Bin (Module 1) — products / users / reviews ──
+router.get('/recycle-bin',          listRecycleBin);
+router.post('/recycle-bin/restore', restoreItem);
+router.post('/recycle-bin/purge',   purgeItem);
 
 export default router;

@@ -378,6 +378,9 @@ td.td-name{color:var(--text);font-weight:500}
 .src-contact{background:#2563EB;color:#fff}
 .src-custom{background:var(--orange);color:#fff}
 .src-callback{background:#7C3AED;color:#fff}
+.src-product{background:#0D9488;color:#fff}
+.src-user{background:#DB2777;color:#fff}
+.src-review{background:#CA8A04;color:#fff}
 /* .callback-count moved to sidebar tab styles */
 .dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:6px}
 .dot-green{background:var(--green)}.dot-red{background:var(--red)}.dot-yellow{background:var(--yellow)}
@@ -1305,14 +1308,24 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     <div class="p-head">
       <div class="p-title">Customers</div>
       <div class="p-actions">
+        <input type="text" id="customerSearch" placeholder="Search name, email, phone, ID…" oninput="filterCustomers()" style="min-width:180px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
+        <select id="customerRole" onchange="filterCustomers()" style="padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
+          <option value="">All roles</option><option value="customer">Customer</option><option value="staff">Staff</option><option value="admin">Admin</option>
+        </select>
+        <select id="customerStatus" onchange="filterCustomers()" style="padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
+          <option value="">All status</option><option value="active">Active</option><option value="disabled">Disabled</option>
+        </select>
+        <select id="customerSort" onchange="filterCustomers()" style="padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
+          <option value="recent">Newest first</option><option value="oldest">Oldest first</option><option value="orders">Most orders</option><option value="spend">Highest spend</option>
+        </select>
+        <button class="btn-secondary" onclick="exportCustomersCsv()">⭳ Export CSV</button>
         <button class="btn-secondary" onclick="loadCustomers()">⟳ Refresh</button>
-        <input type="text" id="customerSearch" placeholder="Search name, email, phone..." oninput="filterCustomers()" style="min-width:180px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
       </div>
     </div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Member ID</th><th>Name</th><th>Email</th><th>Mobile</th><th>Orders</th><th>Total Spent</th><th>Joined</th></tr></thead>
-        <tbody id="customersBody"><tr><td colspan="7" class="tbl-msg">Loading...</td></tr></tbody>
+        <thead><tr><th>Member ID</th><th>Name</th><th>Email</th><th>Mobile</th><th>Orders</th><th>Total Spent</th><th>Status</th><th>Joined</th></tr></thead>
+        <tbody id="customersBody"><tr><td colspan="8" class="tbl-msg">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1487,6 +1500,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     <div class="p-head">
       <div class="p-title">Recycle Bin</div>
       <div class="p-actions">
+        <input type="text" id="binSearch" placeholder="Search bin…" oninput="filterRecycleBin()" style="min-width:150px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
         <button class="btn-secondary" onclick="loadRecycleBin()">⟳ Refresh</button>
         <button class="btn-secondary" onclick="bulkRestore()">♻ Restore selected</button>
         <button class="btn-secondary" onclick="bulkDeleteForever()">✕ Delete forever selected</button>
@@ -1603,7 +1617,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
      [ ] POST /api/admin/products    → replace sb.from('products').insert(...)
      [ ] PUT  /api/admin/products/:id→ replace sb.from('products').update(...)
      [ ] DEL  /api/admin/products/:id→ replace sb.from('products').delete(...)
-     [ ] GET  /api/admin/customers   → replace sb.from('profiles').select(...)
+     [x] GET  /api/admin/customers   → done: now /api/admin/users (service-role, RLS-safe)
      [ ] GET  /api/admin/messages    → replace sb.from('contact_submissions')
      [ ] GET  /api/admin/logs        → replace sb.from('admin_logs')
      [ ] POST /api/admin/logs        → replace sb.from('admin_logs').insert(...)
@@ -2484,7 +2498,7 @@ async function sendOrderEmail(orderId, type, btn){
 // PRODUCTS
 // ═══════════════════════════════════════════════════════════
 async function loadProducts(){
-  const{data,error}=await sb.from('products').select('*').order('created_at',{ascending:false});
+  const{data,error}=await sb.from('products').select('*').is('deleted_at',null).order('created_at',{ascending:false});
   if(error){document.getElementById('productsBody').innerHTML='<tr><td colspan="7" class="tbl-msg">Error: '+error.message+'</td></tr>';return}
   _products=data||[];
   document.getElementById('productCount').textContent=_products.length;
@@ -2917,10 +2931,13 @@ async function submitProductForm(){
 }
 
 async function deleteProduct(id,name){
-  if(!confirm('Delete "'+name+'"? This cannot be undone.'))return;
-  const{error}=await sb.from('products').delete().eq('id',id);
-  if(error){toast('Error: '+error.message,'error');return}
-  loadProducts();toast('Product deleted','success');
+  if(!confirm('Move "'+name+'" to the Recycle Bin? It can be restored within 30 days.'))return;
+  try{
+    // Soft-delete via the service-role backend (RLS-safe) → moves to Recycle Bin.
+    await adminApi('/api/admin/products/'+id,{method:'DELETE'});
+    loadProducts(); if(typeof loadRecycleBin==='function')loadRecycleBin();
+    toast('Product moved to Recycle Bin','success');
+  }catch(e){ toast('Error: '+e.message,'error'); }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -3586,69 +3603,220 @@ async function loadLogs(){
   }).join('');
 }
 
-/* ═══ CUSTOMERS ═══════════════════════════════════ */
+/* ═══ ADMIN API HELPERS ════════════════════════════
+   Shared authed fetch for /api/admin/* (service-role backend — bypasses RLS).
+   Used by User Management + the Recycle Bin's API-backed types. */
+async function adminApi(path,opts={}){
+  const token=localStorage.getItem('ta_token');
+  const res=await fetch(API+path,Object.assign({},opts,{
+    headers:Object.assign({'Authorization':'Bearer '+token,'Content-Type':'application/json'},opts.headers||{}),
+  }));
+  let data=null; try{data=await res.json();}catch(_){}
+  if(!res.ok) throw new Error((data&&data.error)||('Request failed ('+res.status+')'));
+  return data;
+}
+async function downloadCsv(path,filename){
+  try{
+    const token=localStorage.getItem('ta_token');
+    const res=await fetch(API+path,{headers:{'Authorization':'Bearer '+token}});
+    if(!res.ok) throw new Error('Export failed ('+res.status+')');
+    const blob=await res.blob(), url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=filename;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+/* ═══ CUSTOMERS / USER MANAGEMENT (Module 2) ═══════
+   Reads & writes now go through /api/admin/users (service role), so the admin
+   can actually edit any user — the old direct sb.from('profiles') path was
+   blocked by RLS (profiles_update_own only) and silently changed 0 rows. */
 let _customers=[];
+let _editingUserId=null, _editingUserAddr=null;
+
 async function loadCustomers(){
-  // Fetch profiles
-  const{data:profiles,error:pErr}=await sb.from('profiles').select('*').order('created_at',{ascending:false});
-  if(pErr){document.getElementById('customersBody').innerHTML='<tr><td colspan="6" class="tbl-msg">Error loading customers</td></tr>';return}
+  const tbody=document.getElementById('customersBody');
+  try{
+    const {users}=await adminApi('/api/admin/users');
+    _customers=users||[];
+    document.getElementById('customerCount').textContent=_customers.length;
+    checkNewItems('customers','dotCustomers',_customers.length);
+    filterCustomers();
+  }catch(e){
+    tbody.innerHTML='<tr><td colspan="8" class="tbl-msg" style="color:#B91C1C">Error loading customers: '+esc(e.message)+'</td></tr>';
+  }
+}
 
-  // Fetch order aggregates per user (total orders + total spent)
-  const{data:orderAgg}=await sb.from('orders')
-    .select('user_id,total_amount')
-    .is('deleted_at',null);
-
-  // Build a map: user_id → {count, spent}
-  const aggMap={};
-  (orderAgg||[]).forEach(o=>{
-    if(!o.user_id)return;
-    if(!aggMap[o.user_id])aggMap[o.user_id]={count:0,spent:0};
-    aggMap[o.user_id].count++;
-    aggMap[o.user_id].spent+=Number(o.total_amount)||0;
-  });
-
-  // Merge into profiles
-  _customers=(profiles||[]).map(c=>({...c,_orders:aggMap[c.id]?.count||0,_spent:aggMap[c.id]?.spent||0}));
-  document.getElementById('customerCount').textContent=_customers.length;
-  checkNewItems('customers','dotCustomers',_customers.length);
-  renderCustomers(_customers);
+function filterCustomers(){
+  const q=(document.getElementById('customerSearch').value||'').toLowerCase();
+  const role=document.getElementById('customerRole')?.value||'';
+  const status=document.getElementById('customerStatus')?.value||'';
+  const sort=document.getElementById('customerSort')?.value||'recent';
+  let list=_customers.slice();
+  if(role)            list=list.filter(c=>(c.role||'customer')===role);
+  if(status==='active')   list=list.filter(c=>!c.disabled);
+  if(status==='disabled') list=list.filter(c=>c.disabled);
+  if(q) list=list.filter(c=>(c.user_code||'').toLowerCase().includes(q)
+      ||(c.full_name||'').toLowerCase().includes(q)
+      ||(c.email||'').toLowerCase().includes(q)
+      ||(c.mobile||'').toLowerCase().includes(q)
+      ||(c.nickname||'').toLowerCase().includes(q));
+  if(sort==='orders')      list.sort((a,b)=>(b.orders_count||0)-(a.orders_count||0));
+  else if(sort==='spend')  list.sort((a,b)=>(b.total_spent||0)-(a.total_spent||0));
+  else if(sort==='oldest') list.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+  else                     list.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  renderCustomers(list);
 }
 
 function renderCustomers(list){
   const tbody=document.getElementById('customersBody');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="7" class="tbl-msg">No customers yet.</td></tr>';return}
+  if(!list.length){tbody.innerHTML='<tr><td colspan="8" class="tbl-msg">No customers found.</td></tr>';return}
   tbody.innerHTML=list.map(c=>{
     const joined=c.created_at?fmtDateShort(c.created_at):'—';
-    const orderCount=c._orders||0;
-    const spent=c._spent||0;
+    const orderCount=c.orders_count||0, spent=c.total_spent||0;
     const spentFmt=spent?fmtPrice(spent):'₹0';
     const uidCell=c.user_code
       ?'<span style="font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.06em;background:var(--bg-3);padding:3px 7px;border-radius:4px;color:var(--text)">'+esc(c.user_code)+'</span>'
       :'<span style="color:var(--text-3);font-size:11px">—</span>';
-    return '<tr>'
+    const roleTag=(c.role&&c.role!=='customer')?' <span style="font-size:9px;text-transform:uppercase;letter-spacing:.05em;background:var(--bg-3);color:var(--accent);padding:1px 5px;border-radius:3px">'+esc(c.role)+'</span>':'';
+    const statusPill=c.disabled
+      ?'<span style="font-size:10px;font-weight:600;color:#fca5a5;background:#7f1d1d;padding:2px 8px;border-radius:20px">Disabled</span>'
+      :'<span style="font-size:10px;font-weight:600;color:var(--green);background:rgba(34,197,94,.12);padding:2px 8px;border-radius:20px">Active</span>';
+    return '<tr style="cursor:pointer" onclick="openUserModal(\''+c.id+'\')">'
       +'<td>'+uidCell+'</td>'
-      +'<td class="td-name">'+esc(c.full_name||'—')+(c.nickname?'<div style="font-size:10px;color:var(--text-3)">aka '+esc(c.nickname)+'</div>':'')+'</td>'
+      +'<td class="td-name">'+esc(c.full_name||'—')+roleTag+(c.nickname?'<div style="font-size:10px;color:var(--text-3)">aka '+esc(c.nickname)+'</div>':'')+'</td>'
       +'<td style="font-family:var(--mono);font-size:11px">'+esc(c.email||'—')+'</td>'
-      +'<td>'+esc(c.mobile||'—')+(c.previous_mobile&&c.previous_mobile!==c.mobile?'<div style="font-size:10px;color:var(--text-3);margin-top:2px">prev: '+esc(c.previous_mobile)+'</div>':'')+'</td>'
+      +'<td>'+esc(c.mobile||c.phone||'—')+'</td>'
       +'<td style="font-weight:600;color:'+(orderCount?'var(--text)':'var(--text-3)')+'">'+orderCount+'</td>'
       +'<td style="font-weight:600;color:'+(spent?'var(--green)':'var(--text-3)')+'">'+spentFmt+'</td>'
+      +'<td>'+statusPill+'</td>'
       +'<td>'+joined+'</td>'
       +'</tr>';
   }).join('');
 }
 
-function filterCustomers(){
-  const q=(document.getElementById('customerSearch').value||'').toLowerCase();
-  if(!q){renderCustomers(_customers);return}
-  const filtered=_customers.filter(c=>{
-    return(c.user_code||'').includes(q)
-      ||(c.full_name||'').toLowerCase().includes(q)
-      ||(c.email||'').toLowerCase().includes(q)
-      ||(c.mobile||'').toLowerCase().includes(q)
-      ||(c.previous_mobile||'').toLowerCase().includes(q)
-      ||(c.nickname||'').toLowerCase().includes(q);
-  });
-  renderCustomers(filtered);
+function exportCustomersCsv(){
+  downloadCsv('/api/admin/users/export.csv','triakar-users-'+new Date().toISOString().slice(0,10)+'.csv');
+}
+
+/* ── User detail / edit modal ── */
+async function openUserModal(id){
+  _editingUserId=id;
+  const m=document.getElementById('userModal'); m.style.display='flex';
+  document.getElementById('umBody').innerHTML='<div style="padding:50px;text-align:center;color:var(--text-3)">Loading…</div>';
+  try{
+    const {user,orders,addresses,stats}=await adminApi('/api/admin/users/'+id);
+    _editingUserAddr=(addresses&&addresses.find(a=>a.is_default))||(addresses&&addresses[0])||null;
+    renderUserModal(user,orders||[],stats||{},_editingUserAddr);
+  }catch(e){
+    document.getElementById('umBody').innerHTML='<div style="padding:30px;color:#B91C1C">Error: '+esc(e.message)+'</div>';
+  }
+}
+function closeUserModal(){ document.getElementById('userModal').style.display='none'; _editingUserId=null; _editingUserAddr=null; }
+
+function renderUserModal(u,orders,stats,addr){
+  addr=addr||{};
+  const fld=(label,id,val,type)=>'<label style="display:block;margin-bottom:10px"><span style="display:block;font-size:11px;color:var(--text-3);margin-bottom:4px">'+label+'</span>'
+    +'<input id="'+id+'" type="'+(type||'text')+'" value="'+esc(val==null?'':val)+'" style="width:100%;padding:8px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:13px;border-radius:var(--radius)"></label>';
+  const roleSel='<select id="umRole" style="padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">'
+    +['customer','staff','admin'].map(r=>'<option value="'+r+'"'+((u.role||'customer')===r?' selected':'')+'>'+r+'</option>').join('')+'</select>';
+  const statusPill=u.disabled
+    ?'<span style="font-size:11px;font-weight:600;color:#fca5a5;background:#7f1d1d;padding:3px 10px;border-radius:20px">Disabled</span>'
+    :'<span style="font-size:11px;font-weight:600;color:var(--green);background:rgba(34,197,94,.12);padding:3px 10px;border-radius:20px">Active</span>';
+  const ordersHtml=orders.length
+    ? orders.map(o=>'<tr><td style="font-family:var(--mono);font-size:11px">'+esc(o.invoice_number||o.order_id||o.id.slice(0,8))+'</td>'
+        +'<td style="font-size:11px">'+(o.created_at?fmtDateShort(o.created_at):'—')+'</td>'
+        +'<td><span style="font-size:10px;text-transform:capitalize;color:var(--text-2)">'+esc(o.status||o.order_status||'—')+'</span></td>'
+        +'<td style="text-align:right;font-weight:600">'+fmtPrice(o.total_amount||0)+'</td></tr>').join('')
+    : '<tr><td colspan="4" style="color:var(--text-3);font-size:12px;padding:10px">No orders yet.</td></tr>';
+
+  document.getElementById('umBody').innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px">'
+      +'<div><div style="font-size:18px;font-weight:700">'+esc(u.full_name||'—')+'</div>'
+        +'<div style="font-size:12px;color:var(--text-3);margin-top:2px">'+(u.user_code?'<span style="font-family:var(--mono)">'+esc(u.user_code)+'</span> · ':'')+esc(u.email||'')+'</div></div>'
+      +'<div style="text-align:right">'+statusPill+'<div style="margin-top:8px;display:flex;gap:6px;align-items:center"><span style="font-size:11px;color:var(--text-3)">Role</span>'+roleSel
+        +' <button class="btn-secondary" style="padding:5px 10px" onclick="saveUserRole()">Set</button></div></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px">'
+      +'<div style="flex:1;min-width:90px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px"><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">Orders</div><div style="font-size:18px;font-weight:700">'+(stats.orders_count||0)+'</div></div>'
+      +'<div style="flex:1;min-width:90px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px"><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">Total spent</div><div style="font-size:18px;font-weight:700;color:var(--green)">'+fmtPrice(stats.total_spent||0)+'</div></div>'
+      +'<div style="flex:1;min-width:90px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px"><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">Joined</div><div style="font-size:13px;font-weight:600;margin-top:3px">'+(u.created_at?fmtDateShort(u.created_at):'—')+'</div></div>'
+    +'</div>'
+    +'<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:10px">Profile</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">'
+      +fld('Full name','umName',u.full_name)
+      +fld('Email','umEmail',u.email,'email')
+      +fld('Mobile','umMobile',u.mobile)
+      +fld('Phone','umPhone',u.phone)
+      +fld('Nickname','umNickname',u.nickname)
+    +'</div>'
+    +'<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin:8px 0 10px">Default address</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">'
+      +fld('Address line 1','umLine1',addr.address_line1)
+      +fld('Address line 2','umLine2',addr.address_line2)
+      +fld('City','umCity',addr.city)
+      +fld('State','umState',addr.state)
+      +fld('Pincode','umPincode',addr.pincode)
+    +'</div>'
+    +'<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin:8px 0 10px">Order history</div>'
+    +'<div class="tbl-wrap" style="max-height:200px;overflow:auto"><table style="width:100%"><thead><tr><th>Order</th><th>Date</th><th>Status</th><th style="text-align:right">Amount</th></tr></thead><tbody>'+ordersHtml+'</tbody></table></div>'
+    +'<div style="display:flex;gap:8px;justify-content:space-between;margin-top:20px;flex-wrap:wrap">'
+      +'<div style="display:flex;gap:8px">'
+        +'<button class="btn-secondary" onclick="toggleUserDisabled('+(u.disabled?'false':'true')+')">'+(u.disabled?'✓ Enable account':'⊘ Disable account')+'</button>'
+        +'<button class="btn-secondary" style="background:#7f1d1d;color:#fca5a5;border-color:#991b1b" onclick="softDeleteUserAdmin()">🗑 Move to Recycle Bin</button>'
+      +'</div>'
+      +'<div style="display:flex;gap:8px">'
+        +'<button class="btn-secondary" onclick="closeUserModal()">Cancel</button>'
+        +'<button class="btn-save" onclick="saveUser()">Save changes</button>'
+      +'</div>'
+    +'</div>';
+}
+
+async function saveUser(){
+  if(!_editingUserId)return;
+  const body={
+    full_name:document.getElementById('umName').value.trim(),
+    email:document.getElementById('umEmail').value.trim(),
+    mobile:document.getElementById('umMobile').value.trim(),
+    phone:document.getElementById('umPhone').value.trim(),
+    nickname:document.getElementById('umNickname').value.trim(),
+    address:{
+      address_line1:document.getElementById('umLine1').value.trim(),
+      address_line2:document.getElementById('umLine2').value.trim(),
+      city:document.getElementById('umCity').value.trim(),
+      state:document.getElementById('umState').value.trim(),
+      pincode:document.getElementById('umPincode').value.trim(),
+    },
+  };
+  try{
+    await adminApi('/api/admin/users/'+_editingUserId,{method:'PUT',body:JSON.stringify(body)});
+    toast('User updated ✓','success'); closeUserModal(); loadCustomers();
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+async function toggleUserDisabled(disabled){
+  if(!_editingUserId)return;
+  if(disabled&&!confirm('Disable this account? They will be unable to log in (data is kept).'))return;
+  try{
+    await adminApi('/api/admin/users/'+_editingUserId+'/'+(disabled?'disable':'enable'),{method:'POST'});
+    toast(disabled?'Account disabled':'Account enabled','success');
+    openUserModal(_editingUserId); loadCustomers();
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+async function saveUserRole(){
+  if(!_editingUserId)return;
+  const role=document.getElementById('umRole').value;
+  try{
+    await adminApi('/api/admin/users/'+_editingUserId+'/role',{method:'PUT',body:JSON.stringify({role})});
+    toast('Role set to '+role,'success'); loadCustomers();
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+async function softDeleteUserAdmin(){
+  if(!_editingUserId)return;
+  if(!confirm('Move this user to the Recycle Bin? They can be restored within 30 days.'))return;
+  try{
+    await adminApi('/api/admin/users/'+_editingUserId,{method:'DELETE'});
+    toast('User moved to Recycle Bin','success'); closeUserModal();
+    loadCustomers(); if(typeof loadRecycleBin==='function')loadRecycleBin();
+  }catch(e){ toast('Error: '+e.message,'error'); }
 }
 
 
@@ -3928,83 +4096,135 @@ async function softDeleteOne(table, id, loadFnName){
   if(typeof loadRecycleBin==='function') loadRecycleBin();
 }
 
-let _binItems=[];
+let _binItems=[], _binFilter='';
 const BIN_SOURCES=[
-  {table:'contact_submissions', label:'Contact',       canHardDelete:true,  ref:r=>r.reference_id||'—', summary:r=>(r.subject||'')+' — '+(r.name||'')},
-  {table:'custom_enquiries',    label:'Custom Order',  canHardDelete:true,  ref:r=>r.reference_id||'—', summary:r=>(r.name||'')+': '+(r.what_needed||'')},
-  {table:'callback_requests',   label:'Callback',      canHardDelete:true,  ref:r=>r.reference_id||'—', summary:r=>(r.name||'')+' — '+(r.topic||'')},
-  {table:'orders',              label:'Order',         canHardDelete:false, ref:r=>r.order_id||r.id,     summary:r=>(r.customer_name||'')+' — ₹'+(r.total_amount||0)},
+  {table:'contact_submissions', label:'Contact',      badge:'src-contact',  canHardDelete:true,  ref:r=>r.reference_id||'—', summary:r=>(r.subject||'')+' — '+(r.name||'')},
+  {table:'custom_enquiries',    label:'Custom Order', badge:'src-custom',   canHardDelete:true,  ref:r=>r.reference_id||'—', summary:r=>(r.name||'')+': '+(r.what_needed||'')},
+  {table:'callback_requests',   label:'Callback',     badge:'src-callback', canHardDelete:true,  ref:r=>r.reference_id||'—', summary:r=>(r.name||'')+' — '+(r.topic||'')},
+  {table:'orders',              label:'Order',        badge:'',             canHardDelete:false, ref:r=>r.order_id||r.id,     summary:r=>(r.customer_name||'')+' — ₹'+(r.total_amount||0)},
 ];
+// API-backed bin types (products / users / reviews) — served by the Express
+// service-role backend so no browser-side RLS write policy is needed.
+const BIN_API_TYPES={ product:{label:'Product',badge:'src-product'}, user:{label:'User',badge:'src-user'}, review:{label:'Review',badge:'src-review'} };
+
 async function loadRecycleBin(){
-  const tbody=document.getElementById('recycleBody');
   let rows=[];
+  // 1. Browser-sourced types (existing, RLS-gated) — unchanged path.
   for(const src of BIN_SOURCES){
     const {data,error}=await sb.from(src.table).select('*').not('deleted_at','is',null).order('deleted_at',{ascending:false});
-    if(!error && data) data.forEach(r=> rows.push({src, row:r}));
+    if(!error && data) data.forEach(r=> rows.push({src:Object.assign({key:src.table,api:false},src), row:r}));
   }
+  // 2. API-sourced types (products/users/reviews) via the service-role backend.
+  try{
+    const {items}=await adminApi('/api/admin/recycle-bin');
+    (items||[]).forEach(it=>{
+      const meta=BIN_API_TYPES[it.type]||{label:it.type,badge:''};
+      rows.push({src:{key:'api:'+it.type,api:true,type:it.type,label:meta.label,badge:meta.badge,canHardDelete:true,
+        ref:r=>r._name||'—', summary:r=>r._summary||'—'},
+        row:{id:it.id,deleted_at:it.deleted_at,deleted_by:it.deleted_by,_name:it.name,_summary:it.summary}});
+    });
+  }catch(e){ console.warn('recycle-bin API:',e.message); }
+
   rows.sort((a,b)=> new Date(b.row.deleted_at)-new Date(a.row.deleted_at));
   _binItems=rows;
   const bc=document.getElementById('binCount'); if(bc) bc.textContent=rows.length;
-  renderRecycleBin(rows);
+  renderRecycleBin(applyBinFilter(rows));
 }
+function applyBinFilter(rows){
+  if(!_binFilter) return rows;
+  return rows.filter(({src,row})=> (src.label+' '+src.ref(row)+' '+src.summary(row)+' '+(row.deleted_by||'')).toLowerCase().includes(_binFilter));
+}
+function filterRecycleBin(){ _binFilter=(document.getElementById('binSearch').value||'').toLowerCase().trim(); renderRecycleBin(applyBinFilter(_binItems)); }
+
 function renderRecycleBin(rows){
   const tbody=document.getElementById('recycleBody');
   if(!rows.length){ tbody.innerHTML='<tr><td colspan="7" class="tbl-msg">Recycle Bin is empty.</td></tr>'; return; }
   tbody.innerHTML=rows.map(item=>{
     const {src,row}=item;
-    const cid=src.table+'|'+row.id;
+    const cid=src.key+'|'+row.id;
     return '<tr>'
-      +'<td><input type="checkbox" class="bin-check" data-cid="'+cid+'"></td>'
-      +'<td><span class="src-badge '+(src.table==='contact_submissions'?'src-contact':src.table==='custom_enquiries'?'src-custom':src.table==='callback_requests'?'src-callback':'')+'">'+src.label+'</span></td>'
-      +'<td style="font-family:var(--mono);font-size:11px">'+src.ref(row)+'</td>'
-      +'<td style="font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(src.summary(row)||'—')+'</td>'
+      +'<td><input type="checkbox" class="bin-check" data-cid="'+esc(cid)+'"></td>'
+      +'<td><span class="src-badge '+(src.badge||'')+'">'+esc(src.label)+'</span></td>'
+      +'<td style="font-family:var(--mono);font-size:11px">'+esc(src.ref(row))+'</td>'
+      +'<td style="font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(src.summary(row)||'—')+'</td>'
       +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(row.deleted_at)+'</td>'
-      +'<td style="font-size:11px">'+(row.deleted_by||'—')+'</td>'
+      +'<td style="font-size:11px">'+esc(row.deleted_by||'—')+'</td>'
       +'<td onclick="event.stopPropagation()">'
-        +'<button class="btn-save" onclick="restoreOne(\''+src.table+'\',\''+row.id+'\')">Restore</button>'
-        +(src.canHardDelete?' <button class="btn-secondary" onclick="hardDeleteOne(\''+src.table+'\',\''+row.id+'\')">Delete forever</button>':'')
+        +'<button class="btn-save" onclick="restoreOne(\''+src.key+'\',\''+row.id+'\')">Restore</button>'
+        +(src.canHardDelete?' <button class="btn-secondary" onclick="hardDeleteOne(\''+src.key+'\',\''+row.id+'\')">Delete forever</button>':'')
       +'</td>'
       +'</tr>';
   }).join('');
 }
-async function restoreOne(table,id){
-  const {data,error}=await sb.from(table).update({deleted_at:null,deleted_by:null}).eq('id',id).select('id');
-  if(error){toast('Error: '+error.message,'error');return;}
-  if(!data||!data.length){ toast('Blocked — no permission to restore this (RLS)','error'); return; }
-  toast('Restored','success'); loadRecycleBin();
-  // refresh the source tab if its loader exists
-  ({contact_submissions:loadMessages,custom_enquiries:loadCustomEnquiries,callback_requests:loadCallbacks,orders:loadOrders}[table]||function(){})();
+function refreshBinSourceTab(key){
+  if(key==='api:product'){ if(typeof loadProducts==='function')loadProducts(); return; }
+  if(key==='api:user'){ if(typeof loadCustomers==='function')loadCustomers(); return; }
+  if(key==='api:review'){ if(typeof loadReviewsAdmin==='function')loadReviewsAdmin(); return; }
+  ({contact_submissions:loadMessages,custom_enquiries:loadCustomEnquiries,callback_requests:loadCallbacks,orders:loadOrders}[key]||function(){})();
 }
-async function hardDeleteOne(table,id){
+async function restoreOne(key,id){
+  try{
+    if(key.indexOf('api:')===0){ await adminApi('/api/admin/recycle-bin/restore',{method:'POST',body:JSON.stringify({type:key.slice(4),id})}); }
+    else{
+      const {data,error}=await sb.from(key).update({deleted_at:null,deleted_by:null}).eq('id',id).select('id');
+      if(error) throw new Error(error.message);
+      if(!data||!data.length) throw new Error('Blocked — no permission to restore this (RLS)');
+    }
+    toast('Restored','success'); loadRecycleBin(); refreshBinSourceTab(key);
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+async function hardDeleteOne(key,id){
   if(!confirm('Permanently delete this item? This cannot be undone.')) return;
-  const {data,error}=await sb.from(table).delete().eq('id',id).select('id');
-  if(error){toast('Error: '+error.message,'error');return;}
-  if(!data||!data.length){ toast('Blocked — no permission to delete this (RLS)','error'); return; }
-  toast('Permanently deleted','success'); loadRecycleBin();
+  try{
+    if(key.indexOf('api:')===0){ await adminApi('/api/admin/recycle-bin/purge',{method:'POST',body:JSON.stringify({type:key.slice(4),id})}); }
+    else{
+      const {data,error}=await sb.from(key).delete().eq('id',id).select('id');
+      if(error) throw new Error(error.message);
+      if(!data||!data.length) throw new Error('Blocked — no permission to delete this (RLS)');
+    }
+    toast('Permanently deleted','success'); loadRecycleBin();
+  }catch(e){ toast('Error: '+e.message,'error'); }
 }
 async function bulkRestore(){
   const ids=Array.from(document.querySelectorAll('#recycleBody input.bin-check:checked')).map(c=>c.dataset.cid);
   if(!ids.length){toast('Select at least one row first','error');return;}
-  for(const cid of ids){ const [t,id]=cid.split('|'); await sb.from(t).update({deleted_at:null,deleted_by:null}).eq('id',id); }
-  toast(ids.length+' restored','success'); loadRecycleBin(); loadMessages();loadCustomEnquiries();loadCallbacks();loadOrders();
+  let ok=0;
+  for(const cid of ids){ const i=cid.indexOf('|'); const key=cid.slice(0,i), id=cid.slice(i+1);
+    try{
+      if(key.indexOf('api:')===0) await adminApi('/api/admin/recycle-bin/restore',{method:'POST',body:JSON.stringify({type:key.slice(4),id})});
+      else await sb.from(key).update({deleted_at:null,deleted_by:null}).eq('id',id);
+      ok++;
+    }catch(_){}
+  }
+  toast(ok+' restored','success'); loadRecycleBin();
+  loadMessages();loadCustomEnquiries();loadCallbacks();loadOrders();
+  if(typeof loadProducts==='function')loadProducts(); if(typeof loadCustomers==='function')loadCustomers(); if(typeof loadReviewsAdmin==='function')loadReviewsAdmin();
 }
 async function bulkDeleteForever(){
   const items=Array.from(document.querySelectorAll('#recycleBody input.bin-check:checked')).map(c=>c.dataset.cid);
   if(!items.length){toast('Select at least one row first','error');return;}
   if(!confirm('Permanently delete '+items.length+' item(s)? This cannot be undone.')) return;
-  for(const cid of items){ const [t,id]=cid.split('|'); if(t!=='orders'){ await sb.from(t).delete().eq('id',id); } }
-  toast('Deleted forever','success'); loadRecycleBin();
+  let ok=0,kept=0;
+  for(const cid of items){ const i=cid.indexOf('|'); const key=cid.slice(0,i), id=cid.slice(i+1);
+    try{
+      if(key.indexOf('api:')===0){ await adminApi('/api/admin/recycle-bin/purge',{method:'POST',body:JSON.stringify({type:key.slice(4),id})}); ok++; }
+      else if(key!=='orders'){ await sb.from(key).delete().eq('id',id); ok++; }
+      else kept++;
+    }catch(_){ kept++; }
+  }
+  toast(ok+' deleted'+(kept?(', '+kept+' kept'):''),'success'); loadRecycleBin();
 }
 async function emptyRecycleBin(){
   if(!_binItems.length){toast('Recycle bin is already empty','error');return;}
-  const deletable=_binItems.filter(i=>i.src.canHardDelete);
-  const orderCount=_binItems.length-deletable.length;
-  let msg='Permanently delete ALL '+_binItems.length+' item(s) in the recycle bin? This cannot be undone.';
-  if(orderCount) msg+='\n\n('+orderCount+' order(s) will be soft-cleared — orders cannot be hard-deleted.)';
+  let msg='Permanently delete ALL '+_binItems.length+' item(s) in the recycle bin? This cannot be undone.\n\n(Orders — and any product or user tied to an order — are kept; they cannot be hard-deleted.)';
   if(!confirm(msg)) return;
+  let ok=0;
   for(const {src,row} of _binItems){
-    if(src.canHardDelete){ await sb.from(src.table).delete().eq('id',row.id); }
-    else { await sb.from(src.table).update({deleted_at:null,deleted_by:null}).eq('id',row.id); }
+    try{
+      if(src.api){ await adminApi('/api/admin/recycle-bin/purge',{method:'POST',body:JSON.stringify({type:src.type,id:row.id})}); ok++; }
+      else if(src.canHardDelete){ await sb.from(src.table).delete().eq('id',row.id); ok++; }
+      else { await sb.from(src.table).update({deleted_at:null,deleted_by:null}).eq('id',row.id); } // orders: soft-clear only
+    }catch(_){}
   }
   toast('Recycle bin emptied','success'); loadRecycleBin();
 }
@@ -4304,6 +4524,17 @@ async function saveReview(){
   }catch(e){toast('Error: '+e.message,'error');}
 }
 </script>
+
+<!-- ── USER DETAIL / EDIT MODAL (Module 2) ──────────────── -->
+<div id="userModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:24px 28px;max-width:640px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div class="p-title">Customer</div>
+      <button onclick="closeUserModal()" style="background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;line-height:1">×</button>
+    </div>
+    <div id="umBody"></div>
+  </div>
+</div>
 
 <!-- ── REVIEW MODAL ───────────────────────────────────── -->
 <div id="reviewModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;align-items:center;justify-content:center;padding:20px">

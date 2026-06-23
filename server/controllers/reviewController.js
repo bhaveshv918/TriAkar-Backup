@@ -13,6 +13,7 @@ export async function getReviews(req, res) {
       .select('id,reviewer_name,rating,review,images,verified_purchase,city,source,created_at')
       .eq('product_slug', slug)
       .eq('status', 'approved')
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -36,6 +37,7 @@ export async function getAllReviews(req, res) {
     let query = supabase
       .from('reviews')
       .select('*', { count: 'exact' })
+      .is('deleted_at', null)            // soft-deleted reviews live in the Recycle Bin
       .order('created_at', { ascending: false })
       .range(from, to);
 
@@ -193,17 +195,19 @@ export async function patchStatus(req, res) {
 
 /* ─────────────────────────────────────────────────────────────────────────
    ADMIN — DELETE /api/reviews/:id
+   Soft-delete → Recycle Bin (recoverable). Permanent removal happens from the
+   bin (adminRecycleController) or via the 30-day auto-purge.
 ───────────────────────────────────────────────────────────────────────── */
 export async function deleteReview(req, res) {
   try {
     const { id } = req.params;
     const { error } = await supabase
       .from('reviews')
-      .delete()
+      .update({ deleted_at: new Date().toISOString(), deleted_by: req.user?.email || 'admin' })
       .eq('id', id);
 
     if (error) throw error;
-    res.json({ message: 'Review deleted' });
+    res.json({ message: 'Review moved to Recycle Bin' });
   } catch (e) {
     console.error('deleteReview:', e);
     res.status(500).json({ error: 'Something went wrong. Please try again.' });

@@ -7,6 +7,7 @@ export async function getAdminProducts(req, res, next) {
     const { data, error } = await supabase
       .from('products')
       .select('*')
+      .is('deleted_at', null)            // hide soft-deleted (in Recycle Bin)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -75,13 +76,16 @@ export async function updateProduct(req, res, next) {
   }
 }
 
+// Soft-delete → moves the product to the Recycle Bin (recoverable for 30 days).
+// NOTE: this is now distinct from hiding a product. `is_active` stays the
+// show/hide visibility toggle; deleting sets deleted_at so it can be restored.
 export async function deleteProduct(req, res, next) {
   try {
     const { id } = req.params;
 
     const { error } = await supabase
       .from('products')
-      .update({ is_active: false })
+      .update({ deleted_at: new Date().toISOString(), deleted_by: req.user?.email || 'admin' })
       .eq('id', id);
 
     if (error) throw error;

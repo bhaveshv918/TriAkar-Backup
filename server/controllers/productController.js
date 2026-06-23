@@ -45,6 +45,7 @@ export async function getAllProducts(req, res, next) {
       .from('products')
       .select(LISTING_COLS)
       .eq('is_active', true)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
     if (category) query = query.eq('category', category);
@@ -78,6 +79,7 @@ export async function getProductBySlug(req, res, next) {
       .select('*')
       .eq('slug', slug)
       .eq('is_active', true)
+      .is('deleted_at', null)
       .single();
 
     if (error || !data) {
@@ -199,6 +201,7 @@ export async function getProductsByCategory(req, res, next) {
       .select(LISTING_COLS)
       .eq('category', category)
       .eq('is_active', true)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
