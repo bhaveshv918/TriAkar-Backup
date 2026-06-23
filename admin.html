@@ -1726,6 +1726,9 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
 const SUPA_URL='https://qarjbmogersuaerkhlcu.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
 const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+// Mirror the auto-refreshed access token into ta_token so any caller that still
+// reads it directly never sends a stale/expired token to the backend API.
+sb.auth.onAuthStateChange((_e,session)=>{ if(session&&session.access_token) localStorage.setItem('ta_token',session.access_token); });
 const ADMIN_EMAILS=['bhaveshv918@gmail.com']; // Only these emails can access the admin panel
 const API=(location.hostname==='localhost')?'http://localhost:3000':'https://triakar.onrender.com';
 
@@ -3897,8 +3900,21 @@ async function loadLogs(){
 /* ═══ ADMIN API HELPERS ════════════════════════════
    Shared authed fetch for /api/admin/* (service-role backend — bypasses RLS).
    Used by User Management + the Recycle Bin's API-backed types. */
+/* Always use the LIVE Supabase access token. sb auto-refreshes the session, but the
+   old localStorage 'ta_token' snapshot goes stale after ~1h, which caused
+   "Unauthorised — invalid or expired token" 401s on every backend API call
+   (Customers / Activity / Reviews). Pull the fresh token from the session each time
+   and keep ta_token mirrored for any older callers. */
+async function getToken(){
+  try{
+    const { data:sess } = await sb.auth.getSession();
+    const t = sess && sess.session && sess.session.access_token;
+    if(t){ localStorage.setItem('ta_token', t); return t; }
+  }catch(_){}
+  return localStorage.getItem('ta_token');
+}
 async function adminApi(path,opts={}){
-  const token=localStorage.getItem('ta_token');
+  const token=await getToken();
   const res=await fetch(API+path,Object.assign({},opts,{
     headers:Object.assign({'Authorization':'Bearer '+token,'Content-Type':'application/json'},opts.headers||{}),
   }));
@@ -3908,7 +3924,7 @@ async function adminApi(path,opts={}){
 }
 async function downloadCsv(path,filename){
   try{
-    const token=localStorage.getItem('ta_token');
+    const token=await getToken();
     const res=await fetch(API+path,{headers:{'Authorization':'Bearer '+token}});
     if(!res.ok) throw new Error('Export failed ('+res.status+')');
     const blob=await res.blob(), url=URL.createObjectURL(blob);
@@ -4643,7 +4659,7 @@ async function loadReviewsAdmin(){
   try{
     const status=document.getElementById('filterReviewStatus')?.value||'';
     const slug=document.getElementById('filterReviewSlug')?.value?.trim()||'';
-    const token=localStorage.getItem('ta_token');
+    const token=await getToken();
     let url=API+'/api/reviews?limit=200';
     if(status)url+='&status='+encodeURIComponent(status);
     if(slug)url+='&slug='+encodeURIComponent(slug);
@@ -4776,7 +4792,7 @@ async function saveContentSettings(){
 
 async function setReviewStatus(id,status){
   try{
-    const token=localStorage.getItem('ta_token');
+    const token=await getToken();
     const res=await fetch(API+'/api/reviews/'+id+'/status',{
       method:'PATCH',
       headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
@@ -4791,7 +4807,7 @@ async function setReviewStatus(id,status){
 async function deleteReviewAdmin(id){
   if(!confirm('Delete this review permanently?'))return;
   try{
-    const token=localStorage.getItem('ta_token');
+    const token=await getToken();
     const res=await fetch(API+'/api/reviews/'+id,{
       method:'DELETE',
       headers:{'Authorization':'Bearer '+token}
@@ -4870,7 +4886,7 @@ async function saveReview(){
   if(rvDateVal)body.created_at=new Date(rvDateVal+'T12:00:00').toISOString();
 
   try{
-    const token=localStorage.getItem('ta_token');
+    const token=await getToken();
     let res;
     if(_editingReviewId){
       res=await fetch(API+'/api/reviews/'+_editingReviewId,{
