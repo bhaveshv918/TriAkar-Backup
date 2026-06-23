@@ -1399,10 +1399,13 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     <div class="p-head">
       <div class="p-title">Analytics</div>
       <div class="p-actions">
+        <button class="btn-secondary" onclick="toggleDashCustomize()">⚙ Customize</button>
         <button class="btn-secondary" onclick="loadAnalytics()">⟳ Refresh</button>
         <a href="https://analytics.google.com" target="_blank" rel="noopener" class="btn-secondary" style="text-decoration:none">Open Google Analytics ↗</a>
       </div>
     </div>
+    <!-- Dashboard customize (Module 5) -->
+    <div id="dashCustomize" style="display:none;max-width:380px;margin-bottom:16px;padding:12px 14px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius)"></div>
     <!-- KPI row -->
     <div id="analyticsKpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px">
       <div class="analytics-loading">Loading…</div>
@@ -2225,6 +2228,62 @@ async function setMenuStyle(v){
 // ═══════════════════════════════════════════════════════════
 // ANALYTICS
 // ═══════════════════════════════════════════════════════════
+/* ── Customizable dashboard KPIs (Module 5) ── */
+let _kpiData=[];
+const DEFAULT_KPI_ORDER=['revenue_paid','revenue_30d','avg_order','paid_orders','pending_orders','low_stock','pending_reviews'];
+function getDashLayout(){
+  try{ const l=JSON.parse(localStorage.getItem('ta_dash_layout')||'null'); if(l&&Array.isArray(l.order)) return {order:l.order,hidden:l.hidden||[]}; }catch(_){}
+  return {order:DEFAULT_KPI_ORDER.slice(),hidden:[]};
+}
+function saveDashLayout(l){ try{ localStorage.setItem('ta_dash_layout',JSON.stringify(l)); }catch(_){} }
+function _orderedKeys(){
+  const layout=getDashLayout(), have={}; _kpiData.forEach(k=>have[k.key]=true);
+  const out=[]; layout.order.forEach(k=>{ if(have[k]&&!out.includes(k)) out.push(k); });
+  _kpiData.forEach(k=>{ if(!out.includes(k.key)) out.push(k.key); });
+  return out;
+}
+function renderKpis(){
+  const cont=document.getElementById('analyticsKpis'); if(!cont)return;
+  const layout=getDashLayout(), byKey={}; _kpiData.forEach(k=>byKey[k.key]=k);
+  const visible=_orderedKeys().filter(k=>!layout.hidden.includes(k)).map(k=>byKey[k]).filter(Boolean);
+  cont.innerHTML=visible.length
+    ? visible.map(k=>`<div class="kpi-card"><div class="kpi-label">${esc(k.label)}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${esc(k.sub||'')}</div></div>`).join('')
+    : '<div class="analytics-loading">All KPIs hidden — click ⚙ Customize to show some.</div>';
+}
+function toggleDashCustomize(){
+  const el=document.getElementById('dashCustomize'); if(!el)return;
+  if(el.style.display==='block'){ el.style.display='none'; return; }
+  renderDashCustomize(); el.style.display='block';
+}
+function renderDashCustomize(){
+  const el=document.getElementById('dashCustomize'); if(!el)return;
+  const layout=getDashLayout(), byKey={}; _kpiData.forEach(k=>byKey[k.key]=k);
+  const keys=_orderedKeys();
+  el.innerHTML='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:8px">Customize dashboard</div>'
+    +keys.map((key,i)=>{ const k=byKey[key]; if(!k)return ''; const hidden=layout.hidden.includes(key);
+      return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0">'
+        +'<input type="checkbox" '+(hidden?'':'checked')+' onchange="dashToggleKpi(\''+key+'\')">'
+        +'<span style="flex:1;font-size:12px;color:var(--text)">'+esc(k.label)+'</span>'
+        +'<button class="btn-sm" onclick="dashMoveKpi(\''+key+'\',-1)"'+(i===0?' disabled':'')+'>↑</button>'
+        +'<button class="btn-sm" onclick="dashMoveKpi(\''+key+'\',1)"'+(i===keys.length-1?' disabled':'')+'>↓</button>'
+        +'</div>';
+    }).join('')
+    +'<button class="btn-secondary" style="margin-top:8px" onclick="dashResetLayout()">Reset to default</button>';
+}
+function dashToggleKpi(key){
+  const l=getDashLayout();
+  l.hidden=l.hidden.includes(key)?l.hidden.filter(k=>k!==key):l.hidden.concat([key]);
+  saveDashLayout(l); renderKpis(); renderDashCustomize();
+}
+function dashMoveKpi(key,dir){
+  const l=getDashLayout(); let order=_orderedKeys();
+  const i=order.indexOf(key), j=i+dir;
+  if(i<0||j<0||j>=order.length) return;
+  order[i]=order.splice(j,1,order[i])[0];
+  l.order=order; saveDashLayout(l); renderKpis(); renderDashCustomize();
+}
+function dashResetLayout(){ try{ localStorage.removeItem('ta_dash_layout'); }catch(_){} renderKpis(); renderDashCustomize(); }
+
 async function loadAnalytics(){
   // 1. KPIs: total revenue, total orders, avg order value, paid orders
   const since30=new Date(Date.now()-30*24*60*60*1000).toISOString();
@@ -2242,13 +2301,21 @@ async function loadAnalytics(){
   const avgOrder=totalOrders>0?totalRevenue/totalOrders:0;
   const monthOrders=(ordMonth.data||[]).length;
   const monthRevenue=(ordMonth.data||[]).filter(o=>o.total_amount).reduce((s,o)=>s+Number(o.total_amount),0);
+  const pendingOrders=(ordAll.data||[]).filter(o=>o.status==='pending').length;
+  const lowStock=(_products||[]).filter(p=>p.is_active&&(p.stock_qty??0)<=5).length;
 
-  document.getElementById('analyticsKpis').innerHTML=[
-    {label:'Total Revenue (Paid)',value:'₹'+totalRevenue.toLocaleString('en-IN'),sub:totalOrders+' total orders'},
-    {label:'Revenue — Last 30 Days',value:'₹'+monthRevenue.toLocaleString('en-IN'),sub:monthOrders+' orders'},
-    {label:'Avg Order Value',value:'₹'+Math.round(avgOrder).toLocaleString('en-IN'),sub:'all paid orders'},
-    {label:'Paid Orders',value:(ordPaid.data||[]).length,sub:'payment received'},
-  ].map(k=>`<div class="kpi-card"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
+  // Build the full KPI set with stable keys; renderKpis() applies the saved
+  // show/hide + order layout (Module 5 — customizable dashboard).
+  _kpiData=[
+    {key:'revenue_paid',   label:'Total Revenue (Paid)',  value:'₹'+totalRevenue.toLocaleString('en-IN'), sub:totalOrders+' total orders'},
+    {key:'revenue_30d',    label:'Revenue · Last 30 Days', value:'₹'+monthRevenue.toLocaleString('en-IN'), sub:monthOrders+' orders'},
+    {key:'avg_order',      label:'Avg Order Value',        value:'₹'+Math.round(avgOrder).toLocaleString('en-IN'), sub:'all paid orders'},
+    {key:'paid_orders',    label:'Paid Orders',            value:(ordPaid.data||[]).length, sub:'payment received'},
+    {key:'pending_orders', label:'Pending Orders',         value:pendingOrders, sub:'awaiting action'},
+    {key:'low_stock',      label:'Low / Out of Stock',     value:lowStock, sub:'≤ 5 units, active'},
+    {key:'pending_reviews',label:'Pending Reviews',        value:_pendingReviews||0, sub:'awaiting moderation'},
+  ];
+  renderKpis();
 
   // 2. Top products by revenue
   const prodRev={};
