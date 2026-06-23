@@ -27,7 +27,7 @@
   --bg:#070C08;--bg-1:#0C1410;--bg-2:#111C13;--bg-3:#172418;
   --border:rgba(255,255,255,.06);--border-h:rgba(255,255,255,.12);
   --text:#E2EAE4;--text-2:#879E8C;--text-3:#4E6655;
-  --accent:#52B788;--accent-h:#74C69D;--accent-bg:rgba(82,183,136,.08);
+  --accent:#E0814C;--accent-h:#EA9A6B;--accent-bg:rgba(196,98,42,.16);
   --green:#4ADE80;--green-bg:rgba(74,222,128,.08);
   --red:#F87171;--red-bg:rgba(248,113,113,.08);
   --yellow:#FBBF24;--yellow-bg:rgba(251,191,36,.08);
@@ -45,7 +45,7 @@ html[data-theme="light"]{
   --bg:#F4F6F5;--bg-1:#FFFFFF;--bg-2:#EEF2F0;--bg-3:#E2E9E4;
   --border:rgba(20,42,30,.10);--border-h:rgba(20,42,30,.22);
   --text:#16201A;--text-2:#52685A;--text-3:#869488;
-  --accent:#2E9E6B;--accent-h:#27885C;--accent-bg:rgba(46,158,107,.12);
+  --accent:#C4622A;--accent-h:#A8521F;--accent-bg:rgba(196,98,42,.12);
   --green:#16A34A;--green-bg:rgba(22,163,74,.11);
   --red:#DC2626;--red-bg:rgba(220,38,38,.10);
   --yellow:#D97706;--yellow-bg:rgba(217,119,6,.12);
@@ -2250,7 +2250,7 @@ function renderKpis(){
   const layout=getDashLayout(), byKey={}; _kpiData.forEach(k=>byKey[k.key]=k);
   const visible=_orderedKeys().filter(k=>!layout.hidden.includes(k)).map(k=>byKey[k]).filter(Boolean);
   cont.innerHTML=visible.length
-    ? visible.map(k=>`<div class="kpi-card"><div class="kpi-label">${esc(k.label)}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${esc(k.sub||'')}</div></div>`).join('')
+    ? visible.map(k=>`<div class="kpi-card"><div class="kpi-label">${esc(k.label)}</div><div class="kpi-value"${k.color?` style="color:var(--${k.color})"`:''}>${k.value}</div><div class="kpi-sub">${esc(k.sub||'')}</div></div>`).join('')
     : '<div class="analytics-loading">All KPIs hidden — click ⚙ Customize to show some.</div>';
 }
 function toggleDashCustomize(){
@@ -2310,13 +2310,13 @@ async function loadAnalytics(){
   // Build the full KPI set with stable keys; renderKpis() applies the saved
   // show/hide + order layout (Module 5 — customizable dashboard).
   _kpiData=[
-    {key:'revenue_paid',   label:'Total Revenue (Paid)',  value:'₹'+totalRevenue.toLocaleString('en-IN'), sub:totalOrders+' total orders'},
-    {key:'revenue_30d',    label:'Revenue · Last 30 Days', value:'₹'+monthRevenue.toLocaleString('en-IN'), sub:monthOrders+' orders'},
-    {key:'avg_order',      label:'Avg Order Value',        value:'₹'+Math.round(avgOrder).toLocaleString('en-IN'), sub:'all paid orders'},
-    {key:'paid_orders',    label:'Paid Orders',            value:(ordPaid.data||[]).length, sub:'payment received'},
-    {key:'pending_orders', label:'Pending Orders',         value:pendingOrders, sub:'awaiting action'},
-    {key:'low_stock',      label:'Low / Out of Stock',     value:lowStock, sub:'≤ 5 units, active'},
-    {key:'pending_reviews',label:'Pending Reviews',        value:_pendingReviews||0, sub:'awaiting moderation'},
+    {key:'revenue_paid',   label:'Total Revenue (Paid)',  value:'₹'+totalRevenue.toLocaleString('en-IN'), sub:totalOrders+' total orders', color:'green'},
+    {key:'revenue_30d',    label:'Revenue · Last 30 Days', value:'₹'+monthRevenue.toLocaleString('en-IN'), sub:monthOrders+' orders', color:'green'},
+    {key:'avg_order',      label:'Avg Order Value',        value:'₹'+Math.round(avgOrder).toLocaleString('en-IN'), sub:'all paid orders', color:'blue'},
+    {key:'paid_orders',    label:'Paid Orders',            value:(ordPaid.data||[]).length, sub:'payment received', color:'blue'},
+    {key:'pending_orders', label:'Pending Orders',         value:pendingOrders, sub:'awaiting action', color:'accent'},
+    {key:'low_stock',      label:'Low / Out of Stock',     value:lowStock, sub:'≤ 5 units, active', color:'red'},
+    {key:'pending_reviews',label:'Pending Reviews',        value:_pendingReviews||0, sub:'awaiting moderation', color:'purple'},
   ];
   renderKpis();
 
