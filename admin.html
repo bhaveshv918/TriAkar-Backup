@@ -573,6 +573,21 @@ td.td-name{color:var(--text);font-weight:500}
 .kpi-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);margin-bottom:6px}
 .kpi-value{font-size:24px;font-weight:700;color:var(--text);font-family:var(--mono)}
 .kpi-sub{font-size:11px;color:var(--text-3);margin-top:4px}
+/* ── Dashboard widgets (landing) ── */
+.dash-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.dash-widget{background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:14px 16px;box-shadow:var(--shadow);min-width:0}
+.dash-widget[data-key="kpis"],.dash-widget[data-key="open_orders"],.dash-widget[data-key="revenue_trend"]{grid-column:1/-1}
+.dash-widget.editing{border-style:dashed;border-color:var(--accent);cursor:grab}
+.dash-widget.drag-over{border-color:var(--accent);background:var(--accent-bg)}
+.dash-widget.dragging{opacity:.4}
+.dash-w-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.dash-w-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);flex:1}
+.dash-w-x{background:var(--red-bg);color:var(--red);border-radius:4px;width:20px;height:20px;font-size:11px;line-height:1}
+.dash-w-grip{color:var(--text-3);cursor:grab;font-size:15px}
+.dash-open-row{display:grid;grid-template-columns:.8fr 1.2fr .8fr auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--border)}
+.dash-open-row:first-child{border-top:none}
+.dash-pill{display:inline-block;font-size:10px;font-weight:600;padding:2px 9px;border-radius:20px;white-space:nowrap;text-transform:capitalize}
+@media(max-width:760px){.dash-grid{grid-template-columns:1fr}}
 .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .bar-label{font-size:12px;color:var(--text-2);width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bar-track{flex:1;height:8px;background:var(--bg-2);border-radius:4px;overflow:hidden}
@@ -799,7 +814,10 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
   <nav class="sidebar">
 
     <div class="sidebar-section">Operations</div>
-    <button class="tab active" data-tab="orders" onclick="switchTab('orders')">
+    <button class="tab active" data-tab="dashboard" onclick="switchTab('dashboard')">
+      <span class="tab-icon">▥</span><span class="tab-label">Dashboard</span>
+    </button>
+    <button class="tab" data-tab="orders" onclick="switchTab('orders')">
       <span class="tab-icon">◈</span><span class="tab-label">Orders</span><span class="tab-count" id="orderCount">0</span><span class="tab-dot" id="dotOrders"></span>
     </button>
     <button class="tab" data-tab="callbacks" onclick="switchTab('callbacks')">
@@ -885,7 +903,18 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
   </div>
 
   <!-- ── ORDERS PANEL ──────────────────────────── -->
-  <div class="panel active" id="panelOrders">
+  <div class="panel active" id="panelDashboard">
+    <div class="p-head">
+      <div class="p-title">Dashboard</div>
+      <div class="p-actions">
+        <button class="btn-secondary" id="dashEditBtn" onclick="toggleDashEdit()">⚙ Customize</button>
+        <button class="btn-secondary" onclick="loadDashboard()">⟳ Refresh</button>
+      </div>
+    </div>
+    <div class="dash-grid" id="dashGrid"><div style="grid-column:1/-1;padding:44px;text-align:center;color:var(--text-3)">Loading dashboard…</div></div>
+  </div>
+
+  <div class="panel" id="panelOrders">
     <div class="p-head">
       <div class="p-title">Orders</div>
       <div class="p-actions">
@@ -2032,7 +2061,7 @@ function showDashboard(user){
   document.getElementById('adminDash').classList.add('show');
   updateClock();setInterval(updateClock,30000);
   initTheme();
-  loadCategories().then(()=>{loadProducts();loadOrders();loadLogs();loadCustomers();loadMessages();loadCustomEnquiries();loadCallbacks();loadRecycleBin();loadReviewsAdmin();loadGoogleSettings();loadActivity();setTimeout(refreshNotifBadge,2500);});
+  loadCategories().then(()=>{loadProducts();loadOrders();loadDashboard();loadLogs();loadCustomers();loadMessages();loadCustomEnquiries();loadCallbacks();loadRecycleBin();loadReviewsAdmin();loadGoogleSettings();loadActivity();setTimeout(refreshNotifBadge,2500);});
 }
 
 // Check existing session on load
@@ -2169,11 +2198,12 @@ setInterval(refreshNotifBadge, 20000);
 
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['Callbacks','Orders','Customers','Products','Makerworld','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo','Reviews','Appearance','Activity','Content'].forEach(p=>{
+  ['Dashboard','Callbacks','Orders','Customers','Products','Makerworld','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo','Reviews','Appearance','Activity','Content'].forEach(p=>{
     const el=document.getElementById('panel'+p);
     if(el)el.classList.toggle('active',p.toLowerCase()===tab);
   });
   // Clear notification dot and save seen count
+  if(tab==='dashboard')loadDashboard();
   if(tab==='analytics')loadAnalytics();
   if(tab==='promo')loadPromoCodes();
   if(tab==='reviews'){loadReviewsAdmin();loadGoogleSettings();}
@@ -2286,6 +2316,152 @@ function dashMoveKpi(key,dir){
   l.order=order; saveDashLayout(l); renderKpis(); renderDashCustomize();
 }
 function dashResetLayout(){ try{ localStorage.removeItem('ta_dash_layout'); }catch(_){} renderKpis(); renderDashCustomize(); }
+
+// ═══════════════════════════════════════════════════════════
+// DASHBOARD (landing) — customizable, draggable widgets
+// ═══════════════════════════════════════════════════════════
+let _dashData=null,_dashEdit=false;
+const DASH_OPEN_STATUSES=['placed','pending','confirmed','processing','whatsapp_pending'];
+const DASH_WIDGETS=[
+  {key:'kpis',           title:'Key metrics',            render:dashWKpis},
+  {key:'open_orders',    title:'Open orders',            render:dashWOpenOrders},
+  {key:'revenue_trend',  title:'Revenue · last 30 days', render:dashWRevTrend},
+  {key:'status',         title:'Orders by status',       render:dashWStatus},
+  {key:'low_stock',      title:'Low / out of stock',     render:dashWLowStock},
+  {key:'pending_reviews',title:'Pending reviews',        render:dashWReviews},
+  {key:'recent_signups', title:'Recent signups',         render:dashWSignups},
+];
+function dashGetLayout(){ try{const l=JSON.parse(localStorage.getItem('ta_dash_widgets')); if(l&&Array.isArray(l.order))return {order:l.order,hidden:l.hidden||[]};}catch(_){}
+  return {order:DASH_WIDGETS.map(w=>w.key),hidden:[]}; }
+function dashSaveLayout(l){ try{localStorage.setItem('ta_dash_widgets',JSON.stringify(l));}catch(_){}}
+function dashOrderedKeys(){ const l=dashGetLayout(),have={}; DASH_WIDGETS.forEach(w=>have[w.key]=1); const out=[];
+  l.order.forEach(k=>{if(have[k]&&!out.includes(k))out.push(k);}); DASH_WIDGETS.forEach(w=>{if(!out.includes(w.key))out.push(w.key);}); return out; }
+function _dashPending(){ return (typeof _pendingReviews!=='undefined'?_pendingReviews:0)||0; }
+
+async function loadDashboard(){
+  const grid=document.getElementById('dashGrid'); if(!grid)return;
+  try{
+    const since30=new Date(Date.now()-30*864e5).toISOString();
+    const since7=new Date(Date.now()-7*864e5).toISOString();
+    const [ordAll,ordPaid,ordMonth,signups]=await Promise.all([
+      sb.from('orders').select('id,order_id,invoice_number,customer_name,total_amount,status,order_status,payment_received,created_at').is('deleted_at',null).order('created_at',{ascending:false}).limit(500),
+      sb.from('orders').select('total_amount').eq('payment_received',true).is('deleted_at',null),
+      sb.from('orders').select('total_amount,created_at').is('deleted_at',null).gte('created_at',since30),
+      sb.from('profiles').select('full_name,email,created_at').is('deleted_at',null).gte('created_at',since7).order('created_at',{ascending:false}).limit(8),
+    ]);
+    const orders=ordAll.data||[];
+    _dashData={
+      orders,
+      totalRevenue:(ordPaid.data||[]).reduce((s,o)=>s+Number(o.total_amount||0),0),
+      monthRevenue:(ordMonth.data||[]).reduce((s,o)=>s+Number(o.total_amount||0),0),
+      monthOrders:(ordMonth.data||[]).length,
+      paidOrders:(ordPaid.data||[]).length,
+      signups:signups.data||[],
+    };
+    dashRender();
+  }catch(e){ grid.innerHTML='<div style="grid-column:1/-1;padding:30px;color:#B91C1C">Error loading dashboard: '+esc(e.message)+'</div>'; }
+}
+
+function dashRender(){
+  const grid=document.getElementById('dashGrid'); if(!grid||!_dashData)return;
+  const layout=dashGetLayout(),byKey={}; DASH_WIDGETS.forEach(w=>byKey[w.key]=w);
+  const visible=dashOrderedKeys().filter(k=>!layout.hidden.includes(k));
+  let html=visible.map(k=>{const w=byKey[k]; if(!w)return'';
+    return `<div class="dash-widget${_dashEdit?' editing':''}" data-key="${k}" draggable="${_dashEdit?'true':'false'}">`
+      +`<div class="dash-w-head"><span class="dash-w-title">${esc(w.title)}</span>`
+      +(_dashEdit?`<button class="dash-w-x" onclick="dashHideWidget('${k}')" title="Remove">✕</button><span class="dash-w-grip" aria-hidden="true">⠿</span>`:'')
+      +`</div><div class="dash-w-body">${w.render()}</div></div>`;
+  }).join('');
+  if(_dashEdit){
+    const hidden=dashOrderedKeys().filter(k=>layout.hidden.includes(k));
+    html+=`<div class="dash-widget" style="grid-column:1/-1;border-style:dashed"><div class="dash-w-title" style="margin-bottom:8px">Add widgets</div>`
+      +(hidden.length?hidden.map(k=>`<button class="btn-secondary" style="margin:0 6px 6px 0" onclick="dashShowWidget('${k}')">+ ${esc(byKey[k].title)}</button>`).join(''):'<span style="font-size:12px;color:var(--text-3)">All widgets are shown — drag a card to reorder.</span>')
+      +`</div>`;
+  }
+  grid.innerHTML=html;
+  if(_dashEdit)dashBindDrag();
+}
+function toggleDashEdit(){ _dashEdit=!_dashEdit; const b=document.getElementById('dashEditBtn'); if(b)b.textContent=_dashEdit?'✓ Done':'⚙ Customize'; dashRender(); }
+function dashHideWidget(k){ const l=dashGetLayout(); if(!l.hidden.includes(k))l.hidden.push(k); dashSaveLayout(l); dashRender(); }
+function dashShowWidget(k){ const l=dashGetLayout(); l.hidden=l.hidden.filter(x=>x!==k); dashSaveLayout(l); dashRender(); }
+function dashBindDrag(){
+  let dragKey=null;
+  document.querySelectorAll('#dashGrid .dash-widget[draggable="true"]').forEach(el=>{
+    el.addEventListener('dragstart',e=>{dragKey=el.dataset.key;el.classList.add('dragging');try{e.dataTransfer.effectAllowed='move';}catch(_){}});
+    el.addEventListener('dragend',()=>{el.classList.remove('dragging');document.querySelectorAll('#dashGrid .dash-widget').forEach(x=>x.classList.remove('drag-over'));});
+    el.addEventListener('dragover',e=>{e.preventDefault();if(el.dataset.key&&el.dataset.key!==dragKey)el.classList.add('drag-over');});
+    el.addEventListener('dragleave',()=>el.classList.remove('drag-over'));
+    el.addEventListener('drop',e=>{e.preventDefault();el.classList.remove('drag-over');
+      const target=el.dataset.key; if(!dragKey||!target||dragKey===target)return;
+      const l=dashGetLayout(); let order=dashOrderedKeys().filter(k=>k!==dragKey);
+      const ti=order.indexOf(target); order.splice(ti<0?order.length:ti,0,dragKey);
+      l.order=order; dashSaveLayout(l); dashRender();
+    });
+  });
+}
+
+function dashPill(s){
+  const map={delivered:'green',cancelled:'red',returned:'red',refunded:'red',shipped:'blue',processing:'accent',confirmed:'accent',pending:'yellow',placed:'yellow',whatsapp_pending:'green'};
+  const c=map[s]||'yellow', label=String(s||'').replace(/_/g,' ');
+  return `<span class="dash-pill" style="color:var(--${c});background:var(--${c}-bg)">${esc(label)}</span>`;
+}
+function dashWKpis(){
+  const d=_dashData, lowStock=(_products||[]).filter(p=>p.is_active&&(p.stock_qty??0)<=5).length;
+  const open=d.orders.filter(o=>DASH_OPEN_STATUSES.includes(o.status)||DASH_OPEN_STATUSES.includes(o.order_status)).length;
+  const aov=d.paidOrders?Math.round(d.totalRevenue/d.paidOrders):0;
+  const cards=[
+    {label:'Revenue · 30 days',value:'₹'+d.monthRevenue.toLocaleString('en-IN'),sub:d.monthOrders+' orders',color:'green'},
+    {label:'Total revenue (paid)',value:'₹'+d.totalRevenue.toLocaleString('en-IN'),sub:d.paidOrders+' paid orders',color:'green'},
+    {label:'Avg order value',value:'₹'+aov.toLocaleString('en-IN'),sub:'paid orders',color:'blue'},
+    {label:'Open orders',value:open,sub:'need action',color:'accent'},
+    {label:'Low / out of stock',value:lowStock,sub:'≤ 5 units',color:'red'},
+    {label:'Pending reviews',value:_dashPending(),sub:'to moderate',color:'purple'},
+  ];
+  return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">'
+    +cards.map(k=>`<div class="kpi-card"><div class="kpi-label">${esc(k.label)}</div><div class="kpi-value" style="color:var(--${k.color})">${k.value}</div><div class="kpi-sub">${esc(k.sub)}</div></div>`).join('')+'</div>';
+}
+function dashWOpenOrders(){
+  const open=_dashData.orders.filter(o=>DASH_OPEN_STATUSES.includes(o.status)||DASH_OPEN_STATUSES.includes(o.order_status)).slice(0,8);
+  if(!open.length)return '<div style="color:var(--text-3);font-size:12px;padding:8px 0">No open orders — all caught up.</div>';
+  return open.map(o=>{
+    const id=o.invoice_number||o.order_id||String(o.id||'').slice(0,8), st=o.status||o.order_status||'pending';
+    return `<div class="dash-open-row">`
+      +`<span style="font-family:var(--mono);font-size:11px;color:var(--text-2)">${esc(id)}</span>`
+      +`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${esc(o.customer_name||'—')}</span>`
+      +`<span style="font-family:var(--mono);font-weight:600;font-size:12px">₹${Number(o.total_amount||0).toLocaleString('en-IN')}</span>`
+      +`<span style="display:flex;gap:6px;align-items:center">${dashPill(st)}<button class="btn-sm" onclick="switchTab('orders')">Open</button></span></div>`;
+  }).join('')+`<div style="margin-top:10px"><button class="btn-secondary" onclick="switchTab('orders')">View all orders →</button></div>`;
+}
+function dashWRevTrend(){
+  const days={}; for(let i=29;i>=0;i--){const d=new Date(Date.now()-i*864e5);days[d.toISOString().slice(0,10)]=0;}
+  for(const o of _dashData.orders){const d=String(o.created_at||'').slice(0,10); if(d in days)days[d]+=Number(o.total_amount||0);}
+  const arr=Object.entries(days),max=Math.max(...arr.map(x=>x[1]),1);
+  return `<div style="display:flex;align-items:flex-end;gap:2px;height:90px">`
+    +arr.map(([date,v])=>`<div title="${date}: ₹${v.toLocaleString('en-IN')}" style="flex:1;background:var(--accent);opacity:.7;border-radius:2px 2px 0 0;height:${Math.max(3,Math.round(v/max*100))}%"></div>`).join('')+`</div>`;
+}
+function dashWStatus(){
+  const c={}; for(const o of _dashData.orders){const s=o.status||o.order_status||'pending';c[s]=(c[s]||0)+1;}
+  const tot=_dashData.orders.length||1;
+  const ord=['placed','pending','confirmed','processing','shipped','delivered','cancelled','returned','refunded'].filter(s=>c[s]);
+  if(!ord.length)return '<div style="color:var(--text-3);font-size:12px">No orders yet.</div>';
+  return ord.map(s=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><span style="width:90px">${dashPill(s)}</span><div style="flex:1;height:7px;background:var(--bg-3);border-radius:4px;overflow:hidden"><div style="height:100%;width:${Math.round(c[s]/tot*100)}%;background:var(--accent)"></div></div><span style="font-family:var(--mono);font-size:11px;color:var(--text-3);width:24px;text-align:right">${c[s]}</span></div>`).join('');
+}
+function dashWLowStock(){
+  const low=(_products||[]).filter(p=>p.is_active&&(p.stock_qty??0)<=5).sort((a,b)=>(a.stock_qty??0)-(b.stock_qty??0)).slice(0,8);
+  if(!low.length)return '<div style="color:var(--text-3);font-size:12px;padding:8px 0">Stock looks healthy.</div>';
+  return low.map(p=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--border);font-size:12px"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</span><span style="font-family:var(--mono);font-weight:700;color:var(--${(p.stock_qty??0)===0?'red':'yellow'})">${p.stock_qty??0}</span></div>`).join('')
+    +`<div style="margin-top:8px"><button class="btn-secondary" onclick="switchTab('products')">Manage products →</button></div>`;
+}
+function dashWReviews(){
+  const n=_dashPending();
+  return `<div style="display:flex;align-items:center;gap:12px"><div style="font-size:28px;font-weight:700;color:var(--purple);font-family:var(--mono)">${n}</div><div style="font-size:12px;color:var(--text-3)">review${n===1?'':'s'} awaiting moderation</div></div>`
+    +(n?`<div style="margin-top:10px"><button class="btn-secondary" onclick="switchTab('reviews')">Moderate reviews →</button></div>`:'');
+}
+function dashWSignups(){
+  const s=_dashData.signups||[];
+  if(!s.length)return '<div style="color:var(--text-3);font-size:12px">No new signups in the last 7 days.</div>';
+  return s.map(u=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--border);font-size:12px"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.full_name||u.email||'—')}</span><span style="font-size:11px;color:var(--text-3)">${u.created_at?fmtDateShort(u.created_at):''}</span></div>`).join('');
+}
 
 async function loadAnalytics(){
   // 1. KPIs: total revenue, total orders, avg order value, paid orders
@@ -2758,6 +2934,7 @@ async function loadProducts(){
   _products=data||[];
   document.getElementById('productCount').textContent=_products.length;
   renderProductsTable();
+  if(typeof _dashData!=='undefined'&&_dashData&&typeof dashRender==='function')dashRender();
 }
 
 function renderProductsTable(){
