@@ -10,6 +10,7 @@
 // any order, is never hard-deleted (FK + financial/legal history). It stays in the bin.
 // ─────────────────────────────────────────────────────────────────────────────
 import supabase from '../db/supabaseClient.js';
+import { logActivity } from '../services/activityLog.js';
 
 const TYPES = { product: 'products', user: 'profiles', review: 'reviews' };
 
@@ -56,6 +57,7 @@ export async function restoreItem(req, res, next) {
     const { error } = await supabase.from(table)
       .update({ deleted_at: null, deleted_by: null }).eq('id', id);
     if (error) throw error;
+    logActivity(req.user?.email, 'recycle.restore', type, id, null);
     res.json({ ok: true });
   } catch (err) { next(err); }
 }
@@ -95,6 +97,7 @@ export async function purgeItem(req, res, next) {
       }
     }
 
+    logActivity(req.user?.email, 'recycle.purge', type, id, 'permanent delete');
     res.json({ ok: true });
   } catch (err) { next(err); }
 }

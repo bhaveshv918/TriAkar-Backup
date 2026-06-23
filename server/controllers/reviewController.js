@@ -1,5 +1,6 @@
 import supabase from '../db/supabaseClient.js';
 import { uploadBufferToCloudinary } from '../services/cloudinaryService.js';
+import { logActivity } from '../services/activityLog.js';
 
 /* ─────────────────────────────────────────────────────────────────────────
    PUBLIC — GET /api/reviews/:slug
@@ -168,6 +169,7 @@ export async function createReviewAdmin(req, res) {
 
     const { data, error } = await supabase.from('reviews').insert(row).select().single();
     if (error) throw error;
+    logActivity(req.user?.email, 'review.create', 'review', data.id, b.product_slug);
     res.status(201).json({ review: data });
   } catch (e) {
     console.error('createReviewAdmin:', e);
@@ -227,6 +229,7 @@ export async function patchStatus(req, res) {
       .single();
 
     if (error) throw error;
+    logActivity(req.user?.email, 'review.status', 'review', id, '→ ' + status);
     res.json({ review: data });
   } catch (e) {
     console.error('patchStatus:', e);
@@ -248,6 +251,7 @@ export async function deleteReview(req, res) {
       .eq('id', id);
 
     if (error) throw error;
+    logActivity(req.user?.email, 'review.delete', 'review', id, 'moved to Recycle Bin');
     res.json({ message: 'Review moved to Recycle Bin' });
   } catch (e) {
     console.error('deleteReview:', e);

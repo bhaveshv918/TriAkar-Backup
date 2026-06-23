@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   getAdminProducts, createProduct, updateProduct, deleteProduct, bulkUpdateProducts,
-  getAdminOrders, updateOrderStatus, updateOrderPayment, sendOrderEmail,
+  getAdminOrders, updateOrderStatus, updateOrderPayment, sendOrderEmail, getActivity,
 } from '../controllers/adminController.js';
 import {
   listUsers, getUser, updateUser, setUserDisabled, setUserRole,
@@ -60,6 +60,9 @@ router.put('/users/:id/role',       setUserRole);
 router.post('/users/:id/disable',   setUserDisabled(true));
 router.post('/users/:id/enable',    setUserDisabled(false));
 router.delete('/users/:id',         softDeleteUser);
+
+// ── Activity log (Module 7) ──
+router.get('/activity',             getActivity);
 
 // ── Recycle Bin (Module 1) — products / users / reviews ──
 router.get('/recycle-bin',          listRecycleBin);

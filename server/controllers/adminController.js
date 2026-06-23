@@ -1,4 +1,16 @@
 import supabase from '../db/supabaseClient.js';
+import { logActivity } from '../services/activityLog.js';
+
+// ── ACTIVITY LOG (Module 7) ────────────────────────────────────────────────
+export async function getActivity(req, res, next) {
+  try {
+    const { data, error } = await supabase
+      .from('admin_activity').select('*')
+      .order('created_at', { ascending: false }).limit(100);
+    if (error) throw error;
+    res.json({ activity: data || [] });
+  } catch (err) { next(err); }
+}
 
 // ── PRODUCTS ──────────────────────────────────────────────────────────────
 
@@ -89,6 +101,7 @@ export async function deleteProduct(req, res, next) {
       .eq('id', id);
 
     if (error) throw error;
+    logActivity(req.user?.email, 'product.delete', 'product', id, 'moved to Recycle Bin');
     res.json({ ok: true });
   } catch (err) {
     next(err);
@@ -136,6 +149,8 @@ export async function bulkUpdateProducts(req, res, next) {
       return res.status(400).json({ error: 'Invalid action' });
     }
 
+    logActivity(req.user?.email, 'product.bulk', 'product', null,
+      action + ' ×' + ids.length + (value != null && value !== '' ? ' (' + value + ')' : ''));
     res.json({ ok: true, count: ids.length });
   } catch (err) { next(err); }
 }
@@ -188,6 +203,7 @@ export async function updateOrderStatus(req, res, next) {
       .single();
 
     if (error) throw error;
+    logActivity(req.user?.email, 'order.status', 'order', id, '→ ' + status);
     res.json({ order: data });
   } catch (err) {
     next(err);

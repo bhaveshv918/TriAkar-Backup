@@ -11,6 +11,7 @@
 // and the Supabase Auth Admin API. requireAuth + requireAdmin gate every route.
 // ─────────────────────────────────────────────────────────────────────────────
 import supabase from '../db/supabaseClient.js';
+import { logActivity } from '../services/activityLog.js';
 
 // Profile columns the admin may edit. Anything not listed is ignored, so a stray
 // body field can never write an unexpected/non-existent column.
@@ -190,6 +191,7 @@ export function setUserDisabled(disabled) {
       await supabase.from('profiles')
         .update({ disabled, updated_at: new Date().toISOString() }).eq('id', id);
 
+      logActivity(req.user?.email, disabled ? 'user.disable' : 'user.enable', 'user', id, null);
       res.json({ ok: true, disabled });
     } catch (err) { next(err); }
   };
@@ -209,6 +211,7 @@ export async function setUserRole(req, res, next) {
     const { error } = await supabase.from('profiles')
       .update({ role, updated_at: new Date().toISOString() }).eq('id', id);
     if (error) throw error;
+    logActivity(req.user?.email, 'user.role', 'user', id, '→ ' + role);
     res.json({ ok: true, role });
   } catch (err) { next(err); }
 }
@@ -223,6 +226,7 @@ export async function softDeleteUser(req, res, next) {
       .update({ deleted_at: new Date().toISOString(), deleted_by: req.user?.email || 'admin' })
       .eq('id', id);
     if (error) throw error;
+    logActivity(req.user?.email, 'user.delete', 'user', id, 'moved to Recycle Bin');
     res.json({ ok: true });
   } catch (err) { next(err); }
 }
