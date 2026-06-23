@@ -10,7 +10,7 @@ export async function getReviews(req, res) {
     const { slug } = req.params;
     const { data, error } = await supabase
       .from('reviews')
-      .select('id,reviewer_name,rating,review,images,verified_purchase,city,source,created_at')
+      .select('id,reviewer_name,rating,review,images,verified_purchase,city,source,created_at,admin_reply')
       .eq('product_slug', slug)
       .eq('status', 'approved')
       .is('deleted_at', null)
@@ -136,6 +136,46 @@ export async function createReview(req, res) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
+   ADMIN — POST /api/reviews/admin
+   Create a review by hand from the admin panel. Runs on the service-role client
+   so it is NOT blocked by RLS (the old admin "Add Review" did sb.from('reviews')
+   .insert() in the browser, which RLS silently rejected).
+───────────────────────────────────────────────────────────────────────── */
+export async function createReviewAdmin(req, res) {
+  try {
+    const b = req.body || {};
+    if (!b.product_slug || !b.reviewer_name || !b.rating || !b.review) {
+      return res.status(400).json({ error: 'product_slug, reviewer_name, rating and review are required' });
+    }
+    const rating = Number(b.rating);
+    if (rating < 1 || rating > 5) return res.status(400).json({ error: 'Rating must be 1–5' });
+
+    const row = {
+      product_slug:      b.product_slug,
+      product_name:      b.product_name || null,
+      reviewer_name:     b.reviewer_name,
+      rating,
+      review:            b.review,
+      status:            ['pending','approved','rejected','flagged'].includes(b.status) ? b.status : 'approved',
+      verified_purchase: !!b.verified_purchase,
+      source:            b.source || 'website',
+      city:              b.city || null,
+      admin_note:        b.admin_note  || null,
+      admin_reply:       b.admin_reply || null,
+      images:            Array.isArray(b.images) ? b.images : [],
+    };
+    if (b.created_at) row.created_at = b.created_at;
+
+    const { data, error } = await supabase.from('reviews').insert(row).select().single();
+    if (error) throw error;
+    res.status(201).json({ review: data });
+  } catch (e) {
+    console.error('createReviewAdmin:', e);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
    ADMIN — PUT /api/reviews/:id
    Full update (edit any field).
 ───────────────────────────────────────────────────────────────────────── */
@@ -144,7 +184,8 @@ export async function updateReview(req, res) {
     const { id } = req.params;
     const allowed = [
       'reviewer_name','rating','review','images','verified_purchase',
-      'status','admin_note','city','source','product_slug','product_name',
+      'status','admin_note','admin_reply','city','source',
+      'product_slug','product_name','created_at',
     ];
     const updates = {};
     allowed.forEach(k => {
@@ -175,8 +216,8 @@ export async function patchStatus(req, res) {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    if (!['pending', 'approved', 'rejected'].includes(status)) {
-      return res.status(400).json({ error: 'status must be pending, approved, or rejected' });
+    if (!['pending', 'approved', 'rejected', 'flagged'].includes(status)) {
+      return res.status(400).json({ error: 'status must be pending, approved, rejected, or flagged' });
     }
     const { data, error } = await supabase
       .from('reviews')

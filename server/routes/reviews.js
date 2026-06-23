@@ -6,6 +6,7 @@ import {
   getReviews,
   getAllReviews,
   createReview,
+  createReviewAdmin,
   updateReview,
   patchStatus,
   deleteReview,
@@ -37,6 +38,8 @@ router.get('/:slug', getReviews);
 router.post('/', requireAuth, upload.array('images', 3), createReview);
 
 /* ── ADMIN ──────────────────────────────────────────────── */
+/* POST   /api/reviews/admin     — create a review by hand (service-role, RLS-safe) */
+router.post('/admin', requireAuth, requireAdmin, createReviewAdmin);
 /* GET    /api/reviews/          — all reviews */
 router.get('/', requireAuth, requireAdmin, getAllReviews);
 /* PUT    /api/reviews/:id       — full edit */

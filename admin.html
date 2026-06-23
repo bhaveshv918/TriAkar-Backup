@@ -1476,12 +1476,35 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
         <button class="btn-primary" onclick="openReviewModal(null)">+ Add Review</button>
       </div>
     </div>
+    <!-- Google Reviews — storefront stats (Module 3B): edit here, no code deploy -->
+    <div style="margin:0 0 16px;padding:14px 16px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-weight:700;font-size:13px">Google Reviews — storefront stats <span style="font-weight:400;color:var(--text-3);font-size:11px">· shown on the Reviews page, no code deploy</span></div>
+        <button class="btn-secondary" onclick="loadGoogleSettings()">⟳</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        <div><label class="form-label">Rating (0–5)</label><input id="grRating" class="form-input" type="number" step="0.1" min="0" max="5" placeholder="5.0"></div>
+        <div><label class="form-label">Review count</label><input id="grCount" class="form-input" type="number" min="0" placeholder="13"></div>
+        <div><label class="form-label">Google profile URL</label><input id="grUrl" class="form-input" placeholder="https://maps.app.goo.gl/…"></div>
+      </div>
+      <div style="margin-top:10px"><label class="form-label">Hand-picked snippets — one per line: <code>rating | author | text</code></label>
+        <textarea id="grSnippets" class="form-input" rows="3" placeholder="5 | Dileep Pathak | Needed a customised gift, he helped a lot and delivered on time." style="resize:vertical;font-size:12px"></textarea></div>
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+        <button class="btn-primary" onclick="saveGoogleSettings()">Save Google stats</button>
+        <span id="grStatus" style="font-size:12px;color:var(--text-3)"></span>
+      </div>
+    </div>
     <div class="filter-bar">
       <select id="filterReviewStatus" onchange="loadReviewsAdmin()">
         <option value="">All Status</option>
         <option value="pending">Pending</option>
         <option value="approved">Approved</option>
         <option value="rejected">Rejected</option>
+        <option value="flagged">Flagged</option>
+      </select>
+      <select id="filterReviewRating" onchange="loadReviewsAdmin()">
+        <option value="">All Ratings</option>
+        <option value="5">5 ★</option><option value="4">4 ★</option><option value="3">3 ★</option><option value="2">2 ★</option><option value="1">1 ★</option>
       </select>
       <input type="text" id="filterReviewSlug" placeholder="Filter by product slug…" oninput="loadReviewsAdmin()" style="min-width:180px">
     </div>
@@ -1928,7 +1951,7 @@ function showDashboard(user){
   document.getElementById('adminDash').classList.add('show');
   updateClock();setInterval(updateClock,30000);
   initTheme();
-  loadCategories().then(()=>{loadProducts();loadOrders();loadLogs();loadCustomers();loadMessages();loadCustomEnquiries();loadCallbacks();loadRecycleBin();loadReviewsAdmin();});
+  loadCategories().then(()=>{loadProducts();loadOrders();loadLogs();loadCustomers();loadMessages();loadCustomEnquiries();loadCallbacks();loadRecycleBin();loadReviewsAdmin();loadGoogleSettings();});
 }
 
 // Check existing session on load
@@ -1987,7 +2010,7 @@ function switchTab(tab){
   // Clear notification dot and save seen count
   if(tab==='analytics')loadAnalytics();
   if(tab==='promo')loadPromoCodes();
-  if(tab==='reviews')loadReviewsAdmin();
+  if(tab==='reviews'){loadReviewsAdmin();loadGoogleSettings();}
   if(tab==='appearance')loadMenuStyleSetting();
   const dotMap={orders:'dotOrders',customers:'dotCustomers',messages:'dotMessages',enquiries:'dotEnquiries',callbacks:'dotCallbacks'};
   const countEls={orders:'orderCount',customers:'customerCount',messages:'messageCount',enquiries:'enquiryCount',callbacks:'callbackCount'};
@@ -4358,7 +4381,9 @@ async function loadReviewsAdmin(){
     if(slug)url+='&slug='+encodeURIComponent(slug);
     const res=await fetch(url,{headers:{'Authorization':'Bearer '+token}});
     const d=await res.json();
-    const rows=d.reviews||[];
+    let rows=d.reviews||[];
+    const ratingF=document.getElementById('filterReviewRating')?.value||'';
+    if(ratingF) rows=rows.filter(r=>String(r.rating)===ratingF);
 
     // Update count badge
     const pending=rows.filter(r=>r.status==='pending').length;
@@ -4379,6 +4404,8 @@ async function loadReviewsAdmin(){
         ?'<span style="color:#15803D;font-weight:700">Approved</span>'
         :r.status==='rejected'
         ?'<span style="color:#B91C1C;font-weight:700">Rejected</span>'
+        :r.status==='flagged'
+        ?'<span style="color:#9333EA;font-weight:700">Flagged</span>'
         :'<span style="color:#D97706;font-weight:700">Pending</span>';
       const sourceLabel=r.source||'website';
       return`<tr>
@@ -4395,6 +4422,7 @@ async function loadReviewsAdmin(){
           ${r.status!=='approved'?`<button class="btn-secondary" style="margin-right:3px;color:#15803D" onclick="setReviewStatus('${r.id}','approved')">✓</button>`:''}
           ${r.status!=='rejected'?`<button class="btn-secondary" style="margin-right:3px;color:#B91C1C" onclick="setReviewStatus('${r.id}','rejected')">✗</button>`:''}
           ${r.status!=='pending'?`<button class="btn-secondary" style="margin-right:3px" onclick="setReviewStatus('${r.id}','pending')">↺</button>`:''}
+          ${r.status!=='flagged'?`<button class="btn-secondary" style="margin-right:3px;color:#9333EA" onclick="setReviewStatus('${r.id}','flagged')" title="Flag">⚑</button>`:''}
           <button class="btn-secondary" style="margin-right:3px" onclick='openReviewModal(${JSON.stringify(r)})'>Edit</button>
           <button class="btn-secondary" style="color:#B91C1C" onclick="deleteReviewAdmin('${r.id}')">Del</button>
         </td>
@@ -4406,6 +4434,44 @@ async function loadReviewsAdmin(){
   }
 }
 
+/* ── Google Reviews storefront stats (site_settings) ──
+   Reads/writes via the browser sb client — site_settings already has its own
+   public-read / admin-write RLS policy, so this is the one safe direct path. */
+async function loadGoogleSettings(){
+  try{
+    const {data}=await sb.from('site_settings').select('key,value')
+      .in('key',['google_rating','google_review_count','google_profile_url','google_snippets']);
+    const m={}; (data||[]).forEach(r=>m[r.key]=r.value);
+    const g=id=>document.getElementById(id);
+    if(g('grRating')) g('grRating').value=m.google_rating||'';
+    if(g('grCount'))  g('grCount').value=m.google_review_count||'';
+    if(g('grUrl'))    g('grUrl').value=m.google_profile_url||'';
+    let snips=[]; try{snips=JSON.parse(m.google_snippets||'[]');}catch(_){}
+    if(g('grSnippets')) g('grSnippets').value=(snips||[]).map(s=>`${s.rating||5} | ${s.author||''} | ${s.text||''}`).join('\n');
+  }catch(e){ console.warn('loadGoogleSettings:',e.message); }
+}
+async function saveGoogleSettings(){
+  const g=id=>document.getElementById(id);
+  const lines=(g('grSnippets').value||'').split('\n').map(l=>l.trim()).filter(Boolean);
+  const snippets=lines.map(l=>{
+    const p=l.split('|').map(x=>x.trim());
+    return p.length>=3?{rating:Number(p[0])||5,author:p[1],text:p.slice(2).join(' | ')}:{rating:5,author:'',text:l};
+  });
+  const now=new Date().toISOString();
+  const rows=[
+    {key:'google_rating',       value:String(g('grRating').value||'').trim(), updated_at:now},
+    {key:'google_review_count', value:String(g('grCount').value||'').trim(),  updated_at:now},
+    {key:'google_profile_url',  value:String(g('grUrl').value||'').trim(),    updated_at:now},
+    {key:'google_snippets',     value:JSON.stringify(snippets),               updated_at:now},
+  ];
+  try{
+    const {error}=await sb.from('site_settings').upsert(rows,{onConflict:'key'});
+    if(error)throw error;
+    const st=g('grStatus'); if(st){st.textContent='Saved ✓'; setTimeout(()=>{st.textContent='';},2500);}
+    toast('Google stats saved','success');
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
 async function setReviewStatus(id,status){
   try{
     const token=localStorage.getItem('ta_token');
@@ -4415,7 +4481,7 @@ async function setReviewStatus(id,status){
       body:JSON.stringify({status})
     });
     if(!res.ok){const d=await res.json();throw new Error(d.error);}
-    toast('Review '+(status==='approved'?'approved ✓':status==='rejected'?'rejected':'set to pending'),'success');
+    toast('Review '+(status==='approved'?'approved ✓':status==='rejected'?'rejected':status==='flagged'?'flagged':'set to pending'),'success');
     loadReviewsAdmin();
   }catch(e){toast('Error: '+e.message,'error');}
 }
@@ -4461,6 +4527,7 @@ function openReviewModal(r){
   const rvV=document.getElementById('rvVerified');if(rvV)rvV.checked=r?r.verified_purchase:false;
   document.getElementById('rvSource').value=r?(r.source||'website'):'website';
   document.getElementById('rvAdminNote').value=r?(r.admin_note||''):'';
+  const rvAR=document.getElementById('rvAdminReply'); if(rvAR) rvAR.value=r?(r.admin_reply||''):'';
   document.getElementById('rvImagesVal').value=r&&r.images?r.images.join('\n'):'';
   const rvDate=document.getElementById('rvDate');
   if(rvDate)rvDate.value=r&&r.created_at?r.created_at.slice(0,10):new Date().toISOString().slice(0,10);
@@ -4494,6 +4561,7 @@ async function saveReview(){
     verified_purchase:document.getElementById('rvVerified').checked,
     source:document.getElementById('rvSource').value,
     admin_note:document.getElementById('rvAdminNote').value.trim()||null,
+    admin_reply:document.getElementById('rvAdminReply')?.value.trim()||null,
     images,
   };
   const rvDateVal=document.getElementById('rvDate')?.value;
@@ -4509,9 +4577,10 @@ async function saveReview(){
         body:JSON.stringify(body)
       });
     }else{
-      // Admin-created review — POST directly to Supabase (bypasses auth check)
-      const{error}=await sb.from('reviews').insert({...body,status:body.status||'approved'});
-      if(error)throw error;
+      // Admin-created review — POST to the service-role backend (RLS-safe).
+      // (The old sb.from('reviews').insert() ran in the browser and was silently
+      //  rejected by RLS, so "Add Review" never actually saved.)
+      await adminApi('/api/reviews/admin',{method:'POST',body:JSON.stringify(body)});
       toast('Review added ✓','success');
       closeReviewModal();
       loadReviewsAdmin();
@@ -4570,6 +4639,7 @@ async function saveReview(){
             <option value="approved">Approved</option>
             <option value="pending">Pending</option>
             <option value="rejected">Rejected</option>
+            <option value="flagged">Flagged</option>
           </select></div>
         <div><label class="form-label">Source</label>
           <select id="rvSource" class="form-input">
@@ -4593,6 +4663,8 @@ async function saveReview(){
       </div>
       <div><label class="form-label">Admin Note (internal only)</label>
         <input id="rvAdminNote" class="form-input" placeholder="e.g. Imported from Google Reviews"></div>
+      <div><label class="form-label">Public reply (shown under the review, optional)</label>
+        <textarea id="rvAdminReply" class="form-input" rows="2" placeholder="e.g. Thank you so much — Team TriAkar" style="resize:vertical"></textarea></div>
       <div style="display:flex;gap:10px;margin-top:6px">
         <button class="btn-primary" onclick="saveReview()" style="flex:1">Save Review</button>
         <button class="btn-secondary" onclick="closeReviewModal()">Cancel</button>

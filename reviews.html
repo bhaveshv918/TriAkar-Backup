@@ -203,7 +203,7 @@ window.GOOGLE_REVIEWS = [
 </script>
 <script src="reviews-data.js"></script>
 <script>
-(function(){
+function buildReviews(){
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
   function stars(n){ n=Math.round(n); var s=''; for(var i=0;i<5;i++) s+= i<n?'★':'☆'; return s; }
   function initials(name){ var p=String(name||'').trim().split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
@@ -336,6 +336,29 @@ window.GOOGLE_REVIEWS = [
   // NOTE: The Review + AggregateRating JSON-LD is NOT injected here. It lives as a
   // STATIC block in <head> (id="reviewsSchema") so AI crawlers that don't run
   // JavaScript (GPTBot, ClaudeBot, PerplexityBot) can still read the ratings.
+}
+
+/* Hydrate the Google stats from the admin-editable site_settings (no code deploy
+   needed when the rating/count changes). Renders exactly once: with live values
+   if the API answers quickly, otherwise the static fallback after a short timeout
+   so a sleeping backend never blocks the page. */
+(function(){
+  var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:3000':'https://triakar.onrender.com';
+  var done=false;
+  function go(){ if(done) return; done=true; buildReviews(); }
+  var timer=setTimeout(go, 1200);
+  fetch(API+'/api/site-settings').then(function(r){return r.json();}).then(function(d){
+    var s=(d&&d.settings)||{};
+    var gr=window.GOOGLE_RATING||{score:5,count:0};
+    if(s.google_rating!=null && s.google_rating!=='')       gr.score=Number(s.google_rating)||gr.score;
+    if(s.google_review_count!=null && s.google_review_count!=='') gr.count=Number(s.google_review_count)||gr.count;
+    window.GOOGLE_RATING=gr;
+    if(s.google_snippets){ try{ var sn=JSON.parse(s.google_snippets);
+      if(Array.isArray(sn)&&sn.length){ window.GOOGLE_REVIEWS=sn.map(function(x){return {reviewer_name:x.author||'Google user',rating:Number(x.rating)||5,review:x.text||''};}); }
+    }catch(e){} }
+    if(s.google_profile_url){ var links=document.querySelectorAll('a[href*="maps.app.goo.gl"],a[href*="google.com/maps"]'); for(var i=0;i<links.length;i++) links[i].href=s.google_profile_url; }
+    clearTimeout(timer); go();
+  }).catch(function(){ clearTimeout(timer); go(); });
 })();
 </script>
 
