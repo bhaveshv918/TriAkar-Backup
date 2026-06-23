@@ -1292,13 +1292,24 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="form-err" id="formErr"></div>
     </div>
 
+    <!-- Bulk actions toolbar (Module 8) — shows when products are selected -->
+    <div id="prodBulkBar" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:var(--radius)">
+      <span id="prodBulkCount" style="font-weight:700;font-size:13px"></span>
+      <button class="btn-secondary" onclick="bulkProducts('activate')">Activate</button>
+      <button class="btn-secondary" onclick="bulkProducts('deactivate')">Hide</button>
+      <button class="btn-secondary" onclick="bulkProductsPrice()">Set price ₹…</button>
+      <button class="btn-secondary" onclick="bulkProductsPct()">Adjust %…</button>
+      <button class="btn-secondary" onclick="bulkExportProducts()">⭳ Export CSV</button>
+      <button class="btn-secondary" style="background:#7f1d1d;color:#fca5a5;border-color:#991b1b" onclick="bulkProducts('delete')">Move to bin</button>
+      <button class="btn-secondary" onclick="clearProdSelection()">Clear</button>
+    </div>
     <!-- Products Table -->
     <div class="tbl-wrap">
       <table>
         <thead><tr>
-          <th style="width:50px"></th><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Badge</th><th style="width:70px;text-align:center">Home</th><th>Status</th><th>Actions</th>
+          <th style="width:34px"><input type="checkbox" id="prodSelectAll" onchange="document.querySelectorAll('#productsBody input.prod-check').forEach(c=>c.checked=this.checked);updateBulkBar()"></th><th style="width:50px"></th><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Badge</th><th style="width:70px;text-align:center">Home</th><th>Status</th><th>Actions</th>
         </tr></thead>
-        <tbody id="productsBody"><tr><td colspan="8" class="tbl-msg">Loading products…</td></tr></tbody>
+        <tbody id="productsBody"><tr><td colspan="10" class="tbl-msg">Loading products…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2530,7 +2541,7 @@ async function loadProducts(){
 
 function renderProductsTable(){
   const tbody=document.getElementById('productsBody');
-  if(!_products.length){tbody.innerHTML='<tr><td colspan="9" class="tbl-msg">No products yet. Add one above.</td></tr>';return}
+  if(!_products.length){tbody.innerHTML='<tr><td colspan="10" class="tbl-msg">No products yet. Add one above.</td></tr>';return}
   tbody.innerHTML=_products.map(p=>{
     const img=p.images&&p.images[0]?'<div class="td-img"><img src="'+p.images[0]+'" loading="lazy"></div>':'<div class="td-img" style="display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--text-3)">—</div>';
     const badgeHtml=p.badge?'<span class="badge badge-accent">'+p.badge+'</span>':'<span style="color:var(--text-3)">—</span>';
@@ -2562,6 +2573,7 @@ function renderProductsTable(){
         :'<span style="font-size:11px;color:var(--text-3);cursor:pointer" title="Click to add to homepage" onclick="quickToggleHomepage(\''+p.id+'\',null)">+</span>')
       +'</td>';
     return '<tr>'
+      +'<td style="text-align:center"><input type="checkbox" class="prod-check" data-id="'+p.id+'" onchange="updateBulkBar()"></td>'
       +'<td>'+img+'</td>'
       +'<td class="td-name">'+p.name+'<div style="font-family:var(--mono);font-size:10px;color:var(--text-3);margin-top:2px">/'+p.slug+'</div>'+licFlag+'</td>'
       +'<td><span class="badge badge-cat">'+p.category+'</span></td>'
@@ -2574,6 +2586,44 @@ function renderProductsTable(){
       +'<button class="btn-danger" onclick="deleteProduct(\''+p.id+'\',\''+safe+'\')">Del</button></td>'
       +'</tr>';
   }).join('');
+  if(typeof updateBulkBar==='function') updateBulkBar();
+}
+
+/* ── Bulk product actions (Module 8) ── */
+function selectedProductIds(){ return Array.from(document.querySelectorAll('#productsBody input.prod-check:checked')).map(c=>c.dataset.id); }
+function updateBulkBar(){
+  const bar=document.getElementById('prodBulkBar'); if(!bar)return;
+  const ids=selectedProductIds();
+  if(ids.length){ bar.style.display='flex'; const c=document.getElementById('prodBulkCount'); if(c)c.textContent=ids.length+' selected'; }
+  else { bar.style.display='none'; const sa=document.getElementById('prodSelectAll'); if(sa)sa.checked=false; }
+}
+function clearProdSelection(){
+  document.querySelectorAll('#productsBody input.prod-check').forEach(c=>c.checked=false);
+  const sa=document.getElementById('prodSelectAll'); if(sa)sa.checked=false;
+  updateBulkBar();
+}
+async function bulkProducts(action,value){
+  const ids=selectedProductIds();
+  if(!ids.length){toast('Select products first','error');return;}
+  if(action==='delete' && !confirm('Move '+ids.length+' product(s) to the Recycle Bin?'))return;
+  try{
+    await adminApi('/api/admin/products/bulk',{method:'POST',body:JSON.stringify({ids,action,value})});
+    toast(ids.length+' product(s) updated','success');
+    clearProdSelection(); loadProducts();
+    if(action==='delete' && typeof loadRecycleBin==='function') loadRecycleBin();
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+function bulkProductsPrice(){ const v=prompt('Set price (₹) for the selected products:'); if(v===null)return; const n=Number(v); if(!(n>=0)){toast('Enter a valid price','error');return;} bulkProducts('price_set',n); }
+function bulkProductsPct(){ const v=prompt('Adjust price by percent (e.g. 10 to raise 10%, -10 to cut 10%):'); if(v===null)return; const n=Number(v); if(!n){toast('Enter a valid percent','error');return;} bulkProducts('price_pct',n); }
+function bulkExportProducts(){
+  const ids=new Set(selectedProductIds());
+  const list=ids.size?_products.filter(p=>ids.has(p.id)):_products;
+  const cols=['name','slug','category','price','stock_qty','is_active','badge','sku'];
+  const e2=v=>{const s=v==null?'':String(v); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+  const csv=[cols.join(','),...list.map(p=>cols.map(c=>e2(p[c])).join(','))].join('\n');
+  const blob=new Blob([csv],{type:'text/csv'}),url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='triakar-products-'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
 }
 
 // Quick-toggle homepage directly from table row

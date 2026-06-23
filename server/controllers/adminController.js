@@ -95,6 +95,51 @@ export async function deleteProduct(req, res, next) {
   }
 }
 
+// Bulk operations on products (Module 8). action: activate | deactivate |
+// delete (→ bin) | price_set (value=₹) | price_pct (value=percent, +/-).
+export async function bulkUpdateProducts(req, res, next) {
+  try {
+    const { ids, action, value } = req.body || {};
+    if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids are required' });
+    if (ids.length > 500) return res.status(400).json({ error: 'Too many items (max 500)' });
+
+    if (action === 'activate' || action === 'deactivate') {
+      const { error } = await supabase.from('products')
+        .update({ is_active: action === 'activate' }).in('id', ids);
+      if (error) throw error;
+
+    } else if (action === 'delete') {
+      const { error } = await supabase.from('products')
+        .update({ deleted_at: new Date().toISOString(), deleted_by: req.user?.email || 'admin' })
+        .in('id', ids);
+      if (error) throw error;
+
+    } else if (action === 'price_set') {
+      const price = Number(value);
+      if (!(price >= 0)) return res.status(400).json({ error: 'Invalid price' });
+      const { error } = await supabase.from('products').update({ price }).in('id', ids);
+      if (error) throw error;
+
+    } else if (action === 'price_pct') {
+      const pct = Number(value);
+      if (!pct) return res.status(400).json({ error: 'Invalid percent' });
+      // Percentage is per-row, so fetch then update each.
+      const { data: rows, error: e1 } = await supabase.from('products').select('id, price').in('id', ids);
+      if (e1) throw e1;
+      for (const r of (rows || [])) {
+        const np = Math.max(0, Math.round(Number(r.price) * (1 + pct / 100) * 100) / 100);
+        const { error } = await supabase.from('products').update({ price: np }).eq('id', r.id);
+        if (error) throw error;
+      }
+
+    } else {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+
+    res.json({ ok: true, count: ids.length });
+  } catch (err) { next(err); }
+}
+
 // ── ORDERS ────────────────────────────────────────────────────────────────
 
 export async function getAdminOrders(req, res, next) {

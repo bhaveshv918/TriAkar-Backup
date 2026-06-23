@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  getAdminProducts, createProduct, updateProduct, deleteProduct,
+  getAdminProducts, createProduct, updateProduct, deleteProduct, bulkUpdateProducts,
   getAdminOrders, updateOrderStatus, updateOrderPayment, sendOrderEmail,
 } from '../controllers/adminController.js';
 import {
@@ -23,6 +23,7 @@ router.use(requireAdmin);
 
 router.get('/products',          getAdminProducts);
 router.post('/products',         createProduct);
+router.post('/products/bulk',    bulkUpdateProducts);   // Module 8 — bulk ops
 router.put('/products/:id',      updateProduct);
 router.delete('/products/:id',   deleteProduct);
 
