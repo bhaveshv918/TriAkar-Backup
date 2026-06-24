@@ -642,8 +642,13 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
 .badge-returned{background:var(--purple);background:rgba(167,139,250,.1);color:var(--purple)}
 .badge-refunded{background:rgba(251,191,36,.1);color:var(--yellow)}
 
+/* Mobile nav drawer toggle (hidden on desktop) */
+.nav-toggle{display:none;background:none;border:none;color:var(--text);font-size:21px;line-height:1;cursor:pointer;padding:4px 8px 4px 0;margin-right:2px}
+.nav-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:150;opacity:0;visibility:hidden;transition:opacity .2s}
+.nav-backdrop.show{opacity:1;visibility:visible}
+
 /* ═══════════════════════════════════════════════════════════
-   RESPONSIVE — mobile-first bottom nav
+   RESPONSIVE — mobile drawer nav (matches Business OS)
    ═══════════════════════════════════════════════════════════ */
 @media(max-width:768px){
   /* Top bar */
@@ -653,35 +658,34 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
   .top-right{gap:5px}
   .top-btn{padding:5px 8px;font-size:9px}
 
-  /* Sidebar → fixed bottom nav bar */
+  /* Hamburger shows; sidebar becomes a slide-in drawer */
+  .nav-toggle{display:flex!important}
   :root,html[data-theme="dark"],html[data-theme="light"]{--sidebar-w:0px}
   .admin-body{flex-direction:column;min-height:calc(100vh - 48px)}
   .sidebar{
-    position:fixed;bottom:0;left:0;right:0;top:auto!important;
-    width:100%!important;height:auto!important;min-width:unset;
-    flex-direction:row;overflow-x:auto;overflow-y:hidden;
-    padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px)) 4px;
-    border-right:none;border-top:1px solid var(--border);
-    z-index:200;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+    position:fixed;top:48px;bottom:0;left:0;width:248px;max-width:84vw;top:48px!important;
+    transform:translateX(-100%);transition:transform .25s ease;
+    flex-direction:column;height:auto!important;min-width:unset;
+    overflow-y:auto;overflow-x:hidden;
+    padding:8px 0 calc(24px + env(safe-area-inset-bottom,0px));
+    border-right:1px solid var(--border);border-top:none;
+    z-index:230;box-shadow:2px 0 18px rgba(0,0,0,.25);-webkit-overflow-scrolling:touch;
   }
-  .sidebar::-webkit-scrollbar{display:none}
-  .sidebar-section{display:none}
+  .sidebar.open{transform:none}
+  .sidebar-section{display:block}
   .tab{
-    flex-direction:column;align-items:center;justify-content:center;
-    min-width:54px;flex-shrink:0;width:auto!important;
-    padding:5px 6px;gap:2px;border-radius:6px;margin:0 1px;
-    text-align:center;letter-spacing:.02em;
+    flex-direction:row;align-items:center;justify-content:flex-start;
+    width:100%!important;min-width:unset;padding:11px 16px;gap:10px;
+    border-radius:0;margin:0;text-align:left;letter-spacing:0;
   }
-  .tab-icon{font-size:17px;width:auto;margin:0;line-height:1.2}
-  .tab-label{display:block!important;font-size:8px;letter-spacing:.03em;
-    text-overflow:ellipsis;overflow:hidden;max-width:52px}
-  .tab-count,.tab-dot,.callback-count{display:none!important}
+  .tab-icon{font-size:16px;width:20px;margin:0;line-height:1}
+  .tab-label{display:block!important;font-size:13px;letter-spacing:0;max-width:none;overflow:visible}
+  .tab-count,.callback-count{display:inline-block!important;margin-left:auto}
+  .tab-dot{display:inline-block!important}
 
-  /* Main area — leave room for bottom nav */
+  /* Main area — full width below the top bar (no bottom nav) */
   .main-area{width:100%;overflow-y:auto}
-  /* Bottom padding clears the fixed bottom nav + phone safe-area inset
-     (gesture bar) so nothing hides behind the bar */
-  .panel{padding:14px 12px calc(82px + env(safe-area-inset-bottom,0px))}
+  .panel{padding:14px 12px calc(28px + env(safe-area-inset-bottom,0px))}
   .p-head{flex-direction:column;align-items:flex-start;gap:8px;margin-bottom:14px}
   .p-title{font-size:15px}
   .p-actions{width:100%;flex-wrap:wrap;gap:6px}
@@ -702,6 +706,10 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
   .filter-bar{flex-wrap:wrap;gap:6px}
   .filter-bar select,.filter-bar input[type=text]{flex:1;min-width:100px}
   .filter-sep{display:none}
+
+  /* iOS: 16px inputs stop the auto-zoom on focus; bigger tap targets */
+  input,select,textarea{font-size:16px!important}
+  .btn-sm,.btn-secondary,.btn-primary,.btn-save,.btn-danger,.btn-email{min-height:40px}
 
   /* Login */
   .login-box{padding:24px 16px 20px;margin:0 12px}
@@ -787,6 +795,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
 
   <div class="top-bar">
     <div class="top-left">
+      <button class="nav-toggle" id="navToggle" onclick="toggleAdminNav()" aria-label="Menu">☰</button>
       <div class="top-logo">TRIAKAR</div>
       <div class="top-badge">Admin</div>
     </div>
@@ -2201,7 +2210,19 @@ document.addEventListener('click',function(e){
 });
 setInterval(refreshNotifBadge, 20000);
 
+function toggleAdminNav(){
+  const sb=document.querySelector('.sidebar'); if(!sb)return;
+  let bd=document.getElementById('navBackdrop');
+  if(!bd){ bd=document.createElement('div'); bd.id='navBackdrop'; bd.className='nav-backdrop'; bd.addEventListener('click',closeAdminNav); document.body.appendChild(bd); }
+  const open=sb.classList.toggle('open');
+  bd.classList.toggle('show',open);
+}
+function closeAdminNav(){
+  const sb=document.querySelector('.sidebar'); if(sb)sb.classList.remove('open');
+  const bd=document.getElementById('navBackdrop'); if(bd)bd.classList.remove('show');
+}
 function switchTab(tab){
+  closeAdminNav();
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
   ['Dashboard','Callbacks','Orders','Customers','Products','Makerworld','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo','Reviews','Appearance','Activity','Content'].forEach(p=>{
     const el=document.getElementById('panel'+p);
