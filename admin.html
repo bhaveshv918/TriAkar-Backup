@@ -919,6 +919,11 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="p-title">Orders</div>
       <div class="p-actions">
         <button class="btn-secondary" onclick="loadOrders()" title="Refresh orders">⟳ Refresh</button>
+        <select id="bulkOrderStatus" style="padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
+          <option value="">Bulk status…</option>
+          <option value="confirmed">Confirmed</option><option value="processing">Processing</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option>
+        </select>
+        <button class="btn-secondary" onclick="bulkOrderStatusApply()">Apply</button>
         <button class="btn-secondary" onclick="bulkSoftDelete('orders','ordersBody','loadOrders')">🗑 Delete selected</button>
       </div>
     </div>
@@ -2809,7 +2814,7 @@ function renderOrders(orders){
         +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">'
         +(custPhone?'<a href="tel:'+custPhone+'" class="btn-sm" style="text-decoration:none">Call Customer</a>':'')
         +(custPhone?'<a href="https://wa.me/'+custPhone.replace(/\D/g,'')+'" target="_blank" rel="noopener" class="btn-sm" style="text-decoration:none">WhatsApp</a>':'')
-        +'<button class="btn-sm" onclick="window.print()">Print Order</button>'
+        +'<button class="btn-sm" onclick="event.stopPropagation();printInvoice(\''+o.id+'\')">🖨 Invoice</button>'
         +'</div></div>'
 
         // ── Section 6b: Send Email
@@ -2853,6 +2858,86 @@ async function updateOrderStatus(id,sel){
     if(o){o.status=sel.value;o.order_status=sel.value;}
   }
   sel.disabled=false;
+}
+
+// ── Proper invoice / packing slip — opens a clean branded doc (not window.print of the whole panel) ──
+function printInvoice(id){
+  const o=(_orders||[]).find(x=>x.id===id);
+  if(!o){toast('Order not found','error');return;}
+  const inv=fmtInvoice(o), p=o.profiles||{};
+  const cName=esc(o.customer_name||p.full_name||p.email||'Customer');
+  const cEmail=esc(o.customer_email||p.email||'');
+  const cPhone=esc(o.customer_phone||p.phone||'');
+  const a=o.shipping_address||o.user_addresses||{};
+  const addr=[a.full_name,a.address_line1,a.address_line2,[a.city,a.state,a.pincode].filter(Boolean).join(', '),a.country,(a.phone?('Phone: '+a.phone):'')].filter(Boolean).map(esc).join('<br>');
+  const raw=(o.order_items&&o.order_items.length)?o.order_items:(o.items||[]);
+  let sub=0;
+  const rows=raw.map(i=>{
+    const nm=esc((i.products||{}).name||i.name||'Item');
+    const qty=Number(i.quantity)||1, up=Number(i.unit_price||i.price||0), lt=up*qty; sub+=lt;
+    const cust=i.customization_notes?'<div style="font-size:11px;color:#777;margin-top:3px">'+esc(i.customization_notes)+'</div>':'';
+    return '<tr><td>'+nm+cust+'</td><td class="c">'+qty+'</td><td class="r">₹'+up.toLocaleString('en-IN')+'</td><td class="r">₹'+lt.toLocaleString('en-IN')+'</td></tr>';
+  }).join('')||'<tr><td colspan="4" style="color:#999">No items recorded</td></tr>';
+  const subtotal=o.subtotal!=null?Number(o.subtotal):sub;
+  const ship=Number(o.shipping_charge||0), disc=Number(o.discount_amount||0);
+  const total=o.total_amount!=null?Number(o.total_amount):(subtotal+ship-disc);
+  const dt=o.created_at?new Date(o.created_at).toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'}):'';
+  const payM=(o.payment_method||'').replace('online','Razorpay').replace('whatsapp','WhatsApp')||'—';
+  const payS=o.payment_received?'Paid':(o.advance_received?'50% advance received':'Payment pending');
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Invoice ${esc(inv)}</title><style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    body{color:#1a1a18;padding:34px 38px;font-size:13px;line-height:1.5}
+    .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #C4622A;padding-bottom:16px;margin-bottom:22px}
+    .brand{font-size:24px;font-weight:800;letter-spacing:.16em;color:#161614}
+    .brand small{display:block;font-size:10px;font-weight:500;letter-spacing:.04em;color:#C4622A;margin-top:3px}
+    .doc{text-align:right}.doc h1{font-size:18px;color:#161614;letter-spacing:.04em}.doc div{font-size:12px;color:#555;margin-top:4px}
+    .cols{display:flex;justify-content:space-between;gap:30px;margin-bottom:22px}
+    .cols .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#999;margin-bottom:5px;font-weight:600}
+    table{width:100%;border-collapse:collapse;margin-bottom:18px}
+    th{background:#161614;color:#fff;text-align:left;padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+    th.c,td.c{text-align:center}th.r,td.r{text-align:right}
+    td{padding:10px 12px;border-bottom:1px solid #eee;vertical-align:top}
+    .tot{margin-left:auto;width:270px}.tot .row{display:flex;justify-content:space-between;padding:6px 0}
+    .tot .grand{border-top:2px solid #161614;margin-top:6px;padding-top:10px;font-size:16px;font-weight:800;color:#161614}
+    .grand span:last-child{color:#C4622A}
+    .ft{margin-top:30px;border-top:1px solid #eee;padding-top:14px;font-size:11px;color:#888;text-align:center}
+    @media print{body{padding:0}}
+  </style></head><body>
+    <div class="hd"><div class="brand">TRIAKAR<small>Designed globally. Made responsibly in India.</small></div>
+      <div class="doc"><h1>INVOICE</h1><div>${esc(inv)}</div><div>${dt}</div></div></div>
+    <div class="cols"><div><div class="lbl">Billed to</div>${cName}${cEmail?'<br>'+cEmail:''}${cPhone?'<br>'+cPhone:''}</div>
+      <div style="text-align:right"><div class="lbl">Ship to</div>${addr||cName}</div></div>
+    <table><thead><tr><th>Item</th><th class="c">Qty</th><th class="r">Unit</th><th class="r">Amount</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="tot">
+      <div class="row"><span>Subtotal</span><span>₹${subtotal.toLocaleString('en-IN')}</span></div>
+      <div class="row"><span>Shipping</span><span>${ship?'₹'+ship.toLocaleString('en-IN'):'Free'}</span></div>
+      ${disc?`<div class="row"><span>Discount${o.promo_code?' ('+esc(o.promo_code)+')':''}</span><span>- ₹${disc.toLocaleString('en-IN')}</span></div>`:''}
+      <div class="row grand"><span>Total</span><span>₹${total.toLocaleString('en-IN')}</span></div>
+    </div>
+    <div style="margin-top:18px;font-size:12px;color:#555">Payment: ${esc(payM)} · ${esc(payS)}</div>
+    <div class="ft">Thank you for choosing TriAkar. Every piece is 3D printed fresh on order.<br>This is a computer-generated invoice.</div>
+  </body></html>`;
+  const w=window.open('','_blank','width=840,height=920');
+  if(!w){toast('Allow pop-ups to print the invoice','error');return;}
+  w.document.write(html); w.document.close(); w.focus();
+  setTimeout(()=>{try{w.print();}catch(_){}}, 400);
+}
+
+// ── Bulk order status update (select rows → set status) ──
+async function bulkOrderStatusApply(){
+  const sel=document.getElementById('bulkOrderStatus'); const status=sel?sel.value:'';
+  if(!status){toast('Pick a status first','error');return;}
+  const ids=Array.from(document.querySelectorAll('#ordersBody input.row-check:checked')).map(c=>c.dataset.id);
+  if(!ids.length){toast('Select one or more orders first','error');return;}
+  if(!confirm('Set '+ids.length+' order(s) to "'+status+'"?'))return;
+  let ok=0;
+  for(const id of ids){
+    const{error}=await sb.from('orders').update({status,order_status:status,updated_at:new Date().toISOString()}).eq('id',id);
+    if(!error){ok++; const o=_orders.find(x=>x.id===id); if(o){o.status=status;o.order_status=status;}}
+  }
+  toast(ok+' order(s) set to '+status,'success');
+  if(sel)sel.value='';
+  filterOrders();
 }
 
 async function saveTracking(id){
