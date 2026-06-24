@@ -1181,6 +1181,7 @@ async function loadOrders(){
         .from('orders')
         .select('*, order_items(*, products(name, images))')
         .eq('user_id',user.id)
+        .is('deleted_at',null)            // hide orders an admin moved to the Recycle Bin
         .order('created_at',{ascending:false});
       if(error)throw error;
       // Normalise order_items → items; fall back to JSONB items column for WhatsApp orders

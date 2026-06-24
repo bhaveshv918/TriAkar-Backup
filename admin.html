@@ -4692,7 +4692,7 @@ const BIN_SOURCES=[
   {table:'contact_submissions', label:'Contact',      badge:'src-contact',  canHardDelete:true,  ref:r=>r.reference_id||'—', summary:r=>(r.subject||'')+' — '+(r.name||'')},
   {table:'custom_enquiries',    label:'Custom Order', badge:'src-custom',   canHardDelete:true,  ref:r=>r.reference_id||'—', summary:r=>(r.name||'')+': '+(r.what_needed||'')},
   {table:'callback_requests',   label:'Callback',     badge:'src-callback', canHardDelete:true,  ref:r=>r.reference_id||'—', summary:r=>(r.name||'')+' — '+(r.topic||'')},
-  {table:'orders',              label:'Order',        badge:'',             canHardDelete:false, ref:r=>r.order_id||r.id,     summary:r=>(r.customer_name||'')+' — ₹'+(r.total_amount||0)},
+  {table:'orders',              label:'Order',        badge:'',             canHardDelete:true, apiPurge:true, ref:r=>r.order_id||r.id,     summary:r=>(r.customer_name||'')+' — ₹'+(r.total_amount||0)},
 ];
 // API-backed bin types (products / users / reviews) — served by the Express
 // service-role backend so no browser-side RLS write policy is needed.
@@ -4768,6 +4768,7 @@ async function hardDeleteOne(key,id){
   if(!confirm('Permanently delete this item? This cannot be undone.')) return;
   try{
     if(key.indexOf('api:')===0){ await adminApi('/api/admin/recycle-bin/purge',{method:'POST',body:JSON.stringify({type:key.slice(4),id})}); }
+    else if(key==='orders'){ await adminApi('/api/admin/recycle-bin/purge',{method:'POST',body:JSON.stringify({type:'order',id})}); }
     else{
       const {data,error}=await sb.from(key).delete().eq('id',id).select('id');
       if(error) throw new Error(error.message);
@@ -4799,22 +4800,23 @@ async function bulkDeleteForever(){
   for(const cid of items){ const i=cid.indexOf('|'); const key=cid.slice(0,i), id=cid.slice(i+1);
     try{
       if(key.indexOf('api:')===0){ await adminApi('/api/admin/recycle-bin/purge',{method:'POST',body:JSON.stringify({type:key.slice(4),id})}); ok++; }
-      else if(key!=='orders'){ await sb.from(key).delete().eq('id',id); ok++; }
-      else kept++;
+      else if(key==='orders'){ await adminApi('/api/admin/recycle-bin/purge',{method:'POST',body:JSON.stringify({type:'order',id})}); ok++; }
+      else{ await sb.from(key).delete().eq('id',id); ok++; }
     }catch(_){ kept++; }
   }
   toast(ok+' deleted'+(kept?(', '+kept+' kept'):''),'success'); loadRecycleBin();
 }
 async function emptyRecycleBin(){
   if(!_binItems.length){toast('Recycle bin is already empty','error');return;}
-  let msg='Permanently delete ALL '+_binItems.length+' item(s) in the recycle bin? This cannot be undone.\n\n(Orders — and any product or user tied to an order — are kept; they cannot be hard-deleted.)';
+  let msg='Permanently delete ALL '+_binItems.length+' item(s) in the recycle bin? This cannot be undone.\n\n(Any product or user still linked to an order is kept to preserve order history.)';
   if(!confirm(msg)) return;
   let ok=0;
   for(const {src,row} of _binItems){
     try{
-      if(src.api){ await adminApi('/api/admin/recycle-bin/purge',{method:'POST',body:JSON.stringify({type:src.type,id:row.id})}); ok++; }
+      // Orders + product/user/review go through the service-role backend (atomic,
+      // FK-safe). NEVER clear deleted_at here — that used to silently RESTORE orders.
+      if(src.api||src.apiPurge){ await adminApi('/api/admin/recycle-bin/purge',{method:'POST',body:JSON.stringify({type:src.type||'order',id:row.id})}); ok++; }
       else if(src.canHardDelete){ await sb.from(src.table).delete().eq('id',row.id); ok++; }
-      else { await sb.from(src.table).update({deleted_at:null,deleted_by:null}).eq('id',row.id); } // orders: soft-clear only
     }catch(_){}
   }
   toast('Recycle bin emptied','success'); loadRecycleBin();

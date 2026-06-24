@@ -12,7 +12,7 @@
 import supabase from '../db/supabaseClient.js';
 import { logActivity } from '../services/activityLog.js';
 
-const TYPES = { product: 'products', user: 'profiles', review: 'reviews' };
+const TYPES = { product: 'products', user: 'profiles', review: 'reviews', order: 'orders' };
 
 /* GET /api/admin/recycle-bin — all soft-deleted products, users, reviews */
 export async function listRecycleBin(req, res, next) {
@@ -79,6 +79,14 @@ export async function purgeItem(req, res, next) {
 
     } else if (type === 'review') {
       const { error } = await supabase.from('reviews').delete().eq('id', id);
+      if (error) throw error;
+
+    } else if (type === 'order') {
+      // True hard delete (admin-confirmed, atomic). order_items has
+      // ON DELETE CASCADE, so its line items are removed automatically. Once the
+      // row is gone it can no longer appear in the customer's account history —
+      // no orphaned reference is left behind.
+      const { error } = await supabase.from('orders').delete().eq('id', id);
       if (error) throw error;
 
     } else if (type === 'user') {

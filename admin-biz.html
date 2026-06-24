@@ -206,7 +206,7 @@ tr:hover td{background:var(--bg-2)}
 .dropzone .dz-icon{font-size:28px;margin-bottom:8px}
 .dropzone .dz-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px}
 .dropzone .dz-sub{font-size:11px;color:var(--text-3)}
-#fileInput{display:none}
+#fileInput,#lblFile{display:none}
 
 /* ── Import preview ───────────────────────────────────────── */
 .import-preview{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px;display:none}
@@ -907,10 +907,11 @@ tr:hover td{background:var(--bg-2)}
         <div class="form-grid">
           <div class="form-group">
             <label>Platform *</label>
-            <select id="lbl_platform">
-              <option value="amazon">Amazon</option>
-              <option value="flipkart">Flipkart</option>
-            </select>
+            <div class="seg" id="lblPlatformSeg">
+              <button type="button" class="seg-btn active" data-v="amazon" onclick="setLblPlatform('amazon')">📦 Amazon</button>
+              <button type="button" class="seg-btn" data-v="flipkart" onclick="setLblPlatform('flipkart')">🛍️ Flipkart</button>
+            </div>
+            <input type="hidden" id="lbl_platform" value="amazon">
           </div>
           <div class="form-group">
             <label>Default Product</label>
@@ -2831,37 +2832,49 @@ async function autoCreateProducts(rows){
   return toCreate.size;
 }
 
+// Case/space-insensitive column lookup. Flipkart's settlement/order headers vary
+// in capitalisation between report versions ('Buyer name' vs 'Buyer Name' vs
+// 'BUYER NAME'), and an exact row['Buyer name'] miss returned undefined — which is
+// why customer names (and other fields) imported blank. This resolves any casing.
+function _fkGet(row, key){
+  if(row[key]!=null && row[key]!=='') return row[key];
+  const want=String(key).toLowerCase().replace(/\s+/g,'');
+  for(const k in row){ if(k.toLowerCase().replace(/\s+/g,'')===want) return row[k]; }
+  return undefined;
+}
+
 function buildFlipkartRow(row, defaultCogs){
-  const igst=_fkNum(row['IGST']), cg=_fkNum(row['CGST']), sg=_fkNum(row['SGST']);
+  const g=k=>_fkGet(row,k);
+  const igst=_fkNum(g('IGST')), cg=_fkNum(g('CGST')), sg=_fkNum(g('SGST'));
   const gstRate = igst>0 ? igst : ((cg+sg)>0 ? cg+sg : 0);
-  const addr=[row['Address Line 1'],row['Address Line 2']]
+  const addr=[g('Address Line 1'),g('Address Line 2')]
     .map(x=>(x||'').replace(/\s*\n\s*/g,', ').trim()).filter(Boolean).join(', ').replace(/,\s*,/g,',').trim();
-  const L=_fkNum(row['Package Length (cm)']),B=_fkNum(row['Package Breadth (cm)']),H=_fkNum(row['Package Height (cm)']);
+  const L=_fkNum(g('Package Length (cm)')),B=_fkNum(g('Package Breadth (cm)')),H=_fkNum(g('Package Height (cm)'));
   const pkg=(L||B||H)?`${L}×${B}×${H} cm`:null;
-  const wt=_fkNum(row['Package Weight (kg)']);
-  const price=_fkNum(row['Invoice Amount']);
-  const sku=_fkClean(row['SKU']);
+  const wt=_fkNum(g('Package Weight (kg)'));
+  const price=_fkNum(g('Invoice Amount'));
+  const sku=_fkClean(g('SKU'));
   const cat=_skuToProduct(sku);   // link to catalog product if its SKU matches
   return {
     channel_id:'flipkart',
-    order_id:_fkClean(row['Order Id']),
-    order_date:_fkDate(row['Ordered On'])||today(),
-    dispatch_date:_fkDate(row['Dispatch by date']),
-    hsn_code:_fkClean(row['HSN CODE'])||(cat&&cat.hsn_code)||null,
-    status:_fkStatus(row['Order State']),
+    order_id:_fkClean(g('Order Id')),
+    order_date:_fkDate(g('Ordered On'))||today(),
+    dispatch_date:_fkDate(g('Dispatch by date')),
+    hsn_code:_fkClean(g('HSN CODE'))||(cat&&cat.hsn_code)||null,
+    status:_fkStatus(g('Order State')),
     sku:sku,
     product_id:cat?cat.id:null,
-    product_name:_fkClean(row['Product'])||'—',
-    invoice_no:_fkClean(row['Invoice No.']),
+    product_name:_fkClean(g('Product'))||'—',
+    invoice_no:_fkClean(g('Invoice No.')),
     gst_rate:gstRate,
     selling_price:price,
-    qty:parseInt(row['Quantity'])||1,
-    customer_name:_fkClean(row['Buyer name'])||_fkClean(row['Ship to name']),
+    qty:parseInt(g('Quantity'))||1,
+    customer_name:_fkClean(g('Buyer name'))||_fkClean(g('Ship to name')),
     customer_address:addr||null,
-    customer_city:_fkClean(row['City']),
-    customer_state:_fkClean(row['State']),
-    customer_pincode:_fkClean(row['PIN Code']),
-    tracking_number:_fkClean(row['Tracking ID']),
+    customer_city:_fkClean(g('City')),
+    customer_state:_fkClean(g('State')),
+    customer_pincode:_fkClean(g('PIN Code')),
+    tracking_number:_fkClean(g('Tracking ID')),
     courier_partner:'ekart',
     package_size:pkg,
     weight_grams:wt?Math.round(wt*1000):null,
@@ -2882,7 +2895,9 @@ async function runFlipkartImport(defaultCogs){
   // 3) relink product_id + cost from catalog, apply fixed delivery + packing fees
   const batch=draft.map(r=>{
     const cat=_skuToProduct(r.sku);
-    if(cat){ r.product_id=cat.id; if(!r.hsn_code) r.hsn_code=cat.hsn_code||null; if(!r.cogs&&cat.base_cost) r.cogs=parseFloat(cat.base_cost)||0; }
+    // COGS precedence: a matched catalog product's real base_cost wins; the
+    // import "Default COGS if not in file" value (already on r.cogs) is the fallback.
+    if(cat){ r.product_id=cat.id; if(!r.hsn_code) r.hsn_code=cat.hsn_code||null; const pc=parseFloat(cat.base_cost)||0; if(pc>0) r.cogs=pc; }
     return applyPlatformFees(r);
   });
   let success=0;
@@ -2943,7 +2958,8 @@ async function runImport(){
   const created=await autoCreateProducts(batch);
   batch.forEach(r=>{
     const cat=_skuToProduct(r.sku);
-    if(cat){ r.product_id=cat.id; if(!r.cogs&&cat.base_cost) r.cogs=parseFloat(cat.base_cost)||0; if(!r.hsn_code&&cat.hsn_code) r.hsn_code=cat.hsn_code; }
+    // COGS precedence: matched product's real base_cost wins; defaultCogs is fallback.
+    if(cat){ r.product_id=cat.id; const pc=parseFloat(cat.base_cost)||0; if(pc>0) r.cogs=pc; if(!r.hsn_code&&cat.hsn_code) r.hsn_code=cat.hsn_code; }
     if(ch==='amazon'||ch==='flipkart') applyPlatformFees(r);
   });
   // Insert in batches of 100
@@ -3542,6 +3558,11 @@ function extractLabelData(text,platform){
 
   if(!qty||qty<1){ const qm=text.match(/(?:qty|quantity)[:\s]+(\d+)/i); if(qm) qty=parseInt(qm[1])||1; }
   return {orderId,qty,productName,customerName,customerAddress,city,state,pincode,tracking,paymentMode,orderDate,deliveryDate,dispatchDate,courier,price};
+}
+
+function setLblPlatform(v){
+  document.getElementById('lbl_platform').value=v;
+  document.querySelectorAll('#lblPlatformSeg .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
 }
 
 function renderExtractedLabels(pages){
