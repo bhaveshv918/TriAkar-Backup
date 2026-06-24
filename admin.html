@@ -4947,6 +4947,7 @@ async function loadReviewsAdmin(){
     if(status)url+='&status='+encodeURIComponent(status);
     if(slug)url+='&slug='+encodeURIComponent(slug);
     const res=await fetch(url,{headers:{'Authorization':'Bearer '+token}});
+    if(!res.ok){const ed=await res.json().catch(()=>({}));throw new Error(ed.error||('Could not load reviews ('+res.status+')'));}
     const d=await res.json();
     let rows=d.reviews||[];
     const ratingF=document.getElementById('filterReviewRating')?.value||'';
