@@ -390,6 +390,9 @@ tr:hover td{background:var(--bg-2)}
     <button class="tab" data-tab="stock" onclick="switchTab('stock')">
       <span class="tab-icon">◫</span><span class="tab-label">Stock</span>
     </button>
+    <button class="tab" data-tab="filament" onclick="switchTab('filament')">
+      <span class="tab-icon">🧵</span><span class="tab-label">Filament</span>
+    </button>
 
     <div class="sidebar-section">Finance</div>
     <button class="tab" data-tab="returns" onclick="switchTab('returns')">
@@ -765,6 +768,8 @@ tr:hover td{background:var(--bg-2)}
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input type="month" id="sfExportMonth" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:5px 8px;font-size:12px;outline:none">
           <button class="btn btn-ghost btn-sm" onclick="syncWebsiteOrders({manual:true})" title="Pull new website orders">⟳ Sync website</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('settlementInput').click()" title="Ingest a Flipkart/Amazon settlement report">↧ Settlement</button>
+          <input type="file" id="settlementInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="ingestSettlement(event)">
           <button class="btn btn-ghost btn-sm" onclick="exportSalesExcel()">↓ Excel</button>
           <button class="btn btn-ghost btn-sm" onclick="openRecycleBin()" title="Recycle Bin">🗑️</button>
         </div>
@@ -1476,6 +1481,61 @@ tr:hover td{background:var(--bg-2)}
     </div><!-- /returns -->
 
     <!-- ══════════════════════════════════════════════════════
+         FILAMENT / MATERIAL INVENTORY (5.5)
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelFilament">
+      <div class="p-head">
+        <div><div class="p-title">Filament Inventory</div><div class="p-sub">Rolls, grams remaining, waste &amp; reorder alerts</div></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('filBulkInput').click()" title="Bulk add rolls from Excel">⇲ Bulk Excel</button>
+          <input type="file" id="filBulkInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="filamentBulkUpload(event)">
+          <button class="btn btn-primary btn-sm" onclick="showAddRoll()">+ Add Roll</button>
+        </div>
+      </div>
+      <div id="filReorderAlert"></div>
+      <div id="filKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
+
+      <div id="rollForm" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px">
+        <input type="hidden" id="rl_id">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px" id="rollFormTitle">Add Roll</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Colour *</label><input type="text" id="rl_color" placeholder="e.g. Black"></div>
+          <div class="form-group"><label>Material</label><input type="text" id="rl_material" placeholder="PLA+"></div>
+          <div class="form-group"><label>Supplier</label><input type="text" id="rl_supplier"></div>
+          <div class="form-group"><label>Total Grams</label><input type="number" id="rl_total" step="1" value="1000"></div>
+          <div class="form-group"><label>Grams Used</label><input type="number" id="rl_used" step="1" value="0"></div>
+          <div class="form-group"><label>Running colour?</label><select id="rl_running"><option value="0">No</option><option value="1">Yes</option></select></div>
+          <div class="form-group"><label>Packed?</label><select id="rl_packed"><option value="0">No</option><option value="1">Yes</option></select></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="rl_notes"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary btn-sm" onclick="saveRoll()">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('rollForm').style.display='none'">Cancel</button>
+        </div>
+      </div>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Colour</th><th>Material</th><th>Supplier</th><th class="td-num">Total</th><th class="td-num">Used</th><th class="td-num">Remaining</th><th>Status</th><th class="td-actions"></th></tr></thead>
+          <tbody id="filamentBody"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:16px">
+        <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">This Month</div>
+          <div id="filMonthly" style="display:flex;gap:18px"></div>
+          <input type="month" id="filMonth" onchange="renderFilamentMonthly()" style="margin-top:10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
+        </div>
+        <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">Settings</div>
+          <div class="form-group"><label>Min rolls per running colour (reorder alert)</label><input type="number" id="filMinRolls" min="0" value="2" onchange="saveFilamentSettings()"></div>
+          <div class="form-group" style="margin-top:8px"><label>Print-colour suggestions (one per line: filament = suggested)</label><textarea id="filColorSug" rows="3" placeholder="Black = Matte Black&#10;White = Warm White" onchange="saveFilamentSettings()" style="resize:vertical;width:100%;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:7px"></textarea></div>
+        </div>
+      </div>
+    </div><!-- /filament -->
+
+    <!-- ══════════════════════════════════════════════════════
          GST SUMMARY
     ═══════════════════════════════════════════════════════ -->
     <div class="panel" id="panelGst">
@@ -1750,7 +1810,7 @@ function switchTab(name){
     sales:loadSales, products:loadProducts, stock:loadStock,
     gst:loadGST, dashboard:loadDashboard,
     labels:populateLabelProductSelect, settings:loadBizSettings,
-    customers:loadCustomers, fees:loadFeesTab, returns:loadReturns
+    customers:loadCustomers, fees:loadFeesTab, returns:loadReturns, filament:loadFilament
   };
   if(loaders[name]) loaders[name]();
   toggleNav(false);   // close mobile drawer after choosing a tab
@@ -2239,6 +2299,47 @@ function onCustomerName(val){
   set('qa_phone',c.phone); set('qa_address',c.address); set('qa_city',c.city); set('qa_state',c.state); set('qa_pin',c.pincode);
 }
 
+// ── 5.4 Marketplace settlement ingestion ────────────────────
+// Upload a Flipkart/Amazon settlement report → aggregate payout + fees by order ID
+// → match to existing biz_sales → store the actual payout. Column names vary between
+// reports, so headers are matched flexibly; refine here once a real sample is shared.
+async function ingestSettlement(e){
+  const file=e.target.files[0]; if(!file) return;
+  try{
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array'});
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+    const get=(r,keys)=>{ for(const rk in r){ if(keys.includes(rk.toLowerCase().replace(/[\s_().-]+/g,''))) return r[rk]; } return undefined; };
+    const num=v=>parseFloat(String(v==null?'':v).replace(/[₹,]/g,''))||0;
+    const agg={};
+    rows.forEach(r=>{
+      const oid=String(get(r,['orderid','orderitemid','suborderno','orderno','orderidno'])||'').trim(); if(!oid) return;
+      const amt=num(get(r,['settlementamount','settlementvalue','netamount','amountpaid','payout','finalsettlementamount','settlementvaluers']));
+      const fee=num(get(r,['totalfees','fees','commission','feesdeducted','marketplacefee','totaldeductions','totalmarketplacefee']));
+      const dt=get(r,['settlementdate','paymentdate','date','settlementdatetime']);
+      if(!agg[oid]) agg[oid]={amount:0,fees:0,date:null};
+      agg[oid].amount+=amt; agg[oid].fees+=fee;
+      if(dt){ const d=new Date(dt); if(!isNaN(d)) agg[oid].date=d.toISOString().slice(0,10); }
+    });
+    const oids=Object.keys(agg);
+    if(!oids.length){ toast('No order IDs found — check the file/columns','error'); e.target.value=''; return; }
+    const {data:existing}=await sb.from('biz_sales').select('order_id').in('order_id',oids);
+    const have=new Set((existing||[]).map(r=>r.order_id));
+    const matched=oids.filter(o=>have.has(o)); const unmatched=oids.length-matched.length;
+    if(!matched.length){ toast('No matching orders ('+oids.length+' rows in file)','error'); e.target.value=''; return; }
+    if(!confirm(`Settlement: ${matched.length} order(s) matched, ${unmatched} not found.\nApply payout + fees to the matched orders?`)){ e.target.value=''; return; }
+    const src=/amazon/i.test(file.name)?'amazon':/flipkart/i.test(file.name)?'flipkart':'marketplace';
+    let ok=0;
+    for(const oid of matched){ const a=agg[oid];
+      const {error}=await sb.from('biz_sales').update({settlement_amount:a.amount,settlement_fees:a.fees,settlement_date:a.date,settlement_source:src}).eq('order_id',oid);
+      if(!error) ok++;
+    }
+    toast(`Settlement applied to ${ok} order(s)${unmatched?' · '+unmatched+' unmatched':''}`);
+    if(typeof loadSales==='function') loadSales();
+  }catch(err){ toast('Settlement parse failed: '+err.message,'error'); }
+  e.target.value='';
+}
+
 // ── Auto-sync website orders into Business OS ───────────────
 async function syncWebsiteOrders(opts){
   opts=opts||{};
@@ -2400,6 +2501,7 @@ function renderOrderDetail(items){
       ${F('Courier',f.courier_partner?esc(f.courier_partner):'')}
       ${F('Dispatch',f.dispatch_date?fmtDay(f.dispatch_date):'')}
       ${F('Packet',f.package_size?esc(f.package_size):'')}
+      ${F('Settlement',f.settlement_amount!=null?fmt(f.settlement_amount)+(f.settlement_fees?' · fees '+fmt(f.settlement_fees):'')+(f.settlement_date?' · '+fmtDay(f.settlement_date):''):'')}
     </div>
     <div class="tbl-wrap" style="box-shadow:none">
       <table>
@@ -2888,6 +2990,152 @@ async function saveStockMovement(){
 }
 
 // ── Returns ─────────────────────────────────────────────────
+// ══════════════ FILAMENT / MATERIAL INVENTORY (5.5) ══════════════
+let _filamentRolls=[], _filMinRolls=2;
+async function loadFilament(){
+  const {data,error}=await sb.from('biz_filament_rolls').select('*').order('created_at',{ascending:false});
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  _filamentRolls=data||[];
+  await loadFilamentSettings();
+  renderFilament();
+}
+function renderFilament(){
+  const rolls=_filamentRolls;
+  const active=rolls.filter(r=>r.status==='active');
+  const remaining=active.reduce((s,r)=>s+Math.max(0,(parseFloat(r.total_grams)||0)-(parseFloat(r.grams_used)||0)),0);
+  const totalWaste=rolls.reduce((s,r)=>s+(parseFloat(r.waste_grams)||0),0);
+  const kpi=document.getElementById('filKpi');
+  if(kpi) kpi.innerHTML=`
+    <div class="kpi"><div class="kpi-label">Active Rolls</div><div class="kpi-val">${active.length}</div></div>
+    <div class="kpi green"><div class="kpi-label">Grams in Stock</div><div class="kpi-val">${Math.round(remaining)}g</div></div>
+    <div class="kpi red"><div class="kpi-label">Total Waste</div><div class="kpi-val">${Math.round(totalWaste)}g</div></div>`;
+  renderFilamentAlert();
+  const tbody=document.getElementById('filamentBody');
+  if(tbody){
+    if(!rolls.length){ tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="em-text">No rolls yet</div></div></td></tr>`; }
+    else tbody.innerHTML=rolls.map(r=>{
+      const rem=Math.max(0,(parseFloat(r.total_grams)||0)-(parseFloat(r.grams_used)||0));
+      const low=r.status==='active'&&rem<150;
+      return `<tr style="${r.status!=='active'?'opacity:.6':''}">
+        <td>${esc(r.color)}${r.is_running?' <span class="badge" style="background:var(--accent-bg);color:var(--accent)">running</span>':''}</td>
+        <td>${esc(r.material||'')}</td>
+        <td style="font-size:11px;color:var(--text-3)">${esc(r.supplier||'—')}</td>
+        <td class="td-num">${Math.round(r.total_grams||0)}g</td>
+        <td class="td-num">${Math.round(r.grams_used||0)}g</td>
+        <td class="td-num" style="font-weight:700;color:${low?'var(--red)':'var(--text)'}">${Math.round(rem)}g</td>
+        <td><span class="badge badge-${r.status==='active'?'completed':r.status==='empty'?'returned':'pending'}">${esc(r.status)}</span>${r.status==='empty'&&r.waste_grams?` <span style="font-size:10px;color:var(--red)">${Math.round(r.waste_grams)}g waste</span>`:''}</td>
+        <td class="td-actions">
+          ${r.status==='active'?`<button class="btn btn-ghost btn-sm" onclick="logRollUsage('${r.id}')" title="Add grams used">+g</button> <button class="btn btn-ghost btn-sm" onclick="markRollEmpty('${r.id}')" title="Mark empty (log waste)">▣</button> `:''}
+          <button class="btn btn-ghost btn-sm" onclick="editRoll('${r.id}')">✎</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteRoll('${r.id}')">✕</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+  renderFilamentMonthly();
+}
+function renderFilamentAlert(){
+  const el=document.getElementById('filReorderAlert'); if(!el) return;
+  const min=_filMinRolls||2;
+  const byColor={}, runningColors={};
+  _filamentRolls.filter(r=>r.is_running).forEach(r=>{ const k=(r.color||'').toLowerCase(); runningColors[k]=r.color; if(r.status==='active') byColor[k]=(byColor[k]||0)+1; });
+  const low=Object.keys(runningColors).filter(k=>(byColor[k]||0)<min);
+  el.innerHTML=low.length?`<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;color:var(--red);font-size:12px;font-weight:600">⚠ Reorder filament: ${low.map(k=>esc(runningColors[k])+' ('+(byColor[k]||0)+'/'+min+')').join(', ')}</div>`:'';
+}
+async function renderFilamentMonthly(){
+  const mEl=document.getElementById('filMonth'); if(!mEl) return;
+  if(!mEl.value) mEl.value=new Date().toISOString().slice(0,7);
+  const mo=mEl.value, start=mo+'-01';
+  const [yy,mm]=mo.split('-').map(Number);
+  const next=(mm===12)?`${yy+1}-01-01`:`${yy}-${String(mm+1).padStart(2,'0')}-01`;
+  const {data:sales}=await sb.from('biz_sales').select('grams_used,order_date').eq('is_deleted',false).eq('status','completed').gte('order_date',start).lt('order_date',next);
+  const printed=(sales||[]).reduce((s,r)=>s+(parseFloat(r.grams_used)||0),0);
+  const wasted=_filamentRolls.filter(r=>r.finished_date&&r.finished_date>=start&&r.finished_date<next).reduce((s,r)=>s+(parseFloat(r.waste_grams)||0),0);
+  const el=document.getElementById('filMonthly');
+  if(el) el.innerHTML=`
+    <div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3)">Printed</div><div style="font-size:18px;font-weight:700;color:var(--green)">${Math.round(printed)}g</div></div>
+    <div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3)">Wasted</div><div style="font-size:18px;font-weight:700;color:var(--red)">${Math.round(wasted)}g</div></div>`;
+}
+function showAddRoll(){
+  const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};
+  set('rl_id',''); set('rl_color',''); set('rl_material','PLA+'); set('rl_supplier',''); set('rl_total','1000'); set('rl_used','0'); set('rl_notes','');
+  document.getElementById('rl_running').value='0'; document.getElementById('rl_packed').value='0';
+  document.getElementById('rollFormTitle').textContent='Add Roll';
+  const f=document.getElementById('rollForm'); f.style.display='block'; f.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function editRoll(id){
+  const r=_filamentRolls.find(x=>x.id===id); if(!r) return;
+  const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
+  set('rl_id',r.id); set('rl_color',r.color); set('rl_material',r.material||'PLA+'); set('rl_supplier',r.supplier); set('rl_total',r.total_grams); set('rl_used',r.grams_used); set('rl_notes',r.notes);
+  document.getElementById('rl_running').value=r.is_running?'1':'0'; document.getElementById('rl_packed').value=r.packed?'1':'0';
+  document.getElementById('rollFormTitle').textContent='Edit Roll';
+  const f=document.getElementById('rollForm'); f.style.display='block'; f.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function saveRoll(){
+  const g=k=>{const e=document.getElementById(k);return e?e.value:'';};
+  const color=g('rl_color').trim(); if(!color){ toast('Colour is required','error'); return; }
+  const id=g('rl_id');
+  const payload={ color, material:g('rl_material').trim()||'PLA+', supplier:g('rl_supplier').trim()||null,
+    total_grams:parseFloat(g('rl_total'))||0, grams_used:parseFloat(g('rl_used'))||0,
+    is_running:g('rl_running')==='1', packed:g('rl_packed')==='1', notes:g('rl_notes').trim()||null };
+  const {error}=id?await sb.from('biz_filament_rolls').update(payload).eq('id',id):await sb.from('biz_filament_rolls').insert(payload);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast(id?'Roll updated':'Roll added'); document.getElementById('rollForm').style.display='none'; loadFilament();
+}
+async function logRollUsage(id){
+  const r=_filamentRolls.find(x=>x.id===id); if(!r) return;
+  const v=prompt('Grams used to add to this roll:'); if(v===null) return;
+  const add=parseFloat(v)||0; if(add<=0) return;
+  const {error}=await sb.from('biz_filament_rolls').update({grams_used:(parseFloat(r.grams_used)||0)+add}).eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('+'+add+'g logged'); loadFilament();
+}
+async function markRollEmpty(id){
+  const r=_filamentRolls.find(x=>x.id===id); if(!r) return;
+  const total=parseFloat(r.total_grams)||0, used=parseFloat(r.grams_used)||0, waste=Math.max(0,total-used);
+  if(!confirm(`Mark roll empty? Waste logged = ${Math.round(waste)}g (rated ${Math.round(total)} − used ${Math.round(used)}).`)) return;
+  const {error}=await sb.from('biz_filament_rolls').update({status:'empty',waste_grams:waste,finished_date:today()}).eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Roll emptied · '+Math.round(waste)+'g waste'); loadFilament();
+}
+async function deleteRoll(id){ if(!confirm('Delete this roll?')) return; const {error}=await sb.from('biz_filament_rolls').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} toast('Deleted'); loadFilament(); }
+async function filamentBulkUpload(e){
+  const file=e.target.files[0]; if(!file) return;
+  try{
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array'});
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+    const get=(r,keys)=>{ for(const rk in r){ if(keys.includes(rk.toLowerCase().replace(/\s+/g,''))) return r[rk]; } return undefined; };
+    const batch=rows.map(r=>({
+      color:String(get(r,['colour','color'])||'').trim(),
+      material:String(get(r,['material'])||'PLA+').trim()||'PLA+',
+      supplier:(get(r,['supplier','source'])!=null?String(get(r,['supplier','source'])).trim():null),
+      total_grams:parseFloat(get(r,['totalgrams','grams','total','rated']))||1000,
+      grams_used:parseFloat(get(r,['gramsused','used']))||0,
+      is_running:/^(1|yes|true)$/i.test(String(get(r,['running','isrunning'])||'')),
+    })).filter(r=>r.color);
+    if(!batch.length){ toast('No valid rows (need a Colour column)','error'); e.target.value=''; return; }
+    const {error}=await sb.from('biz_filament_rolls').insert(batch);
+    if(error){ toast('Error: '+error.message,'error'); } else { toast('Added '+batch.length+' roll(s)'); loadFilament(); }
+  }catch(err){ toast('Upload failed: '+err.message,'error'); }
+  e.target.value='';
+}
+async function loadFilamentSettings(){
+  const {data}=await sb.from('site_settings').select('key,value').in('key',['biz_filament_min_rolls','biz_color_suggestions']);
+  const m={}; (data||[]).forEach(r=>m[r.key]=r.value);
+  _filMinRolls=parseInt(m.biz_filament_min_rolls)||2;
+  const mr=document.getElementById('filMinRolls'); if(mr) mr.value=_filMinRolls;
+  const cs=document.getElementById('filColorSug');
+  if(cs){ try{ const obj=JSON.parse(m.biz_color_suggestions||'{}'); cs.value=Object.entries(obj).map(([k,v])=>k+' = '+v).join('\n'); }catch(_){ cs.value=''; } }
+}
+async function saveFilamentSettings(){
+  const min=parseInt(document.getElementById('filMinRolls').value)||2;
+  const obj={}; (document.getElementById('filColorSug').value||'').split('\n').forEach(line=>{ const i=line.indexOf('='); if(i>0){ const k=line.slice(0,i).trim(); const val=line.slice(i+1).trim(); if(k) obj[k]=val; } });
+  const {error}=await sb.from('site_settings').upsert([{key:'biz_filament_min_rolls',value:String(min),updated_at:new Date().toISOString()},{key:'biz_color_suggestions',value:JSON.stringify(obj),updated_at:new Date().toISOString()}],{onConflict:'key'});
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  _filMinRolls=min; renderFilamentAlert(); toast('Filament settings saved');
+}
+
 async function loadReturnsBadge(){
   const el=document.getElementById('returnCount'); if(!el) return;
   const {count}=await sb.from('biz_returns').select('*',{count:'exact',head:true}).eq('status','pending');
