@@ -2763,7 +2763,7 @@ function renderOrders(orders){
     const payMethod=(o.payment_method||'—').replace('online','Razorpay').replace('whatsapp','WhatsApp');
     const isWAOrder=o.payment_method==='whatsapp'||o.order_status==='whatsapp_pending';
     const waBadge=isWAOrder?'<span style="display:inline-block;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:3px;background:#25D366;color:#fff;margin-left:5px;vertical-align:middle">WA</span>':'';
-    const payStatusLabel=isPaid?'<span style="color:var(--green);font-weight:600">Received</span>':isAdv?'<span style="color:var(--yellow);font-weight:600">50% Advance</span>':'<span style="color:var(--text-3)">Pending</span>';
+    const payStatusLabel=isPaid?'<span style="color:var(--green);font-weight:600">Received</span>':isAdv?'<span style="color:var(--yellow);font-weight:600">Advance</span>':'<span style="color:var(--text-3)">Pending</span>';
 
     return '<tr onclick="toggleOrderDetail(\''+o.id+'\')" style="cursor:pointer">'
       +'<td onclick="event.stopPropagation()"><input type="checkbox" class="row-check" data-id="'+o.id+'"></td>'
@@ -2805,12 +2805,16 @@ function renderOrders(orders){
         +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">'
         +'<input type="radio" name="pay-'+o.id+'" value="full" '+(isPaid?'checked':'')+' onchange="updatePaymentStatus(\''+o.id+'\',this.value)"> Full payment received</label>'
         +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">'
-        +'<input type="radio" name="pay-'+o.id+'" value="advance" '+(isAdv&&!isPaid?'checked':'')+' onchange="updatePaymentStatus(\''+o.id+'\',this.value)"> 50% advance received</label>'
+        +'<input type="radio" name="pay-'+o.id+'" value="advance" '+(isAdv&&!isPaid?'checked':'')+' onchange="updatePaymentStatus(\''+o.id+'\',this.value)"> Advance received</label>'
         +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">'
         +'<input type="radio" name="pay-'+o.id+'" value="pending" '+(!isPaid&&!isAdv?'checked':'')+' onchange="updatePaymentStatus(\''+o.id+'\',this.value)"> Pending</label>'
         +'</div>'
+        +'<div id="adv-row-'+o.id+'" style="display:'+((isAdv&&!isPaid)?'flex':'none')+';gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center">'
+        +'<span style="font-size:11px;color:var(--text-3)">Advance</span>'
+        +'<input type="number" id="adv-pct-'+o.id+'" placeholder="%" value="'+((o.advance_amount&&o.total_amount)?Math.round(o.advance_amount/o.total_amount*1000)/10:'')+'" oninput="advPctChange(\''+o.id+'\')" style="width:74px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px"><span style="font-size:11px;color:var(--text-3)">%</span>'
+        +'<input type="number" id="adv-amt-'+o.id+'" placeholder="₹" value="'+(o.advance_amount||'')+'" oninput="advAmtChange(\''+o.id+'\')" style="width:120px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px"><span style="font-size:11px;color:var(--text-3)">₹ of ₹'+Number(o.total_amount||0).toLocaleString('en-IN')+'</span>'
+        +'</div>'
         +'<div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">'
-        +'<input type="number" id="adv-amt-'+o.id+'" placeholder="Advance amount ₹" value="'+(o.advance_amount||'')+'" style="width:160px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px">'
         +'<input type="text" id="pay-notes-'+o.id+'" placeholder="Payment notes (optional)" value="'+esc(o.payment_notes)+'" style="flex:1;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px">'
         +'<button class="btn-save" onclick="event.stopPropagation();savePaymentFields(\''+o.id+'\')">Save Payment</button>'
         +'</div></div>'
@@ -2897,7 +2901,7 @@ function printInvoice(id){
   const total=o.total_amount!=null?Number(o.total_amount):(subtotal+ship-disc);
   const dt=o.created_at?new Date(o.created_at).toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'}):'';
   const payM=(o.payment_method||'').replace('online','Razorpay').replace('whatsapp','WhatsApp')||'—';
-  const payS=o.payment_received?'Paid':(o.advance_received?'50% advance received':'Payment pending');
+  const payS=o.payment_received?'Paid':(o.advance_received?'Advance received':'Payment pending');
   const html=`<!doctype html><html><head><meta charset="utf-8"><title>Invoice ${esc(inv)}</title><style>
     *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif}
     body{color:#1a1a18;padding:34px 38px;font-size:13px;line-height:1.5}
@@ -2979,8 +2983,21 @@ async function saveAdminNotes(id){
 /* ── updatePaymentStatus — radio button handler ── */
 function updatePaymentStatus(id,val){
   // Just visually marks selection; actual save happens via savePaymentFields
-  const advAmt=document.getElementById('adv-amt-'+id);
-  if(advAmt) advAmt.style.display=val==='advance'?'':'none';
+  const row=document.getElementById('adv-row-'+id);
+  if(row) row.style.display=val==='advance'?'flex':'none';
+}
+/* ── A4: advance %/₹ bidirectional auto-calc off the order total ── */
+function advPctChange(id){
+  const o=_orders.find(x=>x.id===id); const total=o?(parseFloat(o.total_amount)||0):0;
+  const pct=parseFloat(document.getElementById('adv-pct-'+id).value)||0;
+  const amtEl=document.getElementById('adv-amt-'+id);
+  if(amtEl&&total) amtEl.value=Math.round(total*pct/100*100)/100;
+}
+function advAmtChange(id){
+  const o=_orders.find(x=>x.id===id); const total=o?(parseFloat(o.total_amount)||0):0;
+  const amt=parseFloat(document.getElementById('adv-amt-'+id).value)||0;
+  const pctEl=document.getElementById('adv-pct-'+id);
+  if(pctEl&&total) pctEl.value=Math.round(amt/total*1000)/10;
 }
 
 /* ── savePaymentFields — saves payment_received, advance_received, advance_amount, payment_notes ── */

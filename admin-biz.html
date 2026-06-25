@@ -1688,8 +1688,20 @@ tr:hover td{background:var(--bg-2)}
           </div>
         </div>
 
+        <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:14px">Operational Defaults <span style="font-weight:400;text-transform:none;letter-spacing:0">— synced, used across Add Sale / Products / Filament</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="form-group"><label>Default HSN</label><input type="text" id="def_hsn" placeholder="3926"></div>
+            <div class="form-group"><label>Default GST %</label><select id="def_gst"><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select></div>
+            <div class="form-group"><label>Default Making Cost ₹</label><input type="number" id="def_cogs" step="0.01" placeholder="0"></div>
+            <div class="form-group"><label>Min Filament Rolls (running colours)</label><input type="number" id="def_minrolls" min="0" placeholder="2"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:10px">SKU category codes: HOM · WAL · FIG · PER · GFT · UTL · TEC · CUS &nbsp;·&nbsp; document fields live in the invoice cards above.</div>
+          <div style="margin-top:10px"><button class="btn btn-primary btn-sm" onclick="saveBizDefaults()">Save Defaults</button> <span id="defaultsSavedMsg" style="font-size:12px;color:var(--green);display:none">✓ Saved</span></div>
+        </div>
+
         <div style="display:flex;gap:10px;align-items:center;padding-top:4px">
-          <button class="btn btn-primary" onclick="saveBizSettings()">Save Settings</button>
+          <button class="btn btn-primary" onclick="saveBizSettings()">Save Invoice Details</button>
           <span id="settingsSavedMsg" style="font-size:12px;color:var(--green);display:none">✓ Saved</span>
         </div>
 
@@ -1723,6 +1735,34 @@ function loadBizSettings(){
   Object.entries(map).forEach(([elId,key])=>{
     const el=document.getElementById(elId); if(el&&cfg[key]) el.value=cfg[key];
   });
+  loadBizDefaults();
+}
+// ── B14: operational defaults (synced via site_settings) ──
+let _bizDefaults={hsn:'3926',gst:0,cogs:0,minRolls:2};
+async function loadBizDefaults(){
+  try{
+    const {data}=await sb.from('site_settings').select('key,value').in('key',['biz_default_hsn','biz_default_gst','biz_default_cogs','biz_filament_min_rolls']);
+    const m={}; (data||[]).forEach(r=>m[r.key]=r.value);
+    _bizDefaults={ hsn:m.biz_default_hsn||'3926', gst:parseFloat(m.biz_default_gst)||0, cogs:parseFloat(m.biz_default_cogs)||0, minRolls:parseInt(m.biz_filament_min_rolls)||2 };
+    if(typeof _filMinRolls!=='undefined') _filMinRolls=_bizDefaults.minRolls;
+    const set=(id,v)=>{const e=document.getElementById(id);if(e&&v!=null&&v!=='')e.value=v;};
+    set('def_hsn',_bizDefaults.hsn); set('def_gst',String(_bizDefaults.gst)); set('def_cogs',_bizDefaults.cogs||''); set('def_minrolls',_bizDefaults.minRolls);
+    const imp=document.getElementById('importDefaultCogs'); if(imp&&(imp.value===''||imp.value==='0')&&_bizDefaults.cogs) imp.value=_bizDefaults.cogs;
+  }catch(_){}
+}
+async function saveBizDefaults(){
+  const g=id=>document.getElementById(id)?.value;
+  const rows=[
+    {key:'biz_default_hsn',value:(g('def_hsn')||'3926').trim()},
+    {key:'biz_default_gst',value:String(parseFloat(g('def_gst'))||0)},
+    {key:'biz_default_cogs',value:String(parseFloat(g('def_cogs'))||0)},
+    {key:'biz_filament_min_rolls',value:String(parseInt(g('def_minrolls'))||2)},
+  ].map(r=>({...r,updated_at:new Date().toISOString()}));
+  const {error}=await sb.from('site_settings').upsert(rows,{onConflict:'key'});
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  await loadBizDefaults();
+  const msg=document.getElementById('defaultsSavedMsg'); if(msg){ msg.style.display='inline'; setTimeout(()=>msg.style.display='none',2500); }
+  toast('Defaults saved');
 }
 function saveBizSettings(){
   const g=id=>(document.getElementById(id)?.value.trim()||'');
@@ -1926,7 +1966,7 @@ function autoFillSku(){
   });
 }
 
-function showAddProduct(){ document.getElementById('pf_id').value=''; document.getElementById('productFormTitle').textContent='Add Product'; document.getElementById('pf_name').value=''; document.getElementById('pf_sku').value=''; document.getElementById('pf_category').value=''; document.getElementById('pf_type').value='own'; document.getElementById('pf_cost').value=''; document.getElementById('pf_gst').value='0'; document.getElementById('pf_hsn').value='3926'; document.getElementById('pf_platform_skus').value=''; document.getElementById('pf_notes').value=''; document.getElementById('pf_color').value=''; document.getElementById('pf_material').value='PLA+'; document.getElementById('pf_grams').value=''; document.getElementById('productForm').style.display='block'; }
+function showAddProduct(){ document.getElementById('pf_id').value=''; document.getElementById('productFormTitle').textContent='Add Product'; document.getElementById('pf_name').value=''; document.getElementById('pf_sku').value=''; document.getElementById('pf_category').value=''; document.getElementById('pf_type').value='own'; document.getElementById('pf_cost').value=''; document.getElementById('pf_gst').value=String((_bizDefaults&&_bizDefaults.gst)||0); document.getElementById('pf_hsn').value=(_bizDefaults&&_bizDefaults.hsn)||'3926'; document.getElementById('pf_platform_skus').value=''; document.getElementById('pf_notes').value=''; document.getElementById('pf_color').value=''; document.getElementById('pf_material').value='PLA+'; document.getElementById('pf_grams').value=''; document.getElementById('productForm').style.display='block'; }
 function editProduct(id){ const p=_products.find(x=>x.id===id); if(!p) return; document.getElementById('pf_id').value=p.id; document.getElementById('productFormTitle').textContent='Edit Product'; document.getElementById('pf_name').value=p.name; document.getElementById('pf_sku').value=p.sku||''; document.getElementById('pf_category').value=p.category||''; document.getElementById('pf_type').value=p.product_type; document.getElementById('pf_cost').value=p.base_cost; document.getElementById('pf_gst').value=p.gst_rate; document.getElementById('pf_hsn').value=p.hsn_code||''; document.getElementById('pf_platform_skus').value=p.platform_skus||''; document.getElementById('pf_notes').value=p.notes||''; document.getElementById('pf_color').value=p.color||''; document.getElementById('pf_material').value=p.material||'PLA+'; document.getElementById('pf_grams').value=p.grams_per_unit||''; document.getElementById('productForm').style.display='block'; }
 
 async function saveProduct(){
@@ -1944,7 +1984,7 @@ async function saveProduct(){
     product_type:document.getElementById('pf_type').value,
     base_cost:parseFloat(document.getElementById('pf_cost').value)||0,
     gst_rate:(()=>{const v=document.getElementById('pf_gst').value;return v!==''?parseFloat(v):0;})(),
-    hsn_code:document.getElementById('pf_hsn').value.trim()||'3926',   // 5.2 — HSN default
+    hsn_code:document.getElementById('pf_hsn').value.trim()||(_bizDefaults&&_bizDefaults.hsn)||'3926',   // 5.2 — HSN default (B14-configurable)
     platform_skus:document.getElementById('pf_platform_skus').value.trim()||null,
     notes:document.getElementById('pf_notes').value.trim()||null,
     color, material,
@@ -1961,7 +2001,7 @@ async function saveProduct(){
 
 // ── Quick Add Sale (multi-item) ─────────────────────────────
 let _items=[];
-function blankItem(){ return {productId:null,name:'',variant:'',qty:1,rate:0,disc:0,gst:0,cost:0,grams:0,hsn:'3926',sku:''}; }
+function blankItem(){ return {productId:null,name:'',variant:'',qty:1,rate:0,disc:0,gst:0,cost:0,grams:0,hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:''}; }
 let _catalogByName={}, _catalogBySku={};
 
 function buildCatalog(){
