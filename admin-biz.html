@@ -1150,28 +1150,64 @@ tr:hover td{background:var(--bg-2)}
     ═══════════════════════════════════════════════════════ -->
     <div class="panel" id="panelCustomers">
       <div class="p-head">
-        <div><div class="p-title">Customers</div><div class="p-sub">Built automatically from your orders — type a name in Add Sale to reuse details</div></div>
+        <div><div class="p-title">Customers</div><div class="p-sub">Auto-built from orders + your saved records</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <select id="custChannel" class="month-select" onchange="renderCustomers()">
-            <option value="">All Channels</option>
-            <option value="shop">Studio</option>
-            <option value="amazon">Amazon</option>
-            <option value="flipkart">Flipkart</option>
-            <option value="website">Website</option>
-          </select>
-          <input type="text" id="custSearch" placeholder="Search name / phone / city…" oninput="renderCustomers()" style="min-width:180px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:7px 11px;outline:none">
+          <input type="text" id="custSearch" placeholder="Search name / phone / city / GSTIN…" oninput="renderCustomers()" style="min-width:200px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:7px 11px;outline:none">
+          <button class="btn btn-ghost btn-sm" onclick="toggleCustFilters()" id="custFilterBtn">⚙ Filters<span id="custFilterCount" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:6px">0</span></button>
+          <button class="btn btn-primary btn-sm" onclick="openCustomerEdit()">+ Add Customer</button>
+        </div>
+      </div>
+      <div id="custFilters" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow)">
+        <div class="form-grid">
+          <div class="form-group"><label>Channel</label>
+            <select id="custChannel" onchange="renderCustomers()"><option value="">All</option><option value="shop">Studio</option><option value="amazon">Amazon</option><option value="flipkart">Flipkart</option><option value="website">Website</option></select>
+          </div>
+          <div class="form-group"><label>Reviewed?</label>
+            <select id="custReviewed" onchange="renderCustomers()"><option value="">Any</option><option value="1">Reviewed</option><option value="0">Not reviewed</option></select>
+          </div>
+          <div class="form-group"><label>Min Orders</label><input type="number" id="custMinOrders" min="0" placeholder="0" oninput="renderCustomers()"></div>
+          <div class="form-group"><label>Last order from</label><input type="date" id="custFrom" onchange="renderCustomers()"></div>
+          <div class="form-group"><label>Last order to</label><input type="date" id="custTo" onchange="renderCustomers()"></div>
         </div>
       </div>
       <div class="tbl-wrap">
         <table>
           <thead><tr>
-            <th>Customer</th><th>Phone</th><th>City / State</th>
-            <th class="td-num">Orders</th><th class="td-num">Items</th><th class="td-num">Total Spent</th><th>Last Order</th>
+            <th>Customer</th><th>Phone</th><th>GSTIN</th><th>City / State</th>
+            <th class="td-num">Orders</th><th class="td-num">Spent</th><th>First</th><th>Last</th><th>Rev</th><th class="td-actions"></th>
           </tr></thead>
-          <tbody id="customersBody"><tr><td colspan="7" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+          <tbody id="customersBody"><tr><td colspan="10" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
     </div><!-- /customers -->
+
+    <!-- Customer Edit Modal (B7) -->
+    <div id="customerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:1000;overflow-y:auto;padding:20px" onclick="if(event.target===this)closeCustomerModal()">
+      <div style="max-width:560px;margin:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div style="font-size:14px;font-weight:700" id="customerModalTitle">Add Customer</div>
+          <button onclick="closeCustomerModal()" style="background:none;border:none;color:var(--text-3);font-size:18px;cursor:pointer">✕</button>
+        </div>
+        <input type="hidden" id="cm_id">
+        <div class="form-grid">
+          <div class="form-group" style="grid-column:span 2"><label>Name *</label><input type="text" id="cm_name"></div>
+          <div class="form-group"><label>Country Code</label><input type="text" id="cm_cc" value="+91"></div>
+          <div class="form-group"><label>Phone</label><input type="tel" id="cm_phone"></div>
+          <div class="form-group" style="grid-column:span 2"><label>GSTIN</label><input type="text" id="cm_gstin" placeholder="e.g. 09AAAAA0000A1Z5"></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Address</label><input type="text" id="cm_address"></div>
+          <div class="form-group"><label>City</label><input type="text" id="cm_city"></div>
+          <div class="form-group"><label>State</label><input type="text" id="cm_state" list="stateList"></div>
+          <div class="form-group"><label>Pincode</label><input type="text" id="cm_pin" maxlength="6" inputmode="numeric"></div>
+          <div class="form-group"><label>Reviewed?</label><select id="cm_reviewed"><option value="0">No</option><option value="1">Yes</option></select></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="cm_notes"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="saveCustomer()">Save</button>
+          <button class="btn btn-ghost" onclick="closeCustomerModal()">Cancel</button>
+          <button class="btn btn-danger btn-sm" id="cm_delBtn" onclick="deleteCustomer()" style="margin-left:auto;display:none">Delete</button>
+        </div>
+      </div>
+    </div>
 
     <!-- ══════════════════════════════════════════════════════
          PRODUCTS & COSTS
@@ -2003,8 +2039,15 @@ async function saveOrderRecord(){
 }
 
 // ── Customers (auto-built from orders) ──────────────────────
-let _customersByName={}, _customersList=[];
+let _customersByName={}, _customersList=[], _customerRecords=[], _custRender=[];
 async function loadCustomers(){
+  const norm=p=>String(p||'').replace(/\D/g,'').slice(-10);
+  // 1. Editable records (biz_customers) — GSTIN, reviewed, corrected details
+  const {data:recs}=await sb.from('biz_customers').select('*');
+  _customerRecords=recs||[];
+  const recByPhone={}, recByName={};
+  _customerRecords.forEach(r=>{ const ph=norm(r.phone); if(ph) recByPhone[ph]=r; if(r.name) recByName[r.name.trim().toLowerCase()]=r; });
+  // 2. Derived stats from sales (first + last order dates)
   const {data,error}=await sb.from('biz_sales')
     .select('customer_name,customer_phone,customer_address,customer_city,customer_state,customer_pincode,order_id,order_date,selling_price,channel_id')
     .eq('is_deleted',false).not('customer_name','is',null)
@@ -2014,7 +2057,7 @@ async function loadCustomers(){
   (data||[]).forEach(s=>{
     const name=(s.customer_name||'').trim(); if(!name) return;
     const k=name.toLowerCase();
-    if(!map[k]) map[k]={name,phone:'',address:'',city:'',state:'',pincode:'',orders:new Set(),items:0,spent:0,last:s.order_date,channels:new Set()};
+    if(!map[k]) map[k]={name,phone:'',address:'',city:'',state:'',pincode:'',orders:new Set(),items:0,spent:0,last:s.order_date,first:s.order_date,channels:new Set()};
     const c=map[k];
     if(!c.phone&&s.customer_phone) c.phone=s.customer_phone;        // rows are date-desc → keeps latest
     if(!c.address&&s.customer_address) c.address=s.customer_address;
@@ -2025,8 +2068,21 @@ async function loadCustomers(){
     if(s.channel_id) c.channels.add(s.channel_id);
     c.items+=1; c.spent+=parseFloat(s.selling_price)||0;
     if(s.order_date>c.last) c.last=s.order_date;
+    if(s.order_date<c.first) c.first=s.order_date;
   });
-  _customersList=Object.values(map).map(c=>({...c,orders:c.orders.size,channels:[...c.channels]})).sort((a,b)=>b.spent-a.spent);
+  let list=Object.values(map).map(c=>({...c,orders:c.orders.size,channels:[...c.channels]}));
+  // 3. Merge in the editable record (by phone, then name)
+  const matched=new Set();
+  list.forEach(c=>{
+    const rec=recByPhone[norm(c.phone)]||recByName[c.name.toLowerCase()]||null;
+    if(rec){ matched.add(rec.id); c.recordId=rec.id; c.gstin=rec.gstin||''; c.reviewed=!!rec.reviewed; c.country_code=rec.country_code||'+91'; c.notes=rec.notes||''; if(rec.address) c.address=rec.address; }
+    else { c.recordId=null; c.gstin=''; c.reviewed=false; c.country_code='+91'; c.notes=''; }
+  });
+  // 4. Record-only customers (added by hand, no sales yet)
+  _customerRecords.forEach(r=>{ if(matched.has(r.id)) return;
+    list.push({name:r.name||'(unnamed)',phone:r.phone||'',address:r.address||'',city:r.city||'',state:r.state||'',pincode:r.pincode||'',orders:0,items:0,spent:0,first:null,last:null,channels:[],recordId:r.id,gstin:r.gstin||'',reviewed:!!r.reviewed,country_code:r.country_code||'+91',notes:r.notes||''});
+  });
+  _customersList=list.sort((a,b)=>b.spent-a.spent);
   _customersByName={}; _customersList.forEach(c=>{ _customersByName[c.name.toLowerCase()]=c; });
   const badge=document.getElementById('custCount'); if(badge) badge.textContent=_customersList.length;
   const dl=document.getElementById('customerList'); if(dl) dl.innerHTML=_customersList.map(c=>`<option value="${esc(c.name)}">`).join('');
@@ -2034,20 +2090,72 @@ async function loadCustomers(){
 }
 function renderCustomers(){
   const body=document.getElementById('customersBody'); if(!body) return;
-  const se=(document.getElementById('custSearch')?.value||'').trim().toLowerCase();
-  const chf=(document.getElementById('custChannel')?.value||'');
+  const v=id=>document.getElementById(id)?.value||'';
+  const se=v('custSearch').trim().toLowerCase(), chf=v('custChannel'), rev=v('custReviewed');
+  const minO=parseInt(v('custMinOrders'))||0, from=v('custFrom'), to=v('custTo');
   let list=_customersList;
   if(chf) list=list.filter(c=>(c.channels||[]).includes(chf));
-  if(se) list=list.filter(c=>(c.name+' '+c.phone+' '+c.city+' '+c.state).toLowerCase().includes(se));
-  body.innerHTML=list.length?list.map(c=>`<tr>
+  if(rev==='1') list=list.filter(c=>c.reviewed);
+  if(rev==='0') list=list.filter(c=>!c.reviewed);
+  if(minO) list=list.filter(c=>c.orders>=minO);
+  if(from) list=list.filter(c=>c.last&&c.last>=from);
+  if(to) list=list.filter(c=>c.last&&c.last<=to);
+  if(se) list=list.filter(c=>(c.name+' '+c.phone+' '+c.city+' '+c.state+' '+(c.gstin||'')).toLowerCase().includes(se));
+  _custRender=list;
+  updateCustFilterCount();
+  body.innerHTML=list.length?list.map((c,i)=>`<tr style="cursor:pointer" onclick="openCustomerByIdx(${i})">
     <td>${esc(c.name)}${c.address?`<div style="font-size:10px;color:var(--text-3)">${esc(c.address)}</div>`:''}${(c.channels||[]).length?`<div style="margin-top:3px;display:flex;gap:6px;flex-wrap:wrap">${c.channels.map(ch=>chHtml(ch)).join('')}</div>`:''}</td>
-    <td style="font-family:var(--mono);font-size:11px">${esc(c.phone||'—')}</td>
+    <td style="font-family:var(--mono);font-size:11px">${c.phone?esc((c.country_code&&c.country_code!=='+91'?c.country_code+' ':'')+c.phone):'—'}</td>
+    <td style="font-family:var(--mono);font-size:10px">${esc(c.gstin||'—')}</td>
     <td>${esc([c.city,c.state].filter(Boolean).join(', ')||'—')}${c.pincode?' — '+esc(c.pincode):''}</td>
     <td class="td-num">${c.orders}</td>
-    <td class="td-num">${c.items}</td>
     <td class="td-num" style="font-weight:700">${fmt(c.spent)}</td>
-    <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(c.last)}</td>
-  </tr>`).join(''):`<tr><td colspan="7" class="empty"><div class="em-text">No customers found</div></td></tr>`;
+    <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${c.first?fmtDay(c.first):'—'}</td>
+    <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${c.last?fmtDay(c.last):'—'}</td>
+    <td>${c.reviewed?'<span class="badge" style="background:var(--green-bg);color:var(--green)">✓</span>':''}</td>
+    <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openCustomerByIdx(${i})">✎</button></td>
+  </tr>`).join(''):`<tr><td colspan="10" class="empty"><div class="em-text">No customers found</div></td></tr>`;
+}
+function toggleCustFilters(){ const p=document.getElementById('custFilters'); if(!p) return; const show=p.style.display==='none'; p.style.display=show?'block':'none'; const b=document.getElementById('custFilterBtn'); if(b) b.classList.toggle('active',show); }
+function updateCustFilterCount(){ const b=document.getElementById('custFilterCount'); if(!b) return; let n=0; ['custChannel','custReviewed','custMinOrders','custFrom','custTo'].forEach(id=>{const e=document.getElementById(id);if(e&&e.value)n++;}); b.textContent=n; b.style.display=n?'inline-block':'none'; }
+// ── Customer CRUD modal (B7) ──
+function openCustomerByIdx(i){ fillCustomerModal(_custRender[i]||null); }
+function openCustomerEdit(){ fillCustomerModal(null); }
+function fillCustomerModal(c){
+  const set=(id,val)=>{const e=document.getElementById(id);if(e)e.value=(val==null?'':val);};
+  set('cm_id',c&&c.recordId?c.recordId:'');
+  set('cm_name',c?c.name:'');
+  set('cm_cc',c&&c.country_code?c.country_code:'+91');
+  set('cm_phone',c?c.phone:'');
+  set('cm_gstin',c?c.gstin:'');
+  set('cm_address',c?c.address:'');
+  set('cm_city',c?c.city:'');
+  set('cm_state',c?c.state:'');
+  set('cm_pin',c?c.pincode:'');
+  set('cm_notes',c?c.notes:'');
+  const rv=document.getElementById('cm_reviewed'); if(rv) rv.value=(c&&c.reviewed)?'1':'0';
+  document.getElementById('customerModalTitle').textContent=(c&&c.recordId)?'Edit Customer':(c?'Save Customer Record':'Add Customer');
+  document.getElementById('cm_delBtn').style.display=(c&&c.recordId)?'inline-block':'none';
+  document.getElementById('customerModal').style.display='block';
+}
+function closeCustomerModal(){ const m=document.getElementById('customerModal'); if(m) m.style.display='none'; }
+async function saveCustomer(){
+  const id=document.getElementById('cm_id').value;
+  const g=k=>{const e=document.getElementById(k);return e?e.value.trim():'';};
+  const name=g('cm_name'); if(!name){ toast('Name is required','error'); return; }
+  const payload={ name, country_code:g('cm_cc')||'+91', phone:g('cm_phone')||null, gstin:g('cm_gstin')||null,
+    address:g('cm_address')||null, city:g('cm_city')||null, state:g('cm_state')||null, pincode:g('cm_pin')||null,
+    reviewed:document.getElementById('cm_reviewed').value==='1', notes:g('cm_notes')||null };
+  const {error}= id ? await sb.from('biz_customers').update(payload).eq('id',id) : await sb.from('biz_customers').insert(payload);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast(id?'Customer updated':'Customer saved'); closeCustomerModal(); loadCustomers();
+}
+async function deleteCustomer(){
+  const id=document.getElementById('cm_id').value; if(!id) return;
+  if(!confirm('Delete this saved customer record? Order history is kept.')) return;
+  const {error}=await sb.from('biz_customers').delete().eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Customer deleted'); closeCustomerModal(); loadCustomers();
 }
 // Autofill saved details when an existing customer name is chosen in Add Sale
 function onCustomerName(val){
