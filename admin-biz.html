@@ -1191,8 +1191,11 @@ tr:hover td{background:var(--bg-2)}
             <input type="text" id="pf_name" placeholder="e.g. Geometric Vase">
           </div>
           <div class="form-group">
-            <label>SKU</label>
-            <input type="text" id="pf_sku" placeholder="e.g. GV-001">
+            <label>SKU <span style="color:var(--text-3);font-weight:400;text-transform:none">— blank = auto</span></label>
+            <div style="display:flex;gap:6px">
+              <input type="text" id="pf_sku" placeholder="TF-… (auto on save)" style="flex:1;min-width:0">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="autoFillSku()" title="Generate SKU now">⚙</button>
+            </div>
           </div>
           <div class="form-group">
             <label>Category</label>
@@ -1222,7 +1225,19 @@ tr:hover td{background:var(--bg-2)}
           </div>
           <div class="form-group">
             <label>HSN Code</label>
-            <input type="text" id="pf_hsn" placeholder="e.g. 3926">
+            <input type="text" id="pf_hsn" placeholder="3926">
+          </div>
+          <div class="form-group">
+            <label>Colour</label>
+            <input type="text" id="pf_color" placeholder="e.g. Black">
+          </div>
+          <div class="form-group">
+            <label>Material</label>
+            <input type="text" id="pf_material" placeholder="PLA+">
+          </div>
+          <div class="form-group">
+            <label>Grams / unit</label>
+            <input type="number" id="pf_grams" step="1" min="0" placeholder="e.g. 100">
           </div>
           <div class="form-group" style="grid-column:span 2">
             <label>Platform SKUs (Amazon / Flipkart)</label>
@@ -1685,35 +1700,93 @@ function populateProductSelects(){
   buildCatalog();        // Quick Add now uses a datalist for item search
 }
 
-function showAddProduct(){ document.getElementById('pf_id').value=''; document.getElementById('productFormTitle').textContent='Add Product'; document.getElementById('pf_name').value=''; document.getElementById('pf_sku').value=''; document.getElementById('pf_category').value=''; document.getElementById('pf_type').value='own'; document.getElementById('pf_cost').value=''; document.getElementById('pf_gst').value='0'; document.getElementById('pf_hsn').value=''; document.getElementById('pf_platform_skus').value=''; document.getElementById('pf_notes').value=''; document.getElementById('productForm').style.display='block'; }
-function editProduct(id){ const p=_products.find(x=>x.id===id); if(!p) return; document.getElementById('pf_id').value=p.id; document.getElementById('productFormTitle').textContent='Edit Product'; document.getElementById('pf_name').value=p.name; document.getElementById('pf_sku').value=p.sku||''; document.getElementById('pf_category').value=p.category||''; document.getElementById('pf_type').value=p.product_type; document.getElementById('pf_cost').value=p.base_cost; document.getElementById('pf_gst').value=p.gst_rate; document.getElementById('pf_hsn').value=p.hsn_code||''; document.getElementById('pf_platform_skus').value=p.platform_skus||''; document.getElementById('pf_notes').value=p.notes||''; document.getElementById('productForm').style.display='block'; }
+// ── 5.1 SKU auto-generation — TF-[CAT]-[SHORT]-[COLOR]-[NNNN]-[MATERIAL] ──
+const SKU_CAT_CODES={
+  'home decor':'HOM','homedecor':'HOM','decor':'HOM',
+  'wall art':'WAL','wall art & panels':'WAL','wall':'WAL','panel':'WAL','panels':'WAL',
+  'figurine':'FIG','figurines':'FIG','figurines & collectibles':'FIG','collectible':'FIG','collectibles':'FIG',
+  'personalized':'PER','personalised':'PER','custom':'CUS','custom design':'CUS','misc':'CUS',
+  'corporate gifting':'GFT','gifting':'GFT','gift':'GFT','gifts':'GFT',
+  'utility':'UTL','utility products':'UTL',
+  'tech':'TEC','tech-based products':'TEC','tech based':'TEC','gadget':'TEC','gadgets':'TEC'
+};
+function skuCatCode(cat){
+  const c=(cat||'').trim().toLowerCase();
+  if(!c) return 'CUS';
+  if(SKU_CAT_CODES[c]) return SKU_CAT_CODES[c];
+  for(const k in SKU_CAT_CODES){ if(c.includes(k)) return SKU_CAT_CODES[k]; }
+  const letters=c.replace(/[^a-z]/g,'').toUpperCase();
+  return letters?letters.slice(0,3).padEnd(3,'X'):'CUS';
+}
+function skuShort(name){
+  const words=(name||'').trim().toUpperCase().replace(/[^A-Z0-9 ]/g,'').split(/\s+/).filter(Boolean);
+  if(!words.length) return 'ITEM';
+  if(words.length===1) return words[0].slice(0,6);
+  return (words[0].slice(0,4)+words.slice(1).map(w=>w[0]).join('')).slice(0,6);
+}
+const SKU_COLOR_ABBR={black:'BLK',white:'WHT',red:'RED',blue:'BLU',green:'GRN',yellow:'YEL',orange:'ORG',purple:'PRP',pink:'PNK',grey:'GRY',gray:'GRY',silver:'SLV',gold:'GLD',brown:'BRN',beige:'BGE',natural:'NAT',clear:'CLR',transparent:'CLR',multicolor:'MLT',multi:'MLT'};
+function skuColor(color){
+  const c=(color||'').trim().toLowerCase();
+  if(!c) return 'NA';
+  if(SKU_COLOR_ABBR[c]) return SKU_COLOR_ABBR[c];
+  for(const k in SKU_COLOR_ABBR){ if(c.includes(k)) return SKU_COLOR_ABBR[k]; }
+  return c.replace(/[^a-z0-9]/g,'').toUpperCase().slice(0,3).padEnd(3,'X');
+}
+function skuNumber(){
+  const existing=(_products||[]).map(p=>(p.sku||'')).filter(Boolean);
+  for(let i=0;i<60;i++){ const n=String(Math.floor(1000+Math.random()*9000)); if(!existing.some(s=>s.includes('-'+n+'-'))) return n; }
+  return String(Math.floor(1000+Math.random()*9000));
+}
+function generateSku(o){
+  const cat=skuCatCode(o.category), short=skuShort(o.name), col=skuColor(o.color);
+  const mat=((o.material||'PLA+').trim()||'PLA+').toUpperCase().replace(/\s+/g,'');
+  return `TF-${cat}-${short}-${col}-${skuNumber()}-${mat}`;
+}
+function autoFillSku(){
+  const name=document.getElementById('pf_name').value.trim();
+  if(!name){ toast('Enter a product name first','error'); return; }
+  document.getElementById('pf_sku').value=generateSku({
+    name, category:document.getElementById('pf_category').value,
+    color:document.getElementById('pf_color').value, material:document.getElementById('pf_material').value
+  });
+}
+
+function showAddProduct(){ document.getElementById('pf_id').value=''; document.getElementById('productFormTitle').textContent='Add Product'; document.getElementById('pf_name').value=''; document.getElementById('pf_sku').value=''; document.getElementById('pf_category').value=''; document.getElementById('pf_type').value='own'; document.getElementById('pf_cost').value=''; document.getElementById('pf_gst').value='0'; document.getElementById('pf_hsn').value='3926'; document.getElementById('pf_platform_skus').value=''; document.getElementById('pf_notes').value=''; document.getElementById('pf_color').value=''; document.getElementById('pf_material').value='PLA+'; document.getElementById('pf_grams').value=''; document.getElementById('productForm').style.display='block'; }
+function editProduct(id){ const p=_products.find(x=>x.id===id); if(!p) return; document.getElementById('pf_id').value=p.id; document.getElementById('productFormTitle').textContent='Edit Product'; document.getElementById('pf_name').value=p.name; document.getElementById('pf_sku').value=p.sku||''; document.getElementById('pf_category').value=p.category||''; document.getElementById('pf_type').value=p.product_type; document.getElementById('pf_cost').value=p.base_cost; document.getElementById('pf_gst').value=p.gst_rate; document.getElementById('pf_hsn').value=p.hsn_code||''; document.getElementById('pf_platform_skus').value=p.platform_skus||''; document.getElementById('pf_notes').value=p.notes||''; document.getElementById('pf_color').value=p.color||''; document.getElementById('pf_material').value=p.material||'PLA+'; document.getElementById('pf_grams').value=p.grams_per_unit||''; document.getElementById('productForm').style.display='block'; }
 
 async function saveProduct(){
   const id=document.getElementById('pf_id').value;
+  const name=document.getElementById('pf_name').value.trim();
+  if(!name){ toast('Product name is required','error'); return; }
+  const category=document.getElementById('pf_category').value.trim()||null;
+  const color=document.getElementById('pf_color').value.trim()||null;
+  const material=document.getElementById('pf_material').value.trim()||'PLA+';
+  let sku=document.getElementById('pf_sku').value.trim();
+  if(!sku){ sku=generateSku({name,category,color,material}); }   // 5.1 — auto-SKU when left blank
   const payload={
-    name:document.getElementById('pf_name').value.trim(),
-    sku:document.getElementById('pf_sku').value.trim()||null,
-    category:document.getElementById('pf_category').value.trim()||null,
+    name, sku,
+    category,
     product_type:document.getElementById('pf_type').value,
     base_cost:parseFloat(document.getElementById('pf_cost').value)||0,
     gst_rate:(()=>{const v=document.getElementById('pf_gst').value;return v!==''?parseFloat(v):0;})(),
-    hsn_code:document.getElementById('pf_hsn').value.trim()||null,
+    hsn_code:document.getElementById('pf_hsn').value.trim()||'3926',   // 5.2 — HSN default
     platform_skus:document.getElementById('pf_platform_skus').value.trim()||null,
     notes:document.getElementById('pf_notes').value.trim()||null,
+    color, material,
+    grams_per_unit:parseFloat(document.getElementById('pf_grams').value)||null,
   };
-  if(!payload.name){ toast('Product name is required','error'); return; }
   const {error} = id
     ? await sb.from('biz_products').update(payload).eq('id',id)
     : await sb.from('biz_products').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
-  toast(id?'Product updated':'Product added');
+  toast(id?'Product updated':'Product added · '+sku);
   document.getElementById('productForm').style.display='none';
   loadProducts();
 }
 
 // ── Quick Add Sale (multi-item) ─────────────────────────────
 let _items=[];
-function blankItem(){ return {productId:null,name:'',variant:'',qty:1,rate:0,disc:0,gst:0,cost:0,grams:0,hsn:'',sku:''}; }
+function blankItem(){ return {productId:null,name:'',variant:'',qty:1,rate:0,disc:0,gst:0,cost:0,grams:0,hsn:'3926',sku:''}; }
 let _catalogByName={}, _catalogBySku={};
 
 function buildCatalog(){
@@ -1774,7 +1847,7 @@ function removeItem(i){ if(_items.length<=1) return; _items.splice(i,1); renderI
 function onItemName(i,val){
   _items[i].name=val;
   const p=_catalogByName[(val||'').trim().toLowerCase()];
-  if(p){ _items[i].productId=p.id; if(!_items[i].cost) _items[i].cost=parseFloat(p.base_cost)||0; _items[i].gst=parseFloat(p.gst_rate)||0; _items[i].hsn=p.hsn_code||''; _items[i].sku=p.sku||''; if(!_items[i].grams&&p.grams_per_unit) _items[i].grams=parseFloat(p.grams_per_unit)||0; renderItems(); }
+  if(p){ _items[i].productId=p.id; if(!_items[i].cost) _items[i].cost=parseFloat(p.base_cost)||0; _items[i].gst=parseFloat(p.gst_rate)||0; _items[i].hsn=p.hsn_code||'3926'; _items[i].sku=p.sku||''; if(!_items[i].grams&&p.grams_per_unit) _items[i].grams=parseFloat(p.grams_per_unit)||0; renderItems(); }
   else { _items[i].productId=null; recalcTotals(); }
 }
 function onItemNum(i,f,v){
