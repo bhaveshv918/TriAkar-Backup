@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Business OS — TriAkar</title>
+<title>TriAkar Business OS</title>
+<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('ta_theme')||'light');}catch(e){}</script>
 <meta name="robots" content="noindex,nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,6 +31,20 @@
   --shadow:0 1px 2px rgba(16,32,24,.05),0 1px 3px rgba(16,32,24,.04);
   --shadow-h:0 4px 14px rgba(16,32,24,.10);
   --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+}
+/* ── Dark theme — mirrors the Admin Panel palette for cross-panel parity ── */
+html[data-theme="dark"]{
+  --bg:#070C08;--bg-1:#0C1410;--bg-2:#111C13;--bg-3:#172418;
+  --border:rgba(255,255,255,.06);--border-h:rgba(255,255,255,.12);
+  --text:#E2EAE4;--text-2:#879E8C;--text-3:#4E6655;
+  --accent:#E0814C;--accent-h:#EA9A6B;--accent-bg:rgba(196,98,42,.16);
+  --green:#4ADE80;--green-bg:rgba(74,222,128,.08);
+  --red:#F87171;--red-bg:rgba(248,113,113,.08);
+  --yellow:#FBBF24;--yellow-bg:rgba(251,191,36,.08);
+  --blue:#60A5FA;--blue-bg:rgba(96,165,250,.08);
+  --purple:#A78BFA;--purple-bg:rgba(167,139,250,.08);
+  --orange:#FB923C;--orange-bg:rgba(251,146,60,.08);
+  --shadow:0 1px 2px rgba(0,0,0,.3);--shadow-h:0 4px 14px rgba(0,0,0,.4);
 }
 /* Hide number spinners everywhere */
 input[type=number]::-webkit-inner-spin-button,
@@ -331,6 +346,7 @@ tr:hover td{background:var(--bg-2)}
   <div class="mtopbar">
     <button class="mtopbar-btn" onclick="toggleNav()" aria-label="Menu">☰</button>
     <div class="mtopbar-title">TriĀkar · Business OS</div>
+    <button class="mtopbar-btn" id="bizThemeToggleM" onclick="toggleTheme()" aria-label="Toggle theme" style="margin-left:auto">🌙</button>
   </div>
   <div class="nav-backdrop" id="navBackdrop" onclick="toggleNav(false)"></div>
 
@@ -339,7 +355,10 @@ tr:hover td{background:var(--bg-2)}
     <div class="sb-header">
       <div class="sb-logo">TriĀkar</div>
       <div class="sb-title">Business OS</div>
-      <a href="/admin.html" class="sb-back">← Admin</a>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:6px">
+        <a href="/admin.html" class="sb-back">← Admin</a>
+        <button id="bizThemeToggle" onclick="toggleTheme()" title="Toggle dark / light" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;line-height:1">🌙</button>
+      </div>
     </div>
 
     <div class="sidebar-section">Overview</div>
@@ -3848,6 +3867,19 @@ function extractLabelData(text,platform){
   if(!qty||qty<1){ const qm=text.match(/(?:qty|quantity)[:\s]+(\d+)/i); if(qm) qty=parseInt(qm[1])||1; }
   return {orderId,qty,productName,customerName,customerAddress,city,state,pincode,tracking,paymentMode,orderDate,deliveryDate,dispatchDate,courier,price};
 }
+
+// ── Theme (dark / light) — parity with the Admin Panel, shared 'ta_theme' pref ──
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme',theme);
+  const icon=theme==='dark'?'☀️':'🌙';
+  ['bizThemeToggle','bizThemeToggleM'].forEach(id=>{const b=document.getElementById(id);if(b)b.textContent=icon;});
+}
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-theme')||'light';
+  const next=cur==='dark'?'light':'dark';
+  applyTheme(next); try{localStorage.setItem('ta_theme',next);}catch(e){}
+}
+(function(){ try{ applyTheme(localStorage.getItem('ta_theme')||'light'); }catch(e){} })();
 
 function setLblPlatform(v){
   document.getElementById('lbl_platform').value=v;
