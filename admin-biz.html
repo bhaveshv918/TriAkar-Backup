@@ -2564,6 +2564,7 @@ function renderOrderDetail(items){
         <div><div style="color:var(--text-3);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Profit</div><div style="font-size:13px;font-weight:700;color:${profit>=0?'var(--green)':'var(--red)'}">${fmt(profit)} · ${margin.toFixed(1)}%</div></div>
       </div>
     </div>
+    <div style="margin-bottom:10px"><span style="font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-right:8px">Production</span>${['queued','printing','post_processing','qc','packed'].map(st=>`<button type="button" class="qchip" style="padding:4px 11px;font-size:11px;margin:0 4px 4px 0${f.production_status===st?';background:var(--accent);color:#fff;border-color:var(--accent)':''}" onclick="updateProductionStatus('${key}','${st}')">${PROD_STAGES[st]}</button>`).join('')}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <button class="btn btn-sm" onclick="togglePaidOrder('${key}',${locked})" style="background:${locked?'var(--green-bg)':'var(--bg-2)'};color:${locked?'var(--green)':'var(--text-3)'};border:1px solid ${locked?'var(--green)':'var(--border)'}">${locked?'✓ Paid · unmark':'Mark Paid'}</button>
       <button class="btn btn-ghost btn-sm" id="revealBtn_${key}" onclick="revealCost('${key}')">🔒 Show cost &amp; profit</button>
@@ -2594,6 +2595,14 @@ async function togglePaidOrder(firstId,allPaid){
   const {error}=await sb.from('biz_sales').update({is_paid:!allPaid}).in('id',ids);
   if(error){ toast('Error: '+error.message,'error'); return; }
   loadSales();
+}
+// ── B15: studio production stage ──
+const PROD_STAGES={queued:'Queued',printing:'Printing',post_processing:'Post-proc',qc:'QC',packed:'Packed'};
+async function updateProductionStatus(firstId,stage){
+  const items=_orderGroup(firstId), ids=items.map(s=>s.id);
+  const {error}=await sb.from('biz_sales').update({production_status:stage}).in('id',ids);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Production: '+(PROD_STAGES[stage]||stage)); loadSales();
 }
 // ── Configurable fee rules (per platform & price range) ─────
 // Stored in site_settings.biz_fee_rules (shared across devices). Edited in the
