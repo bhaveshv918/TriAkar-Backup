@@ -644,6 +644,15 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
 
 /* Mobile nav drawer toggle (hidden on desktop) */
 .nav-toggle{display:none;background:none;border:none;color:var(--text);font-size:21px;line-height:1;cursor:pointer;padding:4px 8px 4px 0;margin-right:2px}
+/* §2b — desktop collapsible sidebar (remembered) */
+.sb-collapse{display:none;background:none;border:none;color:var(--text-3);font-size:15px;cursor:pointer;padding:4px 6px;line-height:1}
+.sb-collapse:hover{color:var(--accent)}
+@media (min-width:861px){
+  .sb-collapse{display:inline-flex}
+  body.sb-collapsed .sidebar{width:58px}
+  body.sb-collapsed .tab-label,body.sb-collapsed .sidebar-section,body.sb-collapsed .tab-count,body.sb-collapsed .tab-dot,body.sb-collapsed .callback-count{display:none}
+  body.sb-collapsed .tab{justify-content:center;padding-left:0;padding-right:0}
+}
 .nav-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:150;opacity:0;visibility:hidden;transition:opacity .2s}
 .nav-backdrop.show{opacity:1;visibility:visible}
 
@@ -796,6 +805,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
   <div class="top-bar">
     <div class="top-left">
       <button class="nav-toggle" id="navToggle" onclick="toggleAdminNav()" aria-label="Menu">☰</button>
+      <button class="sb-collapse" id="adminCollapseBtn" onclick="toggleAdminSidebar()" title="Collapse / expand sidebar">‹‹</button>
       <div class="top-logo">TRIAKAR</div>
       <div class="top-badge">Admin</div>
     </div>
@@ -2202,6 +2212,14 @@ document.addEventListener('click',function(e){
   if(nd&&nd.style.display==='block'&&!e.target.closest('#notifDropdown')&&!bell) nd.style.display='none';
 });
 setInterval(refreshNotifBadge, 20000);
+
+// §2b — desktop sidebar collapse (remembered)
+function toggleAdminSidebar(){
+  const c=document.body.classList.toggle('sb-collapsed');
+  try{ localStorage.setItem('admin_sidebar_collapsed',c?'1':'0'); }catch(e){}
+  const b=document.getElementById('adminCollapseBtn'); if(b) b.textContent=c?'››':'‹‹';
+}
+(function(){ try{ if(localStorage.getItem('admin_sidebar_collapsed')==='1'){ document.body.classList.add('sb-collapsed'); var b=document.getElementById('adminCollapseBtn'); if(b) b.textContent='››'; } }catch(e){} })();
 
 function toggleAdminNav(){
   const sb=document.querySelector('.sidebar'); if(!sb)return;

@@ -73,7 +73,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 
 /* ── Layout ───────────────────────────────────────────────── */
 .shell{display:flex;height:100vh;overflow:hidden}
-.sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--bg-1);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding:0 0 24px}
+.sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--bg-1);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding:0 0 24px;transition:width .15s,min-width .15s}
+/* §2b — collapsed (icon-only) sidebar, remembered in localStorage */
+.shell.sb-collapsed .sidebar{width:58px;min-width:58px}
+.shell.sb-collapsed .tab-label,.shell.sb-collapsed .sidebar-section,.shell.sb-collapsed .sb-title,.shell.sb-collapsed .sb-sub,.shell.sb-collapsed .sb-back,.shell.sb-collapsed #bizSearch,.shell.sb-collapsed .tab-badge,.shell.sb-collapsed .tab-count{display:none}
+.shell.sb-collapsed .tab{justify-content:center;padding-left:0;padding-right:0}
+.shell.sb-collapsed .sb-header{padding-left:4px;padding-right:4px;text-align:center}
+.shell.sb-collapsed .sb-logo{font-size:10px}
+#bizCollapseBtn{background:none;border:none;cursor:pointer;font-size:13px;color:var(--text-3);padding:2px 5px;line-height:1}
+#bizCollapseBtn:hover{color:var(--accent)}
 .main-area{flex:1;overflow-y:auto;background:var(--bg)}
 
 /* ── Sidebar header ───────────────────────────────────────── */
@@ -361,6 +369,7 @@ tr:hover td{background:var(--bg-2)}
       <div style="display:flex;gap:10px;align-items:center;margin-top:6px">
         <a href="/admin.html" class="sb-back">← Admin</a>
         <button id="bizThemeToggle" onclick="toggleTheme()" title="Toggle dark / light" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;line-height:1">🌙</button>
+        <button id="bizCollapseBtn" onclick="toggleBizSidebar()" title="Collapse / expand sidebar">‹‹</button>
       </div>
       <input type="text" id="bizSearch" placeholder="🔍 Search sales / products / customers" oninput="bizGlobalSearch(this.value)" onkeydown="if(event.key==='Escape')closeBizSearch()" autocomplete="off" style="width:100%;margin-top:10px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;outline:none">
     </div>
@@ -1905,6 +1914,7 @@ async function bizLogin(e){
 async function startApp(){
   document.getElementById('authOverlay').style.display = 'none';
   document.getElementById('shell').style.display = 'flex';
+  restoreBizSidebar();
   loadBizSettings();
   await Promise.all([loadProducts(), initDashMonths()]);
   loadDashboard();
@@ -1928,6 +1938,17 @@ function switchTab(name){
   };
   if(loaders[name]) loaders[name]();
   toggleNav(false);   // close mobile drawer after choosing a tab
+}
+
+// §2b — collapse/expand the desktop sidebar (remembered)
+function toggleBizSidebar(){
+  const shell=document.getElementById('shell'); if(!shell) return;
+  const collapsed=shell.classList.toggle('sb-collapsed');
+  try{ localStorage.setItem('biz_sidebar_collapsed',collapsed?'1':'0'); }catch(e){}
+  const b=document.getElementById('bizCollapseBtn'); if(b) b.textContent=collapsed?'››':'‹‹';
+}
+function restoreBizSidebar(){
+  try{ if(localStorage.getItem('biz_sidebar_collapsed')==='1'){ const sh=document.getElementById('shell'); if(sh) sh.classList.add('sb-collapsed'); const b=document.getElementById('bizCollapseBtn'); if(b) b.textContent='››'; } }catch(e){}
 }
 
 // Mobile nav drawer
