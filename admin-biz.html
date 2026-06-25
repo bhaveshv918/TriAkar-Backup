@@ -339,6 +339,9 @@ tr:hover td{background:var(--bg-2)}
 <!-- ── Toast ────────────────────────────────────────────── -->
 <div id="toast"></div>
 
+<!-- Global search results (body-level, fixed — escapes sidebar overflow) -->
+<div id="bizSearchResults" style="display:none;position:fixed;max-height:60vh;overflow:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-h);z-index:2000"></div>
+
 <!-- ── Shell ────────────────────────────────────────────── -->
 <div class="shell" id="shell" style="display:none">
 
@@ -359,6 +362,7 @@ tr:hover td{background:var(--bg-2)}
         <a href="/admin.html" class="sb-back">← Admin</a>
         <button id="bizThemeToggle" onclick="toggleTheme()" title="Toggle dark / light" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;line-height:1">🌙</button>
       </div>
+      <input type="text" id="bizSearch" placeholder="🔍 Search sales / products / customers" oninput="bizGlobalSearch(this.value)" onkeydown="if(event.key==='Escape')closeBizSearch()" autocomplete="off" style="width:100%;margin-top:10px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;outline:none">
     </div>
 
     <div class="sidebar-section">Overview</div>
@@ -4408,6 +4412,46 @@ function toggleTheme(){
   applyTheme(next); try{localStorage.setItem('ta_theme',next);}catch(e){}
 }
 (function(){ try{ applyTheme(localStorage.getItem('ta_theme')||'light'); }catch(e){} })();
+
+// ── Global search (parity with Admin Panel) — sales / products / customers ──
+let _gsResults=[], _gsTimer=null;
+function bizGlobalSearch(q){
+  clearTimeout(_gsTimer);
+  q=(q||'').trim();
+  if(q.length<2){ closeBizSearch(); return; }
+  _gsTimer=setTimeout(()=>bizGlobalSearchRun(q),250);
+}
+async function bizGlobalSearchRun(q){
+  const box=document.getElementById('bizSearchResults'); if(!box) return;
+  const like=`%${q.replace(/[%,]/g,'')}%`;
+  const [sales,prods,custs]=await Promise.all([
+    sb.from('biz_sales').select('order_id,product_name,customer_name,selling_price').eq('is_deleted',false).or(`order_id.ilike.${like},product_name.ilike.${like},customer_name.ilike.${like}`).limit(6),
+    sb.from('biz_products').select('id,name,sku').or(`name.ilike.${like},sku.ilike.${like}`).limit(6),
+    sb.from('biz_customers').select('id,name,phone,gstin').or(`name.ilike.${like},phone.ilike.${like},gstin.ilike.${like}`).limit(6),
+  ]);
+  const items=[];
+  (sales.data||[]).forEach(s=>items.push({t:'Sale',label:(s.product_name||'Item')+' · '+(s.customer_name||'—'),sub:(s.order_id||'')+' · ₹'+(s.selling_price||0),term:s.order_id||s.customer_name||s.product_name,tab:'sales'}));
+  (prods.data||[]).forEach(p=>items.push({t:'Product',label:p.name,sub:p.sku||'',pid:p.id,tab:'products'}));
+  (custs.data||[]).forEach(c=>items.push({t:'Customer',label:c.name,sub:(c.phone||'')+(c.gstin?' · '+c.gstin:''),term:c.name,tab:'customers'}));
+  _gsResults=items;
+  if(!items.length){ box.innerHTML='<div style="padding:10px 12px;color:var(--text-3);font-size:12px">No matches</div>'; }
+  else box.innerHTML=items.map((it,i)=>`<div onclick="bizSearchPick(${i})" style="padding:8px 11px;cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg-2)'" onmouseout="this.style.background=''"><span style="font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);font-weight:700">${it.t}</span><div style="font-weight:600;font-size:12px">${esc(it.label)}</div><div style="color:var(--text-3);font-size:11px;font-family:var(--mono)">${esc(it.sub)}</div></div>`).join('');
+  const inp=document.getElementById('bizSearch'); const r=inp.getBoundingClientRect();
+  box.style.left=r.left+'px'; box.style.top=(r.bottom+4)+'px'; box.style.width=Math.max(240,r.width)+'px';
+  box.style.display='block';
+}
+function bizSearchPick(i){
+  const it=_gsResults[i]; if(!it) return;
+  closeBizSearch(); const si=document.getElementById('bizSearch'); if(si) si.value='';
+  switchTab(it.tab);
+  setTimeout(()=>{
+    if(it.tab==='products' && it.pid && typeof editProduct==='function'){ editProduct(it.pid); return; }
+    const fid = it.tab==='sales'?'sfSearch':it.tab==='customers'?'custSearch':null;
+    if(fid){ const f=document.getElementById(fid); if(f){ f.value=it.term||''; (it.tab==='sales'?loadSales:renderCustomers)(); } }
+  },300);
+}
+function closeBizSearch(){ const b=document.getElementById('bizSearchResults'); if(b) b.style.display='none'; }
+document.addEventListener('click',e=>{ if(!e.target.closest('#bizSearch,#bizSearchResults')) closeBizSearch(); });
 
 function setLblPlatform(v){
   document.getElementById('lbl_platform').value=v;
