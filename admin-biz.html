@@ -414,6 +414,9 @@ tr:hover td{background:var(--bg-2)}
     <button class="tab" data-tab="reports" onclick="switchTab('reports')">
       <span class="tab-icon">↗</span><span class="tab-label">Reports & Export</span>
     </button>
+    <button class="tab" data-tab="expenses" onclick="switchTab('expenses')">
+      <span class="tab-icon">▤</span><span class="tab-label">Expenses</span>
+    </button>
     <button class="tab" data-tab="settings" onclick="switchTab('settings')">
       <span class="tab-icon">⚙</span><span class="tab-label">Settings</span>
     </button>
@@ -1657,6 +1660,42 @@ tr:hover td{background:var(--bg-2)}
     <!-- ══════════════════════════════════════════════════════
          SETTINGS
     ═══════════════════════════════════════════════════════ -->
+    <!-- ══════ EXPENSES & PURCHASES (B17) ══════ -->
+    <div class="panel" id="panelExpenses">
+      <div class="p-head">
+        <div><div class="p-title">Expenses &amp; Purchases</div><div class="p-sub">Monthly purchase log — feeds P&amp;L</div></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="month" id="expMonth" onchange="loadExpenses()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
+          <button class="btn btn-primary btn-sm" onclick="showAddExpense()">+ Add Expense</button>
+        </div>
+      </div>
+      <div id="expKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
+      <div id="expenseForm" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px">
+        <input type="hidden" id="ex_id">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px" id="expenseFormTitle">Add Expense</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Date</label><input type="date" id="ex_date"></div>
+          <div class="form-group"><label>Category</label><select id="ex_category"><option value="materials">Materials</option><option value="equipment">Equipment</option><option value="packaging">Packaging</option><option value="marketing">Marketing</option><option value="rent">Rent</option><option value="utilities">Utilities</option><option value="shipping">Shipping</option><option value="other">Other</option></select></div>
+          <div class="form-group"><label>Vendor</label><input type="text" id="ex_vendor"></div>
+          <div class="form-group"><label>Amount ₹ (incl GST)</label><input type="number" id="ex_amount" step="0.01"></div>
+          <div class="form-group"><label>GST ₹ (of amount)</label><input type="number" id="ex_gst" step="0.01"></div>
+          <div class="form-group"><label>Payment Mode</label><select id="ex_payment"><option value="">—</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="bank">Bank</option></select></div>
+          <div class="form-group" style="grid-column:span 2"><label>Invoice link <span style="color:var(--text-3);font-weight:400;text-transform:none">(Drive/Dropbox URL — any format)</span></label><input type="text" id="ex_invoice" placeholder="https://…"></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="ex_notes"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary btn-sm" onclick="saveExpense()">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('expenseForm').style.display='none'">Cancel</button>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Category</th><th>Vendor</th><th class="td-num">Amount</th><th class="td-num">GST</th><th>Invoice</th><th class="td-actions"></th></tr></thead>
+          <tbody id="expensesBody"><tr><td colspan="7" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+    </div><!-- /expenses -->
+
     <div class="panel" id="panelSettings">
       <div class="p-head">
         <div><div class="p-title">Business Settings</div><div class="p-sub">Invoice details — saved locally on this device</div></div>
@@ -1879,7 +1918,7 @@ function switchTab(name){
     sales:loadSales, products:loadProducts, stock:loadStock,
     gst:loadGST, dashboard:loadDashboard,
     labels:populateLabelProductSelect, settings:loadBizSettings,
-    customers:loadCustomers, fees:loadFeesTab, returns:loadReturns, filament:loadFilament, openorders:loadOpenOrders
+    customers:loadCustomers, fees:loadFeesTab, returns:loadReturns, filament:loadFilament, openorders:loadOpenOrders, expenses:loadExpenses
   };
   if(loaders[name]) loaders[name]();
   toggleNav(false);   // close mobile drawer after choosing a tab
@@ -2506,6 +2545,62 @@ async function loadOpenReorderAlert(){
     el.innerHTML=low.length?`<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;color:var(--red);font-size:12px;font-weight:600">⚠ Reorder filament: ${low.map(k=>esc(running[k])+' ('+(byColor[k]||0)+'/'+min+')').join(', ')}</div>`:'';
   }catch(_){ el.innerHTML=''; }
 }
+
+// ══════════════ EXPENSES & PURCHASES (B17) ══════════════
+let _expensesCache=[];
+async function loadExpenses(){
+  const mEl=document.getElementById('expMonth'); if(mEl&&!mEl.value) mEl.value=thisMonth();
+  const mo=(mEl&&mEl.value)||thisMonth();
+  const start=mo+'-01'; const [yy,mm]=mo.split('-').map(Number); const next=(mm===12)?`${yy+1}-01-01`:`${yy}-${String(mm+1).padStart(2,'0')}-01`;
+  const {data,error}=await sb.from('biz_expenses').select('*').gte('date',start).lt('date',next).order('date',{ascending:false});
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  const rows=data||[]; _expensesCache=rows;
+  const total=rows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const gst=rows.reduce((s,r)=>s+(parseFloat(r.gst_amount)||0),0);
+  const kpi=document.getElementById('expKpi');
+  if(kpi) kpi.innerHTML=`
+    <div class="kpi red"><div class="kpi-label">Total Expenses</div><div class="kpi-val">${fmt(total)}</div></div>
+    <div class="kpi"><div class="kpi-label">GST (input credit)</div><div class="kpi-val">${fmt(gst)}</div></div>
+    <div class="kpi"><div class="kpi-label">Entries</div><div class="kpi-val">${rows.length}</div></div>`;
+  const tbody=document.getElementById('expensesBody'); if(!tbody) return;
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="em-text">No expenses this month</div></div></td></tr>`; return; }
+  tbody.innerHTML=rows.map(r=>`<tr>
+    <td style="font-family:var(--mono);font-size:11px">${esc(r.date)}</td>
+    <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(r.category||'—')}</span></td>
+    <td>${esc(r.vendor||'—')}</td>
+    <td class="td-num" style="font-weight:700">${fmt(r.amount)}</td>
+    <td class="td-num" style="color:var(--text-3)">${fmt(r.gst_amount)}</td>
+    <td>${r.invoice_url?`<a href="${esc(r.invoice_url)}" target="_blank" rel="noopener" style="color:var(--accent)">view</a>`:'—'}</td>
+    <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="editExpense('${r.id}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteExpense('${r.id}')">✕</button></td>
+  </tr>`).join('');
+}
+function showAddExpense(){
+  const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};
+  ['ex_id','ex_vendor','ex_amount','ex_gst','ex_invoice','ex_notes'].forEach(id=>set(id,''));
+  set('ex_date',today()); document.getElementById('ex_category').value='materials'; document.getElementById('ex_payment').value='';
+  document.getElementById('expenseFormTitle').textContent='Add Expense';
+  const f=document.getElementById('expenseForm'); f.style.display='block'; f.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function editExpense(id){
+  const r=_expensesCache.find(x=>x.id===id); if(!r) return;
+  const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
+  set('ex_id',r.id); set('ex_date',r.date); set('ex_vendor',r.vendor); set('ex_amount',r.amount); set('ex_gst',r.gst_amount); set('ex_invoice',r.invoice_url); set('ex_notes',r.notes);
+  document.getElementById('ex_category').value=r.category||'other'; document.getElementById('ex_payment').value=r.payment_mode||'';
+  document.getElementById('expenseFormTitle').textContent='Edit Expense';
+  const f=document.getElementById('expenseForm'); f.style.display='block'; f.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function saveExpense(){
+  const g=k=>{const e=document.getElementById(k);return e?e.value:'';};
+  const id=g('ex_id');
+  const payload={ date:g('ex_date')||today(), category:g('ex_category'), vendor:g('ex_vendor').trim()||null,
+    amount:parseFloat(g('ex_amount'))||0, gst_amount:parseFloat(g('ex_gst'))||0, payment_mode:g('ex_payment')||null,
+    invoice_url:g('ex_invoice').trim()||null, notes:g('ex_notes').trim()||null };
+  if(!payload.amount){ toast('Enter an amount','error'); return; }
+  const {error}=id?await sb.from('biz_expenses').update(payload).eq('id',id):await sb.from('biz_expenses').insert(payload);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast(id?'Expense updated':'Expense added'); document.getElementById('expenseForm').style.display='none'; loadExpenses();
+}
+async function deleteExpense(id){ if(!confirm('Delete this expense?')) return; const {error}=await sb.from('biz_expenses').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} toast('Deleted'); loadExpenses(); }
 
 async function loadSalesBadge(){
   const {count}=await sb.from('biz_sales').select('*',{count:'exact',head:true}).eq('is_deleted',false);
