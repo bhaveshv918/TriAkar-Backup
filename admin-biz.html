@@ -1649,6 +1649,12 @@ tr:hover td{background:var(--bg-2)}
         </div>
 
         <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Returns Report</div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">Every return / claim with stage, net loss &amp; recovery</div>
+          <button class="btn btn-primary btn-sm" onclick="exportReturnsReport()">↓ Download Returns Excel</button>
+        </div>
+
+        <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
           <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Full Data Dump</div>
           <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">All sales, returns, stock movements in one Excel</div>
           <button class="btn btn-ghost btn-sm" onclick="exportAllExcel()" style="margin-top:28px">↓ Download Everything</button>
@@ -4083,16 +4089,64 @@ async function exportAllExcel(){
 }
 
 async function exportPLReport(){
-  const from=document.getElementById('plFrom').value; const to=document.getElementById('plTo').value;
+  const from=document.getElementById('plFrom').value, to=document.getElementById('plTo').value;
+  const fromD=from?from+'-01':'2000-01-01', toD=to?to+'-31':'2999-12-31';
   let q=sb.from('biz_pnl').select('*');
-  if(from) q=q.gte('order_date',from+'-01');
-  if(to) q=q.lte('order_date',to+'-31');
-  const {data}=await q;
-  if(!data||!data.length){ toast('No data for range','error'); return; }
+  if(from) q=q.gte('order_date',fromD);
+  if(to) q=q.lte('order_date',toD);
+  const {data:pnl}=await q;
+  const {data:exp}=await sb.from('biz_expenses').select('*').gte('date',fromD).lte('date',toD);
+  const {data:sales}=await sb.from('biz_sales').select('customer_name,product_name,selling_price,qty,cogs,gst_rate,platform_fee,shipping_fee,other_deductions,status,order_id').eq('is_deleted',false).gte('order_date',fromD).lte('order_date',toD);
+  const completed=(sales||[]).filter(s=>s.status==='completed');
+  const num=v=>+v||0;
+  const revenue=completed.reduce((s,r)=>s+num(r.selling_price),0);
+  const cogs=completed.reduce((s,r)=>s+num(r.cogs),0);
+  const gst=completed.reduce((s,r)=>s+(num(r.selling_price)-(num(r.selling_price)/(1+num(r.gst_rate)/100))),0);
+  const fees=completed.reduce((s,r)=>s+num(r.platform_fee)+num(r.shipping_fee)+num(r.other_deductions),0);
+  const grossProfit=revenue-cogs-gst-fees;
+  const totalExpenses=(exp||[]).reduce((s,r)=>s+num(r.amount),0);
+  const netProfit=grossProfit-totalExpenses;
+  // repeat-customer rate
+  const byCust={}; completed.forEach(s=>{ const n=(s.customer_name||'').trim().toLowerCase(); if(!n)return; (byCust[n]=byCust[n]||new Set()).add(s.order_id||s.product_name); });
+  const custs=Object.keys(byCust), repeat=custs.filter(n=>byCust[n].size>1).length;
+  const repeatRate=custs.length?Math.round(repeat/custs.length*1000)/10:0;
+  // top products
+  const pm={}; completed.forEach(s=>{ const p=s.product_name||'—'; (pm[p]=pm[p]||{qty:0,rev:0}); pm[p].qty+=num(s.qty); pm[p].rev+=num(s.selling_price); });
+  const top=Object.entries(pm).map(([Product,v])=>({Product,Qty:v.qty,Revenue:Math.round(v.rev)})).sort((a,b)=>b.Revenue-a.Revenue).slice(0,30);
+  const summary=[
+    {Metric:'Revenue (completed)',Value:Math.round(revenue)},
+    {Metric:'COGS',Value:Math.round(cogs)},
+    {Metric:'GST (in price)',Value:Math.round(gst)},
+    {Metric:'Platform/Ship/Other fees',Value:Math.round(fees)},
+    {Metric:'Gross Profit',Value:Math.round(grossProfit)},
+    {Metric:'Expenses',Value:Math.round(totalExpenses)},
+    {Metric:'NET PROFIT',Value:Math.round(netProfit)},
+    {Metric:'Repeat-customer rate %',Value:repeatRate},
+    {Metric:'Customers',Value:custs.length},
+  ];
   const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(data),'P&L');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(summary),'Summary');
+  if(pnl&&pnl.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(pnl),'P&L per sale');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(top.length?top:[{Product:'—'}]),'Top Products');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((exp&&exp.length)?exp:[{note:'No expenses in range'}]),'Expenses');
   XLSX.writeFile(wb,`triakar_pl_${from||'all'}_${to||'all'}.xlsx`);
   toast('P&L report downloaded');
+}
+
+// B13 — dedicated returns report
+async function exportReturnsReport(){
+  const {data}=await sb.from('biz_returns').select('*').order('date',{ascending:false});
+  if(!data||!data.length){ toast('No returns to export','error'); return; }
+  const rows=data.map(r=>({
+    Date:r.date, Channel:CH_NAMES[r.channel_id]||r.channel_id, Type:r.type, Stage:r.stage,
+    'Order ID':r.order_id||'', 'Net Loss':r.amount_lost||0, 'Return Ship':r.return_shipping_cost||0,
+    'Claim Filed':r.claim_filed_amount||0, 'Claim Approved':r.claim_approved_amount||0,
+    Status:r.status, Reason:r.reason||''
+  }));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),'Returns');
+  XLSX.writeFile(wb,`triakar_returns_${today()}.xlsx`);
+  toast('Returns report downloaded');
 }
 
 async function exportGSTReport(){
