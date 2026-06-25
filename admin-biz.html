@@ -357,7 +357,8 @@ tr:hover td{background:var(--bg-2)}
   <div class="mtopbar">
     <button class="mtopbar-btn" onclick="toggleNav()" aria-label="Menu">☰</button>
     <div class="mtopbar-title">TriĀkar · Business OS</div>
-    <button class="mtopbar-btn" id="bizThemeToggleM" onclick="toggleTheme()" aria-label="Toggle theme" style="margin-left:auto">🌙</button>
+    <button class="mtopbar-btn" onclick="refreshCurrentBizTab()" aria-label="Refresh" style="margin-left:auto">⟳</button>
+    <button class="mtopbar-btn" id="bizThemeToggleM" onclick="toggleTheme()" aria-label="Toggle theme">🌙</button>
   </div>
   <div class="nav-backdrop" id="navBackdrop" onclick="toggleNav(false)"></div>
 
@@ -369,6 +370,7 @@ tr:hover td{background:var(--bg-2)}
       <div style="display:flex;gap:10px;align-items:center;margin-top:6px">
         <a href="/admin.html" class="sb-back">← Admin</a>
         <button id="bizThemeToggle" onclick="toggleTheme()" title="Toggle dark / light" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;line-height:1">🌙</button>
+        <button onclick="refreshCurrentBizTab()" title="Refresh current tab" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text-3);padding:2px 4px;line-height:1">⟳</button>
         <button id="bizCollapseBtn" onclick="toggleBizSidebar()" title="Collapse / expand sidebar">‹‹</button>
       </div>
       <input type="text" id="bizSearch" placeholder="🔍 Search sales / products / customers" oninput="bizGlobalSearch(this.value)" onkeydown="if(event.key==='Escape')closeBizSearch()" autocomplete="off" style="width:100%;margin-top:10px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;outline:none">
@@ -1927,7 +1929,10 @@ async function startApp(){
 }
 
 // ── Tab switching ───────────────────────────────────────────
+let _curBizTab='openorders';
+function refreshCurrentBizTab(){ switchTab(_curBizTab); toast('Refreshed'); }
 function switchTab(name){
+  _curBizTab=name;
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel'+name.charAt(0).toUpperCase()+name.slice(1)));
   const loaders = {

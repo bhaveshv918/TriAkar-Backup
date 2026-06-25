@@ -823,6 +823,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="top-time" id="topTime"></div>
       <div class="top-status"><span class="pulse"></span> Admin Online</div>
       <a href="admin-biz.html" class="top-btn top-btn-biz" title="Open Business OS">◳ Business OS</a>
+      <button class="theme-toggle" onclick="refreshCurrentAdminTab()" title="Refresh current tab">⟳</button>
       <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
       <a href="index.html" class="top-btn">← Site</a>
       <button class="top-btn" onclick="doLogout()">Sign Out</button>
@@ -2232,7 +2233,13 @@ function closeAdminNav(){
   const sb=document.querySelector('.sidebar'); if(sb)sb.classList.remove('open');
   const bd=document.getElementById('navBackdrop'); if(bd)bd.classList.remove('show');
 }
+let _curAdminTab='dashboard';
+function refreshCurrentAdminTab(){
+  const m={dashboard:loadDashboard,orders:loadOrders,customers:loadCustomers,products:loadProducts,messages:loadMessages,enquiries:loadCustomEnquiries,callbacks:loadCallbacks,reviews:loadReviewsAdmin,recyclebin:loadRecycleBin,analytics:loadAnalytics,promo:loadPromoCodes,activity:loadActivity,content:loadContentSettings,categories:loadCategories,logs:loadLogs};
+  if(typeof m[_curAdminTab]==='function'){ try{ m[_curAdminTab](); toast('Refreshed','success'); }catch(e){} }
+}
 function switchTab(tab){
+  _curAdminTab=tab;
   closeAdminNav();
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
   ['Dashboard','Callbacks','Orders','Customers','Products','Makerworld','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo','Reviews','Appearance','Activity','Content'].forEach(p=>{
