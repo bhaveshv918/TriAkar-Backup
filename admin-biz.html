@@ -392,8 +392,11 @@ tr:hover td{background:var(--bg-2)}
     </button>
 
     <div class="sidebar-section">Finance</div>
+    <button class="tab" data-tab="returns" onclick="switchTab('returns')">
+      <span class="tab-icon">↩</span><span class="tab-label">Returns & Claims</span><span class="tab-badge" id="returnCount">—</span>
+    </button>
     <button class="tab" data-tab="fees" onclick="switchTab('fees')">
-      <span class="tab-icon">₹</span><span class="tab-label">Fees & Returns</span>
+      <span class="tab-icon">₹</span><span class="tab-label">Fees & Costs</span>
     </button>
     <button class="tab" data-tab="gst" onclick="switchTab('gst')">
       <span class="tab-icon">◊</span><span class="tab-label">GST Summary</span>
@@ -1401,6 +1404,78 @@ tr:hover td{background:var(--bg-2)}
     </div>
 
     <!-- ══════════════════════════════════════════════════════
+         RETURNS & CLAIMS (5.3)
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelReturns">
+      <div class="p-head">
+        <div><div class="p-title">Returns &amp; Claims</div><div class="p-sub">Track the return lifecycle and recompute order COGS / net loss</div></div>
+        <button class="btn btn-primary btn-sm" onclick="showAddReturn()">+ Log Return</button>
+      </div>
+      <div id="returnsKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
+      <div class="filter-bar">
+        <select id="rtChannel" onchange="loadReturns()"><option value="">All Channels</option><option value="shop">Studio</option><option value="amazon">Amazon</option><option value="flipkart">Flipkart</option><option value="website">Website</option></select>
+        <select id="rtType" onchange="loadReturns()"><option value="">All Types</option><option value="return">Return</option><option value="cancellation">Cancellation</option><option value="spf_claim">SPF Claim</option><option value="az_claim">A-Z Claim</option><option value="chargeback">Chargeback</option><option value="other">Other</option></select>
+        <select id="rtStatus" onchange="loadReturns()"><option value="">All Status</option><option value="pending">Pending</option><option value="won">Won</option><option value="lost">Lost</option><option value="partial">Partial</option></select>
+        <input type="month" id="rtMonth" onchange="loadReturns()">
+      </div>
+
+      <!-- Lifecycle form -->
+      <div id="returnForm" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px">
+        <input type="hidden" id="rf_id"><input type="hidden" id="rf_stage" value="initiated"><input type="hidden" id="rf_saleid"><input type="hidden" id="rf_lost">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px" id="returnFormTitle">Log Return</div>
+        <label class="chip-label">Stage</label>
+        <div class="qchips" id="rfStageChips" style="margin-bottom:14px">
+          <button type="button" class="qchip active" data-s="initiated" onclick="setReturnStage('initiated')">Initiated</button>
+          <button type="button" class="qchip" data-s="returning" onclick="setReturnStage('returning')">Returning to Seller</button>
+          <button type="button" class="qchip" data-s="received" onclick="setReturnStage('received')">Received</button>
+          <button type="button" class="qchip" data-s="claim_filed" onclick="setReturnStage('claim_filed')">Claim Filed</button>
+          <button type="button" class="qchip" data-s="claim_approved" onclick="setReturnStage('claim_approved')">Claim Approved</button>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label>Order ID</label><div style="display:flex;gap:6px"><input type="text" id="rf_orderid" style="flex:1;min-width:0" placeholder="match a sale"><button type="button" class="btn btn-ghost btn-sm" onclick="fetchReturnOrderCosts()" title="Pull costs from the sale">⤵</button></div></div>
+          <div class="form-group"><label>Channel</label><select id="rf_channel"><option value="shop">Studio</option><option value="amazon">Amazon</option><option value="flipkart">Flipkart</option><option value="website">Website</option></select></div>
+          <div class="form-group"><label>Type</label><select id="rf_type"><option value="return">Return</option><option value="cancellation">Cancellation</option><option value="spf_claim">SPF Claim</option><option value="az_claim">A-Z Claim</option><option value="chargeback">Chargeback</option><option value="other">Other</option></select></div>
+          <div class="form-group"><label>Initiated Date</label><input type="date" id="rf_date"></div>
+          <div class="form-group"><label>Received Date</label><input type="date" id="rf_received"></div>
+          <div class="form-group"><label>Claim Filed Date</label><input type="date" id="rf_claim_filed_date"></div>
+          <div class="form-group"><label>Claim Filed ₹</label><input type="number" id="rf_claim_filed_amount" step="0.01"></div>
+          <div class="form-group"><label>Claim Approved Date</label><input type="date" id="rf_claim_approved_date"></div>
+          <div class="form-group"><label>Claim Approved ₹</label><input type="number" id="rf_claim_approved_amount" step="0.01" oninput="recalcReturn()"></div>
+        </div>
+        <label class="chip-label" style="margin-top:12px">Order COGS components</label>
+        <div class="form-grid">
+          <div class="form-group"><label>Product Cost ₹</label><input type="number" id="rf_prod_cost" step="0.01" oninput="recalcReturn()"></div>
+          <div class="form-group"><label>Fwd Shipping ₹ <span style="color:var(--text-3);font-weight:400;text-transform:none">sunk</span></label><input type="number" id="rf_shipping" step="0.01" oninput="recalcReturn()"></div>
+          <div class="form-group"><label>Packing ₹ <span style="color:var(--text-3);font-weight:400;text-transform:none">sunk</span></label><input type="number" id="rf_packing" step="0.01" oninput="recalcReturn()"></div>
+          <div class="form-group"><label>Return Shipping ₹</label><input type="number" id="rf_return_ship" step="0.01" oninput="recalcReturn()"></div>
+          <div class="form-group" style="grid-column:span 2"><label>Adjusted Product Cost ₹ <span style="color:var(--text-3);font-weight:400;text-transform:none">— if damaged/unusable, else blank</span></label><input type="number" id="rf_prod_adjusted" step="0.01" placeholder="blank = use product cost" oninput="recalcReturn()"></div>
+        </div>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;margin:14px 0;padding:10px 14px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius)">
+          <div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3)">Recomputed COGS</div><div style="font-size:15px;font-weight:700" id="rf_calc_cogs">₹0</div></div>
+          <div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3)">Approved Claim</div><div style="font-size:15px;font-weight:700;color:var(--green)" id="rf_calc_claim">₹0</div></div>
+          <div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3)">Net Loss (after claim)</div><div style="font-size:16px;font-weight:700;color:var(--red)" id="rf_calc_loss">₹0</div></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label>Status</label><select id="rf_status"><option value="pending">Pending</option><option value="won">Won</option><option value="lost">Lost</option><option value="partial">Partial</option></select></div>
+          <div class="form-group"><label>Refund Given ₹</label><input type="number" id="rf_refund" step="0.01"></div>
+          <div class="form-group" style="grid-column:span 2"><label>Reason</label><input type="text" id="rf_reason"></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="rf_notes"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary btn-sm" onclick="saveReturn()">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('returnForm').style.display='none'">Cancel</button>
+        </div>
+      </div>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Channel</th><th>Type</th><th>Order</th><th>Stage</th><th class="td-num">Net Loss</th><th>Status</th><th class="td-actions"></th></tr></thead>
+          <tbody id="returnsBody"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+    </div><!-- /returns -->
+
+    <!-- ══════════════════════════════════════════════════════
          GST SUMMARY
     ═══════════════════════════════════════════════════════ -->
     <div class="panel" id="panelGst">
@@ -1675,7 +1750,7 @@ function switchTab(name){
     sales:loadSales, products:loadProducts, stock:loadStock,
     gst:loadGST, dashboard:loadDashboard,
     labels:populateLabelProductSelect, settings:loadBizSettings,
-    customers:loadCustomers, fees:loadFeesTab
+    customers:loadCustomers, fees:loadFeesTab, returns:loadReturns
   };
   if(loaders[name]) loaders[name]();
   toggleNav(false);   // close mobile drawer after choosing a tab
@@ -2819,89 +2894,113 @@ async function loadReturnsBadge(){
   el.textContent=count||0;
 }
 
+const RETURN_STAGES={initiated:'Initiated',returning:'Returning to Seller',received:'Received',claim_filed:'Claim Filed',claim_approved:'Claim Approved'};
+let _returnsCache=[];
 async function loadReturns(){
   let q=sb.from('biz_returns').select('*').order('date',{ascending:false}).limit(500);
-  const ch=document.getElementById('rtChannel').value;
-  const ty=document.getElementById('rtType').value;
-  const st=document.getElementById('rtStatus').value;
-  const mo=document.getElementById('rtMonth').value;
+  const v=id=>document.getElementById(id)?.value||'';
+  const ch=v('rtChannel'), ty=v('rtType'), st=v('rtStatus'), mo=v('rtMonth');
   if(ch) q=q.eq('channel_id',ch);
   if(ty) q=q.eq('type',ty);
   if(st) q=q.eq('status',st);
   if(mo){ q=q.gte('date',mo+'-01').lte('date',mo+'-31'); }
   const {data,error}=await q;
   if(error){ toast('Error: '+error.message,'error'); return; }
-  const rows=data||[];
-  _returnsCache=rows;
-  // KPIs
-  const totalLost=rows.reduce((s,r)=>s+r.amount_lost,0);
+  const rows=data||[]; _returnsCache=rows;
+  const totalLost=rows.reduce((s,r)=>s+(parseFloat(r.amount_lost)||0),0);
+  const recovered=rows.reduce((s,r)=>s+(parseFloat(r.claim_approved_amount)||0),0);
   const pending=rows.filter(r=>r.status==='pending').length;
-  document.getElementById('returnsKpi').innerHTML=`
-    <div class="kpi red"><div class="kpi-label">Total Lost</div><div class="kpi-val">${fmt(totalLost)}</div></div>
-    <div class="kpi yellow"><div class="kpi-label">Pending Claims</div><div class="kpi-val">${pending}</div></div>
-    <div class="kpi"><div class="kpi-label">Total Cases</div><div class="kpi-val">${rows.length}</div></div>`;
-  const tbody=document.getElementById('returnsBody');
-  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="9"><div class="empty"><div class="em-icon">↩</div><div class="em-text">No returns yet</div></div></td></tr>`; return; }
+  const kpi=document.getElementById('returnsKpi');
+  if(kpi) kpi.innerHTML=`
+    <div class="kpi red"><div class="kpi-label">Net Loss</div><div class="kpi-val">${fmt(totalLost)}</div></div>
+    <div class="kpi green"><div class="kpi-label">Claims Recovered</div><div class="kpi-val">${fmt(recovered)}</div></div>
+    <div class="kpi yellow"><div class="kpi-label">Pending</div><div class="kpi-val">${pending}</div></div>
+    <div class="kpi"><div class="kpi-label">Cases</div><div class="kpi-val">${rows.length}</div></div>`;
+  const tbody=document.getElementById('returnsBody'); if(!tbody) return;
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="em-icon">↩</div><div class="em-text">No returns yet</div></div></td></tr>`; return; }
   tbody.innerHTML=rows.map(r=>`<tr>
-    <td style="font-family:var(--mono);font-size:11px">${esc(r.date)}</td>
+    <td style="font-family:var(--mono);font-size:11px">${esc(r.date||'')}</td>
     <td>${chHtml(r.channel_id)}</td>
-    <td><span class="badge badge-${r.type==='return'?'returned':r.type==='cancellation'?'cancelled':'claimed'}">${esc(r.type.replace('_',' '))}</span></td>
+    <td><span class="badge badge-${r.type==='return'?'returned':r.type==='cancellation'?'cancelled':'claimed'}">${esc((r.type||'').replace('_',' '))}</span></td>
     <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(r.order_id||'—')}</td>
-    <td class="td-num" style="color:var(--red)">${fmt(r.amount_lost)}</td>
-    <td class="td-num">${fmt(r.refund_given)}</td>
+    <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(RETURN_STAGES[r.stage]||r.stage||'—')}</span></td>
+    <td class="td-num" style="color:var(--red);font-weight:700">${fmt(r.amount_lost)}</td>
     <td><span class="badge badge-${esc(r.status)}">${esc(r.status)}</span></td>
-    <td style="font-size:11px;color:var(--text-3)">${esc(r.reason||'—')}</td>
-    <td class="td-actions">
-      <button class="btn btn-ghost btn-sm" onclick="editReturn('${r.id}')">Edit</button>
-      <button class="btn btn-danger btn-sm" onclick="deleteReturn('${r.id}')">✕</button>
-    </td>
+    <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="editReturn('${r.id}')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteReturn('${r.id}')">✕</button></td>
   </tr>`).join('');
 }
-
+function setReturnStage(s){ const h=document.getElementById('rf_stage'); if(h) h.value=s; document.querySelectorAll('#rfStageChips .qchip').forEach(b=>b.classList.toggle('active',b.dataset.s===s)); }
+// 5.3 recompute: COGS = fwd ship (sunk) + return ship + packing (sunk) + (adjusted|orig product cost); net loss nets the approved claim
+function recalcReturn(){
+  const n=id=>parseFloat(document.getElementById(id)?.value)||0;
+  const adj=document.getElementById('rf_prod_adjusted');
+  const prod=(adj&&adj.value!=='')?n('rf_prod_adjusted'):n('rf_prod_cost');
+  const cogs=n('rf_shipping')+n('rf_return_ship')+n('rf_packing')+prod;
+  const claim=n('rf_claim_approved_amount');
+  const loss=Math.max(0,cogs-claim);
+  const S=(id,val)=>{const e=document.getElementById(id);if(e)e.textContent=val;};
+  S('rf_calc_cogs',fmt(cogs)); S('rf_calc_claim',fmt(claim)); S('rf_calc_loss',fmt(loss));
+  const h=document.getElementById('rf_lost'); if(h) h.value=loss.toFixed(2);
+}
 function showAddReturn(){
-  document.getElementById('rf_id').value='';
-  ['rf_channel','rf_type','rf_orderid','rf_reason','rf_notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('rf_lost').value='0';
-  document.getElementById('rf_refund').value='0';
-  document.getElementById('rf_status').value='pending';
-  document.getElementById('rf_date').value=today();
-  document.getElementById('returnForm').style.display='block';
-  document.getElementById('returnForm').scrollIntoView({behavior:'smooth',block:'start'});
+  const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};
+  ['rf_id','rf_saleid','rf_orderid','rf_reason','rf_notes','rf_received','rf_claim_filed_date','rf_claim_approved_date',
+   'rf_claim_filed_amount','rf_claim_approved_amount','rf_return_ship','rf_prod_cost','rf_shipping','rf_packing','rf_refund','rf_prod_adjusted']
+    .forEach(id=>set(id,''));
+  set('rf_channel','shop'); set('rf_type','return'); set('rf_status','pending'); set('rf_date',today());
+  setReturnStage('initiated'); recalcReturn();
+  document.getElementById('returnFormTitle').textContent='Log Return';
+  const f=document.getElementById('returnForm'); f.style.display='block'; f.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function editReturn(id){
   const r=_returnsCache.find(x=>x.id===id); if(!r) return;
-  document.getElementById('rf_id').value=r.id;
-  document.getElementById('rf_channel').value=r.channel_id||'';
-  document.getElementById('rf_type').value=r.type||'return';
-  document.getElementById('rf_orderid').value=r.order_id||'';
-  document.getElementById('rf_date').value=r.date||today();
-  document.getElementById('rf_lost').value=r.amount_lost||0;
-  document.getElementById('rf_refund').value=r.refund_given||0;
-  document.getElementById('rf_status').value=r.status||'pending';
-  document.getElementById('rf_reason').value=r.reason||'';
-  document.getElementById('rf_notes').value=r.notes||'';
-  document.getElementById('returnForm').style.display='block';
-  document.getElementById('returnForm').scrollIntoView({behavior:'smooth',block:'start'});
+  const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
+  set('rf_id',r.id); set('rf_saleid',r.sale_id||''); set('rf_channel',r.channel_id||'shop'); set('rf_type',r.type||'return');
+  set('rf_orderid',r.order_id||''); set('rf_date',r.date||today()); set('rf_received',r.received_date);
+  set('rf_claim_filed_date',r.claim_filed_date); set('rf_claim_filed_amount',r.claim_filed_amount);
+  set('rf_claim_approved_date',r.claim_approved_date); set('rf_claim_approved_amount',r.claim_approved_amount);
+  set('rf_return_ship',r.return_shipping_cost); set('rf_prod_cost',r.orig_product_cost); set('rf_shipping',r.orig_shipping);
+  set('rf_packing',r.orig_packing); set('rf_prod_adjusted',r.product_cost_adjusted); set('rf_status',r.status||'pending');
+  set('rf_refund',r.refund_given||0); set('rf_reason',r.reason); set('rf_notes',r.notes);
+  setReturnStage(r.stage||'initiated'); recalcReturn();
+  document.getElementById('returnFormTitle').textContent='Edit Return';
+  const f=document.getElementById('returnForm'); f.style.display='block'; f.scrollIntoView({behavior:'smooth',block:'start'});
 }
-async function deleteReturn(id){ if(!confirm('Delete?')) return; await sb.from('biz_returns').delete().eq('id',id); toast('Deleted'); loadReturns(); loadReturnsBadge(); }
-
+async function fetchReturnOrderCosts(){
+  const oid=document.getElementById('rf_orderid').value.trim(); if(!oid){ toast('Enter an order ID first','error'); return; }
+  let rows=(typeof _salesCache!=='undefined'?_salesCache:[]).filter(s=>s.order_id===oid);
+  if(!rows.length){ const {data}=await sb.from('biz_sales').select('*').eq('order_id',oid).limit(20); rows=data||[]; }
+  if(!rows.length){ toast('No sale found for that order ID','error'); return; }
+  const sum=k=>rows.reduce((a,s)=>a+(parseFloat(s[k])||0),0);
+  document.getElementById('rf_prod_cost').value=sum('cogs')||'';
+  document.getElementById('rf_shipping').value=sum('shipping_fee')||'';
+  document.getElementById('rf_packing').value=sum('other_deductions')||'';
+  document.getElementById('rf_saleid').value=rows[0].id;
+  document.getElementById('rf_channel').value=rows[0].channel_id||'shop';
+  recalcReturn(); toast('Pulled costs from sale');
+}
+async function deleteReturn(id){ if(!confirm('Delete this return record?')) return; const {error}=await sb.from('biz_returns').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} toast('Deleted'); loadReturns(); loadReturnsBadge(); }
 async function saveReturn(){
+  recalcReturn();
   const id=document.getElementById('rf_id').value;
+  const g=k=>{const e=document.getElementById(k);return e?e.value:'';};
+  const num=k=>{const val=g(k);return val===''?null:(parseFloat(val)||0);};
   const payload={
-    channel_id:document.getElementById('rf_channel').value,
-    type:document.getElementById('rf_type').value,
-    order_id:document.getElementById('rf_orderid').value.trim()||null,
-    date:document.getElementById('rf_date').value,
-    amount_lost:parseFloat(document.getElementById('rf_lost').value)||0,
-    refund_given:parseFloat(document.getElementById('rf_refund').value)||0,
-    status:document.getElementById('rf_status').value,
-    reason:document.getElementById('rf_reason').value.trim()||null,
-    notes:document.getElementById('rf_notes').value.trim()||null,
+    sale_id:g('rf_saleid')||null, channel_id:g('rf_channel'), type:g('rf_type'),
+    order_id:g('rf_orderid').trim()||null, date:g('rf_date')||today(), stage:g('rf_stage')||'initiated',
+    received_date:g('rf_received')||null,
+    claim_filed_date:g('rf_claim_filed_date')||null, claim_filed_amount:num('rf_claim_filed_amount'),
+    claim_approved_date:g('rf_claim_approved_date')||null, claim_approved_amount:num('rf_claim_approved_amount'),
+    return_shipping_cost:num('rf_return_ship')||0,
+    orig_product_cost:num('rf_prod_cost'), orig_shipping:num('rf_shipping'), orig_packing:num('rf_packing'),
+    product_cost_adjusted:num('rf_prod_adjusted'),
+    amount_lost:parseFloat(g('rf_lost'))||0, refund_given:num('rf_refund')||0,
+    status:g('rf_status'), reason:g('rf_reason').trim()||null, notes:g('rf_notes').trim()||null,
   };
   if(!payload.channel_id||!payload.type){ toast('Channel and type required','error'); return; }
   const {error}=id?await sb.from('biz_returns').update(payload).eq('id',id):await sb.from('biz_returns').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
-  toast(id?'Updated':'Saved');
+  toast(id?'Return updated':'Return logged');
   document.getElementById('returnForm').style.display='none';
   loadReturns(); loadReturnsBadge();
 }
