@@ -167,7 +167,7 @@ tr:hover td{background:var(--bg-2)}
 
 /* ── Items line grid (Add Sale) ───────────────────────────── */
 .items-wrap{border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-1);overflow-x:auto;-webkit-overflow-scrolling:touch;box-shadow:var(--shadow)}
-.items-grid{display:grid;grid-template-columns:minmax(150px,1.8fr) 52px 86px 70px 64px 78px 92px 32px;align-items:center;min-width:640px}
+.items-grid{display:grid;grid-template-columns:30px minmax(140px,1.6fr) 48px 84px 64px 58px 74px 62px 90px 30px;align-items:center;min-width:760px;gap:6px}
 .items-head{background:var(--bg-2);font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-3);padding:8px 10px}
 .items-head .r{text-align:right}
 .item-row{border-top:1px solid var(--border);padding:7px 10px;gap:6px}
@@ -199,6 +199,25 @@ tr:hover td{background:var(--bg-2)}
 .seg-btn{flex:1;min-width:96px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-2);color:var(--text-2);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
 .seg-btn:hover{border-color:var(--border-h)}
 .seg-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 1px 2px rgba(16,32,24,.18)}
+/* Interactive quick-select chips (status / lead source / fulfillment) */
+.chip-label{display:block;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:6px}
+.qchips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.qchip{padding:7px 12px;border:1px solid var(--border);border-radius:20px;background:var(--bg-2);color:var(--text-2);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.qchip:hover{border-color:var(--border-h)}
+.qchip.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 1px 2px rgba(16,32,24,.18)}
+/* Status chips get their own colour so the stage is recognisable at a glance */
+.qchip[data-s="pending"].active{background:#6b7280;border-color:#6b7280}
+.qchip[data-s="processing"].active{background:#2563eb;border-color:#2563eb}
+.qchip[data-s="dispatched"].active{background:#7c3aed;border-color:#7c3aed}
+.qchip[data-s="delivered"].active{background:#0891b2;border-color:#0891b2}
+.qchip[data-s="completed"].active{background:#16a34a;border-color:#16a34a}
+.qchip[data-s="returned"].active{background:#d97706;border-color:#d97706}
+.qchip[data-s="cancelled"].active{background:#dc2626;border-color:#dc2626}
+/* Drag handle / serial cell on item rows */
+.item-row .srl{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--text-3);cursor:grab;user-select:none}
+.item-row .srl:active{cursor:grabbing}
+.item-row.dragging{opacity:.45}
+.item-row.drag-over{border-top:2px solid var(--accent)}
 
 /* ── Import dropzone ──────────────────────────────────────── */
 .dropzone{border:1.5px dashed var(--border-h);border-radius:var(--radius);padding:32px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px}
@@ -497,7 +516,7 @@ tr:hover td{background:var(--bg-2)}
             <input type="date" id="qa_date">
           </div>
           <div class="form-group">
-            <label>Delivery Date</label>
+            <label>Promised Date</label>
             <input type="date" id="qa_delivery_date">
           </div>
           <div class="form-group">
@@ -518,14 +537,77 @@ tr:hover td{background:var(--bg-2)}
               <option value="online">Online / Prepaid</option>
             </select>
           </div>
+        </div>
+
+        <!-- ── Status / Lead / Fulfillment — quick-select chips ── -->
+        <div style="display:grid;gap:12px;margin:6px 0 16px">
+          <div>
+            <label class="chip-label">Order Status</label>
+            <div class="qchips" id="qaStatusChips">
+              <button type="button" class="qchip active" data-s="pending"    onclick="setQaStatus('pending')">Pending</button>
+              <button type="button" class="qchip" data-s="processing" onclick="setQaStatus('processing')">Processing</button>
+              <button type="button" class="qchip" data-s="dispatched" onclick="setQaStatus('dispatched')">Dispatched</button>
+              <button type="button" class="qchip" data-s="delivered"  onclick="setQaStatus('delivered')">Delivered</button>
+              <button type="button" class="qchip" data-s="completed"  onclick="setQaStatus('completed')">Completed</button>
+              <span style="width:1px;height:22px;background:var(--border);margin:0 4px"></span>
+              <button type="button" class="qchip" data-s="returned"  onclick="setQaStatus('returned')">Returned</button>
+              <button type="button" class="qchip" data-s="cancelled" onclick="setQaStatus('cancelled')">Cancelled</button>
+            </div>
+            <input type="hidden" id="qa_status" value="pending">
+          </div>
+          <div>
+            <label class="chip-label">Lead Source</label>
+            <div class="qchips" id="qaLeadChips">
+              <button type="button" class="qchip" data-v="studio_walkin" onclick="setLeadSource('studio_walkin')">Studio Walk-in</button>
+              <button type="button" class="qchip" data-v="whatsapp" onclick="setLeadSource('whatsapp')">WhatsApp</button>
+              <button type="button" class="qchip" data-v="google" onclick="setLeadSource('google')">Google</button>
+              <button type="button" class="qchip" data-v="instagram" onclick="setLeadSource('instagram')">Instagram</button>
+              <button type="button" class="qchip" data-v="referral" onclick="setLeadSource('referral')">Referral</button>
+              <button type="button" class="qchip" data-v="other" onclick="setLeadSource('other')">Other</button>
+            </div>
+            <input type="hidden" id="qa_lead_source" value="">
+          </div>
+          <div>
+            <label class="chip-label">Delivery / Pickup</label>
+            <div class="qchips" id="qaFulfilChips">
+              <button type="button" class="qchip active" data-v="delivery" onclick="setFulfillment('delivery')">🚚 Delivery</button>
+              <button type="button" class="qchip" data-v="pickup_self" onclick="setFulfillment('pickup_self')">🧍 Pickup — Self</button>
+              <button type="button" class="qchip" data-v="pickup_porter" onclick="setFulfillment('pickup_porter')">🛵 Pickup — Porter</button>
+              <button type="button" class="qchip" data-v="pickup_other" onclick="setFulfillment('pickup_other')">Pickup — Other</button>
+              <input type="text" id="qa_fulfil_other" placeholder="specify…" oninput="onFulfilOther(this.value)" style="display:none;max-width:150px;padding:6px 12px;background:var(--bg-2);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:12px">
+            </div>
+            <input type="hidden" id="qa_fulfillment" value="delivery">
+            <input type="hidden" id="qa_fulfillment_detail" value="">
+          </div>
+        </div>
+
+        <!-- ── Customer & Address (moved above items) ── -->
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin:4px 0 8px">Customer &amp; Address</div>
+        <div class="form-grid" style="margin-bottom:16px">
           <div class="form-group">
-            <label>Order Status</label>
-            <select id="qa_status">
-              <option value="completed">Completed</option>
-              <option value="returned">Returned</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="claimed">Claimed</option>
-            </select>
+            <label>Customer Name</label>
+            <input type="text" id="qa_cname" placeholder="Type — existing customers autofill" list="customerList" oninput="onCustomerName(this.value)" autocomplete="off">
+            <datalist id="customerList"></datalist>
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" id="qa_phone" placeholder="Mobile number">
+          </div>
+          <div class="form-group" style="grid-column:span 2">
+            <label>Full Address</label>
+            <input type="text" id="qa_address" placeholder="House / street / area / landmark">
+          </div>
+          <div class="form-group">
+            <label>City</label>
+            <input type="text" id="qa_city" placeholder="City">
+          </div>
+          <div class="form-group">
+            <label>State</label>
+            <input type="text" id="qa_state" placeholder="Type state…" list="stateList">
+          </div>
+          <div class="form-group">
+            <label>Pincode</label>
+            <input type="text" id="qa_pin" placeholder="6-digit pincode" maxlength="6" inputmode="numeric">
           </div>
         </div>
 
@@ -536,12 +618,14 @@ tr:hover td{background:var(--bg-2)}
         </div>
         <div class="items-wrap">
           <div class="items-grid items-head">
+            <div class="r">#</div>
             <div>Item</div>
             <div class="r">Qty</div>
-            <div class="r">Rate ₹<br><span style="font-weight:400;text-transform:none;letter-spacing:0">incl GST</span></div>
+            <div class="r" title="Rate including GST">Rate ₹</div>
             <div class="r">Disc ₹</div>
             <div class="r">GST %</div>
             <div class="r">Cost ₹</div>
+            <div class="r" title="Filament grams used (auto-fills from product)">Grams</div>
             <div class="r">Amount</div>
             <div></div>
           </div>
@@ -619,59 +703,30 @@ tr:hover td{background:var(--bg-2)}
           </div>
         </details>
 
-        <!-- ── Customer (collapsible — skip it for quick studio/offline sales) ── -->
-        <details style="margin-bottom:12px">
-          <summary style="cursor:pointer;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);padding:6px 0;user-select:none">Customer &amp; Address <span style="font-weight:400;text-transform:none;letter-spacing:0">— optional</span></summary>
-        <div class="form-grid" style="margin-top:10px;margin-bottom:0">
-          <div class="form-group">
-            <label>Customer Name</label>
-            <input type="text" id="qa_cname" placeholder="Type — existing customers autofill" list="customerList" oninput="onCustomerName(this.value)" autocomplete="off">
-            <datalist id="customerList"></datalist>
-          </div>
-          <div class="form-group">
-            <label>Phone</label>
-            <input type="tel" id="qa_phone" placeholder="Mobile number">
-          </div>
-          <div class="form-group" style="grid-column:span 2">
-            <label>Full Address</label>
-            <input type="text" id="qa_address" placeholder="House / street / area / landmark">
-          </div>
-          <div class="form-group">
-            <label>City</label>
-            <input type="text" id="qa_city" placeholder="City">
-          </div>
-          <div class="form-group">
-            <label>State</label>
-            <input type="text" id="qa_state" placeholder="Type state…" list="stateList">
-            <datalist id="stateList">
-              <option value="Andhra Pradesh"><option value="Arunachal Pradesh"><option value="Assam">
-              <option value="Bihar"><option value="Chhattisgarh"><option value="Goa"><option value="Gujarat">
-              <option value="Haryana"><option value="Himachal Pradesh"><option value="Jharkhand">
-              <option value="Karnataka"><option value="Kerala"><option value="Madhya Pradesh">
-              <option value="Maharashtra"><option value="Manipur"><option value="Meghalaya">
-              <option value="Mizoram"><option value="Nagaland"><option value="Odisha"><option value="Punjab">
-              <option value="Rajasthan"><option value="Sikkim"><option value="Tamil Nadu">
-              <option value="Telangana"><option value="Tripura"><option value="Uttar Pradesh">
-              <option value="Uttarakhand"><option value="West Bengal"><option value="Delhi">
-              <option value="Jammu and Kashmir"><option value="Ladakh">
-            </datalist>
-          </div>
-          <div class="form-group">
-            <label>Pincode</label>
-            <input type="text" id="qa_pin" placeholder="6-digit pincode" maxlength="6" inputmode="numeric">
-          </div>
-        </div>
-        </details>
+        <!-- stateList datalist kept here for the relocated Customer State input above -->
+        <datalist id="stateList">
+          <option value="Andhra Pradesh"><option value="Arunachal Pradesh"><option value="Assam">
+          <option value="Bihar"><option value="Chhattisgarh"><option value="Goa"><option value="Gujarat">
+          <option value="Haryana"><option value="Himachal Pradesh"><option value="Jharkhand">
+          <option value="Karnataka"><option value="Kerala"><option value="Madhya Pradesh">
+          <option value="Maharashtra"><option value="Manipur"><option value="Meghalaya">
+          <option value="Mizoram"><option value="Nagaland"><option value="Odisha"><option value="Punjab">
+          <option value="Rajasthan"><option value="Sikkim"><option value="Tamil Nadu">
+          <option value="Telangana"><option value="Tripura"><option value="Uttar Pradesh">
+          <option value="Uttarakhand"><option value="West Bengal"><option value="Delhi">
+          <option value="Jammu and Kashmir"><option value="Ladakh">
+        </datalist>
 
         <div class="form-group" style="margin-bottom:16px">
           <label>Notes</label>
           <textarea id="qa_notes" rows="2" placeholder="Any extra notes…" style="resize:vertical"></textarea>
         </div>
 
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button type="submit" class="btn btn-primary">Save Sale</button>
-          <button type="button" class="btn btn-ghost" onclick="saveAndPrint()">Save & Invoice</button>
-          <button type="button" class="btn btn-ghost" onclick="resetQuickAdd()">Clear</button>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button type="submit" class="btn" style="background:#16a34a;color:#fff">💾 Save Sale</button>
+          <button type="button" class="btn" style="background:#2563eb;color:#fff" onclick="saveOrderRecord()">📋 Save Order Record</button>
+          <button type="button" class="btn" style="background:var(--accent);color:#fff" onclick="saveAndPrint()">🧾 Make Invoice</button>
+          <button type="button" class="btn btn-ghost" onclick="resetQuickAdd()">✕ Clear</button>
         </div>
       </form>
     </div><!-- /quickadd -->
@@ -692,56 +747,89 @@ tr:hover td{background:var(--bg-2)}
           <button class="btn btn-ghost btn-sm" onclick="openRecycleBin()" title="Recycle Bin">🗑️</button>
         </div>
       </div>
-      <div class="filter-bar">
-        <select id="sfChannel" onchange="loadSales()">
-          <option value="">All Channels</option>
-          <option value="shop">Studio</option>
-          <option value="amazon">Amazon</option>
-          <option value="flipkart">Flipkart</option>
-          <option value="website">Website</option>
-        </select>
-        <select id="sfStatus" onchange="loadSales()">
-          <option value="">All Status</option>
-          <option value="completed">Completed</option>
-          <option value="returned">Returned</option>
-          <option value="cancelled">Cancelled</option>
-          <option value="claimed">Claimed</option>
-        </select>
-        <select id="sfPayment" onchange="loadSales()">
-          <option value="">All Payments</option>
-          <option value="upi">UPI</option>
-          <option value="bharatpe">BharatPe</option>
-          <option value="ca_sbi">C/A — SBI</option>
-          <option value="ca_karur">C/A — Karur Vysya</option>
-          <option value="razorpay">Razorpay</option>
-          <option value="cash">Cash</option>
-          <option value="card">Card</option>
-          <option value="cod">COD</option>
-          <option value="online">Online / Prepaid</option>
-        </select>
-        <select id="sfPaid" onchange="loadSales()">
-          <option value="">Paid &amp; Unpaid</option>
-          <option value="1">Paid only</option>
-          <option value="0">Unpaid only</option>
-        </select>
-        <input type="month" id="sfMonth" onchange="loadSales()" title="Month">
-        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-3)">From <input type="date" id="sfFrom" onchange="loadSales()"></label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-3)">To <input type="date" id="sfTo" onchange="loadSales()"></label>
-        <select id="sfSort" onchange="loadSales()">
-          <option value="date_desc">Newest first</option>
-          <option value="date_asc">Oldest first</option>
-          <option value="price_desc">Price: high → low</option>
-          <option value="price_asc">Price: low → high</option>
-        </select>
-        <input type="text" id="sfSearch" placeholder="Search order / product / buyer…" oninput="loadSales()" style="min-width:170px">
+      <!-- One search box + a single Filters toggle (B4) -->
+      <div class="filter-bar" style="align-items:center">
+        <input type="text" id="sfSearch" placeholder="Search order / product / customer…" oninput="loadSales()" style="min-width:200px;flex:1">
+        <button class="btn btn-ghost btn-sm" id="sfToggleBtn" onclick="toggleSalesFilters()">⚙ Filters<span id="sfActiveCount" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:6px">0</span></button>
         <button class="btn btn-ghost btn-sm" onclick="clearSalesFilters()">Clear</button>
+      </div>
+      <div id="salesFilters" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Channel</label>
+            <select id="sfChannel" onchange="loadSales()">
+              <option value="">All Channels</option>
+              <option value="shop">Studio</option>
+              <option value="amazon">Amazon</option>
+              <option value="flipkart">Flipkart</option>
+              <option value="website">Website</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="sfStatus" onchange="loadSales()">
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="processing">Processing</option>
+              <option value="dispatched">Dispatched</option>
+              <option value="delivered">Delivered</option>
+              <option value="completed">Completed</option>
+              <option value="returned">Returned</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="claimed">Claimed</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Payment</label>
+            <select id="sfPayment" onchange="loadSales()">
+              <option value="">All Payments</option>
+              <option value="upi">UPI</option>
+              <option value="bharatpe">BharatPe</option>
+              <option value="ca_sbi">C/A — SBI</option>
+              <option value="ca_karur">C/A — Karur Vysya</option>
+              <option value="razorpay">Razorpay</option>
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
+              <option value="cod">COD</option>
+              <option value="online">Online / Prepaid</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Paid?</label>
+            <select id="sfPaid" onchange="loadSales()">
+              <option value="">Paid &amp; Unpaid</option>
+              <option value="1">Paid only</option>
+              <option value="0">Unpaid only</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Month</label><input type="month" id="sfMonth" onchange="loadSales()"></div>
+          <div class="form-group"><label>From</label><input type="date" id="sfFrom" onchange="loadSales()"></div>
+          <div class="form-group"><label>To</label><input type="date" id="sfTo" onchange="loadSales()"></div>
+          <div class="form-group">
+            <label>Sort</label>
+            <select id="sfSort" onchange="loadSales()">
+              <option value="date_desc">Newest first</option>
+              <option value="date_asc">Oldest first</option>
+              <option value="price_desc">Price: high → low</option>
+              <option value="price_asc">Price: low → high</option>
+            </select>
+          </div>
+        </div>
       </div>
       <!-- Bulk action bar — shown only when rows are selected -->
       <div id="bulkBar" style="display:none;background:var(--accent);color:#fff;border-radius:7px;padding:10px 16px;margin-bottom:10px;display:none;align-items:center;gap:10px;flex-wrap:wrap">
         <span id="bulkCount" style="font-size:12px;font-weight:700;margin-right:4px">0 selected</span>
         <button class="btn btn-sm" onclick="bulkMarkPaid()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">✓ Mark Paid</button>
-        <button class="btn btn-sm" onclick="bulkMarkStatus('returned')" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">↩ Mark Return</button>
-        <button class="btn btn-sm" onclick="bulkMarkStatus('cancelled')" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">✕ Cancel</button>
+        <select onchange="if(this.value){bulkMarkStatus(this.value);this.value='';}" title="Set status for selected" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;font-size:11px;padding:5px 8px;cursor:pointer">
+          <option value="" style="color:#111">↻ Set status…</option>
+          <option value="pending" style="color:#111">Pending</option>
+          <option value="processing" style="color:#111">Processing</option>
+          <option value="dispatched" style="color:#111">Dispatched</option>
+          <option value="delivered" style="color:#111">Delivered</option>
+          <option value="completed" style="color:#111">Completed</option>
+          <option value="returned" style="color:#111">Returned</option>
+          <option value="cancelled" style="color:#111">Cancelled</option>
+        </select>
         <button class="btn btn-sm" onclick="bulkExport()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">↓ Export Selected</button>
         <button class="btn btn-sm" onclick="bulkDelete()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2);margin-left:auto">🗑 Delete</button>
       </div>
@@ -758,42 +846,87 @@ tr:hover td{background:var(--bg-2)}
             <th class="td-num">Qty</th>
             <th class="td-num">Price</th>
             <th>Status</th>
-            <th>Paid</th>
             <th style="width:24px"></th>
           </tr></thead>
           <tbody id="salesBody"></tbody>
         </table>
       </div>
+
+      <!-- Order Detail Modal — blurred backdrop, Prev/Next (B4 / A5 pattern) -->
+      <div id="orderDetailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:1000;overflow-y:auto;padding:20px" onclick="if(event.target===this)closeOrderDetail()">
+        <div style="max-width:700px;margin:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.4);overflow:hidden">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg-2)">
+            <div style="font-size:13px;font-weight:700" id="odTitle">Order</div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <button class="btn btn-ghost btn-sm" id="odPrev" onclick="orderDetailNav(-1)" title="Previous order">‹ Prev</button>
+              <button class="btn btn-ghost btn-sm" id="odNext" onclick="orderDetailNav(1)" title="Next order">Next ›</button>
+              <button onclick="closeOrderDetail()" style="background:none;border:none;color:var(--text-3);font-size:18px;cursor:pointer;padding:0 4px">✕</button>
+            </div>
+          </div>
+          <div id="orderDetailBody"></div>
+        </div>
+      </div>
+
       <!-- Edit Sale Modal -->
       <div id="editSaleModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;overflow-y:auto;padding:20px">
-        <div style="max-width:560px;margin:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:20px">
+        <div style="max-width:720px;margin:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:20px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
             <div style="font-size:14px;font-weight:700">Edit Sale</div>
             <button onclick="closeEditSale()" style="background:none;border:none;color:var(--text-3);font-size:18px;cursor:pointer">✕</button>
           </div>
           <input type="hidden" id="es_id">
           <div class="form-grid">
-            <div class="form-group"><label>Product Name</label><input type="text" id="es_product"></div>
-            <div class="form-group"><label>Order ID (Platform)</label><input type="text" id="es_orderid"></div>
-            <div class="form-group"><label>Order Date</label><input type="date" id="es_date"></div>
-            <div class="form-group"><label>Ship Date</label><input type="date" id="es_dispatch"></div>
-            <div class="form-group"><label>Delivery Date</label><input type="date" id="es_delivery"></div>
-            <div class="form-group"><label>Qty</label><input type="number" id="es_qty"></div>
-            <div class="form-group"><label>Selling Price (₹)</label><input type="number" id="es_price" step="0.01"></div>
-            <div class="form-group"><label>COGS (₹)</label><input type="number" id="es_cogs" step="0.01"></div>
-            <div class="form-group"><label>Customer Name</label><input type="text" id="es_cname"></div>
-            <div class="form-group"><label>Tracking Number</label><input type="text" id="es_tracking"></div>
-            <div class="form-group"><label>Payment Mode</label>
-              <select id="es_payment"><option value="">—</option><option>COD</option><option>Prepaid</option><option>UPI</option><option>Cash</option><option>BharatPe</option><option>Razorpay</option></select>
+            <div class="form-group"><label>Channel</label>
+              <select id="es_channel"><option value="shop">🏠 Studio / Offline</option><option value="amazon">📦 Amazon</option><option value="flipkart">🛍️ Flipkart</option><option value="website">🌐 Website</option></select>
             </div>
+            <div class="form-group"><label>Order ID (Platform)</label><input type="text" id="es_orderid"></div>
+            <div class="form-group" style="grid-column:span 2"><label>Product Name</label><input type="text" id="es_product"></div>
+            <div class="form-group"><label>Variant</label><input type="text" id="es_variant" placeholder="size / colour"></div>
+            <div class="form-group"><label>HSN</label><input type="text" id="es_hsn" placeholder="3926"></div>
+            <div class="form-group"><label>Qty</label><input type="number" id="es_qty" min="1"></div>
+            <div class="form-group"><label>Selling Price ₹ (incl GST)</label><input type="number" id="es_price" step="0.01"></div>
+            <div class="form-group"><label>Discount ₹</label><input type="number" id="es_disc" step="0.01"></div>
+            <div class="form-group"><label>GST %</label>
+              <select id="es_gst"><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select>
+            </div>
+            <div class="form-group"><label>COGS ₹</label><input type="number" id="es_cogs" step="0.01"></div>
+            <div class="form-group"><label>Filament Grams</label><input type="number" id="es_grams" step="1" min="0"></div>
+            <div class="form-group"><label>Platform Fee ₹</label><input type="number" id="es_platformfee" step="0.01"></div>
+            <div class="form-group"><label>Shipping Cost ₹</label><input type="number" id="es_shipping" step="0.01"></div>
+            <div class="form-group"><label>Order Date</label><input type="date" id="es_date"></div>
+            <div class="form-group"><label>Promised Date</label><input type="date" id="es_delivery"></div>
+            <div class="form-group"><label>Dispatch Date</label><input type="date" id="es_dispatch"></div>
             <div class="form-group"><label>Status</label>
               <select id="es_status">
+                <option value="pending">Pending</option>
+                <option value="processing">Processing</option>
+                <option value="dispatched">Dispatched</option>
+                <option value="delivered">Delivered</option>
                 <option value="completed">Completed</option>
                 <option value="returned">Returned</option>
                 <option value="cancelled">Cancelled</option>
                 <option value="claimed">Claimed (A-Z / SPF)</option>
               </select>
             </div>
+            <div class="form-group"><label>Payment Mode</label>
+              <select id="es_payment"><option value="">—</option><option value="upi">UPI</option><option value="bharatpe">BharatPe</option><option value="ca_sbi">C/A — SBI</option><option value="ca_karur">C/A — Karur Vysya</option><option value="razorpay">Razorpay</option><option value="cash">Cash</option><option value="card">Card</option><option value="cod">COD</option><option value="online">Online / Prepaid</option></select>
+            </div>
+            <div class="form-group"><label>Lead Source</label>
+              <select id="es_lead"><option value="">—</option><option value="studio_walkin">Studio Walk-in</option><option value="whatsapp">WhatsApp</option><option value="google">Google</option><option value="instagram">Instagram</option><option value="referral">Referral</option><option value="other">Other</option></select>
+            </div>
+            <div class="form-group"><label>Fulfillment</label>
+              <select id="es_fulfillment"><option value="">—</option><option value="delivery">Delivery</option><option value="pickup">Pickup</option></select>
+            </div>
+            <div class="form-group"><label>Courier</label><input type="text" id="es_courier"></div>
+            <div class="form-group"><label>Tracking Number</label><input type="text" id="es_tracking"></div>
+            <div class="form-group"><label>Invoice No</label><input type="text" id="es_invoiceno"></div>
+            <div class="form-group"><label>Packet Size</label><input type="text" id="es_packet"></div>
+            <div class="form-group"><label>Customer Name</label><input type="text" id="es_cname"></div>
+            <div class="form-group"><label>Phone</label><input type="tel" id="es_phone"></div>
+            <div class="form-group" style="grid-column:1/-1"><label>Address</label><input type="text" id="es_address"></div>
+            <div class="form-group"><label>City</label><input type="text" id="es_city"></div>
+            <div class="form-group"><label>State</label><input type="text" id="es_state" list="stateList"></div>
+            <div class="form-group"><label>Pincode</label><input type="text" id="es_pin" maxlength="6" inputmode="numeric"></div>
             <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="es_notes"></div>
           </div>
           <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
@@ -1561,7 +1694,7 @@ async function saveProduct(){
 
 // ── Quick Add Sale (multi-item) ─────────────────────────────
 let _items=[];
-function blankItem(){ return {productId:null,name:'',variant:'',qty:1,rate:0,disc:0,gst:0,cost:0,hsn:'',sku:''}; }
+function blankItem(){ return {productId:null,name:'',variant:'',qty:1,rate:0,disc:0,gst:0,cost:0,grams:0,hsn:'',sku:''}; }
 let _catalogByName={}, _catalogBySku={};
 
 function buildCatalog(){
@@ -1584,7 +1717,10 @@ function renderItems(){
   if(!wrap) return;
   if(!_items.length) _items=[blankItem()];
   wrap.innerHTML=_items.map((it,i)=>`
-    <div class="items-grid item-row">
+    <div class="items-grid item-row" data-idx="${i}"
+         ondragover="itemDragOver(event,${i})" ondrop="itemDrop(event,${i})" ondragleave="itemDragLeave(event)">
+      <div class="srl" draggable="true" title="Drag to reorder"
+           ondragstart="itemDragStart(event,${i})" ondragend="itemDragEnd(event)">${i+1}</div>
       <div class="item-cell">
         <input list="catalogList" value="${esc(it.name)}" placeholder="Item name / type to search" oninput="onItemName(${i},this.value)">
         <input class="variant" value="${esc(it.variant)}" placeholder="size / colour / customisation (optional)" oninput="_items[${i}].variant=this.value">
@@ -1594,17 +1730,32 @@ function renderItems(){
       <div class="r"><input type="number" step="0.01" value="${it.disc||''}" placeholder="0" oninput="onItemNum(${i},'disc',this.value)"></div>
       <div class="r"><select onchange="onItemNum(${i},'gst',this.value)">${[0,5,12,18,28].map(v=>`<option value="${v}"${v==it.gst?' selected':''}>${v}%</option>`).join('')}</select></div>
       <div class="r"><input type="number" step="0.01" value="${it.cost||''}" placeholder="0" oninput="onItemNum(${i},'cost',this.value)"></div>
+      <div class="r"><input type="number" step="1" min="0" value="${it.grams||''}" placeholder="0" title="filament grams" oninput="onItemNum(${i},'grams',this.value)"></div>
       <div class="amt" id="amt_${i}">${fmt(it.qty*it.rate-it.disc)}</div>
       <div><button type="button" class="del" onclick="removeItem(${i})"${_items.length<=1?' disabled':''}>✕</button></div>
     </div>`).join('');
   recalcTotals();
 }
-function addItem(){ _items.push(blankItem()); renderItems(); document.querySelectorAll('#itemRows .item-cell input').forEach(()=>{}); }
+// Add Item drops the new row directly below the last one and focuses it.
+function addItem(){
+  _items.push(blankItem());
+  renderItems();
+  const rows=document.querySelectorAll('#itemRows .item-row');
+  const last=rows[rows.length-1];
+  if(last){ const inp=last.querySelector('.item-cell input'); if(inp){ inp.focus(); last.scrollIntoView({block:'nearest'}); } }
+}
+// ── Drag-to-reorder item rows ──
+let _dragIdx=null;
+function itemDragStart(e,i){ _dragIdx=i; e.dataTransfer.effectAllowed='move'; const row=e.target.closest('.item-row'); if(row) row.classList.add('dragging'); }
+function itemDragEnd(e){ _dragIdx=null; document.querySelectorAll('#itemRows .item-row').forEach(r=>r.classList.remove('dragging','drag-over')); }
+function itemDragOver(e,i){ if(_dragIdx===null) return; e.preventDefault(); e.dataTransfer.dropEffect='move'; document.querySelectorAll('#itemRows .item-row').forEach(r=>r.classList.remove('drag-over')); e.currentTarget.classList.add('drag-over'); }
+function itemDragLeave(e){ e.currentTarget.classList.remove('drag-over'); }
+function itemDrop(e,i){ e.preventDefault(); if(_dragIdx===null||_dragIdx===i){ itemDragEnd(e); return; } const [m]=_items.splice(_dragIdx,1); _items.splice(i,0,m); _dragIdx=null; renderItems(); }
 function removeItem(i){ if(_items.length<=1) return; _items.splice(i,1); renderItems(); }
 function onItemName(i,val){
   _items[i].name=val;
   const p=_catalogByName[(val||'').trim().toLowerCase()];
-  if(p){ _items[i].productId=p.id; if(!_items[i].cost) _items[i].cost=parseFloat(p.base_cost)||0; _items[i].gst=parseFloat(p.gst_rate)||0; _items[i].hsn=p.hsn_code||''; _items[i].sku=p.sku||''; renderItems(); }
+  if(p){ _items[i].productId=p.id; if(!_items[i].cost) _items[i].cost=parseFloat(p.base_cost)||0; _items[i].gst=parseFloat(p.gst_rate)||0; _items[i].hsn=p.hsn_code||''; _items[i].sku=p.sku||''; if(!_items[i].grams&&p.grams_per_unit) _items[i].grams=parseFloat(p.grams_per_unit)||0; renderItems(); }
   else { _items[i].productId=null; recalcTotals(); }
 }
 function onItemNum(i,f,v){
@@ -1614,7 +1765,7 @@ function onItemNum(i,f,v){
   recalcTotals();
 }
 function recalcTotals(){
-  let count=0,qty=0,sub=0,gst=0,cost=0;
+  let count=0,qty=0,sub=0,gst=0,cost=0,anyGst=false;
   _items.forEach(it=>{
     const amt=it.qty*it.rate-it.disc;
     if((it.name&&it.name.trim())||it.rate) count++;
@@ -1622,10 +1773,16 @@ function recalcTotals(){
     sub+=amt;
     gst+=amt-(amt/(1+(it.gst||0)/100));
     cost+=it.qty*it.cost;
+    if((it.gst||0)>0) anyGst=true;
   });
   const fee=parseFloat(document.getElementById('qa_platformfee')?.value)||0;
   const ship=parseFloat(document.getElementById('qa_shipping')?.value)||0;
-  const round=parseFloat(document.getElementById('qa_roundoff')?.value)||0;
+  // Round-off auto-calculates when GST applies (rounds grand total to nearest
+  // rupee); without GST it stays a manual field.
+  const roundEl=document.getElementById('qa_roundoff');
+  let round;
+  if(anyGst){ round=Math.round((Math.round(sub)-sub)*100)/100; if(roundEl){ roundEl.value=round.toFixed(2); roundEl.readOnly=true; roundEl.title='Auto (GST round-off)'; } }
+  else { if(roundEl){ roundEl.readOnly=false; roundEl.title=''; } round=parseFloat(roundEl?.value)||0; }
   const netRev=sub-fee-ship;
   const profit=netRev-cost-gst;
   const margin=netRev>0?(profit/netRev*100):0;
@@ -1648,7 +1805,10 @@ function getOrderFields(){
     dispatch_date:g('qa_dispatch_date'),
     order_id:g('qa_orderid')||genOrderId(),
     payment_mode:g('qa_payment'),
-    status:g('qa_status')||'completed',
+    status:g('qa_status')||'pending',
+    lead_source:g('qa_lead_source'),
+    fulfillment_type:g('qa_fulfillment'),
+    fulfillment_detail:g('qa_fulfillment_detail'),
     tracking_number:g('qa_tracking'),
     courier_partner:g('qa_courier'),
     invoice_no:g('qa_invoiceno'),
@@ -1680,6 +1840,7 @@ function buildSaleRows(){
     discount_amount:it.disc||0,
     gst_rate:it.gst||0,
     cogs:it.cost||0,
+    grams_used:it.grams||0,
     platform_fee: idx===0?fee:0,
     shipping_fee: idx===0?ship:0,
   }));
@@ -1693,9 +1854,36 @@ function resetQuickAdd(){
   document.getElementById('qa_channel').value='shop';
   const z=id=>{const e=document.getElementById(id);if(e)e.value='0';};
   z('qa_platformfee'); z('qa_shipping'); z('qa_roundoff');
+  if(typeof setQaStatus==='function') setQaStatus('pending');
+  if(typeof setFulfillment==='function') setFulfillment('delivery');
+  const lead=document.getElementById('qa_lead_source'); if(lead) lead.value='';
+  document.querySelectorAll('#qaLeadChips .qchip').forEach(b=>b.classList.remove('active'));
+  const fo=document.getElementById('qa_fulfil_other'); if(fo){ fo.value=''; fo.style.display='none'; }
   _items=[blankItem()];
   renderItems();
 }
+
+// ── Quick-select chip handlers (status / lead source / fulfillment) ──
+function setQaStatus(v){
+  const h=document.getElementById('qa_status'); if(h) h.value=v;
+  document.querySelectorAll('#qaStatusChips .qchip').forEach(b=>b.classList.toggle('active',b.dataset.s===v));
+}
+function setLeadSource(v){
+  const h=document.getElementById('qa_lead_source'); if(h) h.value=v;
+  document.querySelectorAll('#qaLeadChips .qchip').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
+}
+function setFulfillment(v){
+  document.querySelectorAll('#qaFulfilChips .qchip').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
+  const otherInp=document.getElementById('qa_fulfil_other');
+  let type='delivery', detail='';
+  if(v==='pickup_self'){ type='pickup'; detail='self'; }
+  else if(v==='pickup_porter'){ type='pickup'; detail='porter'; }
+  else if(v==='pickup_other'){ type='pickup'; detail=(otherInp?.value||'').trim(); }
+  if(otherInp){ const show=(v==='pickup_other'); otherInp.style.display=show?'':'none'; if(show) otherInp.focus(); }
+  const ht=document.getElementById('qa_fulfillment'); if(ht) ht.value=type;
+  const hd=document.getElementById('qa_fulfillment_detail'); if(hd) hd.value=detail;
+}
+function onFulfilOther(v){ const hd=document.getElementById('qa_fulfillment_detail'); if(hd) hd.value=(v||'').trim(); }
 
 async function submitQuickAdd(e){
   if(e) e.preventDefault();
@@ -1704,6 +1892,20 @@ async function submitQuickAdd(e){
   const {error}=await sb.from('biz_sales').insert(rows);
   if(error){ toast('Error: '+error.message,'error'); return; }
   toast(rows.length===1?'Sale saved!':rows.length+' items saved!');
+  resetQuickAdd();
+  loadSalesBadge();
+}
+
+// "Save Order Record" — persists the sale like Save Sale; the internal
+// order-record document layout is controlled in Settings (A7). printOrderRecord()
+// is invoked here once that template ships.
+async function saveOrderRecord(){
+  const rows=buildSaleRows();
+  if(!rows.length){ toast('Add at least one item','error'); return; }
+  const {error}=await sb.from('biz_sales').insert(rows);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Order record saved');
+  if(typeof printOrderRecord==='function'){ try{ printOrderRecord(rows); }catch(_){} }
   resetQuickAdd();
   loadSalesBadge();
 }
@@ -1838,8 +2040,9 @@ async function loadSales(){
   const gmap={}, groups=[];
   rows.forEach(s=>{ const key=s.order_id?('o:'+s.order_id):('r:'+s.id); if(!gmap[key]){ gmap[key]={items:[]}; groups.push(gmap[key]); } gmap[key].items.push(s); });
   document.getElementById('salesSubtitle').textContent=`${groups.length} order${groups.length!==1?'s':''} · ${rows.length} item${rows.length!==1?'s':''}`;
+  _orderKeys=groups.map(g=>g.items[0].id);
   const tbody=document.getElementById('salesBody');
-  if(!groups.length){ tbody.innerHTML=`<tr><td colspan="11"><div class="empty"><div class="em-icon">◈</div><div class="em-text">No sales found</div></div></td></tr>`; return; }
+  if(!groups.length){ tbody.innerHTML=`<tr><td colspan="10"><div class="empty"><div class="em-icon">◈</div><div class="em-text">No sales found</div></div></td></tr>`; return; }
   tbody.innerHTML=groups.map((g,idx)=>{
     const items=g.items, f=items[0];
     const key=f.id;                                   // DOM-safe handle (first item id)
@@ -1850,7 +2053,7 @@ async function loadSales(){
     const status=sts.length===1?sts[0]:'mixed';
     const ids=items.map(s=>s.id).join(',');
     const itemCol=items.length===1?esc(f.product_name):`${esc(f.product_name)} <span style="color:var(--text-3);font-size:10px">+${items.length-1} more · ${items.length} items</span>`;
-    return `<tr class="sale-row" onclick="toggleSaleRow('${key}',event)" style="cursor:pointer;${allPaid?'opacity:.78':''}">
+    return `<tr class="sale-row" onclick="openOrderDetail('${key}',event)" style="cursor:pointer;${allPaid?'opacity:.78':''}">
       <td><input type="checkbox" class="sale-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateBulkBar()"></td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${idx+1}</td>
       <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(f.order_date)}</td>
@@ -1859,15 +2062,15 @@ async function loadSales(){
       <td>${itemCol}</td>
       <td class="td-num">${totalQty}</td>
       <td class="td-num" style="font-weight:700">${fmt(totalPrice)}</td>
-      <td>${status==='mixed'?'<span class="badge badge-pending">Mixed</span>':`<span class="badge badge-${status}">${esc(status||'')}</span>`}</td>
-      <td><button onclick="event.stopPropagation();togglePaidOrder('${key}',${allPaid})" style="font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid;cursor:pointer;background:${allPaid?'var(--green-bg)':'var(--bg-2)'};color:${allPaid?'var(--green)':'var(--text-3)'};border-color:${allPaid?'var(--green)':'var(--border)'}">${allPaid?'✓ Paid':'Unpaid'}</button></td>
-      <td style="color:var(--text-3);font-size:11px;text-align:center" id="chev_${key}">▸</td>
-    </tr>
-    <tr class="sale-detail" id="det_${key}" style="display:none"><td colspan="11" style="background:var(--bg-1);padding:0;border-top:none">${renderOrderDetail(items)}</td></tr>`;
+      <td>${status==='mixed'?'<span class="badge badge-pending">Mixed</span>':`<span class="badge badge-${status}">${esc(status||'')}</span>`}${allPaid?' <span class="badge" style="background:var(--green-bg);color:var(--green)">paid</span>':''}</td>
+      <td style="color:var(--text-3);font-size:13px;text-align:center">↗</td>
+    </tr>`;
   }).join('');
   // Reset selection so the bulk bar + "select all" never linger after a re-render or bulk action.
   const _sa=document.getElementById('selectAllSales'); if(_sa)_sa.checked=false;
   updateBulkBar();
+  updateSalesFilterBadge();
+  if(typeof refreshOrderDetailModal==='function') refreshOrderDetailModal();
 }
 
 // Find all line items belonging to the same order as the given first-item id
@@ -1941,10 +2144,11 @@ function renderOrderDetail(items){
       </div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-sm" onclick="togglePaidOrder('${key}',${locked})" style="background:${locked?'var(--green-bg)':'var(--bg-2)'};color:${locked?'var(--green)':'var(--text-3)'};border:1px solid ${locked?'var(--green)':'var(--border)'}">${locked?'✓ Paid · unmark':'Mark Paid'}</button>
       <button class="btn btn-ghost btn-sm" id="revealBtn_${key}" onclick="revealCost('${key}')">🔒 Show cost &amp; profit</button>
       <button class="btn btn-ghost btn-sm" onclick="printOrderInvoice('${key}')">🧾 Invoice (all items)</button>
       ${locked?'<span style="font-size:11px;color:var(--text-3)">Paid — unmark to edit</span>'
-        :`<select onchange="updateOrderStatus('${key}',this.value)" class="month-select" style="font-size:11px;padding:5px 8px">${['completed','returned','cancelled','claimed'].map(x=>`<option value="${x}"${f.status===x?' selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select>
+        :`<select onchange="updateOrderStatus('${key}',this.value)" class="month-select" style="font-size:11px;padding:5px 8px">${['pending','processing','dispatched','delivered','completed','returned','cancelled','claimed'].map(x=>`<option value="${x}"${f.status===x?' selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select>
           <button class="btn btn-danger btn-sm" onclick="deleteOrder('${key}')">✕ Delete order</button>`}
     </div>
   </div>`;
@@ -2090,7 +2294,7 @@ async function bulkMarkPaid(){
 }
 async function bulkMarkStatus(status){
   const ids=getSelectedIds(); if(!ids.length) return;
-  const label={returned:'Returned',cancelled:'Cancelled'}[status]||status;
+  const label={pending:'Pending',processing:'Processing',dispatched:'Dispatched',delivered:'Delivered',completed:'Completed',returned:'Returned',cancelled:'Cancelled',claimed:'Claimed'}[status]||status;
   if(!confirm('Mark '+ids.length+' order(s) as '+label+'?')) return;
   const {error}=await sb.from('biz_sales').update({status}).in('id',ids);
   if(error){toast('Error: '+error.message,'error');return;}
@@ -2128,41 +2332,126 @@ async function togglePaid(id, currentlyPaid){
   loadSales();
 }
 
+// ── Order Detail modal (B4): blurred popup with Prev/Next ──
+let _orderKeys=[], _odKey=null;
+function openOrderDetail(key,event){
+  if(event && event.target.closest('input,select,button,a')) return;
+  _odKey=key; renderODModal();
+  document.getElementById('orderDetailModal').style.display='block';
+}
+function closeOrderDetail(){ _odKey=null; const m=document.getElementById('orderDetailModal'); if(m) m.style.display='none'; }
+function orderDetailNav(dir){
+  const i=_orderKeys.indexOf(_odKey); if(i<0) return;
+  const ni=i+dir; if(ni<0||ni>=_orderKeys.length) return;
+  _odKey=_orderKeys[ni]; renderODModal();
+}
+function renderODModal(){
+  const items=_orderGroup(_odKey);
+  if(!items.length){ closeOrderDetail(); return; }
+  const f=items[0];
+  document.getElementById('odTitle').textContent='Order '+(f.order_id||('#'+String(f.id).slice(0,8)));
+  document.getElementById('orderDetailBody').innerHTML=renderOrderDetail(items);
+  const i=_orderKeys.indexOf(_odKey);
+  const prev=document.getElementById('odPrev'), next=document.getElementById('odNext');
+  if(prev) prev.disabled=(i<=0);
+  if(next) next.disabled=(i>=_orderKeys.length-1);
+}
+// Keep an open modal in sync after loadSales() rebuilds the cache.
+function refreshOrderDetailModal(){
+  const modal=document.getElementById('orderDetailModal');
+  if(!modal || modal.style.display==='none' || !_odKey) return;
+  if(_orderKeys.indexOf(_odKey)<0){ closeOrderDetail(); return; }  // deleted / filtered out
+  renderODModal();
+}
+
+// ── Single Filters panel (B4) ──
+function toggleSalesFilters(){
+  const p=document.getElementById('salesFilters'); if(!p) return;
+  const show=p.style.display==='none';
+  p.style.display=show?'block':'none';
+  const btn=document.getElementById('sfToggleBtn'); if(btn) btn.classList.toggle('active',show);
+}
+function updateSalesFilterBadge(){
+  const b=document.getElementById('sfActiveCount'); if(!b) return;
+  let n=0; ['sfChannel','sfStatus','sfPayment','sfPaid','sfMonth','sfFrom','sfTo'].forEach(id=>{ const e=document.getElementById(id); if(e&&e.value) n++; });
+  b.textContent=n; b.style.display=n?'inline-block':'none';
+}
+
 function openEditSale(id){
   const s=_salesCache.find(x=>x.id===id); if(!s) return;
-  document.getElementById('es_id').value=s.id;
-  document.getElementById('es_product').value=s.product_name||'';
-  document.getElementById('es_orderid').value=s.order_id||'';
-  document.getElementById('es_date').value=s.order_date||'';
-  document.getElementById('es_dispatch').value=s.dispatch_date||'';
-  document.getElementById('es_delivery').value=s.delivery_date||'';
-  document.getElementById('es_qty').value=s.qty||1;
-  document.getElementById('es_price').value=s.selling_price||'';
-  document.getElementById('es_cogs').value=s.cogs||'';
-  document.getElementById('es_cname').value=s.customer_name||'';
-  document.getElementById('es_tracking').value=s.tracking_number||'';
-  document.getElementById('es_payment').value=s.payment_mode||'';
-  document.getElementById('es_status').value=s.status||'completed';
-  document.getElementById('es_notes').value=s.notes||'';
+  const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
+  set('es_id',s.id);
+  set('es_channel',s.channel_id||'shop');
+  set('es_orderid',s.order_id);
+  set('es_product',s.product_name);
+  set('es_variant',s.variant);
+  set('es_hsn',s.hsn_code);
+  set('es_qty',s.qty||1);
+  set('es_price',s.selling_price);
+  set('es_disc',s.discount_amount);
+  set('es_gst',(s.gst_rate!=null?s.gst_rate:0));
+  set('es_cogs',s.cogs);
+  set('es_grams',s.grams_used);
+  set('es_platformfee',s.platform_fee);
+  set('es_shipping',s.shipping_fee);
+  set('es_date',s.order_date);
+  set('es_delivery',s.delivery_date);
+  set('es_dispatch',s.dispatch_date);
+  set('es_status',s.status||'pending');
+  set('es_payment',s.payment_mode);
+  set('es_lead',s.lead_source);
+  set('es_fulfillment',s.fulfillment_type);
+  set('es_courier',s.courier_partner);
+  set('es_tracking',s.tracking_number);
+  set('es_invoiceno',s.invoice_no);
+  set('es_packet',s.package_size);
+  set('es_cname',s.customer_name);
+  set('es_phone',s.customer_phone);
+  set('es_address',s.customer_address);
+  set('es_city',s.customer_city);
+  set('es_state',s.customer_state);
+  set('es_pin',s.customer_pincode);
+  set('es_notes',s.notes);
   document.getElementById('editSaleModal').style.display='block';
 }
 function closeEditSale(){ document.getElementById('editSaleModal').style.display='none'; }
 async function saveEditSale(){
   const id=document.getElementById('es_id').value;
+  const g=k=>{const e=document.getElementById(k);return e?e.value:'';};
+  const num=k=>parseFloat(g(k))||0;
+  const txt=k=>g(k).trim()||null;
   const payload={
-    product_name:document.getElementById('es_product').value.trim(),
-    order_id:document.getElementById('es_orderid').value.trim()||null,
-    order_date:document.getElementById('es_date').value||today(),
-    dispatch_date:document.getElementById('es_dispatch').value||null,
-    delivery_date:document.getElementById('es_delivery').value||null,
-    qty:parseInt(document.getElementById('es_qty').value)||1,
-    selling_price:parseFloat(document.getElementById('es_price').value)||0,
-    cogs:parseFloat(document.getElementById('es_cogs').value)||0,
-    customer_name:document.getElementById('es_cname').value.trim()||null,
-    tracking_number:document.getElementById('es_tracking').value.trim()||null,
-    payment_mode:document.getElementById('es_payment').value||null,
-    status:document.getElementById('es_status').value||'completed',
-    notes:document.getElementById('es_notes').value.trim()||null,
+    channel_id:g('es_channel')||null,
+    order_id:txt('es_orderid'),
+    product_name:g('es_product').trim(),
+    variant:txt('es_variant'),
+    hsn_code:txt('es_hsn'),
+    qty:parseInt(g('es_qty'))||1,
+    selling_price:num('es_price'),
+    discount_amount:num('es_disc'),
+    gst_rate:num('es_gst'),
+    cogs:num('es_cogs'),
+    grams_used:num('es_grams'),
+    platform_fee:num('es_platformfee'),
+    shipping_fee:num('es_shipping'),
+    order_date:g('es_date')||today(),
+    delivery_date:g('es_delivery')||null,
+    dispatch_date:g('es_dispatch')||null,
+    status:g('es_status')||'pending',
+    payment_mode:g('es_payment')||null,
+    lead_source:g('es_lead')||null,
+    fulfillment_type:g('es_fulfillment')||null,
+    courier_partner:txt('es_courier'),
+    tracking_number:txt('es_tracking'),
+    invoice_no:txt('es_invoiceno'),
+    package_size:txt('es_packet'),
+    customer_name:txt('es_cname'),
+    customer_phone:txt('es_phone'),
+    customer_address:txt('es_address'),
+    customer_city:txt('es_city'),
+    customer_state:txt('es_state'),
+    customer_pincode:txt('es_pin'),
+    notes:txt('es_notes'),
   };
   const {error}=await sb.from('biz_sales').update(payload).eq('id',id);
   if(error){toast('Error: '+error.message,'error');return;}
