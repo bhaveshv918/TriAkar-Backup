@@ -862,6 +862,9 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
     </button>
 
     <div class="sidebar-section">Inbox</div>
+    <button class="tab" data-tab="inbox" onclick="switchTab('inbox')">
+      <span class="tab-icon">✉</span><span class="tab-label">Unified Inbox</span>
+    </button>
     <button class="tab" data-tab="messages" onclick="switchTab('messages')">
       <span class="tab-icon">◻</span><span class="tab-label">Messages</span><span class="tab-count" id="messageCount">0</span><span class="tab-dot" id="dotMessages"></span>
     </button>
@@ -969,6 +972,27 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
           <th style="width:34px"><input type="checkbox" onclick="toggleAllChecks('ordersBody',this.checked)"></th><th style="width:30px"></th><th>Invoice #</th><th>Date</th><th>Customer</th><th>Location</th><th>Product(s)</th><th>Total</th><th>Status</th>
         </tr></thead>
         <tbody id="ordersBody"><tr><td colspan="9" class="tbl-msg">Loading orders…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── UNIFIED INBOX (A8) ───────────────── -->
+  <div class="panel" id="panelInbox">
+    <div class="p-head">
+      <div class="p-title">Inbox <span style="font-weight:400;color:var(--text-3);font-size:12px">· <span id="inboxCount2">0</span> items</span></div>
+      <div class="p-actions"><button class="btn-secondary" onclick="loadInbox()">⟳ Refresh</button></div>
+    </div>
+    <div class="filter-bar">
+      <select id="inboxSource" onchange="renderInbox()"><option value="">All sources</option><option value="callback">Callbacks</option><option value="message">Messages</option><option value="enquiry">Enquiries</option></select>
+      <select id="inboxStatus" onchange="renderInbox()"><option value="">All status</option><option value="new">New</option><option value="open">Open</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-3)">From <input type="date" id="inboxFrom" onchange="renderInbox()"></label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-3)">To <input type="date" id="inboxTo" onchange="renderInbox()"></label>
+      <input type="text" id="inboxSearch" placeholder="Search name / contact / text…" oninput="renderInbox()" style="min-width:200px">
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>When</th><th>Source</th><th>Name</th><th>Contact</th><th>Summary</th><th>Status</th><th></th></tr></thead>
+        <tbody id="inboxBody"><tr><td colspan="7" class="tbl-msg">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2277,7 +2301,7 @@ function switchTab(tab){
   _curAdminTab=tab;
   closeAdminNav();
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['Dashboard','Callbacks','Orders','Customers','Products','Makerworld','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo','Reviews','Appearance','Activity','Content'].forEach(p=>{
+  ['Dashboard','Callbacks','Orders','Customers','Products','Makerworld','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo','Reviews','Appearance','Activity','Content','Inbox'].forEach(p=>{
     const el=document.getElementById('panel'+p);
     if(el)el.classList.toggle('active',p.toLowerCase()===tab);
   });
@@ -2288,6 +2312,7 @@ function switchTab(tab){
   if(tab==='reviews'){loadReviewsAdmin();loadGoogleSettings();}
   if(tab==='activity')loadActivity();
   if(tab==='content'){loadContentSettings();loadDocCustomization();}
+  if(tab==='inbox')loadInbox();
   if(tab==='appearance')loadMenuStyleSetting();
   const dotMap={orders:'dotOrders',customers:'dotCustomers',messages:'dotMessages',enquiries:'dotEnquiries',callbacks:'dotCallbacks'};
   const countEls={orders:'orderCount',customers:'customerCount',messages:'messageCount',enquiries:'enquiryCount',callbacks:'callbackCount'};
@@ -4275,6 +4300,46 @@ function renderDropdownsAdmin(){renderCustOpts();}
 // ═══════════════════════════════════════════════════════════
 // SECURITY LOGS
 // ═══════════════════════════════════════════════════════════
+// A8 — Unified Inbox: callbacks + contact messages + custom enquiries in one view
+let _inboxItems=[];
+async function loadInbox(){
+  const [cb,ms,en]=await Promise.all([
+    sb.from('callback_requests').select('*').is('deleted_at',null).order('created_at',{ascending:false}).limit(300),
+    sb.from('contact_submissions').select('*').is('deleted_at',null).order('created_at',{ascending:false}).limit(300),
+    sb.from('custom_enquiries').select('*').is('deleted_at',null).order('created_at',{ascending:false}).limit(300),
+  ]);
+  const items=[];
+  (cb.data||[]).forEach(r=>items.push({source:'callback',id:r.id,date:r.created_at,name:r.name||'—',contact:r.phone||r.mobile||'',summary:r.topic||r.message||r.reason||'',status:r.status||'new'}));
+  (ms.data||[]).forEach(r=>items.push({source:'message',id:r.id,date:r.created_at,name:r.name||'—',contact:r.email||r.phone||'',summary:r.subject||r.message||'',status:r.status||'new'}));
+  (en.data||[]).forEach(r=>items.push({source:'enquiry',id:r.id,date:r.created_at,name:r.name||'—',contact:r.email||r.phone||r.mobile||'',summary:r.what_needed||r.message||r.details||'',status:r.status||'new'}));
+  items.sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
+  _inboxItems=items; renderInbox();
+}
+function renderInbox(){
+  const v=id=>document.getElementById(id)?.value||'';
+  const src=v('inboxSource'), st=v('inboxStatus').toLowerCase(), se=v('inboxSearch').toLowerCase(), from=v('inboxFrom'), to=v('inboxTo');
+  let list=_inboxItems;
+  if(src) list=list.filter(i=>i.source===src);
+  if(st) list=list.filter(i=>(i.status||'').toLowerCase()===st);
+  if(from) list=list.filter(i=>i.date&&i.date.slice(0,10)>=from);
+  if(to) list=list.filter(i=>i.date&&i.date.slice(0,10)<=to);
+  if(se) list=list.filter(i=>(i.name+' '+i.contact+' '+i.summary).toLowerCase().includes(se));
+  const cnt=document.getElementById('inboxCount2'); if(cnt) cnt.textContent=list.length;
+  const tag={callback:['Callback','#7c3aed'],message:['Message','#2563eb'],enquiry:['Enquiry','#16a34a']};
+  const tabOf={callback:'callbacks',message:'messages',enquiry:'enquiries'};
+  const tbody=document.getElementById('inboxBody'); if(!tbody) return;
+  tbody.innerHTML=list.length?list.map(i=>{const t=tag[i.source]||['?','#888'];
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDate(i.date)}</td>
+      <td><span style="background:${t[1]}22;color:${t[1]};font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;text-transform:uppercase">${t[0]}</span></td>
+      <td>${esc(i.name)}</td>
+      <td style="font-size:11px;color:var(--text-3)">${esc(i.contact)}</td>
+      <td style="font-size:12px;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(i.summary)}</td>
+      <td><span class="badge badge-cat">${esc(i.status||'new')}</span></td>
+      <td><button class="btn-secondary" onclick="switchTab('${tabOf[i.source]}')">Open</button></td>
+    </tr>`;}).join(''):'<tr><td colspan="7" class="tbl-msg">No items.</td></tr>';
+}
+
 // A12 — parse the user-agent into device type + browser
 function uaParse(ua){
   ua=ua||'';
