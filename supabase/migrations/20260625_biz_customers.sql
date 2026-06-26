@@ -21,6 +21,7 @@ CREATE INDEX IF NOT EXISTS biz_customers_phone_idx ON biz_customers(phone);
 
 ALTER TABLE biz_customers ENABLE ROW LEVEL SECURITY;
 -- Same admin-only policy shape as the other biz_* tables.
+DROP POLICY IF EXISTS "biz_admin_only_customers" ON biz_customers;
 CREATE POLICY "biz_admin_only_customers" ON biz_customers
   FOR ALL TO authenticated
   USING (auth.email()='bhaveshv918@gmail.com')

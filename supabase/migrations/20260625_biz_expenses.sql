@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS biz_expenses (
 CREATE INDEX IF NOT EXISTS biz_expenses_date_idx ON biz_expenses(date DESC);
 
 ALTER TABLE biz_expenses ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "biz_admin_only_expenses" ON biz_expenses;
 CREATE POLICY "biz_admin_only_expenses" ON biz_expenses
   FOR ALL TO authenticated
   USING (auth.email()='bhaveshv918@gmail.com')

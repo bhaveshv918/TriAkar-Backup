@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS biz_filament_rolls (
 CREATE INDEX IF NOT EXISTS biz_filament_color_idx ON biz_filament_rolls(color, material);
 
 ALTER TABLE biz_filament_rolls ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "biz_admin_only_filament" ON biz_filament_rolls;
 CREATE POLICY "biz_admin_only_filament" ON biz_filament_rolls
   FOR ALL TO authenticated
   USING (auth.email()='bhaveshv918@gmail.com')
