@@ -1931,6 +1931,15 @@ async function startApp(){
 // ── Tab switching ───────────────────────────────────────────
 let _curBizTab='openorders';
 function refreshCurrentBizTab(){ switchTab(_curBizTab); toast('Refreshed'); }
+// §2e — immutable activity log (fire-and-forget; never blocks the save)
+function logBizActivity(action, entity, entityId, detail){
+  try{
+    sb.from('biz_activity_log').insert({
+      admin_email:(typeof ADMIN_EMAIL!=='undefined'?ADMIN_EMAIL:null),
+      action, entity, entity_id:entityId?String(entityId):null, detail:detail||null
+    }).then(function(){},function(){});
+  }catch(_){}
+}
 function switchTab(name){
   _curBizTab=name;
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
@@ -2090,6 +2099,7 @@ async function saveProduct(){
     ? await sb.from('biz_products').update(payload).eq('id',id)
     : await sb.from('biz_products').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
+  logBizActivity(id?'edit':'create','product',id||sku,name);
   toast(id?'Product updated':'Product added · '+sku);
   document.getElementById('productForm').style.display='none';
   loadProducts();
@@ -2294,6 +2304,7 @@ async function submitQuickAdd(e){
   if(!rows.length){ toast('Add at least one item','error'); return; }
   const {error}=await sb.from('biz_sales').insert(rows);
   if(error){ toast('Error: '+error.message,'error'); return; }
+  logBizActivity('create','sale',rows[0]&&rows[0].order_id,rows.length+' item(s)');
   toast(rows.length===1?'Sale saved!':rows.length+' items saved!');
   resetQuickAdd();
   loadSalesBadge();
@@ -2423,14 +2434,14 @@ async function saveCustomer(){
     reviewed:document.getElementById('cm_reviewed').value==='1', notes:g('cm_notes')||null };
   const {error}= id ? await sb.from('biz_customers').update(payload).eq('id',id) : await sb.from('biz_customers').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
-  toast(id?'Customer updated':'Customer saved'); closeCustomerModal(); loadCustomers();
+  logBizActivity(id?'edit':'create','customer',id,name); toast(id?'Customer updated':'Customer saved'); closeCustomerModal(); loadCustomers();
 }
 async function deleteCustomer(){
   const id=document.getElementById('cm_id').value; if(!id) return;
   if(!confirm('Delete this saved customer record? Order history is kept.')) return;
   const {error}=await sb.from('biz_customers').delete().eq('id',id);
   if(error){ toast('Error: '+error.message,'error'); return; }
-  toast('Customer deleted'); closeCustomerModal(); loadCustomers();
+  logBizActivity('delete','customer',id,''); toast('Customer deleted'); closeCustomerModal(); loadCustomers();
 }
 // Autofill saved details when an existing customer name is chosen in Add Sale
 function onCustomerName(val){
@@ -2630,9 +2641,9 @@ async function saveExpense(){
   if(!payload.amount){ toast('Enter an amount','error'); return; }
   const {error}=id?await sb.from('biz_expenses').update(payload).eq('id',id):await sb.from('biz_expenses').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
-  toast(id?'Expense updated':'Expense added'); document.getElementById('expenseForm').style.display='none'; loadExpenses();
+  logBizActivity(id?'edit':'create','expense',id,(payload.vendor||'')+' ₹'+payload.amount); toast(id?'Expense updated':'Expense added'); document.getElementById('expenseForm').style.display='none'; loadExpenses();
 }
-async function deleteExpense(id){ if(!confirm('Delete this expense?')) return; const {error}=await sb.from('biz_expenses').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} toast('Deleted'); loadExpenses(); }
+async function deleteExpense(id){ if(!confirm('Delete this expense?')) return; const {error}=await sb.from('biz_expenses').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} logBizActivity('delete','expense',id,''); toast('Deleted'); loadExpenses(); }
 
 async function loadSalesBadge(){
   const {count}=await sb.from('biz_sales').select('*',{count:'exact',head:true}).eq('is_deleted',false);
@@ -3090,7 +3101,7 @@ async function saveEditSale(){
   };
   const {error}=await sb.from('biz_sales').update(payload).eq('id',id);
   if(error){toast('Error: '+error.message,'error');return;}
-  toast('Sale updated'); closeEditSale(); loadSales();
+  logBizActivity('edit','sale',id,''); toast('Sale updated'); closeEditSale(); loadSales();
 }
 async function markReturn(){
   const id=document.getElementById('es_id').value;
@@ -3338,7 +3349,7 @@ async function saveRoll(){
     is_running:g('rl_running')==='1', packed:g('rl_packed')==='1', notes:g('rl_notes').trim()||null };
   const {error}=id?await sb.from('biz_filament_rolls').update(payload).eq('id',id):await sb.from('biz_filament_rolls').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
-  toast(id?'Roll updated':'Roll added'); document.getElementById('rollForm').style.display='none'; loadFilament();
+  logBizActivity(id?'edit':'create','roll',id,color+' '+material); toast(id?'Roll updated':'Roll added'); document.getElementById('rollForm').style.display='none'; loadFilament();
 }
 async function logRollUsage(id){
   const r=_filamentRolls.find(x=>x.id===id); if(!r) return;
@@ -3356,7 +3367,7 @@ async function markRollEmpty(id){
   if(error){ toast('Error: '+error.message,'error'); return; }
   toast('Roll emptied · '+Math.round(waste)+'g waste'); loadFilament();
 }
-async function deleteRoll(id){ if(!confirm('Delete this roll?')) return; const {error}=await sb.from('biz_filament_rolls').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} toast('Deleted'); loadFilament(); }
+async function deleteRoll(id){ if(!confirm('Delete this roll?')) return; const {error}=await sb.from('biz_filament_rolls').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} logBizActivity('delete','roll',id,''); toast('Deleted'); loadFilament(); }
 async function filamentBulkUpload(e){
   const file=e.target.files[0]; if(!file) return;
   try{
@@ -3485,7 +3496,7 @@ async function fetchReturnOrderCosts(){
   document.getElementById('rf_channel').value=rows[0].channel_id||'shop';
   recalcReturn(); toast('Pulled costs from sale');
 }
-async function deleteReturn(id){ if(!confirm('Delete this return record?')) return; const {error}=await sb.from('biz_returns').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} toast('Deleted'); loadReturns(); loadReturnsBadge(); }
+async function deleteReturn(id){ if(!confirm('Delete this return record?')) return; const {error}=await sb.from('biz_returns').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} logBizActivity('delete','return',id,''); toast('Deleted'); loadReturns(); loadReturnsBadge(); }
 async function saveReturn(){
   recalcReturn();
   const id=document.getElementById('rf_id').value;
@@ -3506,6 +3517,7 @@ async function saveReturn(){
   if(!payload.channel_id||!payload.type){ toast('Channel and type required','error'); return; }
   const {error}=id?await sb.from('biz_returns').update(payload).eq('id',id):await sb.from('biz_returns').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
+  logBizActivity(id?'edit':'create','return',id||payload.order_id,payload.type+' '+payload.stage);
   toast(id?'Return updated':'Return logged');
   document.getElementById('returnForm').style.display='none';
   loadReturns(); loadReturnsBadge();
