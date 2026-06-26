@@ -1383,10 +1383,20 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <!-- Hidden: is_customizable — auto-set from product_options in submitProductForm -->
       <input type="hidden" id="fCustomizable" value="0">
 
+      <!-- A9 — Inline reviews for this product (edit mode only) -->
+      <div id="prodReviewsSection" style="display:none;margin-top:18px;border-top:1px solid var(--border);padding-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+          <label style="font-weight:700;font-size:13px;margin:0">Reviews for this product</label>
+          <span id="prodReviewsMeta" class="hint"></span>
+        </div>
+        <div id="prodReviewsList"></div>
+      </div>
+
       <!-- Form Footer -->
       <div class="form-foot">
         <button class="btn-primary" id="saveBtn" onclick="submitProductForm()">Save Product</button>
         <button class="btn-secondary" onclick="closeProductForm()">Cancel</button>
+        <span id="prodDirtyHint" class="hint" style="display:none;align-self:center">● Unsaved changes</span>
       </div>
       <div class="form-err" id="formErr"></div>
     </div>
@@ -3440,9 +3450,94 @@ function openProductForm(id){
     toggleDiscountField();toggleUrgencyField();toggleCustSection();
   }
   renderImgGrid();renderVariants();renderCustOpts();renderSpecBuilder();
+  // A9 — inline reviews (edit mode), contextual Publish label, reset unsaved state
+  loadProductReviews(id ? ((_products.find(x=>x.id===id)||{}).slug||'') : '');
+  _saveBtnLabel = id ? 'Publish changes' : 'Save Product';
+  _prodDirty=false; _syncSaveDirty();
+  if(!wrap._dirtyBound){ wrap._dirtyBound=true; wrap.addEventListener('input',markProdDirty); wrap.addEventListener('change',markProdDirty); }
 }
 
-function closeProductForm(){document.getElementById('productFormWrap').classList.remove('open')}
+/* ── A9 — Unsaved-changes tracking ──────────────────────────
+   The product editor commits only on an explicit Publish/Save, so live
+   storefront pages never change mid-edit. A dirty flag drives a visual
+   indicator and a discard guard so accidental closes don't lose work. */
+let _prodDirty=false, _saveBtnLabel='Save Product';
+function markProdDirty(){ if(!_prodDirty){ _prodDirty=true; _syncSaveDirty(); } }
+function _syncSaveDirty(){
+  const b=document.getElementById('saveBtn');
+  if(b){ b.textContent=(_prodDirty?'● ':'')+_saveBtnLabel; b.style.opacity=_prodDirty?'1':''; }
+  const h=document.getElementById('prodDirtyHint'); if(h) h.style.display=_prodDirty?'inline':'none';
+}
+function closeProductForm(){
+  if(_prodDirty && !confirm('You have unsaved changes. Discard them?')) return;
+  _prodDirty=false; _syncSaveDirty();
+  document.getElementById('productFormWrap').classList.remove('open');
+}
+
+/* ── A9 — Inline review management inside the product editor ─── */
+let _prodReviews=[];
+async function loadProductReviews(slug){
+  const sec=document.getElementById('prodReviewsSection');
+  if(!sec) return;
+  if(!slug){ sec.style.display='none'; _prodReviews=[]; return; }
+  sec.style.display='';
+  const list=document.getElementById('prodReviewsList'), meta=document.getElementById('prodReviewsMeta');
+  list.innerHTML='<div class="hint" style="padding:6px 0">Loading reviews…</div>'; meta.textContent='';
+  try{
+    const r=await adminApi('/api/reviews/?slug='+encodeURIComponent(slug)+'&limit=100');
+    _prodReviews=r.reviews||[]; renderProductReviews();
+  }catch(e){ list.innerHTML='<div class="hint" style="padding:6px 0;color:#fca5a5">Could not load reviews: '+esc(e.message)+'</div>'; }
+}
+function renderProductReviews(){
+  const list=document.getElementById('prodReviewsList'), meta=document.getElementById('prodReviewsMeta');
+  if(!list) return;
+  const rows=_prodReviews||[];
+  if(!rows.length){ list.innerHTML='<div class="hint" style="padding:6px 0">No reviews yet for this product.</div>'; meta.textContent=''; return; }
+  const live=rows.filter(x=>x.status==='approved').length, pend=rows.filter(x=>x.status==='pending').length;
+  meta.textContent=rows.length+' total · '+live+' live'+(pend?' · '+pend+' pending':'');
+  list.innerHTML=rows.map(prodReviewRow).join('');
+}
+function prodReviewRow(r){
+  const st=r.status||'pending';
+  const stc=st==='approved'?'#1f9d55':st==='pending'?'#c9911f':'#9aa0a6';
+  const stbg=st==='approved'?'rgba(34,197,94,.14)':st==='pending'?'rgba(234,179,8,.14)':'rgba(154,160,166,.14)';
+  const n=Math.max(0,Math.min(5,Number(r.rating)||0));
+  const stars='★★★★★'.slice(0,n)+'☆☆☆☆☆'.slice(0,5-n);
+  const when=r.created_at?new Date(r.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'';
+  const acts=[];
+  if(st!=='approved') acts.push('<button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="prodReviewSet(\''+r.id+'\',\'approved\')">Approve</button>');
+  if(st!=='rejected') acts.push('<button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="prodReviewSet(\''+r.id+'\',\'rejected\')">Hide</button>');
+  acts.push('<button class="btn-secondary" style="padding:4px 10px;font-size:11px;color:#fca5a5;border-color:#7f1d1d" onclick="prodReviewDelete(\''+r.id+'\')">Delete</button>');
+  return '<div style="border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;background:var(--bg-2)">'
+    +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">'
+      +'<span style="color:#e0a93c;letter-spacing:1px">'+stars+'</span>'
+      +'<strong style="font-size:12px">'+esc(r.reviewer_name||'Customer')+'</strong>'
+      +(r.city?'<span class="hint">'+esc(r.city)+'</span>':'')
+      +(r.verified_purchase?'<span class="hint" style="color:#1f9d55">✓ Verified</span>':'')
+      +'<span style="margin-left:auto;font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 8px;border-radius:999px;color:'+stc+';background:'+stbg+'">'+esc(st)+'</span>'
+    +'</div>'
+    +(r.review?'<div style="font-size:12px;line-height:1.5;margin-bottom:8px;opacity:.85">'+esc(r.review)+'</div>':'')
+    +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+      +'<span class="hint" style="margin-right:auto">'+(when||'')+(r.source&&r.source!=='website'?' · '+esc(r.source):'')+'</span>'
+      +acts.join('')
+    +'</div>'
+  +'</div>';
+}
+async function prodReviewSet(id,status){
+  try{
+    await adminApi('/api/reviews/'+id+'/status',{method:'PATCH',body:JSON.stringify({status})});
+    const r=_prodReviews.find(x=>x.id===id); if(r) r.status=status; renderProductReviews();
+    toast(status==='approved'?'Review approved — now live':'Review hidden','success');
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+async function prodReviewDelete(id){
+  if(!confirm('Move this review to the Recycle Bin?')) return;
+  try{
+    await adminApi('/api/reviews/'+id,{method:'DELETE'});
+    _prodReviews=_prodReviews.filter(x=>x.id!==id); renderProductReviews();
+    toast('Review moved to Recycle Bin','success');
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
 
 /* ── Bullet Points ──────────────────────────────────────── */
 function addBulletPoint(){
@@ -3593,6 +3688,7 @@ async function submitProductForm(){
 
   try{
     await _trySave(productData,id||null);
+    _prodDirty=false;          // committed — clear before close so no discard prompt
     closeProductForm();loadProducts();
     toast(id?'Product updated':'Product added','success');
   }catch(err){
@@ -3601,7 +3697,7 @@ async function submitProductForm(){
     console.error('[save] failed —',err);
     errEl.textContent=msg;
     errEl.scrollIntoView({behavior:'smooth',block:'center'});
-  }finally{btn.textContent='Save Product';btn.disabled=false}
+  }finally{btn.disabled=false;_syncSaveDirty();}
 }
 
 async function deleteProduct(id,name){
