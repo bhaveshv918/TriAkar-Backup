@@ -4,6 +4,7 @@ import { requireAuth }  from '../middleware/authMiddleware.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import {
   getReviews,
+  getPublicApprovedReviews,
   getAllReviews,
   createReview,
   createReviewAdmin,
@@ -29,6 +30,9 @@ const upload = multer({
 /* ── PUBLIC ─────────────────────────────────────────────── */
 // NOTE: GET / (admin) is defined AFTER GET /:slug to avoid catch-all conflict.
 // Express matches exact '' path for GET / so there is no conflict.
+
+/* GET /api/reviews/public/all — every approved review (public Reviews page) */
+router.get('/public/all', getPublicApprovedReviews);
 
 /* GET /api/reviews/:slug — approved reviews for a product */
 router.get('/:slug', getReviews);

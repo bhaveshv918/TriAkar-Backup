@@ -26,6 +26,29 @@ export async function getReviews(req, res) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
+   PUBLIC — GET /api/reviews/public/all
+   Every approved review, for the public Reviews page so the admin panel is the
+   single source of truth (replaces the hardcoded reviews-data.js).
+───────────────────────────────────────────────────────────────────────── */
+export async function getPublicApprovedReviews(req, res) {
+  try {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('id,product_slug,reviewer_name,rating,review,city,verified_purchase,source,created_at')
+      .eq('status', 'approved')
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(2000);
+    if (error) throw error;
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+    res.json({ reviews: data || [] });
+  } catch (e) {
+    console.error('getPublicApprovedReviews:', e);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
    ADMIN — GET /api/reviews/
    Returns all reviews with optional ?status= and ?slug= filters.
 ───────────────────────────────────────────────────────────────────────── */

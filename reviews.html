@@ -346,8 +346,10 @@ function buildReviews(){
   var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:3000':'https://triakar.onrender.com';
   var done=false;
   function go(){ if(done) return; done=true; buildReviews(); }
-  var timer=setTimeout(go, 1200);
-  fetch(API+'/api/site-settings').then(function(r){return r.json();}).then(function(d){
+  var timer=setTimeout(go, 1500);
+  function jget(u){ return fetch(u).then(function(r){return r.json();}).catch(function(){return null;}); }
+  Promise.all([ jget(API+'/api/site-settings'), jget(API+'/api/reviews/public/all') ]).then(function(res){
+    var d=res[0], rv=res[1];
     var s=(d&&d.settings)||{};
     var gr=window.GOOGLE_RATING||{score:5,count:0};
     if(s.google_rating!=null && s.google_rating!=='')       gr.score=Number(s.google_rating)||gr.score;
@@ -357,6 +359,13 @@ function buildReviews(){
       if(Array.isArray(sn)&&sn.length){ window.GOOGLE_REVIEWS=sn.map(function(x){return {reviewer_name:x.author||'Google user',rating:Number(x.rating)||5,review:x.text||''};}); }
     }catch(e){} }
     if(s.google_profile_url){ var links=document.querySelectorAll('a[href*="maps.app.goo.gl"],a[href*="google.com/maps"]'); for(var i=0;i<links.length;i++) links[i].href=s.google_profile_url; }
+    // A10 — site reviews from the DB (admin = single source of truth); the hardcoded
+    // reviews-data.js stays only as an offline fallback when the API has none.
+    if(rv && rv.reviews && rv.reviews.length){
+      var bySlug={};
+      rv.reviews.forEach(function(r){ var sl=r.product_slug||'general'; (bySlug[sl]=bySlug[sl]||[]).push({product_slug:sl,reviewer_name:r.reviewer_name,rating:Number(r.rating)||5,review:r.review,city:r.city,created_at:r.created_at,verified_purchase:!!r.verified_purchase}); });
+      window.REVIEWS_DATA=bySlug;
+    }
     clearTimeout(timer); go();
   }).catch(function(){ clearTimeout(timer); go(); });
 })();
