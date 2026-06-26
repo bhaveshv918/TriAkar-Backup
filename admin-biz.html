@@ -453,17 +453,20 @@ tr:hover td{background:var(--bg-2)}
             <!-- filled by JS -->
           </select>
           <button class="btn btn-ghost btn-sm" onclick="exportMonthExcel()">↓ Export this month</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleDashCustomize()" title="Show / hide / reorder widgets">⚙ Widgets</button>
         </div>
       </div>
 
+      <div id="dashCustomize" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:12px"></div>
+
       <!-- KPIs -->
       <div class="kpi-grid" id="kpiGrid">
-        <div class="kpi green"><div class="kpi-label">Total Revenue</div><div class="kpi-val" id="kpiRevenue">—</div><div class="kpi-sub">Selling price incl. GST</div></div>
-        <div class="kpi blue"><div class="kpi-label">Net Revenue</div><div class="kpi-val" id="kpiNet">—</div><div class="kpi-sub">After platform fees</div></div>
-        <div class="kpi green"><div class="kpi-label">Gross Profit</div><div class="kpi-val" id="kpiProfit">—</div><div class="kpi-sub" id="kpiMarginSub">—</div></div>
-        <div class="kpi yellow"><div class="kpi-label">Total GST</div><div class="kpi-val" id="kpiGst">—</div><div class="kpi-sub">Collected (payable)</div></div>
-        <div class="kpi purple"><div class="kpi-label">Orders</div><div class="kpi-val" id="kpiOrders">—</div><div class="kpi-sub" id="kpiUnitsSub">—</div></div>
-        <div class="kpi red"><div class="kpi-label">Returns / Claims</div><div class="kpi-val" id="kpiReturns">—</div><div class="kpi-sub">Loss this period</div></div>
+        <div class="kpi green" data-w="revenue"><div class="kpi-label">Total Revenue</div><div class="kpi-val" id="kpiRevenue">—</div><div class="kpi-sub">Selling price incl. GST</div></div>
+        <div class="kpi blue" data-w="net"><div class="kpi-label">Net Revenue</div><div class="kpi-val" id="kpiNet">—</div><div class="kpi-sub">After platform fees</div></div>
+        <div class="kpi green" data-w="profit"><div class="kpi-label">Gross Profit</div><div class="kpi-val" id="kpiProfit">—</div><div class="kpi-sub" id="kpiMarginSub">—</div></div>
+        <div class="kpi yellow" data-w="gst"><div class="kpi-label">Total GST</div><div class="kpi-val" id="kpiGst">—</div><div class="kpi-sub">Collected (payable)</div></div>
+        <div class="kpi purple" data-w="orders"><div class="kpi-label">Orders</div><div class="kpi-val" id="kpiOrders">—</div><div class="kpi-sub" id="kpiUnitsSub">—</div></div>
+        <div class="kpi red" data-w="returns"><div class="kpi-label">Returns / Claims</div><div class="kpi-val" id="kpiReturns">—</div><div class="kpi-sub">Loss this period</div></div>
       </div>
 
       <!-- Charts -->
@@ -1943,6 +1946,7 @@ async function startApp(){
   document.getElementById('authOverlay').style.display = 'none';
   document.getElementById('shell').style.display = 'flex';
   restoreBizSidebar();
+  applyDashWidgets();
   loadBizSettings();
   await Promise.all([loadProducts(), initDashMonths()]);
   loadDashboard();
@@ -3678,6 +3682,33 @@ function _skuToProduct(sku){
   if(!sku||!_catalogBySku) return null;
   return _catalogBySku[String(sku).trim().toLowerCase()]||null;
 }
+
+// ── B2 — customizable dashboard widgets (per admin, localStorage) ──
+const DASH_WIDGETS=[{k:'revenue',name:'Total Revenue'},{k:'net',name:'Net Revenue'},{k:'profit',name:'Gross Profit'},{k:'gst',name:'Total GST'},{k:'orders',name:'Orders'},{k:'returns',name:'Returns / Claims'}];
+function dashWidgetCfg(){
+  try{ const c=JSON.parse(localStorage.getItem('biz_dash_widgets')||'null'); if(c&&Array.isArray(c.order)) return {order:c.order,hidden:c.hidden||[]}; }catch(_){}
+  return {order:DASH_WIDGETS.map(w=>w.k),hidden:[]};
+}
+function applyDashWidgets(){
+  const cfg=dashWidgetCfg(); const grid=document.getElementById('kpiGrid'); if(!grid) return;
+  // ensure any keys missing from saved order get appended (future-proof)
+  DASH_WIDGETS.forEach(w=>{ if(!cfg.order.includes(w.k)) cfg.order.push(w.k); });
+  cfg.order.forEach(k=>{ const el=grid.querySelector('.kpi[data-w="'+k+'"]'); if(el){ el.style.display=cfg.hidden.includes(k)?'none':''; grid.appendChild(el); } });
+}
+function toggleDashCustomize(){ const p=document.getElementById('dashCustomize'); if(!p) return; if(p.style.display!=='none'){ p.style.display='none'; return; } renderDashCustomize(); p.style.display='block'; }
+function renderDashCustomize(){
+  const p=document.getElementById('dashCustomize'); if(!p) return; const cfg=dashWidgetCfg();
+  const nameOf=k=>(DASH_WIDGETS.find(w=>w.k===k)||{}).name||k;
+  p.innerHTML='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">Dashboard widgets — show / hide / reorder</div>'+
+    cfg.order.map((k,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+      <label style="display:flex;align-items:center;gap:6px;flex:1;font-size:12px;cursor:pointer"><input type="checkbox" ${cfg.hidden.includes(k)?'':'checked'} onchange="dashToggleWidget('${k}')"> ${esc(nameOf(k))}</label>
+      <button class="btn btn-ghost btn-sm" onclick="dashMoveWidget('${k}',-1)" ${i===0?'disabled':''}>↑</button>
+      <button class="btn btn-ghost btn-sm" onclick="dashMoveWidget('${k}',1)" ${i===cfg.order.length-1?'disabled':''}>↓</button>
+    </div>`).join('');
+}
+function dashSaveCfg(cfg){ try{ localStorage.setItem('biz_dash_widgets',JSON.stringify(cfg)); }catch(_){} applyDashWidgets(); renderDashCustomize(); }
+function dashToggleWidget(k){ const cfg=dashWidgetCfg(); const i=cfg.hidden.indexOf(k); if(i>=0) cfg.hidden.splice(i,1); else cfg.hidden.push(k); dashSaveCfg(cfg); }
+function dashMoveWidget(k,dir){ const cfg=dashWidgetCfg(); const i=cfg.order.indexOf(k), j=i+dir; if(i<0||j<0||j>=cfg.order.length) return; const t=cfg.order[i]; cfg.order[i]=cfg.order[j]; cfg.order[j]=t; dashSaveCfg(cfg); }
 
 async function loadDashboard(){
   const sel=document.getElementById('dashMonth');
