@@ -11,6 +11,7 @@ import {
   listRecycleBin, restoreItem, purgeItem,
 } from '../controllers/adminRecycleController.js';
 import { generateListing } from '../controllers/listingController.js';
+import { getGa4Overview } from '../controllers/ga4Controller.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { upload, compressImage } from '../middleware/uploadMiddleware.js';
@@ -28,6 +29,7 @@ router.put('/products/:id',      updateProduct);
 router.delete('/products/:id',   deleteProduct);
 
 router.post('/generate-listing', generateListing);
+router.get('/ga4',               getGa4Overview);   // A14 — GA4 traffic analytics
 
 // Image upload — receives file, compresses it, stores in Cloudinary, returns URL.
 // Replaces direct Supabase Storage uploads from the admin panel.

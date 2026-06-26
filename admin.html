@@ -1493,12 +1493,24 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
       <div class="p-title">Analytics</div>
       <div class="p-actions">
         <button class="btn-secondary" onclick="toggleDashCustomize()">⚙ Customize</button>
-        <button class="btn-secondary" onclick="loadAnalytics()">⟳ Refresh</button>
+        <button class="btn-secondary" onclick="loadAnalytics();loadGa4()">⟳ Refresh</button>
         <a href="https://analytics.google.com" target="_blank" rel="noopener" class="btn-secondary" style="text-decoration:none">Open Google Analytics ↗</a>
       </div>
     </div>
     <!-- Dashboard customize (Module 5) -->
     <div id="dashCustomize" style="display:none;max-width:380px;margin-bottom:16px;padding:12px 14px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius)"></div>
+    <!-- A14 — GA4 website traffic -->
+    <div id="ga4Section" style="margin-bottom:26px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <div class="od-label" style="margin:0">Website Traffic <span class="hint">— Google Analytics (GA4)</span></div>
+        <select id="ga4Days" onchange="loadGa4()" style="padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
+          <option value="7">Last 7 days</option>
+          <option value="28" selected>Last 28 days</option>
+          <option value="90">Last 90 days</option>
+        </select>
+      </div>
+      <div id="ga4Body"><div class="analytics-loading">Loading traffic…</div></div>
+    </div>
     <!-- KPI row -->
     <div id="analyticsKpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px">
       <div class="analytics-loading">Loading…</div>
@@ -2317,7 +2329,7 @@ function switchTab(tab){
   });
   // Clear notification dot and save seen count
   if(tab==='dashboard')loadDashboard();
-  if(tab==='analytics')loadAnalytics();
+  if(tab==='analytics'){loadAnalytics();loadGa4();}
   if(tab==='promo')loadPromoCodes();
   if(tab==='reviews'){loadReviewsAdmin();loadGoogleSettings();}
   if(tab==='activity')loadActivity();
@@ -2577,6 +2589,29 @@ function dashWSignups(){
   return s.map(u=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--border);font-size:12px"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.full_name||u.email||'—')}</span><span style="font-size:11px;color:var(--text-3)">${u.created_at?fmtDateShort(u.created_at):''}</span></div>`).join('');
 }
 
+// A14 — GA4 website traffic (reads /api/admin/ga4, which uses the service account)
+async function loadGa4(){
+  const body=document.getElementById('ga4Body'); if(!body) return;
+  const days=(document.getElementById('ga4Days')||{}).value||28;
+  body.innerHTML='<div class="analytics-loading">Loading traffic…</div>';
+  try{
+    const d=await adminApi('/api/admin/ga4?days='+days);
+    const t=d.totals||{};
+    const n=v=>(Number(v)||0).toLocaleString('en-IN');
+    const kpi=(label,val)=>'<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3)">'+label+'</div><div style="font-size:22px;font-weight:700;margin-top:4px">'+n(val)+'</div></div>';
+    const list=(title,rows)=>{ rows=(rows||[]).filter(r=>r._k); if(!rows.length) return '<div class="od-section" style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px"><div class="od-label" style="margin-bottom:10px">'+title+'</div><div class="hint">No data.</div></div>'; const max=Math.max.apply(null,rows.map(r=>r._v))||1; return '<div class="od-section" style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px"><div class="od-label" style="margin-bottom:10px">'+title+'</div>'+rows.map(r=>'<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><div style="flex:1;min-width:0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(r._k)+'">'+esc(r._k)+'</div><div style="width:80px;height:7px;background:var(--bg-2);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.round(r._v/max*100)+'%;background:var(--accent)"></div></div><div style="width:56px;text-align:right;font-size:12px;font-family:var(--mono)">'+n(r._v)+'</div></div>').join('')+'</div>'; };
+    body.innerHTML=
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px">'
+      +kpi('Users',t.users)+kpi('Sessions',t.sessions)+kpi('Page views',t.pageViews)+'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'
+      +list('Top pages',(d.topPages||[]).map(p=>({_k:p.path,_v:p.views})))
+      +list('Channels',(d.channels||[]).map(c=>({_k:c.channel,_v:c.sessions})))
+      +'</div>'
+      +'<div style="margin-top:16px">'+list('Devices',(d.devices||[]).map(x=>({_k:x.device,_v:x.sessions})))+'</div>';
+  }catch(e){
+    body.innerHTML='<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;font-size:13px"><div style="font-weight:700;margin-bottom:6px">Traffic data unavailable</div><div class="hint">'+esc(e.message)+'</div></div>';
+  }
+}
 async function loadAnalytics(){
   // 1. KPIs: total revenue, total orders, avg order value, paid orders
   const since30=new Date(Date.now()-30*24*60*60*1000).toISOString();
