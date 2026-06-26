@@ -4172,7 +4172,7 @@ async function handleImgFiles(files){
       const r=await fetch(API+'/api/admin/upload-image',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
       if(!r.ok)throw new Error((await r.json()).error||'Upload failed');
       const{url}=await r.json();
-      _uploadedImages.push(url);renderImgGrid();
+      _uploadedImages.push(url);renderImgGrid();markProdDirty();
     }catch(err){toast('Upload failed: '+err.message,'error')}
   }
   upl.style.display='none';upl.textContent='Uploading…';
@@ -4230,7 +4230,7 @@ function _imgDrop(e,i){
   const moved=_uploadedImages.splice(_imgDragSrc,1)[0];
   _uploadedImages.splice(i,0,moved);
   _imgDragSrc=-1;
-  renderImgGrid();
+  renderImgGrid();markProdDirty();
 }
 function _imgDragEnd(e){
   e.currentTarget.classList.remove('dragging');
@@ -4238,11 +4238,11 @@ function _imgDragEnd(e){
   _imgDragSrc=-1;
 }
 
-function removeImg(i){_uploadedImages.splice(i,1);renderImgGrid()}
+function removeImg(i){_uploadedImages.splice(i,1);renderImgGrid();markProdDirty()}
 
 // ── Variants ───────────────────────────────────────────────
-function addVariant(){_variants.push({name:'',color_code:'#888888',images:[]});renderVariants()}
-function removeVariant(i){_variants.splice(i,1);renderVariants()}
+function addVariant(){_variants.push({name:'',color_code:'#888888',images:[]});renderVariants();markProdDirty()}
+function removeVariant(i){_variants.splice(i,1);renderVariants();markProdDirty()}
 
 function renderVariants(){
   document.getElementById('variantList').innerHTML=_variants.map((v,i)=>`
@@ -4270,11 +4270,11 @@ async function uploadVariantImg(varIdx,files){
       if(!r.ok)throw new Error((await r.json()).error||'Upload failed');
       const{url}=await r.json();
       if(!_variants[varIdx].images)_variants[varIdx].images=[];
-      _variants[varIdx].images.push(url);renderVariants();
+      _variants[varIdx].images.push(url);renderVariants();markProdDirty();
     }catch(err){toast('Upload failed','error')}
   }
 }
-function removeVariantImg(vi,ii){_variants[vi].images.splice(ii,1);renderVariants()}
+function removeVariantImg(vi,ii){_variants[vi].images.splice(ii,1);renderVariants();markProdDirty()}
 
 // ══════════════════════════════════════════════════════════
 // UNIFIED CUSTOMER OPTIONS  (replaces custFields + dropdowns)
@@ -4283,14 +4283,14 @@ function removeVariantImg(vi,ii){_variants[vi].images.splice(ii,1);renderVariant
 
 function addCustOpt(type,required,isName){
   _productOptions.push({label:'',type:type||'text',required:!!required,is_name_field:!!isName,placeholder:'',hint:'',options:[],default_value:''});
-  renderCustOpts();
+  renderCustOpts();markProdDirty();
   // scroll to newly added row
   const list=document.getElementById('custOptsList');
   if(list)list.lastElementChild&&list.lastElementChild.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
-function removeCustOpt(i){_productOptions.splice(i,1);renderCustOpts();}
-function addCustOptOption(i,val){if(!val.trim())return;_productOptions[i].options.push(val.trim());renderCustOpts();}
-function removeCustOptOption(i,j){_productOptions[i].options.splice(j,1);renderCustOpts();}
+function removeCustOpt(i){_productOptions.splice(i,1);renderCustOpts();markProdDirty();}
+function addCustOptOption(i,val){if(!val.trim())return;_productOptions[i].options.push(val.trim());renderCustOpts();markProdDirty();}
+function removeCustOptOption(i,j){_productOptions[i].options.splice(j,1);renderCustOpts();markProdDirty();}
 
 function renderCustOpts(){
   const el=document.getElementById('custOptsList');
