@@ -1576,8 +1576,18 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
         <div><label class="form-label">Review count</label><input id="grCount" class="form-input" type="number" min="0" placeholder="13"></div>
         <div><label class="form-label">Google profile URL</label><input id="grUrl" class="form-input" placeholder="https://maps.app.goo.gl/…"></div>
       </div>
-      <div style="margin-top:10px"><label class="form-label">Hand-picked snippets — one per line: <code>rating | author | text</code></label>
-        <textarea id="grSnippets" class="form-input" rows="3" placeholder="5 | Dileep Pathak | Needed a customised gift, he helped a lot and delivered on time." style="resize:vertical;font-size:12px"></textarea></div>
+      <div style="margin-top:12px">
+        <label class="form-label">Google review snippets <span style="font-weight:400;color:var(--text-3);font-size:11px">· shown on the Reviews page</span></label>
+        <div id="grSnipList" style="display:flex;flex-direction:column;gap:6px;margin:6px 0"></div>
+        <div style="display:grid;grid-template-columns:1.3fr .7fr .9fr 1fr;gap:6px;align-items:end">
+          <div><label class="form-label" style="font-size:10px">Reviewer name</label><input id="grsName" class="form-input" placeholder="Dileep Pathak"></div>
+          <div><label class="form-label" style="font-size:10px">Rating</label><input id="grsRating" class="form-input" type="number" min="1" max="5" step="0.5" value="5"></div>
+          <div><label class="form-label" style="font-size:10px">Date</label><input id="grsDate" class="form-input" type="date"></div>
+          <div><label class="form-label" style="font-size:10px">Link customer (optional)</label><input id="grsCustomer" class="form-input" list="grCustList" placeholder="customer name"><datalist id="grCustList"></datalist></div>
+        </div>
+        <textarea id="grsText" class="form-input" rows="2" placeholder="Review text…" style="resize:vertical;font-size:12px;margin-top:6px"></textarea>
+        <button type="button" class="btn-secondary" onclick="grAddSnippet()" style="margin-top:6px">+ Add review</button>
+      </div>
       <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
         <button class="btn-primary" onclick="saveGoogleSettings()">Save Google stats</button>
         <span id="grStatus" style="font-size:12px;color:var(--text-3)"></span>
@@ -5123,6 +5133,7 @@ async function loadReviewsAdmin(){
 /* ── Google Reviews storefront stats (site_settings) ──
    Reads/writes via the browser sb client — site_settings already has its own
    public-read / admin-write RLS policy, so this is the one safe direct path. */
+let _grSnippets=[];
 async function loadGoogleSettings(){
   try{
     const {data}=await sb.from('site_settings').select('key,value')
@@ -5132,29 +5143,45 @@ async function loadGoogleSettings(){
     if(g('grRating')) g('grRating').value=m.google_rating||'';
     if(g('grCount'))  g('grCount').value=m.google_review_count||'';
     if(g('grUrl'))    g('grUrl').value=m.google_profile_url||'';
-    let snips=[]; try{snips=JSON.parse(m.google_snippets||'[]');}catch(_){}
-    if(g('grSnippets')) g('grSnippets').value=(snips||[]).map(s=>`${s.rating||5} | ${s.author||''} | ${s.text||''}`).join('\n');
+    try{ _grSnippets=JSON.parse(m.google_snippets||'[]')||[]; }catch(_){ _grSnippets=[]; }
+    grRenderSnips();
+    const dl=g('grCustList');
+    if(dl){ const {data:cs}=await sb.from('profiles').select('full_name').is('deleted_at',null).not('full_name','is',null).limit(500); dl.innerHTML=(cs||[]).map(c=>`<option value="${esc(c.full_name)}">`).join(''); }
   }catch(e){ console.warn('loadGoogleSettings:',e.message); }
 }
+function grRenderSnips(){
+  const el=document.getElementById('grSnipList'); if(!el) return;
+  el.innerHTML=_grSnippets.length?_grSnippets.map((s,i)=>`<div style="display:flex;gap:8px;align-items:flex-start;background:var(--bg-1);border:1px solid var(--border);border-radius:5px;padding:7px 9px">
+    <div style="flex:1;min-width:0">
+      <div style="font-size:12px;font-weight:600">${esc(s.author||'—')} <span style="color:var(--yellow)">${'★'.repeat(Math.max(1,Math.round(s.rating||5)))}</span>${s.date?` <span style="color:var(--text-3);font-size:10px">${esc(s.date)}</span>`:''}${s.customer?` <span style="color:var(--accent);font-size:10px">· ${esc(s.customer)}</span>`:''}</div>
+      <div style="font-size:11px;color:var(--text-2)">${esc(s.text||'')}</div>
+    </div>
+    <button class="btn-secondary" onclick="grRemoveSnippet(${i})" style="flex-shrink:0">✕</button>
+  </div>`).join(''):'<div style="font-size:11px;color:var(--text-3)">No snippets yet.</div>';
+}
+function grAddSnippet(){
+  const g=id=>document.getElementById(id);
+  const author=(g('grsName').value||'').trim(), text=(g('grsText').value||'').trim();
+  if(!author||!text){ toast('Reviewer name and text are required','error'); return; }
+  _grSnippets.push({ rating:Number(g('grsRating').value)||5, author, text, date:g('grsDate').value||null, customer:(g('grsCustomer').value||'').trim()||null });
+  ['grsName','grsText','grsCustomer'].forEach(id=>{g(id).value='';}); g('grsRating').value='5'; g('grsDate').value='';
+  grRenderSnips();
+}
+function grRemoveSnippet(i){ _grSnippets.splice(i,1); grRenderSnips(); }
 async function saveGoogleSettings(){
   const g=id=>document.getElementById(id);
-  const lines=(g('grSnippets').value||'').split('\n').map(l=>l.trim()).filter(Boolean);
-  const snippets=lines.map(l=>{
-    const p=l.split('|').map(x=>x.trim());
-    return p.length>=3?{rating:Number(p[0])||5,author:p[1],text:p.slice(2).join(' | ')}:{rating:5,author:'',text:l};
-  });
   const now=new Date().toISOString();
   const rows=[
     {key:'google_rating',       value:String(g('grRating').value||'').trim(), updated_at:now},
     {key:'google_review_count', value:String(g('grCount').value||'').trim(),  updated_at:now},
     {key:'google_profile_url',  value:String(g('grUrl').value||'').trim(),    updated_at:now},
-    {key:'google_snippets',     value:JSON.stringify(snippets),               updated_at:now},
+    {key:'google_snippets',     value:JSON.stringify(_grSnippets),            updated_at:now},
   ];
   try{
     const {error}=await sb.from('site_settings').upsert(rows,{onConflict:'key'});
     if(error)throw error;
     const st=g('grStatus'); if(st){st.textContent='Saved ✓'; setTimeout(()=>{st.textContent='';},2500);}
-    toast('Google stats saved','success');
+    toast('Google reviews saved','success');
   }catch(e){ toast('Error: '+e.message,'error'); }
 }
 
