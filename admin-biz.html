@@ -1848,11 +1848,17 @@ function loadBizSettings(){
 }
 // ── B14: operational defaults (synced via site_settings) ──
 let _bizDefaults={hsn:'3926',gst:0,cogs:0,minRolls:2};
+// A7 — document field toggles (default ON unless explicitly false)
+let _docInvCfg={}, _docRecCfg={};
+function docInv(k){ return _docInvCfg[k]!==false; }
+function docRec(k){ return _docRecCfg[k]!==false; }
 async function loadBizDefaults(){
   try{
-    const {data}=await sb.from('site_settings').select('key,value').in('key',['biz_default_hsn','biz_default_gst','biz_default_cogs','biz_filament_min_rolls']);
+    const {data}=await sb.from('site_settings').select('key,value').in('key',['biz_default_hsn','biz_default_gst','biz_default_cogs','biz_filament_min_rolls','doc_invoice_fields','doc_record_fields']);
     const m={}; (data||[]).forEach(r=>m[r.key]=r.value);
     _bizDefaults={ hsn:m.biz_default_hsn||'3926', gst:parseFloat(m.biz_default_gst)||0, cogs:parseFloat(m.biz_default_cogs)||0, minRolls:parseInt(m.biz_filament_min_rolls)||2 };
+    try{ _docInvCfg=JSON.parse(m.doc_invoice_fields||'{}')||{}; }catch(_){ _docInvCfg={}; }
+    try{ _docRecCfg=JSON.parse(m.doc_record_fields||'{}')||{}; }catch(_){ _docRecCfg={}; }
     if(typeof _filMinRolls!=='undefined') _filMinRolls=_bizDefaults.minRolls;
     const set=(id,v)=>{const e=document.getElementById(id);if(e&&v!=null&&v!=='')e.value=v;};
     set('def_hsn',_bizDefaults.hsn); set('def_gst',String(_bizDefaults.gst)); set('def_cogs',_bizDefaults.cogs||''); set('def_minrolls',_bizDefaults.minRolls);
@@ -4392,7 +4398,7 @@ function printInvoice(d, type){
   const docDate=d.order_date||today();
   const amtWords=amountInWords(subtotal);
 
-  const gstBlock=hasGst?`
+  const gstBlock=(hasGst&&docInv('gst_breakup'))?`
     <tr><td colspan="3" style="text-align:right;color:#999;font-size:12px;padding:5px 14px;border:none">Taxable Amount</td><td style="text-align:right;padding:5px 14px;border:none">₹${taxable.toFixed(2)}</td></tr>
     ${isIntraState
       ?`<tr><td colspan="3" style="text-align:right;color:#999;font-size:12px;padding:4px 14px;border:none">CGST @ ${gstRate/2}%</td><td style="text-align:right;padding:4px 14px;border:none">₹${(gstAmt/2).toFixed(2)}</td></tr>
@@ -4487,9 +4493,9 @@ tbody tr:last-child td{border-bottom:none}
 
 ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
 <div class="seller-strip">
-  <div class="seller-name">${esc(SELLER_NAME)}${SELLER_ADDR?' &nbsp;·&nbsp; <span style="font-weight:400;color:#666">'+esc(SELLER_ADDR)+'</span>':''}</div>
+  <div class="seller-name">${esc(SELLER_NAME)}${SELLER_ADDR&&docInv('business_address')?' &nbsp;·&nbsp; <span style="font-weight:400;color:#666">'+esc(SELLER_ADDR)+'</span>':''}</div>
   <div class="seller-detail">${[
-    SELLER_GSTIN?'GSTIN: '+SELLER_GSTIN:'',
+    (docInv('gstin')&&SELLER_GSTIN)?'GSTIN: '+SELLER_GSTIN:'',
     SELLER_PAN?'PAN: '+SELLER_PAN:'',
     SELLER_PHONE,SELLER_EMAIL,SELLER_WEB
   ].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ')}</div>
@@ -4500,9 +4506,7 @@ ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
     <div class="section-lbl">Prepared for</div>
     ${d.customer_name?`<div class="cust-name">${esc(d.customer_name)}</div>`:''}
     <div class="cust-detail">
-      ${d.customer_phone?esc(d.customer_phone)+'<br>':''}
-      ${d.customer_address?esc(d.customer_address)+'<br>':''}
-      ${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' &mdash; '+esc(d.customer_pincode):''}
+      ${docInv('shipping_address')?`${d.customer_phone?esc(d.customer_phone)+'<br>':''}${d.customer_address?esc(d.customer_address)+'<br>':''}${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' &mdash; '+esc(d.customer_pincode):''}`:''}
     </div>
   </div>
 </div>
@@ -4532,10 +4536,10 @@ ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
 
 ${d.payment_mode||d.tracking_number||d.courier_partner||d.package_size||d.weight_grams?`
 <div class="info-strip">
-  <div class="info-card">
+  ${docInv('payment_mode')?`<div class="info-card">
     <div class="info-lbl">Payment</div>
     <div class="info-val">${esc((d.payment_mode||'—')+'')}${(d.package_size||d.weight_grams)?`<br><span style="font-size:11px;color:#aaa">Packet: ${[d.package_size?esc(d.package_size):'',d.weight_grams?esc(d.weight_grams)+' g':''].filter(Boolean).join(' · ')}</span>`:''}</div>
-  </div>
+  </div>`:''}
   <div class="info-card">
     <div class="info-lbl">Shipping</div>
     <div class="info-val">
@@ -4548,10 +4552,12 @@ ${d.payment_mode||d.tracking_number||d.courier_partner||d.package_size||d.weight
 
 </div>
 
+${docInv('reprint_note')?`<div style="padding:12px 32px 0;font-size:11px;color:#777">★ 7-Day Reprint Guarantee — any print defect reprinted free within 7 days.</div>`:''}
+${docInv('signature')?`<div style="padding:26px 32px 4px;text-align:right;font-size:11px;color:#777">For ${esc(SELLER_NAME)}<div style="margin-top:30px;border-top:1px solid #ccc;width:170px;margin-left:auto;padding-top:4px">Authorised Signatory</div></div>`:''}
 <div class="footer-band">
   <div class="footer-left">
     <div class="footer-brand">TriAkar &nbsp;·&nbsp; त्रिआकार</div>
-    <div class="footer-tagline">${esc(SELLER_FOOTER||'This is not an invoice')}</div>
+    ${docInv('terms')?`<div class="footer-tagline">${esc(SELLER_FOOTER||'This is not an invoice')}</div>`:''}
   </div>
   <div class="print-btn doc-actions" id="docActions">
     <span id="shareStatus" style="font-size:11px;color:#999;margin-right:8px"></span>
