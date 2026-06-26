@@ -612,7 +612,7 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
 
 <script>
 
-let qty=1, selVariant='', curProduct=null, currentImgIdx=0;
+let qty=1, selVariant='', selVariantPrice=null, curProduct=null, currentImgIdx=0;
 function _mdRender(t){
   if(!t)return'';
   var h=t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -864,10 +864,14 @@ function renderProduct(ap){
   if(tagEl){const label=p.badge||p.tag;if(label){tagEl.textContent=label;tagEl.style.display='';}else{tagEl.style.display='none';}}
   // variants
   const vArr=p.variants.length?p.variants:['Default'];
-  selVariant=typeof vArr[0]==='object'?vArr[0].name:vArr[0];
+  const firstV=vArr[0];
+  selVariant=typeof firstV==='object'?firstV.name:firstV;
+  selVariantPrice=(typeof firstV==='object'&&firstV.price!=null)?firstV.price:null;
+  if(selVariantPrice!=null){document.getElementById('prodPrice').textContent='₹'+selVariantPrice.toLocaleString('en-IN');}
+  const hasVariantPrices=vArr.some(v=>typeof v==='object'&&v.price!=null);
   const isSize=id.includes('loop')||id.includes('bookmark');
-  document.getElementById('variantLabel').textContent=isSize?'Pack Size':'Colour';
-  document.getElementById('variantRow').innerHTML=vArr.map((v,i)=>{const vn=typeof v==='object'?v.name:v;return `<button class="variant-btn${i===0?' active':''}" onclick="selectVariant(this,'${vn}')">${vn}</button>`;}).join('');
+  document.getElementById('variantLabel').textContent=hasVariantPrices?'Mount Type':isSize?'Pack Size':'Colour';
+  document.getElementById('variantRow').innerHTML=vArr.map((v,i)=>{const vn=typeof v==='object'?v.name:v;const vp=typeof v==='object'&&v.price!=null?v.price:null;const priceAttr=vp!=null?` data-price="${vp}"`:'';return `<button class="variant-btn${i===0?' active':''}" onclick="selectVariant(this,'${vn}')"${priceAttr}>${vn}</button>`;}).join('');
   // specs — show all rows in a clean table
   const allSpecs=p.specs||[];
   const specTableEl=document.getElementById('specTable');
@@ -988,7 +992,7 @@ function renderRecentlyViewed(currentSlug){
     })
     .catch(()=>{section.style.display='none';});
 }
-function selectVariant(btn,v){document.querySelectorAll('.variant-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selVariant=v}
+function selectVariant(btn,v){document.querySelectorAll('.variant-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selVariant=v;const vp=btn.dataset.price;if(vp!=null){selVariantPrice=Number(vp);document.getElementById('prodPrice').textContent='₹'+selVariantPrice.toLocaleString('en-IN');const bbPrice=document.getElementById('buyBarPrice');if(bbPrice)bbPrice.textContent='₹'+selVariantPrice.toLocaleString('en-IN');}else{selVariantPrice=null;}}
 function changeQty(d){
   const minQ=curProduct&&curProduct.min_order_qty||1;
   const step=curProduct&&curProduct.qty_step||1;
@@ -1046,7 +1050,7 @@ function addToCartFromDetail(){
     return;
   }
   const cust=_collectCustomization();
-  Cart.add({id:window._prodId,name:curProduct.name,price:curProduct.price,color:selVariant,customization:cust});
+  Cart.add({id:window._prodId,name:curProduct.name,price:selVariantPrice!=null?selVariantPrice:curProduct.price,color:selVariant,customization:cust});
   openCart();
 }
 function buyNow(){
@@ -1056,7 +1060,7 @@ function buyNow(){
     return;
   }
   const cust=_collectCustomization();
-  Cart.add({id:window._prodId,name:curProduct.name,price:curProduct.price,color:selVariant,customization:cust});
+  Cart.add({id:window._prodId,name:curProduct.name,price:selVariantPrice!=null?selVariantPrice:curProduct.price,color:selVariant,customization:cust});
   checkout();
 }
 function toggleAcc(id){
