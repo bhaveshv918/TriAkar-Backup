@@ -2168,9 +2168,12 @@ function globalSearchRun(){
 }
 function closeGlobalSearch(){ const b=document.getElementById('globalSearchResults'); if(b)b.style.display='none'; const i=document.getElementById('globalSearch'); if(i)i.value=''; }
 
+// A3 — orders the admin has opened/read are cleared from the notification
+let _readOrders=(()=>{try{return new Set(JSON.parse(localStorage.getItem('ta_orders_read')||'[]'));}catch(e){return new Set();}})();
+function markOrderRead(id){ if(!id||_readOrders.has(id))return; _readOrders.add(id); try{localStorage.setItem('ta_orders_read',JSON.stringify([..._readOrders]));}catch(e){} refreshNotifBadge(); }
 function buildNotifications(){
   const items=[];
-  const pendOrders=(_orders||[]).filter(o=>o.status==='pending'||o.order_status==='whatsapp_pending').length;
+  const pendOrders=(_orders||[]).filter(o=>(o.status==='pending'||o.order_status==='whatsapp_pending')&&!_readOrders.has(o.id)).length;
   if(pendOrders) items.push({icon:'◈',text:pendOrders+' order'+(pendOrders>1?'s':'')+' awaiting action',tab:'orders'});
   const lowStock=(_products||[]).filter(p=>p.is_active&&(p.stock_qty??0)<=5).length;
   if(lowStock) items.push({icon:'▦',text:lowStock+' product'+(lowStock>1?'s':'')+' low / out of stock',tab:'products'});
@@ -2900,7 +2903,8 @@ function toggleOrderDetail(id){
   const btn=document.getElementById('exp-'+id);
   if(!row)return;
   row.classList.toggle('show');
-  btn.classList.toggle('open');
+  if(btn) btn.classList.toggle('open');
+  if(row.classList.contains('show')) markOrderRead(id);   // A3 — clear its notification
 }
 
 async function updateOrderStatus(id,sel){
@@ -4251,22 +4255,42 @@ function renderDropdownsAdmin(){renderCustOpts();}
 // ═══════════════════════════════════════════════════════════
 // SECURITY LOGS
 // ═══════════════════════════════════════════════════════════
+// A12 — parse the user-agent into device type + browser
+function uaParse(ua){
+  ua=ua||'';
+  let device='Laptop/Desktop';
+  if(/iPad|Tablet|PlayBook|Silk/i.test(ua)||(/Android/i.test(ua)&&!/Mobile/i.test(ua))) device='Tablet';
+  else if(/Mobi|iPhone|Android.*Mobile|Windows Phone|iPod/i.test(ua)) device='Mobile';
+  let browser='Browser';
+  if(/Edg\//i.test(ua)) browser='Edge';
+  else if(/OPR\/|Opera/i.test(ua)) browser='Opera';
+  else if(/SamsungBrowser/i.test(ua)) browser='Samsung';
+  else if(/Chrome\//i.test(ua)) browser='Chrome';
+  else if(/Firefox\//i.test(ua)) browser='Firefox';
+  else if(/Safari\//i.test(ua)&&!/Chrome/i.test(ua)) browser='Safari';
+  return {device,browser};
+}
 async function loadLogs(){
   const{data,error}=await sb.from('admin_logs').select('*').order('created_at',{ascending:false}).limit(100);
   if(error){document.getElementById('logsBody').innerHTML='<tr><td colspan="7" class="tbl-msg">Error</td></tr>';return}
   const tbody=document.getElementById('logsBody');
   if(!data.length){tbody.innerHTML='<tr><td colspan="7" class="tbl-msg">No logs yet.</td></tr>';return}
+  // flag the first successful login from each device/browser/platform combo (oldest-first)
+  const seen=new Set(), newDev=new Set();
+  [...data].reverse().forEach(l=>{ if(!l.success||l.action==='page_visit')return; const p=uaParse(l.user_agent); const k=p.browser+'|'+p.device+'|'+(l.platform||''); if(!seen.has(k)){seen.add(k);newDev.add(l.id);} });
   tbody.innerHTML=data.map(l=>{
+    const p=uaParse(l.user_agent);
     const resultBadge=l.action==='page_visit'?'<span class="badge badge-blue">Visit</span>'
       :l.success?'<span class="badge badge-green">Success</span>':'<span class="badge badge-red">Failed</span>';
+    const newFlag=(l.success&&newDev.has(l.id))?' <span style="background:var(--yellow-bg);color:var(--yellow);font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px" title="First login seen from this device/browser">⚠ new device</span>':'';
     return '<tr>'
       +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+fmtDate(l.created_at)+'</td>'
       +'<td><span class="badge badge-cat">'+l.action+'</span></td>'
       +'<td>'+(l.email_attempted||'—')+'</td>'
       +'<td style="font-family:var(--mono);font-size:11px">'+(l.ip||'—')+'</td>'
-      +'<td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(l.platform||'—')+' · '+(l.screen_res||'')+'</td>'
+      +'<td style="font-size:11px" title="'+esc(l.user_agent||'')+'">'+p.device+' · '+p.browser+(l.platform?' <span style="color:var(--text-3)">('+esc(l.platform)+')</span>':'')+'</td>'
       +'<td style="font-size:11px">'+(l.timezone||'—')+' · '+(l.language||'')+'</td>'
-      +'<td>'+resultBadge+'</td>'
+      +'<td>'+resultBadge+newFlag+'</td>'
       +'</tr>';
   }).join('');
 }
