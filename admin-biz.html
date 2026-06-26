@@ -1700,7 +1700,11 @@ tr:hover td{background:var(--bg-2)}
           <div class="form-group"><label>Amount ₹ (incl GST)</label><input type="number" id="ex_amount" step="0.01"></div>
           <div class="form-group"><label>GST ₹ (of amount)</label><input type="number" id="ex_gst" step="0.01"></div>
           <div class="form-group"><label>Payment Mode</label><select id="ex_payment"><option value="">—</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="bank">Bank</option></select></div>
-          <div class="form-group" style="grid-column:span 2"><label>Invoice link <span style="color:var(--text-3);font-weight:400;text-transform:none">(Drive/Dropbox URL — any format)</span></label><input type="text" id="ex_invoice" placeholder="https://…"></div>
+          <div class="form-group" style="grid-column:span 2"><label>Invoice file <span style="color:var(--text-3);font-weight:400;text-transform:none">(any format — uploaded to private storage)</span></label>
+            <input type="file" id="ex_invoice_file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv">
+            <input type="hidden" id="ex_invoice">
+            <div id="ex_invoice_current" style="font-size:11px;color:var(--text-3);margin-top:4px"></div>
+          </div>
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="ex_notes"></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
@@ -2658,13 +2662,14 @@ async function loadExpenses(){
     <td>${esc(r.vendor||'—')}</td>
     <td class="td-num" style="font-weight:700">${fmt(r.amount)}</td>
     <td class="td-num" style="color:var(--text-3)">${fmt(r.gst_amount)}</td>
-    <td>${r.invoice_url?`<a href="${esc(r.invoice_url)}" target="_blank" rel="noopener" style="color:var(--accent)">view</a>`:'—'}</td>
+    <td>${r.invoice_url?`<a href="#" data-u="${esc(r.invoice_url)}" onclick="event.preventDefault();openInvoice(this.dataset.u)" style="color:var(--accent)">view</a>`:'—'}</td>
     <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="editExpense('${r.id}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteExpense('${r.id}')">✕</button></td>
   </tr>`).join('');
 }
 function showAddExpense(){
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};
   ['ex_id','ex_vendor','ex_amount','ex_gst','ex_invoice','ex_notes'].forEach(id=>set(id,''));
+  document.getElementById('ex_invoice_file').value=''; document.getElementById('ex_invoice_current').textContent='';
   set('ex_date',today()); document.getElementById('ex_category').value='materials'; document.getElementById('ex_payment').value='';
   document.getElementById('expenseFormTitle').textContent='Add Expense';
   const f=document.getElementById('expenseForm'); f.style.display='block'; f.scrollIntoView({behavior:'smooth',block:'start'});
@@ -2673,6 +2678,8 @@ function editExpense(id){
   const r=_expensesCache.find(x=>x.id===id); if(!r) return;
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
   set('ex_id',r.id); set('ex_date',r.date); set('ex_vendor',r.vendor); set('ex_amount',r.amount); set('ex_gst',r.gst_amount); set('ex_invoice',r.invoice_url); set('ex_notes',r.notes);
+  document.getElementById('ex_invoice_file').value='';
+  document.getElementById('ex_invoice_current').textContent=r.invoice_url?('Current: '+(/^https?:/i.test(r.invoice_url)?'link':r.invoice_url.replace(/^inv_\d+_/,''))+' — choose a file to replace'):'';
   document.getElementById('ex_category').value=r.category||'other'; document.getElementById('ex_payment').value=r.payment_mode||'';
   document.getElementById('expenseFormTitle').textContent='Edit Expense';
   const f=document.getElementById('expenseForm'); f.style.display='block'; f.scrollIntoView({behavior:'smooth',block:'start'});
@@ -2680,13 +2687,31 @@ function editExpense(id){
 async function saveExpense(){
   const g=k=>{const e=document.getElementById(k);return e?e.value:'';};
   const id=g('ex_id');
+  if(!(parseFloat(g('ex_amount'))>0)){ toast('Enter an amount','error'); return; }
+  // B17 — upload the invoice file to the private Storage bucket if one is chosen
+  let invoice_url=g('ex_invoice').trim()||null;
+  const fileEl=document.getElementById('ex_invoice_file');
+  if(fileEl&&fileEl.files&&fileEl.files[0]){
+    const f=fileEl.files[0];
+    const path='inv_'+Date.now()+'_'+f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const {error:upErr}=await sb.storage.from('biz-invoices').upload(path,f,{upsert:true,contentType:f.type||undefined});
+    if(upErr){ toast('Invoice upload failed: '+upErr.message,'error'); return; }
+    invoice_url=path;
+  }
   const payload={ date:g('ex_date')||today(), category:g('ex_category'), vendor:g('ex_vendor').trim()||null,
     amount:parseFloat(g('ex_amount'))||0, gst_amount:parseFloat(g('ex_gst'))||0, payment_mode:g('ex_payment')||null,
-    invoice_url:g('ex_invoice').trim()||null, notes:g('ex_notes').trim()||null };
-  if(!payload.amount){ toast('Enter an amount','error'); return; }
+    invoice_url, notes:g('ex_notes').trim()||null };
   const {error}=id?await sb.from('biz_expenses').update(payload).eq('id',id):await sb.from('biz_expenses').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
   logBizActivity(id?'edit':'create','expense',id,(payload.vendor||'')+' ₹'+payload.amount); toast(id?'Expense updated':'Expense added'); document.getElementById('expenseForm').style.display='none'; loadExpenses();
+}
+// open an invoice: direct for legacy links, signed URL for private storage paths
+async function openInvoice(url){
+  if(!url) return;
+  if(/^https?:/i.test(url)){ window.open(url,'_blank'); return; }
+  const {data,error}=await sb.storage.from('biz-invoices').createSignedUrl(url,3600);
+  if(error||!data){ toast('Could not open invoice','error'); return; }
+  window.open(data.signedUrl,'_blank');
 }
 async function deleteExpense(id){ if(!confirm('Delete this expense?')) return; const {error}=await sb.from('biz_expenses').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} logBizActivity('delete','expense',id,''); toast('Deleted'); loadExpenses(); }
 
