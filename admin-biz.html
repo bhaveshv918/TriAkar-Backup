@@ -2143,8 +2143,56 @@ async function saveProduct(){
 
 // ── Quick Add Sale (multi-item) ─────────────────────────────
 let _items=[];
-function blankItem(){ return {productId:null,name:'',variant:'',qty:1,rate:0,disc:0,gst:0,cost:0,grams:0,hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:''}; }
+function blankItem(){ return {productId:null,name:'',variant:'',qty:1,rate:0,disc:0,gst:0,cost:0,grams:0,hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:'',roll:''}; }
 let _catalogByName={}, _catalogBySku={};
+
+// ── Filament roll deduction (Round-2 #9) ───────────────────
+// An Add-Sale line can target a specific roll; logging grams there reduces that
+// roll's stock. Only ACTIVE + UNPACKED rolls are eligible — sealed/packed rolls
+// are never auto-touched (per user spec).
+let _addSaleRolls=[], _rollsTried=false;
+async function loadAddSaleRolls(rerender){
+  try{
+    const {data}=await sb.from('biz_filament_rolls')
+      .select('id,color,material,supplier,grams_used,total_grams,status,packed')
+      .eq('status','active').order('color');
+    _addSaleRolls=(data||[]).filter(r=>!r.packed);   // unpacked only
+  }catch(_){ _addSaleRolls=[]; }
+  if(rerender && typeof renderItems==='function') renderItems();
+}
+function ensureRolls(){ if(_rollsTried) return; _rollsTried=true; loadAddSaleRolls(true); }
+function rollOptions(selected){
+  return '<option value="">Filament roll (optional — deducts stock)</option>'+
+    _addSaleRolls.map(r=>{
+      const rem=Math.max(0,(parseFloat(r.total_grams)||0)-(parseFloat(r.grams_used)||0));
+      const label=((r.supplier?r.supplier+' ':'')+r.color+' '+(r.material||'')).trim()+' — '+Math.round(rem)+'g left';
+      return `<option value="${r.id}"${selected===r.id?' selected':''}>${esc(label)}</option>`;
+    }).join('');
+}
+// delta>0 consumes, delta<0 restores; grams_used clamped to [0, total]
+async function applyRollDelta(rollId, deltaGrams){
+  if(!rollId || !deltaGrams) return;
+  try{
+    const {data:roll}=await sb.from('biz_filament_rolls').select('grams_used,total_grams').eq('id',rollId).single();
+    if(!roll) return;
+    const tot=parseFloat(roll.total_grams)||0;
+    let next=(parseFloat(roll.grams_used)||0)+deltaGrams;
+    next=Math.max(0, tot>0?Math.min(next,tot):next);
+    await sb.from('biz_filament_rolls').update({grams_used:next}).eq('id',rollId);
+  }catch(_){}
+}
+async function deductFilamentForRows(rows){
+  for(const r of (rows||[])){ const g=parseFloat(r.grams_used)||0; if(r.filament_roll_id && g>0) await applyRollDelta(r.filament_roll_id, g); }
+}
+// Restore grams to rolls when sales are binned (fetch by id so it works no matter
+// what columns the sales list selected).
+async function restoreFilamentForIds(ids){
+  if(!ids||!ids.length) return;
+  try{
+    const {data}=await sb.from('biz_sales').select('filament_roll_id,grams_used').in('id',ids);
+    for(const r of (data||[])){ const g=parseFloat(r.grams_used)||0; if(r.filament_roll_id && g>0) await applyRollDelta(r.filament_roll_id, -g); }
+  }catch(_){}
+}
 
 function buildCatalog(){
   _catalogByName={}; _catalogBySku={};
@@ -2164,6 +2212,7 @@ function onChannelChange(){ recalcTotals(); }
 function renderItems(){
   const wrap=document.getElementById('itemRows');
   if(!wrap) return;
+  ensureRolls();
   if(!_items.length) _items=[blankItem()];
   wrap.innerHTML=_items.map((it,i)=>`
     <div class="items-grid item-row" data-idx="${i}"
@@ -2173,6 +2222,7 @@ function renderItems(){
       <div class="item-cell">
         <input list="catalogList" value="${esc(it.name)}" placeholder="Item name / type to search" oninput="onItemName(${i},this.value)">
         <input class="variant" value="${esc(it.variant)}" placeholder="size / colour / customisation (optional)" oninput="_items[${i}].variant=this.value">
+        <select class="variant" style="cursor:pointer" title="Filament roll — logging grams deducts from this roll's stock" onchange="_items[${i}].roll=this.value">${rollOptions(it.roll)}</select>
       </div>
       <div class="r"><input type="number" min="1" value="${it.qty}" oninput="onItemNum(${i},'qty',this.value)"></div>
       <div class="r"><input type="number" step="0.01" value="${it.rate||''}" placeholder="0" oninput="onItemNum(${i},'rate',this.value)"></div>
@@ -2280,6 +2330,7 @@ function buildSaleRows(){
   return valid.map((it,idx)=>({
     ...order,
     product_id:it.productId||null,
+    filament_roll_id:it.roll||null,
     product_name:(it.name&&it.name.trim())||'—',
     variant:it.variant||null,
     sku:it.sku||null,
@@ -2334,12 +2385,27 @@ function setFulfillment(v){
 }
 function onFulfilOther(v){ const hd=document.getElementById('qa_fulfillment_detail'); if(hd) hd.value=(v||'').trim(); }
 
+// Insert sales, stripping any column the DB doesn't have yet (e.g. filament_roll_id
+// before its migration runs) so a pending migration never blocks saving a sale.
+async function insertSalesResilient(rows){
+  let data=rows;
+  for(let i=0;i<6;i++){
+    const r=await sb.from('biz_sales').insert(data);
+    if(!r.error) return r;
+    const m=(r.error.message||'').match(/column "([^"]+)"/);
+    if(!m) return r;
+    const bad=m[1]; data=data.map(row=>{ const c={...row}; delete c[bad]; return c; });
+  }
+  return { error:{ message:'sale insert failed (unknown columns)' } };
+}
 async function submitQuickAdd(e){
   if(e) e.preventDefault();
   const rows=buildSaleRows();
   if(!rows.length){ toast('Add at least one item','error'); return; }
-  const {error}=await sb.from('biz_sales').insert(rows);
+  const {error}=await insertSalesResilient(rows);
   if(error){ toast('Error: '+error.message,'error'); return; }
+  await deductFilamentForRows(rows);   // reduce roll stock by grams logged
+  await loadAddSaleRolls();            // refresh remaining for the next entry
   logBizActivity('create','sale',rows[0]&&rows[0].order_id,rows.length+' item(s)');
   toast(rows.length===1?'Sale saved!':rows.length+' items saved!');
   resetQuickAdd();
@@ -2352,8 +2418,10 @@ async function submitQuickAdd(e){
 async function saveOrderRecord(){
   const rows=buildSaleRows();
   if(!rows.length){ toast('Add at least one item','error'); return; }
-  const {error}=await sb.from('biz_sales').insert(rows);
+  const {error}=await insertSalesResilient(rows);
   if(error){ toast('Error: '+error.message,'error'); return; }
+  await deductFilamentForRows(rows);
+  await loadAddSaleRolls();
   toast('Order record saved');
   if(typeof printOrderRecord==='function'){ try{ printOrderRecord(rows); }catch(_){} }
   resetQuickAdd();
@@ -2815,8 +2883,8 @@ function revealCost(key){
 
 function renderOrderDetail(items){
   const f=items[0], key=f.id, locked=items.every(s=>s.is_paid);
-  let cogs=0,gstAmt=0,net=0,fees=0;
-  items.forEach(s=>{ const sp=parseFloat(s.selling_price)||0; const ga=sp-(sp/(1+(parseFloat(s.gst_rate)||0)/100)); const nr=sp-(parseFloat(s.platform_fee)||0)-(parseFloat(s.shipping_fee)||0)-(parseFloat(s.other_deductions)||0); cogs+=parseFloat(s.cogs)||0; gstAmt+=ga; net+=nr; fees+=(parseFloat(s.platform_fee)||0)+(parseFloat(s.shipping_fee)||0)+(parseFloat(s.other_deductions)||0); });
+  let cogs=0,gstAmt=0,net=0,fees=0,platF=0,shipF=0,othF=0;
+  items.forEach(s=>{ const sp=parseFloat(s.selling_price)||0; const ga=sp-(sp/(1+(parseFloat(s.gst_rate)||0)/100)); const pf=parseFloat(s.platform_fee)||0, sf=parseFloat(s.shipping_fee)||0, od=parseFloat(s.other_deductions)||0; const nr=sp-pf-sf-od; cogs+=parseFloat(s.cogs)||0; gstAmt+=ga; net+=nr; platF+=pf; shipF+=sf; othF+=od; fees+=pf+sf+od; });
   const totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
   const profit=net-cogs-gstAmt, margin=net>0?(profit/net*100):0;
   const addr=[f.customer_address,[f.customer_city,f.customer_state].filter(Boolean).join(', ')+(f.customer_pincode?' — '+f.customer_pincode:'')].map(x=>(x||'').trim()).filter(Boolean).join('<br>');
@@ -2842,6 +2910,7 @@ function renderOrderDetail(items){
       ${F('Dispatch',f.dispatch_date?fmtDay(f.dispatch_date):'')}
       ${F('Packet',f.package_size?esc(f.package_size):'')}
       ${F('Settlement',f.settlement_amount!=null?fmt(f.settlement_amount)+(f.settlement_fees?' · fees '+fmt(f.settlement_fees):'')+(f.settlement_date?' · '+fmtDay(f.settlement_date):''):'')}
+      ${F('Fees & Costs',fees?fmt(fees)+' <span style="color:var(--text-3);font-size:10px">(ship '+fmt(shipF)+' · pack/other '+fmt(othF)+(platF?' · plat '+fmt(platF):'')+')</span>':'')}
     </div>
     <div class="tbl-wrap" style="box-shadow:none">
       <table>
@@ -2855,7 +2924,9 @@ function renderOrderDetail(items){
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:10px">
         ${F('Total COGS',fmt(cogs))}
         ${F('GST Amount',fmt(gstAmt))}
-        ${F('Fees (plat+ship+other)',fmt(fees))}
+        ${F('Platform Fee',platF?fmt(platF):'')}
+        ${F('Shipping',shipF?fmt(shipF):'')}
+        ${F('Packing / Other',othF?fmt(othF):'')}
         ${F('Net Revenue',fmt(net))}
         <div><div style="color:var(--text-3);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Profit</div><div style="font-size:13px;font-weight:700;color:${profit>=0?'var(--green)':'var(--red)'}">${fmt(profit)} · ${margin.toFixed(1)}%</div></div>
       </div>
@@ -2883,6 +2954,7 @@ async function deleteOrder(firstId){
   if(!confirm(`Move this order (${ids.length} item${ids.length>1?'s':''}) to Recycle Bin?`)) return;
   const {error}=await sb.from('biz_sales').update({is_deleted:true,deleted_at:new Date().toISOString()}).in('id',ids);
   if(error){ toast('Error: '+error.message,'error'); return; }
+  await restoreFilamentForIds(ids);   // give grams back to the rolls after binning
   toast('Order moved to Recycle Bin'); loadSales(); loadSalesBadge();
 }
 async function togglePaidOrder(firstId,allPaid){
