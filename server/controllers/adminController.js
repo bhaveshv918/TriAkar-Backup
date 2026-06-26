@@ -29,30 +29,63 @@ export async function getAdminProducts(req, res, next) {
   }
 }
 
+// Every column the admin product editor may write. Anything outside this list is
+// ignored; anything inside it that the DB doesn't have yet is stripped on the fly
+// by saveProductRow's retry loop (resilient to pending migrations / schema drift).
+const PRODUCT_COLS = [
+  'name', 'slug', 'price', 'category', 'compare_at_price', 'material', 'sku', 'designer',
+  'stock_status', 'stock_qty', 'discount_type', 'discount_value', 'badge', 'urgency_type',
+  'urgency_text', 'is_bestseller', 'is_active', 'homepage_order', 'is_customizable',
+  'description', 'short_description', 'long_description', 'bullet_points',
+  'description_display_mode', 'key_features', 'customization_options', 'dimensions',
+  'target_audience', 'use_case', 'tags', 'occasions', 'size_class', 'est_grams',
+  'est_print_hours', 'source_url', 'license', 'commercial_ok', 'notes', 'images',
+  'square_crop', 'variants', 'product_options', 'specifications', 'min_order_qty',
+  'qty_step', 'key_features_label', 'customization_fields', 'product_dropdowns', 'colors',
+];
+
+function buildProductPayload(body) {
+  const out = {};
+  for (const k of PRODUCT_COLS) {
+    if (body[k] !== undefined) out[k] = body[k];
+  }
+  // Normalise images to a flat string array (the old updateProduct double-wrapped arrays).
+  if (out.images !== undefined) {
+    out.images = Array.isArray(out.images) ? out.images : (out.images ? [out.images] : []);
+  }
+  if (out.price !== undefined) out.price = Number(out.price);
+  return out;
+}
+
+// Insert/update a product row, stripping any column Postgres reports as non-existent
+// and retrying — so a not-yet-migrated column never blocks an otherwise valid save.
+async function saveProductRow(payload, id) {
+  const run = (data) => id
+    ? supabase.from('products').update(data).eq('id', id).select().single()
+    : supabase.from('products').insert(data).select().single();
+
+  let data = { ...payload };
+  for (let attempt = 0; attempt < 15; attempt++) {
+    const r = await run(data);
+    if (!r.error) return r.data;
+    const m = (r.error.message || '').match(/column "([^"]+)" of relation/);
+    if (m && data[m[1]] !== undefined) { delete data[m[1]]; continue; }   // unknown column → drop & retry
+    throw r.error;
+  }
+  throw new Error('product save failed: too many unknown columns');
+}
+
 export async function createProduct(req, res, next) {
   try {
-    const { name, slug, description, price, category, stock_qty, images, is_customizable, is_active } = req.body;
-
-    if (!name || !slug || !price || !category) {
+    const b = req.body || {};
+    if (!b.name || !b.slug || !b.price || !b.category) {
       return res.status(400).json({ error: 'name, slug, price, and category are required' });
     }
-
-    const { data, error } = await supabase
-      .from('products')
-      .insert({
-        name, slug, description: description || null,
-        price: Number(price),
-        category,
-        stock_qty: Number(stock_qty) || 0,
-        images: Array.isArray(images) ? images : (images ? [images] : []), // FIX #10
-        is_customizable: Boolean(is_customizable),
-        is_active: is_active !== false,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    res.status(201).json({ product: data });
+    const payload = buildProductPayload(b);
+    if (payload.is_active === undefined) payload.is_active = true;
+    const product = await saveProductRow(payload, null);
+    logActivity(req.user?.email, 'product.create', 'product', product.id, b.name);
+    res.status(201).json({ product });
   } catch (err) {
     next(err);
   }
@@ -61,28 +94,13 @@ export async function createProduct(req, res, next) {
 export async function updateProduct(req, res, next) {
   try {
     const { id } = req.params;
-    const { name, slug, description, price, category, stock_qty, images, is_customizable, is_active } = req.body;
-
-    const updates = {};
-    if (name         !== undefined) updates.name            = name;
-    if (slug         !== undefined) updates.slug            = slug;
-    if (description  !== undefined) updates.description     = description;
-    if (price        !== undefined) updates.price           = Number(price);
-    if (category     !== undefined) updates.category        = category;
-    if (stock_qty    !== undefined) updates.stock_qty       = Number(stock_qty);
-    if (images       !== undefined) updates.images          = images ? [images] : [];
-    if (is_customizable !== undefined) updates.is_customizable = Boolean(is_customizable);
-    if (is_active    !== undefined) updates.is_active       = Boolean(is_active);
-
-    const { data, error } = await supabase
-      .from('products')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    res.json({ product: data });
+    const payload = buildProductPayload(req.body || {});
+    if (Object.keys(payload).length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+    const product = await saveProductRow(payload, id);
+    logActivity(req.user?.email, 'product.update', 'product', id, product?.name || '');
+    res.json({ product });
   } catch (err) {
     next(err);
   }

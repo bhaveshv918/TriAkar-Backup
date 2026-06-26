@@ -3665,25 +3665,15 @@ async function submitProductForm(){
   const errEl=document.getElementById('formErr');
   errEl.textContent='';
 
-  // ── Helper: strip unknown columns and retry when Postgres says column doesn't exist ──
+  // Writes go through the service-role backend (RLS-safe). The browser sb client
+  // silently no-ops product UPDATEs under RLS — that was the root cause of "can't
+  // update product photos": the save reported success but changed 0 rows. The
+  // backend also strips unknown columns and retries, so a pending-migration column
+  // never blocks a save.
   async function _trySave(data,editId){
-    const r=editId
-      ?await sb.from('products').update(data).eq('id',editId).select()
-      :await sb.from('products').insert(data).select();
-    if(r.error){
-      const msg=r.error.message||'';
-      // Postgres "column X does not exist" — strip that column and retry once
-      const colMatch=msg.match(/column "([^"]+)" of relation/);
-      if(colMatch){
-        const badCol=colMatch[1];
-        console.warn('[save] column "'+badCol+'" not in DB yet — retrying without it. Run migration SQL to add it.');
-        const stripped={...data};
-        delete stripped[badCol];
-        return _trySave(stripped,editId);
-      }
-      throw r.error;
-    }
-    return r;
+    return editId
+      ? await adminApi('/api/admin/products/'+editId,{method:'PUT', body:JSON.stringify(data)})
+      : await adminApi('/api/admin/products',        {method:'POST',body:JSON.stringify(data)});
   }
 
   try{
