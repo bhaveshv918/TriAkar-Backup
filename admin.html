@@ -1680,6 +1680,16 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
           <div><label class="form-label">Contact email</label><input id="cEmail" class="form-input" placeholder="hello@triakar.com"></div>
         </div>
       </div>
+      <!-- A7: Document Customization -->
+      <div style="padding:14px 16px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:4px">Document Customization <span style="font-weight:400;color:var(--text-3);font-size:11px">· what shows on generated invoices &amp; internal order records</span></div>
+        <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Untick a field to hide it. All on by default.</div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin:8px 0 6px">Invoice</div>
+        <div id="docInvoiceFields" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:4px 12px"></div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin:14px 0 6px">Internal Order Record</div>
+        <div id="docRecordFields" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:4px 12px"></div>
+        <div style="margin-top:12px"><button class="btn-primary" onclick="saveDocCustomization()">Save document template</button> <span id="docStatus" style="font-size:12px;color:var(--green)"></span></div>
+      </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn-primary" onclick="saveContentSettings()">Save site content</button>
         <span id="cStatus" style="font-size:12px;color:var(--text-3)"></span>
@@ -2277,7 +2287,7 @@ function switchTab(tab){
   if(tab==='promo')loadPromoCodes();
   if(tab==='reviews'){loadReviewsAdmin();loadGoogleSettings();}
   if(tab==='activity')loadActivity();
-  if(tab==='content')loadContentSettings();
+  if(tab==='content'){loadContentSettings();loadDocCustomization();}
   if(tab==='appearance')loadMenuStyleSetting();
   const dotMap={orders:'dotOrders',customers:'dotCustomers',messages:'dotMessages',enquiries:'dotEnquiries',callbacks:'dotCallbacks'};
   const countEls={orders:'orderCount',customers:'customerCount',messages:'messageCount',enquiries:'enquiryCount',callbacks:'callbackCount'};
@@ -5186,6 +5196,27 @@ async function saveGoogleSettings(){
 }
 
 /* ── Site Content (Module 4) — announcement notices + social/contact ── */
+// A7 — Document Customization (invoice + internal order-record field toggles)
+const DOC_INVOICE_FIELDS=[['logo','Logo'],['business_address','Business address'],['gstin','Your GSTIN'],['invoice_no_date','Invoice no & date'],['billing_address','Billing address'],['shipping_address','Shipping address'],['customer_gstin','Customer GSTIN'],['items_table','Itemized table'],['subtotal','Subtotal'],['gst_breakup','CGST/SGST/IGST breakup'],['shipping_charge','Shipping charge'],['total','Total'],['paid_amount','Paid amount'],['balance_due','Balance due'],['payment_mode','Payment mode'],['signature','Signature / stamp'],['upi_qr','UPI / bank QR'],['terms','Terms'],['reprint_note','Reprint guarantee note']];
+const DOC_RECORD_FIELDS=[['order_id','Order ID'],['date','Date'],['customer','Customer info'],['product_details','Product details'],['cost_price','Cost price'],['margin','Margin'],['designer_maker','Designer / maker'],['production_status','Production status'],['material','Material'],['printer','Printer used'],['dispatch_date','Dispatch date'],['courier_tracking','Courier + tracking'],['special_instructions','Special instructions'],['internal_notes','Internal notes'],['priority_flag','Priority flag'],['hsn','HSN']];
+function _docRender(containerId,fields,cfg){
+  const el=document.getElementById(containerId); if(!el) return;
+  el.innerHTML=fields.map(([k,name])=>`<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" data-k="${k}" ${cfg[k]===false?'':'checked'}> ${esc(name)}</label>`).join('');
+}
+async function loadDocCustomization(){
+  let inv={},rec={};
+  try{ const {data}=await sb.from('site_settings').select('key,value').in('key',['doc_invoice_fields','doc_record_fields']); const m={}; (data||[]).forEach(r=>m[r.key]=r.value); inv=JSON.parse(m.doc_invoice_fields||'{}')||{}; rec=JSON.parse(m.doc_record_fields||'{}')||{}; }catch(_){}
+  _docRender('docInvoiceFields',DOC_INVOICE_FIELDS,inv);
+  _docRender('docRecordFields',DOC_RECORD_FIELDS,rec);
+}
+async function saveDocCustomization(){
+  const collect=id=>{const o={};document.querySelectorAll('#'+id+' input[data-k]').forEach(c=>{o[c.dataset.k]=c.checked;});return o;};
+  const now=new Date().toISOString();
+  const rows=[{key:'doc_invoice_fields',value:JSON.stringify(collect('docInvoiceFields')),updated_at:now},{key:'doc_record_fields',value:JSON.stringify(collect('docRecordFields')),updated_at:now}];
+  try{ const {error}=await sb.from('site_settings').upsert(rows,{onConflict:'key'}); if(error)throw error;
+    const st=document.getElementById('docStatus'); if(st){st.textContent='Saved ✓';setTimeout(()=>{st.textContent='';},2500);} toast('Document template saved','success');
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
 async function loadContentSettings(){
   try{
     const {data}=await sb.from('site_settings').select('key,value')
