@@ -277,6 +277,24 @@ tr:hover td{background:var(--bg-2)}
 
 /* ── Mobile — top bar + slide-in drawer (no bottom nav) ─────── */
 .mtopbar{display:none}
+/* Round-2 #4.1 — Business OS desktop top header (parity with Admin) */
+.biz-topbar{display:none}
+@media(min-width:769px){
+  .biz-topbar{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:60;
+    background:var(--bg-1);border-bottom:1px solid var(--border);border-top:3px solid var(--accent);
+    padding:9px 18px;box-shadow:var(--shadow)}
+  .biz-tb-brand{font-weight:700;font-size:13px;color:var(--text);white-space:nowrap}
+  .biz-tb-brand span{color:var(--text-3);font-weight:500}
+  .biz-tb-search{flex:1;max-width:440px;position:relative}
+  .biz-tb-search input{width:100%;padding:7px 11px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;outline:none}
+  .biz-tb-search input:focus{border-color:var(--accent)}
+  .biz-tb-icon{background:var(--bg-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);width:32px;height:32px;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1}
+  .biz-tb-icon:hover{border-color:var(--accent)}
+  .biz-tb-btn{background:var(--bg-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);padding:7px 12px;font-size:12px;cursor:pointer;text-decoration:none;white-space:nowrap}
+  .biz-tb-btn:hover{border-color:var(--accent)}
+  /* search lives in the top bar on desktop — hide the now-duplicate sidebar one */
+  .sb-header #bizSearch{display:none}
+}
 @media(max-width:768px){
   .shell{flex-direction:column}
 
@@ -457,6 +475,16 @@ tr:hover td{background:var(--bg-2)}
 
   <!-- Main area -->
   <div class="main-area">
+    <!-- Round-2 #4.1 — desktop top header (parity with Admin Panel) -->
+    <div class="biz-topbar">
+      <div class="biz-tb-brand">TriĀkar <span>· Business OS</span></div>
+      <div class="biz-tb-search">
+        <input type="text" id="bizSearchTop" placeholder="🔍 Search sales / products / customers" oninput="bizGlobalSearch(this.value)" onkeydown="if(event.key==='Escape')closeBizSearch()" autocomplete="off">
+      </div>
+      <button class="biz-tb-icon" onclick="refreshCurrentBizTab()" title="Refresh current tab">⟳</button>
+      <button class="biz-tb-icon" onclick="toggleTheme()" title="Toggle dark / light">🌙</button>
+      <a href="/admin.html" class="biz-tb-btn" title="Open Admin Panel">← Admin</a>
+    </div>
 
     <!-- ══════════════════════════════════════════════════════
          DASHBOARD
@@ -4996,13 +5024,13 @@ async function bizGlobalSearchRun(q){
   _gsResults=items;
   if(!items.length){ box.innerHTML='<div style="padding:10px 12px;color:var(--text-3);font-size:12px">No matches</div>'; }
   else box.innerHTML=items.map((it,i)=>`<div onclick="bizSearchPick(${i})" style="padding:8px 11px;cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg-2)'" onmouseout="this.style.background=''"><span style="font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);font-weight:700">${it.t}</span><div style="font-weight:600;font-size:12px">${esc(it.label)}</div><div style="color:var(--text-3);font-size:11px;font-family:var(--mono)">${esc(it.sub)}</div></div>`).join('');
-  const inp=document.getElementById('bizSearch'); const r=inp.getBoundingClientRect();
+  const inp=document.querySelector('#bizSearchTop:focus')||document.getElementById('bizSearch'); const r=inp.getBoundingClientRect();
   box.style.left=r.left+'px'; box.style.top=(r.bottom+4)+'px'; box.style.width=Math.max(240,r.width)+'px';
   box.style.display='block';
 }
 function bizSearchPick(i){
   const it=_gsResults[i]; if(!it) return;
-  closeBizSearch(); const si=document.getElementById('bizSearch'); if(si) si.value='';
+  closeBizSearch(); ['bizSearch','bizSearchTop'].forEach(function(id){var s=document.getElementById(id);if(s)s.value='';});
   switchTab(it.tab);
   setTimeout(()=>{
     if(it.tab==='products' && it.pid && typeof editProduct==='function'){ editProduct(it.pid); return; }
@@ -5011,7 +5039,7 @@ function bizSearchPick(i){
   },300);
 }
 function closeBizSearch(){ const b=document.getElementById('bizSearchResults'); if(b) b.style.display='none'; }
-document.addEventListener('click',e=>{ if(!e.target.closest('#bizSearch,#bizSearchResults')) closeBizSearch(); });
+document.addEventListener('click',e=>{ if(!e.target.closest('#bizSearch,#bizSearchTop,#bizSearchResults')) closeBizSearch(); });
 
 function setLblPlatform(v){
   document.getElementById('lbl_platform').value=v;
