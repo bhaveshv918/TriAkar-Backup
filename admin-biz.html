@@ -2126,6 +2126,36 @@ function toggleNav(force){
   if(bd) bd.classList.toggle('show',open);
 }
 
+/* ── Right-swipe to open sidebar (mobile only) ── */
+(function(){
+  let swX=0,swY=0,swOK=false,swOpen=false;
+  const inHScroll=el=>{
+    for(let n=el;n&&n!==document.body&&n.nodeType===1;n=n.parentElement){
+      const cs=getComputedStyle(n);
+      if((cs.overflowX==='auto'||cs.overflowX==='scroll')&&n.scrollWidth>n.clientWidth+8)return true;
+    }
+    return false;
+  };
+  document.addEventListener('touchstart',e=>{
+    swOK=false;
+    if(window.innerWidth>768)return;
+    const t=e.touches[0];
+    swX=t.clientX;swY=t.clientY;
+    const sb=document.querySelector('.sidebar');
+    swOpen=sb&&sb.classList.contains('open');
+    swOK=!e.target.closest('.sidebar')&&!inHScroll(e.target);
+  },{passive:true});
+  document.addEventListener('touchend',e=>{
+    if(!swOK||window.innerWidth>768)return;
+    swOK=false;
+    const t=e.changedTouches[0];
+    const dx=t.clientX-swX,dy=t.clientY-swY;
+    if(Math.abs(dy)>60||Math.abs(dx)<70)return;
+    if(!swOpen&&dx>0)toggleNav();
+    else if(swOpen&&dx<0)toggleNav(false);
+  },{passive:true});
+})();
+
 // ── Products (cached for forms) ─────────────────────────────
 let _products = [];
 async function loadProducts(){
