@@ -709,12 +709,12 @@ tr:hover td{background:var(--bg-2)}
         <div class="form-grid" style="margin-bottom:16px">
           <div class="form-group">
             <label>Customer Name</label>
-            <input type="text" id="qa_cname" placeholder="Type — existing customers autofill" list="customerList" oninput="onCustomerName(this.value)" autocomplete="off">
+            <input type="text" id="qa_cname" placeholder="Type name or phone — existing customers autofill" oninput="onCustomerName(this.value);custSuggest(this.value,'qa_cname')" onfocus="ensureCustomers()" autocomplete="off">
             <datalist id="customerList"></datalist>
           </div>
           <div class="form-group">
             <label>Phone</label>
-            <input type="tel" id="qa_phone" placeholder="Mobile number">
+            <input type="tel" id="qa_phone" placeholder="Mobile number" oninput="custSuggest(this.value,'qa_phone')" onfocus="ensureCustomers()" autocomplete="off">
           </div>
           <div class="form-group" style="grid-column:span 2">
             <label>Full Address</label>
@@ -732,7 +732,12 @@ tr:hover td{background:var(--bg-2)}
             <label>Pincode</label>
             <input type="text" id="qa_pin" placeholder="6-digit pincode" maxlength="6" inputmode="numeric">
           </div>
+          <div class="form-group">
+            <label>GSTIN <span style="font-weight:400;color:var(--text-3);font-size:10px">(optional)</span></label>
+            <input type="text" id="qa_gstin" placeholder="customer GSTIN" style="font-family:var(--mono);letter-spacing:.03em">
+          </div>
         </div>
+        <div id="custSuggestBox" style="display:none;position:fixed;z-index:2000;max-height:50vh;overflow:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-h)"></div>
 
         <!-- ── Items ────────────────────────────── -->
         <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 8px">
@@ -2417,6 +2422,7 @@ function getOrderFields(){
     customer_city:g('qa_city'),
     customer_state:g('qa_state'),
     customer_pincode:g('qa_pin'),
+    customer_gstin:g('qa_gstin'),
     notes:g('qa_notes'),
     import_source:'manual',
   };
@@ -2650,8 +2656,32 @@ async function deleteCustomer(){
 function onCustomerName(val){
   const c=_customersByName[(val||'').trim().toLowerCase()]; if(!c) return;
   const set=(id,v)=>{ const e=document.getElementById(id); if(e&&v) e.value=v; };
-  set('qa_phone',c.phone); set('qa_address',c.address); set('qa_city',c.city); set('qa_state',c.state); set('qa_pin',c.pincode);
+  set('qa_phone',c.phone); set('qa_address',c.address); set('qa_city',c.city); set('qa_state',c.state); set('qa_pin',c.pincode); set('qa_gstin',c.gstin);
 }
+
+/* Round-2 #8 — Add-Sale customer autocomplete (search name OR phone → details, fill on pick) */
+let _custTried=false, _custSugg=[];
+function ensureCustomers(){ if(_custTried) return; _custTried=true; if((!_customersList||!_customersList.length)&&typeof loadCustomers==='function'){ try{ loadCustomers(); }catch(e){} } }
+function custSuggest(q,srcId){
+  const box=document.getElementById('custSuggestBox'); if(!box) return;
+  q=(q||'').trim().toLowerCase();
+  if(q.length<2){ box.style.display='none'; return; }
+  const list=(_customersList||[]).filter(function(c){ return (c.name||'').toLowerCase().includes(q)||(c.phone||'').toLowerCase().includes(q); }).slice(0,7);
+  _custSugg=list;
+  if(!list.length){ box.style.display='none'; return; }
+  box.innerHTML=list.map(function(c,i){ return '<div onclick="custPick('+i+')" style="padding:7px 11px;cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background=\'var(--bg-2)\'" onmouseout="this.style.background=\'\'"><div style="font-weight:600;font-size:12px">'+esc(c.name)+'</div><div style="font-size:11px;color:var(--text-3);font-family:var(--mono)">'+esc(c.phone||'—')+(c.city?' · '+esc(c.city):'')+(c.gstin?' · '+esc(c.gstin):'')+'</div></div>'; }).join('');
+  const inp=document.getElementById(srcId)||document.getElementById('qa_cname');
+  const r=inp.getBoundingClientRect();
+  box.style.left=r.left+'px'; box.style.top=(r.bottom+3)+'px'; box.style.width=Math.max(220,r.width)+'px';
+  box.style.display='block';
+}
+function custPick(i){
+  const c=_custSugg[i]; if(!c) return;
+  const set=function(id,v){ const e=document.getElementById(id); if(e) e.value=v||''; };
+  set('qa_cname',c.name); set('qa_phone',c.phone); set('qa_address',c.address); set('qa_city',c.city); set('qa_state',c.state); set('qa_pin',c.pincode); set('qa_gstin',c.gstin);
+  const box=document.getElementById('custSuggestBox'); if(box) box.style.display='none';
+}
+document.addEventListener('click',function(e){ if(!e.target.closest('#qa_cname,#qa_phone,#custSuggestBox')){ const b=document.getElementById('custSuggestBox'); if(b) b.style.display='none'; } });
 
 // ── 5.4 Marketplace settlement ingestion ────────────────────
 // Upload a Flipkart/Amazon settlement report → aggregate payout + fees by order ID
