@@ -3075,7 +3075,7 @@ function renderOrderDetail(items){
         <div><div style="color:var(--text-3);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Profit</div><div style="font-size:13px;font-weight:700;color:${profit>=0?'var(--green)':'var(--red)'}">${fmt(profit)} · ${margin.toFixed(1)}%</div></div>
       </div>
     </div>
-    <div style="margin-bottom:10px"><span style="font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-right:8px">Production</span>${['queued','printing','post_processing','qc','packed'].map(st=>`<button type="button" class="qchip" style="padding:4px 11px;font-size:11px;margin:0 4px 4px 0${f.production_status===st?';background:var(--accent);color:#fff;border-color:var(--accent)':''}" onclick="updateProductionStatus('${key}','${st}')">${PROD_STAGES[st]}</button>`).join('')}</div>
+    <div style="margin-bottom:10px"><span style="font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-right:8px">Production</span>${['queued','printing','post_processing','qc','packed','dispatched','completed'].map(st=>`<button type="button" class="qchip" style="padding:4px 11px;font-size:11px;margin:0 4px 4px 0${f.production_status===st?';background:var(--accent);color:#fff;border-color:var(--accent)':''}" onclick="updateProductionStatus('${key}','${st}')">${PROD_STAGES[st]}</button>`).join('')}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <button class="btn btn-sm" onclick="togglePaidOrder('${key}',${locked})" style="background:${locked?'var(--green-bg)':'var(--bg-2)'};color:${locked?'var(--green)':'var(--text-3)'};border:1px solid ${locked?'var(--green)':'var(--border)'}">${locked?'🔒 Paid · unlock':'🔓 Lock (mark paid)'}</button>
       <button class="btn btn-ghost btn-sm" id="revealBtn_${key}" onclick="revealCost('${key}')">🔒 Show cost &amp; profit</button>
@@ -3109,7 +3109,7 @@ async function togglePaidOrder(firstId,allPaid){
   loadSales();
 }
 // ── B15: studio production stage ──
-const PROD_STAGES={queued:'Queued',printing:'Printing',post_processing:'Post-proc',qc:'QC',packed:'Packed'};
+const PROD_STAGES={queued:'Queued',printing:'Printing',post_processing:'Post-proc',qc:'QC',packed:'Packed',dispatched:'Dispatched',completed:'Completed'};
 async function updateProductionStatus(firstId,stage){
   const items=_orderGroup(firstId), ids=items.map(s=>s.id);
   const {error}=await sb.from('biz_sales').update({production_status:stage}).in('id',ids);
@@ -4998,13 +4998,26 @@ function extractLabelData(text,platform){
     courier='Amazon Logistics';
 
   } else { // flipkart
-    // IMPORTANT: a Flipkart label has the CUSTOMER address at the top and the
-    // SELLER (TriAkar) "If undelivered, return to" block lower down. Parse the
-    // customer fields ONLY from the part before the seller block, otherwise we
-    // pick up the seller's own address as the customer's.
+    // Flipkart/Ekart labels come in two layouts:
+    //  (a) sticker-only — customer address near the top, seller "return to"
+    //      block lower down;
+    //  (b) combined invoice+label — the seller "Sold By:TriAkar Form…" line
+    //      sits right at the TOP, with the customer under "Shipping/Customer
+    //      address: Name: …" in the middle.
+    // Always isolate the explicit "Customer address:" block first (handles
+    // both layouts); only fall back to the old top-slice heuristic when that
+    // labelled block is absent — otherwise on layout (b) we'd cut everything
+    // after the first "Sold By" and lose the customer entirely.
     let custText=text;
-    const cut=custText.search(/if\s*undelivered|return\s*(?:to|address)|sold\s*by|ship(?:ped)?\s*by|seller\s*address/i);
-    if(cut>15) custText=custText.slice(0,cut);
+    const shipM=text.match(/Customer\s*address\s*:?\s*([\s\S]*?)(?:Not\s*for\s*resale|Sold\s*By\s*Billing|$)/i);
+    if(shipM){
+      // Drop HBD:/CPD: dispatch-date fragments that get interleaved into the
+      // address on multi-line shipping blocks.
+      custText=shipM[1].replace(/\b(?:HBD|CPD)\s*:?\s*[\d\s\-–]+/ig,' ');
+    } else {
+      const cut=custText.search(/if\s*undelivered|return\s*(?:to|address)|sold\s*by|ship(?:ped)?\s*by|seller\s*address/i);
+      if(cut>15) custText=custText.slice(0,cut);
+    }
 
     // Order ID
     const om=text.match(/Order[\s\w]*Id[:\s]+(OD\d{10,25})/i)||text.match(/\b(OD\d{14,25})\b/i);
