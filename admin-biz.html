@@ -3050,7 +3050,7 @@ function renderOrderDetail(items){
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:11px">
       ${F('Order ID',esc(f.order_id||'—'))}
       ${F('Invoice No',f.invoice_no?esc(f.invoice_no):'')}
-      ${F('Date',fmtDay(f.order_date))}
+      ${F('Date',fmtDay(f.order_date)+(f.order_time?' · '+esc(f.order_time):''))}
       ${F('Customer',esc(f.customer_name||'—'))}
       ${F('Phone',f.customer_phone?esc(f.customer_phone):'')}
       ${F('Address',addr)}
@@ -4945,15 +4945,23 @@ function parseLabelDate(str, isFlipkartDDMM){
     if(m) return `${new Date().getFullYear()}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
     return null;
   }
-  const dot=str.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/);
+  const dot=str.match(/^(\d{1,2})[-.\/](\d{1,2})[-.\/](\d{4})$/);
   if(dot) return `${dot[3]}-${dot[2].padStart(2,'0')}-${dot[1].padStart(2,'0')}`;
   if(/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
   return null;
 }
 
+// Normalise a clock time like "8:10 am" / "08:10 AM" → "08:10 AM"
+function normTime(str){
+  if(!str) return '';
+  const m=str.trim().toUpperCase().replace(/\./g,'').match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/);
+  if(!m) return '';
+  return m[1].padStart(2,'0')+':'+m[2]+(m[3]?' '+m[3]:'');
+}
+
 function extractLabelData(text,platform){
   let orderId='', qty=1, productName='', customerName='', customerAddress='';
-  let city='', state='', pincode='', tracking='', paymentMode='', orderDate='', deliveryDate='', dispatchDate='', courier='', price='';
+  let city='', state='', pincode='', tracking='', paymentMode='', orderDate='', orderTime='', deliveryDate='', dispatchDate='', courier='', price='';
 
   if(platform==='amazon'){
     // Order Number: 402-XXXXXXX-XXXXXXX
@@ -5061,8 +5069,12 @@ function extractLabelData(text,platform){
     if(hbd) dispatchDate=parseLabelDate(hbd[1],true)||'';
     const cpd=text.match(/CPD[:\s]+([\d\s\-–]+)/i);
     if(cpd) deliveryDate=parseLabelDate(cpd[1],true)||'';
-    // Use dispatch date as order_date for Flipkart (order date not on label)
-    orderDate=dispatchDate;
+    // Real order date + time from the tax-invoice block lower down:
+    // "Order Date: 25-06-2026, 08:10 AM" — prefer this over the HBD handover date.
+    const od=text.match(/Order Date[:\s]+(\d{1,2}[-.\/]\d{1,2}[-.\/]\d{4})(?:\s*,?\s*([\d:]+\s*(?:AM|PM)?))?/i);
+    if(od){ orderDate=parseLabelDate(od[1])||''; orderTime=normTime(od[2]); }
+    // Fall back to the dispatch (HBD) date only when the bill has no order date.
+    if(!orderDate) orderDate=dispatchDate;
 
     // Payment
     paymentMode=text.match(/\bCOD\b/i)?'COD':'Prepaid';
@@ -5074,7 +5086,7 @@ function extractLabelData(text,platform){
   }
 
   if(!qty||qty<1){ const qm=text.match(/(?:qty|quantity)[:\s]+(\d+)/i); if(qm) qty=parseInt(qm[1])||1; }
-  return {orderId,qty,productName,customerName,customerAddress,city,state,pincode,tracking,paymentMode,orderDate,deliveryDate,dispatchDate,courier,price};
+  return {orderId,qty,productName,customerName,customerAddress,city,state,pincode,tracking,paymentMode,orderDate,orderTime,deliveryDate,dispatchDate,courier,price};
 }
 
 // ── Theme (dark / light) — parity with the Admin Panel, shared 'ta_theme' pref ──
@@ -5180,7 +5192,7 @@ function renderExtractedLabels(pages){
       <td style="font-size:11px;color:var(--text-3)">
         ${r.tracking?`<div style="font-family:var(--mono)">${esc(r.tracking)}</div>`:''}
         ${r.paymentMode?`<div>${esc(r.paymentMode)}</div>`:''}
-        ${r.orderDate?`<div>Ord: ${esc(r.orderDate)}</div>`:''}
+        ${r.orderDate?`<div>Ord: ${esc(r.orderDate)}${r.orderTime?' '+esc(r.orderTime):''}</div>`:''}
         ${r.deliveryDate?`<div>Del: ${esc(r.deliveryDate)}</div>`:''}
       </td>
     </tr>`).join('');
@@ -5224,6 +5236,7 @@ async function importExtractedLabels(){
       channel_id:platform,
       order_id:orderId||null,
       order_date:r.orderDate||today(),
+      order_time:r.orderTime||null,
       delivery_date:r.deliveryDate||null,
       dispatch_date:r.dispatchDate||null,
       product_id:productSel||null,
@@ -5252,7 +5265,7 @@ async function importExtractedLabels(){
   batch.forEach(r=>{ if(platform==='amazon'||platform==='flipkart') applyPlatformFees(r); });
   statusEl.textContent='Importing…';
   for(let i=0;i<batch.length;i+=100){
-    const {error}=await sb.from('biz_sales').insert(batch.slice(i,i+100));
+    const {error}=await insertSalesResilient(batch.slice(i,i+100));
     if(error){statusEl.textContent='Error: '+error.message;toast('Error: '+error.message,'error');return;}
   }
   toast(`Imported ${batch.length} orders from labels${created?' · '+created+' new product(s)':''}`);
