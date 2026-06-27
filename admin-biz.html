@@ -1599,7 +1599,8 @@ tr:hover td{background:var(--bg-2)}
         <div class="form-grid">
           <div class="form-group"><label>Colour *</label><input type="text" id="rl_color" placeholder="e.g. Black"></div>
           <div class="form-group"><label>Material</label><input type="text" id="rl_material" placeholder="PLA+"></div>
-          <div class="form-group"><label>Supplier</label><input type="text" id="rl_supplier"></div>
+          <div class="form-group"><label>Supplier</label><input type="text" id="rl_supplier" list="rlSupplierList" placeholder="who you bought from"><datalist id="rlSupplierList"></datalist></div>
+          <div class="form-group"><label>Company / Brand</label><input type="text" id="rl_company" list="rlCompanyList" placeholder="Numakers / WOL3D / BhramaLab"><datalist id="rlCompanyList"><option value="Numakers"></option><option value="WOL3D"></option><option value="BhramaLab"></option></datalist></div>
           <div class="form-group"><label>Total Grams</label><input type="number" id="rl_total" step="1" value="1000"></div>
           <div class="form-group"><label>Grams Used</label><input type="number" id="rl_used" step="1" value="0"></div>
           <div class="form-group"><label>Running colour?</label><select id="rl_running"><option value="0">No</option><option value="1">Yes</option></select></div>
@@ -1614,7 +1615,7 @@ tr:hover td{background:var(--bg-2)}
 
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Colour</th><th>Material</th><th>Supplier</th><th class="td-num">Total</th><th class="td-num">Used</th><th class="td-num">Remaining</th><th>Status</th><th class="td-actions"></th></tr></thead>
+          <thead><tr><th>Colour</th><th>Material</th><th>Supplier</th><th>Company</th><th class="td-num">Total</th><th class="td-num">Used</th><th class="td-num">Remaining</th><th>Status</th><th class="td-actions"></th></tr></thead>
           <tbody id="filamentBody"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
@@ -2782,12 +2783,21 @@ async function loadOpenOrders(){
 async function loadOpenReorderAlert(){
   const el=document.getElementById('openReorderAlert'); if(!el) return;
   try{
-    const {data}=await sb.from('biz_filament_rolls').select('color,is_running,status');
+    const {data}=await sb.from('biz_filament_rolls').select('color,is_running,status,total_grams,grams_used');
+    const rolls=data||[];
     const min=(typeof _bizDefaults!=='undefined'?_bizDefaults.minRolls:2)||2;
+    // (a) running colours below the min-roll count
     const byColor={},running={};
-    (data||[]).filter(r=>r.is_running).forEach(r=>{ const k=(r.color||'').toLowerCase(); running[k]=r.color; if(r.status==='active') byColor[k]=(byColor[k]||0)+1; });
-    const low=Object.keys(running).filter(k=>(byColor[k]||0)<min);
-    el.innerHTML=low.length?`<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;color:var(--red);font-size:12px;font-weight:600">⚠ Reorder filament: ${low.map(k=>esc(running[k])+' ('+(byColor[k]||0)+'/'+min+')').join(', ')}</div>`:'';
+    rolls.filter(r=>r.is_running).forEach(r=>{ const k=(r.color||'').toLowerCase(); running[k]=r.color; if(r.status==='active') byColor[k]=(byColor[k]||0)+1; });
+    const lowCount=Object.keys(running).filter(k=>(byColor[k]||0)<min);
+    // (b) #13 — any colour whose active stock is below 30% of its capacity
+    const tot={},used={},name={};
+    rolls.filter(r=>r.status==='active').forEach(r=>{ const k=(r.color||'').toLowerCase(); name[k]=r.color; tot[k]=(tot[k]||0)+(parseFloat(r.total_grams)||0); used[k]=(used[k]||0)+(parseFloat(r.grams_used)||0); });
+    const lowPct=Object.keys(tot).filter(k=>tot[k]>0 && ((tot[k]-used[k])/tot[k])<0.30).map(k=>({color:name[k],pct:Math.round((tot[k]-used[k])/tot[k]*100)}));
+    let html='';
+    if(lowCount.length) html+=`<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:var(--radius);padding:10px 14px;margin-bottom:8px;color:var(--red);font-size:12px;font-weight:600">⚠ Reorder filament: ${lowCount.map(k=>esc(running[k])+' ('+(byColor[k]||0)+'/'+min+' rolls)').join(', ')}</div>`;
+    if(lowPct.length) html+=`<div style="background:rgba(234,179,8,.12);border:1px solid var(--yellow);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;color:var(--yellow);font-size:12px;font-weight:600">⚠ Low filament stock (&lt;30%): ${lowPct.map(p=>esc(p.color)+' ('+p.pct+'%)').join(', ')}</div>`;
+    el.innerHTML=html;
   }catch(_){ el.innerHTML=''; }
 }
 
@@ -3520,6 +3530,8 @@ async function loadFilament(){
 }
 function renderFilament(){
   const rolls=_filamentRolls;
+  const sl=document.getElementById('rlSupplierList');
+  if(sl){ const sup=[...new Set(_filamentRolls.map(r=>r.supplier).filter(Boolean))]; sl.innerHTML=sup.map(s=>`<option value="${esc(s)}"></option>`).join(''); }
   const active=rolls.filter(r=>r.status==='active');
   const remaining=active.reduce((s,r)=>s+Math.max(0,(parseFloat(r.total_grams)||0)-(parseFloat(r.grams_used)||0)),0);
   const totalWaste=rolls.reduce((s,r)=>s+(parseFloat(r.waste_grams)||0),0);
@@ -3531,7 +3543,7 @@ function renderFilament(){
   renderFilamentAlert();
   const tbody=document.getElementById('filamentBody');
   if(tbody){
-    if(!rolls.length){ tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="em-text">No rolls yet</div></div></td></tr>`; }
+    if(!rolls.length){ tbody.innerHTML=`<tr><td colspan="9"><div class="empty"><div class="em-text">No rolls yet</div></div></td></tr>`; }
     else tbody.innerHTML=rolls.map(r=>{
       const rem=Math.max(0,(parseFloat(r.total_grams)||0)-(parseFloat(r.grams_used)||0));
       const low=r.status==='active'&&rem<150;
@@ -3539,6 +3551,7 @@ function renderFilament(){
         <td>${esc(r.color)}${r.is_running?' <span class="badge" style="background:var(--accent-bg);color:var(--accent)">running</span>':''}</td>
         <td>${esc(r.material||'')}</td>
         <td style="font-size:11px;color:var(--text-3)">${esc(r.supplier||'—')}</td>
+        <td style="font-size:11px;color:var(--text-3)">${esc(r.company||'—')}</td>
         <td class="td-num">${Math.round(r.total_grams||0)}g</td>
         <td class="td-num">${Math.round(r.grams_used||0)}g</td>
         <td class="td-num" style="font-weight:700;color:${low?'var(--red)':'var(--text)'}">${Math.round(rem)}g</td>
@@ -3585,7 +3598,7 @@ function showAddRoll(){
 function editRoll(id){
   const r=_filamentRolls.find(x=>x.id===id); if(!r) return;
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
-  set('rl_id',r.id); set('rl_color',r.color); set('rl_material',r.material||'PLA+'); set('rl_supplier',r.supplier); set('rl_total',r.total_grams); set('rl_used',r.grams_used); set('rl_notes',r.notes);
+  set('rl_id',r.id); set('rl_color',r.color); set('rl_material',r.material||'PLA+'); set('rl_supplier',r.supplier); set('rl_company',r.company); set('rl_total',r.total_grams); set('rl_used',r.grams_used); set('rl_notes',r.notes);
   document.getElementById('rl_running').value=r.is_running?'1':'0'; document.getElementById('rl_packed').value=r.packed?'1':'0';
   document.getElementById('rollFormTitle').textContent='Edit Roll';
   const f=document.getElementById('rollForm'); f.style.display='block'; f.scrollIntoView({behavior:'smooth',block:'start'});
@@ -3594,12 +3607,14 @@ async function saveRoll(){
   const g=k=>{const e=document.getElementById(k);return e?e.value:'';};
   const color=g('rl_color').trim(); if(!color){ toast('Colour is required','error'); return; }
   const id=g('rl_id');
-  const payload={ color, material:g('rl_material').trim()||'PLA+', supplier:g('rl_supplier').trim()||null,
+  const payload={ color, material:g('rl_material').trim()||'PLA+', supplier:g('rl_supplier').trim()||null, company:g('rl_company').trim()||null,
     total_grams:parseFloat(g('rl_total'))||0, grams_used:parseFloat(g('rl_used'))||0,
     is_running:g('rl_running')==='1', packed:g('rl_packed')==='1', notes:g('rl_notes').trim()||null };
-  const {error}=id?await sb.from('biz_filament_rolls').update(payload).eq('id',id):await sb.from('biz_filament_rolls').insert(payload);
+  // resilient: strip a column the DB doesn't have yet (e.g. company before its migration) and retry
+  let data={...payload}, error=null;
+  for(let i=0;i<4;i++){ const r=id?await sb.from('biz_filament_rolls').update(data).eq('id',id):await sb.from('biz_filament_rolls').insert(data); error=r.error; if(!error) break; const mm=(error.message||'').match(/column "([^"]+)"/); if(!mm) break; delete data[mm[1]]; }
   if(error){ toast('Error: '+error.message,'error'); return; }
-  logBizActivity(id?'edit':'create','roll',id,color+' '+material); toast(id?'Roll updated':'Roll added'); document.getElementById('rollForm').style.display='none'; loadFilament();
+  logBizActivity(id?'edit':'create','roll',id,color+' '+payload.material); toast(id?'Roll updated':'Roll added'); document.getElementById('rollForm').style.display='none'; loadFilament();
 }
 async function logRollUsage(id){
   const r=_filamentRolls.find(x=>x.id===id); if(!r) return;
