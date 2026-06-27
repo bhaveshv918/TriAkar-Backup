@@ -313,8 +313,27 @@ tr:hover td{background:var(--bg-2)}
   .form-grid .form-group,.form-grid-2 .form-group{grid-column:auto!important}
   .calc-row{grid-template-columns:1fr 1fr}
   .calc-item span{font-size:13px;word-break:break-all}
-  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  td,th{padding:8px 10px;font-size:11px}
+  /* Tables — reflow into stacked, labelled cards (no horizontal scroll). */
+  .tbl-wrap{overflow-x:visible;border:none;border-radius:0;background:transparent;box-shadow:none}
+  .tbl-wrap table{min-width:0;width:100%}
+  .tbl-wrap thead{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);border:0}
+  .tbl-wrap tbody tr{display:block;margin:0 0 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-1);padding:4px 12px}
+  .tbl-wrap tbody td{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:7px 0!important;border:none;border-bottom:1px solid var(--border);font-size:12px;text-align:right;white-space:normal;word-break:break-word}
+  .tbl-wrap tbody tr td:last-child{border-bottom:none}
+  .tbl-wrap tbody td::before{content:attr(data-label);font-weight:700;color:var(--text-3);text-transform:uppercase;font-size:9px;letter-spacing:.4px;text-align:left;flex:0 0 36%;white-space:nowrap}
+  .tbl-wrap tbody td[data-label='']::before,.tbl-wrap tbody td:not([data-label])::before{display:none}
+  .tbl-wrap tbody td[colspan]{display:block;text-align:center}
+  .tbl-wrap tbody td[colspan]::before{display:none}
+  th{padding:8px 10px;font-size:11px}
+  /* Add-Sale item rows → wrap into a stacked card on mobile (no 760px right-scroll) */
+  #itemRows .items-head{display:none}
+  #itemRows .items-grid{min-width:0;grid-template-columns:repeat(6,1fr);gap:6px 8px;padding:10px 12px}
+  #itemRows .item-row{border:1px solid var(--border);border-radius:8px;margin-bottom:8px}
+  #itemRows .item-row .srl{grid-column:1/-1;justify-content:flex-start;font-size:10px}
+  #itemRows .item-row .item-cell{grid-column:1/-1}
+  #itemRows .item-row>.r{grid-column:span 2}
+  #itemRows .item-row .amt{grid-column:1/-1;text-align:right;padding-top:2px}
+  #itemRows .item-row .del{grid-column:1/-1;width:auto;text-align:right}
   .gst-summary{grid-template-columns:1fr 1fr}
   .filter-bar{flex-wrap:wrap;gap:6px}
   .filter-bar select,.filter-bar input{flex:1;min-width:120px}
@@ -1894,6 +1913,27 @@ function fmt(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFr
 function fmtD(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function today(){ return new Date().toISOString().split('T')[0]; }
 function thisMonth(){ return new Date().toISOString().slice(0,7); }
+
+/* Round-2 #B3 — responsive tables: stack into labelled cards on mobile.
+   Copies each table's column headers into per-cell data-label attributes so the
+   CSS card view shows context; re-applies (debounced) as tables re-render. */
+function applyTableLabels(root){
+  (root||document).querySelectorAll('.tbl-wrap table').forEach(function(tbl){
+    var heads=[].map.call(tbl.querySelectorAll('thead th'),function(th){return th.textContent.trim();});
+    if(!heads.length) return;
+    tbl.querySelectorAll('tbody tr').forEach(function(tr){
+      [].forEach.call(tr.children,function(td,i){
+        if(td.hasAttribute('colspan')) return;
+        if(!td.hasAttribute('data-label')) td.setAttribute('data-label',heads[i]||'');
+      });
+    });
+  });
+}
+(function(){
+  var t=null, run=function(){ clearTimeout(t); t=setTimeout(function(){applyTableLabels();},80); };
+  function init(){ applyTableLabels(); try{ new MutationObserver(run).observe(document.querySelector('.main-area')||document.body,{childList:true,subtree:true}); }catch(e){} }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();
 
 let _toastTimer;
 function toast(msg, type='success'){

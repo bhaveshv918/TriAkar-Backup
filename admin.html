@@ -660,12 +660,15 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
    RESPONSIVE — mobile drawer nav (matches Business OS)
    ═══════════════════════════════════════════════════════════ */
 @media(max-width:768px){
-  /* Top bar */
-  .top-time,.top-user,.top-status{display:none}
+  /* Top bar — drop space-hungry bits; brand badge is redundant on mobile */
+  .top-time,.top-user,.top-status,.top-badge{display:none}
   .top-bar{padding:0 12px;height:48px}
-  .top-logo{font-size:12px;letter-spacing:.1em}
+  .top-logo{font-size:11px;letter-spacing:.08em}
   .top-right{gap:5px}
   .top-btn{padding:5px 8px;font-size:9px}
+  /* Business OS button → compact icon-only pill */
+  .top-btn-biz{font-size:0;padding:6px 9px}
+  .top-btn-biz::before{content:"◳";font-size:15px;line-height:1}
 
   /* Hamburger shows; sidebar becomes a slide-in drawer */
   .nav-toggle{display:flex!important}
@@ -701,10 +704,19 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
   .p-actions button,.p-actions a{font-size:10px;padding:7px 10px}
   .p-actions input[type=text]{width:100%;min-width:unset!important;box-sizing:border-box}
 
-  /* Tables — horizontal scroll with touch */
-  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--radius)}
-  .tbl-wrap table{min-width:480px}
-  td,th{padding:8px 10px;font-size:11px}
+  /* Tables — reflow into stacked, labelled cards (no horizontal scroll).
+     applyTableLabels() copies each column header into the cell's data-label. */
+  .tbl-wrap{overflow-x:visible;border:none;border-radius:0;background:transparent}
+  .tbl-wrap table{min-width:0;width:100%}
+  .tbl-wrap thead{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);border:0}
+  .tbl-wrap tbody tr{display:block;margin:0 0 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-1);padding:4px 12px}
+  .tbl-wrap tbody td{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:7px 0!important;border:none;border-bottom:1px solid var(--border);font-size:12px;text-align:right;white-space:normal;word-break:break-word}
+  .tbl-wrap tbody tr td:last-child{border-bottom:none}
+  .tbl-wrap tbody td::before{content:attr(data-label);font-weight:700;color:var(--text-3);text-transform:uppercase;font-size:9px;letter-spacing:.4px;text-align:left;flex:0 0 36%;white-space:nowrap}
+  .tbl-wrap tbody td[data-label='']::before,.tbl-wrap tbody td:not([data-label])::before{display:none}
+  .tbl-wrap tbody td[colspan]{display:block;text-align:center}
+  .tbl-wrap tbody td[colspan]::before{display:none}
+  th{padding:8px 10px;font-size:11px}
   .tbl-msg{min-width:unset!important}
 
   /* Form grids — single column on phone */
@@ -2307,6 +2319,28 @@ function refreshCurrentAdminTab(){
   const m={dashboard:loadDashboard,orders:loadOrders,customers:loadCustomers,products:loadProducts,messages:loadMessages,enquiries:loadCustomEnquiries,callbacks:loadCallbacks,inbox:loadInbox,reviews:()=>{loadReviewsAdmin();if(typeof loadGoogleSettings==='function')loadGoogleSettings();},recyclebin:loadRecycleBin,analytics:()=>{loadAnalytics();if(typeof loadGa4==='function')loadGa4();},promo:loadPromoCodes,activity:loadActivity,content:loadContentSettings,appearance:(typeof loadMenuStyleSetting==='function'?loadMenuStyleSetting:function(){}),categories:loadCategories,logs:loadLogs};
   if(typeof m[_curAdminTab]==='function'){ try{ m[_curAdminTab](); toast('Refreshed','success'); }catch(e){} }
 }
+
+/* Round-2 #B3 — responsive tables: stack into labelled cards on mobile.
+   Copies each table's column headers into per-cell data-label attributes so the
+   CSS card view shows context; re-applies (debounced) as tables re-render. */
+function applyTableLabels(root){
+  (root||document).querySelectorAll('.tbl-wrap table').forEach(function(tbl){
+    var heads=[].map.call(tbl.querySelectorAll('thead th'),function(th){return th.textContent.trim();});
+    if(!heads.length) return;
+    tbl.querySelectorAll('tbody tr').forEach(function(tr){
+      [].forEach.call(tr.children,function(td,i){
+        if(td.hasAttribute('colspan')) return;
+        if(!td.hasAttribute('data-label')) td.setAttribute('data-label',heads[i]||'');
+      });
+    });
+  });
+}
+(function(){
+  var t=null, run=function(){ clearTimeout(t); t=setTimeout(function(){applyTableLabels();},80); };
+  function init(){ applyTableLabels(); try{ new MutationObserver(run).observe(document.querySelector('.admin-body')||document.body,{childList:true,subtree:true}); }catch(e){} }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();
+
 function switchTab(tab){
   _curAdminTab=tab;
   closeAdminNav();
