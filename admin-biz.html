@@ -522,7 +522,13 @@ tr:hover td{background:var(--bg-2)}
       <!-- Charts -->
       <div class="charts-row">
         <div class="chart-box">
-          <h3>Revenue by Channel</h3>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+            <h3 style="margin:0">Revenue by Channel</h3>
+            <div style="display:flex;gap:6px;align-items:center">
+              <select id="chChartMetric" onchange="setChannelChart()" title="What to plot" style="padding:4px 7px;background:var(--bg-2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:11px"><option value="revenue">Revenue</option><option value="net">Net Revenue</option><option value="profit">Profit</option><option value="orders">Orders</option></select>
+              <select id="chChartType" onchange="setChannelChart()" title="Chart type" style="padding:4px 7px;background:var(--bg-2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:11px"><option value="bar">Bar</option><option value="line">Line</option><option value="doughnut">Doughnut</option><option value="pie">Pie</option></select>
+            </div>
+          </div>
           <canvas id="chartByChannel"></canvas>
         </div>
         <div class="chart-box">
@@ -3899,6 +3905,29 @@ function initDashMonths(){
 
 let _chartByChannel=null, _chartMonthly=null, _chartTopProducts=null, _chartChannelShare=null;
 
+// #3 — per-widget settings for the "Revenue by Channel" chart (type + metric, saved per device)
+let _dashByChannel=null;
+function channelChartCfg(){ try{ const c=JSON.parse(localStorage.getItem('biz_dash_chchart')||'null'); if(c&&c.type) return c; }catch(_){} return {type:'bar',metric:'revenue'}; }
+function setChannelChart(){ try{ localStorage.setItem('biz_dash_chchart',JSON.stringify({type:document.getElementById('chChartType').value,metric:document.getElementById('chChartMetric').value})); }catch(_){} renderChannelChart(); }
+function renderChannelChart(){
+  if(!_dashByChannel||typeof Chart==='undefined') return;
+  const cfg=channelChartCfg();
+  const tt=document.getElementById('chChartType'); if(tt&&tt.value!==cfg.type) tt.value=cfg.type;
+  const tm=document.getElementById('chChartMetric'); if(tm&&tm.value!==cfg.metric) tm.value=cfg.metric;
+  const channels=['shop','amazon','flipkart','website'];
+  const mlabel={revenue:'Revenue',net:'Net Revenue',profit:'Profit',orders:'Orders'}[cfg.metric]||'Revenue';
+  const val=c=>{const d=_dashByChannel[c]||{}; return cfg.metric==='orders'?(d.orders||0):cfg.metric==='net'?(d.net||0):cfg.metric==='profit'?(d.profit||0):(d.revenue||0);};
+  const data=channels.map(val);
+  const colors=channels.map(c=>(typeof CH_COLORS!=='undefined'&&CH_COLORS[c])?CH_COLORS[c]:'#C4622A');
+  const pie=(cfg.type==='pie'||cfg.type==='doughnut');
+  const ctx=document.getElementById('chartByChannel'); if(!ctx) return;
+  if(_chartByChannel) _chartByChannel.destroy();
+  _chartByChannel=new Chart(ctx.getContext('2d'),{type:cfg.type,data:{
+    labels:channels.map(c=>(typeof CH_NAMES!=='undefined'&&CH_NAMES[c])?CH_NAMES[c]:c),
+    datasets:[{label:mlabel,data,backgroundColor:colors.map(x=>x+'cc'),borderColor:colors,borderWidth:1,fill:cfg.type!=='line'}]
+  },options:{responsive:true,plugins:{legend:{display:pie,labels:{color:'#52685A',font:{size:10}}}},scales:pie?{}:{x:{ticks:{color:'#869488'},grid:{color:'rgba(20,42,30,0.07)'}},y:{ticks:{color:'#869488',callback:v=>cfg.metric==='orders'?v:'₹'+Number(v).toLocaleString('en-IN')},grid:{color:'rgba(20,42,30,0.07)'}}}}});
+}
+
 function _skuToProduct(sku){
   if(!sku||!_catalogBySku) return null;
   return _catalogBySku[String(sku).trim().toLowerCase()]||null;
@@ -3996,15 +4025,8 @@ async function loadDashboard(){
     </tr>`;
   }).join('');
 
-  // Chart: by channel
-  const ctx1=document.getElementById('chartByChannel').getContext('2d');
-  if(_chartByChannel) _chartByChannel.destroy();
-  _chartByChannel=new Chart(ctx1,{type:'bar',data:{
-    labels:channels.map(c=>CH_NAMES[c]),
-    datasets:[
-      {label:'Revenue',data:channels.map(c=>byChannel[c].revenue),backgroundColor:channels.map(c=>CH_COLORS[c]+'cc'),borderColor:channels.map(c=>CH_COLORS[c]),borderWidth:1},
-      {label:'Profit',data:channels.map(c=>byChannel[c].profit),backgroundColor:'rgba(22,163,74,0.35)',borderColor:'#16A34A',borderWidth:1}
-    ]},options:{responsive:true,plugins:{legend:{labels:{color:'#52685A',font:{size:10}}}},scales:{x:{ticks:{color:'#869488'},grid:{color:'rgba(20,42,30,0.07)'}},y:{ticks:{color:'#869488',callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'rgba(20,42,30,0.07)'}}}}});
+  // Chart: by channel — rendered per the per-widget setting (type + metric, #3)
+  _dashByChannel=byChannel; renderChannelChart();
 
   // Chart: monthly trend (current year)
   const moMap={}; monthly.forEach(s=>{const k=String(s.order_date).slice(0,7);moMap[k]=(moMap[k]||0)+num(s.selling_price);});
