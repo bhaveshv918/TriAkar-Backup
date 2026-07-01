@@ -953,6 +953,31 @@ html[data-theme="light"] #notifDropdown{box-shadow:0 12px 36px rgba(0,0,0,.1)}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border-h);border-radius:999px}
 ::-webkit-scrollbar-thumb:hover{background:var(--text-3)}
+
+/* ── Order Detail Modal (A5) ─── */
+#orderModal{backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+#orderModal>div{
+  border-radius:14px;display:flex;flex-direction:column;
+  box-shadow:0 32px 72px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.06);
+}
+html[data-theme="light"] #orderModal>div{box-shadow:0 20px 56px rgba(0,0,0,.14)}
+#omHeader{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 20px;border-bottom:1px solid var(--border);
+  background:var(--bg-1);border-radius:14px 14px 0 0;flex-shrink:0;
+}
+.om-nav-btn{
+  background:var(--bg-2);border:1px solid var(--border);color:var(--text-2);
+  border-radius:8px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:20px;transition:all .15s;flex-shrink:0;line-height:1;
+}
+.om-nav-btn:hover:not([disabled]){
+  background:var(--accent-bg);border-color:rgba(196,98,42,.3);color:var(--accent);
+  box-shadow:0 2px 8px var(--glow-a);
+}
+.om-nav-btn[disabled]{opacity:.3;cursor:not-allowed}
+.om-open-btn{cursor:pointer;color:var(--text-3);font-size:14px;transition:color .15s;display:inline-block;line-height:1}
+.om-open-btn:hover{color:var(--accent)}
 </style>
 <script defer src="/_vercel/insights/script.js"></script>
 <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -2058,6 +2083,7 @@ function esc(s){return(s===null||s===undefined)?'':String(s).replace(/&/g,'&amp;
 
 // ── State ──────────────────────────────────────────────────
 let _products=[],_orders=[],_categories=[],_uploadedImages=[],_variants=[],_custFields=[],_dropdowns=[],_bulletPoints=[];
+let _visibleOrders=[],_currentOrderIdx=-1;
 let _productOptions=[],_specifications=[];  // new unified fields
 let _visitorData={};
 
@@ -2491,6 +2517,8 @@ document.addEventListener('click',function(e){
 });
 document.addEventListener('keydown',function(ev){
   if(ev.key!=='Escape') return;
+  var om=document.getElementById('orderModal');
+  if(om&&om.style.display!=='none'){closeOrderModal();return;}
   var pm=document.getElementById('promoModal');
   if(pm&&pm.style.display!=='none'){closePromoModal();return;}
   var rv=document.getElementById('reviewModal');
@@ -3097,6 +3125,7 @@ function filterOrders(){
 }
 
 function renderOrders(orders){
+  _visibleOrders=orders;
   const tbody=document.getElementById('ordersBody');
   if(!orders.length){tbody.innerHTML='<tr><td colspan="9" class="tbl-msg">No orders found.</td></tr>';return}
   tbody.innerHTML=orders.map(o=>{
@@ -3159,9 +3188,9 @@ function renderOrders(orders){
     const waBadge=isWAOrder?'<span style="display:inline-block;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:3px;background:#25D366;color:#fff;margin-left:5px;vertical-align:middle">WA</span>':'';
     const payStatusLabel=isPaid?'<span style="color:var(--green);font-weight:600">Received</span>':isAdv?'<span style="color:var(--yellow);font-weight:600">Advance</span>':'<span style="color:var(--text-3)">Pending</span>';
 
-    return '<tr onclick="toggleOrderDetail(\''+o.id+'\')" style="cursor:pointer">'
+    return '<tr onclick="openOrderModal(\''+o.id+'\')" style="cursor:pointer">'
       +'<td onclick="event.stopPropagation()"><input type="checkbox" class="row-check" data-id="'+o.id+'"></td>'
-      +'<td><span class="order-expand-btn" id="exp-'+o.id+'">&#9654;</span></td>'
+      +'<td><span class="om-open-btn" title="View detail">⊙</span></td>'
       +'<td class="td-name" style="font-family:var(--mono);font-size:12px">'+inv+waBadge+trackTag+'</td>'
       +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(o.created_at)+'</td>'
       +'<td class="td-name">'+name+'<span style="color:var(--text-3);font-size:11px">'+phone+'</span>'+email+uidTag+'</td>'
@@ -3170,95 +3199,151 @@ function renderOrders(orders){
       +'<td style="font-weight:600">'+fmtPrice(o.total_amount)+'</td>'
       +'<td onclick="event.stopPropagation()"><select class="status-sel" onchange="updateOrderStatus(\''+o.id+'\',this)">'+selOpts+'</select>'
         +' <button class="btn-secondary" onclick="softDeleteOne(\'orders\',\''+o.id+'\',\'loadOrders\')">Delete</button></td>'
-      +'</tr>'
-      +'<tr class="order-detail-row" id="detail-'+o.id+'"><td colspan="9"><div class="order-detail">'
-
-        // ── Section 1: Customer Info
-        +'<div class="od-section"><div class="od-label">Customer</div><div class="od-value">'
-        +name
-        +(custEmail?'<br><span style="font-family:var(--mono);font-size:11px;color:var(--text-2)">'+custEmail+'</span>':'')
-        +(custPhone?'<br>'+custPhone:'')
-        +'</div></div>'
-
-        // ── Section 2: Shipping Address
-        +'<div class="od-section"><div class="od-label">Shipping Address</div><div class="od-value">'
-        +fullAddr
-        +((o.shipping_address||{}).contact_phone?'<br><span style="font-size:11px;color:var(--text-2)">Delivery contact: '+esc(o.shipping_address.contact_phone)+'</span>':'')
-        +'</div></div>'
-
-        // ── Section 3: Order Items
-        +'<div class="od-section" style="grid-column:1/-1"><div class="od-label">Order Items</div><div class="od-items">'+itemsDetail+'</div></div>'
-
-        // ── Section 4: Payment Status (full panel)
-        +'<div class="od-section"><div class="od-label">Order Placed</div><div class="od-value" style="font-family:var(--mono);font-size:12px">'+fmtDateTimeIST(o.created_at)+'</div></div>'
-        +(o.paid_at?'<div class="od-section"><div class="od-label">Payment Received</div><div class="od-value" style="font-family:var(--mono);font-size:12px;color:var(--green)">'+fmtDateTimeIST(o.paid_at)+'</div></div>':'<div class="od-section"><div class="od-label">Payment Received</div><div class="od-value" style="color:var(--text-3)">—</div></div>')
-        +'<div class="od-section"><div class="od-label">Payment Method</div><div class="od-value">'+payMethod+'</div></div>'
-        +'<div class="od-section"><div class="od-label">Razorpay Payment ID</div><div class="od-value">'+rzpLink+'</div></div>'
-        +'<div class="od-section" style="grid-column:1/-1"><div class="od-label">Payment Status — '+payStatusLabel+'</div>'
-        +'<div style="display:flex;gap:10px;margin-top:6px;flex-wrap:wrap">'
-        +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">'
-        +'<input type="radio" name="pay-'+o.id+'" value="full" '+(isPaid?'checked':'')+' onchange="updatePaymentStatus(\''+o.id+'\',this.value)"> Full payment received</label>'
-        +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">'
-        +'<input type="radio" name="pay-'+o.id+'" value="advance" '+(isAdv&&!isPaid?'checked':'')+' onchange="updatePaymentStatus(\''+o.id+'\',this.value)"> Advance received</label>'
-        +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">'
-        +'<input type="radio" name="pay-'+o.id+'" value="pending" '+(!isPaid&&!isAdv?'checked':'')+' onchange="updatePaymentStatus(\''+o.id+'\',this.value)"> Pending</label>'
-        +'</div>'
-        +'<div id="adv-row-'+o.id+'" style="display:'+((isAdv&&!isPaid)?'flex':'none')+';gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center">'
-        +'<span style="font-size:11px;color:var(--text-3)">Advance</span>'
-        +'<input type="number" id="adv-pct-'+o.id+'" placeholder="%" value="'+((o.advance_amount&&o.total_amount)?Math.round(o.advance_amount/o.total_amount*1000)/10:'')+'" oninput="advPctChange(\''+o.id+'\')" style="width:74px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px"><span style="font-size:11px;color:var(--text-3)">%</span>'
-        +'<input type="number" id="adv-amt-'+o.id+'" placeholder="₹" value="'+(o.advance_amount||'')+'" oninput="advAmtChange(\''+o.id+'\')" style="width:120px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px"><span style="font-size:11px;color:var(--text-3)">₹ of ₹'+Number(o.total_amount||0).toLocaleString('en-IN')+'</span>'
-        +'</div>'
-        +'<div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">'
-        +'<input type="text" id="pay-notes-'+o.id+'" placeholder="Payment notes (optional)" value="'+esc(o.payment_notes)+'" style="flex:1;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px">'
-        +'<button class="btn-save" onclick="event.stopPropagation();savePaymentFields(\''+o.id+'\')">Save Payment</button>'
-        +'</div></div>'
-
-        // ── Section 5: Tracking
-        +'<div class="od-section"><div class="od-label">Tracking (optional)</div>'
-        +'<div class="od-tracking">'
-        +'<input type="text" id="track-num-'+o.id+'" placeholder="Tracking number" value="'+esc(o.tracking_number)+'">'
-        +'<input type="text" id="track-vendor-'+o.id+'" placeholder="Vendor (Delhivery, BlueDart...)" value="'+esc(o.tracking_vendor)+'">'
-        +'<button class="btn-save" onclick="event.stopPropagation();saveTracking(\''+o.id+'\')">Save</button>'
-        +'</div></div>'
-
-        // ── Section 6: Admin Actions
-        +'<div class="od-section"><div class="od-label">Quick Actions</div>'
-        +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">'
-        +(custPhone?'<a href="tel:'+custPhone+'" class="btn-sm" style="text-decoration:none">Call Customer</a>':'')
-        +(custPhone?'<a href="https://wa.me/'+custPhone.replace(/\D/g,'')+'" target="_blank" rel="noopener" class="btn-sm" style="text-decoration:none">WhatsApp</a>':'')
-        +'<button class="btn-sm" onclick="event.stopPropagation();printInvoice(\''+o.id+'\')">🖨 Invoice</button>'
-        +'</div></div>'
-
-        // ── Section 6b: Send Email
-        +'<div class="od-section"><div class="od-label">Send Email to Customer</div>'
-        +(custEmail
-          ?'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">'
-            +'<button class="btn-sm btn-email" onclick="event.stopPropagation();sendOrderEmail(\''+o.id+'\',\'confirmation\',this)" title="Resend order confirmation">✓ Confirmation</button>'
-            +'<button class="btn-sm btn-email" onclick="event.stopPropagation();sendOrderEmail(\''+o.id+'\',\'processing\',this)" title="Notify customer order is being processed">⚙ Processing</button>'
-            +'<button class="btn-sm btn-email" onclick="event.stopPropagation();sendOrderEmail(\''+o.id+'\',\'dispatched\',this)" title="Notify customer order is dispatched with tracking">🚚 Dispatched</button>'
-            +'<button class="btn-sm btn-email" onclick="event.stopPropagation();sendOrderEmail(\''+o.id+'\',\'delivered\',this)" title="Notify customer order is delivered">✓ Delivered</button>'
-            +'</div>'
-            +'<div style="font-size:11px;color:var(--text-3);margin-top:5px;font-family:var(--mono)">→ '+custEmail+'</div>'
-          :'<div style="font-size:12px;color:var(--text-3);margin-top:6px;">No email on record for this order.</div>'
-        )
-        +'</div>'
-
-        // ── Section 7: Admin Notes
-        +'<div class="od-section" style="grid-column:1/-1"><div class="od-label">Admin Notes</div>'
-        +'<div class="od-notes"><textarea id="notes-'+o.id+'" placeholder="Internal notes about this order..." onblur="saveAdminNotes(\''+o.id+'\')">'+esc(o.admin_notes)+'</textarea></div>'
-        +'</div>'
-
-      +'</div></td></tr>';
+      +'</tr>';
   }).join('');
 }
 
-function toggleOrderDetail(id){
-  const row=document.getElementById('detail-'+id);
-  const btn=document.getElementById('exp-'+id);
-  if(!row)return;
-  row.classList.toggle('show');
-  if(btn) btn.classList.toggle('open');
-  if(row.classList.contains('show')) markOrderRead(id);   // A3 — clear its notification
+// A5 — Order Detail Modal with Prev/Next
+function openOrderModal(id){
+  var idx=_visibleOrders.findIndex(function(o){return o.id===id;});
+  if(idx<0)return;
+  _currentOrderIdx=idx;
+  _renderOrderModal(_visibleOrders[idx]);
+  document.getElementById('orderModal').style.display='flex';
+  markOrderRead(id);
+}
+function closeOrderModal(){document.getElementById('orderModal').style.display='none';}
+function prevOrder(){
+  if(_currentOrderIdx<=0)return;
+  _currentOrderIdx--;
+  _renderOrderModal(_visibleOrders[_currentOrderIdx]);
+  document.getElementById('omBody').scrollTop=0;
+}
+function nextOrder(){
+  if(_currentOrderIdx>=_visibleOrders.length-1)return;
+  _currentOrderIdx++;
+  _renderOrderModal(_visibleOrders[_currentOrderIdx]);
+  document.getElementById('omBody').scrollTop=0;
+}
+function _renderOrderModal(o){
+  if(!o)return;
+  var p=o.profiles||{};
+  var inv=fmtInvoice(o);
+  var curStatus=o.order_status||o.status||'placed';
+  var badgeCls=STATUS_BADGE[curStatus]||'badge-yellow';
+  var name=esc(o.customer_name||p.full_name||p.email||'Guest');
+  var custEmail=esc(o.customer_email||p.email||'');
+  var custPhone=esc(o.customer_phone||p.phone||'');
+  var waBadge=(o.payment_method==='whatsapp'||o.order_status==='whatsapp_pending')
+    ?'<span style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:3px;background:#25D366;color:#fff;margin-left:5px">WA</span>':'';
+  var addr=o.shipping_address||{};
+  var addrObj=o.user_addresses||{};
+  var fullAddr=[esc(addr.full_name||addrObj.full_name),esc(addr.address_line1||addrObj.address_line1),esc(addr.address_line2||addrObj.address_line2),
+    [esc(addr.city||addrObj.city),esc(addr.state||addrObj.state),esc(addr.pincode||addrObj.pincode)].filter(Boolean).join(', '),
+    esc(addr.country||addrObj.country),
+    (addr.phone||addrObj.phone)?'Ph: '+esc(addr.phone||addrObj.phone):''].filter(Boolean).join('<br>')||'—';
+  var rawItems=o.order_items&&o.order_items.length?o.order_items:(o.items||[]);
+  var itemsDetail=rawItems.length?rawItems.map(function(i){
+    var pname=esc((i.products||{}).name||i.name||'Item');
+    var cat=esc((i.products||{}).category||'');
+    var catBadge=cat?'<span style="font-size:9px;background:var(--bg-3);padding:2px 6px;border-radius:3px;margin-left:6px;color:var(--text-3)">'+cat+'</span>':'';
+    var cust='';
+    if(i.customization_notes){
+      var pairs=i.customization_notes.split('|').map(function(s){return s.trim();}).filter(Boolean);
+      var pills=pairs.map(function(pair){var ci=pair.indexOf(':');var k=ci>-1?pair.slice(0,ci).trim():pair;var v=ci>-1?pair.slice(ci+1).trim():'';return'<span style="display:inline-flex;gap:4px;align-items:center"><b style="color:var(--text-2)">'+esc(k)+':</b>'+esc(v)+'</span>';}).join('<span style="color:var(--text-3);margin:0 4px">·</span>');
+      cust='<div style="margin-top:5px;padding:5px 9px;background:var(--accent-bg);border-left:2px solid var(--accent);border-radius:2px 6px 6px 2px;font-size:11px;line-height:1.7">🎨 '+pills+'</div>';
+    }
+    var unitP=i.unit_price||i.price||0;
+    return'<div class="od-item" style="flex-direction:column;gap:2px;padding:6px 8px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center">'
+      +'<span style="font-weight:600">'+pname+catBadge+'</span>'
+      +'<span>x'+i.quantity+' · '+fmtPrice(unitP*i.quantity)+'</span>'
+      +'</div>'+cust+'</div>';
+  }).join(''):'<span style="color:var(--text-3);font-size:12px">No items recorded — may be a legacy order</span>';
+  var isPaid=o.payment_received===true;
+  var isAdv=o.advance_received===true;
+  var rzpId=o.razorpay_payment_id||'';
+  var rzpLink=rzpId?'<a href="https://dashboard.razorpay.com/app/payments/'+rzpId+'" target="_blank" rel="noopener" style="color:var(--blue);font-family:var(--mono);font-size:11px;text-decoration:underline">'+rzpId+' ↗</a>':'<span style="color:var(--text-3);font-size:11px">—</span>';
+  var payMethod=(o.payment_method||'—').replace('online','Razorpay').replace('whatsapp','WhatsApp');
+  var payStatusLabel=isPaid?'<span style="color:var(--green);font-weight:600">Received</span>':isAdv?'<span style="color:var(--yellow);font-weight:600">Advance</span>':'<span style="color:var(--text-3)">Pending</span>';
+  var selOpts=STATUS_OPTIONS.map(function(s){return'<option value="'+s+'"'+(curStatus===s?' selected':'')+'>'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>';}).join('');
+  var tot=_visibleOrders.length,idx=_currentOrderIdx;
+  document.getElementById('omHeader').innerHTML=
+    '<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow:hidden">'
+    +'<span style="font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.04em;white-space:nowrap">'+inv+waBadge+'</span>'
+    +'<span class="badge '+badgeCls+'" style="flex-shrink:0">'+curStatus.charAt(0).toUpperCase()+curStatus.slice(1).replace(/_/g,' ')+'</span>'
+    +'<span style="font-size:11px;color:var(--text-3);font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+name+'</span>'
+    +'</div>'
+    +'<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:8px">'
+    +'<span style="font-size:11px;color:var(--text-3);font-family:var(--mono);white-space:nowrap">'+(idx+1)+'/'+tot+'</span>'
+    +'<button class="om-nav-btn" onclick="prevOrder()"'+(idx<=0?' disabled':'')+' title="Previous order">&#8249;</button>'
+    +'<button class="om-nav-btn" onclick="nextOrder()"'+(idx>=tot-1?' disabled':'')+' title="Next order">&#8250;</button>'
+    +'<button onclick="closeOrderModal()" style="background:none;border:none;color:var(--text-3);font-size:24px;cursor:pointer;line-height:1;padding:0 4px;margin-left:2px">×</button>'
+    +'</div>';
+  document.getElementById('omBody').innerHTML=
+    '<div class="order-detail">'
+    +'<div class="od-section" style="grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--border);margin-bottom:4px">'
+    +'<div style="display:flex;align-items:center;gap:8px">'
+    +'<select class="status-sel" onchange="updateOrderStatus(\''+o.id+'\',this)">'+selOpts+'</select>'
+    +'<button class="btn-secondary" style="font-size:11px" onclick="softDeleteOne(\'orders\',\''+o.id+'\',\'loadOrders\');closeOrderModal()">Delete</button>'
+    +'</div>'
+    +'<div style="font-size:22px;font-weight:800;letter-spacing:-.03em">'+fmtPrice(o.total_amount)+'</div>'
+    +'</div>'
+    +'<div class="od-section"><div class="od-label">Customer</div><div class="od-value">'
+    +name
+    +(custEmail?'<br><span style="font-family:var(--mono);font-size:11px;color:var(--text-2)">'+custEmail+'</span>':'')
+    +(custPhone?'<br>'+custPhone:'')
+    +'</div></div>'
+    +'<div class="od-section"><div class="od-label">Shipping Address</div><div class="od-value">'
+    +fullAddr
+    +(addr.contact_phone?'<br><span style="font-size:11px;color:var(--text-2)">Delivery contact: '+esc(addr.contact_phone)+'</span>':'')
+    +'</div></div>'
+    +'<div class="od-section" style="grid-column:1/-1"><div class="od-label">Order Items</div><div class="od-items">'+itemsDetail+'</div></div>'
+    +'<div class="od-section"><div class="od-label">Order Placed</div><div class="od-value" style="font-family:var(--mono);font-size:12px">'+fmtDateTimeIST(o.created_at)+'</div></div>'
+    +(o.paid_at?'<div class="od-section"><div class="od-label">Payment Received</div><div class="od-value" style="font-family:var(--mono);font-size:12px;color:var(--green)">'+fmtDateTimeIST(o.paid_at)+'</div></div>':'<div class="od-section"><div class="od-label">Payment Received</div><div class="od-value" style="color:var(--text-3)">—</div></div>')
+    +'<div class="od-section"><div class="od-label">Payment Method</div><div class="od-value">'+payMethod+'</div></div>'
+    +'<div class="od-section"><div class="od-label">Razorpay Payment ID</div><div class="od-value">'+rzpLink+'</div></div>'
+    +'<div class="od-section" style="grid-column:1/-1"><div class="od-label">Payment Status — '+payStatusLabel+'</div>'
+    +'<div style="display:flex;gap:10px;margin-top:6px;flex-wrap:wrap">'
+    +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="radio" name="pay-'+o.id+'" value="full" '+(isPaid?'checked':'')+' onchange="updatePaymentStatus(\''+o.id+'\',this.value)"> Full payment received</label>'
+    +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="radio" name="pay-'+o.id+'" value="advance" '+(isAdv&&!isPaid?'checked':'')+' onchange="updatePaymentStatus(\''+o.id+'\',this.value)"> Advance received</label>'
+    +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="radio" name="pay-'+o.id+'" value="pending" '+(!isPaid&&!isAdv?'checked':'')+' onchange="updatePaymentStatus(\''+o.id+'\',this.value)"> Pending</label>'
+    +'</div>'
+    +'<div id="adv-row-'+o.id+'" style="display:'+((isAdv&&!isPaid)?'flex':'none')+';gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center">'
+    +'<span style="font-size:11px;color:var(--text-3)">Advance</span>'
+    +'<input type="number" id="adv-pct-'+o.id+'" placeholder="%" value="'+((o.advance_amount&&o.total_amount)?Math.round(o.advance_amount/o.total_amount*1000)/10:'')+'" oninput="advPctChange(\''+o.id+'\')" style="width:74px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px"><span style="font-size:11px;color:var(--text-3)">%</span>'
+    +'<input type="number" id="adv-amt-'+o.id+'" placeholder="₹" value="'+(o.advance_amount||'')+'" oninput="advAmtChange(\''+o.id+'\')" style="width:120px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px"><span style="font-size:11px;color:var(--text-3)">₹ of ₹'+Number(o.total_amount||0).toLocaleString('en-IN')+'</span>'
+    +'</div>'
+    +'<div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">'
+    +'<input type="text" id="pay-notes-'+o.id+'" placeholder="Payment notes (optional)" value="'+esc(o.payment_notes||'')+'" style="flex:1;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px">'
+    +'<button class="btn-save" onclick="savePaymentFields(\''+o.id+'\')">Save Payment</button>'
+    +'</div></div>'
+    +'<div class="od-section"><div class="od-label">Tracking (optional)</div>'
+    +'<div class="od-tracking">'
+    +'<input type="text" id="track-num-'+o.id+'" placeholder="Tracking number" value="'+esc(o.tracking_number||'')+'">'
+    +'<input type="text" id="track-vendor-'+o.id+'" placeholder="Vendor (Delhivery, BlueDart...)" value="'+esc(o.tracking_vendor||'')+'">'
+    +'<button class="btn-save" onclick="saveTracking(\''+o.id+'\')">Save</button>'
+    +'</div></div>'
+    +'<div class="od-section"><div class="od-label">Quick Actions</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">'
+    +(custPhone?'<a href="tel:'+custPhone+'" class="btn-sm" style="text-decoration:none">Call Customer</a>':'')
+    +(custPhone?'<a href="https://wa.me/'+custPhone.replace(/\D/g,'')+'" target="_blank" rel="noopener" class="btn-sm" style="text-decoration:none">WhatsApp</a>':'')
+    +'<button class="btn-sm" onclick="printInvoice(\''+o.id+'\')">🖨 Invoice</button>'
+    +'</div></div>'
+    +'<div class="od-section"><div class="od-label">Send Email to Customer</div>'
+    +(custEmail
+      ?'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">'
+        +'<button class="btn-sm btn-email" onclick="sendOrderEmail(\''+o.id+'\',\'confirmation\',this)">✓ Confirmation</button>'
+        +'<button class="btn-sm btn-email" onclick="sendOrderEmail(\''+o.id+'\',\'processing\',this)">⚙ Processing</button>'
+        +'<button class="btn-sm btn-email" onclick="sendOrderEmail(\''+o.id+'\',\'dispatched\',this)">🚚 Dispatched</button>'
+        +'<button class="btn-sm btn-email" onclick="sendOrderEmail(\''+o.id+'\',\'delivered\',this)">✓ Delivered</button>'
+        +'</div><div style="font-size:11px;color:var(--text-3);margin-top:5px;font-family:var(--mono)">→ '+custEmail+'</div>'
+      :'<div style="font-size:12px;color:var(--text-3);margin-top:6px">No email on record for this order.</div>')
+    +'</div>'
+    +'<div class="od-section" style="grid-column:1/-1"><div class="od-label">Admin Notes</div>'
+    +'<div class="od-notes"><textarea id="notes-'+o.id+'" placeholder="Internal notes about this order..." onblur="saveAdminNotes(\''+o.id+'\')">'+esc(o.admin_notes||'')+'</textarea></div>'
+    +'</div>'
+    +'</div>';
 }
 
 async function updateOrderStatus(id,sel){
@@ -5833,6 +5918,14 @@ async function saveReview(){
 </div>
 
 <!-- ── REVIEW MODAL ───────────────────────────────────── -->
+<!-- ── ORDER DETAIL MODAL (A5) ─────────────────────────── -->
+<div id="orderModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeOrderModal()">
+  <div style="background:var(--bg-1);border:1px solid var(--border);max-width:740px;width:100%;max-height:92vh;">
+    <div id="omHeader"></div>
+    <div id="omBody" style="overflow-y:auto;flex:1;padding:20px;max-height:calc(92vh - 58px)"></div>
+  </div>
+</div>
+
 <div id="reviewModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:28px;max-width:560px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
