@@ -741,6 +741,7 @@ html[data-theme="dark"] .biz-login{
         <input type="text" id="bizSearchTop" placeholder="🔍 Search sales / products / customers" oninput="bizGlobalSearch(this.value)" onkeydown="if(event.key==='Escape')closeBizSearch()" autocomplete="off">
       </div>
       <button class="biz-tb-icon" onclick="refreshCurrentBizTab()" title="Refresh current tab">⟳</button>
+      <button class="biz-tb-icon" id="privacyBtn" onclick="togglePrivacyMode()" title="Hide sensitive values">👁</button>
       <button class="biz-tb-icon" onclick="toggleTheme()" title="Toggle dark / light">🌙</button>
       <a href="/admin.html" class="biz-tb-btn" title="Open Admin Panel">← Admin</a>
     </div>
@@ -1948,9 +1949,11 @@ html[data-theme="dark"] .biz-login{
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('spoolBulkInput').click()" title="Bulk add spools from Excel">⇲ Bulk Excel</button>
           <input type="file" id="spoolBulkInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="spoolBulkUpload(event)">
+          <button class="btn btn-ghost btn-sm" onclick="toggleSpoolCustomize()" title="Show / hide / reorder KPI tiles">⚙ Widgets</button>
           <button class="btn btn-primary btn-sm" onclick="showAddSpool()">+ Add Spool</button>
         </div>
       </div>
+      <div id="spoolCustomize" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:12px"></div>
       <div id="spoolKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
 
       <div id="spoolAddForm" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px">
@@ -2500,6 +2503,25 @@ function fmtD(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumF
 function today(){ return new Date().toISOString().split('T')[0]; }
 function thisMonth(){ return new Date().toISOString().slice(0,7); }
 
+// ── Privacy mode — masks ₹ / numeric values with •••••• on every tab ──
+const PRIVACY_KEY='biz_privacy_mode';
+const PRIVACY_SELECTOR='.kpi-val,.td-num,.amt';
+function isPrivacyOn(){ try{ return localStorage.getItem(PRIVACY_KEY)==='1'; }catch(_){ return false; } }
+function maskEl(el){
+  if(el.dataset.masked==='1'||!/[0-9₹]/.test(el.textContent)) return;
+  el.dataset.orig=el.textContent; el.dataset.masked='1'; el.textContent='••••••';
+}
+function unmaskEl(el){
+  if(el.dataset.masked!=='1') return;
+  el.textContent=el.dataset.orig; delete el.dataset.masked; delete el.dataset.orig;
+}
+function applyPrivacyMasking(){
+  const on=isPrivacyOn();
+  document.querySelectorAll(PRIVACY_SELECTOR).forEach(on?maskEl:unmaskEl);
+  const btn=document.getElementById('privacyBtn'); if(btn){ btn.textContent=on?'🙈':'👁'; btn.title=on?'Show values':'Hide sensitive values'; }
+}
+function togglePrivacyMode(){ try{ localStorage.setItem(PRIVACY_KEY, isPrivacyOn()?'0':'1'); }catch(_){} applyPrivacyMasking(); }
+
 /* Round-2 #B3 — responsive tables: stack into labelled cards on mobile.
    Copies each table's column headers into per-cell data-label attributes so the
    CSS card view shows context; re-applies (debounced) as tables re-render. */
@@ -2516,8 +2538,8 @@ function applyTableLabels(root){
   });
 }
 (function(){
-  var t=null, run=function(){ clearTimeout(t); t=setTimeout(function(){applyTableLabels();},80); };
-  function init(){ applyTableLabels(); try{ new MutationObserver(run).observe(document.querySelector('.main-area')||document.body,{childList:true,subtree:true}); }catch(e){} }
+  var t=null, run=function(){ clearTimeout(t); t=setTimeout(function(){applyTableLabels(); applyPrivacyMasking();},80); };
+  function init(){ applyTableLabels(); applyPrivacyMasking(); try{ new MutationObserver(run).observe(document.querySelector('.main-area')||document.body,{childList:true,subtree:true}); }catch(e){} }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
 })();
 
@@ -4609,14 +4631,22 @@ function renderSpoolTracker(){
     const value=rows.reduce((s,r)=>s+(Number(r.price)||0)*(spoolPct(r)/100),0);
     const opened=rows.filter(r=>r.status==='Opened').length;
     const finished=rows.filter(r=>r.status==='Finsh').length;
+    const gramsCap=rows.reduce((s,r)=>s+(parseFloat(r.total_grams)||0),0);
+    const gramsUsed=rows.reduce((s,r)=>s+(parseFloat(r.grams_used)||0),0);
+    const gramsWaste=rows.reduce((s,r)=>s+(parseFloat(r.waste_grams)||0),0);
     const gramsLeft=rows.reduce((s,r)=>s+spoolRemaining(r),0);
-    kpi.innerHTML=[
-      ['Total Spools',total],
-      ['Stock Value','₹'+Math.round(value).toLocaleString('en-IN')],
-      ['Grams Left',Math.round(gramsLeft)+'g'],
-      ['Opened',opened],
-      ['Finished',finished]
-    ].map(([label,val])=>`<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">${esc(label)}</div><div style="font-size:20px;font-weight:700;margin-top:4px">${val}</div></div>`).join('');
+    const vals={
+      total, value:'₹'+Math.round(value).toLocaleString('en-IN'),
+      capacity:Math.round(gramsCap)+'g', used:Math.round(gramsUsed)+'g',
+      left:Math.round(gramsLeft)+'g', waste:Math.round(gramsWaste)+'g',
+      opened, finished
+    };
+    const cfg=spoolWidgetCfg();
+    SPOOL_WIDGETS.forEach(w=>{ if(!cfg.order.includes(w.k)) cfg.order.push(w.k); });
+    kpi.innerHTML=cfg.order.filter(k=>!cfg.hidden.includes(k)).map(k=>{
+      const w=SPOOL_WIDGETS.find(x=>x.k===k); if(!w) return '';
+      return `<div class="kpi" data-w="${k}" style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px"><div class="kpi-label" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">${esc(w.name)}</div><div class="kpi-val" style="font-size:20px;font-weight:700;margin-top:4px">${vals[k]}</div></div>`;
+    }).join('');
   }
   const tbody=document.getElementById('spoolBody');
   if(!tbody) return;
@@ -5046,6 +5076,27 @@ function renderDashCustomize(){
 function dashSaveCfg(cfg){ try{ localStorage.setItem('biz_dash_widgets',JSON.stringify(cfg)); }catch(_){} applyDashWidgets(); renderDashCustomize(); }
 function dashToggleWidget(k){ const cfg=dashWidgetCfg(); const i=cfg.hidden.indexOf(k); if(i>=0) cfg.hidden.splice(i,1); else cfg.hidden.push(k); dashSaveCfg(cfg); }
 function dashMoveWidget(k,dir){ const cfg=dashWidgetCfg(); const i=cfg.order.indexOf(k), j=i+dir; if(i<0||j<0||j>=cfg.order.length) return; const t=cfg.order[i]; cfg.order[i]=cfg.order[j]; cfg.order[j]=t; dashSaveCfg(cfg); }
+
+const SPOOL_WIDGETS=[{k:'total',name:'Total Spools'},{k:'value',name:'Stock Value'},{k:'capacity',name:'Total Grams'},{k:'used',name:'Grams Used'},{k:'left',name:'Grams Left'},{k:'waste',name:'Grams Wasted'},{k:'opened',name:'Opened'},{k:'finished',name:'Finished'}];
+function spoolWidgetCfg(){
+  try{ const c=JSON.parse(localStorage.getItem('biz_spool_widgets')||'null'); if(c&&Array.isArray(c.order)) return {order:c.order,hidden:c.hidden||[]}; }catch(_){}
+  return {order:SPOOL_WIDGETS.map(w=>w.k),hidden:[]};
+}
+function toggleSpoolCustomize(){ const p=document.getElementById('spoolCustomize'); if(!p) return; if(p.style.display!=='none'){ p.style.display='none'; return; } renderSpoolCustomize(); p.style.display='block'; }
+function renderSpoolCustomize(){
+  const p=document.getElementById('spoolCustomize'); if(!p) return; const cfg=spoolWidgetCfg();
+  SPOOL_WIDGETS.forEach(w=>{ if(!cfg.order.includes(w.k)) cfg.order.push(w.k); });
+  const nameOf=k=>(SPOOL_WIDGETS.find(w=>w.k===k)||{}).name||k;
+  p.innerHTML='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">Spool Tracker widgets — show / hide / reorder</div>'+
+    cfg.order.map((k,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+      <label style="display:flex;align-items:center;gap:6px;flex:1;font-size:12px;cursor:pointer"><input type="checkbox" ${cfg.hidden.includes(k)?'':'checked'} onchange="spoolToggleWidget('${k}')"> ${esc(nameOf(k))}</label>
+      <button class="btn btn-ghost btn-sm" onclick="spoolMoveWidget('${k}',-1)" ${i===0?'disabled':''}>↑</button>
+      <button class="btn btn-ghost btn-sm" onclick="spoolMoveWidget('${k}',1)" ${i===cfg.order.length-1?'disabled':''}>↓</button>
+    </div>`).join('');
+}
+function spoolSaveCfg(cfg){ try{ localStorage.setItem('biz_spool_widgets',JSON.stringify(cfg)); }catch(_){} renderSpoolTracker(); renderSpoolCustomize(); }
+function spoolToggleWidget(k){ const cfg=spoolWidgetCfg(); const i=cfg.hidden.indexOf(k); if(i>=0) cfg.hidden.splice(i,1); else cfg.hidden.push(k); spoolSaveCfg(cfg); }
+function spoolMoveWidget(k,dir){ const cfg=spoolWidgetCfg(); const i=cfg.order.indexOf(k), j=i+dir; if(i<0||j<0||j>=cfg.order.length) return; const t=cfg.order[i]; cfg.order[i]=cfg.order[j]; cfg.order[j]=t; spoolSaveCfg(cfg); }
 
 async function loadDashboard(){
   const sel=document.getElementById('dashMonth');
@@ -6390,6 +6441,8 @@ document.addEventListener('keydown',function(ev){
   for(var i=0;i<forms.length;i++){var f=document.getElementById(forms[i]);if(f&&f.style.display!=='none'){f.style.display='none';return;}}
   var dc=document.getElementById('dashCustomize');
   if(dc&&dc.style.display!=='none'){dc.style.display='none';return;}
+  var spc=document.getElementById('spoolCustomize');
+  if(spc&&spc.style.display!=='none'){spc.style.display='none';return;}
   var bs=document.getElementById('bizSearchResults');
   if(bs&&bs.style.display!=='none'){closeBizSearch();}
 });
