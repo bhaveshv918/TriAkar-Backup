@@ -1964,8 +1964,6 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>Total Grams</label><input type="number" id="spa_grams" step="1" value="1000" oninput="onSpoolAddGramsOrPrice()"></div>
           <div class="form-group"><label>Price ₹ (full spool)</label><input type="number" id="spa_price" step="0.01" oninput="onSpoolAddGramsOrPrice()"></div>
           <div class="form-group"><label>Cost ₹/gram</label><input type="number" id="spa_costpergram" step="0.001"></div>
-          <div class="form-group"><label>Position</label><input type="text" id="spa_position" placeholder="Box / NB / OUT / Seal / LU"></div>
-          <div class="form-group"><label>Box Name</label><input type="text" id="spa_box"></div>
           <div class="form-group"><label>Status</label><select id="spa_status"><option value="Packed">Packed</option><option value="Opened">Opened</option><option value="TBR">TBR</option><option value="Finsh">Finsh</option></select></div>
           <div class="form-group"><label>Purchased Via</label><input type="text" id="spa_via"></div>
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="spa_notes"></div>
@@ -1984,8 +1982,6 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>Waste Grams</label><input type="number" id="sp_waste" step="1" min="0"></div>
           <div class="form-group"><label>Cost ₹/gram</label><input type="number" id="sp_costpergram" step="0.001"></div>
           <div class="form-group"><label>Status</label><select id="sp_status"><option value="Opened">Opened</option><option value="Packed">Packed</option><option value="Finsh">Finsh</option><option value="TBR">TBR</option></select></div>
-          <div class="form-group"><label>Position</label><input type="text" id="sp_position" placeholder="Box / NB / OUT / Seal / LU"></div>
-          <div class="form-group"><label>Box Name</label><input type="text" id="sp_box"></div>
           <div class="form-group"><label>Opened Date</label><input type="date" id="sp_opened"></div>
           <div class="form-group"><label>Finished Date</label><input type="date" id="sp_finished"></div>
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="sp_notes"></div>
@@ -2003,15 +1999,13 @@ html[data-theme="dark"] .biz-login{
           <option value="Opened">Opened</option><option value="Packed">Packed</option><option value="Finsh">Finsh</option><option value="TBR">TBR</option>
         </select>
         <button class="btn btn-sm" onclick="bulkSetSpoolStatus()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">Set Status</button>
-        <input type="text" id="spoolBulkPosition" placeholder="position" style="width:100px;border-radius:5px;border:none;font-size:12px;padding:4px 6px">
-        <button class="btn btn-sm" onclick="bulkSetSpoolPosition()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">Set Position</button>
         <button class="btn btn-sm" onclick="bulkDeleteSpools()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2)">🗑 Delete Selected</button>
       </div>
 
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th style="width:30px"><input type="checkbox" onclick="toggleSelectAllSpools(this)"></th><th>#</th><th>Brand / Type</th><th>Color</th><th>Vendor</th><th>Box / Position</th><th>Status</th><th class="td-num">% Left</th><th class="td-num">₹/g</th><th>Opened</th><th>Finished</th><th class="td-actions"></th></tr></thead>
-          <tbody id="spoolBody"><tr><td colspan="11" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+          <thead><tr><th style="width:30px"><input type="checkbox" onclick="toggleSelectAllSpools(this)"></th><th>#</th><th>Brand / Type</th><th>Color</th><th>Vendor</th><th>Status</th><th style="min-width:120px">Remaining</th><th class="td-num">₹/g</th><th>Opened</th><th>Finished</th><th class="td-actions"></th></tr></thead>
+          <tbody id="spoolBody"><tr><td colspan="10" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
     </div><!-- /spooltracker -->
@@ -4629,17 +4623,23 @@ function renderSpoolTracker(){
   if(!rows.length){ tbody.innerHTML='<tr><td colspan="11" class="empty"><div class="em-text">No spools found</div></td></tr>'; return; }
   tbody.innerHTML=rows.map(r=>{
     const badgeClass=SPOOL_BADGE[r.status]||'badge-pending';
-    const posText=[r.position,r.box_name].filter(Boolean).map(esc).join(' / ')||'—';
     const pct=spoolPct(r);
+    const barColor=pct<20?'var(--red)':pct<50?'var(--yellow)':'var(--green)';
     return `<tr style="${r.status==='Finsh'?'opacity:.6':''}">
       <td><input type="checkbox" class="spool-cb" data-id="${r.id}" onchange="updateSpoolBulkBar()"></td>
       <td>${r.s_no}</td>
       <td>${esc(r.brand)}<br><span style="font-size:11px;color:var(--text-3)">${esc(r.filament_type||'')}${r.finish?' · '+esc(r.finish):''}</span></td>
       <td>${esc(r.color||'—')}</td>
       <td style="font-size:11px;color:var(--text-3)">${esc(r.vendor||'—')}</td>
-      <td>${posText}</td>
       <td><span class="badge ${badgeClass}">${esc(r.status||'—')}</span></td>
-      <td class="td-num" style="font-weight:700;color:${pct<20?'var(--red)':'var(--text)'}">${Math.round(pct)}%</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;height:8px;border-radius:4px;background:var(--bg-3);overflow:hidden">
+            <div style="height:100%;width:${Math.round(pct)}%;background:${barColor};border-radius:4px"></div>
+          </div>
+          <span style="font-size:11px;font-weight:700;min-width:32px;text-align:right">${Math.round(pct)}%</span>
+        </div>
+      </td>
       <td class="td-num">${r.cost_per_gram!=null?Number(r.cost_per_gram).toFixed(2):'—'}</td>
       <td style="font-size:11px;color:var(--text-3)">${esc(r.opened_date||'—')}</td>
       <td style="font-size:11px;color:var(--text-3)">${esc(r.finished_date||'—')}</td>
@@ -4669,14 +4669,6 @@ async function bulkSetSpoolStatus(){
   logBizActivity('edit','spool',null,ids.length+' spool(s) set to '+status);
   toast(ids.length+' spool(s) updated'); loadSpoolTracker();
 }
-async function bulkSetSpoolPosition(){
-  const ids=getSelectedSpoolIds(); if(!ids.length) return;
-  const position=document.getElementById('spoolBulkPosition').value.trim(); if(!position) return;
-  const {error}=await sb.from('filament_inventory').update({position}).in('id',ids);
-  if(error){ toast('Error: '+error.message,'error'); return; }
-  logBizActivity('edit','spool',null,ids.length+' spool(s) moved to '+position);
-  toast(ids.length+' spool(s) updated'); loadSpoolTracker();
-}
 async function bulkDeleteSpools(){
   const ids=getSelectedSpoolIds(); if(!ids.length) return;
   if(!confirm('Delete '+ids.length+' spool(s)? Sales already linked to them keep their grams-used history, just lose the spool link.')) return;
@@ -4691,7 +4683,7 @@ function onSpoolAddGramsOrPrice(){
   if(grams>0 && price>0) document.getElementById('spa_costpergram').value=Math.round((price/grams)*1000)/1000;
 }
 function showAddSpool(){
-  ['spa_brand','spa_finish','spa_color','spa_vendor','spa_price','spa_costpergram','spa_position','spa_box','spa_via','spa_notes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['spa_brand','spa_finish','spa_color','spa_vendor','spa_price','spa_costpergram','spa_via','spa_notes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('spa_type').value='PLA';
   document.getElementById('spa_grams').value='1000';
   document.getElementById('spa_status').value='Packed';
@@ -4707,7 +4699,6 @@ async function saveNewSpool(){
     color:g('spa_color').trim()||null, vendor:g('spa_vendor').trim()||null,
     total_grams:parseFloat(g('spa_grams'))||1000, grams_used:0, waste_grams:0,
     price:parseFloat(g('spa_price'))||0, cost_per_gram:parseFloat(g('spa_costpergram'))||null,
-    position:g('spa_position').trim()||null, box_name:g('spa_box').trim()||null,
     status:g('spa_status')||'Packed', purchased_via:g('spa_via').trim()||null, notes:g('spa_notes').trim()||null,
   };
   const {error}=await sb.from('filament_inventory').insert(payload);
@@ -4738,8 +4729,6 @@ async function spoolBulkUpload(e){
         vendor:(get(r,['vendor','supplier','source'])!=null?String(get(r,['vendor','supplier','source'])).trim():null),
         total_grams:grams, grams_used:0, waste_grams:0,
         price, cost_per_gram:grams>0&&price>0?Math.round((price/grams)*1000)/1000:null,
-        position:(get(r,['position'])!=null?String(get(r,['position'])).trim():null),
-        box_name:(get(r,['boxname','box'])!=null?String(get(r,['boxname','box'])).trim():null),
         status:String(get(r,['status'])||'Packed').trim()||'Packed',
         purchased_via:(get(r,['purchasedvia','via'])!=null?String(get(r,['purchasedvia','via'])).trim():null),
       };
@@ -4758,8 +4747,6 @@ function showSpoolEdit(id){
   document.getElementById('sp_waste').value=r.waste_grams!=null?r.waste_grams:'';
   document.getElementById('sp_costpergram').value=r.cost_per_gram!=null?r.cost_per_gram:'';
   document.getElementById('sp_status').value=r.status||'Opened';
-  document.getElementById('sp_position').value=r.position||'';
-  document.getElementById('sp_box').value=r.box_name||'';
   document.getElementById('sp_opened').value=r.opened_date||'';
   document.getElementById('sp_finished').value=r.finished_date||'';
   document.getElementById('sp_notes').value=r.notes||'';
@@ -4775,8 +4762,6 @@ async function saveSpool(){
     waste_grams:document.getElementById('sp_waste').value===''?0:Number(document.getElementById('sp_waste').value),
     cost_per_gram:document.getElementById('sp_costpergram').value===''?null:Number(document.getElementById('sp_costpergram').value),
     status:document.getElementById('sp_status').value,
-    position:document.getElementById('sp_position').value.trim()||null,
-    box_name:document.getElementById('sp_box').value.trim()||null,
     opened_date:document.getElementById('sp_opened').value||null,
     finished_date:document.getElementById('sp_finished').value||null,
     notes:document.getElementById('sp_notes').value.trim()||null
