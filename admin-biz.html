@@ -668,7 +668,7 @@ html[data-theme="dark"] .biz-login{
       <div class="sb-logo">TriĀkar</div>
       <div class="sb-title">Business OS</div>
       <div style="display:flex;gap:10px;align-items:center;margin-top:6px">
-        <a href="/admin.html" class="sb-back">← Admin</a>
+        <a href="/admin.html" class="sb-back" id="sbBackToAdmin">← Admin</a>
         <button id="bizThemeToggle" onclick="toggleTheme()" title="Toggle dark / light" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;line-height:1">🌙</button>
         <button id="bizSidebarRefresh" onclick="refreshCurrentBizTab()" title="Refresh current tab" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text-3);padding:2px 4px;line-height:1">⟳</button>
         <button id="bizCollapseBtn" onclick="toggleBizSidebar()" title="Collapse / expand sidebar">‹‹</button>
@@ -2592,13 +2592,13 @@ function chHtml(id){
 // Business OS only — never admin.html. Tab visibility is enforced client-side below;
 // the actual data-access boundary is RLS (any staff role gets the same table access as
 // the owner — see 20260703_biz_staff_access.sql for why tab-level RLS wasn't built).
-let _isStaffUser=false, _staffTabs=null;
+let _isStaffUser=false, _staffTabs=null, _currentUserEmail=null;
 async function checkBizAccess(user){
   if(!user) return false;
-  if(user.email===ADMIN_EMAIL){ _isStaffUser=false; _staffTabs=null; return true; }
+  if(user.email===ADMIN_EMAIL){ _isStaffUser=false; _staffTabs=null; _currentUserEmail=user.email; return true; }
   const {data:profile}=await sb.from('profiles').select('role,biz_tabs').eq('id',user.id).maybeSingle();
   if(profile && profile.role==='staff' && Array.isArray(profile.biz_tabs) && profile.biz_tabs.length){
-    _isStaffUser=true; _staffTabs=profile.biz_tabs; return true;
+    _isStaffUser=true; _staffTabs=profile.biz_tabs; _currentUserEmail=user.email; return true;
   }
   return false;
 }
@@ -2643,6 +2643,7 @@ async function bizLogin(e){
 // actually have instead of Open Orders if that's not one of them.
 function applyStaffTabRestrictions(){
   if(!_isStaffUser||!_staffTabs) return;
+  const backBtn=document.getElementById('sbBackToAdmin'); if(backBtn) backBtn.style.display='none';   // staff have no admin.html access
   document.querySelectorAll('.tab[data-tab]').forEach(btn=>{
     if(!_staffTabs.includes(btn.dataset.tab)) btn.style.display='none';
   });
@@ -2680,8 +2681,10 @@ function refreshCurrentBizTab(){ switchTab(_curBizTab); toast('Refreshed'); }
 // §2e — immutable activity log (fire-and-forget; never blocks the save)
 function logBizActivity(action, entity, entityId, detail){
   try{
+    // Was always logging the owner's email, even for staff-performed actions —
+    // _currentUserEmail is set at login (checkBizAccess) to whoever actually signed in.
     sb.from('biz_activity_log').insert({
-      admin_email:(typeof ADMIN_EMAIL!=='undefined'?ADMIN_EMAIL:null),
+      admin_email:_currentUserEmail||(typeof ADMIN_EMAIL!=='undefined'?ADMIN_EMAIL:null),
       action, entity, entity_id:entityId?String(entityId):null, detail:detail||null
     }).then(function(){},function(){});
   }catch(_){}

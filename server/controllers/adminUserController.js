@@ -198,21 +198,31 @@ export function setUserDisabled(disabled) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   PUT /api/admin/users/:id/role  — set the display/filter role tag
-   (does NOT grant admin access — that stays the email allowlist in requireAdmin)
+   PUT /api/admin/users/:id/role  — set the display/filter role tag, and for
+   role='staff' the Business OS tabs they may access (biz_tabs).
+   (Setting role does NOT grant Admin Panel access — that stays the email
+   allowlist in requireAdmin. A 'staff' role only grants Business OS tabs —
+   enforced client-side + broadened RLS, see 20260703_biz_staff_access.sql.)
 ═══════════════════════════════════════════════════════════════════════════ */
 export async function setUserRole(req, res, next) {
   try {
     const { id } = req.params;
-    const { role } = req.body;
+    const { role, biz_tabs } = req.body;
     if (!['customer', 'staff', 'admin'].includes(role)) {
       return res.status(400).json({ error: 'role must be customer, staff, or admin' });
     }
+    const updates = { role, updated_at: new Date().toISOString() };
+    if (biz_tabs !== undefined) {
+      if (!Array.isArray(biz_tabs) || biz_tabs.some(t => typeof t !== 'string')) {
+        return res.status(400).json({ error: 'biz_tabs must be an array of tab keys' });
+      }
+      updates.biz_tabs = role === 'staff' ? biz_tabs : [];
+    }
     const { error } = await supabase.from('profiles')
-      .update({ role, updated_at: new Date().toISOString() }).eq('id', id);
+      .update(updates).eq('id', id);
     if (error) throw error;
-    logActivity(req.user?.email, 'user.role', 'user', id, '→ ' + role);
-    res.json({ ok: true, role });
+    logActivity(req.user?.email, 'user.role', 'user', id, '→ ' + role + (updates.biz_tabs ? ' [' + updates.biz_tabs.join(',') + ']' : ''));
+    res.json({ ok: true, role, biz_tabs: updates.biz_tabs });
   } catch (err) { next(err); }
 }
 
