@@ -202,7 +202,7 @@ tr:hover td{background:var(--bg-2)}
 
 /* ── Items line grid (Add Sale) ───────────────────────────── */
 .items-wrap{border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-1);overflow-x:auto;-webkit-overflow-scrolling:touch;box-shadow:var(--shadow)}
-.items-grid{display:grid;grid-template-columns:30px minmax(140px,1.6fr) 48px 84px 64px 58px 74px 62px 90px 30px;align-items:center;min-width:760px;gap:6px}
+.items-grid{display:grid;grid-template-columns:30px minmax(140px,1.6fr) 48px 84px 64px 58px 74px 62px 62px 90px 30px;align-items:center;min-width:820px;gap:6px}
 .items-head{background:var(--bg-2);font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-3);padding:8px 10px}
 .items-head .r{text-align:right}
 .item-row{border-top:1px solid var(--border);padding:7px 10px;gap:6px}
@@ -546,11 +546,11 @@ html[data-theme="dark"] #customerModal>div{
 }
 
 /* ── Slide-in form panels ─── */
-#productForm,#stockForm,#returnForm,#rollForm,#expenseForm{
+#productForm,#stockForm,#returnForm,#spoolForm,#spoolAddForm,#expenseForm{
   border-radius:14px 14px 0 0;box-shadow:0 -8px 40px rgba(0,0,0,.09);
 }
 html[data-theme="dark"] #productForm,html[data-theme="dark"] #stockForm,
-html[data-theme="dark"] #returnForm,html[data-theme="dark"] #rollForm,
+html[data-theme="dark"] #returnForm,html[data-theme="dark"] #spoolForm,html[data-theme="dark"] #spoolAddForm,
 html[data-theme="dark"] #expenseForm{box-shadow:0 -8px 40px rgba(0,0,0,.36)}
 
 /* ── Auth login ─── */
@@ -692,11 +692,8 @@ html[data-theme="dark"] .biz-login{
     <button class="tab" data-tab="stock" onclick="switchTab('stock')">
       <span class="tab-icon">◫</span><span class="tab-label">Stock</span>
     </button>
-    <button class="tab" data-tab="filament" onclick="switchTab('filament')">
-      <span class="tab-icon">🧵</span><span class="tab-label">Filament</span>
-    </button>
     <button class="tab" data-tab="spooltracker" onclick="switchTab('spooltracker')">
-      <span class="tab-icon">🎞</span><span class="tab-label">Spool Tracker</span>
+      <span class="tab-icon">🧵</span><span class="tab-label">Spool Tracker</span>
     </button>
 
     <div class="sidebar-section">Finance</div>
@@ -911,12 +908,11 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group"><label>Qty</label><input type="number" id="ql_fil_qty" value="1" step="0.01"></div>
             <div class="form-group"><label>Total ₹</label><input type="number" id="ql_fil_total" step="0.01"></div>
           </div>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:6px;font-size:12px"><input type="checkbox" id="ql_fil_makeroll" checked> Add to Filament Inventory as a roll</label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:6px;font-size:12px"><input type="checkbox" id="ql_fil_makespool" checked> Add to Spool Tracker as a new spool</label>
           <button class="btn btn-primary btn-sm" onclick="saveQuickFilament()" style="margin-top:8px">Save Purchase</button>
         </div>
       </div>
 
-      <div id="openReorderAlert"></div>
       <div id="openKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
 
       <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">In Production — needs studio action</div>
@@ -1094,7 +1090,8 @@ html[data-theme="dark"] .biz-login{
             <div class="r">Disc ₹</div>
             <div class="r">GST %</div>
             <div class="r">Cost ₹</div>
-            <div class="r" title="Filament grams used (auto-fills from product)">Grams</div>
+            <div class="r" title="Filament grams used in the product">Grams</div>
+            <div class="r" title="Filament grams wasted (failed prints, purge)">Waste</div>
             <div class="r">Amount</div>
             <div></div>
           </div>
@@ -1945,81 +1942,52 @@ html[data-theme="dark"] .biz-login{
       </div>
     </div><!-- /returns -->
 
-    <!-- ══════════════════════════════════════════════════════
-         FILAMENT / MATERIAL INVENTORY (5.5)
-    ═══════════════════════════════════════════════════════ -->
-    <div class="panel" id="panelFilament">
-      <div class="p-head">
-        <div><div class="p-title">Filament Inventory</div><div class="p-sub">Rolls, grams remaining, waste &amp; reorder alerts</div></div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('filBulkInput').click()" title="Bulk add rolls from Excel">⇲ Bulk Excel</button>
-          <input type="file" id="filBulkInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="filamentBulkUpload(event)">
-          <button class="btn btn-primary btn-sm" onclick="showAddRoll()">+ Add Roll</button>
-        </div>
-      </div>
-      <div id="filReorderAlert"></div>
-      <div id="filKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
-
-      <div id="rollForm" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px">
-        <input type="hidden" id="rl_id">
-        <div style="font-size:13px;font-weight:700;margin-bottom:12px" id="rollFormTitle">Add Roll</div>
-        <div class="form-grid">
-          <div class="form-group"><label>Colour *</label><input type="text" id="rl_color" placeholder="e.g. Black"></div>
-          <div class="form-group"><label>Material</label><input type="text" id="rl_material" placeholder="PLA+"></div>
-          <div class="form-group"><label>Supplier</label><input type="text" id="rl_supplier" list="rlSupplierList" placeholder="who you bought from"><datalist id="rlSupplierList"></datalist></div>
-          <div class="form-group"><label>Company / Brand</label><input type="text" id="rl_company" list="rlCompanyList" placeholder="Numakers / WOL3D / BhramaLab"><datalist id="rlCompanyList"><option value="Numakers"></option><option value="WOL3D"></option><option value="BhramaLab"></option></datalist></div>
-          <div class="form-group"><label>Total Grams</label><input type="number" id="rl_total" step="1" value="1000"></div>
-          <div class="form-group"><label>Grams Used</label><input type="number" id="rl_used" step="1" value="0"></div>
-          <div class="form-group"><label>Running colour?</label><select id="rl_running"><option value="0">No</option><option value="1">Yes</option></select></div>
-          <div class="form-group"><label>Packed?</label><select id="rl_packed"><option value="0">No</option><option value="1">Yes</option></select></div>
-          <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="rl_notes"></div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="saveRoll()">Save</button>
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('rollForm').style.display='none'">Cancel</button>
-        </div>
-      </div>
-
-      <!-- Bulk action bar — shown only when rolls are selected -->
-      <div id="filBulkBar" style="display:none;background:var(--accent);color:#fff;border-radius:7px;padding:10px 16px;margin-bottom:10px;align-items:center;gap:10px;flex-wrap:wrap">
-        <span id="filBulkCount" style="font-size:12px;font-weight:700;margin-right:4px">0 selected</span>
-        <button class="btn btn-sm" onclick="bulkDeleteRolls()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2)">🗑 Delete Selected</button>
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th style="width:30px"><input type="checkbox" onclick="toggleSelectAllFilament(this)"></th><th>Colour</th><th>Material</th><th>Supplier</th><th>Company</th><th class="td-num">Total</th><th class="td-num">Used</th><th class="td-num">Remaining</th><th>Status</th><th class="td-actions"></th></tr></thead>
-          <tbody id="filamentBody"><tr><td colspan="9" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
-        </table>
-      </div>
-
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:16px">
-        <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">This Month</div>
-          <div id="filMonthly" style="display:flex;gap:18px"></div>
-          <input type="month" id="filMonth" onchange="renderFilamentMonthly()" style="margin-top:10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
-        </div>
-        <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">Settings</div>
-          <div class="form-group"><label>Min rolls per running colour (reorder alert)</label><input type="number" id="filMinRolls" min="0" value="2" onchange="saveFilamentSettings()"></div>
-          <div class="form-group" style="margin-top:8px"><label>Print-colour suggestions (one per line: filament = suggested)</label><textarea id="filColorSug" rows="3" placeholder="Black = Matte Black&#10;White = Warm White" onchange="saveFilamentSettings()" style="resize:vertical;width:100%;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:7px"></textarea></div>
-        </div>
-      </div>
-    </div><!-- /filament -->
-
     <div class="panel" id="panelSpooltracker">
       <div class="p-head">
-        <div><div class="p-title">Spool Tracker</div><div class="p-sub">Physical spool audit — box, position &amp; status</div></div>
+        <div><div class="p-title">Spool Tracker</div><div class="p-sub">Physical spool audit — grams, cost/gram &amp; sales deduction</div></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('spoolBulkInput').click()" title="Bulk add spools from Excel">⇲ Bulk Excel</button>
+          <input type="file" id="spoolBulkInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="spoolBulkUpload(event)">
+          <button class="btn btn-primary btn-sm" onclick="showAddSpool()">+ Add Spool</button>
+        </div>
       </div>
       <div id="spoolKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
+
+      <div id="spoolAddForm" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px">Add Spool</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Brand *</label><input type="text" id="spa_brand" placeholder="e.g. WOL3D"></div>
+          <div class="form-group"><label>Filament Type</label><input type="text" id="spa_type" placeholder="PLA / PETG / TPU" value="PLA"></div>
+          <div class="form-group"><label>Finish</label><input type="text" id="spa_finish" placeholder="Normal / Matte / Silk"></div>
+          <div class="form-group"><label>Color</label><input type="text" id="spa_color"></div>
+          <div class="form-group"><label>Vendor</label><input type="text" id="spa_vendor"></div>
+          <div class="form-group"><label>Total Grams</label><input type="number" id="spa_grams" step="1" value="1000" oninput="onSpoolAddGramsOrPrice()"></div>
+          <div class="form-group"><label>Price ₹ (full spool)</label><input type="number" id="spa_price" step="0.01" oninput="onSpoolAddGramsOrPrice()"></div>
+          <div class="form-group"><label>Cost ₹/gram</label><input type="number" id="spa_costpergram" step="0.001"></div>
+          <div class="form-group"><label>Position</label><input type="text" id="spa_position" placeholder="Box / NB / OUT / Seal / LU"></div>
+          <div class="form-group"><label>Box Name</label><input type="text" id="spa_box"></div>
+          <div class="form-group"><label>Status</label><select id="spa_status"><option value="Packed">Packed</option><option value="Opened">Opened</option><option value="TBR">TBR</option><option value="Finsh">Finsh</option></select></div>
+          <div class="form-group"><label>Purchased Via</label><input type="text" id="spa_via"></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="spa_notes"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary btn-sm" onclick="saveNewSpool()">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('spoolAddForm').style.display='none'">Cancel</button>
+        </div>
+      </div>
 
       <div id="spoolForm" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px">
         <input type="hidden" id="sp_id">
         <div style="font-size:13px;font-weight:700;margin-bottom:12px" id="spoolFormTitle">Edit Spool</div>
         <div class="form-grid">
-          <div class="form-group"><label>Qty Remaining (0-1)</label><input type="number" id="sp_qty" step="0.05" min="0" max="1"></div>
+          <div class="form-group"><label>Grams Used</label><input type="number" id="sp_used" step="1" min="0"></div>
+          <div class="form-group"><label>Waste Grams</label><input type="number" id="sp_waste" step="1" min="0"></div>
+          <div class="form-group"><label>Cost ₹/gram</label><input type="number" id="sp_costpergram" step="0.001"></div>
           <div class="form-group"><label>Status</label><select id="sp_status"><option value="Opened">Opened</option><option value="Packed">Packed</option><option value="Finsh">Finsh</option><option value="TBR">TBR</option></select></div>
           <div class="form-group"><label>Position</label><input type="text" id="sp_position" placeholder="Box / NB / OUT / Seal / LU"></div>
           <div class="form-group"><label>Box Name</label><input type="text" id="sp_box"></div>
+          <div class="form-group"><label>Opened Date</label><input type="date" id="sp_opened"></div>
+          <div class="form-group"><label>Finished Date</label><input type="date" id="sp_finished"></div>
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="sp_notes"></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
@@ -2028,10 +1996,22 @@ html[data-theme="dark"] .biz-login{
         </div>
       </div>
 
+      <!-- Bulk action bar — shown only when spools are selected -->
+      <div id="spoolBulkBar" style="display:none;background:var(--accent);color:#fff;border-radius:7px;padding:10px 16px;margin-bottom:10px;align-items:center;gap:10px;flex-wrap:wrap">
+        <span id="spoolBulkCount" style="font-size:12px;font-weight:700;margin-right:4px">0 selected</span>
+        <select id="spoolBulkStatus" style="border-radius:5px;border:none;font-size:12px;padding:4px 6px">
+          <option value="Opened">Opened</option><option value="Packed">Packed</option><option value="Finsh">Finsh</option><option value="TBR">TBR</option>
+        </select>
+        <button class="btn btn-sm" onclick="bulkSetSpoolStatus()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">Set Status</button>
+        <input type="text" id="spoolBulkPosition" placeholder="position" style="width:100px;border-radius:5px;border:none;font-size:12px;padding:4px 6px">
+        <button class="btn btn-sm" onclick="bulkSetSpoolPosition()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">Set Position</button>
+        <button class="btn btn-sm" onclick="bulkDeleteSpools()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2)">🗑 Delete Selected</button>
+      </div>
+
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>#</th><th>Brand</th><th>Type</th><th>Finish</th><th>Color</th><th>Vendor</th><th>Box / Position</th><th>Status</th><th class="td-num">Qty Left</th><th class="td-num">Price</th><th>Via</th><th>Notes</th><th class="td-actions"></th></tr></thead>
-          <tbody id="spoolBody"><tr><td colspan="13" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+          <thead><tr><th style="width:30px"><input type="checkbox" onclick="toggleSelectAllSpools(this)"></th><th>#</th><th>Brand / Type</th><th>Color</th><th>Vendor</th><th>Box / Position</th><th>Status</th><th class="td-num">% Left</th><th class="td-num">₹/g</th><th>Opened</th><th>Finished</th><th class="td-actions"></th></tr></thead>
+          <tbody id="spoolBody"><tr><td colspan="11" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
     </div><!-- /spooltracker -->
@@ -2260,12 +2240,12 @@ html[data-theme="dark"] .biz-login{
             <div id="pu_invoice_current" style="font-size:11px;color:var(--text-3);margin-top:4px"></div>
           </div>
           <div class="form-group" style="grid-column:1/-1">
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pu_makeroll" onchange="document.getElementById('pu_roll_fields').style.display=this.checked?'grid':'none'"> This is a filament roll — add it to Filament Inventory</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pu_makespool" onchange="document.getElementById('pu_spool_fields').style.display=this.checked?'grid':'none'"> This is a filament spool — add it to Spool Tracker</label>
           </div>
-          <div id="pu_roll_fields" class="form-grid" style="display:none;grid-column:1/-1">
-            <div class="form-group"><label>Colour</label><input type="text" id="pu_roll_color"></div>
-            <div class="form-group"><label>Material</label><input type="text" id="pu_roll_material" placeholder="PLA"></div>
-            <div class="form-group"><label>Grams (rated)</label><input type="number" id="pu_roll_grams" step="1" placeholder="1000"></div>
+          <div id="pu_spool_fields" class="form-grid" style="display:none;grid-column:1/-1">
+            <div class="form-group"><label>Colour</label><input type="text" id="pu_spool_color"></div>
+            <div class="form-group"><label>Material</label><input type="text" id="pu_spool_material" placeholder="PLA"></div>
+            <div class="form-group"><label>Grams (rated)</label><input type="number" id="pu_spool_grams" step="1" placeholder="1000"></div>
           </div>
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="pu_notes"></div>
         </div>
@@ -2420,7 +2400,6 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group"><label>Default HSN</label><input type="text" id="def_hsn" placeholder="3926"></div>
             <div class="form-group"><label>Default GST %</label><select id="def_gst"><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select></div>
             <div class="form-group"><label>Default Making Cost ₹</label><input type="number" id="def_cogs" step="0.01" placeholder="0"></div>
-            <div class="form-group"><label>Min Filament Rolls (running colours)</label><input type="number" id="def_minrolls" min="0" placeholder="2"></div>
           </div>
           <div style="font-size:11px;color:var(--text-3);margin-top:10px">SKU category codes: HOM · WAL · FIG · PER · GFT · UTL · TEC · CUS &nbsp;·&nbsp; document fields live in the invoice cards above.</div>
           <div style="margin-top:10px"><button class="btn btn-primary btn-sm" onclick="saveBizDefaults()">Save Defaults</button> <span id="defaultsSavedMsg" style="font-size:12px;color:var(--green);display:none">✓ Saved</span></div>
@@ -2464,7 +2443,7 @@ function loadBizSettings(){
   loadBizDefaults();
 }
 // ── B14: operational defaults (synced via site_settings) ──
-let _bizDefaults={hsn:'3926',gst:0,cogs:0,minRolls:2};
+let _bizDefaults={hsn:'3926',gst:0,cogs:0};
 // A7 — document field toggles (default ON unless explicitly false)
 let _docInvCfg={}, _docRecCfg={};
 function docInv(k){ return _docInvCfg[k]!==false; }
@@ -2487,15 +2466,14 @@ async function saveDocCustomization(){
 }
 async function loadBizDefaults(){
   try{
-    const {data}=await sb.from('site_settings').select('key,value').in('key',['biz_default_hsn','biz_default_gst','biz_default_cogs','biz_filament_min_rolls','doc_invoice_fields','doc_record_fields']);
+    const {data}=await sb.from('site_settings').select('key,value').in('key',['biz_default_hsn','biz_default_gst','biz_default_cogs','doc_invoice_fields','doc_record_fields']);
     const m={}; (data||[]).forEach(r=>m[r.key]=r.value);
-    _bizDefaults={ hsn:m.biz_default_hsn||'3926', gst:parseFloat(m.biz_default_gst)||0, cogs:parseFloat(m.biz_default_cogs)||0, minRolls:parseInt(m.biz_filament_min_rolls)||2 };
+    _bizDefaults={ hsn:m.biz_default_hsn||'3926', gst:parseFloat(m.biz_default_gst)||0, cogs:parseFloat(m.biz_default_cogs)||0 };
     try{ _docInvCfg=JSON.parse(m.doc_invoice_fields||'{}')||{}; }catch(_){ _docInvCfg={}; }
     try{ _docRecCfg=JSON.parse(m.doc_record_fields||'{}')||{}; }catch(_){ _docRecCfg={}; }
     if(typeof renderDocSettings==='function') renderDocSettings();
-    if(typeof _filMinRolls!=='undefined') _filMinRolls=_bizDefaults.minRolls;
     const set=(id,v)=>{const e=document.getElementById(id);if(e&&v!=null&&v!=='')e.value=v;};
-    set('def_hsn',_bizDefaults.hsn); set('def_gst',String(_bizDefaults.gst)); set('def_cogs',_bizDefaults.cogs||''); set('def_minrolls',_bizDefaults.minRolls);
+    set('def_hsn',_bizDefaults.hsn); set('def_gst',String(_bizDefaults.gst)); set('def_cogs',_bizDefaults.cogs||'');
     const imp=document.getElementById('importDefaultCogs'); if(imp&&(imp.value===''||imp.value==='0')&&_bizDefaults.cogs) imp.value=_bizDefaults.cogs;
   }catch(_){}
 }
@@ -2505,7 +2483,6 @@ async function saveBizDefaults(){
     {key:'biz_default_hsn',value:(g('def_hsn')||'3926').trim()},
     {key:'biz_default_gst',value:String(parseFloat(g('def_gst'))||0)},
     {key:'biz_default_cogs',value:String(parseFloat(g('def_cogs'))||0)},
-    {key:'biz_filament_min_rolls',value:String(parseInt(g('def_minrolls'))||2)},
   ].map(r=>({...r,updated_at:new Date().toISOString()}));
   const {error}=await sb.from('site_settings').upsert(rows,{onConflict:'key'});
   if(error){ toast('Error: '+error.message,'error'); return; }
@@ -2639,7 +2616,7 @@ function switchTab(name){
     sales:loadSales, products:loadProducts, stock:loadStock,
     gst:loadGST, dashboard:loadDashboard,
     labels:populateLabelProductSelect, settings:loadBizSettings,
-    customers:loadCustomers, fees:loadFeesTab, returns:loadReturns, filament:loadFilament, spooltracker:loadSpoolTracker, openorders:loadOpenOrders, expenses:loadExpenses, activity:loadBizActivity,
+    customers:loadCustomers, fees:loadFeesTab, returns:loadReturns, spooltracker:loadSpoolTracker, openorders:loadOpenOrders, expenses:loadExpenses, activity:loadBizActivity,
     ledger:loadLedger, purchases:loadPurchases, balance:loadBalanceSheet, shoplog:loadShopLog,
   };
   if(loaders[name]) loaders[name]();
@@ -2830,54 +2807,60 @@ async function saveProduct(){
 
 // ── Quick Add Sale (multi-item) ─────────────────────────────
 let _items=[];
-function blankItem(){ return {productId:null,name:'',variant:'',qty:1,rate:0,disc:0,gst:0,cost:0,grams:0,hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:'',roll:''}; }
+function blankItem(){ return {productId:null,name:'',variant:'',qty:1,rate:0,disc:0,gst:0,cost:0,grams:0,waste:0,hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:'',spool:''}; }
 let _catalogByName={}, _catalogBySku={};
 
-// ── Filament roll deduction (Round-2 #9) ───────────────────
-// An Add-Sale line can target a specific roll; logging grams there reduces that
-// roll's stock. Only ACTIVE + UNPACKED rolls are eligible — sealed/packed rolls
-// are never auto-touched (per user spec).
-let _addSaleRolls=[], _rollsTried=false;
-async function loadAddSaleRolls(rerender){
+// ── Spool deduction ──────────────────────────────────────────
+// An Add-Sale line can target a specific spool; logging grams+waste there
+// reduces that spool's remaining material. Finished spools are excluded.
+let _addSaleSpools=[], _spoolsTried=false;
+async function loadAddSaleSpools(rerender){
   try{
-    const {data}=await sb.from('biz_filament_rolls')
-      .select('id,color,material,supplier,grams_used,total_grams,status,packed')
-      .eq('status','active').order('color');
-    _addSaleRolls=(data||[]).filter(r=>!r.packed);   // unpacked only
-  }catch(_){ _addSaleRolls=[]; }
+    const {data}=await sb.from('filament_inventory')
+      .select('id,brand,filament_type,color,grams_used,total_grams,waste_grams,status,cost_per_gram')
+      .neq('status','Finsh').order('s_no');
+    _addSaleSpools=data||[];
+  }catch(_){ _addSaleSpools=[]; }
   if(rerender && typeof renderItems==='function') renderItems();
 }
-function ensureRolls(){ if(_rollsTried) return; _rollsTried=true; loadAddSaleRolls(true); }
-function rollOptions(selected){
-  return '<option value="">Filament roll (optional — deducts stock)</option>'+
-    _addSaleRolls.map(r=>{
-      const rem=Math.max(0,(parseFloat(r.total_grams)||0)-(parseFloat(r.grams_used)||0));
-      const label=((r.supplier?r.supplier+' ':'')+r.color+' '+(r.material||'')).trim()+' — '+Math.round(rem)+'g left';
-      return `<option value="${r.id}"${selected===r.id?' selected':''}>${esc(label)}</option>`;
+function ensureSpools(){ if(_spoolsTried) return; _spoolsTried=true; loadAddSaleSpools(true); }
+function spoolOptions(selected){
+  return '<option value="">Spool (optional — deducts stock)</option>'+
+    _addSaleSpools.map(r=>{
+      const rem=Math.max(0,(parseFloat(r.total_grams)||0)-(parseFloat(r.grams_used)||0)-(parseFloat(r.waste_grams)||0));
+      const label=(r.brand+' '+r.color+' '+(r.filament_type||'')).trim()+' — '+Math.round(rem)+'g left';
+      return `<option value="${r.id}" data-rate="${r.cost_per_gram||0}"${String(selected)===String(r.id)?' selected':''}>${esc(label)}</option>`;
     }).join('');
 }
-// delta>0 consumes, delta<0 restores; grams_used clamped to [0, total]
-async function applyRollDelta(rollId, deltaGrams){
-  if(!rollId || !deltaGrams) return;
+function spoolRate(id){ const s=_addSaleSpools.find(r=>String(r.id)===String(id)); return s?(parseFloat(s.cost_per_gram)||0):0; }
+// delta>0 consumes, delta<0 restores; clamped to [0, total]. Also flips
+// opened/finished status+dates so Spool Tracker stays accurate automatically.
+async function applySpoolDelta(spoolId, deltaGrams, deltaWaste){
+  if(!spoolId || (!deltaGrams && !deltaWaste)) return;
   try{
-    const {data:roll}=await sb.from('biz_filament_rolls').select('grams_used,total_grams').eq('id',rollId).single();
-    if(!roll) return;
-    const tot=parseFloat(roll.total_grams)||0;
-    let next=(parseFloat(roll.grams_used)||0)+deltaGrams;
-    next=Math.max(0, tot>0?Math.min(next,tot):next);
-    await sb.from('biz_filament_rolls').update({grams_used:next}).eq('id',rollId);
+    const {data:sp}=await sb.from('filament_inventory').select('total_grams,grams_used,waste_grams,opened_date,status').eq('id',spoolId).single();
+    if(!sp) return;
+    const tot=parseFloat(sp.total_grams)||0;
+    const nextUsed=Math.max(0,(parseFloat(sp.grams_used)||0)+(deltaGrams||0));
+    const nextWaste=Math.max(0,(parseFloat(sp.waste_grams)||0)+(deltaWaste||0));
+    const remaining=tot-nextUsed-nextWaste;
+    const patch={grams_used:nextUsed, waste_grams:nextWaste};
+    if(!sp.opened_date && (deltaGrams>0||deltaWaste>0)) patch.opened_date=new Date().toISOString().slice(0,10);
+    if(remaining<=0 && sp.status!=='Finsh'){ patch.status='Finsh'; patch.finished_date=new Date().toISOString().slice(0,10); }
+    else if(remaining>0 && sp.status==='Finsh'){ patch.status='Opened'; patch.finished_date=null; }
+    await sb.from('filament_inventory').update(patch).eq('id',spoolId);
   }catch(_){}
 }
-async function deductFilamentForRows(rows){
-  for(const r of (rows||[])){ const g=parseFloat(r.grams_used)||0; if(r.filament_roll_id && g>0) await applyRollDelta(r.filament_roll_id, g); }
+async function deductSpoolsForRows(rows){
+  for(const r of (rows||[])){ if(r.spool_id) await applySpoolDelta(r.spool_id, parseFloat(r.grams_used)||0, parseFloat(r.spool_waste_grams)||0); }
 }
-// Restore grams to rolls when sales are binned (fetch by id so it works no matter
+// Restore grams to spools when sales are binned (fetch by id so it works no matter
 // what columns the sales list selected).
-async function restoreFilamentForIds(ids){
+async function restoreSpoolsForIds(ids){
   if(!ids||!ids.length) return;
   try{
-    const {data}=await sb.from('biz_sales').select('filament_roll_id,grams_used').in('id',ids);
-    for(const r of (data||[])){ const g=parseFloat(r.grams_used)||0; if(r.filament_roll_id && g>0) await applyRollDelta(r.filament_roll_id, -g); }
+    const {data}=await sb.from('biz_sales').select('spool_id,grams_used,spool_waste_grams').in('id',ids);
+    for(const r of (data||[])){ if(r.spool_id) await applySpoolDelta(r.spool_id, -(parseFloat(r.grams_used)||0), -(parseFloat(r.spool_waste_grams)||0)); }
   }catch(_){}
 }
 
@@ -2899,7 +2882,7 @@ function onChannelChange(){ recalcTotals(); }
 function renderItems(){
   const wrap=document.getElementById('itemRows');
   if(!wrap) return;
-  ensureRolls();
+  ensureSpools();
   if(!_items.length) _items=[blankItem()];
   wrap.innerHTML=_items.map((it,i)=>`
     <div class="items-grid item-row" data-idx="${i}"
@@ -2909,17 +2892,28 @@ function renderItems(){
       <div class="item-cell">
         <input list="catalogList" value="${esc(it.name)}" placeholder="Item name / type to search" oninput="onItemName(${i},this.value)">
         <input class="variant" value="${esc(it.variant)}" placeholder="size / colour / customisation (optional)" oninput="_items[${i}].variant=this.value">
-        <select class="variant" style="cursor:pointer" title="Filament roll — logging grams deducts from this roll's stock" onchange="_items[${i}].roll=this.value">${rollOptions(it.roll)}</select>
+        <select class="variant" style="cursor:pointer" title="Spool — logging grams+waste deducts from this spool's stock" onchange="onItemSpool(${i},this.value)">${spoolOptions(it.spool)}</select>
       </div>
       <div class="r"><input type="number" min="1" value="${it.qty}" oninput="onItemNum(${i},'qty',this.value)"></div>
       <div class="r"><input type="number" step="0.01" value="${it.rate||''}" placeholder="0" oninput="onItemNum(${i},'rate',this.value)"></div>
       <div class="r"><input type="number" step="0.01" value="${it.disc||''}" placeholder="0" oninput="onItemNum(${i},'disc',this.value)"></div>
       <div class="r"><select onchange="onItemNum(${i},'gst',this.value)">${[0,5,12,18,28].map(v=>`<option value="${v}"${v==it.gst?' selected':''}>${v}%</option>`).join('')}</select></div>
-      <div class="r"><input type="number" step="0.01" value="${it.cost||''}" placeholder="0" oninput="onItemNum(${i},'cost',this.value)"></div>
-      <div class="r"><input type="number" step="1" min="0" value="${it.grams||''}" placeholder="0" title="filament grams" oninput="onItemNum(${i},'grams',this.value)"></div>
+      <div class="r"><input type="number" step="0.01" value="${it.cost||''}" placeholder="0" title="auto-fills from spool grams × waste × ₹/g" oninput="onItemNum(${i},'cost',this.value)"></div>
+      <div class="r"><input type="number" step="1" min="0" value="${it.grams||''}" placeholder="0" title="filament grams used in the product" oninput="onItemGramsOrWaste(${i},'grams',this.value)"></div>
+      <div class="r"><input type="number" step="1" min="0" value="${it.waste||''}" placeholder="0" title="filament grams wasted (failed prints, purge)" oninput="onItemGramsOrWaste(${i},'waste',this.value)"></div>
       <div class="amt" id="amt_${i}">${fmt(it.qty*it.rate-it.disc)}</div>
       <div><button type="button" class="del" onclick="removeItem(${i})"${_items.length<=1?' disabled':''}>✕</button></div>
     </div>`).join('');
+  recalcTotals();
+}
+function onItemSpool(i,v){ _items[i].spool=v; autoCostFromSpool(i); }
+function onItemGramsOrWaste(i,f,v){ onItemNum(i,f,v); autoCostFromSpool(i); }
+function autoCostFromSpool(i){
+  const it=_items[i]; if(!it||!it.spool) return;
+  const rate=spoolRate(it.spool); if(!rate) return;
+  it.cost=Math.round(((it.grams||0)+(it.waste||0))*rate*100)/100;
+  const el=document.querySelector(`.item-row[data-idx="${i}"] input[title^="auto-fills"]`);
+  if(el) el.value=it.cost;
   recalcTotals();
 }
 // Add Item drops the new row directly below the last one and focuses it.
@@ -3021,7 +3015,7 @@ function buildSaleRows(){
   return valid.map((it,idx)=>({
     ...order,
     product_id:it.productId||null,
-    filament_roll_id:it.roll||null,
+    spool_id:it.spool||null,
     product_name:(it.name&&it.name.trim())||'—',
     variant:it.variant||null,
     sku:it.sku||null,
@@ -3032,6 +3026,7 @@ function buildSaleRows(){
     gst_rate:it.gst||0,
     cogs:it.cost||0,
     grams_used:it.grams||0,
+    spool_waste_grams:it.waste||0,
     platform_fee: idx===0?fee:0,
     shipping_fee: idx===0?ship:0,
   }));
@@ -3076,7 +3071,7 @@ function setFulfillment(v){
 }
 function onFulfilOther(v){ const hd=document.getElementById('qa_fulfillment_detail'); if(hd) hd.value=(v||'').trim(); }
 
-// Insert sales, stripping any column the DB doesn't have yet (e.g. filament_roll_id
+// Insert sales, stripping any column the DB doesn't have yet (e.g. spool_id
 // before its migration runs) so a pending migration never blocks saving a sale.
 async function insertSalesResilient(rows){
   let data=rows;
@@ -3098,8 +3093,8 @@ async function submitQuickAdd(e){
   if(!rows.length){ toast('Add at least one item','error'); return; }
   const {error}=await insertSalesResilient(rows);
   if(error){ toast('Error: '+error.message,'error'); return; }
-  await deductFilamentForRows(rows);   // reduce roll stock by grams logged
-  await loadAddSaleRolls();            // refresh remaining for the next entry
+  await deductSpoolsForRows(rows);   // reduce spool stock by grams+waste logged
+  await loadAddSaleSpools();         // refresh remaining for the next entry
   logBizActivity('create','sale',rows[0]&&rows[0].order_id,rows.length+' item(s)');
   toast(rows.length===1?'Sale saved!':rows.length+' items saved!');
   resetQuickAdd();
@@ -3114,8 +3109,8 @@ async function saveOrderRecord(){
   if(!rows.length){ toast('Add at least one item','error'); return; }
   const {error}=await insertSalesResilient(rows);
   if(error){ toast('Error: '+error.message,'error'); return; }
-  await deductFilamentForRows(rows);
-  await loadAddSaleRolls();
+  await deductSpoolsForRows(rows);
+  await loadAddSaleSpools();
   toast('Order record saved');
   // Was calling printOrderRecord(), a function that never existed — silently did nothing.
   // printInvoice() now genuinely supports a 'record' docKind (internal cost/margin/
@@ -3419,7 +3414,6 @@ async function loadOpenOrders(){
     <div class="kpi"><div class="kpi-label">Dispatched — Tracking</div><div class="kpi-val">${trackGroups.length}</div></div>
     <div class="kpi red"><div class="kpi-label">SLA Breached</div><div class="kpi-val">${breached}</div></div>
     <div class="kpi yellow"><div class="kpi-label">Due Today</div><div class="kpi-val">${dueToday}</div></div>`;
-  loadOpenReorderAlert();
   loadShopPunchStatus();
 
   const prodBody=document.getElementById('prodOrdersBody');
@@ -3527,46 +3521,31 @@ async function saveQuickFilament(){
   const g=id=>document.getElementById(id)?.value||'';
   const total=parseFloat(g('ql_fil_total'));
   const item=g('ql_fil_item').trim();
+  const vendor=g('ql_fil_vendor').trim()||null;
   if(!item){ toast('Enter what arrived','error'); return; }
   if(!(total>0)){ toast('Enter a total amount','error'); return; }
-  let linked_roll_id=null;
-  if(document.getElementById('ql_fil_makeroll')?.checked){
-    const {data:roll,error:rollErr}=await sb.from('biz_filament_rolls').insert({
-      color:item, material:'PLA+', total_grams:1000, grams_used:0, status:'active', cost_total:total,
-    }).select().single();
-    if(rollErr){ toast('Purchase saved, but roll creation failed: '+rollErr.message,'error'); }
-    else linked_roll_id=roll.id;
+  let madeSpool=false;
+  if(document.getElementById('ql_fil_makespool')?.checked){
+    const {data:last}=await sb.from('filament_inventory').select('s_no').order('s_no',{ascending:false}).limit(1);
+    const nextSNo=((last&&last[0]&&last[0].s_no)||0)+1;
+    const {error:spoolErr}=await sb.from('filament_inventory').insert({
+      s_no:nextSNo, vendor, brand:item, filament_type:'PLA+', color:item,
+      total_grams:1000, grams_used:0, waste_grams:0, price:total, cost_per_gram:Math.round((total/1000)*1000)/1000,
+      status:'Packed', purchased_via:'Purchase log',
+    });
+    if(spoolErr){ toast('Purchase saved, but spool creation failed: '+spoolErr.message,'error'); }
+    else madeSpool=true;
   }
-  const payload={date:today(),category:'raw_material',vendor:g('ql_fil_vendor').trim()||null,item,
-    qty:parseFloat(g('ql_fil_qty'))||1,total_amount:total,linked_roll_id};
+  const payload={date:today(),category:'raw_material',vendor,item,
+    qty:parseFloat(g('ql_fil_qty'))||1,total_amount:total};
   const {error}=await sb.from('biz_purchases').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
   logBizActivity('create','purchase',null,item+' ₹'+total);
-  toast(linked_roll_id?'Filament logged + added to inventory':'Filament purchase logged');
+  toast(madeSpool?'Filament logged + added to Spool Tracker':'Filament purchase logged');
   document.getElementById('qlFilament').style.display='none';
   ['ql_fil_vendor','ql_fil_item','ql_fil_total'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('ql_fil_qty').value='1';
-  if(linked_roll_id&&typeof loadFilament==='function') loadFilament();
-}
-async function loadOpenReorderAlert(){
-  const el=document.getElementById('openReorderAlert'); if(!el) return;
-  try{
-    const {data}=await sb.from('biz_filament_rolls').select('color,is_running,status,total_grams,grams_used');
-    const rolls=data||[];
-    const min=(typeof _bizDefaults!=='undefined'?_bizDefaults.minRolls:2)||2;
-    // (a) running colours below the min-roll count
-    const byColor={},running={};
-    rolls.filter(r=>r.is_running).forEach(r=>{ const k=(r.color||'').toLowerCase(); running[k]=r.color; if(r.status==='active') byColor[k]=(byColor[k]||0)+1; });
-    const lowCount=Object.keys(running).filter(k=>(byColor[k]||0)<min);
-    // (b) #13 — any colour whose active stock is below 30% of its capacity
-    const tot={},used={},name={};
-    rolls.filter(r=>r.status==='active').forEach(r=>{ const k=(r.color||'').toLowerCase(); name[k]=r.color; tot[k]=(tot[k]||0)+(parseFloat(r.total_grams)||0); used[k]=(used[k]||0)+(parseFloat(r.grams_used)||0); });
-    const lowPct=Object.keys(tot).filter(k=>tot[k]>0 && ((tot[k]-used[k])/tot[k])<0.30).map(k=>({color:name[k],pct:Math.round((tot[k]-used[k])/tot[k]*100)}));
-    let html='';
-    if(lowCount.length) html+=`<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:var(--radius);padding:10px 14px;margin-bottom:8px;color:var(--red);font-size:12px;font-weight:600">⚠ Reorder filament: ${lowCount.map(k=>esc(running[k])+' ('+(byColor[k]||0)+'/'+min+' rolls)').join(', ')}</div>`;
-    if(lowPct.length) html+=`<div style="background:rgba(234,179,8,.12);border:1px solid var(--yellow);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;color:var(--yellow);font-size:12px;font-weight:600">⚠ Low filament stock (&lt;30%): ${lowPct.map(p=>esc(p.color)+' ('+p.pct+'%)').join(', ')}</div>`;
-    el.innerHTML=html;
-  }catch(_){ el.innerHTML=''; }
+  if(madeSpool&&typeof loadSpoolTracker==='function') loadSpoolTracker();
 }
 
 // ══════════════ ACTIVITY LOG viewer (§2e) ══════════════
@@ -3765,7 +3744,7 @@ async function loadPurchases(){
     <td style="font-family:var(--mono);font-size:11px">${esc(r.date)}</td>
     <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(r.category||'—')}</span></td>
     <td>${esc(r.vendor||'—')}</td>
-    <td>${esc(r.item||'—')}${r.linked_roll_id?' <span style="color:var(--accent);font-size:10px">→ roll</span>':''}</td>
+    <td>${esc(r.item||'—')}</td>
     <td class="td-num">${r.qty||1}</td>
     <td class="td-num" style="font-weight:700">${fmt(r.total_amount)}</td>
     <td>${r.invoice_url?`<a href="#" data-u="${esc(r.invoice_url)}" onclick="event.preventDefault();openInvoice(this.dataset.u)" style="color:var(--accent)">view</a>`:'—'}</td>
@@ -3778,10 +3757,10 @@ function recalcPurchase(){
 }
 function showAddPurchase(){
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};
-  ['pu_id','pu_vendor','pu_item','pu_unit','pu_total','pu_notes','pu_roll_color','pu_roll_material','pu_roll_grams'].forEach(id=>set(id,''));
+  ['pu_id','pu_vendor','pu_item','pu_unit','pu_total','pu_notes','pu_spool_color','pu_spool_material','pu_spool_grams'].forEach(id=>set(id,''));
   document.getElementById('pu_invoice_file').value=''; document.getElementById('pu_invoice_current').textContent=''; set('pu_invoice','');
   set('pu_date',today()); set('pu_category','raw_material'); set('pu_qty','1');
-  document.getElementById('pu_makeroll').checked=false; document.getElementById('pu_roll_fields').style.display='none';
+  document.getElementById('pu_makespool').checked=false; document.getElementById('pu_spool_fields').style.display='none';
   document.getElementById('purchaseFormTitle').textContent='Log Purchase';
   const f=document.getElementById('purchaseForm'); f.style.display='block'; f.scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -3793,7 +3772,7 @@ function editPurchase(id){
   set('pu_invoice',r.invoice_url); set('pu_notes',r.notes);
   document.getElementById('pu_invoice_file').value='';
   document.getElementById('pu_invoice_current').textContent=r.invoice_url?'Current invoice on file — choose a file to replace':'';
-  document.getElementById('pu_makeroll').checked=false; document.getElementById('pu_roll_fields').style.display='none';
+  document.getElementById('pu_makespool').checked=false; document.getElementById('pu_spool_fields').style.display='none';
   document.getElementById('purchaseFormTitle').textContent='Edit Purchase';
   const f=document.getElementById('purchaseForm'); f.style.display='block'; f.scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -3814,24 +3793,28 @@ async function savePurchase(){
     if(upErr){ toast('Invoice upload failed: '+upErr.message,'error'); return; }
     invoice_url=path;
   }
-  let linked_roll_id=null;
-  if(!id && document.getElementById('pu_makeroll').checked){
-    const rollPayload={ color:g('pu_roll_color').trim()||'Unnamed', material:g('pu_roll_material').trim()||'PLA',
-      total_grams:parseFloat(g('pu_roll_grams'))||1000, grams_used:0, status:'active', cost_total:parseFloat(g('pu_total'))||0 };
-    const {data:roll,error:rollErr}=await sb.from('biz_filament_rolls').insert(rollPayload).select().single();
-    if(rollErr){ toast('Purchase saved, but roll creation failed: '+rollErr.message,'error'); }
-    else linked_roll_id=roll.id;
+  let madeSpool=false;
+  if(!id && document.getElementById('pu_makespool').checked){
+    const {data:last}=await sb.from('filament_inventory').select('s_no').order('s_no',{ascending:false}).limit(1);
+    const nextSNo=((last&&last[0]&&last[0].s_no)||0)+1;
+    const total=parseFloat(g('pu_total'))||0, grams=parseFloat(g('pu_spool_grams'))||1000;
+    const spoolPayload={ s_no:nextSNo, vendor:g('pu_vendor').trim()||null, brand:g('pu_spool_material').trim()||'PLA',
+      filament_type:g('pu_spool_material').trim()||'PLA', color:g('pu_spool_color').trim()||'Unnamed',
+      total_grams:grams, grams_used:0, waste_grams:0, price:total, cost_per_gram:Math.round((total/grams)*1000)/1000,
+      status:'Packed', purchased_via:'Purchase log' };
+    const {error:spoolErr}=await sb.from('filament_inventory').insert(spoolPayload);
+    if(spoolErr){ toast('Purchase saved, but spool creation failed: '+spoolErr.message,'error'); }
+    else madeSpool=true;
   }
   const payload={ date:g('pu_date')||today(), category:g('pu_category'), vendor:g('pu_vendor').trim()||null,
     item:g('pu_item').trim(), qty:parseFloat(g('pu_qty'))||1, unit_amount:parseFloat(g('pu_unit'))||0,
     total_amount:parseFloat(g('pu_total'))||0, invoice_url, notes:g('pu_notes').trim()||null };
-  if(linked_roll_id) payload.linked_roll_id=linked_roll_id;
   const {error}=id?await sb.from('biz_purchases').update(payload).eq('id',id):await sb.from('biz_purchases').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
   logBizActivity(id?'edit':'create','purchase',id,(payload.vendor||'')+' '+payload.item+' ₹'+payload.total_amount);
-  toast(id?'Purchase updated':(linked_roll_id?'Purchase logged + roll added':'Purchase logged'));
+  toast(id?'Purchase updated':(madeSpool?'Purchase logged + spool added':'Purchase logged'));
   document.getElementById('purchaseForm').style.display='none'; loadPurchases();
-  if(linked_roll_id&&typeof loadFilament==='function') loadFilament();
+  if(madeSpool&&typeof loadSpoolTracker==='function') loadSpoolTracker();
 }
 async function deletePurchase(id){ if(!confirm('Delete this purchase?')) return; const {error}=await sb.from('biz_purchases').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} logBizActivity('delete','purchase',id,''); toast('Deleted'); loadPurchases(); }
 
@@ -3852,13 +3835,13 @@ async function loadBalanceSheet(){
   if(view==='month'){ start=thisMonth()+'-01'; label='This Month'; }
   else if(view==='fy'){ const now=new Date(); const fyStartYear=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1; start=`${fyStartYear}-04-01`; label='This Financial Year'; }
   else label='All Time';
-  const [{data:ob},{data:studio},{data:inc},{data:exp},{data:purch},{data:rolls},{data:unpaid}]=await Promise.all([
+  const [{data:ob},{data:studio},{data:inc},{data:exp},{data:purch},{data:spools},{data:unpaid}]=await Promise.all([
     sb.from('site_settings').select('value').eq('key','biz_opening_balance').single(),
     sb.from('biz_sales').select('selling_price').eq('is_deleted',false).eq('channel_id','shop').eq('is_paid',true).gte('order_date',start),
     sb.from('biz_income').select('amount').gte('date',start),
     sb.from('biz_expenses').select('amount').gte('date',start),
     sb.from('biz_purchases').select('total_amount').gte('date',start),
-    sb.from('biz_filament_rolls').select('total_grams,grams_used,cost_total').eq('status','active'),
+    sb.from('filament_inventory').select('total_grams,grams_used,waste_grams,price').neq('status','Finsh'),
     sb.from('biz_sales').select('selling_price').eq('is_deleted',false).eq('is_paid',false).not('status','in','(cancelled,returned)'),
   ]);
   const num=v=>+v||0;
@@ -3866,7 +3849,7 @@ async function loadBalanceSheet(){
   const totalIn=(studio||[]).reduce((s,r)=>s+num(r.selling_price),0)+(inc||[]).reduce((s,r)=>s+num(r.amount),0);
   const totalOut=(exp||[]).reduce((s,r)=>s+num(r.amount),0)+(purch||[]).reduce((s,r)=>s+num(r.total_amount),0);
   const bankBalance=opening+totalIn-totalOut;
-  const stockValue=(rolls||[]).reduce((s,r)=>{ const cost=num(r.cost_total); if(!cost) return s; const remaining=Math.max(0,num(r.total_grams)-num(r.grams_used)); const pct=num(r.total_grams)?remaining/num(r.total_grams):0; return s+cost*pct; },0);
+  const stockValue=(spools||[]).reduce((s,r)=>{ const cost=num(r.price); if(!cost) return s; const remaining=Math.max(0,num(r.total_grams)-num(r.grams_used)-num(r.waste_grams)); const pct=num(r.total_grams)?remaining/num(r.total_grams):0; return s+cost*pct; },0);
   const receivables=(unpaid||[]).reduce((s,r)=>s+num(r.selling_price),0);
   const totalAssets=bankBalance+stockValue+receivables;
   const el=document.getElementById('bsBody'); if(!el) return;
@@ -4157,7 +4140,7 @@ async function deleteOrder(firstId){
   if(!confirm(`Move this order (${ids.length} item${ids.length>1?'s':''}) to Recycle Bin?`)) return;
   const {error}=await sb.from('biz_sales').update({is_deleted:true,deleted_at:new Date().toISOString()}).in('id',ids);
   if(error){ toast('Error: '+error.message,'error'); return; }
-  await restoreFilamentForIds(ids);   // give grams back to the rolls after binning
+  await restoreSpoolsForIds(ids);   // give grams back to the spools after binning
   toast('Order moved to Recycle Bin'); loadSales(); loadSalesBadge();
 }
 async function togglePaidOrder(firstId,allPaid){
@@ -4613,182 +4596,10 @@ async function saveStockMovement(){
 }
 
 // ── Returns ─────────────────────────────────────────────────
-// ══════════════ FILAMENT / MATERIAL INVENTORY (5.5) ══════════════
-let _filamentRolls=[], _filMinRolls=2;
-async function loadFilament(){
-  const {data,error}=await sb.from('biz_filament_rolls').select('*').order('created_at',{ascending:false});
-  if(error){ toast('Error: '+error.message,'error'); return; }
-  _filamentRolls=data||[];
-  await loadFilamentSettings();
-  renderFilament();
-}
-function renderFilament(){
-  const rolls=_filamentRolls;
-  const sl=document.getElementById('rlSupplierList');
-  if(sl){ const sup=[...new Set(_filamentRolls.map(r=>r.supplier).filter(Boolean))]; sl.innerHTML=sup.map(s=>`<option value="${esc(s)}"></option>`).join(''); }
-  const active=rolls.filter(r=>r.status==='active');
-  const remaining=active.reduce((s,r)=>s+Math.max(0,(parseFloat(r.total_grams)||0)-(parseFloat(r.grams_used)||0)),0);
-  const totalWaste=rolls.reduce((s,r)=>s+(parseFloat(r.waste_grams)||0),0);
-  const kpi=document.getElementById('filKpi');
-  if(kpi) kpi.innerHTML=`
-    <div class="kpi"><div class="kpi-label">Active Rolls</div><div class="kpi-val">${active.length}</div></div>
-    <div class="kpi green"><div class="kpi-label">Grams in Stock</div><div class="kpi-val">${Math.round(remaining)}g</div></div>
-    <div class="kpi red"><div class="kpi-label">Total Waste</div><div class="kpi-val">${Math.round(totalWaste)}g</div></div>`;
-  renderFilamentAlert();
-  const tbody=document.getElementById('filamentBody');
-  if(tbody){
-    if(!rolls.length){ tbody.innerHTML=`<tr><td colspan="10"><div class="empty"><div class="em-text">No rolls yet</div></div></td></tr>`; }
-    else tbody.innerHTML=rolls.map(r=>{
-      const rem=Math.max(0,(parseFloat(r.total_grams)||0)-(parseFloat(r.grams_used)||0));
-      const low=r.status==='active'&&rem<150;
-      return `<tr style="${r.status!=='active'?'opacity:.6':''}">
-        <td><input type="checkbox" class="roll-cb" data-id="${r.id}" onchange="updateFilamentBulkBar()"></td>
-        <td>${esc(r.color)}${r.is_running?' <span class="badge" style="background:var(--accent-bg);color:var(--accent)">running</span>':''}</td>
-        <td>${esc(r.material||'')}</td>
-        <td style="font-size:11px;color:var(--text-3)">${esc(r.supplier||'—')}</td>
-        <td style="font-size:11px;color:var(--text-3)">${esc(r.company||'—')}</td>
-        <td class="td-num">${Math.round(r.total_grams||0)}g</td>
-        <td class="td-num">${Math.round(r.grams_used||0)}g</td>
-        <td class="td-num" style="font-weight:700;color:${low?'var(--red)':'var(--text)'}">${Math.round(rem)}g</td>
-        <td><span class="badge badge-${r.status==='active'?'completed':r.status==='empty'?'returned':'pending'}">${esc(r.status)}</span>${r.status==='empty'&&r.waste_grams?` <span style="font-size:10px;color:var(--red)">${Math.round(r.waste_grams)}g waste</span>`:''}</td>
-        <td class="td-actions">
-          ${r.status==='active'?`<button class="btn btn-ghost btn-sm" onclick="logRollUsage('${r.id}')" title="Add grams used">+g</button> <button class="btn btn-ghost btn-sm" onclick="markRollEmpty('${r.id}')" title="Mark empty (log waste)">▣</button> `:''}
-          <button class="btn btn-ghost btn-sm" onclick="editRoll('${r.id}')">✎</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteRoll('${r.id}')">✕</button>
-        </td>
-      </tr>`;
-    }).join('');
-  }
-  updateFilamentBulkBar();   // re-render clears any previously checked rows
-  renderFilamentMonthly();
-}
-function getSelectedRollIds(){
-  return [...document.querySelectorAll('.roll-cb:checked')].map(c=>c.dataset.id);
-}
-function updateFilamentBulkBar(){
-  const n=getSelectedRollIds().length;
-  const bar=document.getElementById('filBulkBar');
-  if(bar) bar.style.display=n>0?'flex':'none';
-  const cnt=document.getElementById('filBulkCount'); if(cnt) cnt.textContent=n+' selected';
-}
-function toggleSelectAllFilament(cb){
-  document.querySelectorAll('.roll-cb').forEach(c=>c.checked=cb.checked);
-  updateFilamentBulkBar();
-}
-async function bulkDeleteRolls(){
-  const ids=getSelectedRollIds(); if(!ids.length) return;
-  if(!confirm('Delete '+ids.length+' roll(s)? Sales already linked to them keep their grams-used history, just lose the roll link.')) return;
-  const {error}=await sb.from('biz_filament_rolls').delete().in('id',ids);
-  if(error){ toast('Error: '+error.message,'error'); return; }
-  logBizActivity('delete','roll',null,ids.length+' roll(s) bulk deleted');
-  toast(ids.length+' roll(s) deleted'); loadFilament();
-}
-function renderFilamentAlert(){
-  const el=document.getElementById('filReorderAlert'); if(!el) return;
-  const min=_filMinRolls||2;
-  const byColor={}, runningColors={};
-  _filamentRolls.filter(r=>r.is_running).forEach(r=>{ const k=(r.color||'').toLowerCase(); runningColors[k]=r.color; if(r.status==='active') byColor[k]=(byColor[k]||0)+1; });
-  const low=Object.keys(runningColors).filter(k=>(byColor[k]||0)<min);
-  el.innerHTML=low.length?`<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;color:var(--red);font-size:12px;font-weight:600">⚠ Reorder filament: ${low.map(k=>esc(runningColors[k])+' ('+(byColor[k]||0)+'/'+min+')').join(', ')}</div>`:'';
-}
-async function renderFilamentMonthly(){
-  const mEl=document.getElementById('filMonth'); if(!mEl) return;
-  if(!mEl.value) mEl.value=new Date().toISOString().slice(0,7);
-  const mo=mEl.value, start=mo+'-01';
-  const [yy,mm]=mo.split('-').map(Number);
-  const next=(mm===12)?`${yy+1}-01-01`:`${yy}-${String(mm+1).padStart(2,'0')}-01`;
-  const {data:sales}=await sb.from('biz_sales').select('grams_used,order_date').eq('is_deleted',false).eq('status','completed').gte('order_date',start).lt('order_date',next);
-  const printed=(sales||[]).reduce((s,r)=>s+(parseFloat(r.grams_used)||0),0);
-  const wasted=_filamentRolls.filter(r=>r.finished_date&&r.finished_date>=start&&r.finished_date<next).reduce((s,r)=>s+(parseFloat(r.waste_grams)||0),0);
-  const el=document.getElementById('filMonthly');
-  if(el) el.innerHTML=`
-    <div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3)">Printed</div><div style="font-size:18px;font-weight:700;color:var(--green)">${Math.round(printed)}g</div></div>
-    <div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3)">Wasted</div><div style="font-size:18px;font-weight:700;color:var(--red)">${Math.round(wasted)}g</div></div>`;
-}
-function showAddRoll(){
-  const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};
-  set('rl_id',''); set('rl_color',''); set('rl_material','PLA+'); set('rl_supplier',''); set('rl_total','1000'); set('rl_used','0'); set('rl_notes','');
-  document.getElementById('rl_running').value='0'; document.getElementById('rl_packed').value='0';
-  document.getElementById('rollFormTitle').textContent='Add Roll';
-  const f=document.getElementById('rollForm'); f.style.display='block'; f.scrollIntoView({behavior:'smooth',block:'start'});
-}
-function editRoll(id){
-  const r=_filamentRolls.find(x=>x.id===id); if(!r) return;
-  const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
-  set('rl_id',r.id); set('rl_color',r.color); set('rl_material',r.material||'PLA+'); set('rl_supplier',r.supplier); set('rl_company',r.company); set('rl_total',r.total_grams); set('rl_used',r.grams_used); set('rl_notes',r.notes);
-  document.getElementById('rl_running').value=r.is_running?'1':'0'; document.getElementById('rl_packed').value=r.packed?'1':'0';
-  document.getElementById('rollFormTitle').textContent='Edit Roll';
-  const f=document.getElementById('rollForm'); f.style.display='block'; f.scrollIntoView({behavior:'smooth',block:'start'});
-}
-async function saveRoll(){
-  const g=k=>{const e=document.getElementById(k);return e?e.value:'';};
-  const color=g('rl_color').trim(); if(!color){ toast('Colour is required','error'); return; }
-  const id=g('rl_id');
-  const payload={ color, material:g('rl_material').trim()||'PLA+', supplier:g('rl_supplier').trim()||null, company:g('rl_company').trim()||null,
-    total_grams:parseFloat(g('rl_total'))||0, grams_used:parseFloat(g('rl_used'))||0,
-    is_running:g('rl_running')==='1', packed:g('rl_packed')==='1', notes:g('rl_notes').trim()||null };
-  // resilient: strip a column the DB doesn't have yet (e.g. company before its migration) and retry
-  let data={...payload}, error=null;
-  for(let i=0;i<4;i++){ const r=id?await sb.from('biz_filament_rolls').update(data).eq('id',id):await sb.from('biz_filament_rolls').insert(data); error=r.error; if(!error) break; const mm=(error.message||'').match(/column "([^"]+)"/); if(!mm) break; delete data[mm[1]]; }
-  if(error){ toast('Error: '+error.message,'error'); return; }
-  logBizActivity(id?'edit':'create','roll',id,color+' '+payload.material); toast(id?'Roll updated':'Roll added'); document.getElementById('rollForm').style.display='none'; loadFilament();
-}
-async function logRollUsage(id){
-  const r=_filamentRolls.find(x=>x.id===id); if(!r) return;
-  const v=prompt('Grams used to add to this roll:'); if(v===null) return;
-  const add=parseFloat(v)||0; if(add<=0) return;
-  const {error}=await sb.from('biz_filament_rolls').update({grams_used:(parseFloat(r.grams_used)||0)+add}).eq('id',id);
-  if(error){ toast('Error: '+error.message,'error'); return; }
-  toast('+'+add+'g logged'); loadFilament();
-}
-async function markRollEmpty(id){
-  const r=_filamentRolls.find(x=>x.id===id); if(!r) return;
-  const total=parseFloat(r.total_grams)||0, used=parseFloat(r.grams_used)||0, waste=Math.max(0,total-used);
-  if(!confirm(`Mark roll empty? Waste logged = ${Math.round(waste)}g (rated ${Math.round(total)} − used ${Math.round(used)}).`)) return;
-  const {error}=await sb.from('biz_filament_rolls').update({status:'empty',waste_grams:waste,finished_date:today()}).eq('id',id);
-  if(error){ toast('Error: '+error.message,'error'); return; }
-  toast('Roll emptied · '+Math.round(waste)+'g waste'); loadFilament();
-}
-async function deleteRoll(id){ if(!confirm('Delete this roll?')) return; const {error}=await sb.from('biz_filament_rolls').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} logBizActivity('delete','roll',id,''); toast('Deleted'); loadFilament(); }
-async function filamentBulkUpload(e){
-  const file=e.target.files[0]; if(!file) return;
-  try{
-    const buf=await file.arrayBuffer();
-    const wb=XLSX.read(buf,{type:'array'});
-    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-    const get=(r,keys)=>{ for(const rk in r){ if(keys.includes(rk.toLowerCase().replace(/\s+/g,''))) return r[rk]; } return undefined; };
-    const batch=rows.map(r=>({
-      color:String(get(r,['colour','color'])||'').trim(),
-      material:String(get(r,['material'])||'PLA+').trim()||'PLA+',
-      supplier:(get(r,['supplier','source'])!=null?String(get(r,['supplier','source'])).trim():null),
-      total_grams:parseFloat(get(r,['totalgrams','grams','total','rated']))||1000,
-      grams_used:parseFloat(get(r,['gramsused','used']))||0,
-      is_running:/^(1|yes|true)$/i.test(String(get(r,['running','isrunning'])||'')),
-    })).filter(r=>r.color);
-    if(!batch.length){ toast('No valid rows (need a Colour column)','error'); e.target.value=''; return; }
-    const {error}=await sb.from('biz_filament_rolls').insert(batch);
-    if(error){ toast('Error: '+error.message,'error'); } else { toast('Added '+batch.length+' roll(s)'); loadFilament(); }
-  }catch(err){ toast('Upload failed: '+err.message,'error'); }
-  e.target.value='';
-}
-async function loadFilamentSettings(){
-  const {data}=await sb.from('site_settings').select('key,value').in('key',['biz_filament_min_rolls','biz_color_suggestions']);
-  const m={}; (data||[]).forEach(r=>m[r.key]=r.value);
-  _filMinRolls=parseInt(m.biz_filament_min_rolls)||2;
-  const mr=document.getElementById('filMinRolls'); if(mr) mr.value=_filMinRolls;
-  const cs=document.getElementById('filColorSug');
-  if(cs){ try{ const obj=JSON.parse(m.biz_color_suggestions||'{}'); cs.value=Object.entries(obj).map(([k,v])=>k+' = '+v).join('\n'); }catch(_){ cs.value=''; } }
-}
-async function saveFilamentSettings(){
-  const min=parseInt(document.getElementById('filMinRolls').value)||2;
-  const obj={}; (document.getElementById('filColorSug').value||'').split('\n').forEach(line=>{ const i=line.indexOf('='); if(i>0){ const k=line.slice(0,i).trim(); const val=line.slice(i+1).trim(); if(k) obj[k]=val; } });
-  const {error}=await sb.from('site_settings').upsert([{key:'biz_filament_min_rolls',value:String(min),updated_at:new Date().toISOString()},{key:'biz_color_suggestions',value:JSON.stringify(obj),updated_at:new Date().toISOString()}],{onConflict:'key'});
-  if(error){ toast('Error: '+error.message,'error'); return; }
-  _filMinRolls=min; renderFilamentAlert(); toast('Filament settings saved');
-}
-
 let _spoolRows=[];
 const SPOOL_BADGE={Opened:'badge-processing',Packed:'badge-packed',Finsh:'badge-delivered',TBR:'badge-pending'};
+function spoolRemaining(r){ return Math.max(0,(parseFloat(r.total_grams)||0)-(parseFloat(r.grams_used)||0)-(parseFloat(r.waste_grams)||0)); }
+function spoolPct(r){ const tot=parseFloat(r.total_grams)||0; return tot?Math.max(0,spoolRemaining(r)/tot*100):0; }
 async function loadSpoolTracker(){
   const {data,error}=await sb.from('filament_inventory').select('*').order('s_no',{ascending:true});
   if(error){ toast('Error: '+error.message,'error'); return; }
@@ -4796,45 +4607,161 @@ async function loadSpoolTracker(){
   renderSpoolTracker();
 }
 function renderSpoolTracker(){
-  const rows=_spoolRows;
+  // finished spools sort to the bottom, otherwise by s_no
+  const rows=[..._spoolRows].sort((a,b)=>(a.status==='Finsh'?1:0)-(b.status==='Finsh'?1:0)||a.s_no-b.s_no);
   const kpi=document.getElementById('spoolKpi');
   if(kpi){
     const total=rows.length;
-    const value=rows.reduce((s,r)=>s+(Number(r.price)||0),0);
+    const value=rows.reduce((s,r)=>s+(Number(r.price)||0)*(spoolPct(r)/100),0);
     const opened=rows.filter(r=>r.status==='Opened').length;
     const finished=rows.filter(r=>r.status==='Finsh').length;
+    const gramsLeft=rows.reduce((s,r)=>s+spoolRemaining(r),0);
     kpi.innerHTML=[
       ['Total Spools',total],
-      ['Stock Value','₹'+value.toLocaleString('en-IN')],
+      ['Stock Value','₹'+Math.round(value).toLocaleString('en-IN')],
+      ['Grams Left',Math.round(gramsLeft)+'g'],
       ['Opened',opened],
       ['Finished',finished]
     ].map(([label,val])=>`<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">${esc(label)}</div><div style="font-size:20px;font-weight:700;margin-top:4px">${val}</div></div>`).join('');
   }
   const tbody=document.getElementById('spoolBody');
   if(!tbody) return;
-  if(!rows.length){ tbody.innerHTML='<tr><td colspan="13" class="empty"><div class="em-text">No spools found</div></td></tr>'; return; }
+  if(!rows.length){ tbody.innerHTML='<tr><td colspan="11" class="empty"><div class="em-text">No spools found</div></td></tr>'; return; }
   tbody.innerHTML=rows.map(r=>{
     const badgeClass=SPOOL_BADGE[r.status]||'badge-pending';
     const posText=[r.position,r.box_name].filter(Boolean).map(esc).join(' / ')||'—';
-    return `<tr>
-      <td>${r.s_no}</td><td>${esc(r.brand)}</td><td>${esc(r.filament_type)}</td><td>${esc(r.finish||'—')}</td>
-      <td>${esc(r.color||'—')}</td><td>${esc(r.vendor||'—')}</td><td>${posText}</td>
+    const pct=spoolPct(r);
+    return `<tr style="${r.status==='Finsh'?'opacity:.6':''}">
+      <td><input type="checkbox" class="spool-cb" data-id="${r.id}" onchange="updateSpoolBulkBar()"></td>
+      <td>${r.s_no}</td>
+      <td>${esc(r.brand)}<br><span style="font-size:11px;color:var(--text-3)">${esc(r.filament_type||'')}${r.finish?' · '+esc(r.finish):''}</span></td>
+      <td>${esc(r.color||'—')}</td>
+      <td style="font-size:11px;color:var(--text-3)">${esc(r.vendor||'—')}</td>
+      <td>${posText}</td>
       <td><span class="badge ${badgeClass}">${esc(r.status||'—')}</span></td>
-      <td class="td-num">${r.qty_remaining!=null?r.qty_remaining:'—'}</td>
-      <td class="td-num">₹${r.price!=null?r.price:'—'}</td>
-      <td>${esc(r.purchased_via||'—')}</td><td>${esc(r.notes||'')}</td>
+      <td class="td-num" style="font-weight:700;color:${pct<20?'var(--red)':'var(--text)'}">${Math.round(pct)}%</td>
+      <td class="td-num">${r.cost_per_gram!=null?Number(r.cost_per_gram).toFixed(2):'—'}</td>
+      <td style="font-size:11px;color:var(--text-3)">${esc(r.opened_date||'—')}</td>
+      <td style="font-size:11px;color:var(--text-3)">${esc(r.finished_date||'—')}</td>
       <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="showSpoolEdit('${r.id}')">✎</button></td>
     </tr>`;
   }).join('');
+  updateSpoolBulkBar();
+}
+function getSelectedSpoolIds(){
+  return [...document.querySelectorAll('.spool-cb:checked')].map(c=>c.dataset.id);
+}
+function updateSpoolBulkBar(){
+  const n=getSelectedSpoolIds().length;
+  const bar=document.getElementById('spoolBulkBar');
+  if(bar) bar.style.display=n>0?'flex':'none';
+  const cnt=document.getElementById('spoolBulkCount'); if(cnt) cnt.textContent=n+' selected';
+}
+function toggleSelectAllSpools(cb){
+  document.querySelectorAll('.spool-cb').forEach(c=>c.checked=cb.checked);
+  updateSpoolBulkBar();
+}
+async function bulkSetSpoolStatus(){
+  const ids=getSelectedSpoolIds(); if(!ids.length) return;
+  const status=document.getElementById('spoolBulkStatus').value;
+  const {error}=await sb.from('filament_inventory').update({status}).in('id',ids);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  logBizActivity('edit','spool',null,ids.length+' spool(s) set to '+status);
+  toast(ids.length+' spool(s) updated'); loadSpoolTracker();
+}
+async function bulkSetSpoolPosition(){
+  const ids=getSelectedSpoolIds(); if(!ids.length) return;
+  const position=document.getElementById('spoolBulkPosition').value.trim(); if(!position) return;
+  const {error}=await sb.from('filament_inventory').update({position}).in('id',ids);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  logBizActivity('edit','spool',null,ids.length+' spool(s) moved to '+position);
+  toast(ids.length+' spool(s) updated'); loadSpoolTracker();
+}
+async function bulkDeleteSpools(){
+  const ids=getSelectedSpoolIds(); if(!ids.length) return;
+  if(!confirm('Delete '+ids.length+' spool(s)? Sales already linked to them keep their grams-used history, just lose the spool link.')) return;
+  const {error}=await sb.from('filament_inventory').delete().in('id',ids);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  logBizActivity('delete','spool',null,ids.length+' spool(s) bulk deleted');
+  toast(ids.length+' spool(s) deleted'); loadSpoolTracker();
+}
+function onSpoolAddGramsOrPrice(){
+  const grams=parseFloat(document.getElementById('spa_grams').value)||0;
+  const price=parseFloat(document.getElementById('spa_price').value)||0;
+  if(grams>0 && price>0) document.getElementById('spa_costpergram').value=Math.round((price/grams)*1000)/1000;
+}
+function showAddSpool(){
+  ['spa_brand','spa_finish','spa_color','spa_vendor','spa_price','spa_costpergram','spa_position','spa_box','spa_via','spa_notes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('spa_type').value='PLA';
+  document.getElementById('spa_grams').value='1000';
+  document.getElementById('spa_status').value='Packed';
+  const f=document.getElementById('spoolAddForm'); f.style.display='block'; f.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function saveNewSpool(){
+  const g=id=>document.getElementById(id)?.value||'';
+  const brand=g('spa_brand').trim(); if(!brand){ toast('Brand is required','error'); return; }
+  const {data:last}=await sb.from('filament_inventory').select('s_no').order('s_no',{ascending:false}).limit(1);
+  const nextSNo=((last&&last[0]&&last[0].s_no)||0)+1;
+  const payload={
+    s_no:nextSNo, brand, filament_type:g('spa_type').trim()||'PLA', finish:g('spa_finish').trim()||null,
+    color:g('spa_color').trim()||null, vendor:g('spa_vendor').trim()||null,
+    total_grams:parseFloat(g('spa_grams'))||1000, grams_used:0, waste_grams:0,
+    price:parseFloat(g('spa_price'))||0, cost_per_gram:parseFloat(g('spa_costpergram'))||null,
+    position:g('spa_position').trim()||null, box_name:g('spa_box').trim()||null,
+    status:g('spa_status')||'Packed', purchased_via:g('spa_via').trim()||null, notes:g('spa_notes').trim()||null,
+  };
+  const {error}=await sb.from('filament_inventory').insert(payload);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  logBizActivity('create','spool',null,brand+' '+(payload.color||''));
+  toast('Spool added');
+  document.getElementById('spoolAddForm').style.display='none';
+  loadSpoolTracker();
+}
+async function spoolBulkUpload(e){
+  const file=e.target.files[0]; if(!file) return;
+  try{
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array'});
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+    const get=(r,keys)=>{ for(const rk in r){ if(keys.includes(rk.toLowerCase().replace(/\s+/g,''))) return r[rk]; } return undefined; };
+    const {data:last}=await sb.from('filament_inventory').select('s_no').order('s_no',{ascending:false}).limit(1);
+    let nextSNo=((last&&last[0]&&last[0].s_no)||0)+1;
+    const batch=rows.map(r=>{
+      const grams=parseFloat(get(r,['totalgrams','grams','total','rated']))||1000;
+      const price=parseFloat(get(r,['price','cost','amount']))||0;
+      return {
+        s_no:nextSNo++,
+        brand:String(get(r,['brand'])||'').trim(),
+        filament_type:String(get(r,['filamenttype','type','ftype'])||'PLA').trim()||'PLA',
+        finish:(get(r,['finish'])!=null?String(get(r,['finish'])).trim():null),
+        color:(get(r,['colour','color'])!=null?String(get(r,['colour','color'])).trim():null),
+        vendor:(get(r,['vendor','supplier','source'])!=null?String(get(r,['vendor','supplier','source'])).trim():null),
+        total_grams:grams, grams_used:0, waste_grams:0,
+        price, cost_per_gram:grams>0&&price>0?Math.round((price/grams)*1000)/1000:null,
+        position:(get(r,['position'])!=null?String(get(r,['position'])).trim():null),
+        box_name:(get(r,['boxname','box'])!=null?String(get(r,['boxname','box'])).trim():null),
+        status:String(get(r,['status'])||'Packed').trim()||'Packed',
+        purchased_via:(get(r,['purchasedvia','via'])!=null?String(get(r,['purchasedvia','via'])).trim():null),
+      };
+    }).filter(r=>r.brand);
+    if(!batch.length){ toast('No valid rows (need a Brand column)','error'); e.target.value=''; return; }
+    const {error}=await sb.from('filament_inventory').insert(batch);
+    if(error){ toast('Error: '+error.message,'error'); } else { toast('Added '+batch.length+' spool(s)'); loadSpoolTracker(); }
+  }catch(err){ toast('Upload failed: '+err.message,'error'); }
+  e.target.value='';
 }
 function showSpoolEdit(id){
   const r=_spoolRows.find(x=>String(x.id)===String(id));
   if(!r) return;
   document.getElementById('sp_id').value=r.id;
-  document.getElementById('sp_qty').value=r.qty_remaining!=null?r.qty_remaining:'';
+  document.getElementById('sp_used').value=r.grams_used!=null?r.grams_used:'';
+  document.getElementById('sp_waste').value=r.waste_grams!=null?r.waste_grams:'';
+  document.getElementById('sp_costpergram').value=r.cost_per_gram!=null?r.cost_per_gram:'';
   document.getElementById('sp_status').value=r.status||'Opened';
   document.getElementById('sp_position').value=r.position||'';
   document.getElementById('sp_box').value=r.box_name||'';
+  document.getElementById('sp_opened').value=r.opened_date||'';
+  document.getElementById('sp_finished').value=r.finished_date||'';
   document.getElementById('sp_notes').value=r.notes||'';
   document.getElementById('spoolFormTitle').textContent='Edit Spool #'+r.s_no+' — '+(r.brand||'')+' '+(r.color||'');
   document.getElementById('spoolForm').style.display='block';
@@ -4844,15 +4771,19 @@ async function saveSpool(){
   const id=document.getElementById('sp_id').value;
   if(!id) return;
   const payload={
-    qty_remaining:document.getElementById('sp_qty').value===''?null:Number(document.getElementById('sp_qty').value),
+    grams_used:document.getElementById('sp_used').value===''?0:Number(document.getElementById('sp_used').value),
+    waste_grams:document.getElementById('sp_waste').value===''?0:Number(document.getElementById('sp_waste').value),
+    cost_per_gram:document.getElementById('sp_costpergram').value===''?null:Number(document.getElementById('sp_costpergram').value),
     status:document.getElementById('sp_status').value,
     position:document.getElementById('sp_position').value.trim()||null,
     box_name:document.getElementById('sp_box').value.trim()||null,
+    opened_date:document.getElementById('sp_opened').value||null,
+    finished_date:document.getElementById('sp_finished').value||null,
     notes:document.getElementById('sp_notes').value.trim()||null
   };
   const {error}=await sb.from('filament_inventory').update(payload).eq('id',id);
   if(error){ toast('Error: '+error.message,'error'); return; }
-  logBizActivity('edit','spool',id,payload.status+' · qty '+payload.qty_remaining);
+  logBizActivity('edit','spool',id,payload.status+' · used '+payload.grams_used+'g');
   toast('Spool updated');
   document.getElementById('spoolForm').style.display='none';
   loadSpoolTracker();
@@ -6470,7 +6401,7 @@ document.addEventListener('keydown',function(ev){
   if(od&&od.style.display!=='none'){closeOrderDetail();return;}
   var cm=document.getElementById('customerModal');
   if(cm&&cm.style.display!=='none'){closeCustomerModal();return;}
-  var forms=['productForm','stockForm','returnForm','rollForm','expenseForm'];
+  var forms=['productForm','stockForm','returnForm','spoolForm','spoolAddForm','expenseForm'];
   for(var i=0;i<forms.length;i++){var f=document.getElementById(forms[i]);if(f&&f.style.display!=='none'){f.style.display='none';return;}}
   var dc=document.getElementById('dashCustomize');
   if(dc&&dc.style.display!=='none'){dc.style.display='none';return;}
