@@ -43,7 +43,7 @@ BEGIN
       -- policies restricted to the single admin email, then recreate widened).
       EXECUTE (
         SELECT COALESCE(string_agg(
-          format('DROP POLICY IF EXISTS %I ON public.%I;', polname, t), ' '
+          format('DROP POLICY IF EXISTS %I ON public.%I;', policyname, t), ' '
         ), '')
         FROM pg_policies WHERE schemaname='public' AND tablename=t
           AND qual ILIKE '%bhaveshv918@gmail.com%'
