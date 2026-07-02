@@ -653,6 +653,7 @@ html[data-theme="dark"] .biz-login{
     <div class="biz-tb-search">
       <input type="text" id="bizSearchTop" placeholder="Search sales, products, customers…" oninput="bizGlobalSearch(this.value)" onkeydown="if(event.key==='Escape')closeBizSearch()" autocomplete="off">
     </div>
+    <div class="biz-tb-time" id="bizTopTime"></div>
     <button class="biz-tb-icon" onclick="refreshCurrentBizTab()" title="Refresh current tab">⟳</button>
     <button class="biz-tb-icon" id="privacyBtn" onclick="togglePrivacyMode()" title="Hide sensitive values">👁</button>
     <button class="biz-tb-icon" onclick="toggleTheme()" title="Toggle dark / light">🌙</button>
@@ -2657,10 +2658,16 @@ function applyStaffTabRestrictions(){
   }
 }
 
+function updateBizClock(){
+  const el=document.getElementById('bizTopTime'); if(!el) return;
+  el.textContent=new Date().toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+}
+
 // Boot the app once authenticated
 async function startApp(){
   document.getElementById('authOverlay').style.display = 'none';
   document.getElementById('shell').style.display = 'flex';
+  updateBizClock(); setInterval(updateBizClock,30000);
   restoreBizSidebar();
   applyStaffTabRestrictions();
   applyDashWidgets();
