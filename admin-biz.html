@@ -325,9 +325,11 @@ tr:hover td{background:var(--bg-2)}
   .biz-tb-brand span{display:none}
   .biz-tb-search{display:none}
   #privacyBtn{display:none}
-  .biz-tb-btn{padding:5px 8px;font-size:9px}
-  .biz-tb-admin-link{font-size:0;padding:6px 9px}
+  .biz-tb-btn{padding:5px 8px!important;font-size:9px!important}
+  .biz-tb-admin-link,.biz-tb-site-link,.biz-tb-signout{font-size:0!important;padding:6px 9px!important}
   .biz-tb-admin-link::before{content:"◳";font-size:15px;line-height:1}
+  .biz-tb-site-link::before{content:"🏠";font-size:13px;line-height:1}
+  .biz-tb-signout::before{content:"🚪";font-size:13px;line-height:1}
 
   /* Sidebar → slide-in drawer below the top bar */
   .sidebar{
@@ -352,6 +354,7 @@ tr:hover td{background:var(--bg-2)}
   .p-head{flex-direction:column;align-items:flex-start;gap:8px}
 
   .charts-row{grid-template-columns:1fr}
+  .chart-box canvas{max-height:170px}
   .form-grid,.form-grid-2{grid-template-columns:1fr}
   .form-grid .form-group,.form-grid-2 .form-group{grid-column:auto!important}
   .calc-row{grid-template-columns:1fr 1fr}
@@ -386,6 +389,11 @@ tr:hover td{background:var(--bg-2)}
   .kpi-grid{grid-template-columns:1fr 1fr}
   input,select,textarea{font-size:16px!important}
   .btn{padding:11px 14px;min-height:42px}
+  .qchip{padding:10px 14px!important;font-size:13px!important}
+
+  /* Modals — tighten the 20px wrapper padding on narrow screens */
+  #orderDetailModal,#editSaleModal,#recycleBinModal,#customerModal{padding:10px!important}
+  #orderDetailModal>div,#editSaleModal>div,#recycleBinModal>div,#customerModal>div{margin:0;max-width:100%!important}
 
   /* Sticky Save → floating action button bottom-right (no bottom nav to clash) */
   #stickySave{top:auto!important;bottom:calc(18px + env(safe-area-inset-bottom,0px))!important;right:16px!important;z-index:180;border-radius:24px;padding:12px 20px!important;box-shadow:0 6px 18px rgba(16,32,24,.30)}
@@ -667,8 +675,8 @@ html[data-theme="dark"] .biz-login{
     <button class="biz-tb-icon" id="privacyBtn" onclick="togglePrivacyMode()" title="Hide sensitive values">👁</button>
     <button class="biz-tb-icon" onclick="toggleTheme()" title="Toggle dark / light">🌙</button>
     <a href="/admin.html" class="biz-tb-btn biz-tb-admin-link" title="Open Admin Panel">◳ Admin</a>
-    <a href="/index.html" class="biz-tb-btn">← Site</a>
-    <button class="biz-tb-btn" onclick="bizLogout()">Sign Out</button>
+    <a href="/index.html" class="biz-tb-btn biz-tb-site-link" title="Open storefront">← Site</a>
+    <button class="biz-tb-btn biz-tb-signout" onclick="bizLogout()" title="Sign out">Sign Out</button>
   </div>
 
   <div class="biz-body">
@@ -924,7 +932,7 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group"><label>Amount ₹</label><input type="number" id="ql_exp_amount" step="0.01"></div>
             <div class="form-group"><label>Note</label><input type="text" id="ql_exp_note" placeholder="e.g. chai + snacks"></div>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="saveQuickExpense()" style="margin-top:8px">Save Expense</button>
+          <button class="btn btn-primary btn-sm" onclick="saveQuickExpense()" title="Shortcut: Ctrl+Enter" style="margin-top:8px">Save Expense</button>
         </div>
 
         <div id="qlPayment" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
@@ -933,7 +941,7 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group"><label>Amount ₹</label><input type="number" id="ql_pay_amount" step="0.01"></div>
             <div class="form-group"><label>Mode</label><select id="ql_pay_mode"><option value="">—</option><option value="bank_transfer">Bank Transfer</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option></select></div>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="saveQuickPayment()" style="margin-top:8px">Save Payment</button>
+          <button class="btn btn-primary btn-sm" onclick="saveQuickPayment()" title="Shortcut: Ctrl+Enter" style="margin-top:8px">Save Payment</button>
         </div>
 
         <div id="qlFilament" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
@@ -944,7 +952,7 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group"><label>Total ₹</label><input type="number" id="ql_fil_total" step="0.01"></div>
           </div>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:6px;font-size:12px"><input type="checkbox" id="ql_fil_makespool" checked> Add to Spool Tracker as a new spool</label>
-          <button class="btn btn-primary btn-sm" onclick="saveQuickFilament()" style="margin-top:8px">Save Purchase</button>
+          <button class="btn btn-primary btn-sm" onclick="saveQuickFilament()" title="Shortcut: Ctrl+Enter" style="margin-top:8px">Save Purchase</button>
         </div>
       </div>
 
@@ -1653,7 +1661,7 @@ html[data-theme="dark"] .biz-login{
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input type="text" id="custSearch" placeholder="Search name / phone / city / GSTIN…" oninput="renderCustomers()" style="min-width:200px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:7px 11px;outline:none">
           <button class="btn btn-ghost btn-sm" onclick="toggleCustFilters()" id="custFilterBtn">⚙ Filters<span id="custFilterCount" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:6px">0</span></button>
-          <button class="btn btn-primary btn-sm" onclick="openCustomerEdit()">+ Add Customer</button>
+          <button class="btn btn-primary btn-sm" onclick="openCustomerEdit()" title="Shortcut: N">+ Add Customer</button>
         </div>
       </div>
       <div id="custFilters" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow)">
@@ -1714,7 +1722,7 @@ html[data-theme="dark"] .biz-login{
     <div class="panel" id="panelProducts">
       <div class="p-head">
         <div><div class="p-title">Products & Costs</div><div class="p-sub">Define what each product costs you</div></div>
-        <button class="btn btn-primary btn-sm" onclick="showAddProduct()">+ Add Product</button>
+        <button class="btn btn-primary btn-sm" onclick="showAddProduct()" title="Shortcut: N">+ Add Product</button>
       </div>
 
       <!-- Add/edit form (hidden by default) -->
@@ -1789,7 +1797,7 @@ html[data-theme="dark"] .biz-login{
         </div>
         <input type="hidden" id="pf_id">
         <div style="display:flex;gap:8px;margin-top:4px">
-          <button class="btn btn-primary btn-sm" onclick="saveProduct()">Save</button>
+          <button class="btn btn-primary btn-sm" onclick="saveProduct()" title="Shortcut: Ctrl+Enter">Save</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('productForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -1812,7 +1820,7 @@ html[data-theme="dark"] .biz-login{
     <div class="panel" id="panelStock">
       <div class="p-head">
         <div><div class="p-title">Stock</div><div class="p-sub">Current levels + log movements</div></div>
-        <button class="btn btn-primary btn-sm" onclick="showAddStock()">+ Movement</button>
+        <button class="btn btn-primary btn-sm" onclick="showAddStock()" title="Shortcut: N">+ Movement</button>
       </div>
 
       <!-- Add movement form -->
@@ -1852,7 +1860,7 @@ html[data-theme="dark"] .biz-login{
           </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:4px">
-          <button class="btn btn-primary btn-sm" onclick="saveStockMovement()">Save</button>
+          <button class="btn btn-primary btn-sm" onclick="saveStockMovement()" title="Shortcut: Ctrl+Enter">Save</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('stockForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -1909,7 +1917,7 @@ html[data-theme="dark"] .biz-login{
     <div class="panel" id="panelReturns">
       <div class="p-head">
         <div><div class="p-title">Returns &amp; Claims</div><div class="p-sub">Track the return lifecycle and recompute order COGS / net loss</div></div>
-        <button class="btn btn-primary btn-sm" onclick="showAddReturn()">+ Log Return</button>
+        <button class="btn btn-primary btn-sm" onclick="showAddReturn()" title="Shortcut: N">+ Log Return</button>
       </div>
       <div id="returnsKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
       <div class="filter-bar">
@@ -1968,7 +1976,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="rf_notes"></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="saveReturn()">Save</button>
+          <button class="btn btn-primary btn-sm" onclick="saveReturn()" title="Shortcut: Ctrl+Enter">Save</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('returnForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -1988,7 +1996,7 @@ html[data-theme="dark"] .biz-login{
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('spoolBulkInput').click()" title="Bulk add spools from Excel">⇲ Bulk Excel</button>
           <input type="file" id="spoolBulkInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="spoolBulkUpload(event)">
           <button class="btn btn-ghost btn-sm" onclick="toggleSpoolCustomize()" title="Show / hide / reorder KPI tiles">⚙ Widgets</button>
-          <button class="btn btn-primary btn-sm" onclick="showAddSpool()">+ Add Spool</button>
+          <button class="btn btn-primary btn-sm" onclick="showAddSpool()" title="Shortcut: N">+ Add Spool</button>
         </div>
       </div>
       <div id="spoolCustomize" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:12px"></div>
@@ -2010,7 +2018,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="spa_notes"></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="saveNewSpool()">Save</button>
+          <button class="btn btn-primary btn-sm" onclick="saveNewSpool()" title="Shortcut: Ctrl+Enter">Save</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('spoolAddForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -2029,7 +2037,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="sp_notes"></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="saveSpool()">Save</button>
+          <button class="btn btn-primary btn-sm" onclick="saveSpool()" title="Shortcut: Ctrl+Enter">Save</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('spoolForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -2181,7 +2189,7 @@ html[data-theme="dark"] .biz-login{
         <div><div class="p-title">Expenses &amp; Purchases</div><div class="p-sub">Monthly purchase log — feeds P&amp;L</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input type="month" id="expMonth" onchange="loadExpenses()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
-          <button class="btn btn-primary btn-sm" onclick="showAddExpense()">+ Add Expense</button>
+          <button class="btn btn-primary btn-sm" onclick="showAddExpense()" title="Shortcut: N">+ Add Expense</button>
         </div>
       </div>
       <div id="expKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
@@ -2203,7 +2211,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="ex_notes"></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="saveExpense()">Save</button>
+          <button class="btn btn-primary btn-sm" onclick="saveExpense()" title="Shortcut: Ctrl+Enter">Save</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('expenseForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -2221,7 +2229,7 @@ html[data-theme="dark"] .biz-login{
         <div><div class="p-title">Money In / Out</div><div class="p-sub">Studio Sales are auto-pulled from All Sales — log payouts &amp; misc income here</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input type="month" id="ldMonth" onchange="loadLedger()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
-          <button class="btn btn-primary btn-sm" onclick="showAddIncome()">+ Log Income</button>
+          <button class="btn btn-primary btn-sm" onclick="showAddIncome()" title="Shortcut: N">+ Log Income</button>
         </div>
       </div>
       <div id="ldKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
@@ -2237,7 +2245,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="in_notes"></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="saveIncome()">Save</button>
+          <button class="btn btn-primary btn-sm" onclick="saveIncome()" title="Shortcut: Ctrl+Enter">Save</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('incomeForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -2255,7 +2263,7 @@ html[data-theme="dark"] .biz-login{
         <div><div class="p-title">Purchases</div><div class="p-sub">Vendor purchases — raw material buys can link to a filament roll</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input type="month" id="puMonth" onchange="loadPurchases()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
-          <button class="btn btn-primary btn-sm" onclick="showAddPurchase()">+ Log Purchase</button>
+          <button class="btn btn-primary btn-sm" onclick="showAddPurchase()" title="Shortcut: N">+ Log Purchase</button>
         </div>
       </div>
       <div id="puKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
@@ -2286,7 +2294,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="pu_notes"></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="savePurchase()">Save</button>
+          <button class="btn btn-primary btn-sm" onclick="savePurchase()" title="Shortcut: Ctrl+Enter">Save</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('purchaseForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -2316,7 +2324,7 @@ html[data-theme="dark"] .biz-login{
         <div><div class="p-title">Shop Hours</div><div class="p-sub">Daily open/close log — informational only, doesn't affect any calculation</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input type="month" id="slMonth" onchange="loadShopLog()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
-          <button class="btn btn-primary btn-sm" onclick="showAddShopLog()">+ Log Today</button>
+          <button class="btn btn-primary btn-sm" onclick="showAddShopLog()" title="Shortcut: N">+ Log Today</button>
         </div>
       </div>
       <div id="shopLogForm" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px">
@@ -2333,7 +2341,7 @@ html[data-theme="dark"] .biz-login{
           </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="saveShopLog()">Save</button>
+          <button class="btn btn-primary btn-sm" onclick="saveShopLog()" title="Shortcut: Ctrl+Enter">Save</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('shopLogForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -6749,7 +6757,7 @@ document.addEventListener('keydown',function(ev){
   // Esc = universal back/close — every inline "display:none" toggle form in Business OS,
   // not just the ones from the first pass (incomeForm/purchaseForm/shopLogForm were
   // missing entirely; Esc silently did nothing for them before).
-  var forms=['productForm','stockForm','returnForm','spoolForm','spoolAddForm','expenseForm','incomeForm','purchaseForm','shopLogForm'];
+  var forms=['productForm','stockForm','returnForm','spoolForm','spoolAddForm','expenseForm','incomeForm','purchaseForm','shopLogForm','qlExpense','qlPayment','qlFilament'];
   for(var i=0;i<forms.length;i++){var f=document.getElementById(forms[i]);if(f&&f.style.display!=='none'){f.style.display='none';return;}}
   var dc=document.getElementById('dashCustomize');
   if(dc&&dc.style.display!=='none'){dc.style.display='none';return;}
@@ -6761,6 +6769,37 @@ document.addEventListener('keydown',function(ev){
   if(bs&&bs.style.display!=='none'){closeBizSearch();return;}
   var sbEl=document.querySelector('.sidebar');
   if(sbEl&&sbEl.classList.contains('open')){toggleNav(false);}
+});
+
+// ── Keyboard shortcuts (speed) ──────────────────────────────
+// Ctrl/Cmd+Enter — save whichever inline form is currently open, without reaching
+// for the mouse. Same container list as the Esc handler above, plus the customer
+// modal; each of these forms uses the same .btn-primary Save-button convention.
+const BIZ_SAVE_FORMS=['productForm','stockForm','returnForm','spoolForm','spoolAddForm','expenseForm','incomeForm','purchaseForm','shopLogForm','qlExpense','qlPayment','qlFilament'];
+document.addEventListener('keydown',function(ev){
+  if(!(ev.ctrlKey||ev.metaKey)||ev.key!=='Enter') return;
+  const cm=document.getElementById('customerModal');
+  if(cm&&cm.style.display!=='none'){ const b=cm.querySelector('.btn-primary'); if(b){ ev.preventDefault(); b.click(); } return; }
+  for(const id of BIZ_SAVE_FORMS){
+    const f=document.getElementById(id);
+    if(f&&f.style.display!=='none'){ const b=f.querySelector('.btn-primary'); if(b){ ev.preventDefault(); b.click(); } return; }
+  }
+});
+// N — open the primary "add new" action for whichever tab you're currently on (only
+// when not typing in a field, and not combined with Ctrl/Cmd/Alt so real browser
+// shortcuts like Ctrl+N still work normally).
+const BIZ_ADD_NEW={
+  openorders:()=>switchTab('quickadd'), customers:openCustomerEdit, products:showAddProduct,
+  stock:showAddStock, returns:showAddReturn, spooltracker:showAddSpool, expenses:showAddExpense,
+  ledger:showAddIncome, purchases:showAddPurchase, shoplog:showAddShopLog,
+};
+document.addEventListener('keydown',function(ev){
+  if(ev.key!=='n'&&ev.key!=='N') return;
+  if(ev.ctrlKey||ev.metaKey||ev.altKey) return;
+  const tag=(document.activeElement&&document.activeElement.tagName||'').toLowerCase();
+  if(tag==='input'||tag==='textarea'||tag==='select'||(document.activeElement&&document.activeElement.isContentEditable)) return;
+  const fn=BIZ_ADD_NEW[_curBizTab];
+  if(fn){ ev.preventDefault(); fn(); }
 });
 
 function setLblPlatform(v){

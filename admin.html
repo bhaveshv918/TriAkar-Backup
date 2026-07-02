@@ -759,7 +759,7 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
   .chart-card{padding:14px 10px!important}
 
   /* Modals */
-  #recordModal>div,#promoModal>div{padding:18px 14px!important;border-radius:10px!important;margin:0 8px}
+  #userModal>div,#orderModal>div,#reviewModal>div,#promoModal>div{padding:18px 14px!important;border-radius:10px!important;margin:0 8px}
 
   /* Touch targets — larger interactive elements */
   input,select,textarea{font-size:16px!important} /* prevents iOS zoom */
@@ -1375,7 +1375,7 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
     <div class="p-head">
       <div class="p-title">Products</div>
       <div class="p-actions">
-        <button class="btn-primary" onclick="openProductForm()">+ Add Product</button>
+        <button class="btn-primary" onclick="openProductForm()" title="Shortcut: N">+ Add Product</button>
         <button class="btn-secondary" onclick="importLocalProducts()">Import NEW products only (safe — won't overwrite)</button>
         <button class="btn-secondary" onclick="replaceAllFromExcel()">↑ Import from Excel (add / update)</button>
         <span id="importStatus" style="margin-left:10px;font-size:12px;color:var(--text-2)"></span>
@@ -1689,7 +1689,7 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
 
       <!-- Form Footer -->
       <div class="form-foot">
-        <button class="btn-primary" id="saveBtn" onclick="submitProductForm()">Save Product</button>
+        <button class="btn-primary" id="saveBtn" onclick="submitProductForm()" title="Shortcut: Ctrl+Enter">Save Product</button>
         <button class="btn-secondary" onclick="closeProductForm()">Cancel</button>
         <span id="prodDirtyHint" class="hint" style="display:none;align-self:center">● Unsaved changes</span>
       </div>
@@ -1881,7 +1881,7 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
   <div class="panel" id="panelPromo">
     <div class="p-head">
       <div class="p-title">Promo Codes</div>
-      <button class="btn-primary" onclick="openPromoModal()">+ New Code</button>
+      <button class="btn-primary" onclick="openPromoModal()" title="Shortcut: N">+ New Code</button>
     </div>
     <div class="tbl-wrap">
       <table>
@@ -1898,7 +1898,7 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
     <div class="p-head">
       <div class="p-title">Reviews</div>
       <div class="p-actions">
-        <button class="btn-primary" onclick="openReviewModal(null)">+ Add Review</button>
+        <button class="btn-primary" onclick="openReviewModal(null)" title="Shortcut: N">+ Add Review</button>
       </div>
     </div>
     <!-- Google Reviews — storefront stats (Module 3B): edit here, no code deploy -->
@@ -2633,6 +2633,37 @@ document.addEventListener('keydown',function(ev){
   var sbEl=document.querySelector('.sidebar');
   if(sbEl&&sbEl.classList.contains('open')){closeAdminNav();}
 });
+
+// ── Keyboard shortcuts (speed) ──────────────────────────────
+// Ctrl/Cmd+Enter — save whichever modal/form is currently open, without reaching for
+// the mouse. userModal's actual save button uses .btn-save (saveUserRole is a
+// secondary action), everything else uses .btn-primary.
+const ADMIN_SAVE_TARGETS={promoModal:'.btn-primary',reviewModal:'.btn-primary',userModal:'.btn-save',productFormWrap:'#saveBtn'};
+document.addEventListener('keydown',function(ev){
+  if(!(ev.ctrlKey||ev.metaKey)||ev.key!=='Enter') return;
+  for(const id in ADMIN_SAVE_TARGETS){
+    const el=document.getElementById(id); if(!el) continue;
+    const visible=(id==='productFormWrap')?el.classList.contains('open'):el.style.display!=='none';
+    if(visible){ const b=el.querySelector(ADMIN_SAVE_TARGETS[id]); if(b){ ev.preventDefault(); b.click(); } return; }
+  }
+});
+// N — open the primary "add new" action for whichever tab you're on (only when not
+// typing in a field, and not combined with Ctrl/Cmd/Alt so real browser shortcuts
+// like Ctrl+N still work). Categories has no hidden "add" form (fields are always
+// visible inline), so N just focuses the name field there instead of submitting.
+const ADMIN_ADD_NEW={
+  products:()=>openProductForm(), categories:()=>document.getElementById('catAddName')?.focus(),
+  promo:()=>openPromoModal(), reviews:()=>openReviewModal(null),
+};
+document.addEventListener('keydown',function(ev){
+  if(ev.key!=='n'&&ev.key!=='N') return;
+  if(ev.ctrlKey||ev.metaKey||ev.altKey) return;
+  const tag=(document.activeElement&&document.activeElement.tagName||'').toLowerCase();
+  if(tag==='input'||tag==='textarea'||tag==='select'||(document.activeElement&&document.activeElement.isContentEditable)) return;
+  const fn=ADMIN_ADD_NEW[_curAdminTab];
+  if(fn){ ev.preventDefault(); fn(); }
+});
+
 setInterval(refreshNotifBadge, 20000);
 
 // §2b — desktop sidebar collapse (remembered)
@@ -5232,7 +5263,7 @@ function renderUserModal(u,orders,stats,addr){
       +'</div>'
       +'<div style="display:flex;gap:8px">'
         +'<button class="btn-secondary" onclick="closeUserModal()">Cancel</button>'
-        +'<button class="btn-save" onclick="saveUser()">Save changes</button>'
+        +'<button class="btn-save" onclick="saveUser()" title="Shortcut: Ctrl+Enter">Save changes</button>'
       +'</div>'
     +'</div>';
 }
@@ -6239,7 +6270,7 @@ async function saveReview(){
       <div><label class="form-label">Public reply (shown under the review, optional)</label>
         <textarea id="rvAdminReply" class="form-input" rows="2" placeholder="e.g. Thank you so much — Team TriAkar" style="resize:vertical"></textarea></div>
       <div style="display:flex;gap:10px;margin-top:6px">
-        <button class="btn-primary" onclick="saveReview()" style="flex:1">Save Review</button>
+        <button class="btn-primary" onclick="saveReview()" title="Shortcut: Ctrl+Enter" style="flex:1">Save Review</button>
         <button class="btn-secondary" onclick="closeReviewModal()">Cancel</button>
       </div>
     </div>
@@ -6286,7 +6317,7 @@ async function saveReview(){
         <label for="promoActive" style="font-size:13px;cursor:pointer">Active (visible to customers)</label>
       </div>
       <div style="display:flex;gap:10px;margin-top:8px">
-        <button class="btn-primary" onclick="savePromoCode()" style="flex:1">Save Promo Code</button>
+        <button class="btn-primary" onclick="savePromoCode()" title="Shortcut: Ctrl+Enter" style="flex:1">Save Promo Code</button>
         <button class="btn-secondary" onclick="closePromoModal()">Cancel</button>
       </div>
     </div>
