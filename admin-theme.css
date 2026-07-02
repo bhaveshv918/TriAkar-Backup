@@ -1,0 +1,182 @@
+/* ═══════════════════════════════════════════════════════════════
+   TRIĀKAR — SHARED ADMIN DESIGN SYSTEM
+   Loaded by admin.html + admin-biz.html AFTER their inline styles,
+   so equal-specificity rules here win by source order.
+
+   Design-only layer: no selector here may change behavior.
+   Sections:
+     00 · Design tokens (brand / surfaces / status / elevation)
+     01 · Palette remap — both panels, light + dark
+     02 · Global primitives (type, glass, micro-interactions)
+     10 · Sidebar        20 · Header
+     30 · Admin dashboard
+     40 · Quick Add Sale 41 · All Sales   42 · Open Orders  43 · Stock
+     50 · Reviews        51 · Customers
+     60 · Modals + popups
+     70 · Dark-mode reconciliation
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 00 · DESIGN TOKENS ────────────────────────────────────────── */
+:root{
+  /* Brand */
+  --tri-orange:#C4622A;
+  --tri-orange-hover:#A8501F;
+  --tri-orange-light:#FBF0EB;
+  --tri-orange-dim:rgba(196,98,42,.12);
+
+  /* Base */
+  --akar-charcoal:#161614;
+  --surface:#FFFFFF;
+  --surface-2:#F8F7F5;
+  --surface-3:#F0EDE8;
+  --border-c:#E8E4DE;
+  --border-strong:#D4CFC8;
+
+  /* Text */
+  --text-primary:#1A1916;
+  --text-secondary:#6B6560;
+  --text-muted:#9C9690;
+
+  /* Status colors — one system across both panels */
+  --status-pending:#8B5CF6;
+  --status-order-received:#3B82F6;
+  --status-processing:#F59E0B;
+  --status-printing:#F97316;
+  --status-packed:#06B6D4;
+  --status-dispatched:#6366F1;
+  --status-delivered:#10B981;
+  --status-completed:#059669;
+  --status-delayed:#EF4444;
+  --status-cancelled:#6B7280;
+  --status-returned:#EC4899;
+
+  /* Elevation */
+  --shadow-sm:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
+  --shadow-lg:0 12px 32px rgba(0,0,0,.10),0 4px 8px rgba(0,0,0,.06);
+  --shadow-orange:0 4px 16px rgba(196,98,42,.20);
+}
+html[data-theme="dark"]{
+  --tri-orange:#D97742;
+  --tri-orange-hover:#E08D5F;
+  --tri-orange-light:rgba(217,119,66,.10);
+  --tri-orange-dim:rgba(217,119,66,.16);
+
+  --surface:#1E1D1B;
+  --surface-2:#161514;
+  --surface-3:#2A2927;
+  --border-c:#2E2C29;
+  --border-strong:#3D3B38;
+
+  --text-primary:#F5F3F0;
+  --text-secondary:#A8A29B;
+  --text-muted:#6F6A63;
+
+  /* Status colors — muted for dark backgrounds */
+  --status-pending:#A78BFA;
+  --status-order-received:#60A5FA;
+  --status-processing:#FBBF24;
+  --status-printing:#FB923C;
+  --status-packed:#22D3EE;
+  --status-dispatched:#818CF8;
+  --status-delivered:#34D399;
+  --status-completed:#10B981;
+  --status-delayed:#F87171;
+  --status-cancelled:#9CA3AF;
+  --status-returned:#F472B6;
+
+  --shadow-sm:0 1px 3px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.3);
+  --shadow-md:0 4px 12px rgba(0,0,0,.45),0 2px 4px rgba(0,0,0,.3);
+  --shadow-lg:0 12px 32px rgba(0,0,0,.55),0 4px 8px rgba(0,0,0,.35);
+  --shadow-orange:0 4px 16px rgba(217,119,66,.28);
+}
+
+/* ── 01 · PALETTE REMAP — retarget both panels' variable systems ──
+   admin.html and admin-biz.html both read --bg/--bg-1/--bg-2/--bg-3,
+   --border/--border-h, --text/--text-2/--text-3, --accent* everywhere.
+   Redirecting them here rethemes every component in one move.       */
+:root,html[data-theme="light"]{
+  --bg:var(--surface-2);
+  --bg-1:var(--surface);
+  --bg-2:var(--surface-2);
+  --bg-3:var(--surface-3);
+  --border:var(--border-c);
+  --border-h:var(--border-strong);
+  --text:var(--text-primary);
+  --text-2:var(--text-secondary);
+  --text-3:var(--text-muted);
+  --accent:var(--tri-orange);
+  --accent-h:var(--tri-orange-hover);
+  --accent-bg:var(--tri-orange-dim);
+  --shadow:var(--shadow-sm);
+  --shadow-h:var(--shadow-md);
+  --glow-a:rgba(196,98,42,.15);
+  --topbar-bg:rgba(255,255,255,.88);
+}
+html[data-theme="dark"]{
+  --bg:var(--surface-2);
+  --bg-1:var(--surface);
+  --bg-2:var(--surface-3);
+  --bg-3:#33312E;
+  --border:var(--border-c);
+  --border-h:var(--border-strong);
+  --text:var(--text-primary);
+  --text-2:var(--text-secondary);
+  --text-3:var(--text-muted);
+  --accent:var(--tri-orange);
+  --accent-h:var(--tri-orange-hover);
+  --accent-bg:var(--tri-orange-dim);
+  --shadow:var(--shadow-sm);
+  --shadow-h:var(--shadow-md);
+  --glow-a:rgba(217,119,66,.22);
+  --topbar-bg:rgba(30,29,27,.88);
+}
+
+/* ── 02 · GLOBAL PRIMITIVES ───────────────────────────────────── */
+
+/* Typography scale */
+.p-title{font-size:22px;font-weight:600;letter-spacing:-.02em;color:var(--text-primary)}
+.sidebar-section{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-muted)}
+th,thead th{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--text-secondary)}
+tbody td,td{font-size:13px}
+
+/* Numbers read in columns — tabular figures everywhere data lives */
+td,.td-num,.kpi-val,.kpi-value,.calc-item span,.top-time,.gst-card .val{
+  font-variant-numeric:tabular-nums;
+}
+
+/* Glass — reusable */
+.glass{
+  background:rgba(255,255,255,.85);
+  backdrop-filter:blur(16px) saturate(1.4);
+  -webkit-backdrop-filter:blur(16px) saturate(1.4);
+  border:1px solid rgba(255,255,255,.6);
+}
+html[data-theme="dark"] .glass{
+  background:rgba(22,22,20,.80);
+  border:1px solid rgba(255,255,255,.08);
+}
+
+/* Micro-interactions — table rows tint to warm orange */
+tbody tr{transition:background .15s ease}
+tr:hover td{background:var(--tri-orange-light)!important}
+tbody tr:hover{background:var(--tri-orange-light)}
+
+/* Focus ring — one system for every input in both panels */
+input:focus,select:focus,textarea:focus{
+  border-color:var(--tri-orange)!important;
+  box-shadow:0 0 0 3px var(--tri-orange-dim)!important;
+}
+
+/* Buttons share the lift/settle rhythm */
+.btn:hover,.btn-primary:hover,.btn-secondary:hover,.btn-save:hover{
+  transform:translateY(-1px);
+}
+.btn:active,.btn-primary:active,.btn-secondary:active,.btn-save:active{
+  transform:translateY(0);
+}
+
+/* Cards elevate with the tokenized shadows */
+.kpi,.kpi-card,.chart-box,.dash-widget,.gst-card{box-shadow:var(--shadow-sm)}
+.kpi:hover,.kpi-card:hover,.dash-widget:hover{box-shadow:var(--shadow-md)}
+.tbl-wrap{box-shadow:var(--shadow-sm)}
