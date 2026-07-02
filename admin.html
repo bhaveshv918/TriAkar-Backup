@@ -2003,6 +2003,20 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
       </div>
       <!-- A7 Document Customization moved to Business OS → Settings (Round-2 #6) -->
       <div style="padding:12px 16px;background:var(--bg-1);border:1px dashed var(--border);border-radius:var(--radius);margin-bottom:16px;font-size:12px;color:var(--text-3)">Document layout settings (what shows on invoices &amp; order records) now live in <b>Business OS → Settings → Document Settings</b>. Invoices generated here still use them automatically — it's one shared setting.</div>
+
+      <!-- Round-3 §3 — admin password change, current-password reverified before allowing -->
+      <div style="padding:14px 16px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:10px">Change password</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:520px">
+          <div style="grid-column:1/-1"><label class="form-label">Current password</label><input type="password" id="pwCurrent" class="form-input" autocomplete="current-password"></div>
+          <div><label class="form-label">New password</label><input type="password" id="pwNew" class="form-input" autocomplete="new-password" placeholder="min. 8 characters"></div>
+          <div><label class="form-label">Confirm new password</label><input type="password" id="pwConfirm" class="form-input" autocomplete="new-password"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+          <button class="btn-primary" onclick="changeAdminPassword()">Change password</button>
+          <span id="pwStatus" style="font-size:12px;color:var(--text-3)"></span>
+        </div>
+      </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn-primary" onclick="saveContentSettings()">Save site content</button>
         <span id="cStatus" style="font-size:12px;color:var(--text-3)"></span>
@@ -5829,6 +5843,38 @@ async function saveContentSettings(){
     const st=g('cStatus'); if(st){st.textContent='Saved ✓'; setTimeout(()=>{st.textContent='';},2500);}
     toast('Site content saved','success');
   }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+// Round-3 §3 — change password with current-password reverification. Supabase Auth's
+// updateUser() doesn't itself check the current password, so we prove it first by
+// re-running signInWithPassword — if that fails, we never touch the account.
+async function changeAdminPassword(){
+  const cur=document.getElementById('pwCurrent').value;
+  const next=document.getElementById('pwNew').value;
+  const confirm2=document.getElementById('pwConfirm').value;
+  const st=document.getElementById('pwStatus');
+  const setStatus=(msg,color)=>{ if(st){ st.textContent=msg; st.style.color=color||'var(--text-3)'; } };
+  if(!cur||!next||!confirm2){ toast('Fill in all three fields','error'); return; }
+  if(next.length<8){ toast('New password must be at least 8 characters','error'); return; }
+  if(next!==confirm2){ toast('New password and confirmation do not match','error'); return; }
+  if(next===cur){ toast('New password must be different from the current one','error'); return; }
+  setStatus('Verifying current password…');
+  try{
+    const {data:userData}=await sb.auth.getUser();
+    const email=userData?.user?.email;
+    if(!email) throw new Error('Could not determine your account email — please re-login and try again');
+    const {error:verifyErr}=await sb.auth.signInWithPassword({email,password:cur});
+    if(verifyErr){ setStatus(''); toast('Current password is incorrect','error'); return; }
+    setStatus('Updating password…');
+    const {error:updateErr}=await sb.auth.updateUser({password:next});
+    if(updateErr) throw updateErr;
+    document.getElementById('pwCurrent').value='';
+    document.getElementById('pwNew').value='';
+    document.getElementById('pwConfirm').value='';
+    setStatus('Password changed ✓','var(--green)');
+    setTimeout(()=>setStatus(''),3000);
+    toast('Password changed successfully','success');
+  }catch(e){ setStatus(''); toast('Error: '+e.message,'error'); }
 }
 
 async function setReviewStatus(id,status){

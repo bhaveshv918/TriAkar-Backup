@@ -787,7 +787,19 @@ html[data-theme="dark"] .biz-login{
           <canvas id="chartByChannel"></canvas>
         </div>
         <div class="chart-box">
-          <h3>Monthly Revenue Trend</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            <h3 style="margin:0">Monthly Revenue Trend</h3>
+            <select id="dashTrendView" onchange="loadDashboard()" style="padding:4px 7px;background:var(--bg-2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:11px">
+              <option value="fy" selected>Current Financial Year</option>
+              <option value="calendar">Calendar Year</option>
+              <option value="custom">Custom Range</option>
+            </select>
+          </div>
+          <div id="dashTrendCustom" style="display:none;gap:6px;align-items:center;margin-top:6px">
+            <input type="month" id="dashTrendFrom" onchange="loadDashboard()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:11px;padding:4px 6px">
+            <span style="color:var(--text-3);font-size:11px">to</span>
+            <input type="month" id="dashTrendTo" onchange="loadDashboard()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:11px;padding:4px 6px">
+          </div>
           <canvas id="chartMonthly"></canvas>
         </div>
       </div>
@@ -991,7 +1003,7 @@ html[data-theme="dark"] .biz-login{
           </div>
           <div class="form-group">
             <label>State</label>
-            <input type="text" id="qa_state" placeholder="Type state…" list="stateList">
+            <input type="text" id="qa_state" placeholder="Type state…" list="stateList" required>
           </div>
           <div class="form-group">
             <label>Pincode</label>
@@ -1668,6 +1680,10 @@ html[data-theme="dark"] .biz-login{
             <input type="text" id="pf_platform_skus" placeholder="Comma-separated, e.g. TAF/FIG/BAT/BLK/023, B0XXXX — links platform sales to this product">
           </div>
           <div class="form-group" style="grid-column:span 2">
+            <label>Image URL <span style="color:var(--text-3);font-weight:400;text-transform:none">— shown as a thumbnail in All Sales</span></label>
+            <input type="text" id="pf_image" placeholder="https://…">
+          </div>
+          <div class="form-group" style="grid-column:span 2">
             <label>Notes</label>
             <input type="text" id="pf_notes" placeholder="Optional notes">
           </div>
@@ -2007,12 +2023,35 @@ html[data-theme="dark"] .biz-login{
         </div>
 
         <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">State-wise Analytics</div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">State → Product, State → Month, State → Platform</div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label>Range</label>
+            <select id="stView" onchange="onStateReportViewChange()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;outline:none;width:100%">
+              <option value="fy" selected>Current Financial Year</option>
+              <option value="calendar">Calendar Year</option>
+              <option value="custom">Custom Range</option>
+            </select>
+          </div>
+          <div id="stCustomRange" style="display:none;gap:6px;margin-bottom:10px">
+            <input type="month" id="stFrom" style="flex:1;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;outline:none">
+            <input type="month" id="stTo" style="flex:1;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;outline:none">
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-primary btn-sm" onclick="loadStateReport()">View</button>
+            <button class="btn btn-ghost btn-sm" onclick="exportStateReport()">↓ Excel</button>
+          </div>
+        </div>
+
+        <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
           <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Full Data Dump</div>
           <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">All sales, returns, stock movements in one Excel</div>
           <button class="btn btn-ghost btn-sm" onclick="exportAllExcel()" style="margin-top:28px">↓ Download Everything</button>
         </div>
 
       </div>
+
+      <div id="stateReportResults" style="margin-top:20px"></div>
     </div><!-- /reports -->
 
     <!-- ══════════════════════════════════════════════════════
@@ -2652,8 +2691,8 @@ function autoFillSku(){
   });
 }
 
-function showAddProduct(){ document.getElementById('pf_id').value=''; document.getElementById('productFormTitle').textContent='Add Product'; document.getElementById('pf_name').value=''; document.getElementById('pf_sku').value=''; document.getElementById('pf_category').value=''; document.getElementById('pf_type').value='own'; document.getElementById('pf_cost').value=''; document.getElementById('pf_gst').value=String((_bizDefaults&&_bizDefaults.gst)||0); document.getElementById('pf_hsn').value=(_bizDefaults&&_bizDefaults.hsn)||'3926'; document.getElementById('pf_platform_skus').value=''; document.getElementById('pf_notes').value=''; document.getElementById('pf_color').value=''; document.getElementById('pf_material').value='PLA+'; document.getElementById('pf_grams').value=''; document.getElementById('productForm').style.display='block'; }
-function editProduct(id){ const p=_products.find(x=>x.id===id); if(!p) return; document.getElementById('pf_id').value=p.id; document.getElementById('productFormTitle').textContent='Edit Product'; document.getElementById('pf_name').value=p.name; document.getElementById('pf_sku').value=p.sku||''; document.getElementById('pf_category').value=p.category||''; document.getElementById('pf_type').value=p.product_type; document.getElementById('pf_cost').value=p.base_cost; document.getElementById('pf_gst').value=p.gst_rate; document.getElementById('pf_hsn').value=p.hsn_code||''; document.getElementById('pf_platform_skus').value=p.platform_skus||''; document.getElementById('pf_notes').value=p.notes||''; document.getElementById('pf_color').value=p.color||''; document.getElementById('pf_material').value=p.material||'PLA+'; document.getElementById('pf_grams').value=p.grams_per_unit||''; document.getElementById('productForm').style.display='block'; }
+function showAddProduct(){ document.getElementById('pf_id').value=''; document.getElementById('productFormTitle').textContent='Add Product'; document.getElementById('pf_name').value=''; document.getElementById('pf_sku').value=''; document.getElementById('pf_category').value=''; document.getElementById('pf_type').value='own'; document.getElementById('pf_cost').value=''; document.getElementById('pf_gst').value=String((_bizDefaults&&_bizDefaults.gst)||0); document.getElementById('pf_hsn').value=(_bizDefaults&&_bizDefaults.hsn)||'3926'; document.getElementById('pf_platform_skus').value=''; document.getElementById('pf_notes').value=''; document.getElementById('pf_color').value=''; document.getElementById('pf_material').value='PLA+'; document.getElementById('pf_grams').value=''; document.getElementById('pf_image').value=''; document.getElementById('productForm').style.display='block'; }
+function editProduct(id){ const p=_products.find(x=>x.id===id); if(!p) return; document.getElementById('pf_id').value=p.id; document.getElementById('productFormTitle').textContent='Edit Product'; document.getElementById('pf_name').value=p.name; document.getElementById('pf_sku').value=p.sku||''; document.getElementById('pf_category').value=p.category||''; document.getElementById('pf_type').value=p.product_type; document.getElementById('pf_cost').value=p.base_cost; document.getElementById('pf_gst').value=p.gst_rate; document.getElementById('pf_hsn').value=p.hsn_code||''; document.getElementById('pf_platform_skus').value=p.platform_skus||''; document.getElementById('pf_notes').value=p.notes||''; document.getElementById('pf_color').value=p.color||''; document.getElementById('pf_material').value=p.material||'PLA+'; document.getElementById('pf_grams').value=p.grams_per_unit||''; document.getElementById('pf_image').value=p.image_url||''; document.getElementById('productForm').style.display='block'; }
 
 async function saveProduct(){
   const id=document.getElementById('pf_id').value;
@@ -2675,6 +2714,7 @@ async function saveProduct(){
     notes:document.getElementById('pf_notes').value.trim()||null,
     color, material,
     grams_per_unit:parseFloat(document.getElementById('pf_grams').value)||null,
+    image_url:document.getElementById('pf_image').value.trim()||null,
   };
   const {error} = id
     ? await sb.from('biz_products').update(payload).eq('id',id)
@@ -2899,7 +2939,7 @@ function resetQuickAdd(){
   document.getElementById('quickAddForm').reset();
   document.getElementById('qa_date').value=today();
   document.getElementById('qa_delivery_date').value=today();
-  document.getElementById('qa_state').value='Uttar Pradesh';
+  document.getElementById('qa_state').value='';   // §2.8 — no silent default; operator must pick a real state
   document.getElementById('qa_channel').value='shop';
   const z=id=>{const e=document.getElementById(id);if(e)e.value='0';};
   z('qa_platformfee'); z('qa_shipping'); z('qa_roundoff');
@@ -2949,6 +2989,9 @@ async function insertSalesResilient(rows){
 }
 async function submitQuickAdd(e){
   if(e) e.preventDefault();
+  // §2.8 — state feeds state-wise reporting; a silently-defaulted value was polluting
+  // historical shop-channel data, so it's now a hard requirement, not just an HTML hint.
+  if(!(document.getElementById('qa_state')?.value||'').trim()){ toast('Please enter the customer\'s state','error'); document.getElementById('qa_state')?.focus(); return; }
   const rows=buildSaleRows();
   if(!rows.length){ toast('Add at least one item','error'); return; }
   const {error}=await insertSalesResilient(rows);
@@ -3726,7 +3769,13 @@ async function loadSales(){
     const sts=[...new Set(items.map(s=>s.status))];
     const status=sts.length===1?sts[0]:'mixed';
     const ids=items.map(s=>s.id).join(',');
-    const itemCol=items.length===1?esc(f.product_name):`${esc(f.product_name)} <span style="color:var(--text-3);font-size:10px">+${items.length-1} more · ${items.length} items</span>`;
+    // §2.10 — small product thumbnail, pulled from the linked biz_products record (biz_sales
+    // has no image of its own); placeholder swatch when no product is linked.
+    const prodImg=f.product_id?(_products.find(p=>p.id===f.product_id)||{}).image_url:null;
+    const thumb=prodImg
+      ? `<img src="${esc(prodImg)}" alt="" style="width:28px;height:28px;border-radius:5px;object-fit:cover;flex-shrink:0;vertical-align:middle;margin-right:7px" onerror="this.style.display='none'">`
+      : `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:5px;background:var(--bg-3);color:var(--text-3);font-size:10px;flex-shrink:0;vertical-align:middle;margin-right:7px">—</span>`;
+    const itemCol=thumb+(items.length===1?esc(f.product_name):`${esc(f.product_name)} <span style="color:var(--text-3);font-size:10px">+${items.length-1} more · ${items.length} items</span>`);
     return `<tr class="sale-row" onclick="openOrderDetail('${key}',event)" style="cursor:pointer;${allPaid?'opacity:.78':''}">
       <td><input type="checkbox" class="sale-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateBulkBar()"></td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${idx+1}</td>
@@ -4771,10 +4820,36 @@ async function loadDashboard(){
   document.getElementById('dashMonthName').textContent=label;
   const pl=document.getElementById('dashPeriodLabel'); if(pl) pl.textContent=label;
 
+  // §2.9 — trend range: Current FY (Apr-Mar) / Calendar Year (Jan-Dec) / Custom, always
+  // capped at the current month so upcoming zero-data months never appear.
+  const view=document.getElementById('dashTrendView')?.value||'fy';
+  const customBox=document.getElementById('dashTrendCustom'); if(customBox) customBox.style.display=(view==='custom')?'flex':'none';
+  const nowD=new Date(), curY=nowD.getFullYear(), curM=nowD.getMonth()+1;
+  let trendStart, trendEndY, trendEndM;
+  if(view==='custom'){
+    const fEl=document.getElementById('dashTrendFrom'), tEl=document.getElementById('dashTrendTo');
+    if(fEl&&!fEl.value){ const fyStartYear=curM>=4?curY:curY-1; fEl.value=`${fyStartYear}-04`; }
+    if(tEl&&!tEl.value) tEl.value=`${curY}-${String(curM).padStart(2,'0')}`;
+    trendStart=(fEl&&fEl.value)||`${curY}-01`;
+    const [ty,tm]=((tEl&&tEl.value)||`${curY}-${String(curM).padStart(2,'0')}`).split('-').map(Number);
+    trendEndY=ty; trendEndM=tm;
+  } else if(view==='calendar'){
+    trendStart=`${curY}-01`; trendEndY=curY; trendEndM=curM;
+  } else { // fy
+    const fyStartYear=curM>=4?curY:curY-1;
+    trendStart=`${fyStartYear}-04`; trendEndY=curY; trendEndM=curM;
+  }
+  // never show months past today, even for a custom range that reaches into the future
+  if(trendEndY>curY||(trendEndY===curY&&trendEndM>curM)){ trendEndY=curY; trendEndM=curM; }
+  const trendEnd=`${trendEndY}-${String(trendEndM).padStart(2,'0')}`;
+  const trendStartDate=trendStart+'-01';
+  const trendEndExclY=trendEndM===12?trendEndY+1:trendEndY, trendEndExclM=trendEndM===12?1:trendEndM+1;
+  const trendEndExcl=`${trendEndExclY}-${String(trendEndExclM).padStart(2,'0')}-01`;
+
   const [salesRes,retsRes,monthlyRes]=await Promise.all([
     sb.from('biz_sales').select('channel_id,product_name,sku,selling_price,platform_fee,shipping_fee,other_deductions,cogs,gst_rate,status,qty,payment_mode').eq('is_deleted',false).gte('order_date',from).lt('order_date',nextM),
     sb.from('biz_returns').select('*').gte('date',from).lt('date',nextM),
-    sb.from('biz_sales').select('order_date,selling_price,status').eq('is_deleted',false).eq('status','completed').gte('order_date',`${y}-01-01`).lt('order_date',`${y+1}-01-01`)
+    sb.from('biz_sales').select('order_date,selling_price,status').eq('is_deleted',false).eq('status','completed').gte('order_date',trendStartDate).lt('order_date',trendEndExcl)
   ]);
   if(salesRes.error){ toast('Dashboard error: '+salesRes.error.message,'error'); }
   const sales=salesRes.data||[], rets=retsRes.data||[], monthly=monthlyRes.data||[];
@@ -4828,13 +4903,16 @@ async function loadDashboard(){
   // Chart: by channel — rendered per the per-widget setting (type + metric, #3)
   _dashByChannel=byChannel; renderChannelChart();
 
-  // Chart: monthly trend (current year)
+  // Chart: monthly trend — elapsed months only, in the selected view's range (§2.9)
   const moMap={}; monthly.forEach(s=>{const k=String(s.order_date).slice(0,7);moMap[k]=(moMap[k]||0)+num(s.selling_price);});
-  const allMonths=[]; for(let i=1;i<=12;i++) allMonths.push(`${y}-${String(i).padStart(2,'0')}`);
+  const allMonths=[]; { let iy=parseInt(trendStart.split('-')[0]),im=parseInt(trendStart.split('-')[1]);
+    while(iy<trendEndY||(iy===trendEndY&&im<=trendEndM)){ allMonths.push(`${iy}-${String(im).padStart(2,'0')}`); im++; if(im>12){im=1;iy++;} } }
+  const MONTH_ABBR=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const spansYears=new Set(allMonths.map(mm=>mm.split('-')[0])).size>1;
   const ctx2=document.getElementById('chartMonthly').getContext('2d');
   if(_chartMonthly) _chartMonthly.destroy();
   _chartMonthly=new Chart(ctx2,{type:'line',data:{
-    labels:allMonths.map(mm=>['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mm.split('-')[1])]),
+    labels:allMonths.map(mm=>{const [yy,mmn]=mm.split('-'); return MONTH_ABBR[parseInt(mmn)]+(spansYears?" '"+yy.slice(2):'');}),
     datasets:[{label:'Revenue',data:allMonths.map(k=>moMap[k]||0),borderColor:'#2E9E6B',backgroundColor:'rgba(46,158,107,0.12)',tension:0.4,pointRadius:3,fill:true}]},
     options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#869488'},grid:{color:'rgba(20,42,30,0.07)'}},y:{ticks:{color:'#869488',callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'rgba(20,42,30,0.07)'}}}}});
 
@@ -5367,6 +5445,82 @@ async function exportChannelReport(){
 }
 
 async function exportGSTExcel(){ await exportGSTReport(); }
+
+// ══════════════ STATE-WISE ANALYTICS (§2.8) ══════════════
+function onStateReportViewChange(){
+  const box=document.getElementById('stCustomRange');
+  if(box) box.style.display=document.getElementById('stView').value==='custom'?'flex':'none';
+}
+// Shared FY/Calendar/Custom → [startDateStr, endExclDateStr] resolver, same rules as the
+// dashboard trend toggle (§2.9): custom range is still capped at the current month.
+function resolveReportRange(viewId,fromId,toId){
+  const view=document.getElementById(viewId)?.value||'fy';
+  const now=new Date(), curY=now.getFullYear(), curM=now.getMonth()+1;
+  let startY,startM,endY,endM;
+  if(view==='custom'){
+    const f=(document.getElementById(fromId)?.value)||`${curY}-01`;
+    const t=(document.getElementById(toId)?.value)||`${curY}-${String(curM).padStart(2,'0')}`;
+    [startY,startM]=f.split('-').map(Number); [endY,endM]=t.split('-').map(Number);
+  } else if(view==='calendar'){ startY=curY; startM=1; endY=curY; endM=curM; }
+  else { const fyStartYear=curM>=4?curY:curY-1; startY=fyStartYear; startM=4; endY=curY; endM=curM; }
+  if(endY>curY||(endY===curY&&endM>curM)){ endY=curY; endM=curM; }
+  const start=`${startY}-${String(startM).padStart(2,'0')}-01`;
+  const endExclY=endM===12?endY+1:endY, endExclM=endM===12?1:endM+1;
+  const endExcl=`${endExclY}-${String(endExclM).padStart(2,'0')}-01`;
+  return [start,endExcl];
+}
+async function _fetchStateReportRows(){
+  const [start,endExcl]=resolveReportRange('stView','stFrom','stTo');
+  const {data,error}=await sb.from('biz_sales').select('customer_state,product_name,channel_id,order_date,selling_price,qty')
+    .eq('is_deleted',false).eq('status','completed').gte('order_date',start).lt('order_date',endExcl);
+  if(error){ toast('Error: '+error.message,'error'); return null; }
+  return (data||[]).map(r=>({...r,customer_state:(r.customer_state||'').trim()||'Unknown'}));
+}
+function _groupSum(rows,keyFn,groupFn){
+  const m={};
+  rows.forEach(r=>{ const k=keyFn(r); const g=groupFn(r); if(!m[k])m[k]={}; m[k][g]=(m[k][g]||0)+(parseFloat(r.selling_price)||0); });
+  return m;
+}
+async function loadStateReport(){
+  const rows=await _fetchStateReportRows(); if(!rows) return;
+  const el=document.getElementById('stateReportResults'); if(!el) return;
+  if(!rows.length){ el.innerHTML='<div class="empty"><div class="em-text">No completed sales in this range</div></div>'; return; }
+  const byStateProduct=_groupSum(rows,r=>r.customer_state,r=>r.product_name||'—');
+  const byStateMonth=_groupSum(rows,r=>r.customer_state,r=>String(r.order_date).slice(0,7));
+  const byStatePlatform=_groupSum(rows,r=>r.customer_state,r=>CH_NAMES[r.channel_id]||r.channel_id||'—');
+  const states=Object.keys(byStateProduct).sort((a,b)=>{
+    const ta=Object.values(byStateProduct[a]).reduce((s,v)=>s+v,0), tb=Object.values(byStateProduct[b]).reduce((s,v)=>s+v,0);
+    return tb-ta;
+  });
+  const table=(title,data)=>{
+    const cols=new Set(); states.forEach(s=>Object.keys(data[s]||{}).forEach(c=>cols.add(c)));
+    const colList=[...cols].sort();
+    return `<div style="margin-bottom:20px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px">${title}</div>
+      <div class="tbl-wrap"><table><thead><tr><th>State</th>${colList.map(c=>`<th class="td-num">${esc(c)}</th>`).join('')}<th class="td-num">Total</th></tr></thead>
+      <tbody>${states.map(s=>{
+        const rowTotal=colList.reduce((sum,c)=>sum+((data[s]||{})[c]||0),0);
+        return `<tr><td>${esc(s)}</td>${colList.map(c=>`<td class="td-num">${(data[s]||{})[c]?fmt(data[s][c]):'—'}</td>`).join('')}<td class="td-num" style="font-weight:700">${fmt(rowTotal)}</td></tr>`;
+      }).join('')}</tbody></table></div>
+    </div>`;
+  };
+  el.innerHTML=table('State → Platform (Revenue ₹)',byStatePlatform)+table('State → Month (Revenue ₹)',byStateMonth)+table('State → Product (Revenue ₹, top 15 states)',
+    Object.fromEntries(states.slice(0,15).map(s=>[s,byStateProduct[s]])));
+}
+async function exportStateReport(){
+  const rows=await _fetchStateReportRows(); if(!rows) return;
+  if(!rows.length){ toast('No data in range','error'); return; }
+  const byStateProduct=_groupSum(rows,r=>r.customer_state,r=>r.product_name||'—');
+  const byStateMonth=_groupSum(rows,r=>r.customer_state,r=>String(r.order_date).slice(0,7));
+  const byStatePlatform=_groupSum(rows,r=>r.customer_state,r=>CH_NAMES[r.channel_id]||r.channel_id||'—');
+  const toRows=data=>Object.entries(data).flatMap(([state,cols])=>Object.entries(cols).map(([col,amt])=>({State:state,Group:col,'Revenue ₹':Math.round(amt)})));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(toRows(byStateProduct)),'State x Product');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(toRows(byStateMonth)),'State x Month');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(toRows(byStatePlatform)),'State x Platform');
+  XLSX.writeFile(wb,`triakar_state_analytics_${today()}.xlsx`);
+  toast('State analytics downloaded');
+}
 
 // ── Print Invoice ───────────────────────────────────────────
 async function saveAndPrint(){
