@@ -2119,16 +2119,17 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
    marked TEMPORARY and must be dropped once the Express routes are in place.
 
    MIGRATION CHECKLIST (per panel):
-     [ ] GET  /api/admin/orders      → replace sb.from('orders').select(...)
-     [ ] PUT  /api/admin/orders/:id  → replace sb.from('orders').update(...)
-     [ ] GET  /api/admin/products    → replace sb.from('products').select(...)
-     [ ] POST /api/admin/products    → replace sb.from('products').insert(...)
-     [ ] PUT  /api/admin/products/:id→ replace sb.from('products').update(...)
-     [ ] DEL  /api/admin/products/:id→ replace sb.from('products').delete(...)
+     [x] GET  /api/admin/orders      → sb.from('orders').select(...) is read-only, left as-is (RLS allows admin read)
+     [x] PUT  /api/admin/orders/:id/status, /payment, and generic → updateOrderStatus/updateOrderPayment/updateOrderFields
+     [x] GET  /api/admin/products    → sb.from('products').select(...) is read-only, left as-is (RLS allows admin read)
+     [ ] POST /api/admin/products    → MakerWorld import (mwBulkInsert etc.) still inserts directly; low-severity, fails loudly not silently
+     [x] PUT  /api/admin/products/:id→ createProduct/updateProduct (submitProductForm, stock, homepage toggle, bulk-Excel import)
+     [x] DEL  /api/admin/products/:id→ deleteProduct (soft-delete → Recycle Bin)
      [x] GET  /api/admin/customers   → done: now /api/admin/users (service-role, RLS-safe)
      [ ] GET  /api/admin/messages    → replace sb.from('contact_submissions')
      [ ] GET  /api/admin/logs        → replace sb.from('admin_logs')
-     [ ] POST /api/admin/logs        → replace sb.from('admin_logs').insert(...)
+     [x] POST /api/admin/logs        → admin_logs INSERT policy now allows `authenticated`, not just `anon` (RLS fix, not a route migration)
+     [x] Categories CRUD             → now via /api/categories (service-role, already existed — admin.html just wasn't using it)
    ═══════════════════════════════════════════════════════════ */
 const SUPA_URL='https://qarjbmogersuaerkhlcu.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
@@ -3110,11 +3111,14 @@ async function addCategory(){
   if(!name){toast('Category name is required','error');return}
   if(!slug){toast('Slug is required','error');return}
   if(!/^[a-z0-9-]+$/.test(slug)){toast('Slug must be lowercase letters, numbers and hyphens only','error');return}
-  const{error}=await sb.from('categories').insert({
-    name,slug,description:description||null,
-    display_order:_categories.length+1,is_active:true
-  });
-  if(error){toast('Error: '+error.message,'error');return}
+  // Writes go through the service-role backend (RLS-safe) — the browser sb client
+  // silently no-ops product/category writes under RLS (reported success, no change).
+  try{
+    await adminApi('/api/categories',{method:'POST',body:JSON.stringify({
+      name,slug,description:description||null,
+      display_order:_categories.length+1,is_active:true
+    })});
+  }catch(err){toast('Error: '+err.message,'error');return}
   toast('Category added','success');
   document.getElementById('catAddName').value='';
   document.getElementById('catAddSlug').value='';
@@ -3124,15 +3128,15 @@ async function addCategory(){
 }
 
 async function updateCat(id,fields){
-  const{error}=await sb.from('categories').update(fields).eq('id',id);
-  if(error){toast('Error: '+error.message,'error');return}
+  try{ await adminApi('/api/categories/'+id,{method:'PUT',body:JSON.stringify(fields)}); }
+  catch(err){toast('Error: '+err.message,'error');return}
   toast('Updated','success');loadCategories();
 }
 
 async function deleteCat(id,name){
   if(!confirm('Delete category "'+name+'"?'))return;
-  const{error}=await sb.from('categories').delete().eq('id',id);
-  if(error){toast('Error: '+error.message,'error');return}
+  try{ await adminApi('/api/categories/'+id,{method:'DELETE'}); }
+  catch(err){toast('Error: '+err.message,'error');return}
   toast('Deleted','success');loadCategories();
 }
 
@@ -3409,13 +3413,14 @@ function _renderOrderModal(o){
 
 async function updateOrderStatus(id,sel){
   sel.disabled=true;
-  const{error}=await sb.from('orders').update({status:sel.value,order_status:sel.value,updated_at:new Date().toISOString()}).eq('id',id);
-  if(error){toast('Error: '+error.message,'error')}
-  else{
+  // Writes go through the service-role backend (RLS-safe) — the browser sb client
+  // silently no-ops order UPDATEs under RLS (reported success, no change).
+  try{
+    await adminApi('/api/admin/orders/'+id+'/status',{method:'PUT',body:JSON.stringify({status:sel.value})});
     toast('Status → '+sel.value.charAt(0).toUpperCase()+sel.value.slice(1),'success');
     const o=_orders.find(x=>x.id===id);
     if(o){o.status=sel.value;o.order_status=sel.value;}
-  }
+  }catch(err){toast('Error: '+err.message,'error')}
   sel.disabled=false;
 }
 
@@ -3491,8 +3496,10 @@ async function bulkOrderStatusApply(){
   if(!confirm('Set '+ids.length+' order(s) to "'+status+'"?'))return;
   let ok=0;
   for(const id of ids){
-    const{error}=await sb.from('orders').update({status,order_status:status,updated_at:new Date().toISOString()}).eq('id',id);
-    if(!error){ok++; const o=_orders.find(x=>x.id===id); if(o){o.status=status;o.order_status=status;}}
+    try{
+      await adminApi('/api/admin/orders/'+id+'/status',{method:'PUT',body:JSON.stringify({status})});
+      ok++; const o=_orders.find(x=>x.id===id); if(o){o.status=status;o.order_status=status;}
+    }catch(_){}
   }
   toast(ok+' order(s) set to '+status,'success');
   if(sel)sel.value='';
@@ -3503,22 +3510,22 @@ async function bulkOrderStatusApply(){
 async function saveTracking(id){
   const num=document.getElementById('track-num-'+id).value.trim();
   const vendor=document.getElementById('track-vendor-'+id).value.trim();
-  const{error}=await sb.from('orders').update({tracking_number:num||null,tracking_vendor:vendor||null,updated_at:new Date().toISOString()}).eq('id',id);
-  if(error){toast('Error saving tracking: '+error.message,'error')}
-  else{
+  try{
+    await adminApi('/api/admin/orders/'+id,{method:'PUT',body:JSON.stringify({tracking_number:num||null,tracking_vendor:vendor||null})});
     toast('Tracking info saved','success');
     const o=_orders.find(x=>x.id===id);
     if(o){o.tracking_number=num;o.tracking_vendor=vendor}
-  }
+  }catch(err){toast('Error saving tracking: '+err.message,'error')}
 }
 
 async function saveAdminNotes(id){
   const notes=document.getElementById('notes-'+id).value.trim();
   const o=_orders.find(x=>x.id===id);
   if(o&&o.admin_notes===notes)return; // no change
-  const{error}=await sb.from('orders').update({admin_notes:notes||null,updated_at:new Date().toISOString()}).eq('id',id);
-  if(error){toast('Error saving notes: '+error.message,'error')}
-  else{if(o)o.admin_notes=notes}
+  try{
+    await adminApi('/api/admin/orders/'+id,{method:'PUT',body:JSON.stringify({admin_notes:notes||null})});
+    if(o)o.admin_notes=notes;
+  }catch(err){toast('Error saving notes: '+err.message,'error')}
 }
 
 /* ── updatePaymentStatus — radio button handler ── */
@@ -3554,8 +3561,8 @@ async function savePaymentFields(id){
     advance_amount:   val==='advance'?advAmt:0,
     payment_notes:    notes||null,
   };
-  const{error}=await sb.from('orders').update(updates).eq('id',id);
-  if(error){toast('Error saving payment: '+error.message,'error');return}
+  try{ await adminApi('/api/admin/orders/'+id+'/payment',{method:'PUT',body:JSON.stringify(updates)}); }
+  catch(err){toast('Error saving payment: '+err.message,'error');return}
   // Update local cache
   const o=_orders.find(x=>x.id===id);
   if(o) Object.assign(o,updates);
@@ -3683,11 +3690,13 @@ function bulkExportProducts(){
 }
 
 // Quick-toggle homepage directly from table row
+// Writes go through the service-role backend (RLS-safe) — the browser sb client
+// silently no-ops product UPDATEs under RLS (reported success, 0 rows changed).
 async function quickToggleHomepage(id, current){
   if(current!=null){
     // Remove from homepage
-    const{error}=await sb.from('products').update({homepage_order:null}).eq('id',id);
-    if(error){toast('Error: '+error.message,'error');return;}
+    try{ await adminApi('/api/admin/products/'+id,{method:'PUT',body:JSON.stringify({homepage_order:null})}); }
+    catch(err){ toast('Error: '+err.message,'error'); return; }
     const p=_products.find(x=>x.id===id);if(p)p.homepage_order=null;
     renderProductsTable();toast('Removed from homepage','success');
   }else{
@@ -3695,8 +3704,8 @@ async function quickToggleHomepage(id, current){
     const used=new Set(_products.filter(x=>x.homepage_order!=null).map(x=>x.homepage_order));
     let slot=1;while(used.has(slot)&&slot<=10)slot++;
     if(slot>10){toast('Homepage is full (10 products max). Remove one first.','error');return;}
-    const{error}=await sb.from('products').update({homepage_order:slot}).eq('id',id);
-    if(error){toast('Error: '+error.message,'error');return;}
+    try{ await adminApi('/api/admin/products/'+id,{method:'PUT',body:JSON.stringify({homepage_order:slot})}); }
+    catch(err){ toast('Error: '+err.message,'error'); return; }
     const p=_products.find(x=>x.id===id);if(p)p.homepage_order=slot;
     renderProductsTable();toast('Added to homepage at position #'+slot,'success');
   }
@@ -4553,9 +4562,13 @@ async function replaceAllFromExcel(){
     let err=null;
 
     if(existingId){
-      // UPDATE — product with this slug already exists
-      ({error:err}=await sb.from('products').update({...row,...extra}).eq('id',existingId));
-      if(!err) updated++;
+      // UPDATE — product with this slug already exists.
+      // Goes through the service-role backend (RLS-safe) — the browser sb client
+      // silently no-ops product UPDATEs under RLS (reported success, 0 rows changed).
+      try{
+        await adminApi('/api/admin/products/'+existingId,{method:'PUT',body:JSON.stringify({...row,...extra})});
+        updated++;
+      }catch(e){ err={message:e.message}; }
     }else{
       // INSERT — new product
       ({error:err}=await sb.from('products').insert({...row,...extra}));

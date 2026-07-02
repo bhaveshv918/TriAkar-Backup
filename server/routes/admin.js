@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   getAdminProducts, createProduct, updateProduct, deleteProduct, bulkUpdateProducts,
-  getAdminOrders, updateOrderStatus, updateOrderPayment, sendOrderEmail, getActivity,
+  getAdminOrders, updateOrderStatus, updateOrderPayment, updateOrderFields, sendOrderEmail, getActivity,
 } from '../controllers/adminController.js';
 import {
   listUsers, getUser, updateUser, setUserDisabled, setUserRole,
@@ -51,6 +51,7 @@ router.post('/upload-image', upload.single('image'), async (req, res, next) => {
 router.get('/orders',                  getAdminOrders);
 router.put('/orders/:id/status',       updateOrderStatus);
 router.put('/orders/:id/payment',      updateOrderPayment);
+router.put('/orders/:id',              updateOrderFields);   // tracking + admin notes
 router.post('/orders/:id/send-email',  sendOrderEmail);
 
 // ── Users (Module 2) — service-role, RLS-bypass. NOTE: export.csv before :id ──

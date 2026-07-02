@@ -307,3 +307,24 @@ export async function updateOrderPayment(req, res, next) {
     res.json({ order: data });
   } catch (err) { next(err); }
 }
+
+/* ── PUT /api/admin/orders/:id — tracking + admin notes ── */
+export async function updateOrderFields(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { tracking_number, tracking_vendor, admin_notes } = req.body;
+
+    const updates = { updated_at: new Date().toISOString() };
+    if (tracking_number !== undefined) updates.tracking_number = tracking_number || null;
+    if (tracking_vendor !== undefined) updates.tracking_vendor = tracking_vendor || null;
+    if (admin_notes     !== undefined) updates.admin_notes     = admin_notes || null;
+    if (Object.keys(updates).length === 1) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    const { data, error } = await supabase
+      .from('orders').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    res.json({ order: data });
+  } catch (err) { next(err); }
+}
