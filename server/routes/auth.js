@@ -43,8 +43,9 @@ router.post('/send-otp', async (req, res, next) => {
     const apiKey = process.env.FAST2SMS_API_KEY;
     if (!apiKey) {
       // FIX #19: only return dev_otp when explicitly in 'development' mode, never in staging/unset envs
-      console.log(`[DEV] OTP for ${mobile}: ${otp}`);
       const isDev = process.env.NODE_ENV === 'development';
+      // SECURITY: never log OTPs in production — Render log access = live OTP access
+      if (isDev) console.log(`[DEV] OTP for ${mobile}: ${otp}`);
       return res.json({ sent: true, ...(isDev && { dev_otp: otp }) });
     }
 
@@ -203,8 +204,11 @@ router.post('/send-verification-email', requireAuth, async (req, res, next) => {
     const otp = String(Math.floor(100000 + Math.random() * 900000));
     const expires_at = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
-    // Always log OTP — visible in Render logs so you can verify/debug without email
-    console.log(`[otp] generated for ${emailKey}: ${otp}`);
+    // SECURITY: OTP is only logged in development — production logs must never
+    // contain live codes (anyone with Render log access could take over accounts)
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[otp] generated for ${emailKey}: ${otp}`);
+    }
 
     // Store the OTP. Try the email-column layout first; if that fails for ANY
     // reason, fall back to the original phone-based key (phone = 'email:<addr>')

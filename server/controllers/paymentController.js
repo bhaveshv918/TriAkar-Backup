@@ -153,13 +153,6 @@ export async function createOrder(req, res, next) {
     const { error: iErr } = await supabase.from('order_items').insert(rows);
     if (iErr) throw iErr;
 
-    /* Increment promo usage counter */
-    if (applied_promo) {
-      await supabase.from('promo_codes')
-        .update({ current_uses: applied_promo.current_uses + 1 })
-        .eq('id', applied_promo.id);
-    }
-
     /* 6. Create Razorpay order (amount in paise) */
     let rzpOrder;
     try {
@@ -268,6 +261,22 @@ export async function verifyPayment(req, res, next) {
         p_product_id: item.product_id,
         p_qty:        item.quantity,
       });
+    }
+
+    // Increment promo usage counter ONLY now that payment is verified — doing this at
+    // order-creation time (before) meant an abandoned/failed checkout still burned the
+    // customer's use of the code against max_uses.
+    if (updatedOrder.promo_code) {
+      const { data: promo } = await supabase
+        .from('promo_codes')
+        .select('id, current_uses')
+        .eq('code', updatedOrder.promo_code)
+        .single();
+      if (promo) {
+        await supabase.from('promo_codes')
+          .update({ current_uses: (promo.current_uses || 0) + 1 })
+          .eq('id', promo.id);
+      }
     }
 
     /* Best-effort confirmation emails — must never break the response */

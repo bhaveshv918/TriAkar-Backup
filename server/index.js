@@ -45,6 +45,17 @@ console.log('All environment variables verified.');
 // Optional (not required to boot): NODE_ENV, PORT, RENDER_EXTERNAL_URL,
 // RESEND_API_KEY, CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
 
+// RESEND_API_KEY is optional at boot (email is best-effort everywhere it's used), which
+// previously meant a missing/stale/rotated key failed completely silently — every form
+// (contact/enquiry/callback/corporate inquiry) would "succeed" with 200 OK while no email
+// ever sent, and nothing in the logs pointed at why. Loud boot-time warning so this is
+// caught immediately instead of discovered via "customers say forms don't work."
+if (!process.env.RESEND_API_KEY) {
+  console.warn('⚠ RESEND_API_KEY is not set — all outbound emails (contact/enquiry/callback/corporate-inquiry alerts) will silently fail to send.');
+} else if (!process.env.RESEND_API_KEY.startsWith('re_')) {
+  console.warn('⚠ RESEND_API_KEY does not look like a valid Resend key (expected to start with "re_") — outbound emails may fail.');
+}
+
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
@@ -124,7 +135,7 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) return callback(null, true);
     return callback(new Error('Not allowed by CORS: ' + origin), false);
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true,
   optionsSuccessStatus: 200,
@@ -170,12 +181,22 @@ app.use('/api/addresses', contactLimiter);
 
 const notifyLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 10,
+  max: 5,
   message: { error: 'Too many submissions. Try again in an hour.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 app.use('/api/notify', notifyLimiter);
+
+// Promo validation is unauthenticated — keep it tight so codes can't be enumerated
+const promoLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many promo attempts. Try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/promo/validate', promoLimiter);
 
 /* ── 4b. WEBHOOKS (raw body — MUST precede express.json) ──────
    Razorpay signs the raw request bytes; the global JSON parser below
@@ -185,7 +206,11 @@ app.use('/api/webhooks', webhookRoutes);
 
 /* ── 5. BODY PARSING (size-limited) ───────────────────────── */
 // Image upload routes allow up to 15 MB (multipart handled by multer, not express.json)
-// All other JSON routes stay at 10 kb for security
+// Admin JSON routes (product save with multiple image URLs + rich content — description,
+// bullet points, variants, specifications — routinely exceeds 10kb) get a higher limit.
+// All other JSON routes stay at 10 kb for security.
+app.use('/api/admin', express.json({ limit: '1mb' }));
+app.use('/api/admin', express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 

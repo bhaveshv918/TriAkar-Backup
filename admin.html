@@ -5509,7 +5509,8 @@ async function loadPromoCodes(){
       const minLabel=p.min_order_amount>0?'₹'+p.min_order_amount:'—';
       const usesLabel=(p.current_uses||0)+(p.max_uses?' / '+p.max_uses:' / ∞');
       const exp=p.expires_at?new Date(p.expires_at).toLocaleDateString('en-IN'):'—';
-      const statusBadge=p.is_active?'<span style="color:#15803D;font-weight:700">Active</span>':'<span style="color:#B91C1C;font-weight:700">Inactive</span>';
+      const isExpired=p.expires_at&&new Date(p.expires_at)<new Date();
+      const statusBadge=isExpired?'<span style="color:#B91C1C;font-weight:700">Expired</span>':p.is_active?'<span style="color:#15803D;font-weight:700">Active</span>':'<span style="color:#B91C1C;font-weight:700">Inactive</span>';
       return`<tr>
         <td><strong>${p.code}</strong>${p.description?'<br><small style="color:var(--text-3)">'+p.description+'</small>':''}</td>
         <td>${typeLabel}</td><td>${valLabel}</td><td>${minLabel}</td>
