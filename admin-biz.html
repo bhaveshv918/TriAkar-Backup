@@ -695,6 +695,9 @@ html[data-theme="dark"] .biz-login{
     <button class="tab" data-tab="filament" onclick="switchTab('filament')">
       <span class="tab-icon">🧵</span><span class="tab-label">Filament</span>
     </button>
+    <button class="tab" data-tab="spooltracker" onclick="switchTab('spooltracker')">
+      <span class="tab-icon">🎞</span><span class="tab-label">Spool Tracker</span>
+    </button>
 
     <div class="sidebar-section">Finance</div>
     <button class="tab" data-tab="returns" onclick="switchTab('returns')">
@@ -1948,6 +1951,36 @@ html[data-theme="dark"] .biz-login{
       </div>
     </div><!-- /filament -->
 
+    <div class="panel" id="panelSpooltracker">
+      <div class="p-head">
+        <div><div class="p-title">Spool Tracker</div><div class="p-sub">Physical spool audit — box, position &amp; status</div></div>
+      </div>
+      <div id="spoolKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
+
+      <div id="spoolForm" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px">
+        <input type="hidden" id="sp_id">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px" id="spoolFormTitle">Edit Spool</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Qty Remaining (0-1)</label><input type="number" id="sp_qty" step="0.05" min="0" max="1"></div>
+          <div class="form-group"><label>Status</label><select id="sp_status"><option value="Opened">Opened</option><option value="Packed">Packed</option><option value="Finsh">Finsh</option><option value="TBR">TBR</option></select></div>
+          <div class="form-group"><label>Position</label><input type="text" id="sp_position" placeholder="Box / NB / OUT / Seal / LU"></div>
+          <div class="form-group"><label>Box Name</label><input type="text" id="sp_box"></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="sp_notes"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary btn-sm" onclick="saveSpool()">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('spoolForm').style.display='none'">Cancel</button>
+        </div>
+      </div>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Brand</th><th>Type</th><th>Finish</th><th>Color</th><th>Vendor</th><th>Box / Position</th><th>Status</th><th class="td-num">Qty Left</th><th class="td-num">Price</th><th>Via</th><th>Notes</th><th class="td-actions"></th></tr></thead>
+          <tbody id="spoolBody"><tr><td colspan="13" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+    </div><!-- /spooltracker -->
+
     <!-- ══════════════════════════════════════════════════════
          GST SUMMARY
     ═══════════════════════════════════════════════════════ -->
@@ -2551,7 +2584,7 @@ function switchTab(name){
     sales:loadSales, products:loadProducts, stock:loadStock,
     gst:loadGST, dashboard:loadDashboard,
     labels:populateLabelProductSelect, settings:loadBizSettings,
-    customers:loadCustomers, fees:loadFeesTab, returns:loadReturns, filament:loadFilament, openorders:loadOpenOrders, expenses:loadExpenses, activity:loadBizActivity,
+    customers:loadCustomers, fees:loadFeesTab, returns:loadReturns, filament:loadFilament, spooltracker:loadSpoolTracker, openorders:loadOpenOrders, expenses:loadExpenses, activity:loadBizActivity,
     ledger:loadLedger, purchases:loadPurchases, balance:loadBalanceSheet, shoplog:loadShopLog,
   };
   if(loaders[name]) loaders[name]();
@@ -4573,6 +4606,77 @@ async function saveFilamentSettings(){
   _filMinRolls=min; renderFilamentAlert(); toast('Filament settings saved');
 }
 
+let _spoolRows=[];
+const SPOOL_BADGE={Opened:'badge-processing',Packed:'badge-packed',Finsh:'badge-delivered',TBR:'badge-pending'};
+async function loadSpoolTracker(){
+  const {data,error}=await sb.from('filament_inventory').select('*').order('s_no',{ascending:true});
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  _spoolRows=data||[];
+  renderSpoolTracker();
+}
+function renderSpoolTracker(){
+  const rows=_spoolRows;
+  const kpi=document.getElementById('spoolKpi');
+  if(kpi){
+    const total=rows.length;
+    const value=rows.reduce((s,r)=>s+(Number(r.price)||0),0);
+    const opened=rows.filter(r=>r.status==='Opened').length;
+    const finished=rows.filter(r=>r.status==='Finsh').length;
+    kpi.innerHTML=[
+      ['Total Spools',total],
+      ['Stock Value','₹'+value.toLocaleString('en-IN')],
+      ['Opened',opened],
+      ['Finished',finished]
+    ].map(([label,val])=>`<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">${esc(label)}</div><div style="font-size:20px;font-weight:700;margin-top:4px">${val}</div></div>`).join('');
+  }
+  const tbody=document.getElementById('spoolBody');
+  if(!tbody) return;
+  if(!rows.length){ tbody.innerHTML='<tr><td colspan="13" class="empty"><div class="em-text">No spools found</div></td></tr>'; return; }
+  tbody.innerHTML=rows.map(r=>{
+    const badgeClass=SPOOL_BADGE[r.status]||'badge-pending';
+    const posText=[r.position,r.box_name].filter(Boolean).map(esc).join(' / ')||'—';
+    return `<tr>
+      <td>${r.s_no}</td><td>${esc(r.brand)}</td><td>${esc(r.filament_type)}</td><td>${esc(r.finish||'—')}</td>
+      <td>${esc(r.color||'—')}</td><td>${esc(r.vendor||'—')}</td><td>${posText}</td>
+      <td><span class="badge ${badgeClass}">${esc(r.status||'—')}</span></td>
+      <td class="td-num">${r.qty_remaining!=null?r.qty_remaining:'—'}</td>
+      <td class="td-num">₹${r.price!=null?r.price:'—'}</td>
+      <td>${esc(r.purchased_via||'—')}</td><td>${esc(r.notes||'')}</td>
+      <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="showSpoolEdit('${r.id}')">✎</button></td>
+    </tr>`;
+  }).join('');
+}
+function showSpoolEdit(id){
+  const r=_spoolRows.find(x=>String(x.id)===String(id));
+  if(!r) return;
+  document.getElementById('sp_id').value=r.id;
+  document.getElementById('sp_qty').value=r.qty_remaining!=null?r.qty_remaining:'';
+  document.getElementById('sp_status').value=r.status||'Opened';
+  document.getElementById('sp_position').value=r.position||'';
+  document.getElementById('sp_box').value=r.box_name||'';
+  document.getElementById('sp_notes').value=r.notes||'';
+  document.getElementById('spoolFormTitle').textContent='Edit Spool #'+r.s_no+' — '+(r.brand||'')+' '+(r.color||'');
+  document.getElementById('spoolForm').style.display='block';
+  document.getElementById('spoolForm').scrollIntoView({behavior:'smooth',block:'center'});
+}
+async function saveSpool(){
+  const id=document.getElementById('sp_id').value;
+  if(!id) return;
+  const payload={
+    qty_remaining:document.getElementById('sp_qty').value===''?null:Number(document.getElementById('sp_qty').value),
+    status:document.getElementById('sp_status').value,
+    position:document.getElementById('sp_position').value.trim()||null,
+    box_name:document.getElementById('sp_box').value.trim()||null,
+    notes:document.getElementById('sp_notes').value.trim()||null
+  };
+  const {error}=await sb.from('filament_inventory').update(payload).eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  logBizActivity('edit','spool',id,payload.status+' · qty '+payload.qty_remaining);
+  toast('Spool updated');
+  document.getElementById('spoolForm').style.display='none';
+  loadSpoolTracker();
+}
+
 async function loadReturnsBadge(){
   const el=document.getElementById('returnCount'); if(!el) return;
   const {count}=await sb.from('biz_returns').select('*',{count:'exact',head:true}).eq('status','pending');
@@ -5594,7 +5698,14 @@ function nextDocNumber(){
   return `TRK-${mo}-${String(seq).padStart(3,'0')}`;
 }
 
-function printInvoice(d, type){
+// docKind: 'invoice' (customer-facing, docInv() fields — GST/payment/signature/terms) or
+// 'record' (internal-only, docRec() fields — cost/margin/production/courier/notes). These
+// were previously conflated into one document that was always titled "Order Record" even
+// when generated from an "Invoice" button, and the Order Record's own fields (cost price,
+// margin, designer, production status, etc.) were configurable in Settings but never
+// actually rendered anywhere. Now genuinely two separate documents.
+function printInvoice(d, type, docKind){
+  const isRecord=docKind==='record';
   const cfg=getBizSettings();
   const SELLER_NAME=cfg.name||'TriAkar';
   const SELLER_ADDR=cfg.addr||'';
@@ -5632,8 +5743,42 @@ function printInvoice(d, type){
   const docNo=d.order_id||nextDocNumber();
   const docDate=d.order_date||today();
   const amtWords=amountInWords(subtotal);
+  const docTitle=isRecord?'Order Record':(hasGst?'Tax Invoice':'Invoice');
 
-  const gstBlock=(hasGst&&docInv('gst_breakup'))?`
+  // §Internal Details (Order Record only) — cost/margin/production data that a customer
+  // invoice must never show. Falls back gracefully where a field has no data source yet.
+  let internalDetailsHtml='';
+  if(isRecord){
+    const cost=items.reduce((s,it)=>s+(parseFloat(it.cogs)||0),0);
+    const margin=subtotal>0?((subtotal-cost)/subtotal*100):0;
+    const prod=d._products||(typeof _products!=='undefined'?_products:[]);
+    const linkedProduct=d.product_id?(prod.find(p=>p.id===d.product_id)||{}):{};
+    const material=d.material||linkedProduct.material||'';
+    const rows=[
+      docRec('cost_price')?['Cost Price','₹'+cost.toFixed(2)]:null,
+      docRec('margin')?['Margin',margin.toFixed(1)+'% (₹'+(subtotal-cost).toFixed(2)+')']:null,
+      docRec('designer_maker')&&d.designer?['Designer / Maker',esc(d.designer)]:null,
+      docRec('production_status')?['Production Status',esc(STATUS_LABEL?.[d.status]||d.status||'—')]:null,
+      docRec('material')&&material?['Material',esc(material)]:null,
+      docRec('printer')&&d.printer?['Printer Used',esc(d.printer)]:null,
+      docRec('courier_tracking')&&(d.courier_partner||d.tracking_number)?['Courier / Tracking',[d.courier_partner?esc(d.courier_partner):'',d.tracking_number?esc(d.tracking_number):''].filter(Boolean).join(' · ')]:null,
+      docRec('priority_flag')&&d.priority?['Priority',esc(d.priority)]:null,
+      docRec('special_instructions')&&d.notes?['Special Instructions',esc(d.notes)]:null,
+      docRec('internal_notes')&&d.internal_notes?['Internal Notes',esc(d.internal_notes)]:null,
+    ].filter(Boolean);
+    if(rows.length){
+      internalDetailsHtml=`<div class="info-strip" style="margin-top:14px">
+        <div class="info-card" style="flex:1 1 100%">
+          <div class="info-lbl">Internal Details — not for customer</div>
+          <div class="info-val" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px 16px">
+            ${rows.map(([l,v])=>`<div><span style="color:#999;font-size:10px;text-transform:uppercase;letter-spacing:.5px">${l}</span><br>${v}</div>`).join('')}
+          </div>
+        </div>
+      </div>`;
+    }
+  }
+
+  const gstBlock=(!isRecord&&hasGst&&docInv('gst_breakup'))?`
     <tr><td colspan="3" style="text-align:right;color:#999;font-size:12px;padding:5px 14px;border:none">Taxable Amount</td><td style="text-align:right;padding:5px 14px;border:none">₹${taxable.toFixed(2)}</td></tr>
     ${isIntraState
       ?`<tr><td colspan="3" style="text-align:right;color:#999;font-size:12px;padding:4px 14px;border:none">CGST @ ${gstRate/2}%</td><td style="text-align:right;padding:4px 14px;border:none">₹${(gstAmt/2).toFixed(2)}</td></tr>
@@ -5642,7 +5787,7 @@ function printInvoice(d, type){
     }`:'';
 
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Order Record — ${esc(docNo)}</title>
+<title>${docTitle} — ${esc(docNo)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Devanagari:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>
@@ -5715,7 +5860,7 @@ tbody tr:last-child td{border-bottom:none}
     </div>
   </div>
   <div class="hdr-doc">
-    <div class="doc-type">Order Record</div>
+    <div class="doc-type">${docTitle}</div>
     <div class="doc-no">${esc(docNo)}</div>
     <div class="doc-meta">${d.invoice_no?'Invoice No: '+esc(d.invoice_no)+'<br>':''}Order Date: ${esc(docDate)}<br>Complete Date: ${d.delivery_date?esc(d.delivery_date):'—'}</div>
     <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;margin-top:5px">
