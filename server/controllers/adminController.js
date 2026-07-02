@@ -53,6 +53,12 @@ function buildProductPayload(body) {
   if (out.images !== undefined) {
     out.images = Array.isArray(out.images) ? out.images : (out.images ? [out.images] : []);
   }
+  // tags is a text[] column — the admin form sends a comma-separated string.
+  if (out.tags !== undefined) {
+    out.tags = Array.isArray(out.tags)
+      ? out.tags
+      : (out.tags ? out.tags.split(',').map(t => t.trim()).filter(Boolean) : []);
+  }
   if (out.price !== undefined) out.price = Number(out.price);
   return out;
 }
