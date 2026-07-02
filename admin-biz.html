@@ -3149,6 +3149,10 @@ async function saveExpense(){
   const fileEl=document.getElementById('ex_invoice_file');
   if(fileEl&&fileEl.files&&fileEl.files[0]){
     const f=fileEl.files[0];
+    // Only document types may enter the invoices bucket (extension AND mime must agree)
+    const okExt=/\.(pdf|jpe?g|png|webp)$/i.test(f.name);
+    const okMime=!f.type||['application/pdf','image/jpeg','image/png','image/webp'].includes(f.type);
+    if(!okExt||!okMime){ toast('Only PDF, JPG, PNG or WebP invoice files are allowed','error'); return; }
     const path='inv_'+Date.now()+'_'+f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
     const {error:upErr}=await sb.storage.from('biz-invoices').upload(path,f,{upsert:true,contentType:f.type||undefined});
     if(upErr){ toast('Invoice upload failed: '+upErr.message,'error'); return; }

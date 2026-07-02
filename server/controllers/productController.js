@@ -97,13 +97,7 @@ export async function getProductBySlug(req, res, next) {
 
 export async function upsertProduct(req, res, next) {
   try {
-    // Email-allowlist admin check (admins are whitelisted by email, not role)
-    const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'bhaveshv918@gmail.com')
-      .split(',').map(e => e.trim().toLowerCase());
-    const email = (req.user?.email || '').toLowerCase();
-    if (!ADMIN_EMAILS.includes(email)) {
-      return res.status(403).json({ error: 'Forbidden — admin access required' });
-    }
+    // Admin gate lives in the route (requireAuth + requireAdmin) — single source of truth
     const b = req.body || {};
     if (!b.slug || !b.name) return res.status(400).json({ error: 'slug and name are required' });
     const row = {
