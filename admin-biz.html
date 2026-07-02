@@ -865,18 +865,73 @@ html[data-theme="dark"] .biz-login{
     ═══════════════════════════════════════════════════════ -->
     <div class="panel active" id="panelOpenorders">
       <div class="p-head">
-        <div><div class="p-title">Open Orders</div><div class="p-sub">What still needs to ship — promised dates &amp; SLA</div></div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn btn-ghost btn-sm" onclick="loadOpenOrders()" title="Refresh">⟳</button>
+        <div><div class="p-title">Open Orders</div><div class="p-sub">Today's operations — production, dispatch tracking &amp; quick logs</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="loadOpenOrders()" title="Refresh">⟳</button>
+      </div>
+
+      <!-- Daily quick-log strip — the landing tab doubles as a punch-clock / daily log,
+           so the things you'd otherwise open 3 other tabs for are one click away here. -->
+      <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-primary btn-sm" onclick="switchTab('quickadd')">＋ Add Sale</button>
+          <span style="width:1px;height:22px;background:var(--border)"></span>
+          <button class="btn btn-sm" onclick="punchShop('open')">🟢 Shop Open</button>
+          <button class="btn btn-sm" onclick="punchShop('break_start')">☕ Break Start</button>
+          <button class="btn btn-sm" onclick="punchShop('break_end')">☕ Break End</button>
+          <button class="btn btn-sm" onclick="punchShop('close')">🔴 Shop Close</button>
+          <span style="width:1px;height:22px;background:var(--border)"></span>
+          <button class="btn btn-ghost btn-sm" onclick="toggleQuickLog('expense')">+ Expense</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleQuickLog('payment')">+ Payment Received</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleQuickLog('filament')">+ Filament Arrived</button>
+        </div>
+        <div id="shopPunchStatus" style="font-size:11px;color:var(--text-3);margin-top:8px">Loading today's log…</div>
+
+        <div id="qlExpense" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <div class="form-grid">
+            <div class="form-group"><label>Category</label><select id="ql_exp_category"><option value="materials">Materials</option><option value="equipment">Equipment</option><option value="packaging">Packaging</option><option value="marketing">Marketing</option><option value="rent">Rent</option><option value="utilities">Utilities</option><option value="shipping">Shipping</option><option value="other" selected>Other (chai, misc)</option></select></div>
+            <div class="form-group"><label>Amount ₹</label><input type="number" id="ql_exp_amount" step="0.01"></div>
+            <div class="form-group"><label>Note</label><input type="text" id="ql_exp_note" placeholder="e.g. chai + snacks"></div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="saveQuickExpense()" style="margin-top:8px">Save Expense</button>
+        </div>
+
+        <div id="qlPayment" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <div class="form-grid">
+            <div class="form-group"><label>Category</label><select id="ql_pay_category"><option value="flipkart_payout">Flipkart Payout</option><option value="amazon_payout">Amazon Payout</option><option value="website_payout">Website Payout</option><option value="misc" selected>Extra / Misc</option></select></div>
+            <div class="form-group"><label>Amount ₹</label><input type="number" id="ql_pay_amount" step="0.01"></div>
+            <div class="form-group"><label>Mode</label><select id="ql_pay_mode"><option value="">—</option><option value="bank_transfer">Bank Transfer</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option></select></div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="saveQuickPayment()" style="margin-top:8px">Save Payment</button>
+        </div>
+
+        <div id="qlFilament" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <div class="form-grid">
+            <div class="form-group"><label>Vendor</label><input type="text" id="ql_fil_vendor"></div>
+            <div class="form-group"><label>Colour / Item</label><input type="text" id="ql_fil_item" placeholder="e.g. Black PLA+ 1kg"></div>
+            <div class="form-group"><label>Qty</label><input type="number" id="ql_fil_qty" value="1" step="0.01"></div>
+            <div class="form-group"><label>Total ₹</label><input type="number" id="ql_fil_total" step="0.01"></div>
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:6px;font-size:12px"><input type="checkbox" id="ql_fil_makeroll" checked> Add to Filament Inventory as a roll</label>
+          <button class="btn btn-primary btn-sm" onclick="saveQuickFilament()" style="margin-top:8px">Save Purchase</button>
         </div>
       </div>
+
       <div id="openReorderAlert"></div>
-      <div id="openKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
-      <div class="tbl-wrap">
+      <div id="openKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
+
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">In Production — needs studio action</div>
+      <div class="tbl-wrap" style="margin-bottom:20px">
         <table>
           <thead><tr><th>Promised</th><th>SLA</th><th>Customer</th><th>Item</th><th>Channel</th><th>Status</th><th class="td-actions"></th></tr></thead>
-          <tbody id="openOrdersBody"><tr><td colspan="7" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+          <tbody id="prodOrdersBody"><tr><td colspan="7" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">Dispatched — Tracking <span style="text-transform:none;font-weight:400;color:var(--text-3)">(until return window closes &amp; review is in)</span></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Dispatched</th><th>Customer</th><th>Item</th><th>Channel</th><th>Return Window</th><th>Review</th><th>Status</th></tr></thead>
+          <tbody id="trackOrdersBody"><tr><td colspan="7" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
     </div><!-- /openorders -->
@@ -3335,6 +3390,11 @@ function slaBreachDays(f){
   const d=Math.round((new Date(f.completed_at.slice(0,10)+'T00:00:00')-new Date(f.delivery_date+'T00:00:00'))/86400000);
   return d>0?d:0;
 }
+// Pre-dispatch: still needs studio action (make/print → pack → ready to ship).
+const PROD_LANE_STATUSES=['pending','order_received','processing','printing','packed'];
+// Post-dispatch: admin has shipped it — tracked until the return window closes AND a
+// review is in (or the admin moves it to Completed/Returned/etc. manually).
+const TRACK_LANE_STATUSES=['dispatched','delivered'];
 async function loadOpenOrders(){
   // "Open" = anything not yet in a terminal state, rather than an explicit include-list —
   // the old include-list named values ('pending','processing','dispatched','delivered')
@@ -3347,31 +3407,146 @@ async function loadOpenOrders(){
   const gmap={},groups=[];
   rows.forEach(s=>{ const k=s.order_id?('o:'+s.order_id):('r:'+s.id); if(!gmap[k]){gmap[k]={items:[]};groups.push(gmap[k]);} gmap[k].items.push(s); });
   groups.sort((a,b)=>{ const da=a.items[0].delivery_date||'9999-99', db=b.items[0].delivery_date||'9999-99'; return da<db?-1:da>db?1:0; });
+  const prodGroups=groups.filter(g=>PROD_LANE_STATUSES.includes(g.items[0].status));
+  const trackGroups=groups.filter(g=>TRACK_LANE_STATUSES.includes(g.items[0].status));
+
   const td=today(); let breached=0,dueToday=0,inTransit=0;
   groups.forEach(g=>{ const f=g.items[0]; if(f.delivery_date){ if(f.delivery_date<td)breached++; else if(f.delivery_date===td)dueToday++; } if(f.status==='dispatched')inTransit++; });
   const badge=document.getElementById('openCount'); if(badge) badge.textContent=groups.length;
   const kpi=document.getElementById('openKpi');
   if(kpi) kpi.innerHTML=`
-    <div class="kpi"><div class="kpi-label">Open Orders</div><div class="kpi-val">${groups.length}</div></div>
+    <div class="kpi"><div class="kpi-label">In Production</div><div class="kpi-val">${prodGroups.length}</div></div>
+    <div class="kpi"><div class="kpi-label">Dispatched — Tracking</div><div class="kpi-val">${trackGroups.length}</div></div>
     <div class="kpi red"><div class="kpi-label">SLA Breached</div><div class="kpi-val">${breached}</div></div>
-    <div class="kpi yellow"><div class="kpi-label">Due Today</div><div class="kpi-val">${dueToday}</div></div>
-    <div class="kpi"><div class="kpi-label">In Transit</div><div class="kpi-val">${inTransit}</div></div>`;
+    <div class="kpi yellow"><div class="kpi-label">Due Today</div><div class="kpi-val">${dueToday}</div></div>`;
   loadOpenReorderAlert();
-  const tbody=document.getElementById('openOrdersBody'); if(!tbody) return;
-  if(!groups.length){ tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="em-icon">✓</div><div class="em-text">No open orders — all caught up</div></div></td></tr>`; return; }
-  tbody.innerHTML=groups.map(g=>{ const f=g.items[0]; const more=g.items.length>1?` <span style="color:var(--text-3);font-size:10px">+${g.items.length-1}</span>`:'';
-    const term=esc(f.order_id||f.customer_name||f.product_name||'');
-    const dispatchInfo=dispatchSlaText(f);
-    return `<tr class="sale-row" style="cursor:pointer" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${term}';loadSales();}},300)">
-      <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.delivery_date?fmtDay(f.delivery_date):'—'}</td>
-      <td style="white-space:nowrap">${slaText(f.delivery_date)}${dispatchInfo?'<br>'+dispatchInfo:''}</td>
-      <td style="white-space:nowrap">${esc(f.customer_name||'—')}</td>
-      <td>${esc(f.product_name||'—')}${more}</td>
-      <td>${chHtml(f.channel_id)}</td>
-      <td><span class="badge badge-${esc(f.status)}">${STATUS_LABEL[f.status]||esc(f.status)}</span></td>
-      <td class="td-actions" style="color:var(--text-3)">${f.status==='dispatched'?`<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();updateOrderStatus('${f.id}','delivered')" title="Mark delivered">✓ Delivered?</button>`:'↗'}</td>
-    </tr>`;
-  }).join('');
+  loadShopPunchStatus();
+
+  const prodBody=document.getElementById('prodOrdersBody');
+  if(prodBody){
+    if(!prodGroups.length){ prodBody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="em-icon">✓</div><div class="em-text">Nothing waiting on the studio</div></div></td></tr>`; }
+    else prodBody.innerHTML=prodGroups.map(g=>{ const f=g.items[0]; const more=g.items.length>1?` <span style="color:var(--text-3);font-size:10px">+${g.items.length-1}</span>`:'';
+      const term=esc(f.order_id||f.customer_name||f.product_name||'');
+      return `<tr class="sale-row" style="cursor:pointer" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${term}';loadSales();}},300)">
+        <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.delivery_date?fmtDay(f.delivery_date):'—'}</td>
+        <td style="white-space:nowrap">${slaText(f.delivery_date)}</td>
+        <td style="white-space:nowrap">${esc(f.customer_name||'—')}</td>
+        <td>${esc(f.product_name||'—')}${more}</td>
+        <td>${chHtml(f.channel_id)}</td>
+        <td onclick="event.stopPropagation()"><select onchange="updateOrderStatus('${f.id}',this.value)" class="badge-select badge-${f.status}">${UNIFIED_STATUSES.map(x=>`<option value="${x}"${f.status===x?' selected':''}>${STATUS_LABEL[x]}</option>`).join('')}</select></td>
+        <td class="td-actions" style="color:var(--text-3)">↗</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const trackBody=document.getElementById('trackOrdersBody');
+  if(trackBody){
+    if(!trackGroups.length){ trackBody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="em-icon">✓</div><div class="em-text">Nothing being tracked post-dispatch</div></div></td></tr>`; }
+    else trackBody.innerHTML=trackGroups.map(g=>{ const f=g.items[0]; const more=g.items.length>1?` <span style="color:var(--text-3);font-size:10px">+${g.items.length-1}</span>`:'';
+      const term=esc(f.order_id||f.customer_name||f.product_name||'');
+      const dispatchInfo=dispatchSlaText(f);
+      const rw=returnWindowInfo(f)||'<span style="color:var(--text-3)">—</span>';
+      return `<tr class="sale-row" style="cursor:pointer" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${term}';loadSales();}},300)">
+        <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.dispatch_date?fmtDay(f.dispatch_date):'—'}${dispatchInfo?'<br>'+dispatchInfo:''}</td>
+        <td style="white-space:nowrap">${esc(f.customer_name||'—')}</td>
+        <td>${esc(f.product_name||'—')}${more}</td>
+        <td>${chHtml(f.channel_id)}</td>
+        <td style="font-size:11px;white-space:nowrap">${rw}</td>
+        <td onclick="event.stopPropagation()"><button class="btn btn-sm" onclick="toggleReviewReceived('${f.id}',${!!f.review_received})" style="background:${f.review_received?'var(--green-bg)':'var(--bg-2)'};color:${f.review_received?'var(--green)':'var(--text-3)'};border:1px solid ${f.review_received?'var(--green)':'var(--border)'};font-size:11px;padding:3px 8px">${f.review_received?'✓ Received':'◯ Pending'}</button></td>
+        <td onclick="event.stopPropagation()"><select onchange="updateOrderStatus('${f.id}',this.value)" class="badge-select badge-${f.status}">${UNIFIED_STATUSES.map(x=>`<option value="${x}"${f.status===x?' selected':''}>${STATUS_LABEL[x]}</option>`).join('')}</select></td>
+      </tr>`;
+    }).join('');
+  }
+}
+async function toggleReviewReceived(id,current){
+  const {error}=await sb.from('biz_sales').update({review_received:!current}).eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  loadOpenOrders();
+}
+
+// ══════════════ DAILY QUICK-LOG STRIP (landing tab) ══════════════
+async function loadShopPunchStatus(){
+  const el=document.getElementById('shopPunchStatus'); if(!el) return;
+  const {data}=await sb.from('biz_shop_log').select('*').eq('date',today()).maybeSingle();
+  if(!data){ el.textContent='Not logged yet today'; return; }
+  if(data.closed_all_day){ el.textContent='Closed today'+(data.reason?' — '+data.reason:''); return; }
+  const bits=[];
+  if(data.open_time) bits.push('Opened '+data.open_time);
+  if(data.break_start) bits.push('Break '+data.break_start+(data.break_end?'–'+data.break_end:'–…'));
+  if(data.close_time) bits.push('Closed '+data.close_time);
+  el.textContent=bits.length?bits.join(' · '):'Not logged yet today';
+}
+async function punchShop(action){
+  const date=today();
+  const nowTime=new Date().toTimeString().slice(0,5);   // "HH:MM", 24-hr — biz_shop_log columns are TIME
+  const {data:existing}=await sb.from('biz_shop_log').select('*').eq('date',date).maybeSingle();
+  const payload={date, closed_all_day:false,
+    open_time:existing?existing.open_time:null, close_time:existing?existing.close_time:null,
+    break_start:existing?existing.break_start:null, break_end:existing?existing.break_end:null};
+  if(action==='open') payload.open_time=nowTime;
+  else if(action==='break_start') payload.break_start=nowTime;
+  else if(action==='break_end') payload.break_end=nowTime;
+  else if(action==='close') payload.close_time=nowTime;
+  const {error}=await sb.from('biz_shop_log').upsert(payload,{onConflict:'date'});
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  const LABEL={open:'Shop opened',break_start:'Break started',break_end:'Break ended',close:'Shop closed'};
+  toast((LABEL[action]||'Logged')+' at '+nowTime);
+  loadShopPunchStatus();
+}
+function toggleQuickLog(which){
+  const targetId='ql'+which.charAt(0).toUpperCase()+which.slice(1);
+  ['qlExpense','qlPayment','qlFilament'].forEach(id=>{
+    const el=document.getElementById(id); if(!el) return;
+    if(id===targetId) el.style.display=(el.style.display==='none'||!el.style.display)?'block':'none';
+    else el.style.display='none';
+  });
+}
+async function saveQuickExpense(){
+  const g=id=>document.getElementById(id)?.value||'';
+  const amount=parseFloat(g('ql_exp_amount'));
+  if(!(amount>0)){ toast('Enter an amount','error'); return; }
+  const payload={date:today(),category:g('ql_exp_category')||'other',amount,notes:g('ql_exp_note').trim()||null};
+  const {error}=await sb.from('biz_expenses').insert(payload);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  logBizActivity('create','expense',null,(payload.notes||payload.category)+' ₹'+amount);
+  toast('Expense logged'); document.getElementById('qlExpense').style.display='none';
+  ['ql_exp_amount','ql_exp_note'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+}
+async function saveQuickPayment(){
+  const g=id=>document.getElementById(id)?.value||'';
+  const amount=parseFloat(g('ql_pay_amount'));
+  if(!(amount>0)){ toast('Enter an amount','error'); return; }
+  const payload={date:today(),category:g('ql_pay_category')||'misc',amount,payment_mode:g('ql_pay_mode')||null};
+  const {error}=await sb.from('biz_income').insert(payload);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  logBizActivity('create','income',null,INCOME_LABEL[payload.category]+' ₹'+amount);
+  toast('Payment logged'); document.getElementById('qlPayment').style.display='none';
+  ['ql_pay_amount'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+}
+async function saveQuickFilament(){
+  const g=id=>document.getElementById(id)?.value||'';
+  const total=parseFloat(g('ql_fil_total'));
+  const item=g('ql_fil_item').trim();
+  if(!item){ toast('Enter what arrived','error'); return; }
+  if(!(total>0)){ toast('Enter a total amount','error'); return; }
+  let linked_roll_id=null;
+  if(document.getElementById('ql_fil_makeroll')?.checked){
+    const {data:roll,error:rollErr}=await sb.from('biz_filament_rolls').insert({
+      color:item, material:'PLA+', total_grams:1000, grams_used:0, status:'active', cost_total:total,
+    }).select().single();
+    if(rollErr){ toast('Purchase saved, but roll creation failed: '+rollErr.message,'error'); }
+    else linked_roll_id=roll.id;
+  }
+  const payload={date:today(),category:'raw_material',vendor:g('ql_fil_vendor').trim()||null,item,
+    qty:parseFloat(g('ql_fil_qty'))||1,total_amount:total,linked_roll_id};
+  const {error}=await sb.from('biz_purchases').insert(payload);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  logBizActivity('create','purchase',null,item+' ₹'+total);
+  toast(linked_roll_id?'Filament logged + added to inventory':'Filament purchase logged');
+  document.getElementById('qlFilament').style.display='none';
+  ['ql_fil_vendor','ql_fil_item','ql_fil_total'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('ql_fil_qty').value='1';
+  if(linked_roll_id&&typeof loadFilament==='function') loadFilament();
 }
 async function loadOpenReorderAlert(){
   const el=document.getElementById('openReorderAlert'); if(!el) return;
