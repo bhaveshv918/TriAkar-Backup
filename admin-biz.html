@@ -653,7 +653,12 @@ html[data-theme="dark"] .biz-login{
     <div class="biz-tb-search">
       <input type="text" id="bizSearchTop" placeholder="Search sales, products, customers…" oninput="bizGlobalSearch(this.value)" onkeydown="if(event.key==='Escape')closeBizSearch()" autocomplete="off">
     </div>
+    <div style="position:relative">
+      <button class="biz-tb-icon" onclick="toggleBizNotifications(event)" title="Notifications" style="position:relative">🔔<span id="bizNotifBadge" style="display:none;position:absolute;top:-3px;right:-3px;background:var(--red);color:#fff;font-size:9px;font-weight:700;min-width:15px;height:15px;line-height:15px;text-align:center;border-radius:8px;padding:0 3px">0</span></button>
+      <div id="bizNotifDropdown" style="display:none;position:absolute;top:115%;right:0;width:290px;max-height:60vh;overflow:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-h);z-index:3000;padding:8px"></div>
+    </div>
     <div class="biz-tb-time" id="bizTopTime"></div>
+    <div class="top-status"><span class="pulse"></span> Business OS Online</div>
     <button class="biz-tb-icon" onclick="refreshCurrentBizTab()" title="Refresh current tab">⟳</button>
     <button class="biz-tb-icon" id="privacyBtn" onclick="togglePrivacyMode()" title="Hide sensitive values">👁</button>
     <button class="biz-tb-icon" onclick="toggleTheme()" title="Toggle dark / light">🌙</button>
@@ -2663,11 +2668,42 @@ function updateBizClock(){
   el.textContent=new Date().toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
 }
 
+// ── Notification bell (parity with the Admin Panel header) ──
+let _bizSlaBreached=0, _bizDueToday=0;
+async function buildBizNotifications(){
+  const items=[];
+  if(_bizSlaBreached) items.push({icon:'⚠',text:_bizSlaBreached+' order'+(_bizSlaBreached>1?'s':'')+' SLA breached',tab:'openorders'});
+  if(_bizDueToday) items.push({icon:'◷',text:_bizDueToday+' order'+(_bizDueToday>1?'s':'')+' due today',tab:'openorders'});
+  try{
+    const {count:lowStock}=await sb.from('biz_stock_current').select('*',{count:'exact',head:true}).lte('stock_qty',5);
+    if(lowStock) items.push({icon:'▦',text:lowStock+' product'+(lowStock>1?'s':'')+' low / out of stock',tab:'stock'});
+  }catch(e){}
+  const n=id=>Number(document.getElementById(id)?.textContent||0);
+  if(n('returnCount')) items.push({icon:'↩',text:n('returnCount')+' return'+(n('returnCount')>1?'s':'')+' pending',tab:'returns'});
+  return items;
+}
+async function refreshBizNotifBadge(){
+  const items=await buildBizNotifications();
+  const b=document.getElementById('bizNotifBadge');
+  if(b){ if(items.length){b.style.display='block';b.textContent=items.length;} else b.style.display='none'; }
+}
+async function toggleBizNotifications(ev){
+  if(ev) ev.stopPropagation();
+  const dd=document.getElementById('bizNotifDropdown'); if(!dd) return;
+  if(dd.style.display==='block'){ dd.style.display='none'; return; }
+  const items=await buildBizNotifications();
+  dd.innerHTML='<div class="notif-title">Needs attention</div>'
+    +(items.length?items.map(it=>'<div class="notif-item" onclick="switchTab(&quot;'+it.tab+'&quot;);document.getElementById(&quot;bizNotifDropdown&quot;).style.display=&quot;none&quot;"><span class="notif-icon">'+it.icon+'</span><span class="notif-text">'+esc(it.text)+'</span></div>').join('')
+    :'<div class="notif-empty">All clear ✓</div>');
+  dd.style.display='block';
+}
+
 // Boot the app once authenticated
 async function startApp(){
   document.getElementById('authOverlay').style.display = 'none';
   document.getElementById('shell').style.display = 'flex';
   updateBizClock(); setInterval(updateBizClock,30000);
+  refreshBizNotifBadge(); setInterval(refreshBizNotifBadge,60000);
   restoreBizSidebar();
   applyStaffTabRestrictions();
   applyDashWidgets();
@@ -3516,6 +3552,12 @@ async function loadOpenOrders(){
     .not('status','in','(completed,returned,cancelled,claimed)').limit(800);
   if(error){ return; }
   const rows=data||[];
+  // Status changes, paid toggle, delete, invoice, initiate-return etc. all resolve their
+  // target order via _orderGroup(), which reads _salesCache — populated only by loadSales()
+  // (All Sales). Open Orders is now the landing tab, so a fresh session that never visits
+  // All Sales had an empty cache and every action here silently updated 0 rows. Merge (not
+  // replace, so a broader All Sales load isn't clobbered) these rows in by id.
+  const _cacheById={}; _salesCache.forEach(s=>_cacheById[s.id]=s); rows.forEach(s=>_cacheById[s.id]=s); _salesCache=Object.values(_cacheById);
   const gmap={},groups=[];
   rows.forEach(s=>{ const k=s.order_id?('o:'+s.order_id):('r:'+s.id); if(!gmap[k]){gmap[k]={items:[]};groups.push(gmap[k]);} gmap[k].items.push(s); });
   groups.sort((a,b)=>{ const da=a.items[0].delivery_date||'9999-99', db=b.items[0].delivery_date||'9999-99'; return da<db?-1:da>db?1:0; });
@@ -3524,6 +3566,7 @@ async function loadOpenOrders(){
 
   const td=today(); let breached=0,dueToday=0,inTransit=0;
   groups.forEach(g=>{ const f=g.items[0]; if(f.delivery_date){ if(f.delivery_date<td)breached++; else if(f.delivery_date===td)dueToday++; } if(f.status==='dispatched')inTransit++; });
+  _bizSlaBreached=breached; _bizDueToday=dueToday; refreshBizNotifBadge();
   const badge=document.getElementById('openCount'); if(badge) badge.textContent=groups.length;
   const kpi=document.getElementById('openKpi');
   if(kpi) kpi.innerHTML=`
@@ -4943,6 +4986,7 @@ async function loadReturnsBadge(){
   const el=document.getElementById('returnCount'); if(!el) return;
   const {count}=await sb.from('biz_returns').select('*',{count:'exact',head:true}).eq('status','pending');
   el.textContent=count||0;
+  if(typeof refreshBizNotifBadge==='function') refreshBizNotifBadge();
 }
 
 const RETURN_STAGES={initiated:'Initiated',returning:'Returning to Seller',received:'Received',claim_filed:'Claim Filed',claim_approved:'Claim Approved'};
@@ -6664,6 +6708,11 @@ function bizSearchPick(i){
 }
 function closeBizSearch(){ const b=document.getElementById('bizSearchResults'); if(b) b.style.display='none'; }
 document.addEventListener('click',e=>{ if(!e.target.closest('#bizSearch,#bizSearchTop,#bizSearchResults')) closeBizSearch(); });
+document.addEventListener('click',function(e){
+  const nd=document.getElementById('bizNotifDropdown'); if(!nd) return;
+  const bell=e.target.closest('button[title="Notifications"]');
+  if(nd.style.display==='block'&&!e.target.closest('#bizNotifDropdown')&&!bell) nd.style.display='none';
+});
 document.addEventListener('keydown',function(ev){
   if(ev.key!=='Escape') return;
   var rb=document.getElementById('recycleBinModal');
