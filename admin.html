@@ -3711,8 +3711,10 @@ async function updateProductStock(inp){
   const id=inp.dataset.id;
   const qty=parseInt(inp.value);
   if(isNaN(qty)||qty<0){inp.value=0;return}
-  const{error}=await sb.from('products').update({stock_qty:qty}).eq('id',id);
-  if(error){toast('Stock update failed: '+error.message,'error');return}
+  // Writes go through the service-role backend (RLS-safe) — the browser sb client
+  // silently no-ops product UPDATEs under RLS (reported success, 0 rows changed).
+  try{ await adminApi('/api/admin/products/'+id,{method:'PUT',body:JSON.stringify({stock_qty:qty})}); }
+  catch(err){ toast('Stock update failed: '+err.message,'error'); return }
   // Update local state
   const p=_products.find(x=>x.id===id);
   if(p)p.stock_qty=qty;
