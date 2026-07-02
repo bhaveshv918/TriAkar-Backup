@@ -206,12 +206,15 @@ window._FOOTER_HTML = `<footer>
         /* nav-corp pill removed from the top nav to prevent crowding/collision — corporate CTA lives in the top contact bar (ttb-corp), footer, and mobile drawer */
         '.nav-corp{display:none!important}'+
         '.nav-corp:hover{background:var(--accent,#C4622A)}'+
-        '@media(max-width:768px){.ta-topbar-l1{display:none}.nav-corp{display:none}}';
+        '@media(max-width:768px){.ta-topbar-l1{display:none}.nav-corp{display:none}}'+
+        'body:has(.nav-drawer.open) .ta-topbar{display:none!important}';
       head.appendChild(st);
     }
   }catch(_){}
 
   function build(){
+    var p=location.pathname.replace(/\/$/,'');
+    if(p!==''&&p!=='/index.html'&&!p.endsWith('/index.html'))return;
     if(document.getElementById('taTopbar'))return;
     var bar=document.createElement('div');
     bar.id='taTopbar';bar.className='ta-topbar';
