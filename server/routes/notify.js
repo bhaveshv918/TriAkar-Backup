@@ -32,7 +32,13 @@ router.post('/', async (req, res, next) => {
       if (type === 'contact') {
         await sendContactAlert(data);
       } else if (type === 'enquiry') {
-        if (data.email) await sendEnquiryConfirmation(data);
+        // SECURITY: data.email is user-supplied and this endpoint is public —
+        // only send the Resend confirmation to a syntactically valid address,
+        // otherwise the endpoint becomes an open relay from our domain.
+        const emailOk = typeof data.email === 'string'
+          && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(data.email.trim())
+          && data.email.trim().length <= 254;
+        if (emailOk) await sendEnquiryConfirmation(data);
         await sendAdminEnquiryAlert(data);
       } else if (type === 'callback') {
         await sendCallbackAlert(data);
