@@ -493,6 +493,22 @@ td.td-name{color:var(--text);font-weight:500}
   flex-direction:column;gap:3px;
 }
 .img-uploading{font-family:var(--mono);font-size:11px;color:var(--accent);margin-top:6px;display:none}
+/* In-flight upload tile — local preview + spinner, Amazon-style */
+.img-thumb.img-pending{cursor:default}
+.img-thumb.img-pending img{filter:brightness(.5)}
+.img-pending-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.img-spinner{width:20px;height:20px;border:2px solid rgba(255,255,255,.28);border-top-color:#fff;border-radius:50%;animation:img-spin .7s linear infinite}
+@keyframes img-spin{to{transform:rotate(360deg)}}
+.img-thumb.img-pending .img-order{animation:img-pulse 1.1s ease-in-out infinite}
+@keyframes img-pulse{0%,100%{opacity:.55}50%{opacity:1}}
+.img-thumb.img-error{border-color:var(--red)}
+.img-thumb.img-error img{filter:brightness(.35) grayscale(1)}
+.img-thumb.img-error .img-order{background:var(--red);animation:none}
+.img-retry{
+  width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.7);
+  color:#fff;border:1px solid var(--red);font-size:14px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
 
 /* Variant builder */
 .variant-list{display:flex;flex-direction:column;gap:10px;margin-top:8px}
@@ -2145,6 +2161,7 @@ function esc(s){return(s===null||s===undefined)?'':String(s).replace(/&/g,'&amp;
 
 // ── State ──────────────────────────────────────────────────
 let _products=[],_orders=[],_categories=[],_uploadedImages=[],_variants=[],_custFields=[],_dropdowns=[],_bulletPoints=[];
+let _imgQueue=[]; // in-flight image uploads: {id,name,previewUrl,status:'uploading'|'error',file}
 let _visibleOrders=[],_currentOrderIdx=-1;
 let _productOptions=[],_specifications=[];  // new unified fields
 let _visitorData={};
@@ -3798,6 +3815,7 @@ function openProductForm(id){
   wrap.classList.add('open');
   wrap.scrollIntoView({behavior:'smooth',block:'nearest'});
   document.getElementById('formErr').textContent='';
+  _imgQueue.forEach(q=>URL.revokeObjectURL(q.previewUrl));_imgQueue=[];
   _uploadedImages=[];_variants=[];_custFields=[];_dropdowns=[];_bulletPoints=[];
   _productOptions=[];_specifications=[];
 
@@ -4607,25 +4625,66 @@ imgZone.addEventListener('dragleave',()=>imgZone.classList.remove('dragover'));
 imgZone.addEventListener('drop',e=>{e.preventDefault();imgZone.classList.remove('dragover');handleImgFiles(e.dataTransfer.files)});
 imgFileInput.addEventListener('change',function(){handleImgFiles(this.files);this.value=''});
 
+// Amazon-style multi-upload: every selected file gets its own thumbnail
+// immediately (local preview + spinner), uploads run one-at-a-time, and each
+// tile flips to the final Cloudinary image (or a retry button) as it finishes.
 async function handleImgFiles(files){
-  if(_uploadedImages.length>=10){toast('Max 10 images','error');return}
-  const upl=document.getElementById('imgUploading');upl.style.display='block';
-  for(const file of files){
-    if(_uploadedImages.length>=10)break;
+  const capacity=10-_uploadedImages.length-_imgQueue.filter(q=>q.status!=='error').length;
+  if(capacity<=0){toast('Max 10 images','error');return}
+  const incoming=Array.from(files);
+  const accepted=[];
+  for(const file of incoming){
+    if(accepted.length>=capacity){toast('Max 10 images — '+(incoming.length-accepted.length)+' file(s) skipped','error');break}
     if(file.size>15*1024*1024){toast(file.name+' too large (max 15MB)','error');continue}
     if(!['image/jpeg','image/png','image/webp'].includes(file.type)){toast(file.name+' bad format','error');continue}
-    upl.textContent='Uploading '+file.name+'…';
-    try{
-      const{data:sess}=await sb.auth.getSession();
-      const token=sess&&sess.session&&sess.session.access_token;
-      const fd=new FormData();fd.append('image',file);
-      const r=await fetch(API+'/api/admin/upload-image',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
-      if(!r.ok)throw new Error((await r.json()).error||'Upload failed');
-      const{url}=await r.json();
-      _uploadedImages.push(url);renderImgGrid();markProdDirty();
-    }catch(err){toast('Upload failed: '+err.message,'error')}
+    accepted.push(file);
+  }
+  if(!accepted.length)return;
+
+  const items=accepted.map(file=>({
+    id:'q'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),
+    name:file.name,previewUrl:URL.createObjectURL(file),status:'uploading',file,
+  }));
+  _imgQueue.push(...items);
+  renderImgGrid();
+
+  const upl=document.getElementById('imgUploading');
+  upl.style.display='block';
+  for(let i=0;i<items.length;i++){
+    upl.textContent='Uploading '+(i+1)+' of '+items.length+'… ('+items[i].name+')';
+    await uploadQueuedImg(items[i]);
   }
   upl.style.display='none';upl.textContent='Uploading…';
+}
+
+async function uploadQueuedImg(item){
+  item.status='uploading';renderImgGrid();
+  try{
+    const{data:sess}=await sb.auth.getSession();
+    const token=sess&&sess.session&&sess.session.access_token;
+    const fd=new FormData();fd.append('image',item.file);
+    const r=await fetch(API+'/api/admin/upload-image',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+    if(!r.ok)throw new Error((await r.json()).error||'Upload failed');
+    const{url}=await r.json();
+    _uploadedImages.push(url);
+    URL.revokeObjectURL(item.previewUrl);
+    _imgQueue=_imgQueue.filter(q=>q.id!==item.id);
+    markProdDirty();
+  }catch(err){
+    item.status='error';item.errMsg=err.message;
+    toast(item.name+' failed: '+err.message,'error');
+  }
+  renderImgGrid();
+}
+function retryImgUpload(id){
+  const item=_imgQueue.find(q=>q.id===id);
+  if(item)uploadQueuedImg(item);
+}
+function removeQueuedImg(id){
+  const item=_imgQueue.find(q=>q.id===id);
+  if(item)URL.revokeObjectURL(item.previewUrl);
+  _imgQueue=_imgQueue.filter(q=>q.id!==id);
+  renderImgGrid();
 }
 
 let _imgDragSrc=-1;
@@ -4633,13 +4692,13 @@ let _imgDragSrc=-1;
 function renderImgGrid(){
   const grid=document.getElementById('imgGrid');
   const hint=document.getElementById('imgHint');
-  if(!_uploadedImages.length){
+  if(!_uploadedImages.length && !_imgQueue.length){
     grid.innerHTML='<div style="font-size:11px;color:var(--text-3);padding:4px 0">No images yet.</div>';
     if(hint)hint.style.display='none';
     return;
   }
-  if(hint)hint.style.display='';
-  grid.innerHTML=_uploadedImages.map((url,i)=>{
+  if(hint)hint.style.display=_uploadedImages.length?'':'none';
+  const doneHtml=_uploadedImages.map((url,i)=>{
     const orderLabel=i===0?'Cover':'#'+(i+1);
     const firstCls=i===0?' img-first':'';
     return`<div class="img-thumb${firstCls}" draggable="true"
@@ -4659,6 +4718,20 @@ function renderImgGrid(){
       <button class="img-x" onclick="event.stopPropagation();removeImg(${i})" title="Remove">×</button>
     </div>`;
   }).join('');
+  const queueHtml=_imgQueue.map(item=>{
+    const isErr=item.status==='error';
+    return`<div class="img-thumb img-pending${isErr?' img-error':''}" title="${esc(item.name)}">
+      <img src="${item.previewUrl}" alt="${esc(item.name)}">
+      <div class="img-pending-overlay">
+        ${isErr
+          ?`<button class="img-retry" onclick="retryImgUpload('${item.id}')" title="Retry upload">↻</button>`
+          :`<div class="img-spinner"></div>`}
+      </div>
+      <span class="img-order">${isErr?'Failed':'Uploading…'}</span>
+      <button class="img-x" onclick="event.stopPropagation();removeQueuedImg('${item.id}')" title="Cancel">×</button>
+    </div>`;
+  }).join('');
+  grid.innerHTML=doneHtml+queueHtml;
 }
 
 function _imgDragStart(e,i){
