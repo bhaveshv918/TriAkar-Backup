@@ -1103,12 +1103,13 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
       <div class="top-logo">TRIAKAR</div>
       <div class="top-badge">Admin</div>
     </div>
-    <div class="top-right">
-      <!-- Global search (Module 7) -->
-      <div style="position:relative">
-        <input type="text" id="globalSearch" placeholder="Search…" autocomplete="off" oninput="globalSearchRun()" onfocus="globalSearchRun()" onkeydown="if(event.key==='Escape')closeGlobalSearch()" style="width:150px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
-        <div id="globalSearchResults" style="display:none;position:absolute;top:115%;right:0;width:320px;max-height:60vh;overflow:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-h);z-index:3000;padding:6px"></div>
+    <div class="top-center">
+      <div style="position:relative;width:100%">
+        <input type="text" id="globalSearch" placeholder="Search orders, products, customers…" autocomplete="off" oninput="globalSearchRun()" onfocus="globalSearchRun()" onkeydown="if(event.key==='Escape')closeGlobalSearch()" style="width:100%;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
+        <div id="globalSearchResults" style="display:none;position:absolute;top:115%;left:0;right:0;max-height:60vh;overflow:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-h);z-index:3000;padding:6px"></div>
       </div>
+    </div>
+    <div class="top-right">
       <!-- Notification center (Module 7) -->
       <div style="position:relative">
         <button class="theme-toggle" onclick="toggleNotifications(event)" title="Notifications" style="position:relative">🔔<span id="notifBadge" style="display:none;position:absolute;top:-3px;right:-3px;background:var(--red);color:#fff;font-size:9px;font-weight:700;min-width:15px;height:15px;line-height:15px;text-align:center;border-radius:8px;padding:0 3px">0</span></button>
@@ -2526,11 +2527,11 @@ function globalSearchRun(){
   (_orders||[]).filter(o=>String(o.invoice_number||'').toLowerCase().includes(q)||String(o.order_id||'').toLowerCase().includes(q)||String(o.customer_name||'').toLowerCase().includes(q)||String(o.customer_email||'').toLowerCase().includes(q)).slice(0,6).forEach(o=>{
     out.push({type:'Order',label:(o.invoice_number||o.order_id||o.id),sub:(o.customer_name||'')+' · ₹'+(o.total_amount||0),act:"switchTab('orders')"});
   });
-  if(!out.length){ box.innerHTML='<div style="padding:10px;color:var(--text-3);font-size:12px">No matches</div>'; box.style.display='block'; return; }
-  box.innerHTML=out.map(r=>'<div onclick="'+r.act+';closeGlobalSearch()" style="padding:7px 9px;border-radius:5px;cursor:pointer;display:flex;gap:8px;align-items:baseline" onmouseover="this.style.background=\'var(--bg-2)\'" onmouseout="this.style.background=\'transparent\'">'
-    +'<span style="font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);min-width:54px">'+r.type+'</span>'
-    +'<span style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(r.label)+'</div>'
-    +'<div style="font-size:10px;color:var(--text-3);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(r.sub||'')+'</div></span></div>').join('');
+  if(!out.length){ box.innerHTML='<div class="gs-empty">No matches</div>'; box.style.display='block'; return; }
+  box.innerHTML=out.map(r=>'<div class="gs-item" onclick="'+r.act+';closeGlobalSearch()">'
+    +'<span class="gs-type">'+r.type+'</span>'
+    +'<span class="gs-main"><span class="gs-label">'+esc(r.label)+'</span>'
+    +'<span class="gs-sub">'+esc(r.sub||'')+'</span></span></div>').join('');
   box.style.display='block';
 }
 function closeGlobalSearch(){ const b=document.getElementById('globalSearchResults'); if(b)b.style.display='none'; const i=document.getElementById('globalSearch'); if(i)i.value=''; }
@@ -5126,8 +5127,14 @@ function renderUserModal(u,orders,stats,addr){
   addr=addr||{};
   const fld=(label,id,val,type)=>'<label style="display:block;margin-bottom:10px"><span style="display:block;font-size:11px;color:var(--text-3);margin-bottom:4px">'+label+'</span>'
     +'<input id="'+id+'" type="'+(type||'text')+'" value="'+esc(val==null?'':val)+'" style="width:100%;padding:8px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:13px;border-radius:var(--radius)"></label>';
-  const roleSel='<select id="umRole" style="padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">'
+  const roleSel='<select id="umRole" onchange="document.getElementById(\'umBizTabs\').style.display=this.value===\'staff\'?\'block\':\'none\'" style="padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">'
     +['customer','staff','admin'].map(r=>'<option value="'+r+'"'+((u.role||'customer')===r?' selected':'')+'>'+r+'</option>').join('')+'</select>';
+  const bizTabsChecked=Array.isArray(u.biz_tabs)?u.biz_tabs:[];
+  const bizTabsPicker='<div id="umBizTabs" style="display:'+((u.role||'customer')==='staff'?'block':'none')+';margin-top:14px;padding:14px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius)">'
+    +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:8px">Business OS tabs this staff account can access</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px 10px">'
+    +BIZ_TAB_LIST.map(([k,name])=>'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" class="umBizTabCb" value="'+k+'" '+(bizTabsChecked.includes(k)?'checked':'')+'> '+esc(name)+'</label>').join('')
+    +'</div></div>';
   const statusPill=u.disabled
     ?'<span style="font-size:11px;font-weight:600;color:#fca5a5;background:#7f1d1d;padding:3px 10px;border-radius:20px">Disabled</span>'
     :'<span style="font-size:11px;font-weight:600;color:var(--green);background:rgba(34,197,94,.12);padding:3px 10px;border-radius:20px">Active</span>';
@@ -5145,6 +5152,7 @@ function renderUserModal(u,orders,stats,addr){
       +'<div style="text-align:right">'+statusPill+'<div style="margin-top:8px;display:flex;gap:6px;align-items:center"><span style="font-size:11px;color:var(--text-3)">Role</span>'+roleSel
         +' <button class="btn-secondary" style="padding:5px 10px" onclick="saveUserRole()">Set</button></div></div>'
     +'</div>'
+    +bizTabsPicker
     +'<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px">'
       +'<div style="flex:1;min-width:90px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px"><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">Orders</div><div style="font-size:18px;font-weight:700">'+(stats.orders_count||0)+'</div></div>'
       +'<div style="flex:1;min-width:90px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px"><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">Total spent</div><div style="font-size:18px;font-weight:700;color:var(--green)">'+fmtPrice(stats.total_spent||0)+'</div></div>'
@@ -5210,12 +5218,26 @@ async function toggleUserDisabled(disabled){
     openUserModal(_editingUserId); loadCustomers();
   }catch(e){ toast('Error: '+e.message,'error'); }
 }
+// Every Business OS sidebar tab (admin-biz.html) — kept in sync manually since the two
+// panels are separate files. Staff accounts can only be granted access to these tabs,
+// never to the Admin Panel itself (that stays the hardcoded owner-email allowlist).
+const BIZ_TAB_LIST=[
+  ['openorders','Open Orders'],['dashboard','Dashboard'],['quickadd','Add Sale'],['sales','All Sales'],
+  ['import','Import'],['labels','Labels'],['customers','Customers'],['products','Products & Costs'],
+  ['stock','Stock'],['spooltracker','Spool Tracker'],['returns','Returns & Claims'],['fees','Fees & Costs'],
+  ['gst','GST Summary'],['reports','Reports & Export'],['expenses','Expenses'],['ledger','Money In/Out'],
+  ['purchases','Purchases'],['balance','Balance Sheet'],['shoplog','Shop Hours'],['activity','Activity Log'],
+  ['settings','Settings'],
+];
 async function saveUserRole(){
   if(!_editingUserId)return;
   const role=document.getElementById('umRole').value;
+  const body={role};
+  if(role==='staff') body.biz_tabs=[...document.querySelectorAll('.umBizTabCb:checked')].map(c=>c.value);
   try{
-    await adminApi('/api/admin/users/'+_editingUserId+'/role',{method:'PUT',body:JSON.stringify({role})});
-    toast('Role set to '+role,'success'); loadCustomers();
+    await adminApi('/api/admin/users/'+_editingUserId+'/role',{method:'PUT',body:JSON.stringify(body)});
+    toast('Role set to '+role+(body.biz_tabs?' ('+body.biz_tabs.length+' tab'+(body.biz_tabs.length===1?'':'s')+')':''),'success');
+    loadCustomers();
   }catch(e){ toast('Error: '+e.message,'error'); }
 }
 async function softDeleteUserAdmin(){

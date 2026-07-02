@@ -290,22 +290,83 @@ html[data-theme="dark"] .mtopbar{box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .biz-tb-search input{padding:8px 16px}
 #globalSearch{padding:7px 14px}
 
-/* Panel-switch — quiet outline pill instead of a solid orange block */
-.top-btn-biz,.biz-tb-btn,.mtopbar-admin-btn{
-  background:transparent;color:var(--tri-orange);
-  border:1px solid rgba(196,98,42,.35);border-radius:999px;
-  font-weight:600;box-shadow:none;
+/* Header buttons — ONE quiet pill style for every control in both
+   panels (Business OS switch no longer looks selected) */
+.top-btn,.top-btn-biz,.biz-tb-btn,.mtopbar-admin-btn{
+  font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+  text-transform:uppercase;font-weight:600;
+  background:transparent;color:var(--text-secondary);
+  border:1px solid var(--border-c);border-radius:999px;
+  padding:6px 12px;box-shadow:none;
 }
-.top-btn-biz:hover,.biz-tb-btn:hover,.mtopbar-admin-btn:hover{
-  background:var(--tri-orange-dim);color:var(--tri-orange);
-  border-color:var(--tri-orange);
+.top-btn:hover,.top-btn-biz:hover,.biz-tb-btn:hover,.mtopbar-admin-btn:hover{
+  background:var(--surface-3);color:var(--text-primary);
+  border-color:var(--border-strong);
 }
-.top-btn{border-radius:999px}
-.biz-tb-icon{border-radius:999px}
+.biz-tb-icon{
+  border-radius:999px;background:transparent;
+  border:1px solid var(--border-c);color:var(--text-secondary);
+}
+.biz-tb-icon:hover{border-color:var(--border-strong);color:var(--text-primary)}
 
 /* Online indicator — smaller, calmer */
 .top-status{font-size:9px;letter-spacing:.04em}
 .top-status .pulse{width:5px;height:5px}
+
+/* ── 21 · HEADER PARITY + GLOBAL SEARCH (both panels) ─────────── */
+/* Business OS shell — header spans the FULL width (Admin structure:
+   topbar on top, sidebar + content in a row below) */
+@media(min-width:769px){
+  .shell{flex-direction:column}
+  .biz-body{display:flex;flex:1;min-height:0}
+  .biz-body .sidebar{height:auto}
+  .sb-header{display:none}   /* brand + controls now live in the topbar */
+}
+@media(max-width:768px){
+  .biz-body{display:flex;flex-direction:column;flex:1;min-height:0}
+}
+
+/* Admin — search sits centered like Business OS */
+.top-center{flex:1;display:flex;justify-content:center;min-width:0;padding:0 16px}
+.top-center>div{width:100%;max-width:440px}
+#globalSearch:focus{width:100%!important}
+@media(max-width:768px){.top-center{display:none}}
+
+/* Search-results dropdown — one design system for both panels */
+#globalSearchResults,#bizSearchResults{
+  padding:5px!important;border-radius:12px!important;
+  border:1px solid var(--border-c)!important;
+  background:rgba(255,255,255,.94)!important;
+  backdrop-filter:blur(16px) saturate(1.4);-webkit-backdrop-filter:blur(16px) saturate(1.4);
+  box-shadow:var(--shadow-lg)!important;
+}
+html[data-theme="dark"] #globalSearchResults,
+html[data-theme="dark"] #bizSearchResults{
+  background:rgba(22,22,20,.94)!important;
+  border-color:rgba(255,255,255,.08)!important;
+}
+.gs-item{
+  display:flex;gap:10px;align-items:center;
+  padding:8px 10px;border-radius:8px;cursor:pointer;
+  transition:background .12s ease;
+}
+.gs-item:hover{background:var(--tri-orange-dim)}
+.gs-type{
+  font-size:9px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;
+  color:var(--tri-orange);background:var(--tri-orange-dim);
+  padding:2px 8px;border-radius:999px;flex-shrink:0;
+  min-width:62px;text-align:center;
+}
+.gs-main{flex:1;min-width:0}
+.gs-label{
+  display:block;font-size:12.5px;font-weight:600;color:var(--text-primary);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.gs-sub{
+  display:block;font-size:10.5px;color:var(--text-muted);font-family:var(--mono);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.gs-empty{padding:14px;color:var(--text-muted);font-size:12px;text-align:center}
 
 /* ── 30 · ADMIN DASHBOARD ─────────────────────────────────────── */
 .dash-widget{

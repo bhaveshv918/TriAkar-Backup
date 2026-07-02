@@ -2588,9 +2588,23 @@ function chHtml(id){
 }
 
 // ── Auth ────────────────────────────────────────────────────
+// Staff accounts (role='staff' on profiles, with a biz_tabs allow-list) can log into
+// Business OS only — never admin.html. Tab visibility is enforced client-side below;
+// the actual data-access boundary is RLS (any staff role gets the same table access as
+// the owner — see 20260703_biz_staff_access.sql for why tab-level RLS wasn't built).
+let _isStaffUser=false, _staffTabs=null;
+async function checkBizAccess(user){
+  if(!user) return false;
+  if(user.email===ADMIN_EMAIL){ _isStaffUser=false; _staffTabs=null; return true; }
+  const {data:profile}=await sb.from('profiles').select('role,biz_tabs').eq('id',user.id).maybeSingle();
+  if(profile && profile.role==='staff' && Array.isArray(profile.biz_tabs) && profile.biz_tabs.length){
+    _isStaffUser=true; _staffTabs=profile.biz_tabs; return true;
+  }
+  return false;
+}
 async function initAuth(){
   const { data:{ session } } = await sb.auth.getSession();
-  if(session && session.user.email === ADMIN_EMAIL){
+  if(session && await checkBizAccess(session.user)){
     startApp();
   } else {
     showBizLogin();
@@ -2616,8 +2630,8 @@ async function bizLogin(e){
   err.textContent=''; btn.disabled=true; btn.textContent='Signing in…';
   const { data, error } = await sb.auth.signInWithPassword({ email, password:pass });
   if(error){ err.textContent=error.message; btn.disabled=false; btn.textContent='Sign in'; return; }
-  if(!data?.user || data.user.email !== ADMIN_EMAIL){
-    err.textContent='This account is not authorised.';
+  if(!await checkBizAccess(data?.user)){
+    err.textContent='This account is not authorised for Business OS.';
     await sb.auth.signOut(); btn.disabled=false; btn.textContent='Sign in'; return;
   }
   document.getElementById('bizLoginForm').style.display='none';
@@ -2625,11 +2639,29 @@ async function bizLogin(e){
   startApp();
 }
 
+// Hide sidebar tabs a staff account isn't permitted, and land on the first tab they
+// actually have instead of Open Orders if that's not one of them.
+function applyStaffTabRestrictions(){
+  if(!_isStaffUser||!_staffTabs) return;
+  document.querySelectorAll('.tab[data-tab]').forEach(btn=>{
+    if(!_staffTabs.includes(btn.dataset.tab)) btn.style.display='none';
+  });
+  document.querySelectorAll('.sidebar-section').forEach(sec=>{
+    let n=sec.nextElementSibling, anyVisible=false;
+    while(n&&!n.classList.contains('sidebar-section')){ if(n.classList.contains('tab')&&n.style.display!=='none') anyVisible=true; n=n.nextElementSibling; }
+    sec.style.display=anyVisible?'':'none';
+  });
+  if(!_staffTabs.includes(_curBizTab)){
+    const first=_staffTabs[0]; if(first) switchTab(first);
+  }
+}
+
 // Boot the app once authenticated
 async function startApp(){
   document.getElementById('authOverlay').style.display = 'none';
   document.getElementById('shell').style.display = 'flex';
   restoreBizSidebar();
+  applyStaffTabRestrictions();
   applyDashWidgets();
   loadBizSettings();
   await Promise.all([loadProducts(), initDashMonths()]);
@@ -2655,6 +2687,7 @@ function logBizActivity(action, entity, entityId, detail){
   }catch(_){}
 }
 function switchTab(name){
+  if(_isStaffUser&&_staffTabs&&!_staffTabs.includes(name)) return;   // defense-in-depth — sidebar already hides these
   _curBizTab=name;
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel'+name.charAt(0).toUpperCase()+name.slice(1)));
