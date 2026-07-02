@@ -214,7 +214,10 @@ window._FOOTER_HTML = `<footer>
 
   function build(){
     var p=location.pathname.replace(/\/$/,'');
-    if(p!==''&&p!=='/index.html'&&!p.endsWith('/index.html'))return;
+    if(p!==''&&p!=='/index.html'&&!p.endsWith('/index.html')){
+      document.documentElement.style.setProperty('--notice-h','0px');
+      return;
+    }
     if(document.getElementById('taTopbar'))return;
     var bar=document.createElement('div');
     bar.id='taTopbar';bar.className='ta-topbar';
