@@ -291,35 +291,43 @@ tr:hover td{background:var(--bg-2)}
 #toast.success{border-color:rgba(74,222,128,.3);color:var(--green)}
 #toast.error{border-color:rgba(248,113,113,.3);color:var(--red)}
 
-/* ── Mobile — top bar + slide-in drawer (no bottom nav) ─────── */
-.mtopbar{display:none}
-/* Round-2 #4.1 — Business OS desktop top header (parity with Admin) */
-.biz-topbar{display:none}
+/* ── Top header — ONE responsive element at every width ───────
+   (Round-2 #4.1 desktop header, later unified with what used to be a
+   separate, hand-maintained mobile-only .mtopbar — that split left
+   search/notifications/sign-out unreachable on phones.) ───────── */
+.biz-topbar{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:60;
+  background:var(--bg-1);border-bottom:1px solid var(--border);border-top:3px solid var(--accent);
+  padding:9px 18px;box-shadow:var(--shadow)}
+.biz-tb-brand{font-weight:700;font-size:13px;color:var(--text);white-space:nowrap}
+.biz-tb-brand span{color:var(--text-3);font-weight:500}
+.biz-tb-search{flex:1;max-width:440px;position:relative}
+.biz-tb-search input{width:100%;padding:7px 11px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;outline:none}
+.biz-tb-search input:focus{border-color:var(--accent)}
+.biz-tb-icon{background:var(--bg-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);width:32px;height:32px;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0}
+.biz-tb-icon:hover{border-color:var(--accent)}
+.biz-tb-btn{background:var(--bg-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);padding:7px 12px;font-size:12px;cursor:pointer;text-decoration:none;white-space:nowrap;flex-shrink:0}
+.biz-tb-btn:hover{border-color:var(--accent)}
+/* Hamburger — mobile-only twin of the desktop collapse button, same
+   pairing pattern as Admin's .nav-toggle / .sb-collapse */
+.biz-tb-hamburger{display:none;font-size:18px}
 @media(min-width:769px){
-  .biz-topbar{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:60;
-    background:var(--bg-1);border-bottom:1px solid var(--border);border-top:3px solid var(--accent);
-    padding:9px 18px;box-shadow:var(--shadow)}
-  .biz-tb-brand{font-weight:700;font-size:13px;color:var(--text);white-space:nowrap}
-  .biz-tb-brand span{color:var(--text-3);font-weight:500}
-  .biz-tb-search{flex:1;max-width:440px;position:relative}
-  .biz-tb-search input{width:100%;padding:7px 11px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;outline:none}
-  .biz-tb-search input:focus{border-color:var(--accent)}
-  .biz-tb-icon{background:var(--bg-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);width:32px;height:32px;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1}
-  .biz-tb-icon:hover{border-color:var(--accent)}
-  .biz-tb-btn{background:var(--bg-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);padding:7px 12px;font-size:12px;cursor:pointer;text-decoration:none;white-space:nowrap}
-  .biz-tb-btn:hover{border-color:var(--accent)}
   /* top bar owns these on desktop — hide the now-duplicate sidebar copies */
   .sb-header #bizSearch,.sb-header .sb-back,.sb-header #bizThemeToggle,.sb-header #bizSidebarRefresh{display:none}
 }
 @media(max-width:768px){
   .shell{flex-direction:column}
 
-  /* Fixed top bar with hamburger */
-  .mtopbar{display:flex;align-items:center;gap:12px;position:fixed;top:0;left:0;right:0;height:52px;
-    background:var(--bg-1);border-bottom:1px solid var(--border);border-top:3px solid var(--accent);z-index:240;padding:0 14px;box-shadow:var(--shadow)}
-  .mtopbar-btn{background:none;border:none;font-size:22px;color:var(--text);cursor:pointer;line-height:1;padding:4px 6px;flex-shrink:0}
-  .mtopbar-title{font-size:13px;font-weight:700;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .mtopbar-admin-btn{flex-shrink:0;font-size:11px;font-weight:700;color:var(--accent);text-decoration:none;padding:5px 10px;border:1px solid rgba(196,98,42,.35);border-radius:8px;white-space:nowrap;background:var(--accent-bg);letter-spacing:.02em}
+  /* Top bar becomes fixed + compresses — drop space-hungry bits,
+     matching Admin's own mobile top-bar treatment */
+  .biz-topbar{position:fixed;top:0;left:0;right:0;height:52px;z-index:240;padding:0 14px;gap:8px}
+  .biz-tb-hamburger{display:inline-flex!important}
+  .biz-tb-collapse{display:none!important}
+  .biz-tb-brand span{display:none}
+  .biz-tb-search{display:none}
+  #privacyBtn{display:none}
+  .biz-tb-btn{padding:5px 8px;font-size:9px}
+  .biz-tb-admin-link{font-size:0;padding:6px 9px}
+  .biz-tb-admin-link::before{content:"◳";font-size:15px;line-height:1}
 
   /* Sidebar → slide-in drawer below the top bar */
   .sidebar{
@@ -636,19 +644,15 @@ html[data-theme="dark"] .biz-login{
 <!-- ── Shell ────────────────────────────────────────────── -->
 <div class="shell" id="shell" style="display:none">
 
-  <!-- Mobile top bar (hamburger) -->
-  <div class="mtopbar">
-    <button class="mtopbar-btn" onclick="toggleNav()" aria-label="Menu">☰</button>
-    <div class="mtopbar-title">TriĀkar · Business OS</div>
-    <button class="mtopbar-btn" onclick="refreshCurrentBizTab()" aria-label="Refresh" style="margin-left:auto">⟳</button>
-    <button class="mtopbar-btn" id="bizThemeToggleM" onclick="toggleTheme()" aria-label="Toggle theme">🌙</button>
-    <a href="/admin.html" class="mtopbar-admin-btn" title="Open Admin Panel">← Admin</a>
-  </div>
   <div class="nav-backdrop" id="navBackdrop" onclick="toggleNav(false)"></div>
 
-  <!-- Desktop top header — full width, same system as the Admin Panel -->
+  <!-- Top header — full width, same responsive system as the Admin Panel.
+       One element at every width: compresses on mobile instead of being
+       replaced by a second, hand-maintained bar (that used to leave search/
+       notifications/sign-out unreachable on phones). -->
   <div class="biz-topbar">
-    <button class="biz-tb-icon" onclick="toggleBizSidebar()" title="Collapse / expand sidebar">‹‹</button>
+    <button class="biz-tb-icon biz-tb-hamburger" onclick="toggleNav()" aria-label="Menu">☰</button>
+    <button class="biz-tb-icon biz-tb-collapse" onclick="toggleBizSidebar()" title="Collapse / expand sidebar">‹‹</button>
     <div class="biz-tb-brand">TriĀkar <span>· Business OS</span></div>
     <div class="biz-tb-search">
       <input type="text" id="bizSearchTop" placeholder="Search sales, products, customers…" oninput="bizGlobalSearch(this.value)" onkeydown="if(event.key==='Escape')closeBizSearch()" autocomplete="off">
@@ -662,7 +666,7 @@ html[data-theme="dark"] .biz-login{
     <button class="biz-tb-icon" onclick="refreshCurrentBizTab()" title="Refresh current tab">⟳</button>
     <button class="biz-tb-icon" id="privacyBtn" onclick="togglePrivacyMode()" title="Hide sensitive values">👁</button>
     <button class="biz-tb-icon" onclick="toggleTheme()" title="Toggle dark / light">🌙</button>
-    <a href="/admin.html" class="biz-tb-btn" title="Open Admin Panel">◳ Admin</a>
+    <a href="/admin.html" class="biz-tb-btn biz-tb-admin-link" title="Open Admin Panel">◳ Admin</a>
     <a href="/index.html" class="biz-tb-btn">← Site</a>
     <button class="biz-tb-btn" onclick="bizLogout()">Sign Out</button>
   </div>
@@ -2539,6 +2543,23 @@ function fmtD(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumF
 function today(){ return new Date().toISOString().split('T')[0]; }
 function thisMonth(){ return new Date().toISOString().slice(0,7); }
 
+// Click-anywhere-in-row-to-select: once at least one row in this table is checked
+// (selection mode), clicking anywhere else in a row toggles that row's own checkbox
+// instead of running the row's normal click action (open detail / edit / etc). Scoped
+// to the row's own tbody so tables sharing a checkbox class (e.g. row-check across
+// several admin.html tables) don't cross-trigger each other. Real controls (buttons,
+// dropdowns, links, inputs) inside the row keep working normally either way.
+function rowSelectOrAction(e,cbClass,action){
+  if(e.target.closest('input,select,button,a,textarea,label')) return;
+  const tr=e.currentTarget;
+  const cb=tr.querySelector('.'+cbClass);
+  if(!cb){ if(action) action(); return; }
+  const scope=tr.closest('tbody')||document;
+  const anyChecked=!!scope.querySelector('.'+cbClass+':checked');
+  if(anyChecked){ cb.checked=!cb.checked; cb.dispatchEvent(new Event('change',{bubbles:true})); }
+  else if(action) action();
+}
+
 // ── Privacy mode — masks ₹ / numeric values with •••••• on every tab ──
 const PRIVACY_KEY='biz_privacy_mode';
 const PRIVACY_SELECTOR='.kpi-val,.td-num,.amt';
@@ -4146,7 +4167,7 @@ async function loadSales(){
       ? `<img src="${esc(prodImg)}" alt="" style="width:28px;height:28px;border-radius:5px;object-fit:cover;flex-shrink:0;vertical-align:middle;margin-right:7px" onerror="this.style.display='none'">`
       : `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:5px;background:var(--bg-3);color:var(--text-3);font-size:10px;flex-shrink:0;vertical-align:middle;margin-right:7px">—</span>`;
     const itemCol=thumb+(items.length===1?esc(f.product_name):`${esc(f.product_name)} <span style="color:var(--text-3);font-size:10px">+${items.length-1} more · ${items.length} items</span>`);
-    return `<tr class="sale-row" onclick="openOrderDetail('${key}',event)" style="cursor:pointer;${allPaid?'opacity:.78':''}">
+    return `<tr class="sale-row" onclick="rowSelectOrAction(event,'sale-cb',()=>openOrderDetail('${key}',event))" style="cursor:pointer;${allPaid?'opacity:.78':''}">
       <td><input type="checkbox" class="sale-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateBulkBar()"></td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${idx+1}</td>
       <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(f.order_date)}</td>
@@ -4828,7 +4849,7 @@ function renderSpoolTracker(){
     const badgeClass=SPOOL_BADGE[r.status]||'badge-pending';
     const pct=spoolPct(r);
     const barColor=pct<20?'var(--red)':pct<50?'var(--yellow)':'var(--green)';
-    return `<tr style="${r.status==='Finsh'?'opacity:.6':''}">
+    return `<tr onclick="rowSelectOrAction(event,'spool-cb',null)" style="cursor:pointer;${r.status==='Finsh'?'opacity:.6':''}">
       <td><input type="checkbox" class="spool-cb" data-id="${r.id}" onchange="updateSpoolBulkBar()"></td>
       <td>${r.s_no}</td>
       <td>${esc(r.brand)}<br><span style="font-size:11px;color:var(--text-3)">${esc(r.filament_type||'')}${r.finish?' · '+esc(r.finish):''}</span></td>
@@ -6723,14 +6744,23 @@ document.addEventListener('keydown',function(ev){
   if(od&&od.style.display!=='none'){closeOrderDetail();return;}
   var cm=document.getElementById('customerModal');
   if(cm&&cm.style.display!=='none'){closeCustomerModal();return;}
-  var forms=['productForm','stockForm','returnForm','spoolForm','spoolAddForm','expenseForm'];
+  var dd=document.getElementById('dashDrilldown');
+  if(dd&&dd.style.display!=='none'){closeDashDrilldown();return;}
+  // Esc = universal back/close — every inline "display:none" toggle form in Business OS,
+  // not just the ones from the first pass (incomeForm/purchaseForm/shopLogForm were
+  // missing entirely; Esc silently did nothing for them before).
+  var forms=['productForm','stockForm','returnForm','spoolForm','spoolAddForm','expenseForm','incomeForm','purchaseForm','shopLogForm'];
   for(var i=0;i<forms.length;i++){var f=document.getElementById(forms[i]);if(f&&f.style.display!=='none'){f.style.display='none';return;}}
   var dc=document.getElementById('dashCustomize');
   if(dc&&dc.style.display!=='none'){dc.style.display='none';return;}
   var spc=document.getElementById('spoolCustomize');
   if(spc&&spc.style.display!=='none'){spc.style.display='none';return;}
+  var bnd=document.getElementById('bizNotifDropdown');
+  if(bnd&&bnd.style.display==='block'){bnd.style.display='none';return;}
   var bs=document.getElementById('bizSearchResults');
-  if(bs&&bs.style.display!=='none'){closeBizSearch();}
+  if(bs&&bs.style.display!=='none'){closeBizSearch();return;}
+  var sbEl=document.querySelector('.sidebar');
+  if(sbEl&&sbEl.classList.contains('open')){toggleNav(false);}
 });
 
 function setLblPlatform(v){

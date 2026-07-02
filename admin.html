@@ -2160,6 +2160,23 @@ const API=(location.hostname==='localhost')?'http://localhost:3000':'https://tri
 // ── Global HTML escape helper ──────────────────────────────
 function esc(s){return(s===null||s===undefined)?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
+// Click-anywhere-in-row-to-select: once at least one row in this table is checked
+// (selection mode), clicking anywhere else in a row toggles that row's own checkbox
+// instead of running the row's normal click action. Scoped to the row's own tbody so
+// tables sharing a checkbox class (row-check is reused across Callbacks/Orders/
+// Messages/Enquiries) don't cross-trigger each other. Real controls (buttons,
+// dropdowns, links, inputs) inside the row keep working normally either way.
+function rowSelectOrAction(e,cbClass,action){
+  if(e.target.closest('input,select,button,a,textarea,label')) return;
+  const tr=e.currentTarget;
+  const cb=tr.querySelector('.'+cbClass);
+  if(!cb){ if(action) action(); return; }
+  const scope=tr.closest('tbody')||document;
+  const anyChecked=!!scope.querySelector('.'+cbClass+':checked');
+  if(anyChecked){ cb.checked=!cb.checked; cb.dispatchEvent(new Event('change',{bubbles:true})); }
+  else if(action) action();
+}
+
 // ── State ──────────────────────────────────────────────────
 let _products=[],_orders=[],_categories=[],_uploadedImages=[],_variants=[],_custFields=[],_dropdowns=[],_bulletPoints=[];
 let _imgQueue=[]; // in-flight image uploads: {id,name,previewUrl,status:'uploading'|'error',file}
@@ -2610,7 +2627,11 @@ document.addEventListener('keydown',function(ev){
   var gs=document.getElementById('globalSearchResults');
   if(gs&&gs.style.display!=='none'){closeGlobalSearch();return;}
   var nd=document.getElementById('notifDropdown');
-  if(nd&&nd.style.display==='block'){nd.style.display='none';}
+  if(nd&&nd.style.display==='block'){nd.style.display='none';return;}
+  var rm=document.getElementById('recordModal');
+  if(rm&&rm.style.display!=='none'){rm.style.display='none';return;}
+  var sbEl=document.querySelector('.sidebar');
+  if(sbEl&&sbEl.classList.contains('open')){closeAdminNav();}
 });
 setInterval(refreshNotifBadge, 20000);
 
@@ -3299,7 +3320,7 @@ function renderOrders(orders){
     const waBadge=isWAOrder?'<span style="display:inline-block;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:3px;background:#25D366;color:#fff;margin-left:5px;vertical-align:middle">WA</span>':'';
     const payStatusLabel=isPaid?'<span style="color:var(--green);font-weight:600">Received</span>':isAdv?'<span style="color:var(--yellow);font-weight:600">Advance</span>':'<span style="color:var(--text-3)">Pending</span>';
 
-    return '<tr onclick="openOrderModal(\''+o.id+'\')" style="cursor:pointer">'
+    return '<tr onclick="rowSelectOrAction(event,\'row-check\',()=>openOrderModal(\''+o.id+'\'))" style="cursor:pointer">'
       +'<td onclick="event.stopPropagation()"><input type="checkbox" class="row-check" data-id="'+o.id+'"></td>'
       +'<td><span class="om-open-btn" title="View detail">⊙</span></td>'
       +'<td class="td-name" style="font-family:var(--mono);font-size:12px">'+inv+waBadge+trackTag+'</td>'
@@ -3681,7 +3702,7 @@ function renderProductsTable(){
         ?'<span style="display:inline-block;background:var(--accent);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:3px;cursor:pointer" title="Click to remove from homepage" onclick="quickToggleHomepage(\''+p.id+'\','+hp+')">★ #'+hp+'</span>'
         :'<span style="font-size:11px;color:var(--text-3);cursor:pointer" title="Click to add to homepage" onclick="quickToggleHomepage(\''+p.id+'\',null)">+</span>')
       +'</td>';
-    return '<tr>'
+    return '<tr onclick="rowSelectOrAction(event,\'prod-check\',null)">'
       +'<td style="text-align:center"><input type="checkbox" class="prod-check" data-id="'+p.id+'" onchange="updateBulkBar()"></td>'
       +'<td>'+img+'</td>'
       +'<td class="td-name">'+p.name+'<div style="font-family:var(--mono);font-size:10px;color:var(--text-3);margin-top:2px">/'+p.slug+'</div>'+licFlag+'</td>'
@@ -5315,7 +5336,7 @@ function renderMessages(list){
     const rowStyle=read?'':'style="background:rgba(196,98,42,.04)"';
     let ref=m.reference_id||'';
     if(!ref){const mm=(m.message||'').match(/Reference No:\s*(\d{6,})/);if(mm)ref=mm[1];}
-    return '<tr '+rowStyle+'>'
+    return '<tr onclick="rowSelectOrAction(event,\'row-check\',null)" '+rowStyle+'>'
       +'<td><input type="checkbox" class="row-check" data-id="'+m.id+'"></td>'
       +'<td><span class="src-badge src-contact">Contact</span></td>'
       +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(m.created_at)+'</td>'
@@ -5418,7 +5439,7 @@ function renderCustomEnquiries(list){
     const badge=read?'<span class="badge badge-green">Read</span>':'<span class="badge badge-yellow">New</span>';
     const rowStyle=read?'':'style="background:rgba(196,98,42,.04)"';
     const need=e.what_needed||'—';
-    return '<tr '+rowStyle+'>'
+    return '<tr onclick="rowSelectOrAction(event,\'row-check\',null)" '+rowStyle+'>'
       +'<td><input type="checkbox" class="row-check" data-id="'+e.id+'"></td>'
       +'<td><span class="src-badge src-custom">Custom Order</span></td>'
       +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+esc(e.reference_id||'—')+'</td>'
@@ -5489,7 +5510,7 @@ function renderCallbacks(list){
     const action=called
       ?'<span style="color:var(--text-3);font-family:var(--mono);font-size:10px">—</span>'
       :'<button class="btn-sm" onclick="markCallbackCalled(\''+c.id+'\')">Mark as Called</button>';
-    return '<tr '+rowStyle+'>'
+    return '<tr onclick="rowSelectOrAction(event,\'row-check\',null)" '+rowStyle+'>'
       +'<td><input type="checkbox" class="row-check" data-id="'+c.id+'"></td>'
       +'<td><span class="src-badge src-callback">Callback</span></td>'
       +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+esc(c.reference_id||'—')+'</td>'
@@ -5601,7 +5622,7 @@ function renderRecycleBin(rows){
   tbody.innerHTML=rows.map(item=>{
     const {src,row}=item;
     const cid=src.key+'|'+row.id;
-    return '<tr>'
+    return '<tr onclick="rowSelectOrAction(event,\'bin-check\',null)">'
       +'<td><input type="checkbox" class="bin-check" data-cid="'+esc(cid)+'"></td>'
       +'<td><span class="src-badge '+(src.badge||'')+'">'+esc(src.label)+'</span></td>'
       +'<td style="font-family:var(--mono);font-size:11px">'+esc(src.ref(row))+'</td>'
