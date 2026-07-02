@@ -1914,10 +1914,15 @@ html[data-theme="dark"] .biz-login{
         </div>
       </div>
 
+      <!-- Bulk action bar — shown only when rolls are selected -->
+      <div id="filBulkBar" style="display:none;background:var(--accent);color:#fff;border-radius:7px;padding:10px 16px;margin-bottom:10px;align-items:center;gap:10px;flex-wrap:wrap">
+        <span id="filBulkCount" style="font-size:12px;font-weight:700;margin-right:4px">0 selected</span>
+        <button class="btn btn-sm" onclick="bulkDeleteRolls()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2)">🗑 Delete Selected</button>
+      </div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Colour</th><th>Material</th><th>Supplier</th><th>Company</th><th class="td-num">Total</th><th class="td-num">Used</th><th class="td-num">Remaining</th><th>Status</th><th class="td-actions"></th></tr></thead>
-          <tbody id="filamentBody"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+          <thead><tr><th style="width:30px"><input type="checkbox" onclick="toggleSelectAllFilament(this)"></th><th>Colour</th><th>Material</th><th>Supplier</th><th>Company</th><th class="td-num">Total</th><th class="td-num">Used</th><th class="td-num">Remaining</th><th>Status</th><th class="td-actions"></th></tr></thead>
+          <tbody id="filamentBody"><tr><td colspan="9" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
 
@@ -4410,11 +4415,12 @@ function renderFilament(){
   renderFilamentAlert();
   const tbody=document.getElementById('filamentBody');
   if(tbody){
-    if(!rolls.length){ tbody.innerHTML=`<tr><td colspan="9"><div class="empty"><div class="em-text">No rolls yet</div></div></td></tr>`; }
+    if(!rolls.length){ tbody.innerHTML=`<tr><td colspan="10"><div class="empty"><div class="em-text">No rolls yet</div></div></td></tr>`; }
     else tbody.innerHTML=rolls.map(r=>{
       const rem=Math.max(0,(parseFloat(r.total_grams)||0)-(parseFloat(r.grams_used)||0));
       const low=r.status==='active'&&rem<150;
       return `<tr style="${r.status!=='active'?'opacity:.6':''}">
+        <td><input type="checkbox" class="roll-cb" data-id="${r.id}" onchange="updateFilamentBulkBar()"></td>
         <td>${esc(r.color)}${r.is_running?' <span class="badge" style="background:var(--accent-bg);color:var(--accent)">running</span>':''}</td>
         <td>${esc(r.material||'')}</td>
         <td style="font-size:11px;color:var(--text-3)">${esc(r.supplier||'—')}</td>
@@ -4431,7 +4437,29 @@ function renderFilament(){
       </tr>`;
     }).join('');
   }
+  updateFilamentBulkBar();   // re-render clears any previously checked rows
   renderFilamentMonthly();
+}
+function getSelectedRollIds(){
+  return [...document.querySelectorAll('.roll-cb:checked')].map(c=>c.dataset.id);
+}
+function updateFilamentBulkBar(){
+  const n=getSelectedRollIds().length;
+  const bar=document.getElementById('filBulkBar');
+  if(bar) bar.style.display=n>0?'flex':'none';
+  const cnt=document.getElementById('filBulkCount'); if(cnt) cnt.textContent=n+' selected';
+}
+function toggleSelectAllFilament(cb){
+  document.querySelectorAll('.roll-cb').forEach(c=>c.checked=cb.checked);
+  updateFilamentBulkBar();
+}
+async function bulkDeleteRolls(){
+  const ids=getSelectedRollIds(); if(!ids.length) return;
+  if(!confirm('Delete '+ids.length+' roll(s)? Sales already linked to them keep their grams-used history, just lose the roll link.')) return;
+  const {error}=await sb.from('biz_filament_rolls').delete().in('id',ids);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  logBizActivity('delete','roll',null,ids.length+' roll(s) bulk deleted');
+  toast(ids.length+' roll(s) deleted'); loadFilament();
 }
 function renderFilamentAlert(){
   const el=document.getElementById('filReorderAlert'); if(!el) return;
