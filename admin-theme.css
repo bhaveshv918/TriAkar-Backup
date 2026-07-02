@@ -248,8 +248,47 @@ html[data-theme="dark"] .sidebar{box-shadow:2px 0 8px rgba(0,0,0,.25)}
 .sb-logo{color:var(--text-muted)}
 .sb-title{color:var(--text-primary)}
 
-/* Collapsed state — icons centered, tints preserved */
+/* Collapsed state — icons centered, tints preserved, one shared size
+   between both panels (a touch bigger so the dock-hover pop reads well) */
 .shell.sb-collapsed .tab,body.sb-collapsed .tab{margin:1px 6px;border-radius:8px}
+.shell.sb-collapsed .tab .tab-icon,body.sb-collapsed .tab .tab-icon{font-size:16px}
+
+/* ── 11 · DOCK-MAGNIFY HOVER — collapsed sidebar (both panels) ───
+   Hovering an icon pops it up full-size with a floating name label;
+   the 2 tabs immediately above and below rise partway, macOS-dock
+   style. Classes are added/removed by JS only while the sidebar is
+   collapsed, so this never affects the expanded sidebar. */
+.sidebar .tab{
+  position:relative;
+  transition:transform .22s cubic-bezier(.34,1.56,.64,1),background .15s ease,color .15s ease;
+  transform-origin:center;
+}
+.sidebar .tab.dock-hover{
+  transform:scale(1.34);z-index:6;
+  background:var(--tri-orange-dim);
+}
+.sidebar .tab.dock-hover .tab-icon{color:var(--tri-orange)!important}
+.sidebar .tab.dock-near{transform:scale(1.16);z-index:5}
+.sidebar .tab.dock-far{transform:scale(1.06);z-index:4}
+
+/* Floating label — one shared tooltip, positioned via JS with
+   position:fixed so it always escapes the sidebar's own scroll clip */
+.dock-tooltip{
+  position:fixed;z-index:5000;top:0;left:0;
+  background:var(--akar-charcoal);color:#fff;
+  font-family:var(--sans);font-size:12.5px;font-weight:600;
+  padding:6px 13px;border-radius:8px;white-space:nowrap;
+  box-shadow:var(--shadow-lg);pointer-events:none;
+  opacity:0;transform:translateY(-50%) translateX(-6px);
+  transition:opacity .14s ease,transform .2s cubic-bezier(.34,1.56,.64,1);
+}
+.dock-tooltip::before{
+  content:'';position:absolute;left:-4px;top:50%;
+  width:8px;height:8px;background:inherit;border-radius:2px;
+  transform:translateY(-50%) rotate(45deg);
+}
+.dock-tooltip.show{opacity:1;transform:translateY(-50%) translateX(0)}
+html[data-theme="dark"] .dock-tooltip{background:var(--tri-orange);color:#1A1916}
 
 /* ── 20 · HEADER — both panels ────────────────────────────────── */
 .top-bar,.biz-topbar,.mtopbar{
