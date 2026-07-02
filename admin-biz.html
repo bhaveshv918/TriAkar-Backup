@@ -3062,7 +3062,12 @@ async function saveOrderRecord(){
   await deductFilamentForRows(rows);
   await loadAddSaleRolls();
   toast('Order record saved');
-  if(typeof printOrderRecord==='function'){ try{ printOrderRecord(rows); }catch(_){} }
+  // Was calling printOrderRecord(), a function that never existed — silently did nothing.
+  // printInvoice() now genuinely supports a 'record' docKind (internal cost/margin/
+  // production doc, separate from the customer-facing invoice).
+  const anyGst=rows.some(r=>parseFloat(r.gst_rate)>0);
+  const order={...rows[0], items:rows};
+  printInvoice(order, anyGst?'gst':'nongst', 'record');
   resetQuickAdd();
   loadSalesBadge();
 }
@@ -3957,7 +3962,8 @@ function renderOrderDetail(items){
       <button class="btn btn-sm" onclick="togglePaidOrder('${key}',${locked})" style="background:${locked?'var(--green-bg)':'var(--bg-2)'};color:${locked?'var(--green)':'var(--text-3)'};border:1px solid ${locked?'var(--green)':'var(--border)'}">${locked?'✓ Paid · unlock':'◯ Mark paid'}</button>
       ${(!locked&&items.length===1)?`<button class="btn btn-ghost btn-sm" onclick="openEditSale('${items[0].id}')">✎ Edit</button>`:''}
       <button class="btn btn-ghost btn-sm" id="revealBtn_${key}" onclick="revealCost('${key}')">🔒 Show cost &amp; profit</button>
-      <button class="btn btn-ghost btn-sm" onclick="printOrderInvoice('${key}')">🧾 Invoice (all items)</button>
+      <button class="btn btn-ghost btn-sm" onclick="printOrderInvoice('${key}')">🧾 Invoice</button>
+      <button class="btn btn-ghost btn-sm" onclick="printOrderInvoice('${key}','record')">📋 Order Record</button>
       ${['delivered','completed','dispatched'].includes(f.status)?`<button class="btn btn-ghost btn-sm" onclick="initiateReturnFromOrder('${key}')">↩ Initiate Return</button>`:''}
       ${locked?'<span style="font-size:11px;color:var(--text-3)">Paid — unmark to edit</span>'
         :`<button class="btn btn-danger btn-sm" onclick="deleteOrder('${key}')">✕ Delete order</button>`}
@@ -3965,10 +3971,10 @@ function renderOrderDetail(items){
   </div>`;
 }
 
-function printOrderInvoice(firstId){
+function printOrderInvoice(firstId,docKind){
   const items=_orderGroup(firstId); if(!items.length){ toast('Could not load order','error'); return; }
   const anyGst=items.some(s=>parseFloat(s.gst_rate)>0);
-  printInvoice({...items[0], items}, anyGst?'gst':'nongst');
+  printInvoice({...items[0], items}, anyGst?'gst':'nongst', docKind);
 }
 async function deleteOrder(firstId){
   const items=_orderGroup(firstId), ids=items.map(s=>s.id);
@@ -5914,30 +5920,31 @@ ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
 <div class="words-row">${esc(amtWords)}</div>
 </div>
 
-${d.payment_mode||d.tracking_number||d.courier_partner||d.package_size||d.weight_grams?`
+${(!isRecord&&(d.payment_mode||d.package_size||d.weight_grams))||((!isRecord||docRec('courier_tracking'))&&(d.tracking_number||d.courier_partner))?`
 <div class="info-strip">
-  ${docInv('payment_mode')?`<div class="info-card">
+  ${(!isRecord&&docInv('payment_mode'))?`<div class="info-card">
     <div class="info-lbl">Payment</div>
     <div class="info-val">${esc((d.payment_mode||'—')+'')}${(d.package_size||d.weight_grams)?`<br><span style="font-size:11px;color:#aaa">Packet: ${[d.package_size?esc(d.package_size):'',d.weight_grams?esc(d.weight_grams)+' g':''].filter(Boolean).join(' · ')}</span>`:''}</div>
   </div>`:''}
-  <div class="info-card">
+  ${(!isRecord||docRec('courier_tracking'))?`<div class="info-card">
     <div class="info-lbl">Shipping</div>
     <div class="info-val">
       ${d.courier_partner?esc(({ekart:'Ekart (Flipkart)'}[d.courier_partner])||d.courier_partner)+'<br>':''}
       ${d.tracking_number?`<span class="chip">${esc(d.tracking_number)}</span>`:''}
       ${d.dispatch_date?`<br><span style="font-size:11px;color:#aaa">Dispatched: ${esc(d.dispatch_date)}</span>`:''}
     </div>
-  </div>
+  </div>`:''}
 </div>`:''}
+${internalDetailsHtml}
 
 </div>
 
-${docInv('reprint_note')?`<div style="padding:12px 32px 0;font-size:11px;color:#777">★ 7-Day Reprint Guarantee — any print defect reprinted free within 7 days.</div>`:''}
-${docInv('signature')?`<div style="padding:26px 32px 4px;text-align:right;font-size:11px;color:#777">For ${esc(SELLER_NAME)}<div style="margin-top:30px;border-top:1px solid #ccc;width:170px;margin-left:auto;padding-top:4px">Authorised Signatory</div></div>`:''}
+${(!isRecord&&docInv('reprint_note'))?`<div style="padding:12px 32px 0;font-size:11px;color:#777">★ 7-Day Reprint Guarantee — any print defect reprinted free within 7 days.</div>`:''}
+${(!isRecord&&docInv('signature'))?`<div style="padding:26px 32px 4px;text-align:right;font-size:11px;color:#777">For ${esc(SELLER_NAME)}<div style="margin-top:30px;border-top:1px solid #ccc;width:170px;margin-left:auto;padding-top:4px">Authorised Signatory</div></div>`:''}
 <div class="footer-band">
   <div class="footer-left">
     <div class="footer-brand">TriAkar &nbsp;·&nbsp; त्रिआकार</div>
-    ${docInv('terms')?`<div class="footer-tagline">${esc(SELLER_FOOTER||'This is not an invoice')}</div>`:''}
+    ${(!isRecord&&docInv('terms'))?`<div class="footer-tagline">${esc(SELLER_FOOTER||'This is not an invoice')}</div>`:''}
   </div>
   <div class="print-btn doc-actions" id="docActions">
     <span id="shareStatus" style="font-size:11px;color:#999;margin-right:8px"></span>
@@ -5971,7 +5978,7 @@ async function shareDoc(){
     var blob=pdf.output('blob');
     var file=new File([blob],safeName+'.pdf',{type:'application/pdf'});
     if(navigator.canShare && navigator.canShare({files:[file]})){
-      await navigator.share({files:[file],title:'TriAkar Order Record'});
+      await navigator.share({files:[file],title:${JSON.stringify('TriAkar '+docTitle)}});
       status.textContent='';
     }else{
       var url=URL.createObjectURL(blob);
@@ -6026,11 +6033,11 @@ async function updateSaleStatus(id, status){
   toast('Status updated');
 }
 
-async function fetchAndPrintInvoice(id){
+async function fetchAndPrintInvoice(id,docKind){
   const {data,error}=await sb.from('biz_sales').select('*').eq('id',id).single();
   if(error||!data){ toast('Could not load sale','error'); return; }
   const gstRate=parseFloat(data.gst_rate)||0;
-  printInvoice(data, gstRate>0?'gst':'nongst');
+  printInvoice(data, gstRate>0?'gst':'nongst', docKind);
 }
 
 // ── Label Import ────────────────────────────────────────────
