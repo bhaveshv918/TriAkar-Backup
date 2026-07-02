@@ -355,10 +355,6 @@ html[data-theme="dark"] .mtopbar{box-shadow:0 1px 4px rgba(0,0,0,.3)}
 }
 @media(max-width:1000px){.biz-tb-time{display:none}}
 
-/* Online indicator — smaller, calmer */
-.top-status{font-size:9px;letter-spacing:.04em}
-.top-status .pulse{width:5px;height:5px}
-
 /* ── 21 · HEADER PARITY + GLOBAL SEARCH (both panels) ─────────── */
 /* Business OS shell — header spans the FULL width (Admin structure:
    topbar on top, sidebar + content in a row below) */
@@ -413,6 +409,35 @@ html[data-theme="dark"] #bizSearchResults{
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .gs-empty{padding:14px;color:var(--text-muted);font-size:12px;text-align:center}
+
+/* Notification dropdown items — one shared template for both panels */
+.notif-title{
+  font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--text-muted);padding:4px 8px 8px;
+}
+.notif-item{
+  padding:8px 9px;border-radius:8px;cursor:pointer;
+  display:flex;gap:9px;align-items:center;
+  transition:background .12s ease;
+}
+.notif-item:hover{background:var(--tri-orange-dim)}
+.notif-item .notif-icon{font-size:14px;flex-shrink:0}
+.notif-item .notif-text{font-size:12px;color:var(--text-primary)}
+.notif-empty{padding:14px;color:var(--text-muted);font-size:12px;text-align:center}
+
+/* Online status indicator — one working rule for both panels
+   (fixes a dead @keyframes reference that never actually pulsed) */
+@keyframes secPulse{0%,100%{opacity:1}50%{opacity:.35}}
+.top-status{
+  display:flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--green);white-space:nowrap;flex-shrink:0;
+}
+.top-status .pulse{
+  width:5px;height:5px;border-radius:50%;background:var(--green);
+  animation:secPulse 2s ease-in-out infinite;flex-shrink:0;
+}
+@media(max-width:1000px){.top-status{display:none}}
 
 /* ── 30 · ADMIN DASHBOARD ─────────────────────────────────────── */
 .dash-widget{
@@ -792,13 +817,14 @@ html[data-theme="dark"] #customerModal>div{
 }
 
 /* Notification dropdown + global search results — floating glass */
-#notifDropdown,#globalSearchResults,#custSuggestBox{
+#notifDropdown,#bizNotifDropdown,#globalSearchResults,#custSuggestBox{
   border-radius:12px!important;border:1px solid var(--border-c)!important;
   background:rgba(255,255,255,.92)!important;
   backdrop-filter:blur(16px) saturate(1.4);-webkit-backdrop-filter:blur(16px) saturate(1.4);
   box-shadow:var(--shadow-lg)!important;
 }
-html[data-theme="dark"] #notifDropdown,html[data-theme="dark"] #globalSearchResults,
+html[data-theme="dark"] #notifDropdown,html[data-theme="dark"] #bizNotifDropdown,
+html[data-theme="dark"] #globalSearchResults,
 html[data-theme="dark"] #custSuggestBox{
   background:rgba(22,22,20,.92)!important;
   border-color:rgba(255,255,255,.08)!important;
