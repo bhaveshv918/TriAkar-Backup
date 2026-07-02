@@ -30,9 +30,9 @@ export async function validatePromo(req, res, next) {
         return res.json({ valid: false, error: 'This code applies to a specific product not in your cart' });
     }
 
-    // Calculate discount
+    // Calculate discount — shipping must match paymentController/checkout (₹99 below ₹999)
     const sub = Number(subtotal) || 0;
-    const shipping = sub >= 999 ? 0 : 49;
+    const shipping = sub >= 999 ? 0 : 99;
     let discount_amount = 0;
 
     if (promo.discount_type === 'free_shipping') {
