@@ -90,23 +90,68 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
 
 /* ── Nav scroll + mobile drawer ─────────────────────────── */
 (function(){
-  const nav=document.querySelector('.main-nav');
   const toggle=document.querySelector('.nav-toggle');
   const drawer=document.querySelector('.nav-drawer');
   /* Same real SVG-refraction glass as the mobile bottom nav (see
      partials.js), applied to the top nav's floating "scrolled" capsule.
      Android skipped — its feDisplacementMap renders weak, plain blur only. */
   var isAndroid=/Android/i.test(navigator.userAgent);
-  /* Attach unconditionally — the nav may be injected after this runs,
-     so resolve it at scroll time rather than capturing it once. */
-  window.addEventListener('scroll',function(){
-    var s=window.scrollY>10;
-    var n=document.querySelector('.main-nav');
-    if(n){
-      n.classList.toggle('scrolled',s);
-      if(!isAndroid) n.classList.add('nav-distort');
+
+  var navEl=null,ticking=false,wasScrolled=false,distortTimer=null,offsetTimer=null;
+
+  /* The filter sidebar / sticky filter bar on the shop page reserve a
+     fixed top offset (var(--header-offset), see shared.css) sized for the
+     tall pre-scroll header. Once the header shrinks into its floating
+     capsule that reserved space is wrong (too big or too small depending
+     on breakpoint) and content can overlap the header. Measuring the
+     nav's real rendered bottom edge and writing it into the CSS var keeps
+     the two in sync regardless of exact geometry at any screen size. */
+  function updateHeaderOffset(){
+    if(!navEl)return;
+    var bottom=navEl.getBoundingClientRect().bottom;
+    document.documentElement.style.setProperty('--header-offset',Math.max(0,bottom+12)+'px');
+  }
+
+  function applyScrollState(){
+    ticking=false;
+    if(!navEl){
+      navEl=document.querySelector('.main-nav');
+      if(!navEl)return;
+      updateHeaderOffset();
     }
+    var s=window.scrollY>10;
+    navEl.classList.toggle('scrolled',s);
     document.documentElement.classList.toggle('is-scrolled',s); /* slides the top notice bar away on scroll */
+
+    if(s!==wasScrolled){
+      wasScrolled=s;
+      clearTimeout(distortTimer);
+      clearTimeout(offsetTimer);
+      if(s){
+        /* Let the shape morph into the capsule on plain blur first (cheap),
+           only add the expensive SVG-refraction filter once that .45s
+           transition has settled — recomputing feDisplacementMap on the
+           same frame the box is also resizing/repositioning is the
+           single biggest source of the scroll-start jank. */
+        if(!isAndroid) distortTimer=setTimeout(function(){navEl.classList.add('nav-distort');},460);
+      }else{
+        navEl.classList.remove('nav-distort');
+      }
+      offsetTimer=setTimeout(updateHeaderOffset,470);
+    }
+  }
+
+  /* rAF-throttled: raw scroll events can fire far more often than the
+     screen refreshes, especially on trackpads/momentum scroll. Without
+     this, every single one of those events re-queried the DOM and wrote
+     to two classLists — throttling to once per frame is what actually
+     removes the "sometimes laggy" hitch right as scrolling starts. */
+  window.addEventListener('scroll',function(){
+    if(!ticking){ticking=true;requestAnimationFrame(applyScrollState);}
+  },{passive:true});
+  window.addEventListener('resize',function(){
+    clearTimeout(offsetTimer);
+    offsetTimer=setTimeout(updateHeaderOffset,150);
   },{passive:true});
   if(toggle&&drawer){
     toggle.addEventListener('click',()=>{

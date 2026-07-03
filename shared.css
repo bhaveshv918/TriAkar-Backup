@@ -55,6 +55,13 @@
   --notice-h: 38px;
   --nav-h: 64px;
   --total-h: calc(var(--notice-h) + var(--nav-h)); /* = 102px desktop */
+  /* Sticky sidebars/filter-bars below the nav read this instead of
+     --total-h directly. It starts equal to --total-h (correct for the
+     tall pre-scroll header) and shared.js overwrites it with the nav's
+     real measured bottom edge once it shrinks into the floating glass
+     capsule on scroll, so sticky content never overlaps or gaps under it
+     regardless of breakpoint. */
+  --header-offset: var(--total-h);
 
   --pad: 52px;
   --max-w: 1320px;
@@ -174,6 +181,10 @@ nav.main-nav{
   background:var(--ivory);
   border:1px solid transparent;
   border-bottom-color:rgba(22,22,20,.1);
+  /* Promotes the nav to its own compositing layer so the browser doesn't
+     have to repaint the rest of the page on every frame of the transition
+     below — the shape/backdrop-filter changes stay isolated to this box. */
+  will-change:top,left,right,height,border-radius,backdrop-filter;
   /* smooth "liquid glass pop-up" transition into the floating capsule */
   transition:top .45s cubic-bezier(.22,1,.36,1), left .45s cubic-bezier(.22,1,.36,1),
              right .45s cubic-bezier(.22,1,.36,1), height .45s cubic-bezier(.22,1,.36,1),
