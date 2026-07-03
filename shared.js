@@ -188,6 +188,7 @@ function applyNavActiveState(){
   const PAGES={
     'products':'products.html',
     'product-detail':'products.html',
+    'order':'order.html', // the nav/footer "Customization" link points to order.html, not custom.html
     'custom':'custom.html',
     'stories':'stories.html',
     'about':'about.html',

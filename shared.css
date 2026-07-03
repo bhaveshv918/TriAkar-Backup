@@ -241,31 +241,47 @@ nav.main-nav.scrolled.nav-distort{
 }
 
 .nav-links{display:flex;gap:18px}
+/* Every link is a glass-pill chip waiting to happen — the padding/negative
+   margin is set unconditionally so hovering or landing on the active page
+   never shifts neighboring links or the header's layout, it only ever
+   changes color/background/transform, all compositor-only properties.
+   The eased-expo curve (cubic-bezier(.22,1,.36,1)) matches the one already
+   used on the nav's own scroll-into-capsule transition above, so the whole
+   header feels like one consistent spring rather than several timings. */
 .nav-links a{
   font-size:12px;letter-spacing:.12em;text-transform:uppercase;
-  font-weight:700;color:var(--charcoal);position:relative;transition:color .2s;white-space:nowrap;
+  font-weight:700;color:var(--charcoal);position:relative;white-space:nowrap;
+  padding:7px 14px;margin:-7px -14px;border-radius:999px;
+  border:1px solid transparent;background:transparent;
+  transition:color .3s cubic-bezier(.22,1,.36,1),
+             background .35s cubic-bezier(.22,1,.36,1),
+             border-color .35s cubic-bezier(.22,1,.36,1),
+             box-shadow .35s cubic-bezier(.22,1,.36,1),
+             transform .35s cubic-bezier(.22,1,.36,1);
 }
-.nav-links a::after{content:'';position:absolute;bottom:-4px;left:0;width:0;height:2px;background:var(--accent);border-radius:1px;transition:width .3s ease}
-.nav-links a:hover{color:var(--accent)}
-.nav-links a:hover::after{width:100%}
-/* Active page gets a small glass pill chip instead of the underline — the
-   negative margin offsets the added padding so it doesn't push neighboring
-   links or shift the header's layout, it's purely a visual chip. Scoped to
-   .nav-links specifically — .nav-active is shared with the mobile drawer's
-   icon-tile grid, which already has its own distinct active styling
-   (.drawer-link.nav-active) that this must not touch. */
+.nav-links a:hover{
+  color:var(--accent);
+  background:linear-gradient(180deg,rgba(196,98,42,.09),rgba(196,98,42,.04));
+  border-color:rgba(196,98,42,.14);
+  box-shadow:0 3px 10px rgba(196,98,42,.10);
+  transform:translateY(-1px);
+  -webkit-backdrop-filter:blur(5px) saturate(140%);
+  backdrop-filter:blur(5px) saturate(140%);
+}
+/* Active page: same chip, stronger tint, no lift (it's not a hover cue,
+   it's a standing state). Scoped to .nav-links specifically — .nav-active
+   is a shared class also used on the mobile drawer's icon-tile grid, which
+   has its own distinct active styling (.drawer-link.nav-active) that this
+   must not touch. */
 .nav-links a.nav-active{
-  color:var(--accent)!important;
-  padding:7px 14px!important;
-  margin:-7px -14px;
-  border-radius:999px;
+  color:var(--accent);
   background:linear-gradient(180deg,rgba(196,98,42,.16),rgba(196,98,42,.08));
-  border:1px solid rgba(196,98,42,.24);
+  border-color:rgba(196,98,42,.24);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 2px 8px rgba(196,98,42,.14);
   -webkit-backdrop-filter:blur(6px) saturate(150%);
   backdrop-filter:blur(6px) saturate(150%);
 }
-.nav-links a.nav-active::after{display:none}
+.nav-links a.nav-active:hover{transform:none}
 .nav-right{display:flex;align-items:center;gap:14px}
 .cart-btn{
   display:flex;align-items:center;gap:6px;position:relative;
