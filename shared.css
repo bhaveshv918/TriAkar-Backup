@@ -180,12 +180,17 @@ nav.main-nav{
              border-radius .45s cubic-bezier(.22,1,.36,1), background .4s, box-shadow .4s, border-color .4s;
 }
 /* On scroll the bar detaches from the edges and becomes a rounded,
-   frosted glass capsule with a visible curved boundary (iOS-style). */
+   frosted glass capsule with a visible curved boundary (iOS-style). A flat
+   16px inset reads as a capsule on a 375px phone screen but is invisible
+   on a 1440px desktop (just looks like a full-width bar with soft corners),
+   so the inset itself scales with viewport width, capping the capsule at
+   1200px wide and never going below the original 16px on narrow screens. */
 nav.main-nav.scrolled{
-  top:12px;
-  left:16px; right:16px;
-  height:54px;
-  border-radius:22px;
+  top:14px;
+  left:max(16px, calc((100vw - 1200px) / 2));
+  right:max(16px, calc((100vw - 1200px) / 2));
+  height:56px;
+  border-radius:26px;
   background:var(--glass-a-bg);
   -webkit-backdrop-filter:var(--glass-blur);
   backdrop-filter:var(--glass-blur);
