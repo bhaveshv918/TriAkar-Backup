@@ -117,7 +117,6 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
     if(!navEl){
       navEl=document.querySelector('.main-nav');
       if(!navEl)return;
-      updateHeaderOffset();
     }
     var s=window.scrollY>10;
     navEl.classList.toggle('scrolled',s);
@@ -126,7 +125,6 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
     if(s!==wasScrolled){
       wasScrolled=s;
       clearTimeout(distortTimer);
-      clearTimeout(offsetTimer);
       if(s){
         /* Let the shape morph into the capsule on plain blur first (cheap),
            only add the expensive SVG-refraction filter once that .45s
@@ -137,8 +135,19 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
       }else{
         navEl.classList.remove('nav-distort');
       }
+      /* Catches the transition's tail end for whichever state we just
+         settled into, in case the user stopped scrolling mid-morph and no
+         further scroll ticks arrive to refresh it below. */
+      clearTimeout(offsetTimer);
       offsetTimer=setTimeout(updateHeaderOffset,470);
     }
+    /* Recomputed on every throttled tick, not only when the state flips —
+       during the .45s shrink/grow the nav's real geometry changes every
+       frame, and gating this behind threshold-crossing alone could go
+       stale if the user hovers right at the 10px boundary and the state
+       flips back and forth rapidly. Already capped to once per rAF frame
+       by the scroll listener below, so this is cheap. */
+    updateHeaderOffset();
   }
 
   /* rAF-throttled: raw scroll events can fire far more often than the
@@ -153,6 +162,17 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
     clearTimeout(offsetTimer);
     offsetTimer=setTimeout(updateHeaderOffset,150);
   },{passive:true});
+
+  /* Sync immediately on load too, not just on the next scroll event — a
+     page can load already scrolled (an anchor link, or the browser
+     restoring scroll position on refresh/back-navigation), and without
+     this the header/sidebar state wouldn't be correct until the user
+     scrolled again. Called directly rather than via requestAnimationFrame:
+     rAF callbacks are deferred/throttled by the browser for background or
+     not-yet-visible tabs, which would leave --header-offset unset for an
+     unpredictable stretch right when it matters most (first paint). */
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',applyScrollState);}
+  else{applyScrollState();}
   if(toggle&&drawer){
     toggle.addEventListener('click',()=>{
       const o=drawer.classList.toggle('open');
