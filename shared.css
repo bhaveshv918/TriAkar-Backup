@@ -1092,7 +1092,10 @@ body.has-buy-bar .a11y-fab{bottom:84px}
     padding:6px 2px;text-decoration:none;color:var(--warm);font-size:10px;letter-spacing:.02em;font-weight:600;
     -webkit-tap-highlight-color:transparent;transition:color .15s;position:relative;z-index:1}
   .tabn-item svg{width:23px;height:23px;display:block}
-  .tabn-item span:last-child{line-height:1}
+  /* Passing-label compression: partials.js sets transform:scaleX() on this
+     element every rAF tick while the pill sweeps past, so it needs its own
+     compositor layer and a stable center origin. Idle state = no transform. */
+  .tabn-item span:last-child{line-height:1;transform-origin:center;will-change:transform}
   .tabn-item.active{color:var(--accent)}
   /* Sliding glass highlight behind the active tab (positioned by partials.js).
      Sits below the items (z-index:0); width + translateX are set inline. */
@@ -1114,6 +1117,22 @@ body.has-buy-bar .a11y-fab{bottom:84px}
   }
   .tabn-item--pillhost{touch-action:none;cursor:grab}
   .tabn-item--pillhost:active{cursor:grabbing}
+  /* Chromatic edge dispersion: two thin rainbow strips riding the pill's
+     left/right edges. Opacity is driven purely by JS-computed velocity
+     each rAF tick (never a CSS transition) and always resolves back to 0
+     at rest, so it's invisible in the static state, only appears while the
+     pill is actually moving fast. transform/opacity + a cheap blur() only,
+     no width/layout properties touched by this layer. iOS/Safari only —
+     gated to tabn-distort below since Android's feDisplacementMap already
+     renders weak and adding fringe there just looks muddy. */
+  .tabn-fringe{position:absolute;top:-3px;bottom:-3px;width:14px;border-radius:16px;
+    pointer-events:none;opacity:0;mix-blend-mode:screen;filter:blur(2.2px);will-change:opacity}
+  .tabn-fringe-left{left:-6px;
+    background:linear-gradient(270deg,rgba(255,255,255,0) 0%,rgba(255,86,120,.7) 45%,rgba(255,196,84,.45) 100%)}
+  .tabn-fringe-right{right:-6px;
+    background:linear-gradient(90deg,rgba(255,255,255,0) 0%,rgba(96,180,255,.65) 45%,rgba(150,255,214,.4) 100%)}
+  .ta-bottomnav:not(.tabn-distort) .tabn-fringe{display:none}
+  @media(prefers-reduced-motion:reduce){.tabn-fringe{display:none!important}}
   /* iOS/Safari get the real SVG-refraction glass; Android Chrome renders
      feDisplacementMap poorly so it stays on plain blur (base rule above). */
   .ta-bottomnav.tabn-distort{

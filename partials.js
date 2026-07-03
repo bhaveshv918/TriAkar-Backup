@@ -452,6 +452,96 @@ window._FOOTER_HTML = `<footer>
               document.documentElement.classList.contains('a11y-reduce-motion');
           }catch(_){return false;}
         };
+
+        /* ── Liquid-glass motion effects: chromatic edge fringe + passing-
+           label compression. Wired into both the drag gesture and the CSS-
+           driven pill transitions (cross-page arrival slide, drag-release
+           settle) via one shared engine, so a tap-triggered slide across
+           several tabs gets the same live sweep-through feedback as an
+           actual drag. Fringe is gated to tabn-distort (skipped on
+           Android); label squeeze runs everywhere since it's cheap. Both
+           no-op under reduced motion. transform/opacity only, no layout
+           reads on the item list (their centers are measured once, not
+           per frame) — the only per-frame reads are on the pill itself,
+           unavoidable since the CSS transition engine drives its value. */
+        var fringeLeft=null,fringeRight=null;
+        try{
+          ind.innerHTML=
+            '<span class="tabn-fringe tabn-fringe-left" aria-hidden="true"></span>'+
+            '<span class="tabn-fringe tabn-fringe-right" aria-hidden="true"></span>';
+          fringeLeft=ind.querySelector('.tabn-fringe-left');
+          fringeRight=ind.querySelector('.tabn-fringe-right');
+        }catch(_){}
+
+        var itemCenters=[];
+        var measureItemCenters=function(){
+          itemCenters=items.map(function(el){return el.offsetLeft+el.offsetWidth/2;});
+        };
+        measureItemCenters();
+
+        var lastFxX=null,lastFxT=null;
+        var velocityAt=function(x){
+          var now=(window.performance&&performance.now)?performance.now():Date.now();
+          var v=0;
+          if(lastFxX!==null&&lastFxT!==null){
+            var dt=now-lastFxT;
+            if(dt>0)v=(x-lastFxX)/dt;
+          }
+          lastFxX=x;lastFxT=now;
+          return v;
+        };
+        var applyFringe=function(v){
+          if(!fringeLeft||!fringeRight)return;
+          if(reduceMotion()||!nav.classList.contains('tabn-distort')){
+            fringeLeft.style.opacity=0;fringeRight.style.opacity=0;return;
+          }
+          var speed=Math.min(Math.abs(v)/2.4,1);
+          var goingRight=v>0.03,goingLeft=v<-0.03;
+          fringeLeft.style.opacity=speed*(goingRight?0.9:(goingLeft?0.28:0));
+          fringeRight.style.opacity=speed*(goingLeft?0.9:(goingRight?0.28:0));
+        };
+        var SQUEEZE_SIGMA=(items[0]&&items[0].offsetWidth?items[0].offsetWidth:60)*0.62;
+        var MAX_SQUEEZE=0.3;
+        var applyLabelSqueeze=function(pillLeft,pillWidth){
+          var reduced=reduceMotion();
+          var center=pillLeft+pillWidth/2;
+          items.forEach(function(item,i){
+            var label=item.lastElementChild;
+            if(!label)return;
+            if(reduced){if(label.style.transform)label.style.transform='';return;}
+            var d=Math.abs(center-itemCenters[i]);
+            if(d>SQUEEZE_SIGMA*2.6){if(label.style.transform)label.style.transform='';return;}
+            var sq=MAX_SQUEEZE*Math.exp(-(d*d)/(2*SQUEEZE_SIGMA*SQUEEZE_SIGMA));
+            label.style.transform=sq>0.01?('scaleX('+(1-sq).toFixed(3)+')'):'';
+          });
+        };
+        var resetFx=function(){
+          lastFxX=null;lastFxT=null;
+          if(fringeLeft)fringeLeft.style.opacity=0;
+          if(fringeRight)fringeRight.style.opacity=0;
+          items.forEach(function(item){var l=item.lastElementChild;if(l&&l.style.transform)l.style.transform='';});
+        };
+        var fxFrame=function(x,w){applyFringe(velocityAt(x));applyLabelSqueeze(x,w);};
+        var currentIndTransformX=function(){
+          try{
+            var t=getComputedStyle(ind).transform;
+            if(!t||t==='none')return 0;
+            return new DOMMatrixReadOnly(t).m41;
+          }catch(_){return 0;}
+        };
+        var runFxDuring=function(ms){
+          if(reduceMotion())return;
+          var t0=(window.performance&&performance.now)?performance.now():Date.now();
+          lastFxX=null;lastFxT=null;
+          function step(now){
+            var x=currentIndTransformX();
+            var w=parseFloat(getComputedStyle(ind).width)||0;
+            fxFrame(x,w);
+            if(now-t0<ms){requestAnimationFrame(step);}else{resetFx();}
+          }
+          requestAnimationFrame(step);
+        };
+
         var place=function(el,squeeze){
           if(!el||!el.offsetWidth)return false; /* skip when hidden (e.g. desktop width) */
           var w=el.offsetWidth,x=el.offsetLeft;
@@ -470,6 +560,7 @@ window._FOOTER_HTML = `<footer>
           requestAnimationFrame(function(){
             ind.classList.remove('tabn-indicator--noanim');
             place(endEl,true); /* squeeze/stretch pop on arrival, the "liquid" morph */
+            runFxDuring(520); /* matches the .5s transform / .38s width transition */
           });
         };
 
@@ -488,6 +579,7 @@ window._FOOTER_HTML = `<footer>
         window.addEventListener('resize',function(){
           clearTimeout(rt);
           rt=setTimeout(function(){
+            measureItemCenters();
             ind.classList.add('tabn-indicator--noanim');
             if(place(activeEl)){
               ind.classList.add('on');
@@ -531,6 +623,7 @@ window._FOOTER_HTML = `<footer>
               dragging=true;
               try{activeEl.setPointerCapture(e.pointerId);}catch(_){}
               ind.classList.add('tabn-indicator--dragging','tabn-indicator--noanim');
+              lastFxX=null;lastFxT=null;
             },LONG_PRESS_MS);
           });
 
@@ -542,6 +635,7 @@ window._FOOTER_HTML = `<footer>
             ind.style.transform='translateX('+left+'px)';
             var hoverIdx=nearestIndexForCenter(left+pillW/2);
             items.forEach(function(it,i){it.classList.toggle('active',i===hoverIdx);});
+            fxFrame(left,pillW); /* continuous drag-through: fringe + label squeeze, live every move */
           });
 
           function endDrag(e){
@@ -563,6 +657,7 @@ window._FOOTER_HTML = `<footer>
             if(snapIdx===curIdx||isCartTab){
               if(!reduceMotion())ind.classList.remove('tabn-indicator--noanim');
               place(activeEl,true);
+              runFxDuring(420);
               if(isCartTab&&snapIdx!==curIdx&&window.openCart)window.openCart();
               return;
             }
@@ -575,6 +670,7 @@ window._FOOTER_HTML = `<footer>
             }else{
               ind.classList.remove('tabn-indicator--noanim');
               place(targetEl,true);
+              runFxDuring(300); /* short — the page unloads at 150ms anyway */
               setTimeout(function(){location.href=targetEl.getAttribute('href');},150);
             }
           }
