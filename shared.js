@@ -93,12 +93,19 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
   const nav=document.querySelector('.main-nav');
   const toggle=document.querySelector('.nav-toggle');
   const drawer=document.querySelector('.nav-drawer');
+  /* Same real SVG-refraction glass as the mobile bottom nav (see
+     partials.js), applied to the top nav's floating "scrolled" capsule.
+     Android skipped — its feDisplacementMap renders weak, plain blur only. */
+  var isAndroid=/Android/i.test(navigator.userAgent);
   /* Attach unconditionally — the nav may be injected after this runs,
      so resolve it at scroll time rather than capturing it once. */
   window.addEventListener('scroll',function(){
     var s=window.scrollY>10;
     var n=document.querySelector('.main-nav');
-    if(n) n.classList.toggle('scrolled',s);
+    if(n){
+      n.classList.toggle('scrolled',s);
+      if(!isAndroid) n.classList.add('nav-distort');
+    }
     document.documentElement.classList.toggle('is-scrolled',s); /* slides the top notice bar away on scroll */
   },{passive:true});
   if(toggle&&drawer){

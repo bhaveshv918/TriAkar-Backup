@@ -332,6 +332,26 @@ window._FOOTER_HTML = `<footer>
     var isWish=(seg==='wishlist');
     var isAcct=(seg==='account');
 
+    /* Real glass refraction (feDisplacementMap) for iOS/Safari, shared by
+       both the bottom tab bar and the top nav's scrolled glass capsule.
+       Injected here (before the product-detail early return below) so it's
+       available on every page, not just the ones with the tab bar.
+       Android's Chrome/WebView renders this filter weakly, so it's skipped
+       there and both navs fall back to their plain blur. */
+    try{
+      if(!/Android/i.test(navigator.userAgent)&&!document.getElementById('liquid-glass-distortion')){
+        var filterSvg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+        filterSvg.setAttribute('width','0');filterSvg.setAttribute('height','0');
+        filterSvg.style.position='absolute';
+        filterSvg.innerHTML='<filter id="liquid-glass-distortion" x="-20%" y="-20%" width="140%" height="140%">'+
+          '<feTurbulence type="fractalNoise" baseFrequency="0.008 0.06" numOctaves="2" seed="7" result="noise"/>'+
+          '<feGaussianBlur in="noise" stdDeviation="2" result="blurredNoise"/>'+
+          '<feDisplacementMap in="SourceGraphic" in2="blurredNoise" scale="18" xChannelSelector="R" yChannelSelector="G"/>'+
+        '</filter>';
+        document.body.appendChild(filterSvg);
+      }
+    }catch(_){}
+
     /* ── PRODUCT DETAIL: price + Add to Cart + Buy Now bar ────── */
     if(seg==='product-detail'){
       var pdpNav=document.createElement('nav');
@@ -388,23 +408,6 @@ window._FOOTER_HTML = `<footer>
       }catch(_){}
       return;
     }
-
-    /* Real glass refraction (feDisplacementMap) for iOS/Safari. Android's
-       Chrome/WebView renders this filter weakly, so it's skipped there and
-       the nav falls back to the plain blur already defined in shared.css. */
-    try{
-      if(!/Android/i.test(navigator.userAgent)&&!document.getElementById('liquid-glass-distortion')){
-        var filterSvg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-        filterSvg.setAttribute('width','0');filterSvg.setAttribute('height','0');
-        filterSvg.style.position='absolute';
-        filterSvg.innerHTML='<filter id="liquid-glass-distortion" x="-20%" y="-20%" width="140%" height="140%">'+
-          '<feTurbulence type="fractalNoise" baseFrequency="0.008 0.06" numOctaves="2" seed="7" result="noise"/>'+
-          '<feGaussianBlur in="noise" stdDeviation="2" result="blurredNoise"/>'+
-          '<feDisplacementMap in="SourceGraphic" in2="blurredNoise" scale="18" xChannelSelector="R" yChannelSelector="G"/>'+
-        '</filter>';
-        document.body.appendChild(filterSvg);
-      }
-    }catch(_){}
 
     var nav=document.createElement('nav');
     nav.id='taBottomNav';nav.className='ta-bottomnav';
