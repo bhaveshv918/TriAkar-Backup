@@ -389,9 +389,27 @@ window._FOOTER_HTML = `<footer>
       return;
     }
 
+    /* Real glass refraction (feDisplacementMap) for iOS/Safari. Android's
+       Chrome/WebView renders this filter weakly, so it's skipped there and
+       the nav falls back to the plain blur already defined in shared.css. */
+    try{
+      if(!/Android/i.test(navigator.userAgent)&&!document.getElementById('liquid-glass-distortion')){
+        var filterSvg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+        filterSvg.setAttribute('width','0');filterSvg.setAttribute('height','0');
+        filterSvg.style.position='absolute';
+        filterSvg.innerHTML='<filter id="liquid-glass-distortion" x="-20%" y="-20%" width="140%" height="140%">'+
+          '<feTurbulence type="fractalNoise" baseFrequency="0.008 0.06" numOctaves="2" seed="7" result="noise"/>'+
+          '<feGaussianBlur in="noise" stdDeviation="2" result="blurredNoise"/>'+
+          '<feDisplacementMap in="SourceGraphic" in2="blurredNoise" scale="18" xChannelSelector="R" yChannelSelector="G"/>'+
+        '</filter>';
+        document.body.appendChild(filterSvg);
+      }
+    }catch(_){}
+
     var nav=document.createElement('nav');
     nav.id='taBottomNav';nav.className='ta-bottomnav';
     nav.setAttribute('aria-label','Primary');
+    try{ if(!/Android/i.test(navigator.userAgent)) nav.classList.add('tabn-distort'); }catch(_){}
     nav.innerHTML=
       '<a href="/index.html" class="tabn-item'+(isHome?' active':'')+'" aria-label="Home">'+
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>'+
@@ -428,10 +446,20 @@ window._FOOTER_HTML = `<footer>
         nav.insertBefore(ind,nav.firstChild);
 
         var curIdx=items.indexOf(activeEl);
-        var place=function(el){
+        var reduceMotion=function(){
+          try{
+            return (window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)||
+              document.documentElement.classList.contains('a11y-reduce-motion');
+          }catch(_){return false;}
+        };
+        var place=function(el,squeeze){
           if(!el||!el.offsetWidth)return false; /* skip when hidden (e.g. desktop width) */
-          ind.style.width=el.offsetWidth+'px';
-          ind.style.transform='translateX('+el.offsetLeft+'px)';
+          var w=el.offsetWidth,x=el.offsetLeft;
+          ind.style.width=w+'px';
+          ind.style.transform='translateX('+x+'px)'+((squeeze&&!reduceMotion())?' scaleX(1.12)':' scaleX(1)');
+          if(squeeze&&!reduceMotion()){
+            setTimeout(function(){ ind.style.transform='translateX('+x+'px) scaleX(1)'; },160);
+          }
           return true;
         };
         var snapThen=function(startEl,endEl){
@@ -441,7 +469,7 @@ window._FOOTER_HTML = `<footer>
           void ind.offsetWidth; /* flush so the start position isn't animated */
           requestAnimationFrame(function(){
             ind.classList.remove('tabn-indicator--noanim');
-            place(endEl);
+            place(endEl,true); /* squeeze/stretch pop on arrival, the "liquid" morph */
           });
         };
 
@@ -468,6 +496,95 @@ window._FOOTER_HTML = `<footer>
             }
           },150);
         },{passive:true});
+
+        /* ── Press-and-hold + drag the pill, snap to nearest tab on release ──
+           The pointer target is the active tab's own anchor (not the pill,
+           which sits behind it at z-index:0) so normal quick taps still work
+           as plain links; a long-press promotes the same gesture into a drag
+           that moves the visual pill 1:1 with the finger. Releasing over a
+           different tab persists it for cross-page continuity, then performs
+           the real navigation (this is a multi-page site, no client router). */
+        (function initPillDrag(){
+          var LONG_PRESS_MS=140;
+          var timer=null,dragging=false,justDragged=false;
+          var startX=0,startLeft=0,pillW=0;
+
+          function centerOf(el){return el.offsetLeft+el.offsetWidth/2;}
+          function nearestIndexForCenter(cx){
+            var best=0,bd=Infinity;
+            items.forEach(function(el,i){
+              var d=Math.abs(centerOf(el)-cx);
+              if(d<bd){bd=d;best=i;}
+            });
+            return best;
+          }
+
+          activeEl.classList.add('tabn-item--pillhost');
+
+          activeEl.addEventListener('pointerdown',function(e){
+            if(e.pointerType==='mouse'&&e.button!==0)return;
+            startX=e.clientX;
+            startLeft=ind.offsetLeft;
+            pillW=ind.offsetWidth;
+            clearTimeout(timer);
+            timer=setTimeout(function(){
+              dragging=true;
+              try{activeEl.setPointerCapture(e.pointerId);}catch(_){}
+              ind.classList.add('tabn-indicator--dragging','tabn-indicator--noanim');
+            },LONG_PRESS_MS);
+          });
+
+          activeEl.addEventListener('pointermove',function(e){
+            if(!dragging)return;
+            e.preventDefault();
+            var maxX=Math.max(0,nav.clientWidth-pillW);
+            var left=Math.max(0,Math.min(maxX,startLeft+(e.clientX-startX)));
+            ind.style.transform='translateX('+left+'px)';
+            var hoverIdx=nearestIndexForCenter(left+pillW/2);
+            items.forEach(function(it,i){it.classList.toggle('active',i===hoverIdx);});
+          });
+
+          function endDrag(e){
+            clearTimeout(timer);
+            if(!dragging)return; /* plain tap — default link navigation proceeds untouched */
+            dragging=false;
+            justDragged=true;
+            setTimeout(function(){justDragged=false;},0);
+            ind.classList.remove('tabn-indicator--dragging');
+
+            var maxX=Math.max(0,nav.clientWidth-pillW);
+            var left=Math.max(0,Math.min(maxX,startLeft+(e.clientX-startX)));
+            var snapIdx=nearestIndexForCenter(left+pillW/2);
+            var targetEl=items[snapIdx];
+            var isCartTab=(targetEl.getAttribute('href')==='#');
+
+            items.forEach(function(it,i){it.classList.toggle('active',i===curIdx);});
+
+            if(snapIdx===curIdx||isCartTab){
+              if(!reduceMotion())ind.classList.remove('tabn-indicator--noanim');
+              place(activeEl,true);
+              if(isCartTab&&snapIdx!==curIdx&&window.openCart)window.openCart();
+              return;
+            }
+
+            /* real tab: persist so the destination page's arrival slide
+               continues from here, then hand off to real navigation */
+            try{sessionStorage.setItem('ta_btmTab',String(snapIdx));}catch(_){}
+            if(reduceMotion()){
+              location.href=targetEl.getAttribute('href');
+            }else{
+              ind.classList.remove('tabn-indicator--noanim');
+              place(targetEl,true);
+              setTimeout(function(){location.href=targetEl.getAttribute('href');},150);
+            }
+          }
+
+          activeEl.addEventListener('pointerup',endDrag);
+          activeEl.addEventListener('pointercancel',endDrag);
+          activeEl.addEventListener('click',function(e){
+            if(justDragged){e.preventDefault();e.stopPropagation();}
+          });
+        })();
       }
     }catch(_){}
   }
