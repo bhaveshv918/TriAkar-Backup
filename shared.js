@@ -201,7 +201,11 @@ function applyNavActiveState(){
     a.classList.remove('active','nav-active');
     if(!match)return;
     const href=(a.getAttribute('href')||'').toLowerCase();
-    if(href.indexOf(match)!==-1){
+    // Exact filename match, not substring — 'track-order.html' contains
+    // 'order.html' as a substring, which used to false-match Customization's
+    // active state onto Track Order too.
+    const hrefFile=href.split('/').pop().split('?')[0].split('#')[0];
+    if(hrefFile===match){
       a.classList.add('nav-active');
     }
   });
