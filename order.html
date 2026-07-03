@@ -439,21 +439,46 @@ document.addEventListener('DOMContentLoaded',function(){
   }
 });
 
-/* Custom order submission */
+function genOrderEnquiryRef(){
+  const d=new Date();
+  const ymd=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+  const rand=String(Math.floor(1000+Math.random()*9000));
+  return 'TRK-CUS-'+ymd+'-'+rand;
+}
+
+/* Custom order submission — writes directly to Supabase (custom_enquiries),
+   there is no /api/enquiries backend route so a fetch here always 404'd. */
 async function submitCustomOrder(e){
   e.preventDefault();
+  const phoneInp=document.getElementById('cPhone');
+  if(phoneInp._validatePhone&&!phoneInp._validatePhone())return;
   const btn=document.getElementById('customSubmitBtn');
   const err=document.getElementById('customErr');
   btn.disabled=true;btn.textContent='Sending…';err.style.display='none';
+
+  const refId=genOrderEnquiryRef();
+  const sb=await _ensureSB();
+  if(!sb){
+    err.textContent="Couldn't reach our servers. Please try WhatsApp or call us directly.";err.style.display='block';
+    btn.disabled=false;btn.textContent='Submit Enquiry →';
+    return;
+  }
   try{
-    const res=await fetch((typeof Auth!=='undefined'?Auth.API_BASE:'https://triakar.onrender.com')+'/api/enquiries',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({type:'custom',name:document.getElementById('cName').value,email:document.getElementById('cEmail').value,phone:document.getElementById('cPhone').value,need:document.getElementById('cNeed').value,material:document.getElementById('cMaterial').value,budget:document.getElementById('cBudget').value})
-    });
-    if(!res.ok)throw new Error('Server error');
+    const base={reference_id:refId,name:document.getElementById('cName').value.trim(),email:document.getElementById('cEmail').value.trim(),phone:document.getElementById('cPhone').value,what_needed:document.getElementById('cNeed').value.trim(),source:'custom_order'};
+    let res=await sb.from('custom_enquiries')
+      .insert([Object.assign({material_preference:document.getElementById('cMaterial').value,budget_range:document.getElementById('cBudget').value},base)]);
+    if(res.error){
+      res=await sb.from('custom_enquiries').insert([base]);
+    }
+    if(res.error) throw res.error;
+    try{
+      const API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
+      fetch(API+'/api/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'enquiry',data:base})}).catch(function(){});
+    }catch(_){}
     document.getElementById('customForm').style.display='none';
     document.getElementById('customOk').style.display='block';
   }catch(ex){
+    console.error('Custom order save failed:',ex);
     err.textContent='Something went wrong. Please try WhatsApp or call us directly.';err.style.display='block';
     btn.disabled=false;btn.textContent='Submit Enquiry →';
   }
@@ -462,11 +487,13 @@ async function submitCustomOrder(e){
 /* Corporate order submission */
 async function submitCorpOrder(e){
   e.preventDefault();
+  const phoneInp=document.getElementById('corpPhone');
+  if(phoneInp._validatePhone&&!phoneInp._validatePhone())return;
   const btn=document.getElementById('corpSubmitBtn');
   const err=document.getElementById('corpErr');
   btn.disabled=true;btn.textContent='Sending…';err.style.display='none';
   try{
-    const res=await fetch((typeof Auth!=='undefined'?Auth.API_BASE:'https://triakar.onrender.com')+'/api/corporate-inquiries',{
+    const res=await fetch((typeof Auth!=='undefined'?Auth.API_BASE:'https://triakar.onrender.com')+'/api/inquiries',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({company_name:document.getElementById('corpCompany').value,contact_name:document.getElementById('corpName').value,email:document.getElementById('corpEmail').value,phone:document.getElementById('corpPhone').value,product_interest:document.getElementById('corpInterest').value,message:document.getElementById('corpMessage').value})
     });
