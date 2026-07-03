@@ -76,7 +76,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--bg-1);border-right:1px solid var(--border);border-top:3px solid var(--accent);display:flex;flex-direction:column;overflow-y:auto;padding:0 0 24px;transition:width .15s,min-width .15s}
 /* §2b — collapsed (icon-only) sidebar, remembered in localStorage */
 .shell.sb-collapsed .sidebar{width:58px;min-width:58px}
-.shell.sb-collapsed .tab-label,.shell.sb-collapsed .sidebar-section,.shell.sb-collapsed .sb-title,.shell.sb-collapsed .sb-sub,.shell.sb-collapsed .sb-back,.shell.sb-collapsed #bizSearch,.shell.sb-collapsed .tab-badge,.shell.sb-collapsed .tab-count{display:none}
+.shell.sb-collapsed .tab-label,.shell.sb-collapsed .sidebar-section,.shell.sb-collapsed .sb-title,.shell.sb-collapsed .sb-sub,.shell.sb-collapsed .sb-back,.shell.sb-collapsed #bizSearch,.shell.sb-collapsed .tab-badge,.shell.sb-collapsed .tab-count,.shell.sb-collapsed .tab-keyhint{display:none}
+.tab-keyhint{margin-left:auto;font-size:9px;font-family:var(--mono);background:var(--bg-3);color:var(--text-3);padding:1px 5px;border-radius:3px;flex-shrink:0}
+.tab.active .tab-keyhint{background:rgba(82,183,136,.15);color:var(--accent)}
 .shell.sb-collapsed .tab{justify-content:center;padding-left:0;padding-right:0}
 .shell.sb-collapsed .sb-header{padding-left:4px;padding-right:4px;text-align:center}
 .shell.sb-collapsed .sb-logo{font-size:10px}
@@ -326,9 +328,8 @@ tr:hover td{background:var(--bg-2)}
   .biz-tb-search{display:none}
   #privacyBtn{display:none}
   .biz-tb-btn{padding:5px 8px!important;font-size:9px!important}
-  .biz-tb-admin-link,.biz-tb-site-link,.biz-tb-signout{font-size:0!important;padding:6px 9px!important}
+  .biz-tb-admin-link,.biz-tb-signout{font-size:0!important;padding:6px 9px!important}
   .biz-tb-admin-link::before{content:"◳";font-size:15px;line-height:1}
-  .biz-tb-site-link::before{content:"🏠";font-size:13px;line-height:1}
   .biz-tb-signout::before{content:"🚪";font-size:13px;line-height:1}
 
   /* Sidebar → slide-in drawer below the top bar */
@@ -665,17 +666,12 @@ html[data-theme="dark"] .biz-login{
     <div class="biz-tb-search">
       <input type="text" id="bizSearchTop" placeholder="Search sales, products, customers…" oninput="bizGlobalSearch(this.value)" onkeydown="if(event.key==='Escape')closeBizSearch()" autocomplete="off">
     </div>
-    <div style="position:relative">
-      <button class="biz-tb-icon" onclick="toggleBizNotifications(event)" title="Notifications" style="position:relative">🔔<span id="bizNotifBadge" style="display:none;position:absolute;top:-3px;right:-3px;background:var(--red);color:#fff;font-size:9px;font-weight:700;min-width:15px;height:15px;line-height:15px;text-align:center;border-radius:8px;padding:0 3px">0</span></button>
-      <div id="bizNotifDropdown" style="display:none;position:absolute;top:115%;right:0;width:290px;max-height:60vh;overflow:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-h);z-index:3000;padding:8px"></div>
-    </div>
     <div class="biz-tb-time" id="bizTopTime"></div>
     <div class="top-status"><span class="pulse"></span> Business OS Online</div>
     <button class="biz-tb-icon" onclick="refreshCurrentBizTab()" title="Refresh current tab">⟳</button>
     <button class="biz-tb-icon" id="privacyBtn" onclick="togglePrivacyMode()" title="Hide sensitive values">👁</button>
     <button class="biz-tb-icon" onclick="toggleTheme()" title="Toggle dark / light">🌙</button>
     <a href="/admin.html" class="biz-tb-btn biz-tb-admin-link" title="Open Admin Panel">◳ Admin</a>
-    <a href="/index.html" class="biz-tb-btn biz-tb-site-link" title="Open storefront">← Site</a>
     <button class="biz-tb-btn biz-tb-signout" onclick="bizLogout()" title="Sign out">Sign Out</button>
   </div>
 
@@ -697,72 +693,93 @@ html[data-theme="dark"] .biz-login{
     <div class="sidebar-section">Overview</div>
     <button class="tab active" data-tab="openorders" onclick="switchTab('openorders')">
       <span class="tab-icon">⚑</span><span class="tab-label">Open Orders</span><span class="tab-badge" id="openCount">—</span>
+    <span class="tab-keyhint">O</span>
     </button>
     <button class="tab" data-tab="dashboard" onclick="switchTab('dashboard')">
       <span class="tab-icon">◈</span><span class="tab-label">Dashboard</span>
+    <span class="tab-keyhint">D</span>
     </button>
 
     <div class="sidebar-section">Sales</div>
     <button class="tab" data-tab="quickadd" onclick="switchTab('quickadd')">
       <span class="tab-icon">＋</span><span class="tab-label">Quick Add Sale</span>
+    <span class="tab-keyhint">Q</span>
     </button>
     <button class="tab" data-tab="sales" onclick="switchTab('sales')">
       <span class="tab-icon">≡</span><span class="tab-label">All Sales</span><span class="tab-badge" id="salesCount">—</span>
+    <span class="tab-keyhint">A</span>
     </button>
     <button class="tab" data-tab="import" onclick="switchTab('import')">
       <span class="tab-icon">⇲</span><span class="tab-label">Import CSV</span>
+    <span class="tab-keyhint">I</span>
     </button>
     <button class="tab" data-tab="labels" onclick="switchTab('labels')">
       <span class="tab-icon">🏷</span><span class="tab-label">Labels</span>
+    <span class="tab-keyhint">L</span>
     </button>
     <button class="tab" data-tab="customers" onclick="switchTab('customers')">
       <span class="tab-icon">☺</span><span class="tab-label">Customers</span><span class="tab-badge" id="custCount">—</span>
+    <span class="tab-keyhint">C</span>
     </button>
 
     <div class="sidebar-section">Products</div>
     <button class="tab" data-tab="products" onclick="switchTab('products')">
       <span class="tab-icon">▦</span><span class="tab-label">Products & Costs</span><span class="tab-badge" id="prodCount">—</span>
+    <span class="tab-keyhint">P</span>
     </button>
     <button class="tab" data-tab="stock" onclick="switchTab('stock')">
       <span class="tab-icon">◫</span><span class="tab-label">Stock</span>
+    <span class="tab-keyhint">K</span>
     </button>
     <button class="tab" data-tab="spooltracker" onclick="switchTab('spooltracker')">
       <span class="tab-icon">🧵</span><span class="tab-label">Spool Tracker</span>
+    <span class="tab-keyhint">S</span>
     </button>
 
     <div class="sidebar-section">Finance</div>
     <button class="tab" data-tab="returns" onclick="switchTab('returns')">
       <span class="tab-icon">↩</span><span class="tab-label">Returns & Claims</span><span class="tab-badge" id="returnCount">—</span>
+    <span class="tab-keyhint">R</span>
     </button>
     <button class="tab" data-tab="fees" onclick="switchTab('fees')">
       <span class="tab-icon">₹</span><span class="tab-label">Fees & Costs</span>
+    <span class="tab-keyhint">F</span>
     </button>
     <button class="tab" data-tab="gst" onclick="switchTab('gst')">
       <span class="tab-icon">◊</span><span class="tab-label">GST Summary</span>
+    <span class="tab-keyhint">G</span>
     </button>
     <button class="tab" data-tab="reports" onclick="switchTab('reports')">
       <span class="tab-icon">↗</span><span class="tab-label">Reports & Export</span>
+    <span class="tab-keyhint">X</span>
     </button>
     <button class="tab" data-tab="expenses" onclick="switchTab('expenses')">
       <span class="tab-icon">▤</span><span class="tab-label">Expenses</span>
+    <span class="tab-keyhint">E</span>
     </button>
     <button class="tab" data-tab="ledger" onclick="switchTab('ledger')">
       <span class="tab-icon">⇄</span><span class="tab-label">Money In/Out</span>
+    <span class="tab-keyhint">M</span>
     </button>
     <button class="tab" data-tab="purchases" onclick="switchTab('purchases')">
       <span class="tab-icon">▣</span><span class="tab-label">Purchases</span>
+    <span class="tab-keyhint">U</span>
     </button>
     <button class="tab" data-tab="balance" onclick="switchTab('balance')">
       <span class="tab-icon">⚖</span><span class="tab-label">Balance Sheet</span>
+    <span class="tab-keyhint">B</span>
     </button>
     <button class="tab" data-tab="shoplog" onclick="switchTab('shoplog')">
       <span class="tab-icon">🕒</span><span class="tab-label">Shop Hours</span>
+    <span class="tab-keyhint">H</span>
     </button>
     <button class="tab" data-tab="activity" onclick="switchTab('activity')">
       <span class="tab-icon">≣</span><span class="tab-label">Activity Log</span>
+    <span class="tab-keyhint">Y</span>
     </button>
     <button class="tab" data-tab="settings" onclick="switchTab('settings')">
       <span class="tab-icon">⚙</span><span class="tab-label">Settings</span>
+    <span class="tab-keyhint">T</span>
     </button>
   </nav>
 
@@ -2697,42 +2714,11 @@ function updateBizClock(){
   el.textContent=new Date().toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
 }
 
-// ── Notification bell (parity with the Admin Panel header) ──
-let _bizSlaBreached=0, _bizDueToday=0;
-async function buildBizNotifications(){
-  const items=[];
-  if(_bizSlaBreached) items.push({icon:'⚠',text:_bizSlaBreached+' order'+(_bizSlaBreached>1?'s':'')+' SLA breached',tab:'openorders'});
-  if(_bizDueToday) items.push({icon:'◷',text:_bizDueToday+' order'+(_bizDueToday>1?'s':'')+' due today',tab:'openorders'});
-  try{
-    const {count:lowStock}=await sb.from('biz_stock_current').select('*',{count:'exact',head:true}).lte('stock_qty',5);
-    if(lowStock) items.push({icon:'▦',text:lowStock+' product'+(lowStock>1?'s':'')+' low / out of stock',tab:'stock'});
-  }catch(e){}
-  const n=id=>Number(document.getElementById(id)?.textContent||0);
-  if(n('returnCount')) items.push({icon:'↩',text:n('returnCount')+' return'+(n('returnCount')>1?'s':'')+' pending',tab:'returns'});
-  return items;
-}
-async function refreshBizNotifBadge(){
-  const items=await buildBizNotifications();
-  const b=document.getElementById('bizNotifBadge');
-  if(b){ if(items.length){b.style.display='block';b.textContent=items.length;} else b.style.display='none'; }
-}
-async function toggleBizNotifications(ev){
-  if(ev) ev.stopPropagation();
-  const dd=document.getElementById('bizNotifDropdown'); if(!dd) return;
-  if(dd.style.display==='block'){ dd.style.display='none'; return; }
-  const items=await buildBizNotifications();
-  dd.innerHTML='<div class="notif-title">Needs attention</div>'
-    +(items.length?items.map(it=>'<div class="notif-item" onclick="switchTab(&quot;'+it.tab+'&quot;);document.getElementById(&quot;bizNotifDropdown&quot;).style.display=&quot;none&quot;"><span class="notif-icon">'+it.icon+'</span><span class="notif-text">'+esc(it.text)+'</span></div>').join('')
-    :'<div class="notif-empty">All clear ✓</div>');
-  dd.style.display='block';
-}
-
 // Boot the app once authenticated
 async function startApp(){
   document.getElementById('authOverlay').style.display = 'none';
   document.getElementById('shell').style.display = 'flex';
   updateBizClock(); setInterval(updateBizClock,30000);
-  refreshBizNotifBadge(); setInterval(refreshBizNotifBadge,60000);
   restoreBizSidebar();
   applyStaffTabRestrictions();
   applyDashWidgets();
@@ -3595,7 +3581,6 @@ async function loadOpenOrders(){
 
   const td=today(); let breached=0,dueToday=0,inTransit=0;
   groups.forEach(g=>{ const f=g.items[0]; if(f.delivery_date){ if(f.delivery_date<td)breached++; else if(f.delivery_date===td)dueToday++; } if(f.status==='dispatched')inTransit++; });
-  _bizSlaBreached=breached; _bizDueToday=dueToday; refreshBizNotifBadge();
   const badge=document.getElementById('openCount'); if(badge) badge.textContent=groups.length;
   const kpi=document.getElementById('openKpi');
   if(kpi) kpi.innerHTML=`
@@ -5015,7 +5000,6 @@ async function loadReturnsBadge(){
   const el=document.getElementById('returnCount'); if(!el) return;
   const {count}=await sb.from('biz_returns').select('*',{count:'exact',head:true}).eq('status','pending');
   el.textContent=count||0;
-  if(typeof refreshBizNotifBadge==='function') refreshBizNotifBadge();
 }
 
 const RETURN_STAGES={initiated:'Initiated',returning:'Returning to Seller',received:'Received',claim_filed:'Claim Filed',claim_approved:'Claim Approved'};
@@ -6737,11 +6721,6 @@ function bizSearchPick(i){
 }
 function closeBizSearch(){ const b=document.getElementById('bizSearchResults'); if(b) b.style.display='none'; }
 document.addEventListener('click',e=>{ if(!e.target.closest('#bizSearch,#bizSearchTop,#bizSearchResults')) closeBizSearch(); });
-document.addEventListener('click',function(e){
-  const nd=document.getElementById('bizNotifDropdown'); if(!nd) return;
-  const bell=e.target.closest('button[title="Notifications"]');
-  if(nd.style.display==='block'&&!e.target.closest('#bizNotifDropdown')&&!bell) nd.style.display='none';
-});
 document.addEventListener('keydown',function(ev){
   if(ev.key!=='Escape') return;
   var rb=document.getElementById('recycleBinModal');
@@ -6763,8 +6742,6 @@ document.addEventListener('keydown',function(ev){
   if(dc&&dc.style.display!=='none'){dc.style.display='none';return;}
   var spc=document.getElementById('spoolCustomize');
   if(spc&&spc.style.display!=='none'){spc.style.display='none';return;}
-  var bnd=document.getElementById('bizNotifDropdown');
-  if(bnd&&bnd.style.display==='block'){bnd.style.display='none';return;}
   var bs=document.getElementById('bizSearchResults');
   if(bs&&bs.style.display!=='none'){closeBizSearch();return;}
   var sbEl=document.querySelector('.sidebar');
@@ -6803,6 +6780,33 @@ document.addEventListener('keydown',function(ev){
   if(tag==='input'||tag==='textarea'||tag==='select'||(document.activeElement&&document.activeElement.isContentEditable)) return;
   const fn=BIZ_ADD_NEW[_curBizTab];
   if(fn){ ev.preventDefault(); fn(); }
+});
+
+// One-letter tab jump — S=Spool, P=Products, C=Customers, etc. Skipped while typing in a
+// field, while a modal/form is open (so the letter isn't hijacked mid-task), or combined
+// with Ctrl/Cmd/Alt. Respects staff tab restrictions (won't jump to a tab they don't have).
+const BIZ_TAB_KEYS={
+  d:'dashboard', o:'openorders', q:'quickadd', a:'sales', i:'import', l:'labels',
+  c:'customers', p:'products', k:'stock', s:'spooltracker', r:'returns', f:'fees',
+  g:'gst', x:'reports', e:'expenses', m:'ledger', u:'purchases', b:'balance',
+  h:'shoplog', y:'activity', t:'settings',
+};
+function bizAnyModalOpen(){
+  const ids=['recycleBinModal','editSaleModal','orderDetailModal','customerModal','dashDrilldown',
+    'productForm','stockForm','returnForm','spoolForm','spoolAddForm','expenseForm',
+    'incomeForm','purchaseForm','shopLogForm','qlExpense','qlPayment','qlFilament'];
+  return ids.some(id=>{ const el=document.getElementById(id); return el&&el.style.display!=='none'; });
+}
+document.addEventListener('keydown',function(ev){
+  const k=ev.key.toLowerCase();
+  if(!(k in BIZ_TAB_KEYS)) return;
+  if(ev.ctrlKey||ev.metaKey||ev.altKey) return;
+  const tag=(document.activeElement&&document.activeElement.tagName||'').toLowerCase();
+  if(tag==='input'||tag==='textarea'||tag==='select'||(document.activeElement&&document.activeElement.isContentEditable)) return;
+  if(bizAnyModalOpen()) return;
+  const tab=BIZ_TAB_KEYS[k];
+  if(_isStaffUser&&_staffTabs&&!_staffTabs.includes(tab)) return;
+  ev.preventDefault(); switchTab(tab);
 });
 
 function setLblPlatform(v){
