@@ -42,6 +42,8 @@ const PRODUCT_COLS = [
   'est_print_hours', 'source_url', 'license', 'commercial_ok', 'notes', 'images',
   'square_crop', 'variants', 'product_options', 'specifications', 'min_order_qty',
   'qty_step', 'key_features_label', 'customization_fields', 'product_dropdowns', 'colors',
+  // Product Studio (dynamic fields + prompt engine)
+  'primary_color', 'dim_length', 'dim_width', 'dim_height', 'dim_unit', 'custom_attributes',
 ];
 
 function buildProductPayload(body) {

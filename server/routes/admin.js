@@ -12,6 +12,10 @@ import {
 } from '../controllers/adminRecycleController.js';
 import { generateListing } from '../controllers/listingController.js';
 import { getGa4Overview } from '../controllers/ga4Controller.js';
+import {
+  listCustomFields, createCustomField, updateCustomField, deleteCustomField,
+  generateProductPrompts, getProductPromptHistory,
+} from '../controllers/productStudioController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { upload, compressImage } from '../middleware/uploadMiddleware.js';
@@ -30,6 +34,14 @@ router.delete('/products/:id',   deleteProduct);
 
 router.post('/generate-listing', generateListing);
 router.get('/ga4',               getGa4Overview);   // A14 — GA4 traffic analytics
+
+// ── Product Studio: dynamic custom fields + AI image-prompt generator ──
+router.get('/custom-fields',              listCustomFields);
+router.post('/custom-fields',             createCustomField);
+router.put('/custom-fields/:id',          updateCustomField);
+router.delete('/custom-fields/:id',       deleteCustomField);
+router.post('/products/:id/generate-prompts',  generateProductPrompts);
+router.get('/products/:id/prompt-history',     getProductPromptHistory);
 
 // Image upload — receives file, compresses it, stores in Cloudinary, returns URL.
 // Replaces direct Supabase Storage uploads from the admin panel.
