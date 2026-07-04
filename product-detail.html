@@ -157,25 +157,6 @@
 /* DIVIDER */
 .info-divider{height:1px;background:var(--stone-p);margin:8px 0;opacity:.5}
 
-/* STICKY BUY BAR — floats above bottom nav on mobile, centered pill on desktop */
-.buy-bar{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(calc(100% + 32px));
-  z-index:890;width:max-content;max-width:min(520px,calc(100vw - 32px));
-  background:var(--glass-a-bg);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);
-  border:1px solid var(--glass-a-border);border-radius:999px;
-  padding:8px 8px 8px 20px;
-  display:flex;align-items:center;gap:12px;
-  transition:transform .4s cubic-bezier(.22,1,.36,1),opacity .3s ease;
-  box-shadow:var(--glass-a-shadow);
-  opacity:0;pointer-events:none;}
-.buy-bar.show{transform:translateX(-50%) translateY(0);opacity:1;pointer-events:auto}
-.buy-bar-info{display:flex;flex-direction:column;gap:1px;min-width:0}
-.buy-bar-name{font-size:11px;font-weight:600;color:var(--stone);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
-.buy-bar-price{font-size:15px;font-weight:800;color:var(--charcoal);white-space:nowrap}
-.buy-bar-btns{display:flex;gap:6px;flex-shrink:0}
-.buy-bar-btns .btn{padding:10px 20px;font-size:12px;white-space:nowrap;border-radius:999px}
-@media(max-width:768px){
-  .buy-bar{bottom:calc(64px + 20px)}
-}
 .detail-name{font-size:clamp(16px,2vw,22px);font-weight:700;color:var(--charcoal);line-height:1.25;margin-bottom:5px;margin-top:4px}
 .detail-designer{display:flex;align-items:center;gap:8px;width:fit-content;font-size:12.5px;color:var(--stone);margin-bottom:14px;line-height:1.4;background:rgba(196,98,42,.07);border:1px solid rgba(196,98,42,.18);border-radius:10px;padding:9px 14px}
 .detail-designer svg{flex-shrink:0;color:var(--accent)}
@@ -284,8 +265,6 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
 }
 /* Zone 4: trust strip — 4 skeleton cards matching tsp-item height (~70px) */
 .skel-tsp{flex:1;min-width:120px;height:70px;border-radius:8px}
-/* Zone 5: buy bar name + price skeleton */
-.buy-bar-name .skel-bb,.buy-bar-price .skel-bb{display:block}
 
 /* ACCORDION with animation (FIX from PDF p6) */
 .gallery-dropdowns{padding:16px 12px 40px;margin-top:0;display:flex;flex-direction:column;gap:8px}
@@ -548,19 +527,6 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
       <div class="detail-desc" id="prodLongDesc" style="margin-top:20px;font-size:13px;font-weight:300;display:none"></div>
 
     </div><!-- /detail-info -->
-
-    <!-- MOBILE STICKY BUY BAR — appears when buy buttons scroll off screen -->
-    <!-- Zone 5 skeleton: buy bar name/price replaced by textContent on load -->
-    <div class="buy-bar" id="buyBar">
-      <div class="buy-bar-info">
-        <div class="buy-bar-name" id="buyBarName"><span class="skeleton skel-bb" style="height:12px;width:130px;border-radius:4px" aria-hidden="true"></span></div>
-        <div class="buy-bar-price" id="buyBarPrice"><span class="skeleton skel-bb" style="height:17px;width:70px;border-radius:4px;margin-top:3px" aria-hidden="true"></span></div>
-      </div>
-      <div class="buy-bar-btns">
-        <button class="btn btn-outline" onclick="addToCartFromDetail()">Cart</button>
-        <button class="btn btn-accent" onclick="buyNow()">Buy Now</button>
-      </div>
-    </div>
 
   </div><!-- /detail-layout -->
 </div>
@@ -853,11 +819,6 @@ function renderProduct(ap){
     }
   }
   document.getElementById('prodPrice').textContent='₹'+p.price.toLocaleString('en-IN');
-  // Mobile buy bar info
-  const bbName=document.getElementById('buyBarName');
-  const bbPrice=document.getElementById('buyBarPrice');
-  if(bbName)bbName.textContent=p.name;
-  if(bbPrice)bbPrice.textContent='₹'+p.price.toLocaleString('en-IN');
   // INR-only brand: never show a USD price
   document.getElementById('prodUsd')&&(document.getElementById('prodUsd').textContent='');
   document.getElementById('prodDesc').textContent=p.desc;
@@ -955,8 +916,6 @@ function renderProduct(ap){
   const saveBtn=document.getElementById('detailSave');
   if(saveBtn){saveBtn.dataset.slug=id;saveBtn.dataset.name=p.name;}
   _paintDetailWish();
-  // Mobile buy bar — show when buy buttons scroll off screen
-  _initBuyBar();
   // dropdowns in gallery column
   renderDropdowns(p);
   loadReviews(id);
@@ -1009,7 +968,7 @@ function renderRecentlyViewed(currentSlug){
     })
     .catch(()=>{section.style.display='none';});
 }
-function selectVariant(btn,v){document.querySelectorAll('.variant-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selVariant=v;const vp=btn.dataset.price;if(vp!=null){selVariantPrice=Number(vp);document.getElementById('prodPrice').textContent='₹'+selVariantPrice.toLocaleString('en-IN');const bbPrice=document.getElementById('buyBarPrice');if(bbPrice)bbPrice.textContent='₹'+selVariantPrice.toLocaleString('en-IN');}else{selVariantPrice=null;}}
+function selectVariant(btn,v){document.querySelectorAll('.variant-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selVariant=v;const vp=btn.dataset.price;if(vp!=null){selVariantPrice=Number(vp);document.getElementById('prodPrice').textContent='₹'+selVariantPrice.toLocaleString('en-IN');}else{selVariantPrice=null;}}
 function changeQty(d){
   const minQ=curProduct&&curProduct.min_order_qty||1;
   const step=curProduct&&curProduct.qty_step||1;
@@ -1204,20 +1163,6 @@ function closeLightbox(){
   document.body.style.overflow='';
 }
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLightbox();});
-
-/* MOBILE BUY BAR — shows when buy buttons scroll out of viewport */
-let _buyBarObs=null;
-function _initBuyBar(){
-  const bar=document.getElementById('buyBar');
-  const anchor=document.getElementById('buyButtons');
-  if(!bar||!anchor)return;
-  if(_buyBarObs)_buyBarObs.disconnect();
-  _buyBarObs=new IntersectionObserver(function(entries){
-    // Show bar when buy buttons are NOT visible
-    bar.classList.toggle('show',!entries[0].isIntersecting);
-  },{threshold:0.1});
-  _buyBarObs.observe(anchor);
-}
 
 let _reviewRating=0;
 

@@ -207,7 +207,7 @@ window._FOOTER_HTML = `<footer>
         '.nav-corp{display:none!important}'+
         '.nav-corp:hover{background:var(--accent,#C4622A)}'+
         '@media(max-width:768px){.ta-topbar-l1{display:none}.nav-corp{display:none}}'+
-        'body:has(.nav-drawer.open) .ta-topbar{transform:none!important;opacity:1!important;pointer-events:auto!important}';
+        'body:has(.nav-drawer.open) .ta-topbar{display:none!important}';
       head.appendChild(st);
     }
   }catch(_){}
@@ -357,6 +357,7 @@ window._FOOTER_HTML = `<footer>
       var pdpNav=document.createElement('nav');
       pdpNav.id='taBottomNav';
       pdpNav.className='ta-bottomnav ta-bottomnav--pdp';
+      try{ if(!/Android/i.test(navigator.userAgent)) pdpNav.classList.add('tabn-distort'); }catch(_){}
       pdpNav.setAttribute('aria-label','Product actions');
       pdpNav.innerHTML=
         '<div class="tabn-pdp-info">'+
@@ -392,14 +393,14 @@ window._FOOTER_HTML = `<footer>
       /* Sync price from product JS once it loads */
       try{
         var _syncPrice=function(){
-          var src=document.getElementById('buyBarPrice');
+          var src=document.getElementById('prodPrice');
           var dst=document.getElementById('tabnPdpPrice');
           if(src&&dst){
             var t=(src.textContent||'').replace(/\s+/g,' ').trim();
             if(t&&t.indexOf('₹')!==-1){dst.textContent=t;}
           }
         };
-        var _priceEl=document.getElementById('buyBarPrice');
+        var _priceEl=document.getElementById('prodPrice');
         if(_priceEl){
           var _obs=new MutationObserver(_syncPrice);
           _obs.observe(_priceEl,{childList:true,subtree:true,characterData:true});
