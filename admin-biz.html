@@ -1604,6 +1604,10 @@ html[data-theme="dark"] .biz-login{
             <label>Default COGS / Making Cost (₹)</label>
             <input type="number" id="lbl_cogs" step="0.01" placeholder="0.00">
           </div>
+          <div class="form-group">
+            <label>Default Grams per Order</label>
+            <input type="number" id="lbl_grams" step="1" placeholder="0">
+          </div>
         </div>
       </div>
 
@@ -1643,7 +1647,7 @@ html[data-theme="dark"] .biz-login{
             <thead><tr>
               <th>Order ID</th><th>Platform</th><th>Qty</th>
               <th>Product Name</th><th class="td-num">Selling Price (₹)</th>
-              <th class="td-num">COGS (₹)</th><th>Customer</th><th>City / State</th>
+              <th class="td-num">COGS (₹)</th><th class="td-num">Grams</th><th>Customer</th><th>City / State</th>
             </tr></thead>
             <tbody id="lblTableBody"></tbody>
           </table>
@@ -6874,6 +6878,7 @@ function renderExtractedLabels(pages){
   const defProductName=defProduct.options[defProduct.selectedIndex]?.textContent||'';
   const defPrice=document.getElementById('lbl_price').value||'';
   const defCogs=document.getElementById('lbl_cogs').value||'';
+  const defGrams=document.getElementById('lbl_grams').value||'';
 
   _extractedLabels=pages.map((text,i)=>{
     const d=extractLabelData(text,platform);
@@ -6882,6 +6887,7 @@ function renderExtractedLabels(pages){
       productId:defProduct.value||'',
       sellingPrice:defPrice,
       cogs:defCogs,
+      grams:defGrams,
       _raw:text,
     };
   });
@@ -6906,6 +6912,7 @@ function renderExtractedLabels(pages){
       </td>
       <td><input type="number" value="${esc(r.sellingPrice||r.price)}" id="lr_price_${i}" step="0.01" style="width:76px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;text-align:right;font-family:var(--mono)"></td>
       <td><input type="number" value="${esc(r.cogs)}" id="lr_cogs_${i}" step="0.01" style="width:66px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;text-align:right;font-family:var(--mono)"></td>
+      <td><input type="number" value="${esc(r.grams)}" id="lr_grams_${i}" step="1" style="width:60px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;text-align:right;font-family:var(--mono)"></td>
       <td style="font-size:11px">
         <div style="color:var(--text)">${esc(r.customerName||'—')}</div>
         <div style="color:var(--text-3);margin-top:2px">${esc([r.city,r.state].filter(Boolean).join(', '))}${r.pincode?' — '+r.pincode:''}</div>
@@ -6936,6 +6943,8 @@ function onLblProductChange(i){
   if(nameEl&&!nameEl.value) nameEl.value=p.name;
   const cogsEl=document.getElementById('lr_cogs_'+i);
   if(cogsEl&&!cogsEl.value) cogsEl.value=p.base_cost;
+  const gramsEl=document.getElementById('lr_grams_'+i);
+  if(gramsEl&&!gramsEl.value&&p.grams_per_unit) gramsEl.value=p.grams_per_unit;
 }
 
 async function importExtractedLabels(){
@@ -6951,6 +6960,7 @@ async function importExtractedLabels(){
     const productName=(document.getElementById('lr_pname_'+i)?.value||'').trim();
     const price=parseFloat(document.getElementById('lr_price_'+i)?.value)||0;
     const cogs=parseFloat(document.getElementById('lr_cogs_'+i)?.value)||0;
+    const grams=parseFloat(document.getElementById('lr_grams_'+i)?.value)||0;
     if(!price&&!productName) return; // skip empty rows
     const r=_extractedLabels[i];
     batch.push({
@@ -6967,6 +6977,7 @@ async function importExtractedLabels(){
       selling_price:price,
       platform_fee:0,
       cogs,
+      grams_used:grams||null,
       gst_rate:r.gstRate||(_bizDefaults&&_bizDefaults.gst)||0,
       hsn_code:r.hsn||(_bizDefaults&&_bizDefaults.hsn)||null,
       customer_name:r.customerName||null,
