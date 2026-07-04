@@ -6159,26 +6159,30 @@ function printInvoice(d, type, docKind){
     const iqty=parseInt(it.qty)||1;
     const iunit=parseFloat(it.selling_price)||0;
     const idisc=parseFloat(it.discount_amount)||0;
-    const iamt=iunit*iqty-idisc;
+    const iamt_incl=iunit*iqty-idisc;
     const irate=parseFloat(it.gst_rate)||0;
-    const igst=(type==='gst'&&irate>0)?iamt-(iamt/(1+irate/100)):0;
+    const igst=(type==='gst'&&irate>0)?iamt_incl-(iamt_incl/(1+irate/100)):0;
+    // For GST invoices show taxable (ex-GST) amounts in the rate/amount columns
+    const iamt=iamt_incl-igst;
+    const iunit_show=(type==='gst'&&irate>0)?(iqty>0?iamt/iqty:iamt):iunit;
     subtotal+=iamt; gstAmt+=igst;
     const vline=[it.size,it.color,it.variant].filter(Boolean).join(' · ');
     const metaBits=[it.sku?'SKU: '+it.sku:'', it.hsn_code?'HSN: '+it.hsn_code:''].filter(Boolean).join('  ·  ');
     return `<tr>
       <td><strong>${esc(it.product_name||'—')}</strong>${vline?`<div class="item-sub">${esc(vline)}</div>`:''}${metaBits?`<div class="item-sub" style="color:#999">${esc(metaBits)}</div>`:''}${idisc>0?`<div class="item-sub" style="color:#c0392b">Discount −₹${idisc.toFixed(2)}</div>`:''}</td>
       <td class="td-r">${iqty}</td>
-      <td class="td-r">₹${iunit.toFixed(2)}</td>
+      <td class="td-r">₹${iunit_show.toFixed(2)}</td>
       <td class="td-r">₹${iamt.toFixed(2)}</td>
     </tr>`;
   }).join('');
   const hasGst=(type==='gst'&&gstAmt>0.005);
-  const taxable=subtotal-gstAmt;
+  const taxable=subtotal;
   const gstRate=(hasGst&&taxable>0)?Math.round(gstAmt/taxable*100):(parseFloat(d.gst_rate)||0);
   const isIntraState=!d.customer_state||d.customer_state.trim().toLowerCase()===MY_STATE.toLowerCase();
   const docNo=d.order_id||nextDocNumber();
   const docDate=d.order_date||today();
-  const amtWords=amountInWords(subtotal);
+  const grandTotal=subtotal+gstAmt;
+  const amtWords=amountInWords(grandTotal);
   const docTitle=isRecord?'Order Record':(hasGst?'Tax Invoice':'Invoice');
 
   // §Internal Details (Order Record only) — cost/margin/production data that a customer
@@ -6344,7 +6348,7 @@ ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
   ${gstBlock}
   <tr class="total-row">
     <td colspan="3" style="text-align:right">Total</td>
-    <td style="text-align:right">₹${subtotal.toFixed(2)}</td>
+    <td style="text-align:right">₹${grandTotal.toFixed(2)}</td>
   </tr>
 </tbody></table>
 <div class="words-row">${esc(amtWords)}</div>
