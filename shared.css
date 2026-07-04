@@ -352,8 +352,8 @@ nav.main-nav.scrolled.nav-distort{
   box-shadow:0 7px 20px rgba(196,98,42,.44),inset 0 1px 0 rgba(255,255,255,.32)}
 
 /* NAV SEARCH — desktop pill in the nav bar */
-.nav-search{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--stone-p);border-radius:999px;padding:7px 14px;box-shadow:0 1px 2px rgba(22,22,20,.05);transition:border-color .2s,background .2s,box-shadow .2s;order:0}
-.nav-search:focus-within{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(196,98,42,.12)}
+.nav-search{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.55);-webkit-backdrop-filter:blur(10px) saturate(140%);backdrop-filter:blur(10px) saturate(140%);border:1px solid rgba(255,255,255,.6);border-radius:999px;padding:7px 14px;box-shadow:0 1px 2px rgba(22,22,20,.04),inset 0 1px 0 rgba(255,255,255,.75);transition:border-color .25s,background .25s,box-shadow .25s;order:0}
+.nav-search:focus-within{border-color:var(--accent);background:rgba(255,255,255,.82);box-shadow:0 0 0 3px rgba(196,98,42,.12)}
 .nav-search input{border:none;background:transparent;outline:none;font-family:var(--font-b);font-size:12.5px;color:var(--charcoal);width:110px}
 .nav-search input::placeholder{color:var(--stone)}
 .nav-search input::-webkit-search-cancel-button{-webkit-appearance:none}
@@ -363,7 +363,7 @@ nav.main-nav.scrolled.nav-distort{
 @media(max-width:1140px){.nav-search{display:none}}
 
 /* DRAWER SEARCH — mobile, inside the slide-out menu */
-.drawer-search{display:flex;align-items:center;gap:8px;margin:0 0 8px;background:#fff;border:1.5px solid var(--stone-p);border-radius:999px;padding:8px 8px 8px 16px;box-shadow:0 1px 4px rgba(22,22,20,.06)}
+.drawer-search{display:flex;align-items:center;gap:8px;margin:0 0 8px;background:rgba(255,255,255,.65);-webkit-backdrop-filter:blur(12px) saturate(140%);backdrop-filter:blur(12px) saturate(140%);border:1.5px solid rgba(255,255,255,.65);border-radius:999px;padding:8px 8px 8px 16px;box-shadow:0 1px 4px rgba(22,22,20,.05),inset 0 1px 0 rgba(255,255,255,.8)}
 .drawer-search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(196,98,42,.1)}
 .drawer-search input{flex:1;border:none;background:transparent;outline:none;font-family:var(--font-b);font-size:14px;color:var(--charcoal);min-width:0}
 .drawer-search input::placeholder{color:var(--stone)}
@@ -844,7 +844,13 @@ footer{background:var(--char-2);color:var(--ivory);padding:64px 0 28px}
 .prose ul li{font-size:14px;color:var(--warm);font-weight:300;line-height:1.8;list-style:disc;margin-bottom:4px}
 .prose a{color:var(--accent);text-decoration:underline}
 
-/* ── RESPONSIVE NAV (hamburger breakpoint) ───────────── */
+/* ── RESPONSIVE NAV (hamburger breakpoint) ─────────────
+   Two triggers share the exact same compact layout below:
+   1) @media(max-width:1140px)  — genuinely narrow viewport.
+   2) html.nav-compact          — JS-driven fallback (see updateNavCompact()
+      in shared.js) for when the nav's real content overflows even on a
+      wide viewport, e.g. OS/browser text-size scaling or heavy zoom. It
+      measures actual overflow instead of guessing from width alone. */
 @media(max-width:1140px){
   .nav-links{display:none}
   .nav-toggle{display:flex;flex-shrink:0;order:-1}
@@ -857,6 +863,15 @@ footer{background:var(--char-2);color:var(--ivory);padding:64px 0 28px}
   .nav-search input{width:100%;min-width:0}
   .nav-corp,.nav-profile-btn,.nav-shop,.wishlist-btn,.cart-btn{display:none!important}
 }
+html.nav-compact .nav-links{display:none}
+html.nav-compact .nav-toggle{display:flex;flex-shrink:0;order:-1}
+html.nav-compact .nav-inner{justify-content:flex-start;gap:10px;flex-wrap:nowrap}
+html.nav-compact .logo{flex-shrink:0;order:0}
+html.nav-compact .nav-right{flex:1;min-width:0;order:1;justify-content:flex-end;gap:10px;padding-right:14px;flex-wrap:nowrap}
+html.nav-compact .nav-search{display:flex!important;flex:1 1 auto;min-width:0;max-width:190px;padding:6px 10px}
+html.nav-compact .nav-search input{width:100%;min-width:0}
+html.nav-compact .nav-corp,html.nav-compact .nav-profile-btn,html.nav-compact .nav-shop,
+html.nav-compact .wishlist-btn,html.nav-compact .cart-btn{display:none!important}
 /* Extra compress on small phones */
 @media(max-width:480px){
   .nav-inner{gap:6px}
