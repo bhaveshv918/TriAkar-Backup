@@ -4160,7 +4160,12 @@ async function loadSales(){
     const thumb=prodImg
       ? `<img src="${esc(prodImg)}" alt="" style="width:28px;height:28px;border-radius:5px;object-fit:cover;flex-shrink:0;vertical-align:middle;margin-right:7px" onerror="this.style.display='none'">`
       : `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:5px;background:var(--bg-3);color:var(--text-3);font-size:10px;flex-shrink:0;vertical-align:middle;margin-right:7px">—</span>`;
-    const itemCol=thumb+(items.length===1?esc(f.product_name):`${esc(f.product_name)} <span style="color:var(--text-3);font-size:10px">+${items.length-1} more · ${items.length} items</span>`);
+    // Show SKU as the primary label (products are recognised by SKU day-to-day) with the
+    // full description underneath in muted text; falls back to the name if no SKU is set.
+    const skuLine=f.sku
+      ?`<div style="font-family:var(--mono);font-weight:600">${esc(f.sku)}</div><div style="color:var(--text-3);font-size:10px">${esc(f.product_name||'—')}</div>`
+      :esc(f.product_name||'—');
+    const itemCol=thumb+`<span style="display:inline-block;vertical-align:middle">${skuLine}${items.length>1?` <span style="color:var(--text-3);font-size:10px">+${items.length-1} more · ${items.length} items</span>`:''}</span>`;
     return `<tr class="sale-row" onclick="rowSelectOrAction(event,'sale-cb',()=>openOrderDetail('${key}',event))" style="cursor:pointer;${allPaid?'opacity:.78':''}">
       <td><input type="checkbox" class="sale-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateBulkBar()"></td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${idx+1}</td>
@@ -4247,7 +4252,7 @@ function renderOrderDetail(items){
   const F=(l,val)=>val?`<div><div style="color:var(--text-3);font-size:9px;text-transform:uppercase;letter-spacing:.6px">${l}</div><div style="font-size:12px;margin-top:1px">${val}</div></div>`:'';
   const itemRows=items.map(s=>{ const vl=[s.size,s.color,s.variant].filter(Boolean).join(' · ');
     return `<tr>
-      <td>${esc(s.product_name||'—')}${vl?` <span style="color:var(--text-3)">(${esc(vl)})</span>`:''}${s.hsn_code?` <span style="color:var(--text-3);font-size:10px;font-family:var(--mono)">HSN ${esc(s.hsn_code)}</span>`:''}</td>
+      <td>${s.sku?`<span style="font-family:var(--mono);font-weight:600">${esc(s.sku)}</span> · `:''}${esc(s.product_name||'—')}${vl?` <span style="color:var(--text-3)">(${esc(vl)})</span>`:''}${s.hsn_code?` <span style="color:var(--text-3);font-size:10px;font-family:var(--mono)">HSN ${esc(s.hsn_code)}</span>`:''}</td>
       <td class="td-num">${s.qty||1}</td>
       <td class="td-num">${fmt(s.selling_price)}</td>
       <td class="td-actions" style="white-space:nowrap;text-align:right">${(locked||items.length<2)?'':`<button class="btn btn-ghost btn-sm" onclick="openEditSale('${s.id}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteSale('${s.id}')">✕</button>`}</td>
