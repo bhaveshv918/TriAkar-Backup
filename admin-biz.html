@@ -1354,7 +1354,8 @@ html[data-theme="dark"] .biz-login{
       <!-- Bulk action bar — shown only when rows are selected -->
       <div id="bulkBar" style="display:none;background:var(--accent);color:#fff;border-radius:7px;padding:10px 16px;margin-bottom:10px;display:none;align-items:center;gap:10px;flex-wrap:wrap">
         <span id="bulkCount" style="font-size:12px;font-weight:700;margin-right:4px">0 selected</span>
-        <button class="btn btn-sm" onclick="bulkMarkPaid()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">✓ Mark Paid</button>
+        <button class="btn btn-sm" onclick="bulkMarkPaid()" title="Marks selected orders paid and locks them" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">🔒 Lock</button>
+        <button class="btn btn-sm" onclick="bulkUnlock()" title="Unmarks paid so selected orders can be edited again" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">🔓 Unlock</button>
         <select onchange="if(this.value){bulkMarkStatus(this.value);this.value='';}" title="Set status for selected" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;font-size:11px;padding:5px 8px;cursor:pointer">
           <option value="" style="color:#111">↻ Set status…</option>
           <option value="pending" style="color:#111">Pending</option>
@@ -4442,10 +4443,17 @@ function getSelectedIds(){
 }
 async function bulkMarkPaid(){
   const ids=getSelectedIds(); if(!ids.length) return;
-  if(!confirm('Mark '+ids.length+' order(s) as PAID? This will lock them.')) return;
+  if(!confirm('Lock '+ids.length+' order(s) as PAID?')) return;
   const {error}=await sb.from('biz_sales').update({is_paid:true}).in('id',ids);
   if(error){toast('Error: '+error.message,'error');return;}
-  toast(ids.length+' orders marked paid'); loadSales();
+  toast(ids.length+' orders locked'); loadSales();
+}
+async function bulkUnlock(){
+  const ids=getSelectedIds(); if(!ids.length) return;
+  if(!confirm('Unlock '+ids.length+' order(s)? They will no longer be marked paid.')) return;
+  const {error}=await sb.from('biz_sales').update({is_paid:false}).in('id',ids);
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast(ids.length+' orders unlocked'); loadSales();
 }
 async function bulkMarkStatus(status){
   const ids=getSelectedIds(); if(!ids.length) return;
