@@ -6662,6 +6662,9 @@ function extractLabelData(text,platform){
         || text.match(/[\w-]+\s*\|\s*([\w][^|\r\n]{5,100}?)\s*\|/i);
       if(pn) productName=pn[1].trim().replace(/^Description\s*/i,'').replace(/^QTY\s*\d*\s*/i,'').trim();
     }
+    // Append the SKU (e.g. "TAF/FIG/BAT/BLK/023") so variants sharing the same description
+    // text are still distinguishable in the sales log.
+    if(sku && productName && !productName.includes(sku)) productName+=' | '+sku;
 
     // Customer name: "Name: Ayush ," — from the customer block only
     const cn=custText.match(/Name[:\s]+([A-Za-z][^\r\n,]{1,40})/i);
