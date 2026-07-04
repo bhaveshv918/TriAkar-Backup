@@ -5785,7 +5785,7 @@ function buildFlipkartRow(row, defaultCogs){
     status:_fkStatus(g('Order State')),
     sku:sku,
     product_id:cat?cat.id:null,
-    product_name:_fkClean(g('Product'))||'—',
+    product_name:_fkClean(g('Product'))||'Unknown',
     invoice_no:_fkClean(g('Invoice No.')),
     gst_rate:gstRate,
     selling_price:price,
@@ -5809,7 +5809,7 @@ async function runFlipkartImport(defaultCogs){
   const statusEl=document.getElementById('importStatus');
   statusEl.textContent='Reading…';
   // 1) draft rows
-  const draft=_importRows.map(r=>buildFlipkartRow(r,defaultCogs)).filter(r=>r.product_name&&r.product_name!=='—'&&r.selling_price);
+  const draft=_importRows.map(r=>buildFlipkartRow(r,defaultCogs)).filter(r=>r.order_id);
   const skip=_importRows.length-draft.length;
   // 2) auto-create any new products so they appear in the catalog
   const created=await autoCreateProducts(draft);
@@ -5847,8 +5847,8 @@ async function runImport(){
   const batch=[];
   for(const row of _importRows){
     const g=f=>{ const c=getCol(f); return c?row[c]||'':''; };
-    const pname=g('product_name'); if(!pname){ skip++; continue; }
-    const price=parseFloat(String(g('selling_price')).replace(/[₹,]/g,''))||0; if(!price){ skip++; continue; }
+    const pname=g('product_name')||'Unknown';
+    const price=parseFloat(String(g('selling_price')).replace(/[₹,]/g,''))||0;
     const rawDate=g('order_date');
     let orderDate=today();
     if(rawDate){
