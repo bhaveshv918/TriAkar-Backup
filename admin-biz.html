@@ -6640,7 +6640,9 @@ function extractLabelData(text,platform){
       const p1=before.match(/TRIAKAR\s+([\s\S]{3,150})$/i);
       if(p1) namePart1=p1[1].trim();
       const after=text.slice(hsnIdx,hsnIdx+400);
-      const p2=after.match(/IGST\s*:\s*[\d.]+%\s*\|\s*([\s\S]{2,150}?)\s*\|/i);
+      // Capture only the immediate continuation line — bounded by newline or pipe, never
+      // crossing into the CESS/SKU/IMEI lines that follow (those don't belong in the name).
+      const p2=after.match(/IGST\s*:\s*[\d.]+%\s*\|\s*\r?\n?\s*([^\r\n|]{2,150})/i);
       if(p2) namePart2=p2[1].trim();
       // SKU code, e.g. "TAF/FIG/BAT/BLK/023" — reliably sits right after the line item,
       // just before "IMEI/SrNo" (this location beats matching anywhere in the doc, since
