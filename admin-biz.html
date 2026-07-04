@@ -6627,10 +6627,16 @@ function extractLabelData(text,platform){
     const aw=text.match(/AWB[\s\r\n]+No\.?\s*[\r\n]*([\w]+)/i)||text.match(/\b(FMP[CP][\w]+)\b/i);
     if(aw) tracking=(aw[1]||aw[0]);
 
-    // Product name: "SKU | Description | For..." → take only the description part (before second |)
-    const pn=text.match(/[\w-]+\s*\|\s*([\w][^|]{5,120}?)\s*\|\s*(?:For\b|1\b|\d+\b)/i)
-      || text.match(/[\w-]+\s*\|\s*([\w][^|\r\n]{5,100}?)\s*\|/i);
-    if(pn) productName=pn[1].trim();
+    // Product name: prefer TRIAKAR name from the invoice section (before HSN line)
+    const pnInv=text.match(/TRIAKAR\s+([\s\S]{5,200}?)\s*(?=HSN\s*:|\bIGST\b)/i);
+    if(pnInv){
+      productName=('TRIAKAR '+pnInv[1]).trim().replace(/\s+/g,' ');
+    } else {
+      // Fall back: SKU | Description pattern — strip leaked table-header words
+      const pn=text.match(/[\w-]+\s*\|\s*([\w][^|]{5,120}?)\s*\|\s*(?:For\b|1\b|\d+\b)/i)
+        || text.match(/[\w-]+\s*\|\s*([\w][^|\r\n]{5,100}?)\s*\|/i);
+      if(pn) productName=pn[1].trim().replace(/^Description\s*/i,'').replace(/^QTY\s*\d*\s*/i,'').trim();
+    }
 
     // Customer name: "Name: Ayush ," — from the customer block only
     const cn=custText.match(/Name[:\s]+([A-Za-z][^\r\n,]{1,40})/i);
