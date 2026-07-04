@@ -191,7 +191,7 @@ window._FOOTER_HTML = `<footer>
       var st=document.createElement('style');st.id='taTopbarCSS';
       st.textContent=
         '.notice-bar{display:none!important}'+
-        '.ta-topbar{position:fixed;top:0;left:0;right:0;z-index:1001;height:var(--notice-h);display:flex;align-items:center;justify-content:center;font-family:var(--font-b,inherit);background:var(--charcoal,#161614);color:var(--ivory,#F4F2EC);transition:transform .4s cubic-bezier(.22,1,.36,1),opacity .35s}'+
+        '.ta-topbar{position:fixed;top:0;left:0;right:0;z-index:1001;height:var(--notice-h);display:flex;align-items:center;justify-content:center;font-family:var(--font-b,inherit);background:var(--charcoal,#0F0F0D);color:var(--ivory,#F4F2EC);transition:transform .4s cubic-bezier(.22,1,.36,1),opacity .35s}'+
         'html.is-scrolled .ta-topbar{transform:translateY(-100%);opacity:0;pointer-events:none}'+
         '.ta-topbar-l2{width:100%}'+
         '.ta-topbar-l1{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:6px 20px;font-size:11px;letter-spacing:.02em;border-bottom:1px solid rgba(255,255,255,.08)}'+
@@ -287,7 +287,7 @@ window._FOOTER_HTML = `<footer>
         var m=document.createElement('link');m.rel='manifest';m.href='/manifest.json';head.appendChild(m);
       }
       if(!head.querySelector('meta[name="theme-color"]')){
-        var t=document.createElement('meta');t.name='theme-color';t.content='#161614';head.appendChild(t);
+        var t=document.createElement('meta');t.name='theme-color';t.content='#0F0F0D';head.appendChild(t);
       }
       if(!head.querySelector('link[rel="apple-touch-icon"]')){
         var a=document.createElement('link');a.rel='apple-touch-icon';a.href='/favicon.svg';head.appendChild(a);
