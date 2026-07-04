@@ -6504,7 +6504,10 @@ async function processLabelFiles(files){
       for(let i=1;i<=pdf.numPages;i++){
         const page=await pdf.getPage(i);
         const content=await page.getTextContent();
-        const text=content.items.map(it=>it.str).join(' ');
+        // Preserve line breaks (hasEOL) instead of flattening to one line — the label/invoice
+        // regexes below rely on newline boundaries to tell the description apart from the
+        // HSN/SKU/CESS lines that visually wrap around it.
+        const text=content.items.map(it=>it.str+(it.hasEOL?'\n':' ')).join('');
         allText.push(text);
       }
     }catch(err){ toast('PDF read error: '+err.message,'error'); }
@@ -6627,36 +6630,28 @@ function extractLabelData(text,platform){
     const aw=text.match(/AWB[\s\r\n]+No\.?\s*[\r\n]*([\w]+)/i)||text.match(/\b(FMP[CP][\w]+)\b/i);
     if(aw) tracking=(aw[1]||aw[0]);
 
-    // Product name: the invoice table wraps the description around the HSN/IGST line
-    // ("TRIAKAR Decorative Showpiece - 13\nHSN: 3926 | IGST: 18.00% |\ncm TAK-FG-BAT-BK-S1 | ...").
-    // Anchor the search to a tight window right before "HSN:" so we grab that line and NOT
-    // the far-earlier "Sold By: TriAkar Form…" seller header or customer address (previous
-    // unbounded regex matched from the first TRIAKAR/TriAkar in the whole doc and swallowed
-    // everything up to HSN, including the customer's address).
-    let namePart1='', namePart2='';
-    const hsnIdx=text.search(/HSN\s*:/i);
-    if(hsnIdx>-1){
-      const before=text.slice(Math.max(0,hsnIdx-200),hsnIdx);
-      const p1=before.match(/TRIAKAR\s+([\s\S]{3,150})$/i);
-      if(p1) namePart1=p1[1].trim();
-      const after=text.slice(hsnIdx,hsnIdx+400);
-      // Capture only the immediate continuation line — bounded by newline or pipe, never
-      // crossing into the CESS/SKU/IMEI lines that follow (those don't belong in the name).
-      const p2=after.match(/IGST\s*:\s*[\d.]+%\s*\|\s*\r?\n?\s*([^\r\n|]{2,150})/i);
-      if(p2) namePart2=p2[1].trim();
-      // SKU code, e.g. "TAF/FIG/BAT/BLK/023" — reliably sits right after the line item,
-      // just before "IMEI/SrNo" (this location beats matching anywhere in the doc, since
-      // the SKU also appears earlier glued to a leading qty digit, e.g. "1TAF/FIG/...").
-      const skuM=after.match(/\b([A-Z]{2,6}(?:\/[A-Z0-9]{1,8}){2,5})\s*\|\s*IMEI/i);
-      if(skuM) sku=skuM[1];
+    // Product name: in the real (pdf.js, line-broken) extraction, the invoice table reads
+    //   TRIAKAR Decorative Showpiece - 13
+    //   cm TAK-FG-BAT-BK-S1 |
+    //   TAF/FIG/BAT/BLK/023 | IMEI/SrNo: [[]]
+    //   HSN: 3926 | IGST: 18.00% |
+    //   CESS: 0.00%  1  816.00  -109.00  599.16  107.84  0.00  707.00
+    // i.e. the SKU + "| IMEI/SrNo" line is a reliable, unique landmark that sits directly
+    // after the (possibly 2-line) description and before HSN. Anchor on that landmark and
+    // read backwards to the nearest "TRIAKAR" — this avoids the far-earlier "Sold By:
+    // TriAkar Form…" seller header and the customer address matching instead.
+    const skuImeiM=text.match(/([A-Z]{2,6}(?:\/[A-Z0-9]{1,8}){2,5})\s*\|\s*IMEI/i);
+    if(skuImeiM){
+      sku=skuImeiM[1];
+      const before=text.slice(Math.max(0,skuImeiM.index-250),skuImeiM.index);
+      const p1=before.match(/TRIAKAR\s+([\s\S]{3,200})$/i);
+      if(p1) productName=('TRIAKAR '+p1[1]).replace(/\s+/g,' ').replace(/\|\s*$/,'').trim();
     }
     if(!sku){
       const skuM2=text.match(/\b([A-Z]{2,6}(?:\/[A-Z0-9]{1,8}){2,5})\b/);
       if(skuM2) sku=skuM2[1];
     }
-    if(namePart1||namePart2){
-      productName=('TRIAKAR '+[namePart1,namePart2].filter(Boolean).join(' ')).replace(/\s+/g,' ').trim();
-    } else {
+    if(!productName){
       // Fall back: SKU | Description pattern — strip leaked table-header words
       const pn=text.match(/[\w-]+\s*\|\s*([\w][^|]{5,120}?)\s*\|\s*(?:For\b|1\b|\d+\b)/i)
         || text.match(/[\w-]+\s*\|\s*([\w][^|\r\n]{5,100}?)\s*\|/i);
