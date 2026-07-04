@@ -51,7 +51,7 @@ input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 input[type=number]{-moz-appearance:textfield}
 :root{
-  --radius:6px;--sidebar-w:200px;
+  --radius:6px;--sidebar-w:215px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;overflow:hidden}
@@ -98,7 +98,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .tab:hover{background:var(--bg-2);color:var(--text)}
 .tab.active{background:var(--accent-bg);color:var(--accent)}
 .tab-icon{font-size:13px;width:16px;text-align:center;flex-shrink:0}
-.tab-label{flex:1}
+.tab-label{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tab-badge{font-size:9px;font-family:var(--mono);background:var(--bg-3);color:var(--text-3);padding:1px 5px;border-radius:3px}
 .tab.active .tab-badge{background:rgba(82,183,136,.15);color:var(--accent)}
 
@@ -6660,7 +6660,15 @@ function extractLabelData(text,platform){
   }
 
   if(!qty||qty<1){ const qm=text.match(/(?:qty|quantity)[:\s]+(\d+)/i); if(qm) qty=parseInt(qm[1])||1; }
-  return {orderId,qty,productName,customerName,customerAddress,city,state,pincode,tracking,paymentMode,orderDate,orderTime,deliveryDate,dispatchDate,courier,price};
+
+  // GST details from the invoice block (same pattern on Amazon and Flipkart)
+  const hsnM=text.match(/HSN\s*(?:Code)?\s*:\s*(\d{4,8})/i);
+  const hsn=hsnM?hsnM[1]:'';
+  const igstRM=text.match(/IGST\s*:\s*([\d.]+)\s*%/i);
+  const cgstRM=text.match(/CGST\s*:\s*([\d.]+)\s*%/i);
+  const gstRate=igstRM?parseFloat(igstRM[1]):(cgstRM?parseFloat(cgstRM[1])*2:0);
+
+  return {orderId,qty,productName,customerName,customerAddress,city,state,pincode,tracking,paymentMode,orderDate,orderTime,deliveryDate,dispatchDate,courier,price,hsn,gstRate};
 }
 
 // ── Theme (dark / light) — parity with the Admin Panel, shared 'ta_theme' pref ──
@@ -6913,7 +6921,8 @@ async function importExtractedLabels(){
       selling_price:price,
       platform_fee:0,
       cogs,
-      gst_rate:0,
+      gst_rate:r.gstRate||(_bizDefaults&&_bizDefaults.gst)||0,
+      hsn_code:r.hsn||(_bizDefaults&&_bizDefaults.hsn)||null,
       customer_name:r.customerName||null,
       customer_address:r.customerAddress||null,
       customer_city:r.city||null,
