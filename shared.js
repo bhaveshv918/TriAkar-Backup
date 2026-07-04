@@ -179,11 +179,13 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
       toggle.classList.toggle('open',o);
       toggle.setAttribute('aria-expanded',o);
       document.documentElement.classList.toggle('drawer-open',o);
+      if(navEl) navEl.style.top = o ? '0' : '';
     });
     const closeDrawer=()=>{
       drawer.classList.remove('open');toggle.classList.remove('open');
       toggle.setAttribute('aria-expanded','false');
       document.documentElement.classList.remove('drawer-open');
+      if(navEl) navEl.style.top = '';
     };
     drawer.querySelectorAll('a').forEach(a=>a.addEventListener('click',closeDrawer));
     /* Tap on the dim scrim (anywhere outside the panel/nav) closes the menu */
