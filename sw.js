@@ -4,7 +4,7 @@
    for APIs. Version bump (CACHE_VER) forces all clients to re-fetch on
    deploy, and partials.js auto-reloads once when a new SW takes control. */
 
-const CACHE_VER = 'ta-v144';
+const CACHE_VER = 'ta-v145';
 const CACHE_NAME = 'triakar-' + CACHE_VER;
 
 /* Assets to pre-cache on install (shell).
