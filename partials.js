@@ -207,7 +207,7 @@ window._FOOTER_HTML = `<footer>
         '.nav-corp{display:none!important}'+
         '.nav-corp:hover{background:var(--accent,#C4622A)}'+
         '@media(max-width:768px){.ta-topbar-l1{display:none}.nav-corp{display:none}}'+
-        'body:has(.nav-drawer.open) .ta-topbar{display:none!important}';
+        'body:has(.nav-drawer.open) .ta-topbar{transform:none!important;opacity:1!important;pointer-events:auto!important}';
       head.appendChild(st);
     }
   }catch(_){}
