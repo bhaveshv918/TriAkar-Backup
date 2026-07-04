@@ -112,6 +112,29 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
     document.documentElement.style.setProperty('--header-offset',Math.max(0,bottom+12)+'px');
   }
 
+  /* Collapses the desktop nav into the hamburger drawer whenever its real
+     content would overflow the bar, even on a wide viewport — e.g. OS/
+     browser text-size scaling or heavy page zoom, which the max-width
+     media query alone can't see (it only reacts to viewport px, not
+     rendered text size). .nav-inner still has a flex-wrap fallback (see
+     shared.css) for the instant before this runs, so we detect the real
+     thing that fallback produces — the nav-right group landing on a
+     second row — rather than scrollWidth, which doesn't reflect overflow
+     on an overflow:visible box (nav-inner never clips, so scrollWidth
+     always just equals clientWidth regardless of content bleeding past
+     the edge). */
+  function updateNavCompact(){
+    var logo=document.querySelector('.logo');
+    var navRight=document.querySelector('.nav-right');
+    if(!logo||!navRight)return;
+    var html=document.documentElement;
+    var hadClass=html.classList.contains('nav-compact');
+    html.classList.remove('nav-compact');
+    var wrapped=(navRight.getBoundingClientRect().top-logo.getBoundingClientRect().top)>8;
+    html.classList.toggle('nav-compact',wrapped);
+    if(wrapped!==hadClass)updateHeaderOffset();
+  }
+
   function applyScrollState(){
     ticking=false;
     if(!navEl){
@@ -160,7 +183,7 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
   },{passive:true});
   window.addEventListener('resize',function(){
     clearTimeout(offsetTimer);
-    offsetTimer=setTimeout(updateHeaderOffset,150);
+    offsetTimer=setTimeout(function(){updateNavCompact();updateHeaderOffset();},150);
   },{passive:true});
 
   /* Sync immediately on load too, not just on the next scroll event — a
@@ -171,8 +194,15 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
      rAF callbacks are deferred/throttled by the browser for background or
      not-yet-visible tabs, which would leave --header-offset unset for an
      unpredictable stretch right when it matters most (first paint). */
-  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',applyScrollState);}
-  else{applyScrollState();}
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',function(){updateNavCompact();applyScrollState();});
+  }else{
+    updateNavCompact();applyScrollState();
+  }
+  /* Re-measure once the real webfont has swapped in — Glorida's character
+     widths differ from the fallback font, which can nudge the nav from
+     "just fits" to "just overflows" (or vice versa) after first paint. */
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(updateNavCompact);
   if(toggle&&drawer){
     toggle.addEventListener('click',()=>{
       const o=drawer.classList.toggle('open');
