@@ -1607,6 +1607,10 @@ html[data-theme="dark"] .biz-login{
           <label>Default COGS if not in file (₹)</label>
           <input type="number" id="importDefaultCogs" value="0" step="0.01" placeholder="0">
         </div>
+        <div class="form-group">
+          <label>Default Grams per Order <span style="color:var(--text-3);font-weight:400;text-transform:none">optional, same as Labels</span></label>
+          <input type="number" id="importDefaultGrams" value="0" step="1" placeholder="0">
+        </div>
       </div>
 
       <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()" ondragover="dzDragOver(event)" ondragleave="dzDragLeave(event)" ondrop="dzDrop(event)">
@@ -1784,13 +1788,19 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>Last order to</label><input type="date" id="custTo" onchange="renderCustomers()"></div>
         </div>
       </div>
+      <div id="custBulkBar" style="display:none;background:var(--accent);color:#fff;border-radius:7px;padding:10px 16px;margin-bottom:10px;align-items:center;gap:10px;flex-wrap:wrap">
+        <span id="custBulkCount" style="font-size:12px;font-weight:700;margin-right:4px">0 selected</span>
+        <button class="btn btn-sm" onclick="bulkMarkCustomersReviewed()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">✓ Mark Reviewed</button>
+        <button class="btn btn-sm" onclick="bulkExportCustomers()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3);margin-left:auto">↓ Export Selected</button>
+      </div>
       <div class="tbl-wrap">
         <table>
           <thead><tr>
+            <th style="width:30px"><input type="checkbox" onclick="toggleSelectAllCustomers(this)"></th>
             <th>Customer</th><th>Phone</th><th>GSTIN</th><th>City / State</th>
             <th class="td-num">Orders</th><th class="td-num">Spent</th><th>First</th><th>Last</th><th>Rev</th><th class="td-actions"></th>
           </tr></thead>
-          <tbody id="customersBody"><tr><td colspan="10" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+          <tbody id="customersBody"><tr><td colspan="11" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
     </div><!-- /customers -->
@@ -1909,9 +1919,16 @@ html[data-theme="dark"] .biz-login{
         </div>
       </div>
 
+      <div id="prodBulkBar" style="display:none;background:var(--accent);color:#fff;border-radius:7px;padding:10px 16px;margin-bottom:10px;align-items:center;gap:10px;flex-wrap:wrap">
+        <span id="prodBulkCount" style="font-size:12px;font-weight:700;margin-right:4px">0 selected</span>
+        <input type="text" id="prodBulkCategory" placeholder="Set category…" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;font-size:11px;padding:5px 8px;max-width:140px">
+        <button class="btn btn-sm" onclick="bulkSetProductCategory()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">Apply</button>
+        <button class="btn btn-sm" onclick="bulkArchiveProducts()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2);margin-left:auto">🗑 Archive</button>
+      </div>
       <div class="tbl-wrap">
         <table>
           <thead><tr>
+            <th style="width:30px"><input type="checkbox" onclick="toggleSelectAllProducts(this)"></th>
             <th>Name</th><th>SKU</th><th>Category</th><th>Type</th>
             <th class="td-num">Base Cost</th><th class="td-num">GST %</th>
             <th>HSN</th><th class="td-num">Stock</th><th class="td-actions">Actions</th>
@@ -2433,6 +2450,8 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>Date</label><input type="date" id="ex_date"></div>
           <div class="form-group"><label>Category</label><select id="ex_category" onchange="onExpenseCategoryChange()"><option value="materials">Materials</option><option value="equipment">Equipment</option><option value="packaging">Packaging</option><option value="marketing">Marketing</option><option value="rent">Rent</option><option value="utilities">Utilities</option><option value="shipping">Shipping</option><option value="staff_salary">Staff Salary</option><option value="other">Other</option></select></div>
           <div class="form-group" id="ex_staff_wrap" style="display:none"><label>Employee Name</label><input type="text" id="ex_staff_name" placeholder="e.g. Rohit" oninput="onExpenseCategoryChange()"></div>
+          <div class="form-group" id="ex_spool_wrap" style="display:none"><label>Add to Spool <span style="color:var(--text-3);font-weight:400;text-transform:none">optional — bumps its stock</span></label><select id="ex_spool_id"><option value="">— none —</option></select></div>
+          <div class="form-group" id="ex_spool_grams_wrap" style="display:none"><label>Grams Purchased</label><input type="number" id="ex_spool_grams" step="1" min="0"></div>
           <div class="form-group"><label>Vendor <span style="color:var(--text-3);font-weight:400;text-transform:none">(expense name)</span></label><input type="text" id="ex_vendor"></div>
           <div class="form-group"><label>Amount ₹ (incl GST)</label><input type="number" id="ex_amount" step="0.01"></div>
           <div class="form-group"><label>GST ₹ (of amount)</label><input type="number" id="ex_gst" step="0.01"></div>
@@ -3084,9 +3103,10 @@ async function loadProducts(){
 function renderProductsTable(){
   const TYPE_LABEL = {own:'Own (3D Print)',job_work:'Job Work',readymade:'Readymade'};
   const tbody = document.getElementById('productsBody');
-  if(!_products.length){ tbody.innerHTML=`<tr><td colspan="9"><div class="empty"><div class="em-icon">▦</div><div class="em-text">No products yet</div></div></td></tr>`; return; }
+  if(!_products.length){ tbody.innerHTML=`<tr><td colspan="10"><div class="empty"><div class="em-icon">▦</div><div class="em-text">No products yet</div></div></td></tr>`; return; }
   tbody.innerHTML = _products.map(p=>`
     <tr>
+      <td onclick="event.stopPropagation()"><input type="checkbox" class="prod-cb" data-id="${p.id}" onchange="updateProdBulkBar()"></td>
       <td>${esc(p.name)}</td>
       <td><span style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(p.sku||'—')}</span></td>
       <td>${esc(p.category||'—')}</td>
@@ -3100,6 +3120,28 @@ function renderProductsTable(){
       </td>
     </tr>`).join('');
   loadStockForProducts();
+  updateProdBulkBar();
+}
+function toggleSelectAllProducts(cb){ document.querySelectorAll('.prod-cb').forEach(c=>c.checked=cb.checked); updateProdBulkBar(); }
+function getSelectedProductIds(){ return [...document.querySelectorAll('.prod-cb:checked')].map(c=>c.dataset.id); }
+function updateProdBulkBar(){
+  const n=getSelectedProductIds().length; const bar=document.getElementById('prodBulkBar'); if(!bar) return;
+  if(n>0){ bar.style.display='flex'; document.getElementById('prodBulkCount').textContent=n+' selected'; }
+  else bar.style.display='none';
+}
+async function bulkSetProductCategory(){
+  const ids=getSelectedProductIds(); if(!ids.length) return;
+  const cat=document.getElementById('prodBulkCategory')?.value.trim(); if(!cat){ toast('Enter a category','error'); return; }
+  const {error}=await sb.from('biz_products').update({category:cat}).in('id',ids);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast(ids.length+' products → '+cat); loadProducts();
+}
+async function bulkArchiveProducts(){
+  const ids=getSelectedProductIds(); if(!ids.length) return;
+  if(!confirm('Archive '+ids.length+' product(s)? They stop showing here but historical sales keep referencing them.')) return;
+  const {error}=await sb.from('biz_products').update({is_active:false}).in('id',ids);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast(ids.length+' products archived'); loadProducts();
 }
 
 async function loadStockForProducts(){
@@ -3492,7 +3534,27 @@ function onFulfilOther(v){ const hd=document.getElementById('qa_fulfillment_deta
 
 // Insert sales, stripping any column the DB doesn't have yet (e.g. spool_id
 // before its migration runs) so a pending migration never blocks saving a sale.
+// Round 3 — resolve-or-create a real biz_customers row and attach its id to every line,
+// instead of only storing the denormalized customer_name text (which made "select an
+// existing customer" impossible — every sale re-typed the name fresh). Safe pre-migration:
+// insertSalesResilient already strips any column the DB doesn't recognize yet.
+async function resolveCustomerId(name, phone){
+  name=(name||'').trim(); phone=(phone||'').replace(/\D/g,'').slice(-10);
+  if(!name) return null;
+  try{
+    if(phone){ const {data}=await sb.from('biz_customers').select('id').eq('phone',phone).limit(1); if(data&&data.length) return data[0].id; }
+    const {data:byName}=await sb.from('biz_customers').select('id').ilike('name',name).limit(1);
+    if(byName&&byName.length) return byName[0].id;
+    const {data:created,error}=await sb.from('biz_customers').insert({name,phone:phone||null}).select('id').single();
+    if(error||!created) return null;
+    return created.id;
+  }catch(_){ return null; }
+}
 async function insertSalesResilient(rows){
+  if(rows.length&&rows[0].customer_name){
+    const custId=await resolveCustomerId(rows[0].customer_name, rows[0].customer_phone);
+    if(custId) rows=rows.map(r=>({...r,customer_id:custId}));
+  }
   let data=rows;
   for(let i=0;i<6;i++){
     const r=await sb.from('biz_sales').insert(data);
@@ -3607,6 +3669,7 @@ function renderCustomers(){
   _custRender=list;
   updateCustFilterCount();
   body.innerHTML=list.length?list.map((c,i)=>`<tr style="cursor:pointer" onclick="openCustomerByIdx(${i})">
+    <td onclick="event.stopPropagation()"><input type="checkbox" class="cust-cb" data-idx="${i}" onchange="updateCustBulkBar()"></td>
     <td>${esc(c.name)}${c.address?`<div style="font-size:10px;color:var(--text-3)">${esc(c.address)}</div>`:''}${(c.channels||[]).length?`<div style="margin-top:3px;display:flex;gap:6px;flex-wrap:wrap">${c.channels.map(ch=>chHtml(ch)).join('')}</div>`:''}</td>
     <td style="font-family:var(--mono);font-size:11px">${c.phone?esc((c.country_code&&c.country_code!=='+91'?c.country_code+' ':'')+c.phone):'—'}</td>
     <td style="font-family:var(--mono);font-size:10px">${esc(c.gstin||'—')}</td>
@@ -3617,7 +3680,35 @@ function renderCustomers(){
     <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${c.last?fmtDay(c.last):'—'}</td>
     <td>${c.reviewed?'<span class="badge" style="background:var(--green-bg);color:var(--green)">✓</span>':''}</td>
     <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openCustomerByIdx(${i})">✎</button></td>
-  </tr>`).join(''):`<tr><td colspan="10" class="empty"><div class="em-text">No customers found</div></td></tr>`;
+  </tr>`).join(''):`<tr><td colspan="11" class="empty"><div class="em-text">No customers found</div></td></tr>`;
+  updateCustBulkBar();
+}
+function toggleSelectAllCustomers(cb){ document.querySelectorAll('.cust-cb').forEach(c=>c.checked=cb.checked); updateCustBulkBar(); }
+function getSelectedCustomers(){ return [...document.querySelectorAll('.cust-cb:checked')].map(c=>_custRender[parseInt(c.dataset.idx)]).filter(Boolean); }
+function updateCustBulkBar(){
+  const n=getSelectedCustomers().length; const bar=document.getElementById('custBulkBar'); if(!bar) return;
+  if(n>0){ bar.style.display='flex'; document.getElementById('custBulkCount').textContent=n+' selected'; }
+  else bar.style.display='none';
+}
+async function bulkMarkCustomersReviewed(){
+  const sel=getSelectedCustomers(); if(!sel.length) return;
+  // Some rows are derived-only (no saved biz_customers record yet) — upsert by name so
+  // "reviewed" can be set in bulk regardless of whether a record already exists.
+  const withRecord=sel.filter(c=>c.recordId), withoutRecord=sel.filter(c=>!c.recordId);
+  const ops=[];
+  if(withRecord.length) ops.push(sb.from('biz_customers').update({reviewed:true}).in('id',withRecord.map(c=>c.recordId)));
+  withoutRecord.forEach(c=>ops.push(sb.from('biz_customers').insert({name:c.name,phone:c.phone||null,city:c.city||null,state:c.state||null,reviewed:true})));
+  const results=await Promise.all(ops);
+  const err=results.find(r=>r.error);
+  if(err){ toast('Error: '+err.error.message,'error'); return; }
+  toast(sel.length+' customers marked reviewed'); loadCustomers();
+}
+function bulkExportCustomers(){
+  const sel=getSelectedCustomers(); if(!sel.length) return;
+  const data=sel.map((c,i)=>({'#':i+1,'Name':c.name,'Phone':c.phone||'','GSTIN':c.gstin||'','City':c.city||'','State':c.state||'','Orders':c.orders,'Spent':c.spent,'Reviewed':c.reviewed?'Yes':'No'}));
+  const ws=XLSX.utils.json_to_sheet(data); const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Customers');
+  XLSX.writeFile(wb,'TriAkar_Customers_Selected_'+today()+'.xlsx');
 }
 function toggleCustFilters(){ const p=document.getElementById('custFilters'); if(!p) return; const show=p.style.display==='none'; p.style.display=show?'block':'none'; const b=document.getElementById('custFilterBtn'); if(b) b.classList.toggle('active',show); }
 function updateCustFilterCount(){ const b=document.getElementById('custFilterCount'); if(!b) return; let n=0; ['custChannel','custReviewed','custMinOrders','custFrom','custTo'].forEach(id=>{const e=document.getElementById(id);if(e&&e.value)n++;}); b.textContent=n; b.style.display=n?'inline-block':'none'; }
@@ -4089,6 +4180,26 @@ function onExpenseCategoryChange(){
     const name=document.getElementById('ex_staff_name')?.value.trim();
     const v=document.getElementById('ex_vendor'); if(v&&name) v.value=name+"'s Salary";
   }
+  const isMaterials=cat==='materials';
+  const sw=document.getElementById('ex_spool_wrap'), gw=document.getElementById('ex_spool_grams_wrap');
+  if(sw) sw.style.display=isMaterials?'':'none';
+  if(gw) gw.style.display=isMaterials?'':'none';
+  if(isMaterials){ ensureSpools(); populateExpenseSpoolSelect(); }
+}
+function populateExpenseSpoolSelect(){
+  const sel=document.getElementById('ex_spool_id'); if(!sel) return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">— none —</option>'+spoolOptions(cur);
+}
+// Round 3 — "bill dalu aur stock update hojaye": logging a Materials expense against an
+// existing spool bumps that roll's total_grams instead of needing a separate Spool Tracker edit.
+async function applyExpenseToSpoolStock(){
+  const spoolId=document.getElementById('ex_spool_id')?.value;
+  const grams=parseFloat(document.getElementById('ex_spool_grams')?.value)||0;
+  if(!spoolId||!grams) return;
+  const {data:sp}=await sb.from('filament_inventory').select('total_grams').eq('id',spoolId).single();
+  if(!sp) return;
+  await sb.from('filament_inventory').update({total_grams:(parseFloat(sp.total_grams)||0)+grams}).eq('id',spoolId);
 }
 async function duplicateExpenseNextMonth(id){
   const r=_expensesCache.find(x=>x.id===id); if(!r) return;
@@ -4101,7 +4212,8 @@ async function duplicateExpenseNextMonth(id){
 }
 function showAddExpense(){
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};
-  ['ex_id','ex_vendor','ex_amount','ex_gst','ex_invoice','ex_notes','ex_staff_name','ex_source'].forEach(id=>set(id,''));
+  ['ex_id','ex_vendor','ex_amount','ex_gst','ex_invoice','ex_notes','ex_staff_name','ex_source','ex_spool_grams'].forEach(id=>set(id,''));
+  const spSel=document.getElementById('ex_spool_id'); if(spSel) spSel.value='';
   document.getElementById('ex_invoice_file').value=''; document.getElementById('ex_invoice_current').textContent='';
   set('ex_date',today()); document.getElementById('ex_category').value='materials'; document.getElementById('ex_payment').value='';
   const rec=document.getElementById('ex_recurring'); if(rec) rec.checked=false;
@@ -4147,6 +4259,7 @@ async function saveExpense(){
     invoice_url, notes:g('ex_notes').trim()||null };
   const {error}=id?await sb.from('biz_expenses').update(payload).eq('id',id):await sb.from('biz_expenses').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
+  if(!id) await applyExpenseToSpoolStock();  // only on create — editing an old expense shouldn't re-apply stock
   logBizActivity(id?'edit':'create','expense',id,(payload.vendor||'')+' ₹'+payload.amount); toast(id?'Expense updated':'Expense added'); document.getElementById('expenseForm').style.display='none'; loadExpenses();
 }
 // open an invoice: direct for legacy links, signed URL for private storage paths
@@ -5886,22 +5999,31 @@ function _skuToProduct(sku){
 // ── B2 — customizable dashboard widgets (per admin, localStorage) ──
 const DASH_WIDGETS=[{k:'revenue',name:'Total Revenue'},{k:'net',name:'Net Revenue'},{k:'profit',name:'Gross Profit'},{k:'gst',name:'Total GST'},{k:'orders',name:'Orders'},{k:'returns',name:'Returns / Claims'},{k:'filament',name:'Filament Used'},{k:'topcust_month',name:'Top Customer — Month'},{k:'topcust_year',name:'Top Customer — Year'}];
 function dashWidgetCfg(){
-  try{ const c=JSON.parse(localStorage.getItem('biz_dash_widgets')||'null'); if(c&&Array.isArray(c.order)) return {order:c.order,hidden:c.hidden||[]}; }catch(_){}
-  return {order:DASH_WIDGETS.map(w=>w.k),hidden:[]};
+  try{ const c=JSON.parse(localStorage.getItem('biz_dash_widgets')||'null'); if(c&&Array.isArray(c.order)) return {order:c.order,hidden:c.hidden||[],size:c.size||{}}; }catch(_){}
+  return {order:DASH_WIDGETS.map(w=>w.k),hidden:[],size:{}};
 }
 function applyDashWidgets(){
   const cfg=dashWidgetCfg(); const grid=document.getElementById('kpiGrid'); if(!grid) return;
   // ensure any keys missing from saved order get appended (future-proof)
   DASH_WIDGETS.forEach(w=>{ if(!cfg.order.includes(w.k)) cfg.order.push(w.k); });
-  cfg.order.forEach(k=>{ const el=grid.querySelector('.kpi[data-w="'+k+'"]'); if(el){ el.style.display=cfg.hidden.includes(k)?'none':''; grid.appendChild(el); } });
+  const spanOf={sm:'span 1',md:'span 1',lg:'span 2'};
+  cfg.order.forEach(k=>{ const el=grid.querySelector('.kpi[data-w="'+k+'"]'); if(el){
+    el.style.display=cfg.hidden.includes(k)?'none':'';
+    el.style.gridColumn=spanOf[(cfg.size&&cfg.size[k])||'md']||'span 1';
+    grid.appendChild(el);
+  } });
 }
 function toggleDashCustomize(){ const p=document.getElementById('dashCustomize'); if(!p) return; if(p.style.display!=='none'){ p.style.display='none'; return; } renderDashCustomize(); p.style.display='block'; }
+const DASH_SIZES=['sm','md','lg'];
 function renderDashCustomize(){
   const p=document.getElementById('dashCustomize'); if(!p) return; const cfg=dashWidgetCfg();
   const nameOf=k=>(DASH_WIDGETS.find(w=>w.k===k)||{}).name||k;
-  p.innerHTML='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">Dashboard widgets — show / hide / reorder</div>'+
-    cfg.order.map((k,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+  const sizeOf=k=>(cfg.size&&cfg.size[k])||'md';
+  p.innerHTML='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">Dashboard widgets — drag to reorder, show/hide, resize</div>'+
+    cfg.order.map((k,i)=>`<div class="dash-cust-row" draggable="true" data-k="${k}" ondragstart="dashDragStart(event)" ondragover="dashDragOver(event)" ondrop="dashDrop(event)" ondragend="dashDragEnd(event)" style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:grab">
+      <span style="color:var(--text-3);font-size:12px">⠿</span>
       <label style="display:flex;align-items:center;gap:6px;flex:1;font-size:12px;cursor:pointer"><input type="checkbox" ${cfg.hidden.includes(k)?'':'checked'} onchange="dashToggleWidget('${k}')"> ${esc(nameOf(k))}</label>
+      <button class="btn btn-ghost btn-sm" onclick="dashCycleSize('${k}')" title="Cycle tile size">${sizeOf(k).toUpperCase()}</button>
       <button class="btn btn-ghost btn-sm" onclick="dashMoveWidget('${k}',-1)" ${i===0?'disabled':''}>↑</button>
       <button class="btn btn-ghost btn-sm" onclick="dashMoveWidget('${k}',1)" ${i===cfg.order.length-1?'disabled':''}>↓</button>
     </div>`).join('');
@@ -5909,6 +6031,25 @@ function renderDashCustomize(){
 function dashSaveCfg(cfg){ try{ localStorage.setItem('biz_dash_widgets',JSON.stringify(cfg)); }catch(_){} applyDashWidgets(); renderDashCustomize(); }
 function dashToggleWidget(k){ const cfg=dashWidgetCfg(); const i=cfg.hidden.indexOf(k); if(i>=0) cfg.hidden.splice(i,1); else cfg.hidden.push(k); dashSaveCfg(cfg); }
 function dashMoveWidget(k,dir){ const cfg=dashWidgetCfg(); const i=cfg.order.indexOf(k), j=i+dir; if(i<0||j<0||j>=cfg.order.length) return; const t=cfg.order[i]; cfg.order[i]=cfg.order[j]; cfg.order[j]=t; dashSaveCfg(cfg); }
+function dashCycleSize(k){
+  const cfg=dashWidgetCfg(); cfg.size=cfg.size||{};
+  const cur=cfg.size[k]||'md'; const next=DASH_SIZES[(DASH_SIZES.indexOf(cur)+1)%DASH_SIZES.length];
+  cfg.size[k]=next; dashSaveCfg(cfg);
+}
+// Native HTML5 drag-and-drop reorder (Round 3) — an additive alternative to the ↑/↓
+// buttons above, which stay for accessibility/keyboard-only use.
+let _dashDragKey=null;
+function dashDragStart(e){ _dashDragKey=e.currentTarget.dataset.k; e.currentTarget.style.opacity='.5'; }
+function dashDragOver(e){ e.preventDefault(); }
+function dashDrop(e){
+  e.preventDefault();
+  const targetKey=e.currentTarget.dataset.k; if(!_dashDragKey||targetKey===_dashDragKey) return;
+  const cfg=dashWidgetCfg(); const from=cfg.order.indexOf(_dashDragKey), to=cfg.order.indexOf(targetKey);
+  if(from<0||to<0) return;
+  cfg.order.splice(from,1); cfg.order.splice(to,0,_dashDragKey);
+  dashSaveCfg(cfg);
+}
+function dashDragEnd(e){ e.currentTarget.style.opacity=''; _dashDragKey=null; }
 
 const SPOOL_WIDGETS=[{k:'total',name:'Total Spools'},{k:'value',name:'Stock Value'},{k:'capacity',name:'Total Grams'},{k:'used',name:'Grams Used'},{k:'left',name:'Grams Left'},{k:'waste',name:'Grams Wasted'},{k:'opened',name:'Opened'},{k:'finished',name:'Finished'}];
 function spoolWidgetCfg(){
@@ -6617,6 +6758,7 @@ async function runFlipkartImport(defaultCogs){
 async function runImport(){
   const platform=document.getElementById('importPlatform').value;
   const defaultCogs=parseFloat(document.getElementById('importDefaultCogs').value)||0;
+  const defaultGrams=parseFloat(document.getElementById('importDefaultGrams')?.value)||0;
   if(platform==='flipkart' && isFlipkartReport(_importCols)){ return runFlipkartImport(defaultCogs); }
   const getCol=f=>document.getElementById('map_'+f).value;
   const ch=platform==='amazon'?'amazon':platform==='flipkart'?'flipkart':'shop';
@@ -6647,6 +6789,7 @@ async function runImport(){
       selling_price:price,
       platform_fee:0,
       cogs:defaultCogs,
+      grams_used:defaultGrams||null,
       gst_rate:0,
       customer_name:g('customer_name')||null,
       customer_city:g('customer_city')||null,

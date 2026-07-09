@@ -1,33 +1,85 @@
 # TriAkar Admin Panel + Business OS — Overhaul Status Report
 
-_Last updated: 2026-07-09 (Round 3, Batch 1)_
+_Last updated: 2026-07-09 (Round 3, Batches 1-5 complete)_
 
 ---
 
-## Round 3 (new, ~45-item feature dump) — batched B1-B5, same cadence as Round 2
+## Round 3 (~45-item feature dump) — ALL 5 batches DONE, code-verified, NOT yet live-tested
 
-**Batch 1 — Dashboard chart overhaul: DONE (code-verified, NOT yet live-tested by owner).**
-All changes in `admin-biz.html` Dashboard tab, no schema changes, no migration needed:
-- Top 10 Customers chart (month/year toggle), horizontal bar, no axes, name+value drawn inside
-  the bar via a new reusable `hbarLabelsPlugin()` helper (also used by Top Products, bottom-10
-  returned items, bottom-10 customers-by-return).
-- Orders-by-Channel count cards (Studio/Amazon/Flipkart/Website).
-- Revenue by Channel bars are now clickable (`setDashChannelFilter`) — filters Top Products table/
-  chart + new "Top 10 Items by Channel" section to the clicked channel; Y-axis value ticks removed,
-  channel name labels kept.
-- Monthly Revenue Trend: Y-axis value ticks removed, month labels only.
-- Revenue Share doughnut: legend now shows channel name + % share.
-- New "Top 10 Items by Channel" section (per-channel top-10 lists, respects the channel filter).
-- Top Products table + Returns & Claims table: clickable sortable column headers.
-- New "Bottom 10 — Highest Value Returned Items" and "Bottom 10 — Customers by Return Value" charts.
-- Top Products chart: in-bar revenue labels, X-axis value ticks removed.
-**Not live-tested here** — both panels are login-gated against production Supabase (confirmed via
-local preview: admin-biz.html correctly shows the Sign In screen, no console errors on load/parse).
-Owner needs to test on the deployed build before Batch 2 starts.
-
-**Batches 2-5 (order lifecycle, filament/machinery, GST/invoicing, customer normalization/UX) —
-planned, not yet started.** Full batch breakdown is in the approved plan
+Owner asked to run straight through all 5 batches without stopping and push each to `origin`
+(deploy is automatic from there). All 5 are pushed. Every batch: inline JS parsed clean
+(`vm.Script`), function references checked, but **none of it has been visually/functionally
+tested** — both panels are login-gated against production Supabase (confirmed via local preview:
+admin-biz.html correctly shows the Sign In screen, no console errors on load/parse). Full plan at
 `C:\Users\bhave\.claude\plans\linked-sauteeing-lake.md`.
+
+**4 migrations must be run in Supabase SQL Editor, in this order, before the new features work:**
+1. `20260709_biz_sales_status_extend.sql` — widens `biz_sales.status` CHECK for the new lifecycle values
+2. `20260709_biz_machinery.sql` — `biz_printers`, `biz_print_attempts`
+3. `20260709_biz_invoicing.sql` — `biz_invoice_counters`, `biz_invoices`, `biz_next_invoice_number` RPC,
+   `biz_expenses.recurring`/`source` columns, `biz_gst_filings` + `biz-gst` storage bucket
+4. `20260709_biz_sales_customer_id.sql` — `biz_sales.customer_id` FK
+
+**Batch 1 — Dashboard chart overhaul.** Top 10 Customers chart (month/year), Orders-by-Channel
+cards, clickable Revenue-by-Channel (filters Top Products + new Top-Items-by-Channel), axis
+cleanup on Monthly Trend/Top Products/Revenue Share (%+labels), sortable Top Products + Returns
+headers, Bottom-10 returned items + Bottom-10 customers-by-return. New reusable `hbarLabelsPlugin()`
+for in-bar chart labels. No schema changes.
+
+**Batch 2 — Order lifecycle & status rework.** Extended `UNIFIED_STATUSES` (delaying,
+return_initiated, return_picked_up, claim_filed, cancelled_before_dispatch/delivery). Reaching
+return_initiated/returned now auto-syncs a `biz_returns` row (`syncReturnRowForStatus`) so Returns
+& Claims populates from the order lifecycle. Claim fields in the Returns form now gate on
+stage/type instead of always showing; fixed a missing `claim_paid` label. Open Orders: bulk
+select + bulk status/delete, SKU shown in item column, "Dispatched — Tracking" → "Dispatched"
+(both instances). Studio Add Sale defaults to Walk-in + Self Pickup. "Shop" → "Studio" label
+rename (admin + biz). Header Admin/Business-OS links now orange. Activity Log moved under a
+System nav section. Fixed the eye-icon privacy mask surviving re-renders (was showing raw values
+again after tab switches) + added chart-canvas blur. All Sales badge excludes cancelled orders.
+Removed "· N items" text, recolored "+1 more" orange.
+
+**Batch 3 — Machinery, print attempts, dashboard rollups.** New Machinery tab: printer/equipment
+CRUD (specs + purchase value feeding the Balance Sheet as an asset) + a print-attempt log
+(reprint_guarantee/power_cut/filament_runout/quality_issue/other + free-text note). Dashboard:
+Studio Hours daily/7-day/monthly rollup off the **existing** `biz_shop_log` punch-clock (already
+built pre-Round-3 as "Studio Hours" tab — no new table needed), SLA met/not-met % card, New
+Customers by Channel. Filament dropdown now excludes 0g/finished rolls + groups by company;
+added Brand/Filament-Type datalists to the Spool Tracker add-roll form. **Fixed a pre-existing
+crash** in `loadBalanceSheet()` — referenced undefined `rolls`/`cost_total` (should've been
+`spools`/`price`) — Balance Sheet was throwing on every render before this.
+
+**Batch 4 — GST Portal, real Invoicing, expenses.** `printInvoice()` now allocates a real
+per-financial-year sequential invoice number (`TRK/2026-27/000123`, DB-backed atomic counter,
+logged to `biz_invoices`, reused on reprint) instead of the old localStorage-only counter
+(per-device, lost on clear). New Invoicing tab lists every invoice + links to its order. New GST
+Portal tab: upload filed GSTR-1/GSTR-3B files, state-wise sales/tax by platform, filing reminders
+(10th/19th, 2 days ahead) also surfaced on Open Orders. Expenses: Staff Salary category
+(auto-names "<Name>'s Salary"), Recurring flag + duplicate-to-next-month action, "Debited From"
+source field. Added GPay/Paytm payment-mode option everywhere a payment mode is picked.
+
+**Batch 5 — Customer normalization, bulk edit, dashboard drag-drop, misc.** `biz_sales.customer_id`
+FK — Add Sale now resolves-or-creates a real `biz_customers` row on save
+(`resolveCustomerId`/`insertSalesResilient`) instead of only free text (CSV/label imports and Edit
+Sale do **not** yet attach customer_id — only the primary Add Sale path does; noted as a follow-up).
+Bulk-select added to Products (set category / archive) and Customers (mark reviewed / export)
+tabs. Import CSV gained a "Default Grams per Order" field to match Labels. Dashboard widgets:
+native HTML5 drag-and-drop reorder (additive — the ↑/↓ buttons still work) + a 3-step size cycle
+(sm/md/lg, cycles the tile's grid-column span). Expenses: logging a Materials expense can now
+bump an existing spool's `total_grams` directly (`applyExpenseToSpoolStock`).
+
+**Explicitly descoped this round (flagged to the owner, not silently dropped):**
+- **Stories/testimonials CMS** — `stories.html` is fully static hardcoded HTML today, no admin CRUD
+  exists at all. Adding a Year field + multiple-stories-per-month needs a new DB table + admin CRUD
+  UI + rewiring the storefront page to fetch dynamically — a real net-new CMS feature, customer-
+  facing, and risky to rush. Deserves its own focused session.
+- **Full Labels + Import CSV tab merge** — added the missing "Default Grams" field to Import CSV
+  for parity, but did not physically merge the two panels/flows; that's a bigger UI restructure with
+  real risk to a working import pipeline for a cosmetic consolidation.
+- **Full download→upload audit** — "every CSV export should have a matching importer" was too broad
+  to safely execute blindly across every tab in this pass; needs a specific inventory of which
+  exports currently lack an importer before touching each one.
+- **customer_id backfill for historical rows** — left NULL on purpose; automated name-matching
+  against old free-text data isn't safe to run unattended.
 
 ---
 
