@@ -19,24 +19,22 @@
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<meta name="robots" content="noindex, nofollow">
 <title>Product: TriAkar</title>
 <meta name="description" content="View product details, colors and pricing. Every TriAkar product is 3D printed fresh when you order using premium PLA+ corn starch material.">
 <meta name="keywords" content="3D printed product, PLA+, fresh print, custom color">
-<link rel="canonical" href="https://www.triakar.com/product-detail">
-<meta property="og:title" content="Product Details: TriAkar">
-<meta property="og:description" content="View product details, colors and pricing. Every TriAkar product is 3D printed fresh when you order using premium PLA+ corn starch material.">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://www.triakar.com/product-detail">
+<link rel="canonical" id="metaCanonical" href="https://www.triakar.com/product-detail">
+<meta property="og:title" id="metaOgTitle" content="Product Details: TriAkar">
+<meta property="og:description" id="metaOgDesc" content="View product details, colors and pricing. Every TriAkar product is 3D printed fresh when you order using premium PLA+ corn starch material.">
+<meta property="og:type" content="product">
+<meta property="og:url" id="metaOgUrl" content="https://www.triakar.com/product-detail">
 <meta property="og:site_name" content="TriAkar">
-<meta property="og:image" content="https://www.triakar.com/assets/og-image.jpg">
-<meta property="og:image:alt" content="TriAkar 3D printed product detail">
+<meta property="og:image" id="metaOgImage" content="https://www.triakar.com/assets/og-image.jpg">
+<meta property="og:image:alt" id="metaOgImageAlt" content="TriAkar 3D printed product detail">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:site" content="@triakar">
-<meta name="twitter:title" content="Product Details: TriAkar">
-<meta name="twitter:description" content="View product details, colors and pricing. Every TriAkar product is 3D printed fresh when you order using premium PLA+ material.">
-<meta name="twitter:image" content="https://www.triakar.com/assets/og-image.jpg">
-<meta name="description" content="3D printed design objects from TriAkar.">
+<meta name="twitter:title" id="metaTwTitle" content="Product Details: TriAkar">
+<meta name="twitter:description" id="metaTwDesc" content="View product details, colors and pricing. Every TriAkar product is 3D printed fresh when you order using premium PLA+ material.">
+<meta name="twitter:image" id="metaTwImage" content="https://www.triakar.com/assets/og-image.jpg">
 <link rel="preconnect" href="https://js-de.sentry-cdn.com">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preconnect" href="https://triakar.onrender.com" crossorigin><link rel="dns-prefetch" href="https://qarjbmogersuaerkhlcu.supabase.co"><script>var TA_API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:3000':'https://triakar.onrender.com';</script><link rel="dns-prefetch" href="https://res.cloudinary.com"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -663,6 +661,7 @@ function initSwipe(){
 }
 
 function _showDetailError(slug,notFound){
+  setNoindex();
   const wrap=document.getElementById('prodName');
   if(wrap&&wrap.querySelector('.skeleton')){
     wrap.closest('.detail-info')||document.querySelector('.detail-info');
@@ -696,6 +695,9 @@ function init(){
         else{_showDetailError(slug,window._prodFetch404);}
       })
       .catch(()=>_showDetailError(slug,false));
+  }else{
+    // No slug at all, nothing to show or index
+    setNoindex();
   }
 }
 
@@ -707,6 +709,38 @@ function _afterHelpers(fn){
   else{setTimeout(fn,60);}
 }
 
+/* Set the actual per-product title/description/canonical/social tags.
+   Without this every product page shared the same generic tags and the
+   same canonical URL, which told search engines all products were
+   duplicates of one page. */
+function updateMetaTags(url,title,desc,image){
+  var fullTitle=title+', TriAkar';
+  document.title=fullTitle;
+  var descEl=document.querySelector('meta[name="description"]');
+  if(descEl)descEl.setAttribute('content',desc);
+  var canEl=document.getElementById('metaCanonical');
+  if(canEl)canEl.setAttribute('href',url);
+  var set=function(id,attr,val){var el=document.getElementById(id);if(el)el.setAttribute(attr,val);};
+  set('metaOgTitle','content',fullTitle);
+  set('metaOgDesc','content',desc);
+  set('metaOgUrl','content',url);
+  set('metaOgImage','content',image);
+  set('metaOgImageAlt','content',title+', TriAkar 3D printed product');
+  set('metaTwTitle','content',fullTitle);
+  set('metaTwDesc','content',desc);
+  set('metaTwImage','content',image);
+}
+
+/* Bare /product-detail.html (no slug) or an unknown slug has no unique
+   content to show search engines, keep those out of the index instead
+   of letting them compete with real product URLs. */
+function setNoindex(){
+  if(document.querySelector('meta[name="robots"]'))return;
+  var m=document.createElement('meta');
+  m.name='robots';m.content='noindex, nofollow';
+  document.head.appendChild(m);
+}
+
 /* Inject Product + BreadcrumbList structured data for rich results.
    Built from live product data; replaces any previous block on re-render. */
 function injectProductSchema(ap,p,id){
@@ -716,6 +750,7 @@ function injectProductSchema(ap,p,id){
     return (typeof im==='string'?im:(im&&im.url)||'')||'';
   }).filter(Boolean).map(function(u){return u.indexOf('http')===0?u:base+'/'+u.replace(/^\//,'');});
   if(!imgs.length)imgs=[base+'/assets/og-image.jpg'];
+  updateMetaTags(url,p.name,(p.desc||p.long_desc||p.name||'').slice(0,160),imgs[0]);
   var mrp=ap.compare_at_price||ap.mrp||null;
   var inStock=(ap.stock_qty==null)||Number(ap.stock_qty)>0;
   if(ap.is_active===false)inStock=false;
@@ -805,7 +840,6 @@ function renderProduct(ap){
   document.getElementById('prodName').textContent=p.name;
   window._prodName=p.name;
   document.getElementById('breadProd').textContent=p.name;
-  document.title=p.name+', TriAkar';
   // Designer credit, name only (no outbound link); links to site-wide credits page
   const designerEl=document.getElementById('prodDesigner');
   if(designerEl){
