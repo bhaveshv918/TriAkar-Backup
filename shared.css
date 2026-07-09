@@ -202,14 +202,7 @@ nav.main-nav.scrolled{
   right:max(16px, calc((100vw - 1200px) / 2));
   min-height:56px;
   border-radius:999px;
-  /* Deliberately much more opaque than the shared --glass-a-bg (.62) used
-     elsewhere. The nav sits over arbitrary, unpredictable page content
-     (hero copy, imagery, colour blocks) and during MPA view-transitions the
-     browser can render it as a static snapshot with backdrop-filter not
-     applied, so a translucent tint alone lets sharp underlying content bleed
-     through. A near-opaque base guarantees legibility even when the blur
-     doesn't render, while backdrop-filter still adds the frosted look when it does. */
-  background:rgba(244,242,236,.96);
+  background:var(--glass-a-bg);
   -webkit-backdrop-filter:var(--glass-blur);
   backdrop-filter:var(--glass-blur);
   border-color:var(--glass-a-border);
@@ -865,7 +858,14 @@ footer{background:var(--char-2);color:var(--ivory);padding:64px 0 28px}
 .prose a{color:var(--accent);text-decoration:underline}
 
 /* ── RESPONSIVE NAV (hamburger breakpoint) ───────────── */
-@media(max-width:1140px){
+/* Threshold is 1200px, not 1140px: below ~1189px the full desktop row
+   (logo + 6 nav-links + search + wishlist + corporate CTA + cart + login)
+   no longer fits on one line, so nav-inner's flex-wrap:wrap silently drops
+   it to two rows. The nav's reserved height (--nav-h, used for body's
+   padding-top) stays fixed at the single-line value, so a wrapped nav
+   overlapped the page below it. Switching to the compact hamburger layout
+   before that wrap point keeps the nav single-line at every width. */
+@media(max-width:1200px){
   .nav-links{display:none}
   .nav-toggle{display:flex;flex-shrink:0;order:-1}
   /* Whenever hamburger shows: toggle left, logo, then search + a compact
