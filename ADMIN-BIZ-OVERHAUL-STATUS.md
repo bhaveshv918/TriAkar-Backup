@@ -1,6 +1,42 @@
 # TriAkar Admin Panel + Business OS — Overhaul Status Report
 
-_Last updated: 2026-07-09 (Round 3, Batches 1-5 complete)_
+_Last updated: 2026-07-09 (Round 3, Batches 1-5 complete + all 4 previously-descoped items closed)_
+
+---
+
+## Round 3 "descoped" follow-up — all 4 closed
+
+The 4 items explicitly deferred at the end of Batches 1-5 were completed in a follow-up pass:
+
+1. **Stories CMS** — new `site_stories` table, backend `server/controllers/storyController.js` +
+   `server/routes/stories.js` (public `GET /api/stories/public/all` + admin CRUD under
+   `requireAuth+requireAdmin`, mirrors the Reviews architecture exactly). Admin editor lives in
+   **admin.html → Site Content** (Year, Month, Order, Tag, Title, Excerpt, Full Story, Image URL,
+   Published toggle). `stories.html` now fetches dynamically and replaces the static cards on
+   success, falling back to the original hardcoded 12 cards if the API is slow/down (same
+   resilience pattern as reviews.html's Google-stats hydration) — a Year filter row appears
+   automatically once 2+ years exist. The 12 existing hardcoded stories are seeded as Year 2026 so
+   the page is unchanged on day one and instantly editable.
+2. **Labels + Import CSV merge** — physically merged into one tab, **"Import & Labels"**. A
+   "What are you uploading?" toggle (Order Report CSV/Excel vs Shipping Labels PDF) switches
+   between the two existing, untouched underlying flows (`runImport()` for CSV,
+   `handleLabelFiles()`/`parseLabelText()`/`importExtractedLabels()` for labels) — zero logic
+   rewrite, just one shared container. Fixed a scoping bug introduced by the merge itself:
+   `setImportPlatform()` selected `#panelImport .seg-btn` which, post-merge, would have also
+   toggled the Label platform buttons and the new mode-switcher buttons; narrowed to
+   `#importModeCsv .seg-btn`.
+3. **Download → upload parity** — audited every export; most (P&L, GST, returns, state analytics,
+   full dump, dashboard month export) are derived reports with no source-data role, so correctly
+   have no upload counterpart. The one genuine gap — Customers has `bulkExportCustomers()` but no
+   import — is closed with `customersBulkUpload()` (Bulk Excel button, same pattern as Spool
+   Tracker's bulk upload), matching column names 1:1 with the export.
+4. **customer_id backfill** — `backfill-customer-id.sql` (repo root), exact-match only (normalized
+   phone last-10-digits, then exact case-insensitive name — no fuzzy matching). Creates a
+   `biz_customers` row for any unmatched historical (name, phone) combo, then links `biz_sales.
+   customer_id`. Idempotent, safe to re-run.
+
+**New migration:** `20260710_site_stories.sql`. **All 6 pending SQL files (5 migrations +
+1 backfill) are consolidated into one paste-and-run file: `RUN-ALL-PENDING-SQL.sql` (repo root).**
 
 ---
 

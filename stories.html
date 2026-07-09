@@ -71,14 +71,15 @@
 
 <section class="section" style="background:var(--ivory)">
   <div class="mw">
-    <div class="story-filters">
+    <div class="story-filters" id="storyFilters">
       <button class="story-filter active" data-filter="all">All</button>
       <button class="story-filter" data-filter="Replacement Part">Replacement Parts</button>
       <button class="story-filter" data-filter="Gifting">Gifting</button>
       <button class="story-filter" data-filter="Corporate">Corporate</button>
       <button class="story-filter" data-filter="Prototype">Prototype</button>
     </div>
-    <div class="story-grid">
+    <div id="storyYearFilters" class="story-filters" style="display:none;margin-top:-8px"></div>
+    <div class="story-grid" id="storyGrid">
 
       <div class="story-card" data-tag="Replacement Part" data-month="January" data-full="Rajesh from Pune had searched every spare parts shop for 8 months. One photo sent on WhatsApp. We reverse-engineered it and delivered in 4 days.">
         <div class="story-head"><span class="story-month">January</span><span class="story-tag">Replacement Part</span></div>
@@ -179,32 +180,89 @@
 <script defer src="shared.js"></script>
 <script>
 (function(){
-  const filters = document.querySelectorAll('.story-filter');
-  const cards = document.querySelectorAll('.story-card');
-  filters.forEach(btn => {
-    btn.addEventListener('click', () => {
-      filters.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const f = btn.dataset.filter;
-      cards.forEach(card => {
-        card.style.display = (f === 'all' || card.dataset.tag === f) ? '' : 'none';
-      });
-    });
-  });
+  const MONTH_NAMES=['','January','February','March','April','May','June','July','August','September','October','November','December'];
+  let currentYearFilter = null; // null = all years
 
-  const overlay = document.getElementById('storyModalOverlay');
-  const closeBtn = document.getElementById('storyModalClose');
-  cards.forEach(card => {
-    card.addEventListener('click', () => {
-      document.getElementById('storyModalMonth').textContent = card.dataset.month;
-      document.getElementById('storyModalTag').textContent = card.dataset.tag;
-      document.getElementById('storyModalTitle').textContent = card.querySelector('.story-title').textContent;
-      document.getElementById('storyModalText').textContent = card.dataset.full;
-      overlay.classList.add('open');
+  // Wires filter buttons + card-click-to-open-modal against whatever cards are
+  // currently in the DOM — called once for the static fallback markup, and again
+  // after a successful dynamic replace, since the old card nodes (with their old
+  // listeners) are gone at that point.
+  function wireStoryInteractions(){
+    const tagFilters = document.querySelectorAll('#storyFilters .story-filter');
+    const cards = document.querySelectorAll('.story-card');
+    tagFilters.forEach(btn => {
+      btn.onclick = () => {
+        tagFilters.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const f = btn.dataset.filter;
+        cards.forEach(card => {
+          const tagMatch = (f === 'all' || card.dataset.tag === f);
+          const yearMatch = (!currentYearFilter || card.dataset.year === currentYearFilter);
+          card.style.display = (tagMatch && yearMatch) ? '' : 'none';
+        });
+      };
     });
-  });
-  closeBtn.addEventListener('click', () => overlay.classList.remove('open'));
-  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.classList.remove('open'); });
+
+    const overlay = document.getElementById('storyModalOverlay');
+    const closeBtn = document.getElementById('storyModalClose');
+    cards.forEach(card => {
+      card.onclick = () => {
+        document.getElementById('storyModalMonth').textContent = card.dataset.month;
+        document.getElementById('storyModalTag').textContent = card.dataset.tag;
+        document.getElementById('storyModalTitle').textContent = card.querySelector('.story-title').textContent;
+        document.getElementById('storyModalText').textContent = card.dataset.full;
+        overlay.classList.add('open');
+      };
+    });
+    closeBtn.onclick = () => overlay.classList.remove('open');
+    overlay.onclick = e => { if(e.target === overlay) overlay.classList.remove('open'); };
+  }
+
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function cardHtml(s){
+    const monthLabel = s.year ? (MONTH_NAMES[s.month]||'') + ' ' + s.year : (MONTH_NAMES[s.month]||'');
+    return `<div class="story-card" data-tag="${esc(s.tag)}" data-year="${esc(s.year||'')}" data-month="${esc(monthLabel)}" data-full="${esc(s.full_text)}">
+      <div class="story-head"><span class="story-month">${esc(monthLabel)}</span><span class="story-tag">${esc(s.tag)}</span></div>
+      <div class="story-body"><div class="story-title">${esc(s.title)}</div><div class="story-excerpt">${esc(s.excerpt)}</div></div>
+    </div>`;
+  }
+
+  function renderYearFilters(years){
+    const wrap = document.getElementById('storyYearFilters');
+    if(!wrap || years.length < 2){ return; } // only show a year switcher once there's more than one year
+    wrap.style.display = '';
+    wrap.innerHTML = '<button class="story-filter active" data-year="">All Years</button>' +
+      years.map(y => `<button class="story-filter" data-year="${y}">${y}</button>`).join('');
+    wrap.querySelectorAll('.story-filter').forEach(btn => {
+      btn.onclick = () => {
+        wrap.querySelectorAll('.story-filter').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentYearFilter = btn.dataset.year || null;
+        const activeTag = document.querySelector('#storyFilters .story-filter.active')?.dataset.filter || 'all';
+        document.querySelectorAll('.story-card').forEach(card => {
+          const tagMatch = (activeTag === 'all' || card.dataset.tag === activeTag);
+          const yearMatch = (!currentYearFilter || card.dataset.year === currentYearFilter);
+          card.style.display = (tagMatch && yearMatch) ? '' : 'none';
+        });
+      };
+    });
+  }
+
+  // Wire up the static (pre-rendered) cards immediately so the page works even
+  // if the API is slow, unreachable, or the backend is asleep — same resilience
+  // pattern as reviews.html's Google-stats hydration.
+  wireStoryInteractions();
+
+  const API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:3000':'https://triakar.onrender.com';
+  fetch(API+'/api/stories/public/all').then(r=>r.json()).then(data=>{
+    const stories = data && data.stories;
+    if(!stories || !stories.length) return; // keep the static fallback cards as-is
+    const grid = document.getElementById('storyGrid');
+    grid.innerHTML = stories.map(cardHtml).join('');
+    const years = [...new Set(stories.map(s=>s.year).filter(Boolean))].sort((a,b)=>b-a);
+    renderYearFilters(years);
+    wireStoryInteractions(); // re-wire against the freshly rendered cards
+  }).catch(()=>{ /* offline / API down — static fallback cards already work */ });
 })();
 </script>
 </body>

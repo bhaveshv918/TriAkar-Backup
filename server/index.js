@@ -21,6 +21,7 @@ import categoryRoutes    from './routes/categories.js';
 import pincodeRoutes     from './routes/pincode.js';
 import promoRoutes       from './routes/promo.js';
 import reviewRoutes      from './routes/reviews.js';
+import storyRoutes       from './routes/stories.js';
 import siteSettingsRoutes from './routes/siteSettings.js';
 import wishlistRoutes    from './routes/wishlist.js';
 import webhookRoutes     from './routes/webhooks.js';
@@ -234,6 +235,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/pincode',    pincodeRoutes);   // India Post proxy — bypasses expired cert
 app.use('/api/promo',      promoRoutes);     // Promo code validate + admin CRUD
 app.use('/api/reviews',    reviewRoutes);    // Product reviews — public + admin CRUD
+app.use('/api/stories',    storyRoutes);     // Stories CMS — public + admin CRUD
 app.use('/api/site-settings', siteSettingsRoutes); // Public presentation values (Google stats, etc.)
 app.use('/api/wishlist',   wishlistRoutes);  // Saved items — per-user, auth required
 

@@ -710,12 +710,8 @@ html[data-theme="dark"] .biz-login{
     <span class="tab-keyhint">A</span>
     </button>
     <button class="tab" data-tab="import" onclick="switchTab('import')">
-      <span class="tab-icon">⇲</span><span class="tab-label">Import CSV</span>
+      <span class="tab-icon">⇲</span><span class="tab-label">Import &amp; Labels</span>
     <span class="tab-keyhint">I</span>
-    </button>
-    <button class="tab" data-tab="labels" onclick="switchTab('labels')">
-      <span class="tab-icon">🏷</span><span class="tab-label">Labels</span>
-    <span class="tab-keyhint">L</span>
     </button>
     <button class="tab" data-tab="customers" onclick="switchTab('customers')">
       <span class="tab-icon">☺</span><span class="tab-label">Customers</span><span class="tab-badge" id="custCount">—</span>
@@ -1588,180 +1584,184 @@ html[data-theme="dark"] .biz-login{
     <div class="panel" id="panelImport">
       <div class="p-head">
         <div>
-          <div class="p-title">Import CSV</div>
-          <div class="p-sub">Upload Amazon or Flipkart order reports — columns auto-detected</div>
+          <div class="p-title">Import &amp; Labels</div>
+          <div class="p-sub" id="importModeSub">Upload Amazon or Flipkart order reports — columns auto-detected</div>
         </div>
       </div>
 
-      <div class="form-grid-2" style="max-width:500px;margin-bottom:14px">
-        <div class="form-group">
-          <label>Platform — select one</label>
-          <input type="hidden" id="importPlatform" value="flipkart">
-          <div class="seg">
-            <button type="button" class="seg-btn active" data-v="flipkart" onclick="setImportPlatform('flipkart')">🛍️ Flipkart</button>
-            <button type="button" class="seg-btn" data-v="amazon" onclick="setImportPlatform('amazon')">📦 Amazon</button>
-            <button type="button" class="seg-btn" data-v="generic" onclick="setImportPlatform('generic')">Other</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Default COGS if not in file (₹)</label>
-          <input type="number" id="importDefaultCogs" value="0" step="0.01" placeholder="0">
-        </div>
-        <div class="form-group">
-          <label>Default Grams per Order <span style="color:var(--text-3);font-weight:400;text-transform:none">optional, same as Labels</span></label>
-          <input type="number" id="importDefaultGrams" value="0" step="1" placeholder="0">
+      <!-- Round 3 — merged Import CSV + Label Import into one tab: pick what kind of
+           file you're uploading first, the rest of the form follows. -->
+      <div class="form-group" style="max-width:500px;margin-bottom:14px">
+        <label>What are you uploading?</label>
+        <div class="seg" id="importKindSeg">
+          <button type="button" class="seg-btn active" data-v="csv" onclick="setImportKind('csv')">📄 Order Report (CSV/Excel)</button>
+          <button type="button" class="seg-btn" data-v="labels" onclick="setImportKind('labels')">🏷 Shipping Labels (PDF)</button>
         </div>
       </div>
 
-      <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()" ondragover="dzDragOver(event)" ondragleave="dzDragLeave(event)" ondrop="dzDrop(event)">
-        <div class="dz-icon">📂</div>
-        <div class="dz-title">Click to select or drag & drop CSV / Excel file</div>
-        <div class="dz-sub">Amazon: use "Orders" report  ·  Flipkart: use "Sales report" or "Order report"</div>
-      </div>
-      <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)">
-
-      <!-- Preview + mapping -->
-      <div class="import-preview" id="importPreview">
-        <h4>Column Mapping — <span id="importFileName">file.csv</span></h4>
-        <div id="mappingRows"></div>
-        <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
-          <button class="btn btn-primary" onclick="runImport()">Import <span id="importRowCount">0</span> rows</button>
-          <button class="btn btn-ghost btn-sm" onclick="cancelImport()">Cancel</button>
-          <span id="importStatus" style="font-size:11px;color:var(--text-3)"></span>
-        </div>
-      </div>
-
-      <!-- Import guide -->
-      <div style="margin-top:20px">
-        <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:10px">How to get the report files</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
-            <div style="font-size:12px;font-weight:700;color:var(--orange);margin-bottom:8px">📦 Amazon</div>
-            <ol style="font-size:11px;color:var(--text-3);line-height:2;padding-left:16px">
-              <li>Seller Central → Reports → Fulfillment</li>
-              <li>Or: Business Reports → Orders → By ASIN</li>
-              <li>Download as CSV</li>
-              <li>Key columns: order-id, purchase-date, sku, quantity, item-price, shipping-city</li>
-            </ol>
-          </div>
-          <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
-            <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:8px">🛍️ Flipkart</div>
-            <ol style="font-size:11px;color:var(--text-3);line-height:2;padding-left:16px">
-              <li>Seller Hub → Reports → Order Report</li>
-              <li>Select date range → Download</li>
-              <li>Key columns: Order ID, Order Date, SKU ID, Product Title, Quantity, Selling Price, City</li>
-            </ol>
-          </div>
-        </div>
-      </div>
-    </div><!-- /import -->
-
-    <!-- ══════════════════════════════════════════════════════
-         LABEL IMPORT
-    ═══════════════════════════════════════════════════════ -->
-    <div class="panel" id="panelLabels">
-      <div class="p-head">
-        <div>
-          <div class="p-title">Label Import</div>
-          <div class="p-sub">Upload daily Amazon / Flipkart shipping label PDFs — order IDs & addresses auto-extracted</div>
-        </div>
-      </div>
-
-      <!-- Step 1: Settings -->
-      <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px">
-        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:10px">Step 1 — Set defaults (applied to all labels in this batch)</div>
-        <div class="form-grid">
+      <!-- ── Order Report (CSV/Excel) ── -->
+      <div id="importModeCsv">
+        <div class="form-grid-2" style="max-width:500px;margin-bottom:14px">
           <div class="form-group">
-            <label>Platform *</label>
-            <div class="seg" id="lblPlatformSeg">
-              <button type="button" class="seg-btn active" data-v="amazon" onclick="setLblPlatform('amazon')">📦 Amazon</button>
-              <button type="button" class="seg-btn" data-v="flipkart" onclick="setLblPlatform('flipkart')">🛍️ Flipkart</button>
+            <label>Platform — select one</label>
+            <input type="hidden" id="importPlatform" value="flipkart">
+            <div class="seg">
+              <button type="button" class="seg-btn active" data-v="flipkart" onclick="setImportPlatform('flipkart')">🛍️ Flipkart</button>
+              <button type="button" class="seg-btn" data-v="amazon" onclick="setImportPlatform('amazon')">📦 Amazon</button>
+              <button type="button" class="seg-btn" data-v="generic" onclick="setImportPlatform('generic')">Other</button>
             </div>
-            <input type="hidden" id="lbl_platform" value="amazon">
           </div>
           <div class="form-group">
-            <label>Default Product</label>
-            <select id="lbl_product">
-              <option value="">— select from catalog (optional) —</option>
-            </select>
+            <label>Default COGS if not in file (₹)</label>
+            <input type="number" id="importDefaultCogs" value="0" step="0.01" placeholder="0">
           </div>
           <div class="form-group">
-            <label>Default Selling Price (₹)</label>
-            <input type="number" id="lbl_price" step="0.01" placeholder="0.00">
-          </div>
-          <div class="form-group">
-            <label>Default COGS / Making Cost (₹)</label>
-            <input type="number" id="lbl_cogs" step="0.01" placeholder="0.00">
-          </div>
-          <div class="form-group">
-            <label>Default Grams per Order</label>
-            <input type="number" id="lbl_grams" step="1" placeholder="0">
+            <label>Default Grams per Order <span style="color:var(--text-3);font-weight:400;text-transform:none">optional, same as Labels</span></label>
+            <input type="number" id="importDefaultGrams" value="0" step="1" placeholder="0">
           </div>
         </div>
-      </div>
 
-      <!-- Step 2: Upload -->
-      <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Step 2 — Upload label PDF(s)</div>
-      <div class="dropzone" id="lblDropzone" onclick="document.getElementById('lblFile').click()" ondragover="dzDragOver2(event)" ondragleave="dzDragLeave2(event)" ondrop="dzDrop2(event)">
-        <div class="dz-icon">🏷</div>
-        <div class="dz-title">Click to select label PDF(s) or drag & drop</div>
-        <div class="dz-sub">Supports Amazon & Flipkart label PDFs — one label per page</div>
-      </div>
-      <input type="file" id="lblFile" accept=".pdf" multiple onchange="handleLabelFiles(event)">
-
-      <!-- OR paste text -->
-      <details style="margin-bottom:14px">
-        <summary style="cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);padding:6px 0">Or paste label text manually</summary>
-        <div style="margin-top:8px">
-          <div class="form-group" style="margin-bottom:8px">
-            <label>Paste label text (one label or multiple, separated by dashes)</label>
-            <textarea id="lbl_pastetext" rows="6" placeholder="Copy and paste the text content from your label PDF here…" style="resize:vertical;font-family:var(--mono);font-size:11px"></textarea>
-          </div>
-          <button class="btn btn-ghost btn-sm" onclick="parseLabelText()">Parse Pasted Text</button>
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()" ondragover="dzDragOver(event)" ondragleave="dzDragLeave(event)" ondrop="dzDrop(event)">
+          <div class="dz-icon">📂</div>
+          <div class="dz-title">Click to select or drag & drop CSV / Excel file</div>
+          <div class="dz-sub">Amazon: use "Orders" report  ·  Flipkart: use "Sales report" or "Order report"</div>
         </div>
-      </details>
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)">
 
-      <!-- Step 3: Review extracted orders -->
-      <div id="lblExtracted" style="display:none">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3)">Step 3 — Review extracted orders (<span id="lblCount">0</span> found)</div>
-          <div style="display:flex;gap:6px">
-            <button class="btn btn-primary btn-sm" onclick="importExtractedLabels()">Import All</button>
-            <button class="btn btn-ghost btn-sm" onclick="clearLabels()">Clear</button>
+        <!-- Preview + mapping -->
+        <div class="import-preview" id="importPreview">
+          <h4>Column Mapping — <span id="importFileName">file.csv</span></h4>
+          <div id="mappingRows"></div>
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+            <button class="btn btn-primary" onclick="runImport()">Import <span id="importRowCount">0</span> rows</button>
+            <button class="btn btn-ghost btn-sm" onclick="cancelImport()">Cancel</button>
+            <span id="importStatus" style="font-size:11px;color:var(--text-3)"></span>
           </div>
         </div>
-        <div style="font-size:11px;color:var(--text-3);margin-bottom:8px">Edit product / price per row if needed. Greyed rows = order ID not found (will be skipped unless you fill Order ID).</div>
-        <div class="tbl-wrap">
-          <table>
-            <thead><tr>
-              <th>Order ID</th><th>Platform</th><th>Qty</th>
-              <th>Product Name</th><th class="td-num">Selling Price (₹)</th>
-              <th class="td-num">COGS (₹)</th><th class="td-num">Grams</th><th>Customer</th><th>City / State</th>
-            </tr></thead>
-            <tbody id="lblTableBody"></tbody>
-          </table>
-        </div>
-        <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
-          <button class="btn btn-primary" onclick="importExtractedLabels()">Import <span id="lblCount2">0</span> Orders</button>
-          <span id="lblImportStatus" style="font-size:11px;color:var(--text-3)"></span>
-        </div>
-      </div>
 
-      <!-- How-to guide -->
-      <div style="margin-top:20px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
-        <div style="font-size:11px;font-weight:700;color:var(--text-2);margin-bottom:8px">How label import works</div>
-        <ol style="font-size:11px;color:var(--text-3);line-height:2;padding-left:16px">
-          <li>Every day when you print labels, also upload the label PDF here</li>
-          <li>The system reads each page as one label and extracts the order ID + customer address</li>
-          <li>Set the default product + selling price (saves time if most orders are the same product)</li>
-          <li>Review the table — edit any row that needs changes — then hit Import</li>
-          <li>Orders are created in your Sales log automatically</li>
-        </ol>
-        <div style="margin-top:10px;font-size:11px;color:var(--text-3)">
-          <strong style="color:var(--yellow)">Tip:</strong> If PDF extraction doesn't work well for your label format, use "Paste label text" — open the PDF in any viewer, select all text, paste here.
+        <!-- Import guide -->
+        <div style="margin-top:20px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:10px">How to get the report files</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+              <div style="font-size:12px;font-weight:700;color:var(--orange);margin-bottom:8px">📦 Amazon</div>
+              <ol style="font-size:11px;color:var(--text-3);line-height:2;padding-left:16px">
+                <li>Seller Central → Reports → Fulfillment</li>
+                <li>Or: Business Reports → Orders → By ASIN</li>
+                <li>Download as CSV</li>
+                <li>Key columns: order-id, purchase-date, sku, quantity, item-price, shipping-city</li>
+              </ol>
+            </div>
+            <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+              <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:8px">🛍️ Flipkart</div>
+              <ol style="font-size:11px;color:var(--text-3);line-height:2;padding-left:16px">
+                <li>Seller Hub → Reports → Order Report</li>
+                <li>Select date range → Download</li>
+                <li>Key columns: Order ID, Order Date, SKU ID, Product Title, Quantity, Selling Price, City</li>
+              </ol>
+            </div>
+          </div>
         </div>
-      </div>
-    </div><!-- /labels -->
+      </div><!-- /importModeCsv -->
+
+      <!-- ── Shipping Labels (PDF) ── -->
+      <div id="importModeLabels" style="display:none">
+        <!-- Step 1: Settings -->
+        <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:10px">Step 1 — Set defaults (applied to all labels in this batch)</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Platform *</label>
+              <div class="seg" id="lblPlatformSeg">
+                <button type="button" class="seg-btn active" data-v="amazon" onclick="setLblPlatform('amazon')">📦 Amazon</button>
+                <button type="button" class="seg-btn" data-v="flipkart" onclick="setLblPlatform('flipkart')">🛍️ Flipkart</button>
+              </div>
+              <input type="hidden" id="lbl_platform" value="amazon">
+            </div>
+            <div class="form-group">
+              <label>Default Product</label>
+              <select id="lbl_product">
+                <option value="">— select from catalog (optional) —</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Default Selling Price (₹)</label>
+              <input type="number" id="lbl_price" step="0.01" placeholder="0.00">
+            </div>
+            <div class="form-group">
+              <label>Default COGS / Making Cost (₹)</label>
+              <input type="number" id="lbl_cogs" step="0.01" placeholder="0.00">
+            </div>
+            <div class="form-group">
+              <label>Default Grams per Order</label>
+              <input type="number" id="lbl_grams" step="1" placeholder="0">
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Upload -->
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Step 2 — Upload label PDF(s)</div>
+        <div class="dropzone" id="lblDropzone" onclick="document.getElementById('lblFile').click()" ondragover="dzDragOver2(event)" ondragleave="dzDragLeave2(event)" ondrop="dzDrop2(event)">
+          <div class="dz-icon">🏷</div>
+          <div class="dz-title">Click to select label PDF(s) or drag & drop</div>
+          <div class="dz-sub">Supports Amazon & Flipkart label PDFs — one label per page</div>
+        </div>
+        <input type="file" id="lblFile" accept=".pdf" multiple onchange="handleLabelFiles(event)">
+
+        <!-- OR paste text -->
+        <details style="margin-bottom:14px">
+          <summary style="cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);padding:6px 0">Or paste label text manually</summary>
+          <div style="margin-top:8px">
+            <div class="form-group" style="margin-bottom:8px">
+              <label>Paste label text (one label or multiple, separated by dashes)</label>
+              <textarea id="lbl_pastetext" rows="6" placeholder="Copy and paste the text content from your label PDF here…" style="resize:vertical;font-family:var(--mono);font-size:11px"></textarea>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="parseLabelText()">Parse Pasted Text</button>
+          </div>
+        </details>
+
+        <!-- Step 3: Review extracted orders -->
+        <div id="lblExtracted" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3)">Step 3 — Review extracted orders (<span id="lblCount">0</span> found)</div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-primary btn-sm" onclick="importExtractedLabels()">Import All</button>
+              <button class="btn btn-ghost btn-sm" onclick="clearLabels()">Clear</button>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:8px">Edit product / price per row if needed. Greyed rows = order ID not found (will be skipped unless you fill Order ID).</div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr>
+                <th>Order ID</th><th>Platform</th><th>Qty</th>
+                <th>Product Name</th><th class="td-num">Selling Price (₹)</th>
+                <th class="td-num">COGS (₹)</th><th class="td-num">Grams</th><th>Customer</th><th>City / State</th>
+              </tr></thead>
+              <tbody id="lblTableBody"></tbody>
+            </table>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+            <button class="btn btn-primary" onclick="importExtractedLabels()">Import <span id="lblCount2">0</span> Orders</button>
+            <span id="lblImportStatus" style="font-size:11px;color:var(--text-3)"></span>
+          </div>
+        </div>
+
+        <!-- How-to guide -->
+        <div style="margin-top:20px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+          <div style="font-size:11px;font-weight:700;color:var(--text-2);margin-bottom:8px">How label import works</div>
+          <ol style="font-size:11px;color:var(--text-3);line-height:2;padding-left:16px">
+            <li>Every day when you print labels, also upload the label PDF here</li>
+            <li>The system reads each page as one label and extracts the order ID + customer address</li>
+            <li>Set the default product + selling price (saves time if most orders are the same product)</li>
+            <li>Review the table — edit any row that needs changes — then hit Import</li>
+            <li>Orders are created in your Sales log automatically</li>
+          </ol>
+          <div style="margin-top:10px;font-size:11px;color:var(--text-3)">
+            <strong style="color:var(--yellow)">Tip:</strong> If PDF extraction doesn't work well for your label format, use "Paste label text" — open the PDF in any viewer, select all text, paste here.
+          </div>
+        </div>
+      </div><!-- /importModeLabels -->
+    </div><!-- /import -->
 
     <!-- ══════════════════════════════════════════════════════
          CUSTOMERS (auto-built from orders)
@@ -1772,6 +1772,8 @@ html[data-theme="dark"] .biz-login{
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input type="text" id="custSearch" placeholder="Search name / phone / city / GSTIN…" oninput="renderCustomers()" style="min-width:200px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:7px 11px;outline:none">
           <button class="btn btn-ghost btn-sm" onclick="toggleCustFilters()" id="custFilterBtn">⚙ Filters<span id="custFilterCount" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:6px">0</span></button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('custBulkInput').click()" title="Bulk import customers from Excel — matching columns to the Export">⇲ Bulk Excel</button>
+          <input type="file" id="custBulkInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="customersBulkUpload(event)">
           <button class="btn btn-primary btn-sm" onclick="openCustomerEdit()" title="Shortcut: N">+ Add Customer <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">N</span></button>
         </div>
       </div>
@@ -3001,7 +3003,7 @@ function switchTab(name){
   const loaders = {
     sales:loadSales, products:loadProducts, stock:loadStock,
     gst:loadGST, dashboard:loadDashboard,
-    labels:populateLabelProductSelect, settings:loadBizSettings,
+    import:populateLabelProductSelect, settings:loadBizSettings,
     customers:loadCustomers, fees:loadFeesTab, returns:loadReturns, spooltracker:loadSpoolTracker, openorders:loadOpenOrders, expenses:loadExpenses, activity:loadBizActivity,
     ledger:loadLedger, purchases:loadPurchases, balance:loadBalanceSheet, shoplog:loadShopLog, machinery:loadMachinery,
     gstportal:loadGstPortal, invoicing:loadInvoicing,
@@ -3709,6 +3711,29 @@ function bulkExportCustomers(){
   const ws=XLSX.utils.json_to_sheet(data); const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Customers');
   XLSX.writeFile(wb,'TriAkar_Customers_Selected_'+today()+'.xlsx');
+}
+// Round 3 (download->upload parity) — matches bulkExportCustomers()'s column names,
+// same pattern as spoolBulkUpload().
+async function customersBulkUpload(e){
+  const file=e.target.files[0]; if(!file) return;
+  try{
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array'});
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+    const get=(r,keys)=>{ for(const rk in r){ if(keys.includes(rk.toLowerCase().replace(/\s+/g,''))) return r[rk]; } return undefined; };
+    const batch=rows.map(r=>({
+      name:String(get(r,['name'])||'').trim(),
+      phone:(get(r,['phone'])!=null?String(get(r,['phone'])).trim():null)||null,
+      gstin:(get(r,['gstin'])!=null?String(get(r,['gstin'])).trim():null)||null,
+      city:(get(r,['city'])!=null?String(get(r,['city'])).trim():null)||null,
+      state:(get(r,['state'])!=null?String(get(r,['state'])).trim():null)||null,
+      reviewed:/^y/i.test(String(get(r,['reviewed'])||'')),
+    })).filter(r=>r.name);
+    if(!batch.length){ toast('No valid rows (need a Name column)','error'); e.target.value=''; return; }
+    const {error}=await sb.from('biz_customers').insert(batch);
+    if(error){ toast('Error: '+error.message,'error'); } else { toast('Added '+batch.length+' customer(s)'); loadCustomers(); }
+  }catch(err){ toast('Upload failed: '+err.message,'error'); }
+  e.target.value='';
 }
 function toggleCustFilters(){ const p=document.getElementById('custFilters'); if(!p) return; const show=p.style.display==='none'; p.style.display=show?'block':'none'; const b=document.getElementById('custFilterBtn'); if(b) b.classList.toggle('active',show); }
 function updateCustFilterCount(){ const b=document.getElementById('custFilterCount'); if(!b) return; let n=0; ['custChannel','custReviewed','custMinOrders','custFrom','custTo'].forEach(id=>{const e=document.getElementById(id);if(e&&e.value)n++;}); b.textContent=n; b.style.display=n?'inline-block':'none'; }
@@ -6532,8 +6557,16 @@ const FLIPKART_MAP={
 
 function setImportPlatform(v){
   document.getElementById('importPlatform').value=v;
-  document.querySelectorAll('#panelImport .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
+  document.querySelectorAll('#importModeCsv .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
   if(_importRows && _importRows.length){ showImportMapping(document.getElementById('importFileName').textContent||'file'); }
+}
+// Round 3 — merged Import CSV + Label Import: toggle which sub-flow is visible.
+function setImportKind(v){
+  document.querySelectorAll('#importKindSeg .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
+  document.getElementById('importModeCsv').style.display=(v==='csv')?'':'none';
+  document.getElementById('importModeLabels').style.display=(v==='labels')?'':'none';
+  const sub=document.getElementById('importModeSub');
+  if(sub) sub.textContent=(v==='csv')?'Upload Amazon or Flipkart order reports — columns auto-detected':'Upload daily Amazon / Flipkart shipping label PDFs — order IDs & addresses auto-extracted';
 }
 function dzDragOver(e){ e.preventDefault(); document.getElementById('dropzone').classList.add('drag-over'); }
 function dzDragLeave(){ document.getElementById('dropzone').classList.remove('drag-over'); }
@@ -7793,7 +7826,7 @@ document.addEventListener('keydown',function(ev){
 // field, while a modal/form is open (so the letter isn't hijacked mid-task), or combined
 // with Ctrl/Cmd/Alt. Respects staff tab restrictions (won't jump to a tab they don't have).
 const BIZ_TAB_KEYS={
-  d:'dashboard', o:'openorders', q:'quickadd', a:'sales', i:'import', l:'labels',
+  d:'dashboard', o:'openorders', q:'quickadd', a:'sales', i:'import',
   c:'customers', p:'products', k:'stock', s:'spooltracker', r:'returns', f:'fees',
   g:'gst', x:'reports', e:'expenses', m:'ledger', u:'purchases', b:'balance',
   h:'shoplog', y:'activity', t:'settings',

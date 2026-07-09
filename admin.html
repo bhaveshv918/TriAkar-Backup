@@ -2068,6 +2068,27 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
       </div>
       <p style="font-size:11px;color:var(--text-3);margin-top:12px;line-height:1.6">Changes apply to the live site within a minute, no code deploy. Featured / homepage products are managed from the <b>Products</b> tab using the ★ Home column.</p>
     </div>
+
+    <!-- Stories (stories.html) — real CMS instead of hardcoded HTML. Year field so future
+         years can be added, and more than one story can share a month (sort_order breaks ties). -->
+    <div style="max-width:900px;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-weight:700;font-size:14px">Stories <span style="font-weight:400;color:var(--text-3);font-size:11px">· powers stories.html, no code deploy needed to add one</span></div>
+        <button class="btn-primary" onclick="openStoryModal(null)">+ Add Story</button>
+      </div>
+      <div class="filter-bar">
+        <select id="filterStoryYear" onchange="loadStoriesAdmin()"><option value="">All Years</option></select>
+        <select id="filterStoryPublished" onchange="loadStoriesAdmin()">
+          <option value="">All</option><option value="1">Published</option><option value="0">Hidden</option>
+        </select>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Year</th><th>Month</th><th>Tag</th><th>Title</th><th>Published</th><th>Actions</th></tr></thead>
+          <tbody id="storiesBody"><tr><td colspan="6" class="tbl-msg">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <!-- ── PRODUCT STUDIO PANEL ──────────────────────── -->
@@ -2907,7 +2928,7 @@ function closeAdminNav(){
 
 let _curAdminTab='dashboard';
 function refreshCurrentAdminTab(){
-  const m={dashboard:loadDashboard,orders:loadOrders,customers:loadCustomers,products:loadProducts,messages:loadMessages,enquiries:loadCustomEnquiries,callbacks:loadCallbacks,inbox:loadInbox,reviews:()=>{loadReviewsAdmin();if(typeof loadGoogleSettings==='function')loadGoogleSettings();},recyclebin:loadRecycleBin,analytics:()=>{loadAnalytics();if(typeof loadGa4==='function')loadGa4();},promo:loadPromoCodes,activity:loadActivity,content:loadContentSettings,appearance:(typeof loadMenuStyleSetting==='function'?loadMenuStyleSetting:function(){}),categories:loadCategories,logs:loadLogs};
+  const m={dashboard:loadDashboard,orders:loadOrders,customers:loadCustomers,products:loadProducts,messages:loadMessages,enquiries:loadCustomEnquiries,callbacks:loadCallbacks,inbox:loadInbox,reviews:()=>{loadReviewsAdmin();if(typeof loadGoogleSettings==='function')loadGoogleSettings();},recyclebin:loadRecycleBin,analytics:()=>{loadAnalytics();if(typeof loadGa4==='function')loadGa4();},promo:loadPromoCodes,activity:loadActivity,content:()=>{loadContentSettings();loadStoriesAdmin();},appearance:(typeof loadMenuStyleSetting==='function'?loadMenuStyleSetting:function(){}),categories:loadCategories,logs:loadLogs};
   if(typeof m[_curAdminTab]==='function'){ try{ m[_curAdminTab](); toast('Refreshed','success'); }catch(e){} }
 }
 
@@ -5679,7 +5700,7 @@ async function toggleUserDisabled(disabled){
 // never to the Admin Panel itself (that stays the hardcoded owner-email allowlist).
 const BIZ_TAB_LIST=[
   ['openorders','Open Orders'],['dashboard','Dashboard'],['quickadd','Add Sale'],['sales','All Sales'],
-  ['import','Import'],['labels','Labels'],['customers','Customers'],['products','Products & Costs'],
+  ['import','Import & Labels'],['customers','Customers'],['products','Products & Costs'],
   ['stock','Stock'],['spooltracker','Spool Tracker'],['returns','Returns & Claims'],['fees','Fees & Costs'],
   ['gst','GST Summary'],['reports','Reports & Export'],['expenses','Expenses'],['ledger','Money In/Out'],
   ['purchases','Purchases'],['balance','Balance Sheet'],['shoplog','Studio Hours'],['activity','Activity Log'],
@@ -6472,6 +6493,78 @@ async function deleteReviewAdmin(id){
   }catch(e){toast('Error: '+e.message,'error');}
 }
 
+// ── Stories CMS (stories.html) ──────────────────────────
+const MONTH_NAMES_ST=['','January','February','March','April','May','June','July','August','September','October','November','December'];
+let _storiesCache=[];
+async function loadStoriesAdmin(){
+  const body=document.getElementById('storiesBody'); if(!body) return;
+  try{
+    const {stories}=await adminApi('/api/stories/');
+    _storiesCache=stories||[];
+    const ySel=document.getElementById('filterStoryYear');
+    if(ySel && !ySel.dataset.filled){
+      const years=[...new Set(_storiesCache.map(s=>s.year))].sort((a,b)=>b-a);
+      ySel.innerHTML='<option value="">All Years</option>'+years.map(y=>`<option value="${y}">${y}</option>`).join('');
+      ySel.dataset.filled='1';
+    }
+    const yf=ySel?.value, pf=document.getElementById('filterStoryPublished')?.value;
+    let rows=_storiesCache;
+    if(yf) rows=rows.filter(s=>String(s.year)===yf);
+    if(pf==='1') rows=rows.filter(s=>s.published);
+    if(pf==='0') rows=rows.filter(s=>!s.published);
+    body.innerHTML=rows.length?rows.map(s=>`<tr>
+      <td>${s.year}</td>
+      <td>${MONTH_NAMES_ST[s.month]||s.month}</td>
+      <td>${esc(s.tag)}</td>
+      <td>${esc(s.title)}</td>
+      <td>${s.published?'<span style="color:var(--green)">Yes</span>':'<span style="color:var(--text-3)">Hidden</span>'}</td>
+      <td><button class="btn-secondary" onclick="openStoryModal('${s.id}')">Edit</button> <button class="btn-secondary" style="color:#fca5a5" onclick="deleteStoryAdmin('${s.id}')">Delete</button></td>
+    </tr>`).join(''):'<tr><td colspan="6" class="tbl-msg">No stories yet</td></tr>';
+  }catch(e){ body.innerHTML='<tr><td colspan="6" class="tbl-msg">Error: '+esc(e.message)+'</td></tr>'; }
+}
+function openStoryModal(id){
+  const s=id?_storiesCache.find(x=>x.id===id):null;
+  document.getElementById('stId').value=s?s.id:'';
+  document.getElementById('stYear').value=s?s.year:new Date().getFullYear();
+  document.getElementById('stMonth').value=s?s.month:(new Date().getMonth()+1);
+  document.getElementById('stSortOrder').value=s?s.sort_order:1;
+  document.getElementById('stTag').value=s?s.tag:'Replacement Part';
+  document.getElementById('stPublished').value=s?String(!!s.published):'true';
+  document.getElementById('stTitle').value=s?s.title:'';
+  document.getElementById('stExcerpt').value=s?s.excerpt:'';
+  document.getElementById('stFullText').value=s?s.full_text:'';
+  document.getElementById('stImageUrl').value=(s&&s.image_url)||'';
+  document.getElementById('stModalTitle').textContent=s?'Edit Story':'Add Story';
+  document.getElementById('storyModal').style.display='flex';
+}
+function closeStoryModal(){ document.getElementById('storyModal').style.display='none'; }
+async function saveStory(){
+  const id=document.getElementById('stId').value;
+  const payload={
+    year:parseInt(document.getElementById('stYear').value)||new Date().getFullYear(),
+    month:parseInt(document.getElementById('stMonth').value),
+    sort_order:parseInt(document.getElementById('stSortOrder').value)||1,
+    tag:document.getElementById('stTag').value,
+    published:document.getElementById('stPublished').value==='true',
+    title:document.getElementById('stTitle').value.trim(),
+    excerpt:document.getElementById('stExcerpt').value.trim(),
+    full_text:document.getElementById('stFullText').value.trim(),
+    image_url:document.getElementById('stImageUrl').value.trim()||null,
+  };
+  if(!payload.title||!payload.excerpt||!payload.full_text){ toast('Title, excerpt and full story are required','error'); return; }
+  try{
+    if(id) await adminApi('/api/stories/'+id,{method:'PUT',body:JSON.stringify(payload)});
+    else await adminApi('/api/stories/',{method:'POST',body:JSON.stringify(payload)});
+    toast(id?'Story updated':'Story added','success');
+    closeStoryModal(); loadStoriesAdmin();
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+async function deleteStoryAdmin(id){
+  if(!confirm('Delete this story? This cannot be undone.')) return;
+  try{ await adminApi('/api/stories/'+id,{method:'DELETE'}); toast('Story deleted','success'); loadStoriesAdmin(); }
+  catch(e){ toast('Error: '+e.message,'error'); }
+}
+
 function showReviewImages(imgs){
   if(!imgs||!imgs.length)return;
   const overlay=document.createElement('div');
@@ -6648,6 +6741,52 @@ async function saveReview(){
       <div style="display:flex;gap:10px;margin-top:6px">
         <button class="btn-primary" onclick="saveReview()" title="Shortcut: Ctrl+Enter" style="flex:1">Save Review <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
         <button class="btn-secondary" onclick="closeReviewModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── STORY MODAL ─────────────────────────────────────── -->
+<div id="storyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:28px;max-width:600px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div class="p-title" id="stModalTitle">Add Story</div>
+      <button onclick="closeStoryModal()" style="background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;line-height:1">×</button>
+    </div>
+    <input type="hidden" id="stId">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div><label class="form-label">Year *</label><input id="stYear" type="number" class="form-input" placeholder="2026"></div>
+        <div><label class="form-label">Month *</label>
+          <select id="stMonth" class="form-input">
+            <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+            <option value="4">April</option><option value="5">May</option><option value="6">June</option>
+            <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+            <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+          </select></div>
+        <div><label class="form-label">Order <span style="font-weight:400;color:var(--text-3);font-size:10px">if 2+ share a month</span></label><input id="stSortOrder" type="number" class="form-input" value="1"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label class="form-label">Tag *</label>
+          <select id="stTag" class="form-input">
+            <option value="Replacement Part">Replacement Part</option>
+            <option value="Gifting">Gifting</option>
+            <option value="Corporate">Corporate</option>
+            <option value="Prototype">Prototype</option>
+            <option value="Other">Other</option>
+          </select></div>
+        <div><label class="form-label">Published?</label>
+          <select id="stPublished" class="form-input"><option value="true">Yes — shown on stories.html</option><option value="false">No — hidden</option></select></div>
+      </div>
+      <div><label class="form-label">Title *</label><input id="stTitle" class="form-input" placeholder="e.g. A 23-year-old Maruti bracket, found nowhere in India"></div>
+      <div><label class="form-label">Excerpt * <span style="font-weight:400;color:var(--text-3);font-size:11px">· short line shown on the card</span></label>
+        <input id="stExcerpt" class="form-input" placeholder="e.g. Rajesh from Pune had searched every spare parts shop for 8 months."></div>
+      <div><label class="form-label">Full Story * <span style="font-weight:400;color:var(--text-3);font-size:11px">· shown in the popup when clicked</span></label>
+        <textarea id="stFullText" class="form-input" rows="3" style="resize:vertical" placeholder="The complete story…"></textarea></div>
+      <div><label class="form-label">Image URL (optional)</label><input id="stImageUrl" class="form-input" placeholder="https://res.cloudinary.com/…"></div>
+      <div style="display:flex;gap:10px;margin-top:6px">
+        <button class="btn-primary" onclick="saveStory()" title="Shortcut: Ctrl+Enter" style="flex:1">Save Story <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
+        <button class="btn-secondary" onclick="closeStoryModal()">Cancel</button>
       </div>
     </div>
   </div>
