@@ -90,8 +90,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .sb-header{padding:14px 14px 10px;border-bottom:1px solid var(--border);margin-bottom:6px}
 .sb-logo{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text-3);text-transform:uppercase}
 .sb-title{font-size:13px;font-weight:700;color:var(--text);margin-top:3px}
-.sb-back{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-3);text-decoration:none;margin-top:8px;transition:color .15s}
-.sb-back:hover{color:var(--accent)}
+.sb-back{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--accent);text-decoration:none;margin-top:8px;transition:color .15s}
+.sb-back:hover{color:var(--accent-h)}
 
 .sidebar-section{padding:10px 14px 4px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-3)}
 .tab{width:100%;background:none;border:none;color:var(--text-2);font-family:var(--sans);font-size:12px;text-align:left;padding:8px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;border-radius:0;transition:background .12s,color .12s}
@@ -770,9 +770,11 @@ html[data-theme="dark"] .biz-login{
     <span class="tab-keyhint">B</span>
     </button>
     <button class="tab" data-tab="shoplog" onclick="switchTab('shoplog')">
-      <span class="tab-icon">🕒</span><span class="tab-label">Shop Hours</span>
+      <span class="tab-icon">🕒</span><span class="tab-label">Studio Hours</span>
     <span class="tab-keyhint">H</span>
     </button>
+
+    <div class="sidebar-section">System</div>
     <button class="tab" data-tab="activity" onclick="switchTab('activity')">
       <span class="tab-icon">≣</span><span class="tab-label">Activity Log</span>
     <span class="tab-keyhint">Y</span>
@@ -970,10 +972,10 @@ html[data-theme="dark"] .biz-login{
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-primary btn-sm" onclick="switchTab('quickadd')">＋ Add Sale</button>
           <span style="width:1px;height:22px;background:var(--border)"></span>
-          <button class="btn btn-sm" onclick="punchShop('open')">🟢 Shop Open</button>
+          <button class="btn btn-sm" onclick="punchShop('open')">🟢 Studio Open</button>
           <button class="btn btn-sm" onclick="punchShop('break_start')">☕ Break Start</button>
           <button class="btn btn-sm" onclick="punchShop('break_end')">☕ Break End</button>
-          <button class="btn btn-sm" onclick="punchShop('close')">🔴 Shop Close</button>
+          <button class="btn btn-sm" onclick="punchShop('close')">🔴 Studio Close</button>
           <span style="width:1px;height:22px;background:var(--border)"></span>
           <button class="btn btn-ghost btn-sm" onclick="toggleQuickLog('expense')">+ Expense</button>
           <button class="btn btn-ghost btn-sm" onclick="toggleQuickLog('payment')">+ Payment Received</button>
@@ -1013,19 +1015,29 @@ html[data-theme="dark"] .biz-login{
 
       <div id="openKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
 
+      <!-- Bulk action bar — shared across both Open-Orders tables (In Production + Dispatched) -->
+      <div id="openBulkBar" style="display:none;background:var(--accent);color:#fff;border-radius:7px;padding:10px 16px;margin-bottom:10px;align-items:center;gap:10px;flex-wrap:wrap">
+        <span id="openBulkCount" style="font-size:12px;font-weight:700;margin-right:4px">0 selected</span>
+        <select onchange="if(this.value){bulkMarkStatusOpen(this.value);this.value='';}" title="Set status for selected" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;font-size:11px;padding:5px 8px;cursor:pointer">
+          <option value="" style="color:#111">↻ Set status…</option>
+          ${['pending','order_received','processing','printing','packed','dispatched','delivered','completed','delayed','cancelled_before_dispatch','cancelled_before_delivery','return_initiated','returned'].map(s=>`<option value="${s}" style="color:#111">${s}</option>`).join('')}
+        </select>
+        <button class="btn btn-sm" onclick="bulkDeleteOpen()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2);margin-left:auto">🗑 Move to Recycle Bin</button>
+      </div>
+
       <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">In Production — needs studio action</div>
       <div class="tbl-wrap" style="margin-bottom:20px">
         <table>
-          <thead><tr><th>Promised</th><th>SLA</th><th>Customer</th><th>Item</th><th>Channel</th><th>Status</th><th class="td-actions"></th></tr></thead>
-          <tbody id="prodOrdersBody"><tr><td colspan="7" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+          <thead><tr><th style="width:32px"><input type="checkbox" id="selectAllOpenProd" onchange="toggleSelectAllOpen(this,'prod')"></th><th>Promised</th><th>SLA</th><th>Customer</th><th>Item</th><th>Channel</th><th>Status</th><th class="td-actions"></th></tr></thead>
+          <tbody id="prodOrdersBody"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
 
-      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">Dispatched — Tracking <span style="text-transform:none;font-weight:400;color:var(--text-3)">(until return window closes &amp; review is in)</span></div>
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">Dispatched <span style="text-transform:none;font-weight:400;color:var(--text-3)">(until return window closes &amp; review is in)</span></div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Dispatched</th><th>Customer</th><th>Item</th><th>Channel</th><th>Return Window</th><th>Review</th><th>Status</th></tr></thead>
-          <tbody id="trackOrdersBody"><tr><td colspan="7" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+          <thead><tr><th style="width:32px"><input type="checkbox" id="selectAllOpenTrack" onchange="toggleSelectAllOpen(this,'track')"></th><th>Dispatched</th><th>Customer</th><th>Item</th><th>Channel</th><th>Return Window</th><th>Review</th><th>Status</th></tr></thead>
+          <tbody id="trackOrdersBody"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
     </div><!-- /openorders -->
@@ -1403,9 +1415,14 @@ html[data-theme="dark"] .biz-login{
           <option value="packed" style="color:#111">Packed</option>
           <option value="dispatched" style="color:#111">Dispatched</option>
           <option value="delivered" style="color:#111">Delivered</option>
+          <option value="delaying" style="color:#111">Delaying</option>
           <option value="completed" style="color:#111">Completed</option>
           <option value="delayed" style="color:#111">Delayed</option>
+          <option value="return_initiated" style="color:#111">Return Initiated</option>
+          <option value="return_picked_up" style="color:#111">Return Picked Up</option>
           <option value="returned" style="color:#111">Returned</option>
+          <option value="cancelled_before_dispatch" style="color:#111">Cancelled (Before Dispatch)</option>
+          <option value="cancelled_before_delivery" style="color:#111">Cancelled (Before Delivery)</option>
           <option value="cancelled" style="color:#111">Cancelled</option>
         </select>
         <button class="btn btn-sm" onclick="bulkExport()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">↓ Export Selected</button>
@@ -2008,12 +2025,14 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>Initiated Date</label><input type="date" id="rf_date"></div>
           <div class="form-group"><label>Pickup Date <span style="color:var(--text-3);font-weight:400;text-transform:none">done by courier</span></label><input type="date" id="rf_pickup"></div>
           <div class="form-group"><label>Received Date <span style="color:var(--text-3);font-weight:400;text-transform:none">back at studio</span></label><input type="date" id="rf_received"></div>
-          <div class="form-group"><label>Claim Filed Date</label><input type="date" id="rf_claim_filed_date"></div>
-          <div class="form-group"><label>Claim Filed ₹</label><input type="number" id="rf_claim_filed_amount" step="0.01"></div>
-          <div class="form-group"><label>Claim Approved Date</label><input type="date" id="rf_claim_approved_date"></div>
-          <div class="form-group"><label>Claim Approved ₹</label><input type="number" id="rf_claim_approved_amount" step="0.01" oninput="recalcReturn()"></div>
-          <div class="form-group"><label>Claim Paid Date <span style="color:var(--text-3);font-weight:400;text-transform:none">landed in bank</span></label><input type="date" id="rf_claim_paid_date"></div>
-          <div class="form-group"><label>Claim Paid ₹</label><input type="number" id="rf_claim_paid_amount" step="0.01"></div>
+          <div id="rfClaimFieldsWrap" style="display:contents">
+            <div class="form-group"><label>Claim Filed Date</label><input type="date" id="rf_claim_filed_date"></div>
+            <div class="form-group"><label>Claim Filed ₹</label><input type="number" id="rf_claim_filed_amount" step="0.01"></div>
+            <div class="form-group"><label>Claim Approved Date</label><input type="date" id="rf_claim_approved_date"></div>
+            <div class="form-group"><label>Claim Approved ₹</label><input type="number" id="rf_claim_approved_amount" step="0.01" oninput="recalcReturn()"></div>
+            <div class="form-group"><label>Claim Paid Date <span style="color:var(--text-3);font-weight:400;text-transform:none">landed in bank</span></label><input type="date" id="rf_claim_paid_date"></div>
+            <div class="form-group"><label>Claim Paid ₹</label><input type="number" id="rf_claim_paid_amount" step="0.01"></div>
+          </div>
         </div>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:8px;font-size:12px"><input type="checkbox" id="rf_log_income"> Also log this as income in Money In/Out (when marking Claim Paid)</label>
         <label class="chip-label" style="margin-top:12px">Order COGS components</label>
@@ -2381,7 +2400,7 @@ html[data-theme="dark"] .biz-login{
     <!-- ══════ SHOP OPEN/CLOSE LOG (§2.6) ══════ -->
     <div class="panel" id="panelShoplog">
       <div class="p-head">
-        <div><div class="p-title">Shop Hours</div><div class="p-sub">Daily open/close log — informational only, doesn't affect any calculation</div></div>
+        <div><div class="p-title">Studio Hours</div><div class="p-sub">Daily open/close log — informational only, doesn't affect any calculation</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input type="month" id="slMonth" onchange="loadShopLog()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
           <button class="btn btn-primary btn-sm" onclick="showAddShopLog()" title="Shortcut: N">+ Log Today <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">N</span></button>
@@ -2633,7 +2652,12 @@ const PRIVACY_KEY='biz_privacy_mode';
 const PRIVACY_SELECTOR='.kpi-val,.td-num,.amt';
 function isPrivacyOn(){ try{ return localStorage.getItem(PRIVACY_KEY)==='1'; }catch(_){ return false; } }
 function maskEl(el){
-  if(el.dataset.masked==='1'||!/[0-9₹]/.test(el.textContent)) return;
+  // Round 3 fix: re-renders (e.g. loadDashboard() re-setting .textContent on the same KPI
+  // node) overwrite the masked placeholder with a fresh raw value without touching
+  // dataset.masked, so gating solely on that flag left values visible again after
+  // navigating away and back. Instead re-mask any time the visible text ISN'T already the
+  // placeholder — that catches freshly-rendered values on every mutation pass.
+  if(el.textContent==='••••••'||!/[0-9₹]/.test(el.textContent)) return;
   el.dataset.orig=el.textContent; el.dataset.masked='1'; el.textContent='••••••';
 }
 function unmaskEl(el){
@@ -2643,6 +2667,9 @@ function unmaskEl(el){
 function applyPrivacyMasking(){
   const on=isPrivacyOn();
   document.querySelectorAll(PRIVACY_SELECTOR).forEach(on?maskEl:unmaskEl);
+  // Chart canvases can't be text-masked (values are drawn on canvas, not in the DOM) —
+  // blur them instead so figures aren't readable at a glance while privacy mode is on.
+  document.querySelectorAll('.chart-box canvas').forEach(c=>{ c.style.filter=on?'blur(7px)':''; c.style.pointerEvents=on?'none':'auto'; });
   const btn=document.getElementById('privacyBtn'); if(btn){ btn.textContent=on?'🙈':'👁'; btn.title=on?'Show values':'Hide sensitive values'; }
 }
 function togglePrivacyMode(){ try{ localStorage.setItem(PRIVACY_KEY, isPrivacyOn()?'0':'1'); }catch(_){} applyPrivacyMasking(); }
@@ -3088,7 +3115,21 @@ function buildCatalog(){
   if(dl) dl.innerHTML=(_products||[]).map(p=>`<option value="${esc(p.name)}">`).join('');
 }
 
-function onChannelChange(){ recalcTotals(); }
+function onChannelChange(){
+  recalcTotals();
+  // Studio Walk-in / Pickup-Self only make sense for the Studio channel — switching to a
+  // marketplace channel should fall back to Delivery + a blank lead source instead of
+  // leaving an in-person default stuck on a shipped order.
+  const ch=document.getElementById('qa_channel')?.value;
+  const lead=document.getElementById('qa_lead_source')?.value;
+  const fulfil=document.getElementById('qa_fulfillment')?.value;
+  if(ch==='shop'){
+    if(!lead&&typeof setLeadSource==='function') setLeadSource('studio_walkin');
+  } else if(lead==='studio_walkin'||fulfil==='pickup'){
+    if(typeof setLeadSource==='function') setLeadSource('');
+    if(typeof setFulfillment==='function') setFulfillment('delivery');
+  }
+}
 
 function renderItems(){
   const wrap=document.getElementById('itemRows');
@@ -3252,10 +3293,11 @@ function resetQuickAdd(){
   const z=id=>{const e=document.getElementById(id);if(e)e.value='0';};
   z('qa_platformfee'); z('qa_shipping'); z('qa_roundoff');
   if(typeof setQaStatus==='function') setQaStatus('order_received');
-  if(typeof setFulfillment==='function') setFulfillment('delivery');
-  const lead=document.getElementById('qa_lead_source'); if(lead) lead.value='';
-  document.querySelectorAll('#qaLeadChips .qchip').forEach(b=>b.classList.remove('active'));
   const fo=document.getElementById('qa_fulfil_other'); if(fo){ fo.value=''; fo.style.display='none'; }
+  // Studio (the default channel) walks in and picks up in person far more often than it
+  // ships — default to those instead of a blank lead source / Delivery every time.
+  if(typeof setLeadSource==='function') setLeadSource('studio_walkin');
+  if(typeof setFulfillment==='function') setFulfillment('pickup_self');
   _items=[blankItem()];
   renderItems();
 }
@@ -3597,17 +3639,20 @@ function slaBreachDays(f){
   return d>0?d:0;
 }
 // Pre-dispatch: still needs studio action (make/print → pack → ready to ship).
-const PROD_LANE_STATUSES=['pending','order_received','processing','printing','packed'];
+// 'delaying' is a pre-dispatch order running behind — still shown here, not moved to Tracking.
+const PROD_LANE_STATUSES=['pending','order_received','processing','printing','packed','delaying'];
 // Post-dispatch: admin has shipped it — tracked until the return window closes AND a
-// review is in (or the admin moves it to Completed/Returned/etc. manually).
-const TRACK_LANE_STATUSES=['dispatched','delivered'];
+// review is in (or the admin moves it to Completed/Returned/etc. manually). A return in
+// progress (requested but not yet physically back) still shows here so it isn't lost;
+// once marked 'returned' it drops out of Open Orders entirely and only lives in Returns & Claims.
+const TRACK_LANE_STATUSES=['dispatched','delivered','return_initiated','return_picked_up'];
 async function loadOpenOrders(){
   // "Open" = anything not yet in a terminal state, rather than an explicit include-list —
   // the old include-list named values ('pending','processing','dispatched','delivered')
   // that used to be outside the DB CHECK constraint entirely, so this query could never
   // return a row; NOT-IN on the terminal states stays correct as new statuses are added.
   const {data,error}=await sb.from('biz_sales').select('*').eq('is_deleted',false)
-    .not('status','in','(completed,returned,cancelled,claimed)').limit(800);
+    .not('status','in','(completed,returned,cancelled,cancelled_before_dispatch,cancelled_before_delivery,claim_filed,claimed)').limit(800);
   if(error){ return; }
   const rows=data||[];
   // Status changes, paid toggle, delete, invoice, initiate-return etc. all resolve their
@@ -3633,16 +3678,23 @@ async function loadOpenOrders(){
     <div class="kpi yellow"><div class="kpi-label">Due Today</div><div class="kpi-val">${dueToday}</div></div>`;
   loadShopPunchStatus();
 
+  const skuItemCol=(f,more)=>{
+    const line=f.sku?`<div style="font-family:var(--mono);font-weight:600">${esc(f.sku)}</div><div style="color:var(--text-3);font-size:10px">${esc(f.product_name||'—')}</div>`:esc(f.product_name||'—');
+    return line+(more?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">${more}</span>`:'');
+  };
+
   const prodBody=document.getElementById('prodOrdersBody');
   if(prodBody){
-    if(!prodGroups.length){ prodBody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="em-icon">✓</div><div class="em-text">Nothing waiting on the studio</div></div></td></tr>`; }
-    else prodBody.innerHTML=prodGroups.map(g=>{ const f=g.items[0]; const more=g.items.length>1?` <span style="color:var(--text-3);font-size:10px">+${g.items.length-1}</span>`:'';
+    if(!prodGroups.length){ prodBody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="em-icon">✓</div><div class="em-text">Nothing waiting on the studio</div></div></td></tr>`; }
+    else prodBody.innerHTML=prodGroups.map(g=>{ const f=g.items[0]; const ids=g.items.map(s=>s.id).join(',');
+      const more=g.items.length>1?`+${g.items.length-1} more`:'';
       const term=esc(f.order_id||f.customer_name||f.product_name||'');
-      return `<tr class="sale-row" style="cursor:pointer" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${term}';loadSales();}},300)">
+      return `<tr class="sale-row" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>{switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${term}';loadSales();}},300);})">
+        <td onclick="event.stopPropagation()"><input type="checkbox" class="open-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateOpenBulkBar()"></td>
         <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.delivery_date?fmtDay(f.delivery_date):'—'}</td>
         <td style="white-space:nowrap">${slaText(f.delivery_date)}</td>
         <td style="white-space:nowrap">${esc(f.customer_name||'—')}</td>
-        <td>${esc(f.product_name||'—')}${more}</td>
+        <td>${skuItemCol(f,more)}</td>
         <td>${chHtml(f.channel_id)}</td>
         <td onclick="event.stopPropagation()"><select onchange="updateOrderStatus('${f.id}',this.value)" class="badge-select badge-${f.status}">${UNIFIED_STATUSES.map(x=>`<option value="${x}"${f.status===x?' selected':''}>${STATUS_LABEL[x]}</option>`).join('')}</select></td>
         <td class="td-actions" style="color:var(--text-3)">↗</td>
@@ -3652,15 +3704,17 @@ async function loadOpenOrders(){
 
   const trackBody=document.getElementById('trackOrdersBody');
   if(trackBody){
-    if(!trackGroups.length){ trackBody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="em-icon">✓</div><div class="em-text">Nothing being tracked post-dispatch</div></div></td></tr>`; }
-    else trackBody.innerHTML=trackGroups.map(g=>{ const f=g.items[0]; const more=g.items.length>1?` <span style="color:var(--text-3);font-size:10px">+${g.items.length-1}</span>`:'';
+    if(!trackGroups.length){ trackBody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="em-icon">✓</div><div class="em-text">Nothing being tracked post-dispatch</div></div></td></tr>`; }
+    else trackBody.innerHTML=trackGroups.map(g=>{ const f=g.items[0]; const ids=g.items.map(s=>s.id).join(',');
+      const more=g.items.length>1?`+${g.items.length-1} more`:'';
       const term=esc(f.order_id||f.customer_name||f.product_name||'');
       const dispatchInfo=dispatchSlaText(f);
       const rw=returnWindowInfo(f)||'<span style="color:var(--text-3)">—</span>';
-      return `<tr class="sale-row" style="cursor:pointer" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${term}';loadSales();}},300)">
+      return `<tr class="sale-row" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>{switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${term}';loadSales();}},300);})">
+        <td onclick="event.stopPropagation()"><input type="checkbox" class="open-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateOpenBulkBar()"></td>
         <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.dispatch_date?fmtDay(f.dispatch_date):'—'}${dispatchInfo?'<br>'+dispatchInfo:''}</td>
         <td style="white-space:nowrap">${esc(f.customer_name||'—')}</td>
-        <td>${esc(f.product_name||'—')}${more}</td>
+        <td>${skuItemCol(f,more)}</td>
         <td>${chHtml(f.channel_id)}</td>
         <td style="font-size:11px;white-space:nowrap">${rw}</td>
         <td onclick="event.stopPropagation()"><button class="btn btn-sm" onclick="toggleReviewReceived('${f.id}',${!!f.review_received})" style="background:${f.review_received?'var(--green-bg)':'var(--bg-2)'};color:${f.review_received?'var(--green)':'var(--text-3)'};border:1px solid ${f.review_received?'var(--green)':'var(--border)'};font-size:11px;padding:3px 8px">${f.review_received?'✓ Received':'◯ Pending'}</button></td>
@@ -3668,6 +3722,48 @@ async function loadOpenOrders(){
       </tr>`;
     }).join('');
   }
+  updateOpenBulkBar();
+}
+
+// ── Open Orders bulk select (mirrors All Sales' bulk bar, separate class/ids since both
+// panels' tables coexist in the DOM) ──
+function toggleSelectAllOpen(cb,which){
+  const sel=which==='prod'?'#prodOrdersBody .open-cb':'#trackOrdersBody .open-cb';
+  document.querySelectorAll(sel).forEach(c=>c.checked=cb.checked);
+  updateOpenBulkBar();
+}
+function updateOpenBulkBar(){
+  const n=getSelectedOpenIds().length;
+  const bar=document.getElementById('openBulkBar'); if(!bar) return;
+  if(n>0){ bar.style.display='flex'; document.getElementById('openBulkCount').textContent=n+' selected'; }
+  else bar.style.display='none';
+}
+function getSelectedOpenIds(){
+  const out=[]; document.querySelectorAll('.open-cb:checked').forEach(c=>(c.dataset.ids||'').split(',').filter(Boolean).forEach(x=>out.push(x)));
+  return out;
+}
+async function bulkMarkStatusOpen(status){
+  const ids=getSelectedOpenIds(); if(!ids.length) return;
+  const label=STATUS_LABEL[status]||status;
+  if(!confirm('Mark '+ids.length+' order(s) as '+label+'?')) return;
+  const payload={status}; if(status==='completed') payload.completed_at=new Date().toISOString();
+  const {error}=await sb.from('biz_sales').update(payload).in('id',ids);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  if(['return_initiated','returned'].includes(status)){
+    const sales=_salesCache.filter(s=>ids.includes(s.id));
+    const byOrder={}; sales.forEach(s=>{ const k=s.order_id||s.id; (byOrder[k]=byOrder[k]||[]).push(s); });
+    for(const grp of Object.values(byOrder)){ await syncReturnRowForStatus(status,grp,grp[0]); }
+  }
+  toast(ids.length+' orders → '+label); loadOpenOrders(); if(typeof loadReturnsBadge==='function') loadReturnsBadge();
+}
+async function bulkDeleteOpen(){
+  const ids=getSelectedOpenIds(); if(!ids.length) return;
+  const locked=ids.filter(id=>_salesCache.find(s=>s.id===id&&s.is_paid));
+  if(locked.length){ toast(locked.length+' paid order(s) cannot be deleted — unmark paid first','error'); return; }
+  if(!confirm('Move '+ids.length+' order(s) to Recycle Bin?')) return;
+  const {error}=await sb.from('biz_sales').update({is_deleted:true,deleted_at:new Date().toISOString()}).in('id',ids);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast(ids.length+' orders moved to Recycle Bin'); loadOpenOrders(); if(typeof loadSalesBadge==='function') loadSalesBadge();
 }
 async function toggleReviewReceived(id,current){
   const {error}=await sb.from('biz_sales').update({review_received:!current}).eq('id',id);
@@ -3700,7 +3796,7 @@ async function punchShop(action){
   else if(action==='close') payload.close_time=nowTime;
   const {error}=await sb.from('biz_shop_log').upsert(payload,{onConflict:'date'});
   if(error){ toast('Error: '+error.message,'error'); return; }
-  const LABEL={open:'Shop opened',break_start:'Break started',break_end:'Break ended',close:'Shop closed'};
+  const LABEL={open:'Studio opened',break_start:'Break started',break_end:'Break ended',close:'Studio closed'};
   toast((LABEL[action]||'Logged')+' at '+nowTime);
   loadShopPunchStatus();
 }
@@ -4059,7 +4155,7 @@ async function loadBalanceSheet(){
     sb.from('biz_expenses').select('amount').gte('date',start),
     sb.from('biz_purchases').select('total_amount').gte('date',start),
     sb.from('filament_inventory').select('total_grams,grams_used,waste_grams,price').neq('status','Finsh'),
-    sb.from('biz_sales').select('selling_price').eq('is_deleted',false).eq('is_paid',false).not('status','in','(cancelled,returned)'),
+    sb.from('biz_sales').select('selling_price').eq('is_deleted',false).eq('is_paid',false).not('status','in','(cancelled,cancelled_before_dispatch,cancelled_before_delivery,returned)'),
   ]);
   const num=v=>+v||0;
   const opening=num(ob&&ob.value);
@@ -4154,7 +4250,9 @@ async function saveShopLog(){
 async function deleteShopLog(date){ if(!confirm("Delete this day's log?")) return; const {error}=await sb.from('biz_shop_log').delete().eq('date',date); if(error){toast('Error: '+error.message,'error');return;} toast('Deleted'); loadShopLog(); }
 
 async function loadSalesBadge(){
-  const {count}=await sb.from('biz_sales').select('*',{count:'exact',head:true}).eq('is_deleted',false);
+  // Round 3 — cancelled orders shouldn't inflate the All Sales tab count.
+  const {count}=await sb.from('biz_sales').select('*',{count:'exact',head:true}).eq('is_deleted',false)
+    .not('status','in','(cancelled,cancelled_before_dispatch,cancelled_before_delivery)');
   document.getElementById('salesCount').textContent=count||0;
 }
 
@@ -4207,7 +4305,7 @@ async function loadSales(){
     const skuLine=f.sku
       ?`<div style="font-family:var(--mono);font-weight:600">${esc(f.sku)}</div><div style="color:var(--text-3);font-size:10px">${esc(f.product_name||'—')}</div>`
       :esc(f.product_name||'—');
-    const itemCol=thumb+`<span style="display:inline-block;vertical-align:middle">${skuLine}${items.length>1?` <span style="color:var(--text-3);font-size:10px">+${items.length-1} more · ${items.length} items</span>`:''}</span>`;
+    const itemCol=thumb+`<span style="display:inline-block;vertical-align:middle">${skuLine}${items.length>1?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">+${items.length-1} more</span>`:''}</span>`;
     return `<tr class="sale-row" onclick="rowSelectOrAction(event,'sale-cb',()=>openOrderDetail('${key}',event))" style="cursor:pointer;${allPaid?'opacity:.78':''}">
       <td><input type="checkbox" class="sale-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateBulkBar()"></td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${idx+1}</td>
@@ -4373,8 +4471,8 @@ async function togglePaidOrder(firstId,allPaid){
   loadSales();
 }
 // ── Round 3: unified order lifecycle (was split across status + production_status) ──
-const UNIFIED_STATUSES=['pending','order_received','processing','printing','packed','dispatched','delivered','completed','delayed','cancelled','returned','claimed'];
-const STATUS_LABEL={pending:'Pending',order_received:'Order Received',processing:'Processing',printing:'Printing',packed:'Packed',dispatched:'Dispatched',delivered:'Delivered',completed:'Completed',delayed:'Delayed',cancelled:'Cancelled',returned:'Returned',claimed:'Claimed'};
+const UNIFIED_STATUSES=['pending','order_received','processing','printing','packed','dispatched','delivered','delaying','return_initiated','return_picked_up','returned','claim_filed','completed','delayed','cancelled_before_dispatch','cancelled_before_delivery','cancelled','claimed'];
+const STATUS_LABEL={pending:'Pending',order_received:'Order Received',processing:'Processing',printing:'Printing',packed:'Packed',dispatched:'Dispatched',delivered:'Delivered',delaying:'Delaying',return_initiated:'Return Initiated',return_picked_up:'Return Picked Up',returned:'Returned',claim_filed:'Claim Filed',completed:'Completed',delayed:'Delayed',cancelled_before_dispatch:'Cancelled (Before Dispatch)',cancelled_before_delivery:'Cancelled (Before Delivery)',cancelled:'Cancelled',claimed:'Claimed'};
 // ── Configurable fee rules (per platform & price range) ─────
 // Stored in site_settings.biz_fee_rules (shared across devices). Edited in the
 // Fees & Returns tab. Used for return-loss + import forward fees.
@@ -4452,22 +4550,30 @@ async function saveFeeRules(){
   toast('Fee rules saved');
 }
 
+// Round 3 — a status of return_initiated/returned always keeps a matching biz_returns
+// row in sync, so the order actually surfaces in Returns & Claims per the requested flow:
+// "returning" (return_initiated) = customer/courier has the request, "returned" = it is
+// physically back at the studio and only then does claim management take over.
+async function syncReturnRowForStatus(status,items,f){
+  if(!['return_initiated','returned'].includes(status)) return;
+  const {data:ex}=await sb.from('biz_returns').select('id,stage').eq('order_id',f.order_id||'').limit(1);
+  const stage=status==='returned'?'received':'initiated';
+  if(ex&&ex.length){
+    await sb.from('biz_returns').update({stage,...(stage==='received'?{received:today()}:{})}).eq('id',ex[0].id);
+    return;
+  }
+  const total=items.reduce((a,s)=>a+(+s.selling_price||0),0);
+  const fwd=items.reduce((a,s)=>a+(+s.shipping_fee||0),0);
+  const loss=calcReturnLoss(f.channel_id,total,fwd);
+  await sb.from('biz_returns').insert({sale_id:f.id,channel_id:f.channel_id,order_id:f.order_id,type:'return',stage,date:today(),amount_lost:loss,refund_given:0,status:'pending',reason:status==='returned'?'Marked returned (shipping + return + packing)':'Return initiated from order status'});
+}
 async function updateOrderStatus(firstId,status){
   const items=_orderGroup(firstId), ids=items.map(s=>s.id), f=items[0];
   const payload={status};
   if(status==='completed') payload.completed_at=new Date().toISOString();
   const {error}=await sb.from('biz_sales').update(payload).in('id',ids);
   if(error){ toast('Error: '+error.message,'error'); return; }
-  if(status==='returned'){
-    // one return record per order; skip if already logged
-    const {data:ex}=await sb.from('biz_returns').select('id').eq('order_id',f.order_id||'').limit(1);
-    if(!f.order_id || !ex || !ex.length){
-      const total=items.reduce((a,s)=>a+(+s.selling_price||0),0);
-      const fwd=items.reduce((a,s)=>a+(+s.shipping_fee||0),0);
-      const loss=calcReturnLoss(f.channel_id,total,fwd);
-      await sb.from('biz_returns').insert({sale_id:f.id,channel_id:f.channel_id,order_id:f.order_id,type:'return',date:today(),amount_lost:loss,refund_given:0,status:'pending',reason:'Marked returned (shipping + return + packing)'});
-    }
-  }
+  await syncReturnRowForStatus(status,items,f);
   toast('Order updated'); loadSales(); if(typeof loadReturnsBadge==='function') loadReturnsBadge();
 }
 
@@ -4510,10 +4616,10 @@ async function bulkMarkStatus(status){
   if(status==='completed') payload.completed_at=new Date().toISOString();
   const {error}=await sb.from('biz_sales').update(payload).in('id',ids);
   if(error){toast('Error: '+error.message,'error');return;}
-  if(status==='returned'){
+  if(['return_initiated','returned'].includes(status)){
     const sales=_salesCache.filter(s=>ids.includes(s.id));
-    const rows=sales.map(s=>({sale_id:s.id,channel_id:s.channel_id,order_id:s.order_id,type:'return',date:today(),amount_lost:calcReturnLoss(s.channel_id,s.selling_price,s.shipping_fee),refund_given:0,status:'pending',reason:'Bulk marked'}));
-    if(rows.length) await sb.from('biz_returns').insert(rows);
+    const byOrder={}; sales.forEach(s=>{ const k=s.order_id||s.id; (byOrder[k]=byOrder[k]||[]).push(s); });
+    for(const grp of Object.values(byOrder)){ await syncReturnRowForStatus(status,grp,grp[0]); }
   }
   toast(ids.length+' orders -> '+label); loadSales();
 }
@@ -5057,7 +5163,7 @@ async function loadReturnsBadge(){
   el.textContent=count||0;
 }
 
-const RETURN_STAGES={initiated:'Initiated',returning:'Returning to Seller',received:'Received',claim_filed:'Claim Filed',claim_approved:'Claim Approved'};
+const RETURN_STAGES={initiated:'Initiated',returning:'Returning to Seller',received:'Received',claim_filed:'Claim Filed',claim_approved:'Claim Approved',claim_paid:'Claim Paid'};
 let _returnsCache=[];
 async function loadReturns(){
   let q=sb.from('biz_returns').select('*').order('date',{ascending:false}).limit(500);
@@ -5092,7 +5198,17 @@ async function loadReturns(){
     <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="editReturn('${r.id}')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteReturn('${r.id}')">✕</button></td>
   </tr>`).join('');
 }
-function setReturnStage(s){ const h=document.getElementById('rf_stage'); if(h) h.value=s; document.querySelectorAll('#rfStageChips .qchip').forEach(b=>b.classList.toggle('active',b.dataset.s===s)); }
+function setReturnStage(s){ const h=document.getElementById('rf_stage'); if(h) h.value=s; document.querySelectorAll('#rfStageChips .qchip').forEach(b=>b.classList.toggle('active',b.dataset.s===s)); updateClaimFieldsVisibility(); }
+// Claim fields (filed/approved/paid date+amount) only matter once a claim is actually in
+// play — either the stage has progressed past "received" toward a claim, or the return
+// type is inherently a claim (SPF/A-Z/chargeback). Round 3 fix: these used to always render,
+// which read like every return needed a claim logged.
+function updateClaimFieldsVisibility(){
+  const stage=document.getElementById('rf_stage')?.value||'initiated';
+  const type=document.getElementById('rf_type')?.value||'return';
+  const isClaim=['claim_filed','claim_approved','claim_paid'].includes(stage)||['spf_claim','az_claim','chargeback'].includes(type);
+  const wrap=document.getElementById('rfClaimFieldsWrap'); if(wrap) wrap.style.display=isClaim?'contents':'none';
+}
 // §2.7 — Delivery Rejection / In-Transit Cancellation: courier returns the unit as part
 // of the failed delivery at no extra cost, unlike a Standard Return where return shipping
 // is a real cost. Zero + lock that field so the loss calc never double-charges it.
@@ -5103,6 +5219,7 @@ function onReturnTypeChange(){
   if(inp){ if(noShip) inp.value='0'; inp.disabled=noShip; }
   if(note) note.textContent=noShip?'— not applicable, courier returns at no cost':'';
   recalcReturn();
+  updateClaimFieldsVisibility();
 }
 // 5.3 recompute: COGS = fwd ship (sunk) + return ship + packing (sunk) + (adjusted|orig product cost); net loss nets the approved claim
 function recalcReturn(){
