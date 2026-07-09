@@ -692,7 +692,7 @@ html[data-theme="dark"] .biz-login{
 
     <div class="sidebar-section">Overview</div>
     <button class="tab active" data-tab="openorders" onclick="switchTab('openorders')">
-      <span class="tab-icon">⚑</span><span class="tab-label">Open Orders</span><span class="tab-badge" id="openCount">—</span>
+      <span class="tab-icon">⚑</span><span class="tab-label">Today's Tasks</span><span class="tab-badge" id="openCount">—</span>
     <span class="tab-keyhint">O</span>
     </button>
     <button class="tab" data-tab="dashboard" onclick="switchTab('dashboard')">
@@ -983,7 +983,7 @@ html[data-theme="dark"] .biz-login{
     ═══════════════════════════════════════════════════════ -->
     <div class="panel active" id="panelOpenorders">
       <div class="p-head">
-        <div><div class="p-title">Open Orders</div><div class="p-sub">Today's operations — production, dispatch tracking &amp; quick logs</div></div>
+        <div><div class="p-title">Today's Tasks</div><div class="p-sub">Not just orders — everything due today: production, dispatch tracking, GST filing &amp; low-stock alerts</div></div>
         <button class="btn btn-ghost btn-sm" onclick="loadOpenOrders()" title="Refresh">⟳</button>
       </div>
 
@@ -1035,6 +1035,7 @@ html[data-theme="dark"] .biz-login{
       </div>
 
       <div id="openGstReminder" style="display:none;margin-bottom:16px"></div>
+      <div id="openFilamentAlert" style="display:none;margin-bottom:16px"></div>
       <div id="openKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
 
       <!-- Bulk action bar — shared across both Open-Orders tables (In Production + Dispatched) -->
@@ -1352,6 +1353,9 @@ html[data-theme="dark"] .biz-login{
           <button class="btn btn-ghost btn-sm" onclick="openRecycleBin()" title="Recycle Bin">🗑️</button>
         </div>
       </div>
+      <!-- Round 3 — one-click colored channel buttons, quicker than opening Filters for the
+           single most common sort ("kis channel ka dekhna hai"). -->
+      <div id="sfChannelBtns" class="filter-bar" style="align-items:center;margin-bottom:8px"></div>
       <!-- One search box + a single Filters toggle (B4) -->
       <div class="filter-bar" style="align-items:center">
         <input type="text" id="sfSearch" placeholder="Search order / product / customer…" oninput="loadSales()" style="min-width:200px;flex:1">
@@ -2111,7 +2115,7 @@ html[data-theme="dark"] .biz-login{
 
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Date</th><th>Channel</th><th>Type</th><th>Order</th><th>Stage</th><th class="td-num">Net Loss</th><th>Status</th><th class="td-actions"></th></tr></thead>
+          <thead><tr><th>Date</th><th>Channel</th><th>Type</th><th>Product / Order</th><th>Stage</th><th class="td-num">Net Loss</th><th>Status</th><th class="td-actions"></th></tr></thead>
           <tbody id="returnsBody"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
@@ -3962,11 +3966,13 @@ async function loadOpenOrders(){
   // ahead of the 10th (GSTR-1) / 19th (GSTR-3B), so they're seen without a separate visit.
   const gstRem=document.getElementById('openGstReminder');
   if(gstRem){ const card=typeof gstFilingReminderCard==='function'?gstFilingReminderCard():''; gstRem.innerHTML=card; gstRem.style.display=card?'block':'none'; }
+  loadFilamentLowStockAlert();
   loadShopPunchStatus();
 
   const skuItemCol=(f,more)=>{
     const line=f.sku?`<div style="font-family:var(--mono);font-weight:600">${esc(f.sku)}</div><div style="color:var(--text-3);font-size:10px">${esc(f.product_name||'—')}</div>`:esc(f.product_name||'—');
-    return line+(more?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">${more}</span>`:'');
+    const orderIdLine=f.order_id?`<div style="color:var(--text-3);font-size:9px;font-family:var(--mono)">#${esc(f.order_id)}</div>`:'';
+    return line+orderIdLine+(more?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">${more}</span>`:'');
   };
 
   const prodBody=document.getElementById('prodOrdersBody');
@@ -4594,7 +4600,23 @@ async function loadSalesBadge(){
 let _salesCache=[];
 function fmtDay(s){ if(!s) return '—'; const p=String(s).slice(0,10).split('-'); if(p.length<3) return s; const mon=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(p[1])]||''; return p[2]+' '+mon+' '+p[0].slice(2); }
 
+// Round 3 — one-click colored channel buttons above All Sales, quicker than opening the
+// Filters panel just to pick a channel. Kept in sync with (and still driven by) the
+// existing sfChannel select so Filters and these buttons never disagree.
+function renderSfChannelBtns(){
+  const box=document.getElementById('sfChannelBtns'); if(!box) return;
+  const cur=document.getElementById('sfChannel')?.value||'';
+  const channels=['','shop','amazon','flipkart','website'];
+  box.innerHTML=channels.map(c=>{
+    const active=cur===c;
+    const label=c?CH_NAMES[c]:'All Channels';
+    const color=c?CH_COLORS[c]:'#6b7280';
+    return `<button type="button" class="btn btn-sm" onclick="setSfChannel('${c}')" style="background:${active?color:'transparent'};color:${active?'#fff':color};border:1px solid ${color};font-weight:600">${label}</button>`;
+  }).join('');
+}
+function setSfChannel(c){ const el=document.getElementById('sfChannel'); if(el) el.value=c; renderSfChannelBtns(); loadSales(); }
 async function loadSales(){
+  renderSfChannelBtns();
   const v=id=>{const e=document.getElementById(id);return e?e.value:'';};
   const ch=v('sfChannel'), st=v('sfStatus'), pay=v('sfPayment'), paid=v('sfPaid');
   const mo=v('sfMonth'), from=v('sfFrom'), to=v('sfTo'), sort=v('sfSort')||'date_desc', se=v('sfSearch').trim();
@@ -4640,7 +4662,10 @@ async function loadSales(){
     const skuLine=f.sku
       ?`<div style="font-family:var(--mono);font-weight:600">${esc(f.sku)}</div><div style="color:var(--text-3);font-size:10px">${esc(f.product_name||'—')}</div>`
       :esc(f.product_name||'—');
-    const itemCol=thumb+`<span style="display:inline-block;vertical-align:middle">${skuLine}${items.length>1?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">+${items.length-1} more</span>`:''}</span>`;
+    // Round 3 — Order ID visible but minimal (doesn't take extra space, needed for
+    // find-in-page / matching against platform dashboards).
+    const orderIdLine=f.order_id?`<div style="color:var(--text-3);font-size:9px;font-family:var(--mono)">#${esc(f.order_id)}</div>`:'';
+    const itemCol=thumb+`<span style="display:inline-block;vertical-align:middle">${skuLine}${orderIdLine}${items.length>1?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">+${items.length-1} more</span>`:''}</span>`;
     return `<tr class="sale-row" onclick="rowSelectOrAction(event,'sale-cb',()=>openOrderDetail('${key}',event))" style="cursor:pointer;${allPaid?'opacity:.78':''}">
       <td><input type="checkbox" class="sale-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateBulkBar()"></td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${idx+1}</td>
@@ -5640,16 +5665,24 @@ async function loadReturns(){
     <div class="kpi"><div class="kpi-label">Cases</div><div class="kpi-val">${rows.length}</div></div>`;
   const tbody=document.getElementById('returnsBody'); if(!tbody) return;
   if(!rows.length){ tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="em-icon">↩</div><div class="em-text">No returns yet</div></div></td></tr>`; return; }
-  tbody.innerHTML=rows.map(r=>`<tr>
+  tbody.innerHTML=rows.map(r=>{
+    // Round 3 — same SKU-bold/product-muted/order-id-tiny convention as All Sales, resolved
+    // from the matching sale by order_id (biz_returns itself has no product column).
+    const sale=r.order_id&&Array.isArray(_salesCache)?_salesCache.find(s=>s.order_id===r.order_id):null;
+    const prodCol=sale
+      ?`${sale.sku?`<div style="font-family:var(--mono);font-weight:600">${esc(sale.sku)}</div>`:''}<div style="color:${sale.sku?'var(--text-3)':'var(--text)'};font-size:${sale.sku?'10px':'12px'}">${esc(sale.product_name||'—')}</div><div style="color:var(--text-3);font-size:9px;font-family:var(--mono)">#${esc(r.order_id||'')}</div>`
+      :`<span style="color:var(--text-3);font-family:var(--mono);font-size:11px">${esc(r.order_id||'—')}</span>`;
+    return `<tr>
     <td style="font-family:var(--mono);font-size:11px">${esc(r.date||'')}</td>
     <td>${chHtml(r.channel_id)}</td>
     <td><span class="badge badge-${r.type==='return'?'returned':r.type==='cancellation'?'cancelled':'claimed'}">${esc((r.type||'').replace('_',' '))}</span></td>
-    <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(r.order_id||'—')}</td>
+    <td>${prodCol}</td>
     <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(RETURN_STAGES[r.stage]||r.stage||'—')}</span></td>
     <td class="td-num" style="color:var(--red);font-weight:700">${fmt(r.amount_lost)}</td>
     <td><span class="badge badge-${esc(r.status)}">${esc(r.status)}</span></td>
     <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="editReturn('${r.id}')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteReturn('${r.id}')">✕</button></td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
 }
 function setReturnStage(s){ const h=document.getElementById('rf_stage'); if(h) h.value=s; document.querySelectorAll('#rfStageChips .qchip').forEach(b=>b.classList.toggle('active',b.dataset.s===s)); updateClaimFieldsVisibility(); }
 // Claim fields (filed/approved/paid date+amount) only matter once a claim is actually in
@@ -5856,6 +5889,28 @@ function gstFilingReminderCard(){
     }
   });
   return items.length?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">${items.join('')}</div>`:'';
+}
+// Round 3 — "spool 30% ke niche chale jaye toh Open Orders/Today's Tasks me dikhe" —
+// surfaces a compact alert box for any active (non-Finsh) spool with under 30% remaining;
+// click it to jump straight to Spool Tracker.
+async function loadFilamentLowStockAlert(){
+  const box=document.getElementById('openFilamentAlert'); if(!box) return;
+  const {data}=await sb.from('filament_inventory').select('brand,color,filament_type,total_grams,grams_used,waste_grams').neq('status','Finsh');
+  const rows=(data||[]).map(r=>{
+    const total=parseFloat(r.total_grams)||0;
+    const remaining=Math.max(0,total-(parseFloat(r.grams_used)||0)-(parseFloat(r.waste_grams)||0));
+    const pct=total>0?remaining/total*100:100;
+    return {...r,remaining,pct};
+  }).filter(r=>r.pct<30).sort((a,b)=>a.pct-b.pct);
+  if(!rows.length){ box.style.display='none'; return; }
+  box.style.display='block';
+  box.innerHTML=`<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:var(--radius);padding:12px 14px;cursor:pointer" onclick="switchTab('spooltracker')">
+    <div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:6px">⚠ Filament Running Out — ${rows.length} spool${rows.length===1?'':'s'} below 30%</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      ${rows.slice(0,8).map(r=>`<span style="background:var(--bg-1);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px">${esc((r.brand||'')+' '+(r.color||'')+' '+(r.filament_type||'')).trim()} — ${Math.round(r.pct)}%</span>`).join('')}
+      ${rows.length>8?`<span style="font-size:11px;color:var(--text-3)">+${rows.length-8} more</span>`:''}
+    </div>
+  </div>`;
 }
 async function loadGstPortal(){
   const rem=document.getElementById('gstFilingReminders'); if(rem) rem.innerHTML=gstFilingReminderCard();
