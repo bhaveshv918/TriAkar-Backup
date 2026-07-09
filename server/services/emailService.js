@@ -139,12 +139,15 @@ export async function sendOrderConfirmation(order) {
       </tr>`
     : '';
   const trackingUrl = `https://triakar.com/track-order.html?id=${encodeURIComponent(order.order_id || '')}`;
-  const paymentLabel = order.payment_method === 'whatsapp'
-    ? 'WhatsApp Order (Pay on delivery / as agreed)'
+  const isWhatsAppOrder = order.payment_method === 'whatsapp';
+  const paymentLabel = isWhatsAppOrder
+    ? 'WhatsApp Order (Payment pending)'
     : (order.payment_method || 'online').replace('online', 'Razorpay');
   const body = `
     <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 20px;">
-      Thank you for your order. We have received your payment and your TriAkar pieces are now in our hands.
+      ${isWhatsAppOrder
+        ? 'Thank you for your order. Your TriAkar pieces are now in our hands. Please complete payment via WhatsApp within 5 days to confirm your order for production.'
+        : 'Thank you for your order. We have received your payment and your TriAkar pieces are now in our hands.'}
     </p>
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
       ${row('Invoice No.', order.order_id)}

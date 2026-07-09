@@ -308,6 +308,11 @@ router.post('/verify-email-otp', requireAuth, async (req, res, next) => {
 /* ── GET /api/auth/email-verified-status ─────────────────── */
 router.get('/email-verified-status', requireAuth, async (req, res, next) => {
   try {
+    // Google OAuth accounts have a provider-verified email; skip the OTP flow entirely
+    const provider = req.user.app_metadata?.provider;
+    const isGoogleUser = provider === 'google' || (req.user.identities || []).some(i => i.provider === 'google');
+    if (isGoogleUser) return res.json({ verified: true });
+
     // Check profiles.email_verified first (if column exists)
     try {
       const { data: profile } = await supabase
