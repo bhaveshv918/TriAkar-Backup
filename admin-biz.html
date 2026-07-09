@@ -735,6 +735,9 @@ html[data-theme="dark"] .biz-login{
       <span class="tab-icon">🧵</span><span class="tab-label">Spool Tracker</span>
     <span class="tab-keyhint">S</span>
     </button>
+    <button class="tab" data-tab="machinery" onclick="switchTab('machinery')">
+      <span class="tab-icon">🖨</span><span class="tab-label">Machinery</span>
+    </button>
 
     <div class="sidebar-section">Finance</div>
     <button class="tab" data-tab="returns" onclick="switchTab('returns')">
@@ -830,6 +833,22 @@ html[data-theme="dark"] .biz-login{
       <div class="chart-box" style="margin-bottom:16px">
         <h3>Orders by Channel — <span id="ordersByChMonthName">this month</span></h3>
         <div id="ordersByChannel" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px"></div>
+      </div>
+
+      <!-- Studio Hours / SLA / New-Customer-Rate rollups (Round 3, Batch 3) -->
+      <div class="charts-row">
+        <div class="chart-box">
+          <h3>Studio Hours</h3>
+          <div id="studioHoursCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:12px"></div>
+        </div>
+        <div class="chart-box">
+          <h3>SLA — Met vs Not Met <span id="slaMonthName" style="font-weight:400;color:var(--text-3);font-size:12px"></span></h3>
+          <div id="slaCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:12px"></div>
+        </div>
+      </div>
+      <div class="chart-box" style="margin-bottom:16px">
+        <h3>New Customers by Channel — <span id="newCustMonthName">this month</span></h3>
+        <div id="newCustByChannel" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px"></div>
       </div>
 
       <!-- Charts -->
@@ -2084,8 +2103,8 @@ html[data-theme="dark"] .biz-login{
       <div id="spoolAddForm" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px">
         <div style="font-size:13px;font-weight:700;margin-bottom:12px">Add Spool</div>
         <div class="form-grid">
-          <div class="form-group"><label>Brand *</label><input type="text" id="spa_brand" placeholder="e.g. WOL3D"></div>
-          <div class="form-group"><label>Filament Type</label><input type="text" id="spa_type" placeholder="PLA / PETG / TPU" value="PLA"></div>
+          <div class="form-group"><label>Brand *</label><input type="text" id="spa_brand" placeholder="e.g. WOL3D" list="filamentBrandList"><datalist id="filamentBrandList"><option value="Numakers"><option value="WOL3D"><option value="BhramaLab"></datalist></div>
+          <div class="form-group"><label>Filament Type</label><input type="text" id="spa_type" placeholder="PLA / PETG / TPU" value="PLA" list="filamentTypeList"><datalist id="filamentTypeList"><option value="PLA"><option value="PLA+"><option value="PETG"><option value="PETG+"><option value="ABS"><option value="ASA"><option value="TPU"></datalist></div>
           <div class="form-group"><label>Finish</label><input type="text" id="spa_finish" placeholder="Normal / Matte / Silk"></div>
           <div class="form-group"><label>Color</label><div style="display:flex;gap:6px;align-items:center"><input type="text" id="spa_color" style="flex:1;min-width:0" placeholder="e.g. Golden Silk" oninput="syncSpoolColorName(this.value)"><input type="color" id="spa_color_hex" value="#cccccc" title="Pick the exact shade — matters more than the name" style="width:36px;height:32px;padding:2px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--bg-2)"></div></div>
           <div class="form-group"><label>Vendor</label><input type="text" id="spa_vendor"></div>
@@ -2138,6 +2157,73 @@ html[data-theme="dark"] .biz-login{
         </table>
       </div>
     </div><!-- /spooltracker -->
+
+    <!-- ══════════════════════════════════════════════════════
+         MACHINERY — printers/equipment + print attempts (reprints, reasons) (Round 3)
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelMachinery">
+      <div class="p-head">
+        <div><div class="p-title">Machinery</div><div class="p-sub">Printers &amp; equipment — specs, purchase value (feeds Balance Sheet) &amp; print-attempt log</div></div>
+        <button class="btn btn-primary btn-sm" onclick="showAddPrinter()">+ Add Machine</button>
+      </div>
+
+      <div id="printerKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
+
+      <div id="printerForm" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px">
+        <input type="hidden" id="pr_id">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px" id="printerFormTitle">Add Machine</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Name *</label><input type="text" id="pr_name" placeholder="e.g. Bambu P1S #1"></div>
+          <div class="form-group"><label>Type</label><input type="text" id="pr_type" placeholder="FDM Printer / Heat Gun / Resin…" value="FDM Printer"></div>
+          <div class="form-group"><label>Build Volume</label><input type="text" id="pr_build_volume" placeholder="e.g. 256×256×256mm"></div>
+          <div class="form-group"><label>Build Plate</label><input type="text" id="pr_build_plate" placeholder="e.g. Textured PEI"></div>
+          <div class="form-group"><label>Multicolor / AMS</label><select id="pr_multicolor"><option value="false">No</option><option value="true">Yes</option></select></div>
+          <div class="form-group"><label>Other Capability</label><input type="text" id="pr_other_capability" placeholder="e.g. enclosed chamber, 300°C hotend"></div>
+          <div class="form-group"><label>Purchase Value ₹</label><input type="number" id="pr_purchase_value" step="0.01"></div>
+          <div class="form-group"><label>Purchase Date</label><input type="date" id="pr_purchase_date"></div>
+          <div class="form-group"><label>Status</label><select id="pr_active"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary btn-sm" onclick="savePrinter()">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('printerForm').style.display='none'">Cancel</button>
+        </div>
+      </div>
+
+      <div class="tbl-wrap" style="margin-bottom:20px">
+        <table>
+          <thead><tr><th>Name</th><th>Type</th><th>Specs</th><th class="td-num">Purchase Value</th><th>Status</th><th class="td-actions"></th></tr></thead>
+          <tbody id="printerBody"><tr><td colspan="6" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">Print Attempts — reprints logged against an order + printer</div>
+      <div id="attemptForm" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px">Log Print Attempt</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Order ID</label><input type="text" id="pa_orderid" placeholder="match a sale"></div>
+          <div class="form-group"><label>Printer</label><select id="pa_printer"></select></div>
+          <div class="form-group"><label>Reason</label><select id="pa_reason">
+            <option value="reprint_guarantee">Reprint Guarantee (quality)</option>
+            <option value="power_cut">Power Cut</option>
+            <option value="filament_runout">Filament Ran Out</option>
+            <option value="quality_issue">Quality Issue</option>
+            <option value="other">Other</option>
+          </select></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Note <span style="color:var(--text-3);font-weight:400;text-transform:none">what changed before the re-run — settings, roll, location…</span></label><input type="text" id="pa_note" placeholder="e.g. switched to a fresh roll, moved away from the door"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary btn-sm" onclick="saveAttempt()">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('attemptForm').style.display='none'">Cancel</button>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="showAddAttempt()" style="margin-bottom:10px">+ Log Attempt</button>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Order</th><th>Printer</th><th>Reason</th><th>Note</th><th class="td-actions"></th></tr></thead>
+          <tbody id="attemptBody"><tr><td colspan="6" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+    </div><!-- /machinery -->
 
     <!-- ══════════════════════════════════════════════════════
          GST SUMMARY
@@ -2827,7 +2913,7 @@ function switchTab(name){
     gst:loadGST, dashboard:loadDashboard,
     labels:populateLabelProductSelect, settings:loadBizSettings,
     customers:loadCustomers, fees:loadFeesTab, returns:loadReturns, spooltracker:loadSpoolTracker, openorders:loadOpenOrders, expenses:loadExpenses, activity:loadBizActivity,
-    ledger:loadLedger, purchases:loadPurchases, balance:loadBalanceSheet, shoplog:loadShopLog,
+    ledger:loadLedger, purchases:loadPurchases, balance:loadBalanceSheet, shoplog:loadShopLog, machinery:loadMachinery,
   };
   if(loaders[name]) loaders[name]();
   toggleNav(false);   // close mobile drawer after choosing a tab
@@ -3063,12 +3149,20 @@ async function loadAddSaleSpools(rerender){
 }
 function ensureSpools(){ if(_spoolsTried) return; _spoolsTried=true; loadAddSaleSpools(true); }
 function spoolOptions(selected){
+  // Round 3: only offer spools that still have grams left (0g/finished rolls were showing
+  // up as if they were still usable), grouped by company/brand so a long list is scannable.
+  const rows=_addSaleSpools.map(r=>{
+    const rem=Math.max(0,(parseFloat(r.total_grams)||0)-(parseFloat(r.grams_used)||0)-(parseFloat(r.waste_grams)||0));
+    return {...r,rem};
+  }).filter(r=>r.rem>0||String(selected)===String(r.id));  // keep the already-selected spool visible even if now empty
+  const byBrand={};
+  rows.forEach(r=>{ const b=(r.brand||'Other').trim()||'Other'; (byBrand[b]=byBrand[b]||[]).push(r); });
+  const brands=Object.keys(byBrand).sort((a,b)=>a.localeCompare(b));
   return '<option value="">Spool (optional — deducts stock)</option>'+
-    _addSaleSpools.map(r=>{
-      const rem=Math.max(0,(parseFloat(r.total_grams)||0)-(parseFloat(r.grams_used)||0)-(parseFloat(r.waste_grams)||0));
-      const label=(r.brand+' '+r.color+' '+(r.filament_type||'')).trim()+' — '+Math.round(rem)+'g left';
+    brands.map(b=>`<optgroup label="${esc(b)}">`+byBrand[b].map(r=>{
+      const label=(r.color+' '+(r.filament_type||'')).trim()+' — '+Math.round(r.rem)+'g left';
       return `<option value="${r.id}" data-rate="${r.cost_per_gram||0}"${String(selected)===String(r.id)?' selected':''}>${esc(label)}</option>`;
-    }).join('');
+    }).join('')+'</optgroup>').join('');
 }
 function spoolRate(id){ const s=_addSaleSpools.find(r=>String(r.id)===String(id)); return s?(parseFloat(s.cost_per_gram)||0):0; }
 // delta>0 consumes, delta<0 restores; clamped to [0, total]. Also flips
@@ -4148,7 +4242,7 @@ async function loadBalanceSheet(){
   if(view==='month'){ start=thisMonth()+'-01'; label='This Month'; }
   else if(view==='fy'){ const now=new Date(); const fyStartYear=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1; start=`${fyStartYear}-04-01`; label='This Financial Year'; }
   else label='All Time';
-  const [{data:ob},{data:studio},{data:inc},{data:exp},{data:purch},{data:spools},{data:unpaid}]=await Promise.all([
+  const [{data:ob},{data:studio},{data:inc},{data:exp},{data:purch},{data:spools},{data:unpaid},{data:printers}]=await Promise.all([
     sb.from('site_settings').select('value').eq('key','biz_opening_balance').single(),
     sb.from('biz_sales').select('selling_price').eq('is_deleted',false).eq('channel_id','shop').eq('is_paid',true).gte('order_date',start),
     sb.from('biz_income').select('amount').gte('date',start),
@@ -4156,6 +4250,7 @@ async function loadBalanceSheet(){
     sb.from('biz_purchases').select('total_amount').gte('date',start),
     sb.from('filament_inventory').select('total_grams,grams_used,waste_grams,price').neq('status','Finsh'),
     sb.from('biz_sales').select('selling_price').eq('is_deleted',false).eq('is_paid',false).not('status','in','(cancelled,cancelled_before_dispatch,cancelled_before_delivery,returned)'),
+    sb.from('biz_printers').select('purchase_value').eq('active',true),
   ]);
   const num=v=>+v||0;
   const opening=num(ob&&ob.value);
@@ -4164,7 +4259,8 @@ async function loadBalanceSheet(){
   const bankBalance=opening+totalIn-totalOut;
   const stockValue=(spools||[]).reduce((s,r)=>{ const cost=num(r.price); if(!cost) return s; const remaining=Math.max(0,num(r.total_grams)-num(r.grams_used)-num(r.waste_grams)); const pct=num(r.total_grams)?remaining/num(r.total_grams):0; return s+cost*pct; },0);
   const receivables=(unpaid||[]).reduce((s,r)=>s+num(r.selling_price),0);
-  const totalAssets=bankBalance+stockValue+receivables;
+  const machineryValue=(printers||[]).reduce((s,p)=>s+num(p.purchase_value),0);
+  const totalAssets=bankBalance+stockValue+receivables+machineryValue;
   const el=document.getElementById('bsBody'); if(!el) return;
   el.innerHTML=`
     <div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">${label}</div>
@@ -4173,6 +4269,7 @@ async function loadBalanceSheet(){
         <div style="font-size:13px;font-weight:700;margin-bottom:12px">Assets</div>
         <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--text-2)">Bank Balance <span style="color:var(--text-3)">(opening ${fmt(opening)} + in ${fmt(totalIn)} − out ${fmt(totalOut)})</span></span><span style="font-weight:600">${fmt(bankBalance)}</span></div>
         <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--text-2)">Filament Stock Value</span><span style="font-weight:600">${fmt(stockValue)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--text-2)">Machinery <span style="color:var(--text-3)">(active, at purchase value)</span></span><span style="font-weight:600">${fmt(machineryValue)}</span></div>
         <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="font-size:12px;color:var(--text-2)">Receivables <span style="color:var(--text-3)">(unpaid orders)</span></span><span style="font-weight:600">${fmt(receivables)}</span></div>
         <div style="display:flex;justify-content:space-between;padding:10px 0 0;margin-top:6px;border-top:2px solid var(--accent)"><span style="font-size:13px;font-weight:700">Total Assets</span><span style="font-size:15px;font-weight:800;color:var(--green)">${fmt(totalAssets)}</span></div>
       </div>
@@ -4182,7 +4279,7 @@ async function loadBalanceSheet(){
         <div style="display:flex;justify-content:space-between;padding:10px 0 0;margin-top:6px;border-top:2px solid var(--border)"><span style="font-size:13px;font-weight:700">Net Worth</span><span style="font-size:15px;font-weight:800">${fmt(totalAssets)}</span></div>
       </div>
     </div>
-    ${(rolls||[]).some(r=>!r.cost_total)?'<div style="margin-top:14px;font-size:11px;color:var(--text-3)">Note: some active filament rolls have no purchase cost on file (logged before Purchases existed, or added directly in Filament) — their stock value is excluded until a cost is set.</div>':''}
+    ${(spools||[]).some(r=>!r.price)?'<div style="margin-top:14px;font-size:11px;color:var(--text-3)">Note: some active filament rolls have no purchase cost on file (logged before Purchases existed, or added directly in Filament) — their stock value is excluded until a cost is set.</div>':''}
   `;
 }
 
@@ -5163,6 +5260,124 @@ async function loadReturnsBadge(){
   el.textContent=count||0;
 }
 
+// ── Machinery — printers/equipment + print attempts (Round 3, Batch 3) ──
+const ATTEMPT_REASON_LABEL={reprint_guarantee:'Reprint Guarantee',power_cut:'Power Cut',filament_runout:'Filament Ran Out',quality_issue:'Quality Issue',other:'Other'};
+let _printers=[], _attempts=[];
+async function loadMachinery(){
+  const [{data:printers},{data:attempts}]=await Promise.all([
+    sb.from('biz_printers').select('*').order('created_at'),
+    sb.from('biz_print_attempts').select('*').order('created_at',{ascending:false}).limit(300),
+  ]);
+  _printers=printers||[]; _attempts=attempts||[];
+  renderPrinters(); renderAttempts();
+  const kpi=document.getElementById('printerKpi'); if(kpi){
+    const active=_printers.filter(p=>p.active).length;
+    const totalVal=_printers.reduce((s,p)=>s+(parseFloat(p.purchase_value)||0),0);
+    const byPrinter={}; _attempts.forEach(a=>{ byPrinter[a.printer_id]=(byPrinter[a.printer_id]||0)+1; });
+    const worst=Object.entries(byPrinter).sort((a,b)=>b[1]-a[1])[0];
+    const worstName=worst?(_printers.find(p=>p.id===worst[0])||{}).name||'—':'—';
+    kpi.innerHTML=`
+      <div class="kpi"><div class="kpi-label">Active Machines</div><div class="kpi-val">${active}</div></div>
+      <div class="kpi"><div class="kpi-label">Total Purchase Value</div><div class="kpi-val">${fmt(totalVal)}</div></div>
+      <div class="kpi"><div class="kpi-label">Print Attempts (logged)</div><div class="kpi-val">${_attempts.length}</div></div>
+      <div class="kpi"><div class="kpi-label">Most Reprints</div><div class="kpi-val" style="font-size:15px">${esc(worstName)}${worst?' ('+worst[1]+')':''}</div></div>`;
+  }
+  const psel=document.getElementById('pa_printer');
+  if(psel) psel.innerHTML=_printers.filter(p=>p.active).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+}
+function renderPrinters(){
+  const el=document.getElementById('printerBody'); if(!el) return;
+  el.innerHTML=_printers.length?_printers.map(p=>{
+    const specs=[p.build_volume,p.build_plate,p.multicolor?'Multicolor/AMS':null,p.other_capability].filter(Boolean).join(' · ');
+    return `<tr>
+      <td style="font-weight:600">${esc(p.name)}</td>
+      <td>${esc(p.type||'—')}</td>
+      <td style="font-size:11px;color:var(--text-3)">${esc(specs||'—')}</td>
+      <td class="td-num">${p.purchase_value?fmt(p.purchase_value):'—'}</td>
+      <td><span class="badge ${p.active?'badge-won':'badge-lost'}">${p.active?'Active':'Inactive'}</span></td>
+      <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="editPrinter('${p.id}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deletePrinter('${p.id}')">✕</button></td>
+    </tr>`;
+  }).join(''):`<tr><td colspan="6" class="empty"><div class="em-text">No machines added yet</div></td></tr>`;
+}
+function renderAttempts(){
+  const el=document.getElementById('attemptBody'); if(!el) return;
+  el.innerHTML=_attempts.length?_attempts.map(a=>{
+    const printer=_printers.find(p=>p.id===a.printer_id);
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(a.created_at)}</td>
+      <td style="font-family:var(--mono);font-size:11px">${esc(a.order_id||'—')}</td>
+      <td>${esc(printer?printer.name:'—')}</td>
+      <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(ATTEMPT_REASON_LABEL[a.reason]||a.reason||'—')}</span></td>
+      <td style="font-size:12px">${esc(a.note||'—')}</td>
+      <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteAttempt('${a.id}')">✕</button></td>
+    </tr>`;
+  }).join(''):`<tr><td colspan="6" class="empty"><div class="em-text">No print attempts logged</div></td></tr>`;
+}
+function showAddPrinter(){
+  ['pr_id','pr_name','pr_build_volume','pr_build_plate','pr_other_capability','pr_purchase_value','pr_purchase_date'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('pr_type').value='FDM Printer';
+  document.getElementById('pr_multicolor').value='false';
+  document.getElementById('pr_active').value='true';
+  document.getElementById('printerFormTitle').textContent='Add Machine';
+  document.getElementById('printerForm').style.display='block';
+}
+function editPrinter(id){
+  const p=_printers.find(x=>x.id===id); if(!p) return;
+  document.getElementById('pr_id').value=p.id;
+  document.getElementById('pr_name').value=p.name||'';
+  document.getElementById('pr_type').value=p.type||'FDM Printer';
+  document.getElementById('pr_build_volume').value=p.build_volume||'';
+  document.getElementById('pr_build_plate').value=p.build_plate||'';
+  document.getElementById('pr_multicolor').value=String(!!p.multicolor);
+  document.getElementById('pr_other_capability').value=p.other_capability||'';
+  document.getElementById('pr_purchase_value').value=p.purchase_value||'';
+  document.getElementById('pr_purchase_date').value=p.purchase_date||'';
+  document.getElementById('pr_active').value=String(p.active!==false);
+  document.getElementById('printerFormTitle').textContent='Edit Machine';
+  document.getElementById('printerForm').style.display='block';
+}
+async function savePrinter(){
+  const g=id=>document.getElementById(id)?.value||'';
+  const name=g('pr_name').trim(); if(!name){ toast('Name is required','error'); return; }
+  const id=g('pr_id');
+  const payload={
+    name, type:g('pr_type').trim()||null, build_volume:g('pr_build_volume').trim()||null,
+    build_plate:g('pr_build_plate').trim()||null, multicolor:g('pr_multicolor')==='true',
+    other_capability:g('pr_other_capability').trim()||null,
+    purchase_value:parseFloat(g('pr_purchase_value'))||null, purchase_date:g('pr_purchase_date')||null,
+    active:g('pr_active')==='true',
+  };
+  const {error}=id?await sb.from('biz_printers').update(payload).eq('id',id):await sb.from('biz_printers').insert(payload);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  if(typeof logBizActivity==='function') logBizActivity(id?'edit':'create','printer',id||name,name);
+  toast('Saved'); document.getElementById('printerForm').style.display='none'; loadMachinery();
+}
+async function deletePrinter(id){
+  if(!confirm('Delete this machine? Logged print attempts against it are kept.')) return;
+  const {error}=await sb.from('biz_printers').delete().eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Machine deleted'); loadMachinery();
+}
+function showAddAttempt(){
+  ['pa_orderid','pa_note'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('pa_reason').value='reprint_guarantee';
+  document.getElementById('attemptForm').style.display='block';
+}
+async function saveAttempt(){
+  const g=id=>document.getElementById(id)?.value||'';
+  const printerId=g('pa_printer'); if(!printerId){ toast('Add a machine first','error'); return; }
+  const payload={order_id:g('pa_orderid').trim()||null, printer_id:printerId, reason:g('pa_reason'), note:g('pa_note').trim()||null};
+  const {error}=await sb.from('biz_print_attempts').insert(payload);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Attempt logged'); document.getElementById('attemptForm').style.display='none'; loadMachinery();
+}
+async function deleteAttempt(id){
+  if(!confirm('Delete this logged attempt?')) return;
+  const {error}=await sb.from('biz_print_attempts').delete().eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Deleted'); loadMachinery();
+}
+
 const RETURN_STAGES={initiated:'Initiated',returning:'Returning to Seller',received:'Received',claim_filed:'Claim Filed',claim_approved:'Claim Approved',claim_paid:'Claim Paid'};
 let _returnsCache=[];
 async function loadReturns(){
@@ -5547,14 +5762,17 @@ async function loadDashboard(){
   const trendEndExcl=`${trendEndExclY}-${String(trendEndExclM).padStart(2,'0')}-01`;
 
   const yearStart=`${y}-01-01`, yearEnd=`${y+1}-01-01`;
-  const [salesRes,retsRes,monthlyRes,yearCustRes]=await Promise.all([
-    sb.from('biz_sales').select('channel_id,product_name,sku,color,order_id,customer_name,selling_price,platform_fee,shipping_fee,other_deductions,cogs,gst_rate,status,qty,payment_mode,grams_used').eq('is_deleted',false).gte('order_date',from).lt('order_date',nextM),
+  const [salesRes,retsRes,monthlyRes,yearCustRes,shopLogRes,firstOrderRes]=await Promise.all([
+    sb.from('biz_sales').select('channel_id,product_name,sku,color,order_id,customer_name,selling_price,platform_fee,shipping_fee,other_deductions,cogs,gst_rate,status,qty,payment_mode,grams_used,delivery_date,completed_at').eq('is_deleted',false).gte('order_date',from).lt('order_date',nextM),
     sb.from('biz_returns').select('*').gte('date',from).lt('date',nextM),
     sb.from('biz_sales').select('order_date,selling_price,status').eq('is_deleted',false).eq('status','completed').gte('order_date',trendStartDate).lt('order_date',trendEndExcl),
     sb.from('biz_sales').select('customer_name,selling_price').eq('is_deleted',false).eq('status','completed').gte('order_date',yearStart).lt('order_date',yearEnd),
+    sb.from('biz_shop_log').select('date,open_time,close_time,break_start,break_end,closed_all_day').gte('date',from).lt('date',nextM),
+    sb.from('biz_sales').select('customer_name,channel_id,order_date').eq('is_deleted',false).eq('status','completed').order('order_date'),
   ]);
   if(salesRes.error){ toast('Dashboard error: '+salesRes.error.message,'error'); }
   const sales=salesRes.data||[], rets=retsRes.data||[], monthly=monthlyRes.data||[], yearCust=yearCustRes.data||[];
+  const shopLog=shopLogRes.data||[], firstOrderRows=firstOrderRes.data||[];
 
   const completed=sales.filter(s=>s.status==='completed');
   const num=v=>parseFloat(v)||0;
@@ -5687,6 +5905,60 @@ async function loadDashboard(){
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">${chHtml(c)}</div>
     <div style="font-size:18px;font-weight:700;margin-top:4px">${byChannel[c].orders}</div>
     <div style="font-size:10px;color:var(--text-3)">orders</div>
+  </div>`).join('');
+
+  // Studio Hours — daily/weekly/monthly rollup off biz_shop_log (open/close/break, informational)
+  const hoursOf=r=>{
+    if(!r||r.closed_all_day||!r.open_time||!r.close_time) return 0;
+    const toMin=t=>{ const [h,mi]=String(t).split(':').map(Number); return h*60+(mi||0); };
+    let mins=toMin(r.close_time)-toMin(r.open_time);
+    if(r.break_start&&r.break_end) mins-=Math.max(0,toMin(r.break_end)-toMin(r.break_start));
+    return Math.max(0,mins)/60;
+  };
+  const byDateLog={}; shopLog.forEach(r=>byDateLog[r.date]=r);
+  const todayStr=today();
+  const weekAgo=new Date(); weekAgo.setDate(weekAgo.getDate()-6); const weekAgoStr=weekAgo.toISOString().slice(0,10);
+  let hToday=0,hWeek=0,hMonth=0;
+  shopLog.forEach(r=>{ const h=hoursOf(r); hMonth+=h; if(r.date===todayStr) hToday+=h; if(r.date>=weekAgoStr) hWeek+=h; });
+  const shc=document.getElementById('studioHoursCards');
+  if(shc) shc.innerHTML=[['Today',hToday],['Last 7 Days',hWeek],['This Month',hMonth]].map(([lbl,h])=>`
+    <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">${lbl}</div>
+      <div style="font-size:18px;font-weight:700;margin-top:4px">${h.toFixed(1)}h</div>
+    </div>`).join('');
+
+  // SLA met/not-met % — promised delivery_date vs. actual completed_at, this month's completed orders
+  const smn=document.getElementById('slaMonthName'); if(smn) smn.textContent=label;
+  const withSla=completed.filter(s=>s.delivery_date&&s.completed_at);
+  const met=withSla.filter(s=>new Date(s.completed_at.slice(0,10)+'T00:00:00')<=new Date(s.delivery_date+'T00:00:00')).length;
+  const notMet=withSla.length-met;
+  const slaPct=withSla.length?(met/withSla.length*100):null;
+  const slaEl=document.getElementById('slaCards');
+  if(slaEl) slaEl.innerHTML=`
+    <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">Met</div>
+      <div style="font-size:18px;font-weight:700;margin-top:4px;color:var(--green)">${met}</div>
+    </div>
+    <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">Not Met</div>
+      <div style="font-size:18px;font-weight:700;margin-top:4px;color:var(--red)">${notMet}</div>
+    </div>
+    <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">SLA %</div>
+      <div style="font-size:18px;font-weight:700;margin-top:4px;color:${slaPct==null?'var(--text-3)':slaPct>=90?'var(--green)':'var(--red)'}">${slaPct==null?'—':slaPct.toFixed(1)+'%'}</div>
+    </div>`;
+
+  // New Customers by Channel — a customer counts as "new" this month if their earliest-ever
+  // completed order (across all history) falls inside the selected month.
+  const firstOrderByCust={}; firstOrderRows.forEach(r=>{ const n=(r.customer_name||'').trim(); if(n&&!firstOrderByCust[n]) firstOrderByCust[n]={date:r.order_date,channel:r.channel_id}; });
+  const ncn=document.getElementById('newCustMonthName'); if(ncn) ncn.textContent=label;
+  const newByChannel={}; channels.forEach(c=>newByChannel[c]=0);
+  Object.values(firstOrderByCust).forEach(f=>{ if(f.date>=from&&f.date<nextM&&newByChannel[f.channel]!==undefined) newByChannel[f.channel]++; });
+  const ncEl=document.getElementById('newCustByChannel');
+  if(ncEl) ncEl.innerHTML=channels.map(c=>`<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">${chHtml(c)}</div>
+    <div style="font-size:18px;font-weight:700;margin-top:4px">${newByChannel[c]}</div>
+    <div style="font-size:10px;color:var(--text-3)">new customers</div>
   </div>`).join('');
 
   renderTopCustomersChart();
