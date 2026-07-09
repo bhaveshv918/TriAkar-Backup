@@ -752,6 +752,12 @@ html[data-theme="dark"] .biz-login{
       <span class="tab-icon">◊</span><span class="tab-label">GST Summary</span>
     <span class="tab-keyhint">G</span>
     </button>
+    <button class="tab" data-tab="gstportal" onclick="switchTab('gstportal')">
+      <span class="tab-icon">⏷</span><span class="tab-label">GST Portal</span>
+    </button>
+    <button class="tab" data-tab="invoicing" onclick="switchTab('invoicing')">
+      <span class="tab-icon">▤</span><span class="tab-label">Invoicing</span>
+    </button>
     <button class="tab" data-tab="reports" onclick="switchTab('reports')">
       <span class="tab-icon">↗</span><span class="tab-label">Reports & Export</span>
     <span class="tab-keyhint">X</span>
@@ -1015,7 +1021,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-grid">
             <div class="form-group"><label>Category</label><select id="ql_pay_category"><option value="flipkart_payout">Flipkart Payout</option><option value="amazon_payout">Amazon Payout</option><option value="website_payout">Website Payout</option><option value="misc" selected>Extra / Misc</option></select></div>
             <div class="form-group"><label>Amount ₹</label><input type="number" id="ql_pay_amount" step="0.01"></div>
-            <div class="form-group"><label>Mode</label><select id="ql_pay_mode"><option value="">—</option><option value="bank_transfer">Bank Transfer</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option></select></div>
+            <div class="form-group"><label>Mode</label><select id="ql_pay_mode"><option value="">—</option><option value="bank_transfer">Bank Transfer</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="gpay">GPay</option><option value="paytm">Paytm</option></select></div>
           </div>
           <button class="btn btn-primary btn-sm" onclick="saveQuickPayment()" title="Shortcut: Ctrl+Enter" style="margin-top:8px">Save Payment <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
         </div>
@@ -1032,6 +1038,7 @@ html[data-theme="dark"] .biz-login{
         </div>
       </div>
 
+      <div id="openGstReminder" style="display:none;margin-bottom:16px"></div>
       <div id="openKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
 
       <!-- Bulk action bar — shared across both Open-Orders tables (In Production + Dispatched) -->
@@ -1114,6 +1121,8 @@ html[data-theme="dark"] .biz-login{
               <option value="razorpay">Razorpay</option>
               <option value="cash">Cash</option>
               <option value="card">Card</option>
+              <option value="gpay">GPay</option>
+              <option value="paytm">Paytm</option>
               <option value="cod">COD</option>
               <option value="online">Online / Prepaid</option>
             </select>
@@ -1394,6 +1403,8 @@ html[data-theme="dark"] .biz-login{
               <option value="razorpay">Razorpay</option>
               <option value="cash">Cash</option>
               <option value="card">Card</option>
+              <option value="gpay">GPay</option>
+              <option value="paytm">Paytm</option>
               <option value="cod">COD</option>
               <option value="online">Online / Prepaid</option>
             </select>
@@ -1527,7 +1538,7 @@ html[data-theme="dark"] .biz-login{
               </select>
             </div>
             <div class="form-group"><label>Payment Mode</label>
-              <select id="es_payment"><option value="">—</option><option value="upi">UPI</option><option value="bharatpe">BharatPe</option><option value="ca_sbi">C/A — SBI</option><option value="ca_karur">C/A — Karur Vysya</option><option value="razorpay">Razorpay</option><option value="cash">Cash</option><option value="card">Card</option><option value="cod">COD</option><option value="online">Online / Prepaid</option></select>
+              <select id="es_payment"><option value="">—</option><option value="upi">UPI</option><option value="bharatpe">BharatPe</option><option value="ca_sbi">C/A — SBI</option><option value="ca_karur">C/A — Karur Vysya</option><option value="razorpay">Razorpay</option><option value="cash">Cash</option><option value="card">Card</option><option value="gpay">GPay</option><option value="paytm">Paytm</option><option value="cod">COD</option><option value="online">Online / Prepaid</option></select>
             </div>
             <div class="form-group"><label>Lead Source</label>
               <select id="es_lead"><option value="">—</option><option value="studio_walkin">Studio Walk-in</option><option value="whatsapp">WhatsApp</option><option value="google">Google</option><option value="instagram">Instagram</option><option value="referral">Referral</option><option value="other">Other</option></select>
@@ -2259,6 +2270,63 @@ html[data-theme="dark"] .biz-login{
     </div><!-- /gst -->
 
     <!-- ══════════════════════════════════════════════════════
+         GST PORTAL — uploaded GSTR1/GSTR3B files + state-wise breakdown + filing reminders
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelGstportal">
+      <div class="p-head">
+        <div><div class="p-title">GST Portal</div><div class="p-sub">Filed-return files, state-wise sales/tax by platform &amp; filing reminders</div></div>
+      </div>
+
+      <div id="gstFilingReminders" style="margin-bottom:16px"></div>
+
+      <div class="chart-box" style="margin-bottom:16px">
+        <h3>Upload a Filed Return</h3>
+        <div class="form-grid" style="margin-top:12px">
+          <div class="form-group"><label>Return Type</label><select id="gstf_type"><option value="gstr1">GSTR-1</option><option value="gstr3b">GSTR-3B</option></select></div>
+          <div class="form-group"><label>Period</label><input type="month" id="gstf_period"></div>
+          <div class="form-group"><label>Filed Date</label><input type="date" id="gstf_date"></div>
+          <div class="form-group" style="grid-column:span 2"><label>File</label><input type="file" id="gstf_file" accept=".pdf,.json,.csv,.xlsx,.xls"></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="gstf_notes"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveGstFiling()" style="margin-top:10px">Save Filing</button>
+      </div>
+
+      <div class="tbl-wrap" style="margin-bottom:20px">
+        <table>
+          <thead><tr><th>Type</th><th>Period</th><th>Filed Date</th><th>File</th><th>Notes</th><th class="td-actions"></th></tr></thead>
+          <tbody id="gstFilingsBody"><tr><td colspan="6" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="chart-box">
+        <h3>State-wise Sales &amp; Tax by Platform — <span id="gstStateMonthName">this month</span></h3>
+        <input type="month" id="gstStateMonth" onchange="loadGstStateBreakdown()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;margin:8px 0 12px">
+        <div class="tbl-wrap" style="border:none">
+          <table>
+            <thead><tr><th>State</th><th>Channel</th><th class="td-num">Taxable</th><th class="td-num">GST</th><th class="td-num">Total</th></tr></thead>
+            <tbody id="gstStateBody"><tr><td colspan="5" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /gstportal -->
+
+    <!-- ══════════════════════════════════════════════════════
+         INVOICING — every invoice ever generated via printInvoice(), linked to its order
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelInvoicing">
+      <div class="p-head">
+        <div><div class="p-title">Invoicing</div><div class="p-sub">Every invoice generated, with its real sequential number</div></div>
+        <input type="month" id="invMonth" onchange="loadInvoicing()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Invoice No</th><th>Order</th><th>Kind</th><th>Generated</th><th class="td-actions"></th></tr></thead>
+          <tbody id="invoicingBody"><tr><td colspan="5" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+    </div><!-- /invoicing -->
+
+    <!-- ══════════════════════════════════════════════════════
          REPORTS & EXPORT
     ═══════════════════════════════════════════════════════ -->
     <div class="panel" id="panelReports">
@@ -2363,11 +2431,14 @@ html[data-theme="dark"] .biz-login{
         <div style="font-size:13px;font-weight:700;margin-bottom:12px" id="expenseFormTitle">Add Expense</div>
         <div class="form-grid">
           <div class="form-group"><label>Date</label><input type="date" id="ex_date"></div>
-          <div class="form-group"><label>Category</label><select id="ex_category"><option value="materials">Materials</option><option value="equipment">Equipment</option><option value="packaging">Packaging</option><option value="marketing">Marketing</option><option value="rent">Rent</option><option value="utilities">Utilities</option><option value="shipping">Shipping</option><option value="other">Other</option></select></div>
-          <div class="form-group"><label>Vendor</label><input type="text" id="ex_vendor"></div>
+          <div class="form-group"><label>Category</label><select id="ex_category" onchange="onExpenseCategoryChange()"><option value="materials">Materials</option><option value="equipment">Equipment</option><option value="packaging">Packaging</option><option value="marketing">Marketing</option><option value="rent">Rent</option><option value="utilities">Utilities</option><option value="shipping">Shipping</option><option value="staff_salary">Staff Salary</option><option value="other">Other</option></select></div>
+          <div class="form-group" id="ex_staff_wrap" style="display:none"><label>Employee Name</label><input type="text" id="ex_staff_name" placeholder="e.g. Rohit" oninput="onExpenseCategoryChange()"></div>
+          <div class="form-group"><label>Vendor <span style="color:var(--text-3);font-weight:400;text-transform:none">(expense name)</span></label><input type="text" id="ex_vendor"></div>
           <div class="form-group"><label>Amount ₹ (incl GST)</label><input type="number" id="ex_amount" step="0.01"></div>
           <div class="form-group"><label>GST ₹ (of amount)</label><input type="number" id="ex_gst" step="0.01"></div>
-          <div class="form-group"><label>Payment Mode</label><select id="ex_payment"><option value="">—</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="bank">Bank</option></select></div>
+          <div class="form-group"><label>Payment Mode</label><select id="ex_payment"><option value="">—</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="bank">Bank</option><option value="gpay">GPay</option><option value="paytm">Paytm</option></select></div>
+          <div class="form-group"><label>Debited From <span style="color:var(--text-3);font-weight:400;text-transform:none">money-out source</span></label><input type="text" id="ex_source" placeholder="e.g. HDFC Current A/c, Cash Drawer"></div>
+          <div class="form-group"><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="ex_recurring"> Recurring monthly</label></div>
           <div class="form-group" style="grid-column:span 2"><label>Invoice file <span style="color:var(--text-3);font-weight:400;text-transform:none">(any format — uploaded to private storage)</span></label>
             <input type="file" id="ex_invoice_file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv">
             <input type="hidden" id="ex_invoice">
@@ -2405,7 +2476,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>Date</label><input type="date" id="in_date"></div>
           <div class="form-group"><label>Category</label><select id="in_category"><option value="flipkart_payout">Flipkart Payout</option><option value="amazon_payout">Amazon Payout</option><option value="website_payout">Website Payout</option><option value="misc">Extra / Misc Income</option></select></div>
           <div class="form-group"><label>Amount ₹</label><input type="number" id="in_amount" step="0.01"></div>
-          <div class="form-group"><label>Payment Mode</label><select id="in_payment"><option value="">—</option><option value="bank_transfer">Bank Transfer</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option></select></div>
+          <div class="form-group"><label>Payment Mode</label><select id="in_payment"><option value="">—</option><option value="bank_transfer">Bank Transfer</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="gpay">GPay</option><option value="paytm">Paytm</option></select></div>
           <div class="form-group"><label>Bank Reference <span style="color:var(--text-3);font-weight:400;text-transform:none">optional</span></label><input type="text" id="in_bankref"></div>
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="in_notes"></div>
         </div>
@@ -2914,6 +2985,7 @@ function switchTab(name){
     labels:populateLabelProductSelect, settings:loadBizSettings,
     customers:loadCustomers, fees:loadFeesTab, returns:loadReturns, spooltracker:loadSpoolTracker, openorders:loadOpenOrders, expenses:loadExpenses, activity:loadBizActivity,
     ledger:loadLedger, purchases:loadPurchases, balance:loadBalanceSheet, shoplog:loadShopLog, machinery:loadMachinery,
+    gstportal:loadGstPortal, invoicing:loadInvoicing,
   };
   if(loaders[name]) loaders[name]();
   toggleNav(false);   // close mobile drawer after choosing a tab
@@ -3767,9 +3839,13 @@ async function loadOpenOrders(){
   const kpi=document.getElementById('openKpi');
   if(kpi) kpi.innerHTML=`
     <div class="kpi"><div class="kpi-label">In Production</div><div class="kpi-val">${prodGroups.length}</div></div>
-    <div class="kpi"><div class="kpi-label">Dispatched — Tracking</div><div class="kpi-val">${trackGroups.length}</div></div>
+    <div class="kpi"><div class="kpi-label">Dispatched</div><div class="kpi-val">${trackGroups.length}</div></div>
     <div class="kpi red"><div class="kpi-label">SLA Breached</div><div class="kpi-val">${breached}</div></div>
     <div class="kpi yellow"><div class="kpi-label">Due Today</div><div class="kpi-val">${dueToday}</div></div>`;
+  // Round 3 — GST filing reminders surfaced right on the Open Orders landing tab, 2 days
+  // ahead of the 10th (GSTR-1) / 19th (GSTR-3B), so they're seen without a separate visit.
+  const gstRem=document.getElementById('openGstReminder');
+  if(gstRem){ const card=typeof gstFilingReminderCard==='function'?gstFilingReminderCard():''; gstRem.innerHTML=card; gstRem.style.display=card?'block':'none'; }
   loadShopPunchStatus();
 
   const skuItemCol=(f,more)=>{
@@ -3998,29 +4074,51 @@ async function loadExpenses(){
   if(!rows.length){ tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="em-text">No expenses this month</div></div></td></tr>`; return; }
   tbody.innerHTML=rows.map(r=>`<tr>
     <td style="font-family:var(--mono);font-size:11px">${esc(r.date)}</td>
-    <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(r.category||'—')}</span></td>
+    <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(r.category||'—')}</span>${r.recurring?' <span title="Recurring monthly" style="font-size:10px">↻</span>':''}</td>
     <td>${esc(r.vendor||'—')}</td>
     <td class="td-num" style="font-weight:700">${fmt(r.amount)}</td>
     <td class="td-num" style="color:var(--text-3)">${fmt(r.gst_amount)}</td>
     <td>${r.invoice_url?`<a href="#" data-u="${esc(r.invoice_url)}" onclick="event.preventDefault();openInvoice(this.dataset.u)" style="color:var(--accent)">view</a>`:'—'}</td>
-    <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="editExpense('${r.id}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteExpense('${r.id}')">✕</button></td>
+    <td class="td-actions"><button class="btn btn-ghost btn-sm" title="Duplicate to next month" onclick="duplicateExpenseNextMonth('${r.id}')">↻</button> <button class="btn btn-ghost btn-sm" onclick="editExpense('${r.id}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteExpense('${r.id}')">✕</button></td>
   </tr>`).join('');
+}
+function onExpenseCategoryChange(){
+  const cat=document.getElementById('ex_category')?.value;
+  const wrap=document.getElementById('ex_staff_wrap'); if(wrap) wrap.style.display=cat==='staff_salary'?'':'none';
+  if(cat==='staff_salary'){
+    const name=document.getElementById('ex_staff_name')?.value.trim();
+    const v=document.getElementById('ex_vendor'); if(v&&name) v.value=name+"'s Salary";
+  }
+}
+async function duplicateExpenseNextMonth(id){
+  const r=_expensesCache.find(x=>x.id===id); if(!r) return;
+  const d=new Date(r.date+'T00:00:00'); d.setMonth(d.getMonth()+1);
+  const nextDate=d.toISOString().slice(0,10);
+  const payload={date:nextDate,category:r.category,vendor:r.vendor,amount:r.amount,gst_amount:r.gst_amount,payment_mode:r.payment_mode,source:r.source,recurring:r.recurring,notes:r.notes};
+  const {error}=await sb.from('biz_expenses').insert(payload);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Duplicated to '+nextDate); loadExpenses();
 }
 function showAddExpense(){
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};
-  ['ex_id','ex_vendor','ex_amount','ex_gst','ex_invoice','ex_notes'].forEach(id=>set(id,''));
+  ['ex_id','ex_vendor','ex_amount','ex_gst','ex_invoice','ex_notes','ex_staff_name','ex_source'].forEach(id=>set(id,''));
   document.getElementById('ex_invoice_file').value=''; document.getElementById('ex_invoice_current').textContent='';
   set('ex_date',today()); document.getElementById('ex_category').value='materials'; document.getElementById('ex_payment').value='';
+  const rec=document.getElementById('ex_recurring'); if(rec) rec.checked=false;
+  onExpenseCategoryChange();
   document.getElementById('expenseFormTitle').textContent='Add Expense';
   const f=document.getElementById('expenseForm'); f.style.display='block'; f.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function editExpense(id){
   const r=_expensesCache.find(x=>x.id===id); if(!r) return;
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
-  set('ex_id',r.id); set('ex_date',r.date); set('ex_vendor',r.vendor); set('ex_amount',r.amount); set('ex_gst',r.gst_amount); set('ex_invoice',r.invoice_url); set('ex_notes',r.notes);
+  set('ex_id',r.id); set('ex_date',r.date); set('ex_vendor',r.vendor); set('ex_amount',r.amount); set('ex_gst',r.gst_amount); set('ex_invoice',r.invoice_url); set('ex_notes',r.notes); set('ex_source',r.source);
   document.getElementById('ex_invoice_file').value='';
   document.getElementById('ex_invoice_current').textContent=r.invoice_url?('Current: '+(/^https?:/i.test(r.invoice_url)?'link':r.invoice_url.replace(/^inv_\d+_/,''))+' — choose a file to replace'):'';
   document.getElementById('ex_category').value=r.category||'other'; document.getElementById('ex_payment').value=r.payment_mode||'';
+  const rec=document.getElementById('ex_recurring'); if(rec) rec.checked=!!r.recurring;
+  set('ex_staff_name', r.category==='staff_salary'?(r.vendor||'').replace(/'s Salary$/,''):'');
+  onExpenseCategoryChange();
   document.getElementById('expenseFormTitle').textContent='Edit Expense';
   const f=document.getElementById('expenseForm'); f.style.display='block'; f.scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -4028,6 +4126,7 @@ async function saveExpense(){
   const g=k=>{const e=document.getElementById(k);return e?e.value:'';};
   const id=g('ex_id');
   if(!(parseFloat(g('ex_amount'))>0)){ toast('Enter an amount','error'); return; }
+  if(g('ex_category')==='staff_salary'&&g('ex_staff_name').trim()) document.getElementById('ex_vendor').value=g('ex_staff_name').trim()+"'s Salary";
   // B17 — upload the invoice file to the private Storage bucket if one is chosen
   let invoice_url=g('ex_invoice').trim()||null;
   const fileEl=document.getElementById('ex_invoice_file');
@@ -4044,6 +4143,7 @@ async function saveExpense(){
   }
   const payload={ date:g('ex_date')||today(), category:g('ex_category'), vendor:g('ex_vendor').trim()||null,
     amount:parseFloat(g('ex_amount'))||0, gst_amount:parseFloat(g('ex_gst'))||0, payment_mode:g('ex_payment')||null,
+    source:g('ex_source').trim()||null, recurring:!!document.getElementById('ex_recurring')?.checked,
     invoice_url, notes:g('ex_notes').trim()||null };
   const {error}=id?await sb.from('biz_expenses').update(payload).eq('id',id):await sb.from('biz_expenses').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
@@ -5604,6 +5704,113 @@ async function loadGST(){
     <div class="gst-card"><label>IGST</label><div class="val">${fmt(totIgst)}</div><div class="sub">Inter-state sales</div></div>`;
 }
 
+// ── GST Portal — filed-return uploads + state-wise breakdown + filing reminders ──
+let _gstFilingsCache=[];
+function gstFilingReminderCard(){
+  // GSTR-1 due the 10th, GSTR-3B due the 19th of every month — surface a reminder
+  // starting 2 days before each deadline, per the owner's ask ("2 din phele hi complete krlu").
+  const n=new Date(); const y=n.getFullYear(), m=n.getMonth(), d=n.getDate();
+  const items=[];
+  [['GSTR-1',10],['GSTR-3B',19]].forEach(([name,dueDay])=>{
+    if(d>=dueDay-2&&d<=dueDay){
+      const daysLeft=dueDay-d;
+      items.push(`<div class="gst-card" style="border-color:var(--yellow)"><label>${name} due</label><div class="val" style="color:var(--yellow)">${daysLeft<=0?'Due today':daysLeft+'d left'}</div><div class="sub">Files by the ${dueDay}th</div></div>`);
+    }
+  });
+  return items.length?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">${items.join('')}</div>`:'';
+}
+async function loadGstPortal(){
+  const rem=document.getElementById('gstFilingReminders'); if(rem) rem.innerHTML=gstFilingReminderCard();
+  const pEl=document.getElementById('gstf_period'); if(pEl&&!pEl.value) pEl.value=thisMonth();
+  const dEl=document.getElementById('gstf_date'); if(dEl&&!dEl.value) dEl.value=today();
+  const {data,error}=await sb.from('biz_gst_filings').select('*').order('period',{ascending:false});
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  _gstFilingsCache=data||[];
+  const tbody=document.getElementById('gstFilingsBody');
+  if(tbody) tbody.innerHTML=_gstFilingsCache.length?_gstFilingsCache.map(r=>`<tr>
+    <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${r.return_type==='gstr1'?'GSTR-1':'GSTR-3B'}</span></td>
+    <td style="font-family:var(--mono);font-size:11px">${esc(r.period)}</td>
+    <td style="font-family:var(--mono);font-size:11px">${esc(r.filed_date||'—')}</td>
+    <td>${r.file_url?`<a href="#" data-u="${esc(r.file_url)}" onclick="event.preventDefault();openGstFile(this.dataset.u)" style="color:var(--accent)">view</a>`:'—'}</td>
+    <td style="font-size:12px">${esc(r.notes||'—')}</td>
+    <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteGstFiling('${r.id}')">✕</button></td>
+  </tr>`).join(''):`<tr><td colspan="6" class="empty"><div class="em-text">No filings uploaded yet</div></td></tr>`;
+  const smEl=document.getElementById('gstStateMonth'); if(smEl&&!smEl.value) smEl.value=thisMonth();
+  loadGstStateBreakdown();
+}
+async function saveGstFiling(){
+  const g=id=>document.getElementById(id)?.value||'';
+  const period=g('gstf_period'); if(!period){ toast('Pick a period','error'); return; }
+  let file_url=null;
+  const fileEl=document.getElementById('gstf_file');
+  if(fileEl&&fileEl.files&&fileEl.files[0]){
+    const f=fileEl.files[0];
+    const path='gst_'+Date.now()+'_'+f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const {error:upErr}=await sb.storage.from('biz-gst').upload(path,f,{upsert:true,contentType:f.type||undefined});
+    if(upErr){ toast('Upload failed: '+upErr.message,'error'); return; }
+    file_url=path;
+  }
+  const payload={return_type:g('gstf_type'),period,file_url,filed_date:g('gstf_date')||null,notes:g('gstf_notes').trim()||null};
+  const {error}=await sb.from('biz_gst_filings').insert(payload);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Filing saved'); document.getElementById('gstf_notes').value=''; if(fileEl) fileEl.value=''; loadGstPortal();
+}
+async function openGstFile(url){
+  if(!url) return;
+  const {data,error}=await sb.storage.from('biz-gst').createSignedUrl(url,3600);
+  if(error||!data){ toast('Could not open file','error'); return; }
+  window.open(data.signedUrl,'_blank');
+}
+async function deleteGstFiling(id){
+  if(!confirm('Delete this filing record?')) return;
+  const {error}=await sb.from('biz_gst_filings').delete().eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Deleted'); loadGstPortal();
+}
+async function loadGstStateBreakdown(){
+  const mo=document.getElementById('gstStateMonth')?.value||thisMonth();
+  const label=new Date(mo+'-01').toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  const smn=document.getElementById('gstStateMonthName'); if(smn) smn.textContent=label;
+  const start=mo+'-01'; const [yy,mm]=mo.split('-').map(Number); const next=(mm===12)?`${yy+1}-01-01`:`${yy}-${String(mm+1).padStart(2,'0')}-01`;
+  const {data,error}=await sb.from('biz_sales').select('channel_id,customer_state,selling_price,gst_rate').eq('is_deleted',false).eq('status','completed').gte('order_date',start).lt('order_date',next);
+  const el=document.getElementById('gstStateBody'); if(!el) return;
+  if(error){ el.innerHTML=`<tr><td colspan="5" class="empty"><div class="em-text">Error loading</div></td></tr>`; return; }
+  const rows=data||[];
+  const byKey={};
+  rows.forEach(r=>{
+    const state=(r.customer_state||'Unknown').trim()||'Unknown';
+    const key=state+'|'+(r.channel_id||'shop');
+    if(!byKey[key]) byKey[key]={state,channel:r.channel_id||'shop',taxable:0,gst:0,total:0};
+    const sp=parseFloat(r.selling_price)||0, rate=parseFloat(r.gst_rate)||0;
+    const gst=sp-(sp/(1+rate/100));
+    byKey[key].taxable+=sp-gst; byKey[key].gst+=gst; byKey[key].total+=sp;
+  });
+  const list=Object.values(byKey).sort((a,b)=>b.total-a.total);
+  el.innerHTML=list.length?list.map(r=>`<tr>
+    <td>${esc(r.state)}</td><td>${chHtml(r.channel)}</td>
+    <td class="td-num">${fmt(r.taxable)}</td><td class="td-num">${fmt(r.gst)}</td><td class="td-num" style="font-weight:700">${fmt(r.total)}</td>
+  </tr>`).join(''):`<tr><td colspan="5" class="empty"><div class="em-text">No sales this month</div></td></tr>`;
+}
+
+// ── Invoicing — every invoice ever generated via printInvoice(), linked to its order ──
+async function loadInvoicing(){
+  const mEl=document.getElementById('invMonth');
+  const mo=mEl?.value;
+  let q=sb.from('biz_invoices').select('*').order('generated_at',{ascending:false}).limit(500);
+  if(mo){ const [yy,mm]=mo.split('-').map(Number); const start=mo+'-01'; const next=(mm===12)?`${yy+1}-01-01`:`${yy}-${String(mm+1).padStart(2,'0')}-01`; q=q.gte('generated_at',start).lt('generated_at',next); }
+  const {data,error}=await q;
+  const tbody=document.getElementById('invoicingBody'); if(!tbody) return;
+  if(error){ tbody.innerHTML=`<tr><td colspan="5" class="empty"><div class="em-text">Error loading — has 20260709_biz_invoicing.sql been run?</div></td></tr>`; return; }
+  const rows=data||[];
+  tbody.innerHTML=rows.length?rows.map(r=>`<tr>
+    <td style="font-family:var(--mono);font-weight:600">${esc(r.invoice_number)}</td>
+    <td style="font-family:var(--mono);font-size:11px">${esc(r.order_id||'—')}</td>
+    <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${r.doc_kind==='record'?'Record':'Invoice'}</span></td>
+    <td style="font-family:var(--mono);font-size:11px">${fmtDay(r.generated_at)}</td>
+    <td class="td-actions">${r.order_id?`<button class="btn btn-ghost btn-sm" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${esc(r.order_id)}';loadSales();}},300)">↗ Order</button>`:''}</td>
+  </tr>`).join(''):`<tr><td colspan="5" class="empty"><div class="em-text">No invoices generated yet</div></td></tr>`;
+}
+
 // ── Dashboard ───────────────────────────────────────────────
 function initDashMonths(){
   const sel=document.getElementById('dashMonth');
@@ -6731,7 +6938,32 @@ function nextDocNumber(){
 // when generated from an "Invoice" button, and the Order Record's own fields (cost price,
 // margin, designer, production status, etc.) were configurable in Settings but never
 // actually rendered anywhere. Now genuinely two separate documents.
-function printInvoice(d, type, docKind){
+// Round 3 — real per-financial-year sequential invoice numbers (biz_next_invoice_number
+// RPC, atomic UPSERT) instead of the old localStorage-only nextDocNumber() counter, which
+// was per-device and lost on storage clear. Reuses the same number if this exact
+// sale/order already has one logged, so reprinting doesn't burn a new number every time.
+// Falls back to nextDocNumber() if the migration hasn't been run yet or the RPC errors.
+async function allocateInvoiceNumber(saleId, orderId, docKind){
+  try{
+    if(saleId){
+      const {data:ex}=await sb.from('biz_invoices').select('invoice_number').eq('sale_id',saleId).eq('doc_kind',docKind).limit(1);
+      if(ex&&ex.length) return ex[0].invoice_number;
+    } else if(orderId){
+      const {data:ex}=await sb.from('biz_invoices').select('invoice_number').eq('order_id',orderId).eq('doc_kind',docKind).limit(1);
+      if(ex&&ex.length) return ex[0].invoice_number;
+    }
+    const now=new Date(), fyStartYear=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
+    const fy=`${fyStartYear}-${String((fyStartYear+1)%100).padStart(2,'0')}`;
+    const {data:seq,error}=await sb.rpc('biz_next_invoice_number',{p_fy:fy});
+    if(error||seq==null) throw error||new Error('no seq');
+    const num=`TRK/${fy}/${String(seq).padStart(6,'0')}`;
+    await sb.from('biz_invoices').insert({invoice_number:num,financial_year:fy,sale_id:saleId||null,order_id:orderId||null,doc_kind:docKind});
+    return num;
+  }catch(_){
+    return nextDocNumber();
+  }
+}
+async function printInvoice(d, type, docKind){
   const isRecord=docKind==='record';
   const cfg=getBizSettings();
   const SELLER_NAME=cfg.name||'TriAkar';
@@ -6770,7 +7002,7 @@ function printInvoice(d, type, docKind){
   const taxable=subtotal;
   const gstRate=(hasGst&&taxable>0)?Math.round(gstAmt/taxable*100):(parseFloat(d.gst_rate)||0);
   const isIntraState=!d.customer_state||d.customer_state.trim().toLowerCase()===MY_STATE.toLowerCase();
-  const docNo=d.order_id||nextDocNumber();
+  const docNo=isRecord?(d.order_id||nextDocNumber()):await allocateInvoiceNumber(d.id||d.sale_id||null, d.order_id||null, docKind||'invoice');
   const docDate=d.order_date||today();
   const grandTotal=subtotal+gstAmt;
   const amtWords=amountInWords(grandTotal);
