@@ -1404,6 +1404,8 @@ html[data-theme="dark"] .biz-login{
           <button class="btn btn-ghost btn-sm" onclick="syncWebsiteOrders({manual:true})" title="Pull new website orders">⟳ Sync website</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('settlementInput').click()" title="Ingest a Flipkart/Amazon settlement report">↧ Settlement</button>
           <input type="file" id="settlementInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="ingestSettlement(event)">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('restoreSalesInput').click()" title="Re-add orders from a file made with 'Download Selected (Full)'">⬆ Add Selected Data</button>
+          <input type="file" id="restoreSalesInput" accept=".json" style="display:none" onchange="restoreSalesFromFile(event)">
           <button class="btn btn-ghost btn-sm" onclick="exportSalesExcel()">↓ Excel</button>
           <button class="btn btn-ghost btn-sm" onclick="openRecycleBin()" title="Recycle Bin">🗑️</button>
         </div>
@@ -1511,6 +1513,7 @@ html[data-theme="dark"] .biz-login{
           <option value="cancelled" style="color:#111">Cancelled</option>
         </select>
         <button class="btn btn-sm" onclick="bulkExport()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">↓ Export Selected</button>
+        <button class="btn btn-sm" onclick="bulkDownloadFullData()" title="Full raw data of selected orders, use 'Add Selected Data' to bring them back into All Sales later" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">⬇ Download Selected (Full)</button>
         <button class="btn btn-sm" onclick="bulkDelete()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2);margin-left:auto">🗑 Delete</button>
       </div>
 
@@ -5150,6 +5153,53 @@ function bulkExport(){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Selected');
   XLSX.writeFile(wb,'TriAkar_Selected_'+today()+'.xlsx');
+}
+
+// Full-fidelity backup of selected orders, every raw column as-is (JSON, not the
+// formatted Excel above), meant to be re-added later via restoreSalesFromFile().
+function bulkDownloadFullData(){
+  const ids=new Set(getSelectedIds()); if(!ids.size) return;
+  const rows=_salesCache.filter(s=>ids.has(s.id));
+  const payload={type:'triakar_sales_backup',version:1,exported_at:new Date().toISOString(),rows};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='TriAkar_Sales_Selected_'+today()+'.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+  toast(rows.length+' order(s) downloaded');
+}
+
+// Upsert by id (falls back to insert if a row has no id), stripping any column the
+// DB doesn't have yet, same resilience trick as insertSalesResilient. Un-deletes
+// rows so restoring from a backup also pulls an order back out of the Recycle Bin.
+async function upsertSalesResilient(rows){
+  let data=rows.map(r=>({...r,is_deleted:false}));
+  for(let i=0;i<6;i++){
+    const withId=data.filter(r=>r.id), withoutId=data.filter(r=>!r.id);
+    const results=await Promise.all([
+      withId.length?sb.from('biz_sales').upsert(withId,{onConflict:'id'}):Promise.resolve({error:null}),
+      withoutId.length?sb.from('biz_sales').insert(withoutId):Promise.resolve({error:null}),
+    ]);
+    const failed=results.find(r=>r.error);
+    if(!failed) return {error:null};
+    const m=(failed.error.message||'').match(/column "([^"]+)"/);
+    if(!m) return failed;
+    const bad=m[1]; data=data.map(row=>{ const c={...row}; delete c[bad]; return c; });
+  }
+  return { error:{ message:'sale restore failed (unknown columns)' } };
+}
+async function restoreSalesFromFile(event){
+  const file=event.target.files[0]; event.target.value='';
+  if(!file) return;
+  let payload;
+  try{ payload=JSON.parse(await file.text()); }catch(_){ toast('Not a valid backup file','error'); return; }
+  const rows=Array.isArray(payload)?payload:(payload.rows||[]);
+  if(!rows.length){ toast('No orders found in file','error'); return; }
+  if(!confirm('Add '+rows.length+' order(s) back into All Sales? Orders matching an existing ID are updated in place, the rest are restored fresh.')) return;
+  const {error}=await upsertSalesResilient(rows);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  logBizActivity('restore','sale','',rows.length+' order(s) from a Selected Data file');
+  toast(rows.length+' order(s) added to All Sales'); loadSales(); loadSalesBadge();
 }
 
 async function togglePaid(id, currentlyPaid){
