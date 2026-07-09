@@ -824,16 +824,23 @@ html[data-theme="dark"] .biz-login{
         <div id="marginByChannel" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px"></div>
       </div>
 
+      <!-- Orders by Channel — quick order-count cards, one per channel -->
+      <div class="chart-box" style="margin-bottom:16px">
+        <h3>Orders by Channel — <span id="ordersByChMonthName">this month</span></h3>
+        <div id="ordersByChannel" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px"></div>
+      </div>
+
       <!-- Charts -->
       <div class="charts-row">
         <div class="chart-box">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-            <h3 style="margin:0">Revenue by Channel</h3>
+            <h3 style="margin:0">Revenue by Channel <span id="chChannelFilterChip" style="display:none"></span></h3>
             <div style="display:flex;gap:6px;align-items:center">
               <select id="chChartMetric" onchange="setChannelChart()" title="What to plot" style="padding:4px 7px;background:var(--bg-2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:11px"><option value="revenue">Revenue</option><option value="net">Net Revenue</option><option value="profit">Profit</option><option value="orders">Orders</option></select>
               <select id="chChartType" onchange="setChannelChart()" title="Chart type" style="padding:4px 7px;background:var(--bg-2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:11px"><option value="bar">Bar</option><option value="line">Line</option><option value="doughnut">Doughnut</option><option value="pie">Pie</option></select>
             </div>
           </div>
+          <div style="font-size:10px;color:var(--text-3);margin:2px 0 4px">Click a channel to filter Top Products &amp; Top Items below</div>
           <canvas id="chartByChannel"></canvas>
         </div>
         <div class="chart-box">
@@ -857,13 +864,32 @@ html[data-theme="dark"] .biz-login{
       <!-- Charts row 2 (Module 6) -->
       <div class="charts-row">
         <div class="chart-box">
-          <h3>Top Products by Revenue</h3>
+          <h3>Top Products by Revenue <span id="topProdFilterChip" style="display:none"></span></h3>
           <canvas id="chartTopProducts"></canvas>
         </div>
         <div class="chart-box">
           <h3>Revenue Share by Channel</h3>
           <canvas id="chartChannelShare"></canvas>
         </div>
+      </div>
+
+      <!-- Top customers — month / year, horizontal bar, name+value inside bar, no axis -->
+      <div class="chart-box" style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+          <h3 style="margin:0">Top 10 Customers</h3>
+          <select id="topCustView" onchange="renderTopCustomersChart()" style="padding:4px 7px;background:var(--bg-2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:11px">
+            <option value="month" selected>This Month</option>
+            <option value="year">This Year</option>
+          </select>
+        </div>
+        <canvas id="chartTopCustomers"></canvas>
+      </div>
+
+      <!-- Top 10 items per channel -->
+      <div class="chart-box" style="margin-bottom:16px">
+        <h3>Top 10 Items by Channel <span id="topItemsChFilterChip" style="display:none"></span></h3>
+        <div style="font-size:10px;color:var(--text-3);margin:2px 0 8px">Uses the same channel filter as Revenue by Channel above</div>
+        <div id="topItemsByChannel" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px"></div>
       </div>
 
       <!-- Channel breakdown table -->
@@ -886,22 +912,34 @@ html[data-theme="dark"] .biz-login{
         <h3>Top Products by Revenue</h3>
         <div class="tbl-wrap" style="border:none;margin-top:12px">
           <table>
-            <thead><tr><th>#</th><th>Product</th><th class="td-num">Qty Sold</th><th class="td-num">Revenue</th><th class="td-num">Profit</th></tr></thead>
+            <thead><tr id="topProductsHead"><th>#</th><th class="sortable" onclick="sortTopProducts('name')" style="cursor:pointer">Product ⇅</th><th class="td-num sortable" onclick="sortTopProducts('qty')" style="cursor:pointer">Qty Sold ⇅</th><th class="td-num sortable" onclick="sortTopProducts('rev')" style="cursor:pointer">Revenue ⇅</th><th class="td-num sortable" onclick="sortTopProducts('profit')" style="cursor:pointer">Profit ⇅</th></tr></thead>
             <tbody id="topProducts"></tbody>
           </table>
         </div>
       </div>
 
       <!-- Returns this month -->
-      <div class="chart-box">
+      <div class="chart-box" style="margin-bottom:16px">
         <h3>Returns &amp; Claims this month</h3>
         <!-- per-platform summary -->
         <div class="gst-summary" id="dashReturnsSummary" style="margin:12px 0"></div>
         <div class="tbl-wrap" style="border:none;margin-top:4px">
           <table>
-            <thead><tr><th>Product / Order</th><th>Channel</th><th>Type</th><th>Reason</th><th class="td-num">Loss</th></tr></thead>
+            <thead id="dashReturnsHead"><tr><th class="sortable" onclick="sortDashReturns('prod')" style="cursor:pointer">Product / Order ⇅</th><th class="sortable" onclick="sortDashReturns('channel')" style="cursor:pointer">Channel ⇅</th><th class="sortable" onclick="sortDashReturns('type')" style="cursor:pointer">Type ⇅</th><th class="sortable" onclick="sortDashReturns('reason')" style="cursor:pointer">Reason ⇅</th><th class="td-num sortable" onclick="sortDashReturns('loss')" style="cursor:pointer">Loss ⇅</th></tr></thead>
             <tbody id="dashReturns"><tr><td colspan="5" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Returns impact — worst offenders -->
+      <div class="charts-row">
+        <div class="chart-box">
+          <h3>Bottom 10 — Highest Value Returned Items</h3>
+          <canvas id="chartBottomReturnedItems"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Bottom 10 — Customers by Return Value</h3>
+          <canvas id="chartBottomReturnCustomers"></canvas>
         </div>
       </div>
     </div><!-- /dashboard -->
@@ -5254,6 +5292,31 @@ let _dashCache=null;   // last loadDashboard() computation — drill-down modal 
 let _dashByChannel=null;
 function channelChartCfg(){ try{ const c=JSON.parse(localStorage.getItem('biz_dash_chchart')||'null'); if(c&&c.type) return c; }catch(_){} return {type:'bar',metric:'revenue'}; }
 function setChannelChart(){ try{ localStorage.setItem('biz_dash_chchart',JSON.stringify({type:document.getElementById('chChartType').value,metric:document.getElementById('chChartMetric').value})); }catch(_){} renderChannelChart(); }
+// #Round3 — channel drill-filter: clicking a Revenue-by-Channel bar/segment scopes
+// Top Products + Top Items by Channel to that channel until cleared.
+let _dashChannelFilter=null;
+function setDashChannelFilter(c){
+  _dashChannelFilter=(_dashChannelFilter===c)?null:c;
+  const chip=el=>{ if(!el) return; if(_dashChannelFilter){ el.style.display='inline'; el.innerHTML=` — <span style="color:var(--accent, #C4622A)">${esc(CH_NAMES[_dashChannelFilter]||_dashChannelFilter)}</span> <a href="#" onclick="event.preventDefault();setDashChannelFilter(null)" style="font-size:10px;color:var(--text-3);text-decoration:underline">clear</a>`; } else { el.style.display='none'; el.innerHTML=''; } };
+  chip(document.getElementById('chChannelFilterChip'));
+  chip(document.getElementById('topProdFilterChip'));
+  chip(document.getElementById('topItemsChFilterChip'));
+  renderChannelChart();
+  if(_dashCache) renderTopProductsView(_dashCache);
+  renderTopItemsByChannel();
+}
+// in-bar text labels for horizontal bar charts (no external datalabels plugin needed)
+function hbarLabelsPlugin(getLabel){
+  return { id:'hbarLabels_'+Math.random().toString(36).slice(2), afterDatasetsDraw(chart){
+    const {ctx}=chart; const meta=chart.getDatasetMeta(0); if(!meta) return;
+    meta.data.forEach((bar,i)=>{
+      const txt=getLabel(i); if(!txt) return;
+      ctx.save(); ctx.fillStyle='#1a2e22'; ctx.font='600 11px Inter, Arial'; ctx.textBaseline='middle'; ctx.textAlign='left';
+      ctx.fillText(txt, (bar.base||0)+8, bar.y);
+      ctx.restore();
+    });
+  }};
+}
 function renderChannelChart(){
   if(!_dashByChannel||typeof Chart==='undefined') return;
   const cfg=channelChartCfg();
@@ -5267,10 +5330,13 @@ function renderChannelChart(){
   const pie=(cfg.type==='pie'||cfg.type==='doughnut');
   const ctx=document.getElementById('chartByChannel'); if(!ctx) return;
   if(_chartByChannel) _chartByChannel.destroy();
+  const bg=colors.map((x,i)=>x+((!_dashChannelFilter||_dashChannelFilter===channels[i])?'cc':'33'));
   _chartByChannel=new Chart(ctx.getContext('2d'),{type:cfg.type,data:{
     labels:channels.map(c=>(typeof CH_NAMES!=='undefined'&&CH_NAMES[c])?CH_NAMES[c]:c),
-    datasets:[{label:mlabel,data,backgroundColor:colors.map(x=>x+'cc'),borderColor:colors,borderWidth:1,fill:cfg.type!=='line'}]
-  },options:{responsive:true,plugins:{legend:{display:pie,labels:{color:'#52685A',font:{size:10}}}},scales:pie?{}:{x:{ticks:{color:'#869488'},grid:{color:'rgba(20,42,30,0.07)'}},y:{ticks:{color:'#869488',callback:v=>cfg.metric==='orders'?v:'₹'+Number(v).toLocaleString('en-IN')},grid:{color:'rgba(20,42,30,0.07)'}}}}});
+    datasets:[{label:mlabel,data,backgroundColor:bg,borderColor:colors,borderWidth:1,fill:cfg.type!=='line'}]
+  },options:{responsive:true,onClick:(evt,elements)=>{ if(elements&&elements.length){ setDashChannelFilter(channels[elements[0].index]); } },
+    plugins:{legend:{display:pie,labels:{color:'#52685A',font:{size:10}}}},
+    scales:pie?{}:{x:{ticks:{color:'#869488'},grid:{color:'rgba(20,42,30,0.07)'}},y:{ticks:{display:false},grid:{color:'rgba(20,42,30,0.07)'}}}}});
 }
 
 function _skuToProduct(sku){
@@ -5463,20 +5529,67 @@ async function loadDashboard(){
   _chartMonthly=new Chart(ctx2,{type:'line',data:{
     labels:allMonths.map(mm=>{const [yy,mmn]=mm.split('-'); return MONTH_ABBR[parseInt(mmn)]+(spansYears?" '"+yy.slice(2):'');}),
     datasets:[{label:'Revenue',data:allMonths.map(k=>moMap[k]||0),borderColor:'#2E9E6B',backgroundColor:'rgba(46,158,107,0.12)',tension:0.4,pointRadius:3,fill:true}]},
-    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#869488'},grid:{color:'rgba(20,42,30,0.07)'}},y:{ticks:{color:'#869488',callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'rgba(20,42,30,0.07)'}}}}});
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#869488'},grid:{color:'rgba(20,42,30,0.07)'}},y:{ticks:{display:false},grid:{color:'rgba(20,42,30,0.07)'}}}}});
 
-  // Top products — grouped by catalog product (matched via SKU) else by name
-  const prodMap={};
-  completed.forEach(s=>{
-    const cat=_skuToProduct(s.sku);
-    const key=cat?('cat:'+cat.id):('name:'+(s.product_name||'—'));
-    const disp=cat?cat.name:(s.product_name||'—');
-    if(!prodMap[key]) prodMap[key]={name:disp,sku:(cat&&cat.sku)||s.sku||'',qty:0,rev:0,profit:0};
-    const gst=num(s.selling_price)-(num(s.selling_price)/(1+num(s.gst_rate)/100));
-    const net=num(s.selling_price)-num(s.platform_fee)-num(s.shipping_fee)-num(s.other_deductions);
-    prodMap[key].qty+=parseInt(s.qty)||0; prodMap[key].rev+=num(s.selling_price); prodMap[key].profit+=net-num(s.cogs)-gst;
+  // Top products — grouped by catalog product (matched via SKU) else by name, per-channel too
+  // (so the channel-click filter and "Top Items by Channel" section can reuse the same grouping).
+  function buildProdMap(rows){
+    const m={};
+    rows.forEach(s=>{
+      const cat=_skuToProduct(s.sku);
+      const key=cat?('cat:'+cat.id):('name:'+(s.product_name||'—'));
+      const disp=cat?cat.name:(s.product_name||'—');
+      if(!m[key]) m[key]={name:disp,sku:(cat&&cat.sku)||s.sku||'',qty:0,rev:0,profit:0};
+      const gst=num(s.selling_price)-(num(s.selling_price)/(1+num(s.gst_rate)/100));
+      const net=num(s.selling_price)-num(s.platform_fee)-num(s.shipping_fee)-num(s.other_deductions);
+      m[key].qty+=parseInt(s.qty)||0; m[key].rev+=num(s.selling_price); m[key].profit+=net-num(s.cogs)-gst;
+    });
+    return m;
+  }
+  const prodMapAll=buildProdMap(completed);
+  const prodMapByChannel={}; channels.forEach(c=>{ prodMapByChannel[c]=buildProdMap(completed.filter(s=>s.channel_id===c)); });
+  _dashCache=_dashCache||{}; _dashCache.prodMapAll=prodMapAll; _dashCache.prodMapByChannel=prodMapByChannel;
+  renderTopProductsView();
+  renderTopItemsByChannel();
+
+  // Chart: Revenue share by channel (Module 6) — reuses byChannel/channels above, with % + labels.
+  const ctxCS=document.getElementById('chartChannelShare');
+  if(ctxCS){
+    if(_chartChannelShare) _chartChannelShare.destroy();
+    const shareTotal=channels.reduce((s,c)=>s+byChannel[c].revenue,0)||1;
+    _chartChannelShare=new Chart(ctxCS.getContext('2d'),{type:'doughnut',data:{
+      labels:channels.map(c=>CH_NAMES[c]+' ('+(byChannel[c].revenue/shareTotal*100).toFixed(1)+'%)'),
+      datasets:[{data:channels.map(c=>byChannel[c].revenue),backgroundColor:channels.map(c=>CH_COLORS[c]+'cc'),borderColor:'#fff',borderWidth:2}]},
+      options:{responsive:true,plugins:{legend:{position:'right',labels:{color:'#52685A',font:{size:10},boxWidth:12}},
+        tooltip:{callbacks:{label:ctx=>ctx.label+': '+fmt(ctx.parsed)}}}}});
+  }
+
+  // Orders by Channel — quick count cards
+  const obc=document.getElementById('ordersByChannel'); const obcn=document.getElementById('ordersByChMonthName'); if(obcn) obcn.textContent=label;
+  if(obc) obc.innerHTML=channels.map(c=>`<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">${chHtml(c)}</div>
+    <div style="font-size:18px;font-weight:700;margin-top:4px">${byChannel[c].orders}</div>
+    <div style="font-size:10px;color:var(--text-3)">orders</div>
+  </div>`).join('');
+
+  renderTopCustomersChart();
+  renderBottomReturnsCharts(rets);
+  renderDashReturns(rets);
+}
+
+// Top Products table + chart — pulled out of loadDashboard so the channel-click filter
+// (setDashChannelFilter) can re-render it without re-querying.
+let _topProductsSortState={key:'rev',dir:-1};
+function renderTopProductsView(){
+  const c=_dashCache; if(!c||!c.prodMapAll) return;
+  const map=_dashChannelFilter?(c.prodMapByChannel[_dashChannelFilter]||{}):c.prodMapAll;
+  let rows=Object.values(map);
+  const {key,dir}=_topProductsSortState;
+  rows=rows.slice().sort((a,b)=>{
+    const av=key==='name'?a.name.toLowerCase():a[key], bv=key==='name'?b.name.toLowerCase():b[key];
+    return av<bv?-1*dir:av>bv?1*dir:0;
   });
-  const top=Object.values(prodMap).sort((a,b)=>b.rev-a.rev).slice(0,10);
+  const top=rows.slice(0,10);
   document.getElementById('topProducts').innerHTML=top.length?top.map((d,i)=>`<tr>
     <td style="color:var(--text-3);font-family:var(--mono)">${i+1}</td>
     <td>${esc(d.name)}${d.sku?`<div style="font-size:10px;color:var(--text-3);font-family:var(--mono)">${esc(d.sku)}</div>`:''}</td>
@@ -5485,27 +5598,21 @@ async function loadDashboard(){
     <td class="td-num" style="color:${d.profit>=0?'var(--green)':'var(--red)'}">${fmt(d.profit)}</td>
   </tr>`).join(''):`<tr><td colspan="5" class="empty"><div class="em-text">No sales this month</div></td></tr>`;
 
-  // Chart: Top products by revenue (Module 6) — reuses the `top` data above.
   const ctxTP=document.getElementById('chartTopProducts');
   if(ctxTP){
     if(_chartTopProducts) _chartTopProducts.destroy();
-    const tp=top.slice(0,8);
+    const tp=rows.slice(0,8).sort((a,b)=>b.rev-a.rev);
     _chartTopProducts=new Chart(ctxTP.getContext('2d'),{type:'bar',data:{
       labels:tp.map(d=>d.name.length>22?d.name.slice(0,21)+'…':d.name),
       datasets:[{label:'Revenue',data:tp.map(d=>d.rev),backgroundColor:'rgba(46,158,107,0.75)',borderColor:'#2E9E6B',borderWidth:1}]},
-      options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#869488',callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'rgba(20,42,30,0.07)'}},y:{ticks:{color:'#869488',font:{size:10}},grid:{display:false}}}}});
+      options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},
+        scales:{x:{ticks:{display:false},grid:{color:'rgba(20,42,30,0.07)'}},y:{ticks:{color:'#869488',font:{size:10}},grid:{display:false}}}},
+      plugins:[hbarLabelsPlugin(i=>fmt(tp[i].rev))]});
   }
-  // Chart: Revenue share by channel (Module 6) — reuses byChannel/channels above.
-  const ctxCS=document.getElementById('chartChannelShare');
-  if(ctxCS){
-    if(_chartChannelShare) _chartChannelShare.destroy();
-    _chartChannelShare=new Chart(ctxCS.getContext('2d'),{type:'doughnut',data:{
-      labels:channels.map(c=>CH_NAMES[c]),
-      datasets:[{data:channels.map(c=>byChannel[c].revenue),backgroundColor:channels.map(c=>CH_COLORS[c]+'cc'),borderColor:'#fff',borderWidth:2}]},
-      options:{responsive:true,plugins:{legend:{position:'right',labels:{color:'#52685A',font:{size:10},boxWidth:12}}}}});
-  }
-
-  renderDashReturns(rets);
+}
+function sortTopProducts(key){
+  _topProductsSortState=(_topProductsSortState.key===key)?{key,dir:-_topProductsSortState.dir}:{key,dir:key==='name'?1:-1};
+  renderTopProductsView();
 }
 
 // ── Dashboard drill-down — every KPI tile shows the rows behind its number ──
@@ -5552,6 +5659,7 @@ function openDashDrilldown(key){
   modal.style.display='flex';
 }
 
+let _dashReturnsRows=[], _dashReturnsSortState={key:'loss',dir:-1};
 function renderDashReturns(rets){
   const el=document.getElementById('dashReturns'); if(!el) return;
   const TYPE={return:'Return',cancellation:'Cancellation',spf_claim:'SPF Claim',az_claim:'AZ Claim',chargeback:'Chargeback',other:'Other'};
@@ -5568,17 +5676,94 @@ function renderDashReturns(rets){
     sum.innerHTML=card('All Returns',tN,tL)+chs.filter(c=>agg[c].n>0).map(c=>card(CH_NAMES[c]||c,agg[c].n,agg[c].loss)).join('');
   }
 
-  el.innerHTML=rets.length?rets.map(r=>{
-    // resolve a product name from cached sales by order_id (best effort)
-    let prod='';
-    if(r.order_id && Array.isArray(_salesCache)){ const m=_salesCache.find(s=>s.order_id===r.order_id); if(m) prod=m.product_name; }
-    return `<tr>
+  // resolve a product name from cached sales by order_id (best effort) once, then sort/render
+  _dashReturnsRows=rets.map(r=>{
+    let prod=''; if(r.order_id && Array.isArray(_salesCache)){ const m=_salesCache.find(s=>s.order_id===r.order_id); if(m) prod=m.product_name; }
+    return {r,prod,typeLabel:TYPE[r.type]||r.type||'—',loss:parseFloat(r.amount_lost)||0};
+  });
+  renderDashReturnsRows();
+}
+function renderDashReturnsRows(){
+  const el=document.getElementById('dashReturns'); if(!el) return;
+  const badge=st=>st==='won'?'badge-won':st==='lost'?'badge-lost':'badge-pending';
+  const {key,dir}=_dashReturnsSortState;
+  const keyOf=row=>({prod:(row.prod||row.r.order_id||'').toLowerCase(),channel:row.r.channel_id||'',type:row.typeLabel.toLowerCase(),reason:(row.r.reason||'').toLowerCase(),loss:row.loss}[key]);
+  const rows=_dashReturnsRows.slice().sort((a,b)=>{ const av=keyOf(a),bv=keyOf(b); return av<bv?-1*dir:av>bv?1*dir:0; });
+  el.innerHTML=rows.length?rows.map(({r,prod,typeLabel})=>`<tr>
     <td>${prod?esc(prod):'<span style="color:var(--text-3);font-family:var(--mono);font-size:11px">'+esc(r.order_id||'—')+'</span>'}</td>
     <td>${chHtml(r.channel_id||'shop')}</td>
-    <td><span class="badge ${badge(r.status)}">${esc(TYPE[r.type]||r.type||'—')}</span></td>
+    <td><span class="badge ${badge(r.status)}">${esc(typeLabel)}</span></td>
     <td>${esc(r.reason||'—')}</td>
     <td class="td-num" style="color:var(--red)">${fmt(parseFloat(r.amount_lost)||0)}</td>
-  </tr>`;}).join(''):`<tr><td colspan="5" class="empty"><div class="em-text">No returns this month 🎉</div></td></tr>`;
+  </tr>`).join(''):`<tr><td colspan="5" class="empty"><div class="em-text">No returns this month 🎉</div></td></tr>`;
+}
+function sortDashReturns(key){
+  _dashReturnsSortState=(_dashReturnsSortState.key===key)?{key,dir:-_dashReturnsSortState.dir}:{key,dir:key==='loss'?-1:1};
+  renderDashReturnsRows();
+}
+
+// Top 10 Customers — month/year, horizontal bar, name+value inside bar, no axis
+function renderTopCustomersChart(){
+  const c=_dashCache; const ctx=document.getElementById('chartTopCustomers'); if(!c||!ctx||typeof Chart==='undefined') return;
+  const view=document.getElementById('topCustView')?.value||'month';
+  const data=view==='year'?c.custYear:c.custMonth;
+  const top=Object.entries(data||{}).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  if(window._chartTopCustomers) window._chartTopCustomers.destroy();
+  window._chartTopCustomers=new Chart(ctx.getContext('2d'),{type:'bar',data:{
+    labels:top.map(([n])=>n),
+    datasets:[{label:'Spent',data:top.map(([,v])=>v),backgroundColor:'rgba(196,98,42,0.75)',borderColor:'#C4622A',borderWidth:1}]},
+    options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{display:false},grid:{color:'rgba(20,42,30,0.07)'}},y:{ticks:{display:false},grid:{display:false}}}},
+    plugins:[hbarLabelsPlugin(i=>top[i]?(top[i][0]+' — '+fmt(top[i][1])):'')]});
+}
+
+// Top 10 items sold, per channel — respects the Revenue-by-Channel click filter (shows only
+// that channel's list when set, else all 4 channels side by side)
+function renderTopItemsByChannel(){
+  const c=_dashCache; const box=document.getElementById('topItemsByChannel'); if(!c||!box||!c.prodMapByChannel) return;
+  const chans=_dashChannelFilter?[_dashChannelFilter]:(c.channels||['shop','amazon','flipkart','website']);
+  box.innerHTML=chans.map(ch=>{
+    const top=Object.values(c.prodMapByChannel[ch]||{}).sort((a,b)=>b.rev-a.rev).slice(0,10);
+    return `<div>
+      <div style="font-size:11px;font-weight:700;margin-bottom:6px">${chHtml(ch)}</div>
+      ${top.length?`<ol style="margin:0;padding-left:18px;font-size:12px">${top.map(d=>`<li style="margin-bottom:3px">${esc(d.name)} <span style="color:var(--text-3)">— ${fmt(d.rev)}</span></li>`).join('')}</ol>`:'<div class="em-text" style="font-size:11px">No sales this month</div>'}
+    </div>`;
+  }).join('');
+}
+
+// Returns impact — bottom 10 highest-value returned items + bottom 10 customers by return value
+function renderBottomReturnsCharts(rets){
+  const num=v=>parseFloat(v)||0;
+  const byItem={}, byCust={};
+  rets.forEach(r=>{
+    let prod=r.order_id&&Array.isArray(_salesCache)?( _salesCache.find(s=>s.order_id===r.order_id)||{} ):{};
+    const name=prod.product_name||r.order_id||'Unknown item';
+    byItem[name]=(byItem[name]||0)+num(r.amount_lost);
+    const cust=prod.customer_name||r.customer_name||'Unknown customer';
+    byCust[cust]=(byCust[cust]||0)+num(r.amount_lost);
+  });
+  const topItems=Object.entries(byItem).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const topCust=Object.entries(byCust).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const ctx1=document.getElementById('chartBottomReturnedItems');
+  if(ctx1&&typeof Chart!=='undefined'){
+    if(window._chartBottomItems) window._chartBottomItems.destroy();
+    window._chartBottomItems=new Chart(ctx1.getContext('2d'),{type:'bar',data:{
+      labels:topItems.map(([n])=>n),
+      datasets:[{label:'Loss',data:topItems.map(([,v])=>v),backgroundColor:'rgba(214,69,58,0.75)',borderColor:'var(--red)',borderWidth:1}]},
+      options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},
+        scales:{x:{ticks:{display:false},grid:{color:'rgba(20,42,30,0.07)'}},y:{ticks:{display:false},grid:{display:false}}}},
+      plugins:[hbarLabelsPlugin(i=>topItems[i]?(topItems[i][0]+' — '+fmt(topItems[i][1])):'')]});
+  }
+  const ctx2=document.getElementById('chartBottomReturnCustomers');
+  if(ctx2&&typeof Chart!=='undefined'){
+    if(window._chartBottomCust) window._chartBottomCust.destroy();
+    window._chartBottomCust=new Chart(ctx2.getContext('2d'),{type:'bar',data:{
+      labels:topCust.map(([n])=>n),
+      datasets:[{label:'Loss',data:topCust.map(([,v])=>v),backgroundColor:'rgba(214,69,58,0.75)',borderColor:'var(--red)',borderWidth:1}]},
+      options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},
+        scales:{x:{ticks:{display:false},grid:{color:'rgba(20,42,30,0.07)'}},y:{ticks:{display:false},grid:{display:false}}}},
+      plugins:[hbarLabelsPlugin(i=>topCust[i]?(topCust[i][0]+' — '+fmt(topCust[i][1])):'')]});
+  }
 }
 
 // ── CSV Import ──────────────────────────────────────────────
