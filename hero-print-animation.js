@@ -1,5 +1,5 @@
 /**
- * hero-print-animation.js  — TriAkar hero section
+ * hero-print-animation.js , TriAkar hero section
  * ─────────────────────────────────────────────────
  * DOM structure (injected):
  *
@@ -33,7 +33,7 @@
   /* ── Configuration ─────────────────────────────────────── */
   const CFG = {
     PASS_DURATION_MS: 1050,   /* smooth, continuous nozzle sweep */
-    LAYER_INTERVAL_MS: 150,   /* brief reversal pause — keeps motion flowing */
+    LAYER_INTERVAL_MS: 150,   /* brief reversal pause, keeps motion flowing */
     HOLD_MS:          1800,
     RESET_MS:          700,
     LAYER_HEIGHT_PX:     5,   /* must match .tpa-layer { height } in CSS */
@@ -69,7 +69,7 @@
   root.innerHTML = `
     <div class="tpa-wrap" id="tpaWrap">
 
-      <!-- PRINTER CABINET — decorative frame around the scene -->
+      <!-- PRINTER CABINET, decorative frame around the scene -->
       <div class="tpa-cabinet">
 
         <!-- Static badge sits on top-left of cabinet -->
@@ -78,7 +78,7 @@
           LIVE PRINT
         </div>
 
-        <!-- THE SCENE — sits inside the cabinet -->
+        <!-- THE SCENE, sits inside the cabinet -->
         <div class="tpa-scene" id="tpaScene">
 
           <!-- THE GANTRY: rail + head move together as one unit -->
@@ -93,7 +93,7 @@
             </div>
           </div>
 
-          <!-- Layer stack — grows upward from bed -->
+          <!-- Layer stack, grows upward from bed -->
           <div class="tpa-object-wrap" id="tpaObject"></div>
 
           <!-- Static bed -->
@@ -201,7 +201,7 @@
      snapped mid-pass: each pass starts exactly where the last
      one ended (alternating sides), so motion stays continuous.
      The layer is deposited at the midpoint, where the easing
-     naturally places the head over the centre — no jump.       */
+     naturally places the head over the centre, no jump.       */
   function runPass() {
     if (!isRunning) return;
 
@@ -212,14 +212,14 @@
       /* one smooth sweep all the way across */
       slideHead(endPct, CFG.PASS_DURATION_MS);
 
-      /* deposit at the midpoint — head is centred there, no snap */
+      /* deposit at the midpoint, head is centred there, no snap */
       setTimeout(() => {
         if (isRunning) depositLayer();   /* layerIndex++ happens here */
       }, CFG.PASS_DURATION_MS * 0.5);
 
       /* at the end of the sweep: lift to the new layer height and chain.
          The lift (0.3s) overlaps the start of the next sweep, so the
-         head glides sideways while the gantry rises — fluid, no stutter. */
+         head glides sideways while the gantry rises, fluid, no stutter. */
       setTimeout(() => {
         if (!isRunning) return;
         liftGantry(layerIndex, true);

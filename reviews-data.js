@@ -1,5 +1,5 @@
-/* reviews-data.js — Local review fallback for TriAkar
- * Varied counts (2–5) and ratings (4.3–4.8) per product — looks natural.
+/* reviews-data.js, Local review fallback for TriAkar
+ * Varied counts (2–5) and ratings (4.3–4.8) per product, looks natural.
  * Admin panel → Reviews tab is the primary source.
  */
 

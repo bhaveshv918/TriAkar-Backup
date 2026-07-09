@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- Google tag (gtag.js) — customer traffic (G-Z6MSF7F44G) -->
+<!-- Google tag (gtag.js), customer traffic (G-Z6MSF7F44G) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-Z6MSF7F44G"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -269,7 +269,7 @@
   .dash-tab{padding:11px 16px;font-size:9px}
 }
 
-/* Focused login screen — no bottom tab bar or its page padding while
+/* Focused login screen, no bottom tab bar or its page padding while
    logged out, so the whole auth card sits in view on small phones. */
 body.acct-auth .ta-bottomnav{display:none!important}
 body.acct-auth.has-bottomnav{padding-bottom:0!important}
@@ -373,7 +373,7 @@ body.acct-auth.has-bottomnav{padding-bottom:0!important}
         </div><!-- /signupStep1 -->
         <div id="signupOtpStep" style="display:none">
           <div class="auth-form-title">Check your email</div>
-          <p class="auth-form-sub">We sent a 6-digit code to <strong id="signupOtpEmail"></strong> — enter it to continue.</p>
+          <p class="auth-form-sub">We sent a 6-digit code to <strong id="signupOtpEmail"></strong>, enter it to continue.</p>
           <div class="field">
             <input type="text" id="signupOtpInput" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code" oninput="this.value=this.value.replace(/\D/g,'');if(this.value.length===6)verifySignupOtp();" style="width:100%;padding:14px 12px;border:1px solid rgba(22,22,20,.18);border-radius:10px;font-family:monospace;font-size:26px;letter-spacing:8px;text-align:center;background:rgba(250,250,248,.9);color:var(--charcoal);outline:none;box-sizing:border-box">
           </div>
@@ -443,7 +443,7 @@ body.acct-auth.has-bottomnav{padding-bottom:0!important}
     <div class="dash-body">
       <div class="dash-body-inner">
 
-        <!-- Email verify banner — only visible when email is unverified -->
+        <!-- Email verify banner, only visible when email is unverified -->
         <div class="email-verify-banner" id="emailVerifyBanner" style="display:none">
           <div class="email-verify-banner-text" style="flex:1;min-width:180px">
             <div class="evb-title">Your email is not verified</div>
@@ -457,7 +457,7 @@ body.acct-auth.has-bottomnav{padding-bottom:0!important}
           <div id="emailOtpMsg"></div>
         </div>
 
-        <!-- Add-mobile banner — shown for Google users who have no mobile yet -->
+        <!-- Add-mobile banner, shown for Google users who have no mobile yet -->
         <div class="mobile-prompt-banner" id="mobilePromptBanner" style="display:none">
           <div class="mpb-text">
             <div class="mpb-title">Add your mobile number</div>
@@ -699,7 +699,7 @@ async function handleForgot(e){
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({email})
     });
-  }catch(_){/* swallow — always show neutral message */}
+  }catch(_){/* swallow, always show neutral message */}
   showMsg('forgotMsg','If an account exists with this email, a reset link has been sent. Please check your inbox and spam folder.','ok');
   btn.textContent='Send Reset Link →';btn.disabled=false;
 }
@@ -840,14 +840,14 @@ async function handleSignup(e){
       }
     }
 
-    // Create account in Supabase (email_confirm: true on server — no email gate)
+    // Create account in Supabase (email_confirm: true on server, no email gate)
     await Auth.signup(email,password,fullName,fullPhone||null);
 
     // Auto-login immediately so we have a token to call send-verification-email
     btn.textContent='Logging in...';
     await Auth.login(email,password);
 
-    // Send OTP — use Auth.apiFetch so token refresh is handled automatically
+    // Send OTP, use Auth.apiFetch so token refresh is handled automatically
     btn.textContent='Sending code...';
     let emailOk=false;
     async function _trySendOtp(){
@@ -861,7 +861,7 @@ async function handleSignup(e){
     try{
       emailOk=await _trySendOtp();
       if(!emailOk){
-        // Silent auto-retry once after 1.5s — first cold-start sometimes fails
+        // Silent auto-retry once after 1.5s, first cold-start sometimes fails
         await new Promise(function(res){setTimeout(res,1500);});
         emailOk=await _trySendOtp();
       }
@@ -873,7 +873,7 @@ async function handleSignup(e){
       (sessionStorage.getItem('after_login')==='checkout'||params.get('next')==='checkout')
         ?'checkout':(sessionStorage.getItem('ta_return_url')||'index.html');
 
-    // Morph form — hide fields, show OTP step
+    // Morph form, hide fields, show OTP step
     document.getElementById('signupStep1').style.display='none';
     document.getElementById('signupOtpEmail').textContent=email;
     document.getElementById('signupOtpStep').style.display='';
@@ -882,7 +882,7 @@ async function handleSignup(e){
     if(emailOk){
       startResendCountdown();
     }else{
-      // Email delivery failed — show resend button immediately, no alarming error
+      // Email delivery failed, show resend button immediately, no alarming error
       const hint=document.getElementById('signupOtpMsg');
       if(hint){hint.textContent="Didn't get the code? Check spam or click Resend.";hint.style.color='var(--stone)';hint.style.display='block';}
     }
@@ -1143,7 +1143,7 @@ function renderOrders(orders){
     const waNote=isWA
       ?'<div class="order-pending-note" style="background:rgba(37,211,102,.08);border-left:3px solid #25D366;color:#1a6e35;display:flex;align-items:flex-start;gap:7px">'
         +'<svg width="13" height="13" viewBox="0 0 24 24" fill="#25D366" style="flex-shrink:0;margin-top:1px"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 0C5.373 0 0 5.373 0 12c0 2.117.554 4.105 1.523 5.83L.057 23.522a.5.5 0 00.62.607l5.802-1.522A11.938 11.938 0 0012 24c6.627 0 12-5.373 12-12S18.626 0 11.999 0zm0 21.818a9.8 9.8 0 01-5.027-1.38l-.36-.214-3.726.977.995-3.63-.235-.374A9.818 9.818 0 012.182 12c0-5.415 4.403-9.818 9.818-9.818 5.414 0 9.818 4.403 9.818 9.818 0 5.414-4.404 9.818-9.819 9.818z"/></svg>'
-        +'Placed via WhatsApp — payment pending. We\'ll confirm on WhatsApp.'
+        +'Placed via WhatsApp, payment pending. We\'ll confirm on WhatsApp.'
         +'</div>'
       :'';
     return '<div class="order-card">'
@@ -1176,7 +1176,7 @@ async function loadOrders(){
   const user=Auth.getUser();
   if(!user){el.innerHTML='<div class="orders-empty"><p>Please sign in to view orders.</p></div>';return}
 
-  // 1. Try Supabase direct query — CRITICAL: attach user JWT so RLS auth.uid()
+  // 1. Try Supabase direct query, CRITICAL: attach user JWT so RLS auth.uid()
   //    matches user_id. Without this, anon key gets auth.uid()=null and RLS
   //    silently returns zero rows even when orders exist.
   if(sb&&window.supabase){
@@ -1207,7 +1207,7 @@ async function loadOrders(){
         renderOrders(normalised);
         return;
       }
-      // Zero from Supabase — continue to Express API for email/phone fallback lookup
+      // Zero from Supabase, continue to Express API for email/phone fallback lookup
     }catch(e1){console.warn('Supabase orders query failed:',e1.message);}
   }
 
@@ -1239,7 +1239,7 @@ async function loadOrders(){
 
 /* ── Retry Payment for Pending Orders ── */
 async function retryPayment(dbOrderId, rzpOrderId, amount){
-  if(!rzpOrderId){showToast('Payment details unavailable — please contact support','error');return;}
+  if(!rzpOrderId){showToast('Payment details unavailable, please contact support','error');return;}
   const btn=event.target;
   btn.disabled=true;
   btn.textContent='Loading…';
@@ -1331,7 +1331,7 @@ async function loadProfile(){
       syncUserMeta(data.full_name||meta.full_name||'',data.nickname||'');
       if(typeof updateNavAuth==='function')updateNavAuth();
     }else{
-      // No profile row yet — create one (handles users who signed up before profile-upsert was added,
+      // No profile row yet, create one (handles users who signed up before profile-upsert was added,
       // or where the auth-signup happened without an immediate session).
       let pending=null;
       try{pending=JSON.parse(sessionStorage.getItem('ta_pending_profile')||'null')}catch(_){}
@@ -1408,7 +1408,7 @@ async function saveProfile(e){
   }finally{btn.textContent='Save Changes →';btn.disabled=false}
 }
 
-/* ── Addresses — uses Express API (service JWT auth, no RLS issue) ── */
+/* ── Addresses, uses Express API (service JWT auth, no RLS issue) ── */
 const _API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
 
 function _copyOrderId(btn,id){
@@ -1465,7 +1465,7 @@ async function loadAddresses(){
     +'</div>'
   ).join('');
 
-  // Path 1: Express API (preferred — uses service-role, guaranteed to work)
+  // Path 1: Express API (preferred, uses service-role, guaranteed to work)
   try{
     const res=await Auth.apiFetch(_API+'/api/addresses');
     if(res.ok){
@@ -1510,7 +1510,7 @@ function showAddressForm(existing){
       </div>
       <div class="field">
         <label>PIN Code *</label>
-        <input type="text" id="addrPincode" value="${a.pincode||''}" maxlength="6" pattern="[0-9]{6}" placeholder="Enter 6-digit PIN — city &amp; state will auto-fill" required inputmode="numeric" autocomplete="postal-code">
+        <input type="text" id="addrPincode" value="${a.pincode||''}" maxlength="6" pattern="[0-9]{6}" placeholder="Enter 6-digit PIN, city &amp; state will auto-fill" required inputmode="numeric" autocomplete="postal-code">
         <div id="addrPincodeInfo" style="font-size:11px;margin-top:4px;min-height:16px"></div>
       </div>
       <div class="field">
@@ -1562,7 +1562,7 @@ function showAddressForm(existing){
   if(stateWrap) initSearchableDropdown(stateWrap);
   initPhoneField('addrPhone');
 
-  // Smart PIN autofill — shared helper from shared.js
+  // Smart PIN autofill, shared helper from shared.js
   attachPincodeAutofill('addrPincode','addrPincodeInfo','addrCity','addrDistrict','addrState','addrStateWrap');
 
   // Address Line 1 length hint
@@ -1601,7 +1601,7 @@ async function saveAddress(){
   if(!line1||line1.length<8){
     const errEl=document.getElementById('addrLine1Err');
     if(errEl){errEl.textContent='Please enter a complete address (house no. + building name).';errEl.style.display='block';}
-    showToast('Address line 1 is too short — add house no. and street','error');return;
+    showToast('Address line 1 is too short, add house no. and street','error');return;
   }
   if(!pin||!/^\d{6}$/.test(pin)){showToast('Please enter a valid 6-digit PIN code','error');return;}
   if(!city){showToast('Please enter the city or town','error');return;}
@@ -1618,7 +1618,7 @@ async function saveAddress(){
     is_default:document.getElementById('addrDefault').checked
   };
 
-  /* Writes go through the Express API (service-role) — direct anon-client
+  /* Writes go through the Express API (service-role), direct anon-client
      writes are rejected by RLS, which silently broke save/edit/delete here */
   try{
     if(editId){
@@ -1637,7 +1637,7 @@ async function saveAddress(){
     loadAddresses();
   }catch(err){
     if(btn){btn.disabled=false;btn.textContent='Save Address →';}
-    showToast('Error saving address — please try again','error');
+    showToast('Error saving address, please try again','error');
   }
 }
 
@@ -1808,7 +1808,7 @@ function pickDisplayName(full_name,nickname){
 /* ── Google OAuth ───────────────────────────────────────── */
 async function signInWithGoogle(){
   const sb2=(typeof getSB==='function')?getSB():sb;
-  if(!sb2){showMsg('loginMsg','Sign-in not ready — please refresh and try again.','err');return;}
+  if(!sb2){showMsg('loginMsg','Sign-in not ready, please refresh and try again.','err');return;}
   // Preserve post-login destination across the redirect round-trip
   const params=new URLSearchParams(window.location.search);
   if(sessionStorage.getItem('after_login')==='checkout'||params.get('next')==='checkout'){
@@ -1837,7 +1837,7 @@ async function _handleOAuthReturn(){
   if(!sb2)return false;
   let session=null;
   // supabase-js (detectSessionInUrl) exchanges the code/hash asynchronously on
-  // init — poll getSession briefly until the session lands.
+  // init, poll getSession briefly until the session lands.
   for(let i=0;i<12&&!session;i++){
     try{const {data}=await sb2.auth.getSession();session=data&&data.session;}catch(_){}
     if(!session)await new Promise(r=>setTimeout(r,300));
@@ -1905,7 +1905,7 @@ async function showDashboard(){
   document.body.classList.remove('acct-auth'); /* restore bottom tab bar on the dashboard */
   document.getElementById('dashboard').classList.add('active');
 
-  // Show Member ID — from stored user object or fetch fresh from profile
+  // Show Member ID, from stored user object or fetch fresh from profile
   (async function(){
     let code=user.user_code||null;
     if(!code&&sb){
@@ -1927,7 +1927,7 @@ async function showDashboard(){
     }
   })();
 
-  // Resolve real name/nickname — prefer profiles table, fall back to metadata
+  // Resolve real name/nickname, prefer profiles table, fall back to metadata
   const meta=user.user_metadata||{};
   let fullName=meta.full_name||'';
   let nickname=meta.nickname||'';
@@ -1948,7 +1948,7 @@ async function showDashboard(){
   loadEmailVerifiedStatus();
   _maybeShowMobilePrompt();   // Google users without a phone get a gentle prompt
 
-  // Hash-based tab routing — default is Orders (most useful landing tab)
+  // Hash-based tab routing, default is Orders (most useful landing tab)
   _applyHashTab();
 }
 
@@ -1978,10 +1978,10 @@ function splitPhoneValue(id,val){
 }
 
 document.addEventListener('DOMContentLoaded',function(){
-  // Init phone field on signup form only — profile mobile is initialised on demand.
+  // Init phone field on signup form only, profile mobile is initialised on demand.
   initPhoneField('signupPhone');
 
-  // Fix 1: Hide country-code selector on signup — hardcode IN +91 as plain text.
+  // Fix 1: Hide country-code selector on signup, hardcode IN +91 as plain text.
   // initPhoneField inserts .ta-phone-wrap after the hidden #signupPhone input.
   (function(){
     var ph=document.getElementById('signupPhone');
@@ -1997,7 +1997,7 @@ document.addEventListener('DOMContentLoaded',function(){
       span.textContent='IN +91';
       wrap.insertBefore(span,sel.nextSibling);
     }
-    // Hide Send OTP button — OTP no longer required before creating account
+    // Hide Send OTP button, OTP no longer required before creating account
     var otpBtn=document.getElementById('sendOtpBtn');
     if(otpBtn)otpBtn.style.display='none';
   })();

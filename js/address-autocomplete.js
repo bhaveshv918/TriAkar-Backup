@@ -166,7 +166,7 @@
           <path d="M6 1C3.2 1 1 3.2 1 6c0 3.3 5 7.5 5 7.5S11 9.3 11 6c0-2.8-2.2-5-5-5z"/><circle cx="6" cy="6" r="1.8"/>
         </svg>
         <input type="text" id="${uid}_inp" class="tac-input"
-          placeholder="Search your address — shop, flat, society, street…"
+          placeholder="Search your address, shop, flat, society, street…"
           autocomplete="off" autocorrect="off" spellcheck="false"
           aria-label="Search address" aria-haspopup="listbox">
         <div class="tac-spin" id="${uid}_spin"></div>
@@ -174,7 +174,7 @@
       </div>
       <div class="tac-badge" id="${uid}_badge">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#15803d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Address filled — review and complete the fields below
+        Address filled, review and complete the fields below
       </div>
       <div class="tac-hint">Type a shop name, society, colony, street or area to find your address</div>
     `;
@@ -276,14 +276,14 @@
     /* ─ City ─ */
     const city = a.city || a.town || a.village || a.municipality || a.county || '';
 
-    /* ─ District — filter out OSM abbreviations (< 3 chars) ─ */
+    /* ─ District, filter out OSM abbreviations (< 3 chars) ─ */
     const rawDistrict = a.county || a.city_district || a.state_district || '';
     const district = rawDistrict.length >= 3 ? rawDistrict : '';
 
     /* ─ State ─ */
     const state = normaliseState(a.state || a.state_district || '');
 
-    /* ─ Pincode — 6-digit Indian only ─ */
+    /* ─ Pincode, 6-digit Indian only ─ */
     const rawPin = (a.postcode || '').replace(/\s/g, '');
     const pincode = /^\d{6}$/.test(rawPin) ? rawPin : '';
 

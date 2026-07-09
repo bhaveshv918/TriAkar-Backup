@@ -1,7 +1,7 @@
-/* TriAkar — Shared Partials v1
+/* TriAkar, Shared Partials v1
    Defines NAV, DRAWER and FOOTER HTML as globals.
    Each page loads this synchronously then injects via tiny inline scripts,
-   so nav/footer appear before first paint — zero flash. */
+   so nav/footer appear before first paint, zero flash. */
 
 /* ── Image optimiser ─────────────────────────────────────────
    taImg(url, opts) returns a right-sized, modern-format (AVIF/WebP via
@@ -29,7 +29,7 @@ window.taImg = function (url, opts) {
   else parts.push('c_fill', 'w_' + w, 'h_' + (opts.h || w));
   var t = parts.join(',');
 
-  // 1) Native Cloudinary delivery URL — swap its transformation segment.
+  // 1) Native Cloudinary delivery URL, swap its transformation segment.
   var marker = '/image/upload/';
   var i = url.indexOf(marker);
   if (i !== -1) {
@@ -39,12 +39,12 @@ window.taImg = function (url, opts) {
     return head + t + '/' + tail.join('/');
   }
 
-  // 2) Remote http(s) image (Supabase Storage, etc.) — optimise via fetch.
+  // 2) Remote http(s) image (Supabase Storage, etc.), optimise via fetch.
   if (/^https?:\/\//.test(url) && url.indexOf('res.cloudinary.com') === -1) {
     return window.TA_CLD + '/image/fetch/' + t + '/' + encodeURIComponent(url);
   }
 
-  // 3) Anything else (relative path, data URI) — leave as-is.
+  // 3) Anything else (relative path, data URI), leave as-is.
   return url;
 };
 
@@ -52,7 +52,7 @@ window.taImg = function (url, opts) {
    Applies the cached / default style instantly (no flash) by setting
    <html data-menu-style>, then refreshes from Supabase in the background.
    Values: '7' = top tile grid (default) · '6' = left drawer · '4' = bottom sheet.
-   Falls back to '7' if the setting/table is missing — always safe. */
+   Falls back to '7' if the setting/table is missing, always safe. */
 (function(){
   var KEY='ta_menu_style', OK={'4':1,'6':1,'7':1};
   function apply(v){ if(OK[v]) document.documentElement.setAttribute('data-menu-style', v); }
@@ -76,7 +76,7 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
       <span class="logo-en"><span style="color:var(--accent)">TRI</span>AKAR</span>
       <span class="logo-hi"><span style="color:var(--accent)">त्रि</span>आकार</span>
     </a>
-    <ul class="nav-links"><li><a href="/products.html">Shop</a></li><li><a href="/order.html">Customization</a></li><li><a href="/stories.html">Our Stories</a></li><li><a href="/about.html">About</a></li><li><a href="/contact.html">Contact</a></li><li><a href="/track-order.html">Track Order</a></li></ul>
+    <ul class="nav-links"><li><a href="/products.html">Studio</a></li><li><a href="/order.html">Customization</a></li><li><a href="/stories.html">Our Stories</a></li><li><a href="/about.html">About</a></li><li><a href="/contact.html">Contact</a></li><li><a href="/track-order.html">Track Order</a></li></ul>
     <div class="nav-right">
       <form class="nav-search" role="search" onsubmit="return window.taSearch(this);">
         <input type="search" id="navSearchInput" name="q" placeholder="Search products…" aria-label="Search products" autocomplete="off">
@@ -96,9 +96,9 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
   </div>
 </nav>`;
 
-window._DRAWER_HTML = `<nav class="nav-drawer"><a href="/order.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Customization</a><a href="/wishlist.html" class="drawer-link" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>Wishlist</a><a href="/stories.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg>Our Stories</a><a href="/products.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>Shop</a><a href="/about.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>About</a><a href="/contact.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Contact</a><a href="/track-order.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>Track Order</a><a href="/account.html" class="drawer-login drawer-auth">Login</a></nav>`;
+window._DRAWER_HTML = `<nav class="nav-drawer"><a href="/order.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Customization</a><a href="/wishlist.html" class="drawer-link" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>Wishlist</a><a href="/stories.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg>Our Stories</a><a href="/products.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>Studio</a><a href="/about.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>About</a><a href="/contact.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Contact</a><a href="/track-order.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>Track Order</a><a href="/account.html" class="drawer-login drawer-auth">Login</a></nav>`;
 
-/* Site-wide product search — used by nav + drawer search forms */
+/* Site-wide product search, used by nav + drawer search forms */
 window.taSearch = function(form){
   var i = form.querySelector('input');
   var q = (i && i.value || '').trim();
@@ -119,7 +119,7 @@ window._FOOTER_HTML = `<footer>
         <div class="foot-addr">Shop No. 25, Karan Singh Market<br>Chhoti Milak, Greater Noida West, UP – 201307</div>
         <a href="https://maps.app.goo.gl/Ki2GXFgi6JUZMb7z6" class="foot-dir" target="_blank">Get Directions →</a>
       </div>
-      <div><div class="foot-col-t">Shop</div>
+      <div><div class="foot-col-t">Studio</div>
         <ul class="foot-links">
           <li><a href="/products.html">All Products</a></li>
           <li><a href="/products.html?cat=desk">Desk</a></li>
@@ -171,7 +171,7 @@ window._FOOTER_HTML = `<footer>
 </footer>`;
 
 /* ════════════════════════════════════════════════════════════════════
-   F1 — TOP CONTACT BAR (two lines, site-wide)
+   F1, TOP CONTACT BAR (two lines, site-wide)
    Line 1: phone + WhatsApp + "Bulk / Corporate Order?"  (desktop only)
    Line 2: rotating notice carousel (3 messages, 3s fade)
    Supersedes any per-page .notice-bar (hidden via injected CSS = no flash).
@@ -180,11 +180,11 @@ window._FOOTER_HTML = `<footer>
   var WA='https://wa.me/919217555833?text='+encodeURIComponent('Hi TriAkar! I have a question.');
   var NOTES=[
     'Free shipping above ₹999 · ₹99 fee below ₹999',
-    'Custom 3D printing — your design, made in Greater Noida',
+    'Custom 3D printing, your design, made in Greater Noida',
     'Noida pickup available · Open Mon–Sat, 11 AM – 8 PM'
   ];
   /* Inject CSS first (head exists during parse) so per-page .notice-bar
-     is hidden before it paints — prevents a double-bar flash. */
+     is hidden before it paints, prevents a double-bar flash. */
   try{
     var head=document.head||document.getElementsByTagName('head')[0];
     if(head && !document.getElementById('taTopbarCSS')){
@@ -203,7 +203,7 @@ window._FOOTER_HTML = `<footer>
         '.notice-carousel{position:relative;height:30px}'+
         '.notice-slide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:.04em;color:var(--ivory,#F4F2EC);opacity:0;transition:opacity .6s ease}'+
         '.notice-slide.active{opacity:.92}'+
-        /* nav-corp pill removed from the top nav to prevent crowding/collision — corporate CTA lives in the top contact bar (ttb-corp), footer, and mobile drawer */
+        /* nav-corp pill removed from the top nav to prevent crowding/collision, corporate CTA lives in the top contact bar (ttb-corp), footer, and mobile drawer */
         '.nav-corp{display:none!important}'+
         '.nav-corp:hover{background:var(--accent,#C4622A)}'+
         '@media(max-width:768px){.ta-topbar-l1{display:none}.nav-corp{display:none}}'+
@@ -244,7 +244,7 @@ window._FOOTER_HTML = `<footer>
 })();
 
 /* ════════════════════════════════════════════════════════════════════
-   SITE CONTENT hydration (Module 4) — applies admin-editable values from
+   SITE CONTENT hydration (Module 4), applies admin-editable values from
    site_settings onto the already-rendered footer/top-bar. Purely additive
    and fully guarded: any failure leaves the hardcoded defaults untouched.
    ════════════════════════════════════════════════════════════════════ */
@@ -276,7 +276,7 @@ window._FOOTER_HTML = `<footer>
 })();
 
 /* ════════════════════════════════════════════════════════════════════
-   PWA — manifest link, theme-color, and service-worker registration.
+   PWA, manifest link, theme-color, and service-worker registration.
    Injected here so it runs site-wide without editing every page <head>.
    ════════════════════════════════════════════════════════════════════ */
 (function(){
@@ -318,7 +318,7 @@ window._FOOTER_HTML = `<footer>
 })();
 
 /* ════════════════════════════════════════════════════════════════════
-   MOBILE BOTTOM NAV — app-style tab bar, shown only on small screens.
+   MOBILE BOTTOM NAV, app-style tab bar, shown only on small screens.
    Cart/wishlist badges reuse the .cart-badge/.wishlist-badge classes so
    shared.js keeps them in sync automatically.
    ════════════════════════════════════════════════════════════════════ */
@@ -385,7 +385,7 @@ window._FOOTER_HTML = `<footer>
             pdpNav.classList.toggle('tabn-peek-hidden',entries[0].isIntersecting);
           },{threshold:0.1}).observe(anchor);
         };
-        /* buyButtons is rendered after JS init — wait for it */
+        /* buyButtons is rendered after JS init, wait for it */
         if(document.getElementById('buyButtons')){_watchBuyButtons();}
         else{setTimeout(_watchBuyButtons,800);setTimeout(_watchBuyButtons,2000);}
       }catch(_){}
@@ -418,9 +418,9 @@ window._FOOTER_HTML = `<footer>
       '<a href="/index.html" class="tabn-item'+(isHome?' active':'')+'" aria-label="Home">'+
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>'+
         '<span>Home</span></a>'+
-      '<a href="/products.html" class="tabn-item'+(isShop?' active':'')+'" aria-label="Shop">'+
+      '<a href="/products.html" class="tabn-item'+(isShop?' active':'')+'" aria-label="Studio">'+
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>'+
-        '<span>Shop</span></a>'+
+        '<span>Studio</span></a>'+
       '<a href="/wishlist.html" class="tabn-item'+(isWish?' active':'')+'" aria-label="Wishlist">'+
         '<span class="tabn-ico-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>'+
         '<span class="wishlist-badge tabn-badge" id="tabnWishBadge">0</span></span>'+
@@ -466,7 +466,7 @@ window._FOOTER_HTML = `<footer>
            Android); label squeeze runs everywhere since it's cheap. Both
            no-op under reduced motion. transform/opacity only, no layout
            reads on the item list (their centers are measured once, not
-           per frame) — the only per-frame reads are on the pill itself,
+           per frame), the only per-frame reads are on the pill itself,
            unavoidable since the CSS transition engine drives its value. */
         var fringeLeft=null,fringeRight=null;
         try{
@@ -644,7 +644,7 @@ window._FOOTER_HTML = `<footer>
 
           function endDrag(e){
             clearTimeout(timer);
-            if(!dragging)return; /* plain tap — default link navigation proceeds untouched */
+            if(!dragging)return; /* plain tap, default link navigation proceeds untouched */
             dragging=false;
             justDragged=true;
             setTimeout(function(){justDragged=false;},0);
@@ -674,7 +674,7 @@ window._FOOTER_HTML = `<footer>
             }else{
               ind.classList.remove('tabn-indicator--noanim');
               place(targetEl,true);
-              runFxDuring(300); /* short — the page unloads at 150ms anyway */
+              runFxDuring(300); /* short, the page unloads at 150ms anyway */
               setTimeout(function(){location.href=targetEl.getAttribute('href');},150);
             }
           }
@@ -688,7 +688,7 @@ window._FOOTER_HTML = `<footer>
       }
     }catch(_){}
   }
-  /* Build immediately — partials.js is a blocking script at the top of
+  /* Build immediately, partials.js is a blocking script at the top of
      <body>, so the tab bar exists before first paint and stays in the very
      first frame of cross-page view transitions (no blink between pages). */
   if(document.body)build();
@@ -697,7 +697,7 @@ window._FOOTER_HTML = `<footer>
 })();
 
 /* ════════════════════════════════════════════════════════════════════
-   ACCESSIBILITY WIDGET — site-wide
+   ACCESSIBILITY WIDGET, site-wide
    partials.js is a blocking script at the top of <body>, so saved
    settings are applied to <html> before first paint = zero flash.
    The widget UI itself is built once the DOM is ready.

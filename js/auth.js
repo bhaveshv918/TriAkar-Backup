@@ -1,4 +1,4 @@
-/* TriAkar — auth.js */
+/* TriAkar, auth.js */
 
 const Auth = (function () {
   const API_BASE = window.location.hostname === 'localhost'
@@ -25,7 +25,7 @@ const Auth = (function () {
     return t ? { Authorization: 'Bearer ' + t } : {};
   }
 
-  // Synchronous fallback (for callers that can't await) — token may be stale
+  // Synchronous fallback (for callers that can't await), token may be stale
   function authHeader() {
     const t = getToken();
     return t ? { Authorization: 'Bearer ' + t } : {};
@@ -35,7 +35,7 @@ const Auth = (function () {
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(USER_KEY, JSON.stringify(user));
     if (refresh) localStorage.setItem(REFRESH_KEY, refresh);
-    // store expiry as unix ms — default to 55 min if not provided (Supabase default is 60min)
+    // store expiry as unix ms, default to 55 min if not provided (Supabase default is 60min)
     const expiry = Date.now() + ((expiresIn || 3300) * 1000);
     localStorage.setItem(EXPIRY_KEY, String(expiry));
   }
@@ -73,11 +73,11 @@ const Auth = (function () {
             _save(d.access_token, user, d.refresh_token || refresh, d.expires_in);
           }
         } else {
-          // Refresh failed — token is truly expired, log out silently
+          // Refresh failed, token is truly expired, log out silently
           _clear();
           _updateNav();
         }
-      } catch (_) { /* network error — keep existing token */ }
+      } catch (_) { /* network error, keep existing token */ }
       finally { _refreshPromise = null; }
     })();
     return _refreshPromise;
@@ -113,7 +113,7 @@ const Auth = (function () {
     _save(data.access_token, data.user, data.refresh_token, data.expires_in);
     _updateNav();
     // Merge any guest cart with the server cart so nothing added while
-    // logged out is lost. Best-effort — never blocks the login result.
+    // logged out is lost. Best-effort, never blocks the login result.
     try { if (typeof Cart !== 'undefined' && Cart.mergeOnLogin) await Cart.mergeOnLogin(); } catch (_) {}
     // Merge guest wishlist with the server wishlist on login. Best-effort.
     try { if (typeof Wishlist !== 'undefined' && Wishlist.mergeOnLogin) await Wishlist.mergeOnLogin(); } catch (_) {}
@@ -121,7 +121,7 @@ const Auth = (function () {
   }
 
   // Bridge an externally-obtained Supabase session (e.g. Google OAuth) into the
-  // app's auth storage so the rest of the site — which is token-based — works
+  // app's auth storage so the rest of the site, which is token-based, works
   // identically to a password login. The OAuth access_token is a normal Supabase
   // token and passes the server's requireAuth check.
   async function setSession(token, user, refresh, expiresIn) {

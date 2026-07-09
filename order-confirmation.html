@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- Google tag (gtag.js) — customer traffic (G-Z6MSF7F44G) -->
+<!-- Google tag (gtag.js), customer traffic (G-Z6MSF7F44G) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-Z6MSF7F44G"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -185,7 +185,7 @@ function renderOrder(order) {
     ? '<div class="wa-note">'
       + '<div class="wa-note-icon"><svg viewBox="0 0 24 24" fill="white" width="20" height="20"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 0C5.373 0 0 5.373 0 12c0 2.117.554 4.105 1.523 5.83L.057 23.522a.5.5 0 00.62.607l5.802-1.522A11.938 11.938 0 0012 24c6.627 0 12-5.373 12-12S18.626 0 11.999 0zm0 21.818a9.8 9.8 0 01-5.027-1.38l-.36-.214-3.726.977.995-3.63-.235-.374A9.818 9.818 0 012.182 12c0-5.415 4.403-9.818 9.818-9.818 5.414 0 9.818 4.403 9.818 9.818 0 5.414-4.404 9.818-9.819 9.818z"/></svg></div>'
       + '<div class="wa-note-body">'
-      + '<div class="wa-note-title">Payment Pending — Order Partially Confirmed</div>'
+      + '<div class="wa-note-title">Payment Pending, Order Partially Confirmed</div>'
       + '<div class="wa-note-text">We\'ve received your order details. Our team will message you on WhatsApp at <strong>' + (order.customer_phone || 'your number') + '</strong> to confirm the order and share payment details. Production begins after payment is received.</div>'
       + '</div></div>'
     : '';
@@ -228,7 +228,7 @@ function showError(msg) {
    before an order can be placed (checkout.html), so a legitimate buyer always
    has a session by the time they land here. Anyone opening a copied/shared
    link while logged out is sent to sign in and returned to this exact URL
-   afterwards — we never fabricate a confirmation from the URL alone. */
+   afterwards, we never fabricate a confirmation from the URL alone. */
 function _requireLogin() {
   if (localStorage.getItem('ta_token')) return true;
   try { sessionStorage.setItem('ta_return_url', window.location.href); } catch (e) {}
@@ -253,7 +253,7 @@ async function loadOrder() {
 
   const token = localStorage.getItem('ta_token');
 
-  // 1. Supabase — RLS scopes this to the signed-in user's own orders only.
+  // 1. Supabase, RLS scopes this to the signed-in user's own orders only.
   try {
     const sb = (typeof _ensureSB === 'function') ? await _ensureSB() : null;
     if (sb) {
@@ -270,7 +270,7 @@ async function loadOrder() {
     }
   } catch (e) { console.error('order-confirmation supabase query failed:', e); }
 
-  // 2. Express API fallback — server re-verifies the order belongs to this user.
+  // 2. Express API fallback, server re-verifies the order belongs to this user.
   try {
     const res = await fetch(API_BASE + '/api/orders/' + encodeURIComponent(orderId), {
       headers: { Authorization: 'Bearer ' + token }
@@ -279,7 +279,7 @@ async function loadOrder() {
     const { order } = await res.json();
     renderOrder(order);
   } catch (err) {
-    // Not this user's order (or it doesn't exist) — show an honest message,
+    // Not this user's order (or it doesn't exist), show an honest message,
     // never a fabricated confirmation.
     showError('We couldn\'t find this order in your account. If you just placed it, check <a href="account.html" style="color:var(--accent)">My Orders</a>.');
   }

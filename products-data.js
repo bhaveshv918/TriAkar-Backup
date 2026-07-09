@@ -14,20 +14,20 @@
 // Example: cloudinaryId: 'triakar/arc-desk-organizer'
 
 /* TRIAKAR products-data.js v6 */
-/* Demo products removed — all products are served from Supabase via API */
+/* Demo products removed, all products are served from Supabase via API */
 const PRODUCTS = {};
 
 /* ── Gift-UX field normaliser ───────────────────────────────
  * Every product gets rating, delivery_text, ready_to_ship, occasion,
  * recipient, materials, default_material, short_description, tags and
- * is_gift_suitable — derived deterministically from its category/price
+ * is_gift_suitable, derived deterministically from its category/price
  * so cards render rich, varied data without hand-editing each product.
  * Existing fields (name, price, badge, etc.) are never overwritten.   */
 function enrichProduct(p, slug){
   if (!p || typeof p !== 'object') return p;
   slug = slug || p.slug || p.id || (p.name || '');
   var cat = p.category || 'gifting';
-  // Deterministic 0..1 from a string (stable across loads — no random flicker)
+  // Deterministic 0..1 from a string (stable across loads, no random flicker)
   var h = 0, key = String(slug) + (p.name || '');
   for (var i = 0; i < key.length; i++){ h = (h * 31 + key.charCodeAt(i)) >>> 0; }
   var s = (h % 1000) / 1000;
@@ -67,7 +67,7 @@ function enrichProduct(p, slug){
   }
   if (!p.occasion){
     // Prefer occasions stored on the product (migration 004). Derive only as a
-    // fallback when the DB column is empty — keeps old rows working unchanged.
+    // fallback when the DB column is empty, keeps old rows working unchanged.
     if (Array.isArray(p.occasions) && p.occasions.length){
       p.occasion = p.occasions.slice();
     } else {

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
- * TriAkar — Pricing Engine (single source of truth)
+ * TriAkar, Pricing Engine (single source of truth)
  *
  * One cost-up model used everywhere:
  *   • server/scripts/import-products.js  (bulk pricing at import)
@@ -13,7 +13,7 @@
  *      → that rounded number is the LISTED / SELLING price.
  *   4. MRP = listed price × 2–3 (shown crossed-out).  Default 2.5×.
  *
- * Every number below is a CONFIG default — tune in PRICING_CONFIG, the math
+ * Every number below is a CONFIG default, tune in PRICING_CONFIG, the math
  * never changes. `quote()` returns a full breakdown so pricing is transparent.
  *
  * UMD: exposes `window.TriakarPricing` in the browser and module.exports in Node.

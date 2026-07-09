@@ -1,13 +1,13 @@
-/* TRIAKAR shared.js v7 — Full Order Flow + Supabase */
+/* TRIAKAR shared.js v7, Full Order Flow + Supabase */
 
-/* Image optimiser — defined in partials.js; this no-op shim guards against
+/* Image optimiser, defined in partials.js; this no-op shim guards against
    load-order issues so bare taImg(url) never throws. */
 if (typeof window !== 'undefined' && typeof window.taImg !== 'function') {
   window.taImg = function (u) { return u || ''; };
 }
 var taImg = window.taImg;
 
-/* ── FIX #12: HTML escape helper — use for all user-supplied data in innerHTML ── */
+/* ── FIX #12: HTML escape helper, use for all user-supplied data in innerHTML ── */
 function _esc(s){
   if(s===null||s===undefined)return'';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -25,7 +25,7 @@ function _esc(s){
   document.head.appendChild(s);
 })();
 
-/* ── Supabase Client (lazy-loaded — not fetched until actually needed) ── */
+/* ── Supabase Client (lazy-loaded, not fetched until actually needed) ── */
 const SUPABASE_URL='https://qarjbmogersuaerkhlcu.supabase.co';
 const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
 const _SB_CDN='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0';
@@ -72,7 +72,7 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
   document.body.appendChild(btn);
   window.addEventListener('scroll',()=>btn.classList.toggle('show',window.scrollY>300),{passive:true});
 
-  // Fast eased scroll — 320ms ease-out (much snappier than native smooth)
+  // Fast eased scroll, 320ms ease-out (much snappier than native smooth)
   btn.addEventListener('click',function(){
     const start=window.scrollY;
     const startTime=performance.now();
@@ -94,7 +94,7 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
   const drawer=document.querySelector('.nav-drawer');
   /* Same real SVG-refraction glass as the mobile bottom nav (see
      partials.js), applied to the top nav's floating "scrolled" capsule.
-     Android skipped — its feDisplacementMap renders weak, plain blur only. */
+     Android skipped, its feDisplacementMap renders weak, plain blur only. */
   var isAndroid=/Android/i.test(navigator.userAgent);
 
   var navEl=null,ticking=false,wasScrolled=false,distortTimer=null,offsetTimer=null;
@@ -128,7 +128,7 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
       if(s){
         /* Let the shape morph into the capsule on plain blur first (cheap),
            only add the expensive SVG-refraction filter once that .45s
-           transition has settled — recomputing feDisplacementMap on the
+           transition has settled, recomputing feDisplacementMap on the
            same frame the box is also resizing/repositioning is the
            single biggest source of the scroll-start jank. */
         if(!isAndroid) distortTimer=setTimeout(function(){navEl.classList.add('nav-distort');},460);
@@ -153,7 +153,7 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
   /* rAF-throttled: raw scroll events can fire far more often than the
      screen refreshes, especially on trackpads/momentum scroll. Without
      this, every single one of those events re-queried the DOM and wrote
-     to two classLists — throttling to once per frame is what actually
+     to two classLists, throttling to once per frame is what actually
      removes the "sometimes laggy" hitch right as scrolling starts. */
   window.addEventListener('scroll',function(){
     if(!ticking){ticking=true;requestAnimationFrame(applyScrollState);}
@@ -163,7 +163,7 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
     offsetTimer=setTimeout(updateHeaderOffset,150);
   },{passive:true});
 
-  /* Sync immediately on load too, not just on the next scroll event — a
+  /* Sync immediately on load too, not just on the next scroll event, a
      page can load already scrolled (an anchor link, or the browser
      restoring scroll position on refresh/back-navigation), and without
      this the header/sidebar state wouldn't be correct until the user
@@ -268,7 +268,7 @@ function applyNavActiveState(){
     a.classList.remove('active','nav-active');
     if(!match)return;
     const href=(a.getAttribute('href')||'').toLowerCase();
-    // Exact filename match, not substring — 'track-order.html' contains
+    // Exact filename match, not substring, 'track-order.html' contains
     // 'order.html' as a substring, which used to false-match Customization's
     // active state onto Track Order too.
     const hrefFile=href.split('/').pop().split('?')[0].split('#')[0];
@@ -294,7 +294,7 @@ const Cart=(function(){
   try{
     const raw=JSON.parse(localStorage.getItem(CART_KEY)||localStorage.getItem('ta_cart')||'[]');
     items=raw.map(i=>({id:i.id,name:i.name,price:i.price,quantity:i.quantity||i.qty||1,color:i.color||i.variant||'',image:i.image||i.img||'',customization:i.customization||null}));
-    /* Dedup on load — cleans any dupes that accumulated from the color
+    /* Dedup on load, cleans any dupes that accumulated from the color
        normalisation bug (undefined vs '' mismatch in add()).  Later entries
        are dropped; quantities are preserved on the first entry. */
     var _seen=new Set();
@@ -314,7 +314,7 @@ const Cart=(function(){
   function _custKey(cust){if(!cust||!Object.keys(cust).length)return '';return JSON.stringify(cust);}
   function add(p){
     const ck=_custKey(p.customization||null);
-    const nc=p.color||''; /* normalise — storage always uses '' not undefined */
+    const nc=p.color||''; /* normalise, storage always uses '' not undefined */
     const idx=items.findIndex(i=>i.id===p.id&&i.color===nc&&_custKey(i.customization||null)===ck);
     if(idx>-1){
       items[idx].quantity++;
@@ -397,7 +397,7 @@ const Cart=(function(){
   }
 
   function _renderCartItems(el){
-    /* Event delegation — set up once per container element, survives innerHTML
+    /* Event delegation, set up once per container element, survives innerHTML
        rebuilds. Reads id/color/ck from data-* attributes so no quoting issues. */
     if(!el._taCartBound){
       el._taCartBound=true;
@@ -415,7 +415,7 @@ const Cart=(function(){
       const custHtml=item.customization&&Object.keys(item.customization).length
         ?'<div class="ci-cust">'+Object.entries(item.customization).map(([k,v])=>`<span><b>${_esc(k)}:</b> ${_esc(v)}</span>`).join('')+'</div>'
         :'';
-      /* data-* stores id/color/ck safely — no JS quoting inside HTML attributes */
+      /* data-* stores id/color/ck safely, no JS quoting inside HTML attributes */
       const da=`data-id="${_esc(item.id)}" data-color="${_esc(item.color||'')}" data-ck="${_esc(ckRaw)}"`;
       return`<div class="cart-item">
         <div class="ci-img">${item.image
@@ -595,7 +595,7 @@ function openCart(){
   document.getElementById('cartSidebar')?.classList.add('open');
   document.getElementById('cartOverlay')?.classList.add('open');
   Cart.render();
-  // Always try to enrich images when cart opens — catches items loaded from localStorage
+  // Always try to enrich images when cart opens, catches items loaded from localStorage
   Cart._enrichImages().then(changed=>{
     if(changed){
       const el=document.getElementById('cartItemsList');
@@ -682,11 +682,11 @@ function generateTRKId(){
 
 /* ══ PINCODE AUTO-FILL ════════════════════════════════════ */
 // Strategy (in order):
-//   1. Nominatim postalcode= — OSM postcode endpoint. Parses ISO3166-2-lvl4
+//   1. Nominatim postalcode=, OSM postcode endpoint. Parses ISO3166-2-lvl4
 //      because postalcode= responses never include address.state directly.
-//   2. /api/pincode/:pin — our own server proxy to India Post
+//   2. /api/pincode/:pin, our own server proxy to India Post
 //      (api.postalpincode.in SSL cert expired; server bypasses it).
-//   3. {unavailable:true} — soft warning, user fills manually. Never blocks.
+//   3. {unavailable:true}, soft warning, user fills manually. Never blocks.
 
 // ISO 3166-2 India → canonical state name
 const _ISO_STATE={
@@ -756,7 +756,7 @@ async function lookupPincode(pin){
   return{unavailable:true};
 }
 
-// State name normaliser — handles all Indian states/UTs plus common OSM/India Post variants
+// State name normaliser, handles all Indian states/UTs plus common OSM/India Post variants
 function _normaliseState(raw){
   if(!raw)return'';
   const map={
@@ -817,7 +817,7 @@ function _normaliseState(raw){
 /* ══ PIN CODE AUTOFILL HELPER ═════════════════════════════ */
 // Attaches smart PIN autofill to any pincode input.
 // Shows: ✓ green (auto-filled) | ⚠ yellow (API down, fill manually) | nothing for < 6 digits
-// NEVER blocks the user — format check (6 digits, no leading 0) is the only gate.
+// NEVER blocks the user, format check (6 digits, no leading 0) is the only gate.
 function attachPincodeAutofill(pinId, infoId, cityId, districtId, stateId, stateWrapId){
   const pinEl=document.getElementById(pinId);
   if(!pinEl)return;
@@ -834,7 +834,7 @@ function attachPincodeAutofill(pinId, infoId, cityId, districtId, stateId, state
     infoEl.innerHTML='<span style="color:var(--stone,#888)">⟳ Looking up PIN…</span>';
     const info=await lookupPincode(val);
     if(info&&!info.unavailable){
-      // Success — always overwrite city, district, state from fresh PIN lookup
+      // Success, always overwrite city, district, state from fresh PIN lookup
       const cityEl=document.getElementById(cityId);
       const distEl=document.getElementById(districtId);
       const stateEl=document.getElementById(stateId);
@@ -857,8 +857,8 @@ function attachPincodeAutofill(pinId, infoId, cityId, districtId, stateId, state
       }
       infoEl.innerHTML='<span style="color:#15803d">✓ '+(info.district||info.city||'')+', '+info.state+'</span>';
     } else {
-      // API down or PIN not in its DB — never an error, just let user fill
-      infoEl.innerHTML='<span style="color:var(--stone,#888)">⚠ Could not auto-fill — please enter city &amp; state manually</span>';
+      // API down or PIN not in its DB, never an error, just let user fill
+      infoEl.innerHTML='<span style="color:var(--stone,#888)">⚠ Could not auto-fill, please enter city &amp; state manually</span>';
     }
   });
 }
@@ -876,8 +876,8 @@ async function loadSavedAddresses(){
   }catch(e){return[]}
 }
 
-/* ══ CHECKOUT — ORDER FORM MODAL ═══════════════════════════ */
-/* Strict login gate — no login = no checkout */
+/* ══ CHECKOUT, ORDER FORM MODAL ═══════════════════════════ */
+/* Strict login gate, no login = no checkout */
 function isLoggedInStrict(){
   const token=localStorage.getItem('ta_token');
   const user=localStorage.getItem('ta_user');
@@ -924,7 +924,7 @@ document.addEventListener('DOMContentLoaded',function(){
 });
 
 
-/* WhatsApp floating button — disabled per request */
+/* WhatsApp floating button, disabled per request */
 
 /* ══ SITE-WIDE SEARCH OVERLAY ══════════════════════════════ */
 (function(){
@@ -1127,7 +1127,7 @@ function generateCallbackRef(){
   return 'TRK-CALL-'+yyyy+mm+dd+'-'+rand;
 }
 
-/* Resilient Supabase insert for callback_requests — retries with minimal columns
+/* Resilient Supabase insert for callback_requests, retries with minimal columns
    if the full row fails (e.g. missing columns in schema). */
 async function _insertCallbackResilient(payload){
   const sb=await _ensureSB();
@@ -1155,7 +1155,7 @@ function _renderCallbackInline(html,kind){
   box.innerHTML=html;
 }
 
-/* Shared async submit — usable from anywhere (custom.html etc.) */
+/* Shared async submit, usable from anywhere (custom.html etc.) */
 async function submitCallbackRequest(formData){
   const data=formData||{};
   const name=(data.name||'').trim();
@@ -1171,14 +1171,14 @@ async function submitCallbackRequest(formData){
 
   if(dbResult.ok){
     gtagEvent('generate_lead',{currency:'INR',value:0,lead_source:'callback'});
-    // Best-effort, fire-and-forget owner notification — never blocks the WA + inline flow.
+    // Best-effort, fire-and-forget owner notification, never blocks the WA + inline flow.
     try {
       const API = window.location.hostname==='localhost' ? 'http://localhost:3000' : 'https://triakar.onrender.com';
       fetch(API+'/api/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'callback',data:{reference_id:reference_id,name:name,phone:phone,topic:topic,preferred_time:preferred_time}})}).catch(function(){});
     } catch(_){}
   }
 
-  // WhatsApp pre-filled message — KEEP existing behaviour
+  // WhatsApp pre-filled message, KEEP existing behaviour
   const waMsg='*Callback Request*\n'
     +'*Ref:* '+reference_id+'\n'
     +'Name: '+name+'\n'
@@ -1265,7 +1265,7 @@ function getProfileCache(){
   try{return JSON.parse(localStorage.getItem('ta_profile')||'null')}catch(_){return null}
 }
 
-/* Resolve best display name — priority: profile.nickname > first word of full_name > email prefix */
+/* Resolve best display name, priority: profile.nickname > first word of full_name > email prefix */
 function resolveDisplayName(user,profile){
   if(profile&&profile.nickname&&profile.nickname.trim())return profile.nickname.trim();
   if(profile&&profile.full_name&&profile.full_name.trim())return profile.full_name.trim().split(' ')[0];
@@ -1301,7 +1301,7 @@ function updateNavAuth(){
 
     if(user){
       if(shopBtn) shopBtn.style.display='none';
-      // Use cached profile for nickname — refresh happens async after render
+      // Use cached profile for nickname, refresh happens async after render
       const profile=getProfileCache();
       const displayName=resolveDisplayName(user,profile);
       const wrap=document.createElement('div');
@@ -1325,7 +1325,7 @@ function updateNavAuth(){
         else{localStorage.removeItem('ta_token');localStorage.removeItem('ta_user');window.location.href='index.html';}
       });
 
-      // Async refresh profile — updates name if nickname changed
+      // Async refresh profile, updates name if nickname changed
       refreshProfileCache().then(function(fresh){
         if(!fresh)return;
         const freshName=resolveDisplayName(user,fresh);
@@ -1529,7 +1529,7 @@ function prefillCheckout(){
 
 /* ══ DOM READY ══════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded',function(){
-  // Critical path: badge + nav state only — must be instant
+  // Critical path: badge + nav state only, must be instant
   Cart.badge();
   Wishlist.refresh();
   // BUG 5: Auth.init() refreshes a near-expiry token and reconciles nav with the
@@ -1545,7 +1545,7 @@ document.addEventListener('DOMContentLoaded',function(){
     requestAnimationFrame(function(){
       Cart.render();
 
-      // Sync cart from server 2.5 s after load — avoids competing with page resources.
+      // Sync cart from server 2.5 s after load, avoids competing with page resources.
       // On fast connections this feels instant; on slow connections it doesn't block LCP.
       setTimeout(function(){
         Cart.loadFromServer().then(function(){
@@ -1562,7 +1562,7 @@ document.addEventListener('DOMContentLoaded',function(){
 
 /* ══ IMAGE PROTECTION (prevent casual right-click / drag copy) ══ */
 /* Note: determined users can still screenshot. True signed-URL protection
-   available via Cloudinary — add signed delivery profile for full DRM. */
+   available via Cloudinary, add signed delivery profile for full DRM. */
 document.addEventListener('contextmenu',function(e){
   if(e.target.tagName==='IMG'&&(
     e.target.closest('.prod-img')||
@@ -1587,9 +1587,9 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 });
 
-/* SERVICE WORKER — registered by partials.js (single registration) */
+/* SERVICE WORKER, registered by partials.js (single registration) */
 
-/* ══ PWA INSTALL PROMPT — mobile only, once per session ════
+/* ══ PWA INSTALL PROMPT, mobile only, once per session ════
    Triggers after 2 page views OR 30 s on site, whichever first.
    iOS: shows manual instructions. Android: uses beforeinstallprompt. */
 (function(){
@@ -1612,7 +1612,7 @@ document.addEventListener('DOMContentLoaded', function(){
     var isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.MSStream;
 
     if(isIOS){
-      // iOS: no beforeinstallprompt — show manual tip
+      // iOS: no beforeinstallprompt, show manual tip
       var tip = document.createElement('div');
       tip.className = 'pwa-ios-tip show';
       tip.innerHTML = 'Add to your home screen: tap <b>Share ⬆</b> then <b>"Add to Home Screen"</b>';
@@ -1659,7 +1659,7 @@ document.addEventListener('DOMContentLoaded', function(){
 })();
 
 /* ════════════════════════════════════════════════════════════════════
-   LIQUID GLASS — micro-interactions (toast, ripple, scroll-reveal)
+   LIQUID GLASS, micro-interactions (toast, ripple, scroll-reveal)
    ════════════════════════════════════════════════════════════════════ */
 (function(){
   /* ── Toast notifications ── */

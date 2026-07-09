@@ -1,4 +1,4 @@
-/* TriAkar Service Worker — static asset cache
+/* TriAkar Service Worker, static asset cache
    Strategy: Stale-While-Revalidate for HTML/CSS/JS (instant page changes,
    refreshed in the background), Cache-First for fonts/images, network-only
    for APIs. Version bump (CACHE_VER) forces all clients to re-fetch on
@@ -8,7 +8,7 @@ const CACHE_VER = 'ta-v155';
 const CACHE_NAME = 'triakar-' + CACHE_VER;
 
 /* Assets to pre-cache on install (shell).
-   NOTE: page URLs must be the CLEAN (post-redirect) form — caching a
+   NOTE: page URLs must be the CLEAN (post-redirect) form, caching a
    redirected response and serving it to a navigation request makes
    Chrome fail the whole navigation with ERR_FAILED. */
 const PRECACHE = [
@@ -34,7 +34,7 @@ self.addEventListener('install', function(e) {
   );
 });
 
-/* ── ACTIVATE — purge old caches ────────────────────────── */
+/* ── ACTIVATE, purge old caches ────────────────────────── */
 self.addEventListener('activate', function(e) {
   e.waitUntil(
     caches.keys().then(function(keys) {
@@ -56,12 +56,12 @@ self.addEventListener('fetch', function(e) {
   /* Skip non-GET, chrome-extension, cross-origin API calls */
   if (req.method !== 'GET') return;
   if (url.startsWith('chrome-extension')) return;
-  if (url.includes('triakar.onrender.com')) return;   // API — always network
-  if (url.includes('supabase.co')) return;            // Supabase — always network
-  if (url.includes('razorpay.com')) return;           // Payments — always network
-  if (url.includes('googletagmanager.com')) return;   // Analytics — skip
+  if (url.includes('triakar.onrender.com')) return;   // API, always network
+  if (url.includes('supabase.co')) return;            // Supabase, always network
+  if (url.includes('razorpay.com')) return;           // Payments, always network
+  if (url.includes('googletagmanager.com')) return;   // Analytics, skip
 
-  /* HTML + app shell (CSS / JS): Stale-While-Revalidate — serve the cached
+  /* HTML + app shell (CSS / JS): Stale-While-Revalidate, serve the cached
      copy instantly (no network wait between pages), refresh it in the
      background. Deploys still reach users: CACHE_VER bumps re-fetch
      everything and the controllerchange hook reloads once. */
@@ -69,7 +69,7 @@ self.addEventListener('fetch', function(e) {
   if (isHTML || /\.(?:css|js)(?:\?|$)/.test(url)) {
     e.respondWith(
       caches.match(req).then(function(maybeCached) {
-        /* Never serve a redirected response to a navigation — Chrome
+        /* Never serve a redirected response to a navigation, Chrome
            rejects it (ERR_FAILED) because navigations use redirect:manual */
         var cached = (maybeCached && maybeCached.redirected) ? undefined : maybeCached;
         var network = fetch(req).then(function(res) {
@@ -85,7 +85,7 @@ self.addEventListener('fetch', function(e) {
               return off || new Response('<meta http-equiv="refresh" content="2">Reconnecting…', { status: 503, headers: { 'Content-Type': 'text/html' } });
             });
           }
-          /* never resolve undefined — that surfaces as ERR_FAILED ("site can't be reached") */
+          /* never resolve undefined, that surfaces as ERR_FAILED ("site can't be reached") */
           return new Response('', { status: 503 });
         });
         return cached || network;
