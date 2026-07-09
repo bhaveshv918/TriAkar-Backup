@@ -195,11 +195,15 @@ nav.main-nav{
    16px inset reads as a capsule on a 375px phone screen but is invisible
    on a 1440px desktop (just looks like a full-width bar with soft corners),
    so the inset itself scales with viewport width, capping the capsule at
-   1200px wide and never going below the original 16px on narrow screens. */
+   1400px wide and never going below the original 16px on narrow screens. */
 nav.main-nav.scrolled{
   top:14px;
-  left:max(16px, calc((100vw - 1200px) / 2));
-  right:max(16px, calc((100vw - 1200px) / 2));
+  /* Cap must stay wider than .nav-inner's max width (--max-w 1320 including
+     its 2x52px padding): with the old 1200px cap the capsule was narrower
+     than the pre-scroll bar, so a header row that fit fine unscrolled could
+     stop fitting the moment it morphed into the capsule. */
+  left:max(16px, calc((100vw - 1400px) / 2));
+  right:max(16px, calc((100vw - 1400px) / 2));
   min-height:56px;
   border-radius:999px;
   background:var(--glass-a-bg);
@@ -220,7 +224,14 @@ nav.main-nav.scrolled.nav-distort{
 }
 .nav-inner{
   display:flex; align-items:center; justify-content:space-between;
-  gap:12px 20px; flex-wrap:wrap;
+  gap:20px;
+  /* Never allow a second row. The bar's content width is not fixed (login
+     swaps to a "Hi, <name>" chip of arbitrary length), and body reserves a
+     fixed --nav-h of space, so a wrapped two-row header silently overlapped
+     the page below it. If the row genuinely stops fitting, the overflow
+     guard in shared.js flips the header into the compact hamburger layout
+     (html.nav-compact) instead of ever letting it grow taller. */
+  flex-wrap:nowrap;
   width:100%; max-width:var(--max-w);
   margin:0 auto; padding:10px var(--pad);
 }
@@ -251,7 +262,11 @@ nav.main-nav.scrolled.nav-distort{
   .logo-hi{font-size:16px}
 }
 
-.nav-links{display:flex;gap:10px 18px;flex-wrap:wrap;justify-content:center}
+/* nowrap, same reason as .nav-inner: if the links row can't fit it must
+   overflow sideways (which the shared.js guard converts into the compact
+   hamburger layout), never stack into a second row that makes the fixed-
+   height header taller than the space the page reserved for it. */
+.nav-links{display:flex;gap:18px;flex-wrap:nowrap;justify-content:center}
 /* Every link is a glass-pill chip waiting to happen, the padding/negative
    margin is set unconditionally so hovering or landing on the active page
    never shifts neighboring links or the header's layout, it only ever
@@ -297,7 +312,7 @@ nav.main-nav.scrolled.nav-distort{
   backdrop-filter:blur(6px) saturate(150%);
 }
 .nav-links a.nav-active:hover{transform:none}
-.nav-right{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;justify-content:flex-end}
+.nav-right{display:flex;align-items:center;gap:14px;flex-wrap:nowrap;justify-content:flex-end}
 .cart-btn{
   display:flex;align-items:center;gap:6px;position:relative;
   font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
@@ -360,7 +375,6 @@ nav.main-nav.scrolled.nav-distort{
 .nav-search button{display:flex;align-items:center;justify-content:center;background:none;border:none;padding:0;cursor:pointer;color:var(--warm);transition:color .2s}
 .nav-search button:hover{color:var(--accent)}
 @media(max-width:980px){.nav-search input{width:118px}}
-@media(max-width:1140px){.nav-search{display:none}}
 
 /* DRAWER SEARCH, mobile, inside the slide-out menu */
 .drawer-search{display:flex;align-items:center;gap:8px;margin:0 0 8px;background:rgba(255,255,255,.65);-webkit-backdrop-filter:blur(12px) saturate(140%);backdrop-filter:blur(12px) saturate(140%);border:1.5px solid rgba(255,255,255,.65);border-radius:999px;padding:8px 8px 8px 16px;box-shadow:0 1px 4px rgba(22,22,20,.05),inset 0 1px 0 rgba(255,255,255,.8)}
@@ -858,13 +872,18 @@ footer{background:var(--char-2);color:var(--ivory);padding:64px 0 28px}
 .prose a{color:var(--accent);text-decoration:underline}
 
 /* ── RESPONSIVE NAV (hamburger breakpoint) ───────────── */
-/* Threshold is 1200px, not 1140px: below ~1189px the full desktop row
-   (logo + 6 nav-links + search + wishlist + corporate CTA + cart + login)
-   no longer fits on one line, so nav-inner's flex-wrap:wrap silently drops
-   it to two rows. The nav's reserved height (--nav-h, used for body's
-   padding-top) stays fixed at the single-line value, so a wrapped nav
-   overlapped the page below it. Switching to the compact hamburger layout
-   before that wrap point keeps the nav single-line at every width. */
+/* Two triggers, same compact layout, and the two rule blocks below MUST be
+   kept identical:
+   1. @media(max-width:1200px): the widest the full desktop row (logo +
+      6 nav-links + search + wishlist + corporate CTA + cart + login) can
+      need when logged out.
+   2. html.nav-compact: set by the overflow guard in shared.js whenever the
+      row genuinely overflows at ANY width. The row's width isn't knowable
+      up front (login swaps in a "Hi, <name>" chip of arbitrary length), so
+      a fixed breakpoint alone can never cover every case. The bar is
+      flex-wrap:nowrap, so an unfixable row overflows sideways for a frame
+      at most before the guard flips it compact; it can never wrap to a
+      second row and overlap the page (the old glitch). */
 @media(max-width:1200px){
   .nav-links{display:none}
   .nav-toggle{display:flex;flex-shrink:0;order:-1}
@@ -877,6 +896,16 @@ footer{background:var(--char-2);color:var(--ivory);padding:64px 0 28px}
   .nav-search input{width:100%;min-width:0}
   .nav-corp,.nav-profile-btn,.nav-shop,.wishlist-btn,.cart-btn{display:none!important}
 }
+/* JS-driven twin of the media query above, keep in sync (see comment). */
+html.nav-compact .nav-links{display:none}
+html.nav-compact .nav-toggle{display:flex;flex-shrink:0;order:-1}
+html.nav-compact .nav-inner{justify-content:flex-start;gap:10px}
+html.nav-compact .logo{flex-shrink:0;order:0}
+html.nav-compact .nav-right{flex:1;min-width:0;order:1;justify-content:flex-end;gap:10px;padding-right:14px}
+html.nav-compact .nav-search{display:flex!important;flex:1 1 auto;min-width:0;max-width:190px;padding:6px 10px}
+html.nav-compact .nav-search input{width:100%;min-width:0}
+html.nav-compact .nav-corp,html.nav-compact .nav-profile-btn,html.nav-compact .nav-shop,
+html.nav-compact .wishlist-btn,html.nav-compact .cart-btn{display:none!important}
 /* Extra compress on small phones */
 @media(max-width:480px){
   .nav-inner{gap:6px}

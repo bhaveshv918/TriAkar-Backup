@@ -232,6 +232,71 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
   }
 })();
 
+/* ── Nav overflow guard ─────────────────────────────────
+   The header row's content width is not knowable up front: login swaps in
+   a "Hi, <name>" chip of arbitrary length, and the scrolled glass capsule
+   narrows the bar independently of the viewport. So no fixed media-query
+   breakpoint can guarantee the row fits. The bar is flex-wrap:nowrap
+   (shared.css), meaning it can never wrap to a second row and overlap the
+   page; if the single row genuinely overflows sideways, this guard flips
+   the header into the compact hamburger layout (html.nav-compact, the twin
+   of the <=1200px media query).
+   Anti-flicker: on failure we record the width the full layout needed
+   (scrollWidth), and only retry it once the bar is actually wider than
+   that, so it can't oscillate at the boundary. Because a measurement taken
+   mid-load can be transiently wrong and would then stick, the settled
+   moments (window load, web fonts ready) force an unconditional
+   re-evaluation instead of trusting the recorded value. classList changes
+   reflow synchronously, so a failed retry re-compacts before paint and is
+   never visible. */
+(function(){
+  var doc=document.documentElement,inner=null,needed=0,raf=0;
+  function ensureInner(){
+    if(!inner)inner=document.querySelector('.main-nav .nav-inner');
+    return !!inner;
+  }
+  function fits(){return inner.scrollWidth<=inner.clientWidth+1;}
+  function engage(){needed=inner.scrollWidth;doc.classList.add('nav-compact');}
+  function check(){
+    raf=0;
+    if(!ensureInner())return;
+    if(doc.classList.contains('nav-compact')){
+      if(inner.clientWidth>needed+8)revalidate();
+    }else if(!fits()){
+      engage();
+    }
+  }
+  function revalidate(){
+    if(!ensureInner())return;
+    doc.classList.remove('nav-compact');
+    if(!fits())engage();
+  }
+  function queue(){if(!raf)raf=requestAnimationFrame(check);}
+  function start(){
+    check();
+    window.addEventListener('resize',queue,{passive:true});
+    /* Authoritative re-evaluations once layout has truly settled: all
+       resources loaded, and web fonts swapped in (both change widths). */
+    if(document.readyState==='complete')revalidate();
+    else window.addEventListener('load',function(){revalidate();});
+    if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){revalidate();});
+    var nav=document.querySelector('.main-nav');
+    if(nav){
+      /* Re-check when the nav's content or state changes: the auth code
+         swaps Login for the profile chip after render, badges appear, and
+         the .scrolled class starts the morph into the narrower capsule. */
+      if(window.MutationObserver){
+        new MutationObserver(queue).observe(nav,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+      }
+      /* The capsule morph animates left/right over .45s, the bar's final
+         width only exists after the transition ends, so measure again then. */
+      nav.addEventListener('transitionend',queue);
+    }
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);
+  else start();
+})();
+
 /* ── Instant-feel navigation ─────────────────────────────
    Prefetch the primary tab/menu pages so tapping them skips the
    network round-trip (pairs with the CSS view transitions). */
