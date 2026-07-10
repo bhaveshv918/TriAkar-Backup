@@ -558,23 +558,54 @@ window._FOOTER_HTML = `<footer>
         };
         var snapThen=function(startEl,endEl){
           ind.classList.add('tabn-indicator--noanim');
-          if(!place(startEl)){ind.classList.remove('tabn-indicator--noanim');return;}
+          if(!place(startEl)){ind.classList.remove('tabn-indicator--noanim');return false;}
           ind.classList.add('on');
           void ind.offsetWidth; /* flush so the start position isn't animated */
+          var isRealSlide=startEl!==endEl;
           requestAnimationFrame(function(){
             ind.classList.remove('tabn-indicator--noanim');
             place(endEl,true); /* squeeze/stretch pop on arrival, the "liquid" morph */
-            runFxDuring(520); /* matches the .5s transform / .38s width transition */
+            /* The fringe/squeeze rAF loop reads computed styles every frame
+               for 520ms, only worth paying for when the pill is actually
+               travelling between two different tabs. A fresh load or direct
+               nav settles in place (startEl===endEl) with no real motion,
+               so skip it there, it was running on every single page view
+               site-wide for no visible benefit and just cost CPU/battery. */
+            if(isRealSlide)runFxDuring(520); /* matches the .5s transform / .38s width transition */
           });
+          return true;
         };
 
         var prevIdx=-1;
         try{var v=sessionStorage.getItem('ta_btmTab');if(v!==null)prevIdx=parseInt(v,10);}catch(_){}
 
-        if(prevIdx>=0&&prevIdx<items.length&&prevIdx!==curIdx){
-          snapThen(items[prevIdx],activeEl);   /* slide from the tab we came from */
-        }else{
-          snapThen(activeEl,activeEl);          /* fresh load → settle in place */
+        var doInitialPlace=function(){
+          if(prevIdx>=0&&prevIdx<items.length&&prevIdx!==curIdx){
+            return snapThen(items[prevIdx],activeEl);   /* slide from the tab we came from */
+          }
+          return snapThen(activeEl,activeEl);            /* fresh load → settle in place */
+        };
+
+        if(!doInitialPlace()){
+          /* Nav has zero size right now, e.g. account.html starts with
+             body.acct-auth hiding .ta-bottomnav (display:none!important)
+             until the async session check resolves, so offsetWidth reads 0
+             and the pill can't be measured. Previously this left the
+             capsule missing forever (only recovering by accident if some
+             unrelated window "resize" happened to fire later). Watch the
+             nav's own box and place the pill the moment it actually gets
+             a size, instead of leaving it invisible with just the plain
+             orange active-tab color showing. */
+          if(typeof ResizeObserver!=='undefined'){
+            var visRO=new ResizeObserver(function(){
+              if(nav.offsetWidth>0){
+                visRO.disconnect();
+                measureItemCenters(); /* was measured at 0 while hidden, redo it now the box has real dimensions */
+                doInitialPlace();
+              }
+            });
+            visRO.observe(nav);
+          }
         }
         try{sessionStorage.setItem('ta_btmTab',String(curIdx));}catch(_){}
 
