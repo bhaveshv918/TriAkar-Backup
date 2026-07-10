@@ -1663,26 +1663,37 @@ html[data-theme="dark"] .biz-login{
 
       <!-- ── Order Report (CSV/Excel) ── -->
       <div id="importModeCsv">
-        <div class="form-grid-2" style="max-width:500px;margin-bottom:14px">
-          <div class="form-group">
-            <label>Platform, select one</label>
-            <input type="hidden" id="importPlatform" value="flipkart">
-            <div class="seg">
-              <button type="button" class="seg-btn active" data-v="flipkart" onclick="setImportPlatform('flipkart')">🛍️ Flipkart</button>
-              <button type="button" class="seg-btn" data-v="amazon" onclick="setImportPlatform('amazon')">📦 Amazon</button>
-              <button type="button" class="seg-btn" data-v="generic" onclick="setImportPlatform('generic')">Other</button>
+        <!-- Step 1: Settings -->
+        <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:10px">Step 1, Set defaults (applied to all rows in this file)</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Platform, select one</label>
+              <input type="hidden" id="importPlatform" value="flipkart">
+              <div class="seg">
+                <button type="button" class="seg-btn active" data-v="flipkart" onclick="setImportPlatform('flipkart')">🛍️ Flipkart</button>
+                <button type="button" class="seg-btn" data-v="amazon" onclick="setImportPlatform('amazon')">📦 Amazon</button>
+                <button type="button" class="seg-btn" data-v="generic" onclick="setImportPlatform('generic')">Other</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Default COGS if not in file (₹)</label>
+              <input type="number" id="importDefaultCogs" value="0" step="0.01" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label>Default Grams per Order <span style="color:var(--text-3);font-weight:400;text-transform:none">optional, same as Labels</span></label>
+              <input type="number" id="importDefaultGrams" value="0" step="1" placeholder="0">
             </div>
           </div>
-          <div class="form-group">
-            <label>Default COGS if not in file (₹)</label>
-            <input type="number" id="importDefaultCogs" value="0" step="0.01" placeholder="0">
-          </div>
-          <div class="form-group">
-            <label>Default Grams per Order <span style="color:var(--text-3);font-weight:400;text-transform:none">optional, same as Labels</span></label>
-            <input type="number" id="importDefaultGrams" value="0" step="1" placeholder="0">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Spool(s) to deduct grams from <span style="color:var(--text-3);font-weight:400;text-transform:none">optional, first is the default; add more so it rolls over once that spool runs out</span></label>
+            <div id="importSpoolRows"></div>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="addImportSpoolRow('import')" style="margin-top:6px">+ Add Spool</button>
           </div>
         </div>
 
+        <!-- Step 2: Upload -->
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Step 2, Upload CSV / Excel file</div>
         <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()" ondragover="dzDragOver(event)" ondragleave="dzDragLeave(event)" ondrop="dzDrop(event)">
           <div class="dz-icon">📂</div>
           <div class="dz-title">Click to select or drag & drop CSV / Excel file</div>
@@ -1690,9 +1701,9 @@ html[data-theme="dark"] .biz-login{
         </div>
         <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)">
 
-        <!-- Preview + mapping -->
+        <!-- Step 3: Preview + mapping -->
         <div class="import-preview" id="importPreview">
-          <h4>Column Mapping, <span id="importFileName">file.csv</span></h4>
+          <h4>Step 3, Column Mapping, <span id="importFileName">file.csv</span></h4>
           <div id="mappingRows"></div>
           <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
             <button class="btn btn-primary" onclick="runImport()">Import <span id="importRowCount">0</span> rows</button>
@@ -1758,6 +1769,11 @@ html[data-theme="dark"] .biz-login{
               <label>Default Grams per Order</label>
               <input type="number" id="lbl_grams" step="1" placeholder="0">
             </div>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Spool(s) to deduct grams from <span style="color:var(--text-3);font-weight:400;text-transform:none">optional, first is the default; add more so it rolls over once that spool runs out</span></label>
+            <div id="lblSpoolRows"></div>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="addImportSpoolRow('lbl')" style="margin-top:6px">+ Add Spool</button>
           </div>
         </div>
 
@@ -2116,6 +2132,7 @@ html[data-theme="dark"] .biz-login{
         <select id="rtChannel" onchange="loadReturns()"><option value="">All Channels</option><option value="shop">Studio</option><option value="amazon">Amazon</option><option value="flipkart">Flipkart</option><option value="website">Website</option></select>
         <select id="rtType" onchange="loadReturns()"><option value="">All Types</option><option value="return">Standard Return</option><option value="delivery_rejection">Delivery Rejection</option><option value="cancellation">In-Transit Cancellation</option><option value="spf_claim">SPF Claim</option><option value="az_claim">A-Z Claim</option><option value="chargeback">Chargeback</option><option value="other">Other</option></select>
         <select id="rtStatus" onchange="loadReturns()"><option value="">All Status</option><option value="pending">Pending</option><option value="won">Won</option><option value="lost">Lost</option><option value="partial">Partial</option></select>
+        <select id="rtFiled" onchange="loadReturns()" title="Whether a platform claim (SPF/A-Z/etc) was actually filed for this case"><option value="">Filed + Unfiled</option><option value="filed">Filed</option><option value="unfiled">Unfiled</option></select>
         <input type="month" id="rtMonth" onchange="loadReturns()">
       </div>
 
@@ -3092,7 +3109,7 @@ function switchTab(name){
   const loaders = {
     sales:loadSales, products:loadProducts, stock:loadStock,
     gst:loadGST, dashboard:loadDashboard,
-    import:populateLabelProductSelect, settings:loadBizSettings,
+    import:initImportPanel, settings:loadBizSettings,
     customers:loadCustomers, fees:loadFeesTab, returns:loadReturns, spooltracker:loadSpoolTracker, openorders:loadOpenOrders, expenses:loadExpenses, activity:loadBizActivity,
     ledger:loadLedger, purchases:loadPurchases, balance:loadBalanceSheet, shoplog:loadShopLog, machinery:loadMachinery,
     gstportal:loadGstPortal, invoicing:loadInvoicing,
@@ -3351,6 +3368,7 @@ async function loadAddSaleSpools(rerender){
     _addSaleSpools=data||[];
   }catch(_){ _addSaleSpools=[]; }
   if(rerender && typeof renderItems==='function') renderItems();
+  if(typeof renderImportSpoolRows==='function'){ renderImportSpoolRows('import'); renderImportSpoolRows('lbl'); }
 }
 function ensureSpools(){ if(_spoolsTried) return; _spoolsTried=true; loadAddSaleSpools(true); }
 function spoolOptions(selected){
@@ -3392,6 +3410,54 @@ async function deductSpoolsForRows(rows){
   for(const r of (rows||[])){
     if(r.spool_id) await applySpoolDelta(r.spool_id, parseFloat(r.grams_used)||0, parseFloat(r.spool_waste_grams)||0);
     if(Array.isArray(r.extra_spool_usage)){ for(const es of r.extra_spool_usage){ if(es.spool_id) await applySpoolDelta(es.spool_id, parseFloat(es.grams)||0, parseFloat(es.waste)||0); } }
+  }
+}
+
+// ── Bulk-import spool selection (CSV + Label import) ────────
+// Both import forms let you pick one or more spools before importing; the first
+// picked is the default and every row's grams come out of it first, rolling over
+// to the next picked spool once it runs dry (mirrors swapping a real spool mid-batch).
+let _importSpools=[''], _lblImportSpools=[''];
+function importSpoolState(prefix){ return prefix==='lbl'?_lblImportSpools:_importSpools; }
+function renderImportSpoolRows(prefix){
+  const wrap=document.getElementById((prefix==='lbl'?'lbl':'import')+'SpoolRows'); if(!wrap) return;
+  const arr=importSpoolState(prefix);
+  wrap.innerHTML=arr.map((v,i)=>`
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+      <select onchange="setImportSpoolRow('${prefix}',${i},this.value)" style="flex:1;min-width:0">${spoolOptions(v)}</select>
+      ${i===0?'<span class="badge" style="background:var(--bg-2);color:var(--text-3);white-space:nowrap">Default</span>':`<button type="button" class="btn btn-ghost btn-sm" onclick="removeImportSpoolRow('${prefix}',${i})">✕</button>`}
+    </div>`).join('');
+}
+function addImportSpoolRow(prefix){ ensureSpools(); importSpoolState(prefix).push(''); renderImportSpoolRows(prefix); }
+function removeImportSpoolRow(prefix,i){ const arr=importSpoolState(prefix); arr.splice(i,1); if(!arr.length) arr.push(''); renderImportSpoolRows(prefix); }
+function setImportSpoolRow(prefix,i,v){ importSpoolState(prefix)[i]=v; }
+// Splits each row's grams_used across the chosen spools in order, spilling into the
+// next spool once the current one's remaining grams are used up; sets spool_id (+
+// extra_spool_usage for the spillover) so the existing deductSpoolsForRows/restoreSpoolsForIds
+// machinery (spool_id, extra_spool_usage) picks it up with no further changes needed.
+function assignSpoolsToRows(rows, spoolIds){
+  const ids=(spoolIds||[]).filter(Boolean);
+  if(!ids.length) return;
+  const remain={};
+  ids.forEach(id=>{
+    const s=_addSaleSpools.find(r=>String(r.id)===String(id));
+    remain[id]=s?Math.max(0,(parseFloat(s.total_grams)||0)-(parseFloat(s.grams_used)||0)-(parseFloat(s.waste_grams)||0)):0;
+  });
+  let idx=0;
+  for(const r of (rows||[])){
+    let need=parseFloat(r.grams_used)||0;
+    if(need<=0) continue;
+    const used=[];
+    while(need>1e-9 && idx<ids.length){
+      const id=ids[idx], avail=remain[id]||0;
+      if(avail<=0){ idx++; continue; }
+      const take=Math.min(avail,need);
+      used.push({id,take}); remain[id]-=take; need-=take;
+      if(remain[id]<=0) idx++;
+    }
+    if(!used.length) continue;
+    r.spool_id=used[0].id;
+    if(used.length>1) r.extra_spool_usage=used.slice(1).map(u=>({spool_id:u.id,grams:u.take,waste:0}));
   }
 }
 // Restore grams to spools when sales are binned (fetch by id so it works no matter
@@ -3673,20 +3739,23 @@ async function resolveCustomerId(name, phone){
     return created.id;
   }catch(_){ return null; }
 }
-async function insertSalesResilient(rows){
-  if(rows.length&&rows[0].customer_name){
-    const custId=await resolveCustomerId(rows[0].customer_name, rows[0].customer_phone);
-    if(custId) rows=rows.map(r=>({...r,customer_id:custId}));
-  }
+async function insertRowsResilient(table, rows){
   let data=rows;
   for(let i=0;i<6;i++){
-    const r=await sb.from('biz_sales').insert(data);
+    const r=await sb.from(table).insert(data);
     if(!r.error) return r;
     const m=(r.error.message||'').match(/column "([^"]+)"/);
     if(!m) return r;
     const bad=m[1]; data=data.map(row=>{ const c={...row}; delete c[bad]; return c; });
   }
-  return { error:{ message:'sale insert failed (unknown columns)' } };
+  return { error:{ message:table+' insert failed (unknown columns)' } };
+}
+async function insertSalesResilient(rows){
+  if(rows.length&&rows[0].customer_name){
+    const custId=await resolveCustomerId(rows[0].customer_name, rows[0].customer_phone);
+    if(custId) rows=rows.map(r=>({...r,customer_id:custId}));
+  }
+  return insertRowsResilient('biz_sales', rows);
 }
 async function submitQuickAdd(e){
   if(e) e.preventDefault();
@@ -5718,7 +5787,7 @@ async function saveSpool(){
 
 async function loadReturnsBadge(){
   const el=document.getElementById('returnCount'); if(!el) return;
-  const {count}=await sb.from('biz_returns').select('*',{count:'exact',head:true}).eq('status','pending');
+  const {count}=await sb.from('biz_returns').select('*',{count:'exact',head:true});
   el.textContent=count||0;
 }
 
@@ -5845,10 +5914,12 @@ let _returnsCache=[];
 async function loadReturns(){
   let q=sb.from('biz_returns').select('*').order('date',{ascending:false}).limit(500);
   const v=id=>document.getElementById(id)?.value||'';
-  const ch=v('rtChannel'), ty=v('rtType'), st=v('rtStatus'), mo=v('rtMonth');
+  const ch=v('rtChannel'), ty=v('rtType'), st=v('rtStatus'), mo=v('rtMonth'), fl=v('rtFiled');
   if(ch) q=q.eq('channel_id',ch);
   if(ty) q=q.eq('type',ty);
   if(st) q=q.eq('status',st);
+  if(fl==='filed') q=q.not('claim_filed_date','is',null);
+  if(fl==='unfiled') q=q.is('claim_filed_date',null);
   if(mo){ q=q.gte('date',mo+'-01').lte('date',mo+'-31'); }
   const {data,error}=await q;
   if(error){ toast('Error: '+error.message,'error'); return; }
@@ -5878,7 +5949,7 @@ async function loadReturns(){
     <td>${prodCol}</td>
     <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(RETURN_STAGES[r.stage]||r.stage||'—')}</span></td>
     <td class="td-num" style="color:var(--red);font-weight:700">${fmt(r.amount_lost)}</td>
-    <td><span class="badge badge-${esc(r.status)}">${esc(r.status)}</span></td>
+    <td onclick="event.stopPropagation()"><select onchange="updateReturnStatus('${r.id}',this.value)" class="badge-select badge-${r.status==='won'?'won':r.status==='lost'?'lost':'pending'}"><option value="pending"${r.status==='pending'?' selected':''}>Pending</option><option value="won"${r.status==='won'?' selected':''}>Won</option><option value="lost"${r.status==='lost'?' selected':''}>Lost</option><option value="partial"${r.status==='partial'?' selected':''}>Partial</option></select></td>
     <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="editReturn('${r.id}')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteReturn('${r.id}')">✕</button></td>
   </tr>`;
   }).join('');
@@ -5970,6 +6041,12 @@ async function fetchReturnOrderCosts(){
   recalcReturn(); toast('Pulled costs from sale');
 }
 async function deleteReturn(id){ if(!confirm('Delete this return record?')) return; const {error}=await sb.from('biz_returns').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} logBizActivity('delete','return',id,''); toast('Deleted'); loadReturns(); loadReturnsBadge(); }
+async function updateReturnStatus(id,status){
+  const {error}=await sb.from('biz_returns').update({status}).eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  logBizActivity('edit','return',id,'status → '+status);
+  toast('Status updated'); loadReturns(); loadReturnsBadge();
+}
 async function saveReturn(){
   recalcReturn();
   const id=document.getElementById('rf_id').value;
@@ -7029,7 +7106,7 @@ function _fkGet(row, key){
   return undefined;
 }
 
-function buildFlipkartRow(row, defaultCogs){
+function buildFlipkartRow(row, defaultCogs, defaultGrams){
   const g=k=>_fkGet(row,k);
   const igst=_fkNum(g('IGST')), cg=_fkNum(g('CGST')), sg=_fkNum(g('SGST'));
   const gstRate = igst>0 ? igst : ((cg+sg)>0 ? cg+sg : 0);
@@ -7065,16 +7142,17 @@ function buildFlipkartRow(row, defaultCogs){
     package_size:pkg,
     weight_grams:wt?Math.round(wt*1000):null,
     cogs:defaultCogs,
+    grams_used:defaultGrams||null,
     platform_fee:0,
     import_source:'flipkart_csv',
   };
 }
 
-async function runFlipkartImport(defaultCogs){
+async function runFlipkartImport(defaultCogs, defaultGrams){
   const statusEl=document.getElementById('importStatus');
   statusEl.textContent='Reading…';
   // 1) draft rows
-  const draft=_importRows.map(r=>buildFlipkartRow(r,defaultCogs)).filter(r=>r.order_id);
+  const draft=_importRows.map(r=>buildFlipkartRow(r,defaultCogs,defaultGrams)).filter(r=>r.order_id);
   const skip=_importRows.length-draft.length;
   // 2) auto-create any new products so they appear in the catalog
   const created=await autoCreateProducts(draft);
@@ -7086,13 +7164,16 @@ async function runFlipkartImport(defaultCogs){
     if(cat){ r.product_id=cat.id; if(!r.hsn_code) r.hsn_code=cat.hsn_code||null; const pc=parseFloat(cat.base_cost)||0; if(pc>0) r.cogs=pc; }
     return applyPlatformFees(r);
   });
+  assignSpoolsToRows(batch, importSpoolState('import'));
   let success=0;
   for(let i=0;i<batch.length;i+=100){
-    const {error}=await sb.from('biz_sales').insert(batch.slice(i,i+100));
+    const {error}=await insertRowsResilient('biz_sales', batch.slice(i,i+100));
     if(error){ statusEl.textContent='Error: '+error.message; toast('Import error: '+error.message,'error'); return; }
     success+=Math.min(100,batch.length-i);
     statusEl.textContent=`Inserted ${success}…`;
   }
+  await deductSpoolsForRows(batch);
+  await loadAddSaleSpools();
   toast(`Imported ${success} Flipkart orders${created?' · '+created+' new product(s)':''}${skip?' ('+skip+' skipped)':''}`);
   statusEl.textContent=`Done, ${success} imported, ${created} new products, ${skip} skipped`;
   cancelImport(); loadSalesBadge();
@@ -7102,7 +7183,7 @@ async function runImport(){
   const platform=document.getElementById('importPlatform').value;
   const defaultCogs=parseFloat(document.getElementById('importDefaultCogs').value)||0;
   const defaultGrams=parseFloat(document.getElementById('importDefaultGrams')?.value)||0;
-  if(platform==='flipkart' && isFlipkartReport(_importCols)){ return runFlipkartImport(defaultCogs); }
+  if(platform==='flipkart' && isFlipkartReport(_importCols)){ return runFlipkartImport(defaultCogs, defaultGrams); }
   const getCol=f=>document.getElementById('map_'+f).value;
   const ch=platform==='amazon'?'amazon':platform==='flipkart'?'flipkart':'shop';
   const feeMap={amazon:15,flipkart:13,website:2,shop:0};
@@ -7150,13 +7231,16 @@ async function runImport(){
     if(cat){ r.product_id=cat.id; const pc=parseFloat(cat.base_cost)||0; if(pc>0) r.cogs=pc; if(!r.hsn_code&&cat.hsn_code) r.hsn_code=cat.hsn_code; }
     if(ch==='amazon'||ch==='flipkart') applyPlatformFees(r);
   });
+  assignSpoolsToRows(batch, importSpoolState('import'));
   // Insert in batches of 100
   for(let i=0;i<batch.length;i+=100){
-    const {error}=await sb.from('biz_sales').insert(batch.slice(i,i+100));
+    const {error}=await insertRowsResilient('biz_sales', batch.slice(i,i+100));
     if(error){ statusEl.textContent='Error: '+error.message; toast('Import error: '+error.message,'error'); return; }
     success+=Math.min(100,batch.length-i);
     statusEl.textContent=`Inserted ${success}…`;
   }
+  await deductSpoolsForRows(batch);
+  await loadAddSaleSpools();
   toast(`Imported ${success} rows${skip?' ('+skip+' skipped)':''}`);
   statusEl.textContent=`Done, ${success} imported, ${skip} skipped`;
   cancelImport(); loadSalesBadge();
@@ -8290,11 +8374,14 @@ async function importExtractedLabels(){
   // Auto-create products + apply fixed delivery + packing fees for Amazon/Flipkart
   const created=await autoCreateProducts(batch);
   batch.forEach(r=>{ if(platform==='amazon'||platform==='flipkart') applyPlatformFees(r); });
+  assignSpoolsToRows(batch, importSpoolState('lbl'));
   statusEl.textContent='Importing…';
   for(let i=0;i<batch.length;i+=100){
     const {error}=await insertSalesResilient(batch.slice(i,i+100));
     if(error){statusEl.textContent='Error: '+error.message;toast('Error: '+error.message,'error');return;}
   }
+  await deductSpoolsForRows(batch);
+  await loadAddSaleSpools();
   toast(`Imported ${batch.length} orders from labels${created?' · '+created+' new product(s)':''}`);
   statusEl.textContent=`Done, ${batch.length} orders imported${created?', '+created+' new products':''}`;
   clearLabels();
@@ -8312,6 +8399,12 @@ function populateLabelProductSelect(){
   const opts=_products.map(p=>`<option value="${p.id}">${esc(p.name)}${p.sku?' ('+p.sku+')':''}</option>`).join('');
   const sel=document.getElementById('lbl_product');
   if(sel) sel.innerHTML=`<option value="">— select from catalog (optional) —</option>${opts}`;
+}
+function initImportPanel(){
+  populateLabelProductSelect();
+  ensureSpools();
+  renderImportSpoolRows('import');
+  renderImportSpoolRows('lbl');
 }
 
 // ── GST financial-year dropdowns ────────────────────────────
