@@ -595,7 +595,16 @@ window._FOOTER_HTML = `<footer>
              unrelated window "resize" happened to fire later). Watch the
              nav's own box and place the pill the moment it actually gets
              a size, instead of leaving it invisible with just the plain
-             orange active-tab color showing. */
+             orange active-tab color showing.
+             Deliberately NOT gated to "mobile viewport only": this block
+             only ever runs at all when placement already failed, so on
+             desktop it just means one idle ResizeObserver per pageview
+             (negligible) versus the confirmed missing-capsule bug it
+             exists to fix. Adding a matchMedia/innerWidth check here adds
+             a second synchronous condition to get exactly right at a very
+             early point in page load for no real-world benefit (desktop
+             users never hit the mobile tab bar anyway), so the simpler,
+             unconditional version stays. */
           if(typeof ResizeObserver!=='undefined'){
             var visRO=new ResizeObserver(function(){
               if(nav.offsetWidth>0){
