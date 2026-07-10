@@ -5545,8 +5545,8 @@ function renderSpoolTracker(){
     const gramsLeft=rows.reduce((s,r)=>s+spoolRemaining(r),0);
     const vals={
       total, value:'₹'+Math.round(value).toLocaleString('en-IN'),
-      capacity:Math.round(gramsCap)+'g', used:Math.round(gramsUsed)+'g',
-      left:Math.round(gramsLeft)+'g', waste:Math.round(gramsWaste)+'g',
+      capacity:(gramsCap/1000).toFixed(3)+' kg', used:(gramsUsed/1000).toFixed(3)+' kg',
+      left:(gramsLeft/1000).toFixed(3)+' kg', waste:(gramsWaste/1000).toFixed(3)+' kg',
       opened, finished
     };
     const cfg=spoolWidgetCfg();
@@ -6368,7 +6368,7 @@ function dashDrop(e){
 }
 function dashDragEnd(e){ e.currentTarget.style.opacity=''; _dashDragKey=null; }
 
-const SPOOL_WIDGETS=[{k:'total',name:'Total Spools'},{k:'value',name:'Stock Value'},{k:'capacity',name:'Total Grams'},{k:'used',name:'Grams Used'},{k:'left',name:'Grams Left'},{k:'waste',name:'Grams Wasted'},{k:'opened',name:'Opened'},{k:'finished',name:'Finished'}];
+const SPOOL_WIDGETS=[{k:'total',name:'Total Spools'},{k:'value',name:'Stock Value'},{k:'capacity',name:'Total Kg'},{k:'used',name:'Kg Used'},{k:'left',name:'Kg Left'},{k:'waste',name:'Kg Wasted'},{k:'opened',name:'Opened'},{k:'finished',name:'Finished'}];
 function spoolWidgetCfg(){
   try{ const c=JSON.parse(localStorage.getItem('biz_spool_widgets')||'null'); if(c&&Array.isArray(c.order)) return {order:c.order,hidden:c.hidden||[]}; }catch(_){}
   return {order:SPOOL_WIDGETS.map(w=>w.k),hidden:[]};
@@ -6512,7 +6512,7 @@ async function loadDashboard(){
 
   // §Filament used this period (kg), sum of grams_used across completed sales this month
   const totalGrams=completed.reduce((s,r)=>s+num(r.grams_used),0);
-  const gEl=document.getElementById('kpiFilament'); if(gEl) gEl.textContent=(totalGrams/1000).toFixed(2)+' kg';
+  const gEl=document.getElementById('kpiFilament'); if(gEl) gEl.textContent=(totalGrams/1000).toFixed(3)+' kg';
   const byColor={};
   completed.forEach(s=>{ if(num(s.grams_used)>0){ const k=s.color||'Unspecified'; byColor[k]=(byColor[k]||0)+num(s.grams_used); } });
 
@@ -6712,10 +6712,10 @@ function openDashDrilldown(key){
       c.rets.length?c.rets.map(r=>`<tr><td style="font-family:var(--mono);font-size:11px">${esc(r.order_id||'—')}</td><td>${chHtml(r.channel_id)}</td><td>${esc(r.type||'')}</td><td style="font-size:12px">${esc(r.reason||'')}</td><td class="td-num">${fmt(r.amount_lost)}</td></tr>`).join(''):'<tr><td colspan="5" class="empty"><div class="em-text">No returns this period</div></div></td></tr>'
     }</tbody></table></div>`;
   } else if(key==='filament'){
-    titleEl.textContent='Filament Used, '+c.label+' ('+(c.totalGrams/1000).toFixed(2)+' kg)';
+    titleEl.textContent='Filament Used, '+c.label+' ('+(c.totalGrams/1000).toFixed(3)+' kg)';
     const rows=Object.entries(c.byColor).sort((a,b)=>b[1]-a[1]);
-    bodyEl.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>Colour</th><th class="td-num">Grams</th><th class="td-num">Kg</th></tr></thead><tbody>${
-      rows.length?rows.map(([color,g])=>`<tr><td>${esc(color)}</td><td class="td-num">${Math.round(g)}g</td><td class="td-num">${(g/1000).toFixed(2)}kg</td></tr>`).join(''):'<tr><td colspan="3" class="empty"><div class="em-text">No filament logged this period</div></div></td></tr>'
+    bodyEl.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>Colour</th><th class="td-num">Kg</th></tr></thead><tbody>${
+      rows.length?rows.map(([color,g])=>`<tr><td>${esc(color)}</td><td class="td-num">${(g/1000).toFixed(3)}</td></tr>`).join(''):'<tr><td colspan="2" class="empty"><div class="em-text">No filament logged this period</div></div></td></tr>'
     }</tbody></table></div>`;
   } else if(key==='topcust_month'||key==='topcust_year'){
     const isYear=key==='topcust_year';
