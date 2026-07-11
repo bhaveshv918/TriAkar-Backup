@@ -2747,6 +2747,13 @@ html[data-theme="dark"] .biz-login{
             <span style="color:var(--text-3);font-size:11px">to</span>
             <input type="month" id="ldTo" onchange="loadLedger()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
           </div>
+          <select id="ldChannel" onchange="loadLedger()" title="Filters Studio Sales &amp; Payouts by channel, Expenses always show" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
+            <option value="">All Channels</option>
+            <option value="shop">Studio</option>
+            <option value="amazon">Amazon</option>
+            <option value="flipkart">Flipkart</option>
+            <option value="website">Website</option>
+          </select>
           <button class="btn btn-primary btn-sm" onclick="showAddIncome()" title="Shortcut: N">+ Log Income <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">N</span></button>
         </div>
       </div>
@@ -4697,6 +4704,7 @@ async function deleteExpense(id){ if(!confirm('Delete this expense?')) return; c
 // double-count. This table is only for money that arrives separately from the sale
 // record itself: marketplace payouts (settled later, in a batch) + misc income.
 const INCOME_LABEL={flipkart_payout:'Flipkart Payout',amazon_payout:'Amazon Payout',website_payout:'Website Payout',misc:'Extra / Misc'};
+const INCOME_CHANNEL={flipkart_payout:'flipkart',amazon_payout:'amazon',website_payout:'website'};
 let _incomeCache=[];
 // Shared FY (default) / Calendar Year / Select Month / Custom Range period picker, used
 // across Money In/Out, Purchases, Expenses & GST State-wise breakdown.
@@ -4761,8 +4769,14 @@ async function loadLedger(){
   ]);
   if(e1||e2||e3){ toast('Error loading ledger','error'); return; }
   _incomeCache=inc||[];
-  const studioTotal=(studio||[]).reduce((s,r)=>s+(parseFloat(r.selling_price)||0),0);
-  const payoutTotal=(inc||[]).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  // Channel filter: Studio Sales (always channel=shop) & Payouts (matched via category) get
+  // filtered; misc income has no channel so it drops out once a specific channel is picked.
+  // Expenses have no channel concept at all, so they're always shown regardless of filter.
+  const ch=document.getElementById('ldChannel')?.value||'';
+  const studioF=(!ch||ch==='shop')?(studio||[]):[];
+  const incF=ch?(inc||[]).filter(r=>INCOME_CHANNEL[r.category]===ch):(inc||[]);
+  const studioTotal=studioF.reduce((s,r)=>s+(parseFloat(r.selling_price)||0),0);
+  const payoutTotal=incF.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   const expTotal=(exp||[]).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   const totalIn=studioTotal+payoutTotal;
   const kpi=document.getElementById('ldKpi');
@@ -4772,8 +4786,8 @@ async function loadLedger(){
     <div class="kpi red"><div class="kpi-label">Expenses (out)</div><div class="kpi-val">${fmt(expTotal)}</div></div>
     <div class="kpi ${totalIn-expTotal>=0?'':'red'}"><div class="kpi-label">${netLabel}</div><div class="kpi-val">${fmt(totalIn-expTotal)}</div></div>`;
   const rows=[
-    ...(studio||[]).map(r=>({date:r.order_date,type:'in',label:'Studio Sale',amount:r.selling_price,mode:r.payment_mode||'',ref:r.customer_name||'',isSale:true})),
-    ...(inc||[]).map(r=>({date:r.date,type:'in',label:INCOME_LABEL[r.category]||r.category,amount:r.amount,mode:r.payment_mode||'',ref:r.bank_reference||'',id:r.id})),
+    ...studioF.map(r=>({date:r.order_date,type:'in',label:'Studio Sale',amount:r.selling_price,mode:r.payment_mode||'',ref:r.customer_name||'',isSale:true})),
+    ...incF.map(r=>({date:r.date,type:'in',label:INCOME_LABEL[r.category]||r.category,amount:r.amount,mode:r.payment_mode||'',ref:r.bank_reference||'',id:r.id})),
     ...(exp||[]).map(r=>({date:r.date,type:'out',label:r.category,amount:r.amount,mode:r.payment_mode||'',ref:r.vendor||'',isExpense:true})),
   ].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const tbody=document.getElementById('ledgerBody'); if(!tbody) return;
