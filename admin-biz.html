@@ -2702,9 +2702,16 @@ html[data-theme="dark"] .biz-login{
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <select id="ldView" onchange="onLedgerViewChange()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
             <option value="fy" selected>This Financial Year</option>
+            <option value="calendar">Calendar Year</option>
             <option value="month">Select Month</option>
+            <option value="custom">Custom Range</option>
           </select>
           <input type="month" id="ldMonth" onchange="loadLedger()" style="display:none;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
+          <div id="ldCustomRange" style="display:none;gap:6px;align-items:center">
+            <input type="month" id="ldFrom" onchange="loadLedger()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
+            <span style="color:var(--text-3);font-size:11px">to</span>
+            <input type="month" id="ldTo" onchange="loadLedger()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
+          </div>
           <button class="btn btn-primary btn-sm" onclick="showAddIncome()" title="Shortcut: N">+ Log Income <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">N</span></button>
         </div>
       </div>
@@ -4649,18 +4656,34 @@ let _incomeCache=[];
 function onLedgerViewChange(){
   const view=document.getElementById('ldView')?.value||'fy';
   const mEl=document.getElementById('ldMonth'); if(mEl) mEl.style.display=view==='month'?'':'none';
+  const cEl=document.getElementById('ldCustomRange'); if(cEl) cEl.style.display=view==='custom'?'flex':'none';
   loadLedger();
 }
 async function loadLedger(){
   const view=document.getElementById('ldView')?.value||'fy';
+  const now=new Date(), curY=now.getFullYear(), curM=now.getMonth()+1;
   let start,next,netLabel;
   if(view==='month'){
     const mEl=document.getElementById('ldMonth'); if(mEl&&!mEl.value) mEl.value=thisMonth();
     const mo=(mEl&&mEl.value)||thisMonth();
     start=mo+'-01'; const [yy,mm]=mo.split('-').map(Number); next=(mm===12)?`${yy+1}-01-01`:`${yy}-${String(mm+1).padStart(2,'0')}-01`;
     netLabel='Net This Month';
+  } else if(view==='calendar'){
+    start=`${curY}-01-01`; next=`${curY+1}-01-01`;
+    netLabel='Net This Year';
+  } else if(view==='custom'){
+    const fEl=document.getElementById('ldFrom'), tEl=document.getElementById('ldTo');
+    if(fEl&&!fEl.value) fEl.value=`${curY}-01`;
+    if(tEl&&!tEl.value) tEl.value=thisMonth();
+    let [fy,fm]=((fEl&&fEl.value)||`${curY}-01`).split('-').map(Number);
+    let [ty,tm]=((tEl&&tEl.value)||thisMonth()).split('-').map(Number);
+    if(ty>curY||(ty===curY&&tm>curM)){ ty=curY; tm=curM; }
+    start=`${fy}-${String(fm).padStart(2,'0')}-01`;
+    const nextY=tm===12?ty+1:ty, nextM=tm===12?1:tm+1;
+    next=`${nextY}-${String(nextM).padStart(2,'0')}-01`;
+    netLabel='Net (Custom Range)';
   } else {
-    const now=new Date(); const fyStartYear=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
+    const fyStartYear=curM>=4?curY:curY-1;
     start=`${fyStartYear}-04-01`; next=`${fyStartYear+1}-04-01`;
     netLabel='Net This FY';
   }
