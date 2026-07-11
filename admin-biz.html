@@ -5269,8 +5269,13 @@ async function syncReturnRowForStatus(status,items,f){
   }
   const total=items.reduce((a,s)=>a+(+s.selling_price||0),0);
   const fwd=items.reduce((a,s)=>a+(+s.shipping_fee||0),0);
+  const cogs=items.reduce((a,s)=>a+(+s.cogs||0),0);
+  const packing=items.reduce((a,s)=>a+(+s.other_deductions||0),0);
   const loss=calcReturnLoss(f.channel_id,total,fwd);
-  await sb.from('biz_returns').insert({sale_id:f.id,channel_id:f.channel_id,order_id:f.order_id,type:'return',stage,date:today(),amount_lost:loss,refund_given:0,status:'pending',reason:status==='returned'?'Marked returned (shipping + return + packing)':'Return initiated from order status'});
+  // Snapshot the sale's real cost breakdown too (not just the shipping-only quick-loss estimate
+  // above), so the Edit Return form always has a COGS to work with instead of showing blank
+  // fields / a ₹0 recompute for a return that was auto-created from a status change.
+  await sb.from('biz_returns').insert({sale_id:f.id,channel_id:f.channel_id,order_id:f.order_id,type:'return',stage,date:today(),orig_product_cost:cogs,orig_shipping:fwd,orig_packing:packing,amount_lost:loss,refund_given:0,status:'pending',reason:status==='returned'?'Marked returned (shipping + return + packing)':'Return initiated from order status'});
 }
 async function updateOrderStatus(firstId,status){
   const items=_orderGroup(firstId), ids=items.map(s=>s.id), f=items[0];
@@ -5539,13 +5544,18 @@ async function markReturn(){
   // Update sale status
   const {error:e1}=await sb.from('biz_sales').update({status:'returned'}).eq('id',id);
   if(e1){toast('Error: '+e1.message,'error');return;}
-  // Insert return record
+  // Insert return record. Also snapshot the sale's real cost breakdown (not just the
+  // shipping-only quick-loss estimate), so the Edit Return form always has a COGS to work
+  // with instead of showing blank fields / a ₹0 recompute for this auto-created return.
   const {error:e2}=await sb.from('biz_returns').insert({
     sale_id:id,
     channel_id:s.channel_id,
     order_id:s.order_id,
     type:'return',
     date:today(),
+    orig_product_cost:s.cogs||0,
+    orig_shipping:s.shipping_fee||0,
+    orig_packing:s.other_deductions||0,
     amount_lost:calcReturnLoss(s.channel_id,s.selling_price,s.shipping_fee),
     refund_given:0,
     status:'pending',
@@ -6090,12 +6100,21 @@ async function loadReturns(){
   const rows=data||[]; _returnsCache=rows;
   const totalLost=rows.reduce((s,r)=>s+(parseFloat(r.amount_lost)||0),0);
   const recovered=rows.reduce((s,r)=>s+(parseFloat(r.claim_approved_amount)||0),0);
-  const pending=rows.filter(r=>r.status==='pending').length;
+  // Pending = a claim was actually filed and is still awaiting a verdict (not yet won/lost/
+  // partial). Return cases sitting at initiated/returning/received-unfiled with no claim in
+  // flight yet aren't "pending a decision", so they no longer inflate this count.
+  const pendingRows=rows.filter(r=>r.status==='pending'&&r.claim_filed_date);
+  const wonRows=rows.filter(r=>r.status==='won');
+  const lostRows=rows.filter(r=>r.status==='lost');
+  const wonAmt=wonRows.reduce((s,r)=>s+(parseFloat(r.claim_paid_amount)||parseFloat(r.claim_approved_amount)||0),0);
+  const lostAmt=lostRows.reduce((s,r)=>s+(parseFloat(r.amount_lost)||0),0);
   const kpi=document.getElementById('returnsKpi');
   if(kpi) kpi.innerHTML=`
     <div class="kpi red"><div class="kpi-label">Net Loss</div><div class="kpi-val">${fmt(totalLost)}</div></div>
     <div class="kpi green"><div class="kpi-label">Claims Recovered</div><div class="kpi-val">${fmt(recovered)}</div></div>
-    <div class="kpi yellow"><div class="kpi-label">Pending</div><div class="kpi-val">${pending}</div></div>
+    <div class="kpi yellow"><div class="kpi-label">Pending</div><div class="kpi-val">${pendingRows.length}</div><div class="kpi-sub">Claim filed, no verdict</div></div>
+    <div class="kpi green"><div class="kpi-label">Total Won</div><div class="kpi-val">${wonRows.length}</div><div class="kpi-sub">${fmt(wonAmt)} recovered</div></div>
+    <div class="kpi red"><div class="kpi-label">Total Lost</div><div class="kpi-val">${lostRows.length}</div><div class="kpi-sub">${fmt(lostAmt)} written off</div></div>
     <div class="kpi"><div class="kpi-label">Cases</div><div class="kpi-val">${rows.length}</div></div>`;
   const tbody=document.getElementById('returnsBody'); if(!tbody) return;
   if(!rows.length){ tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="em-icon">↩</div><div class="em-text">No returns yet</div></div></td></tr>`; return; }
@@ -6183,8 +6202,17 @@ function editReturn(id){
   set('rf_claim_approved_date',r.claim_approved_date); set('rf_claim_approved_amount',r.claim_approved_amount);
   set('rf_claim_paid_date',r.claim_paid_date); set('rf_claim_paid_amount',r.claim_paid_amount);
   const logInc=document.getElementById('rf_log_income'); if(logInc) logInc.checked=false;
-  set('rf_return_ship',r.return_shipping_cost); set('rf_prod_cost',r.orig_product_cost); set('rf_shipping',r.orig_shipping);
-  set('rf_packing',r.orig_packing); set('rf_prod_adjusted',r.product_cost_adjusted); set('rf_status',r.status||'pending');
+  // Returns auto-created from a status change (markReturn/syncReturnRowForStatus) never
+  // captured a cost snapshot, so orig_product_cost/orig_shipping/orig_packing sit NULL forever
+  // and the edit form shows a blank COGS/loss until someone hits "Pull costs" by hand. Recover
+  // it from the linked sale here so the form (and Save) never silently zeroes out a real loss.
+  let prodCost=r.orig_product_cost, shipCost=r.orig_shipping, packCost=r.orig_packing;
+  if(prodCost==null&&shipCost==null&&packCost==null&&r.sale_id){
+    const sale=Array.isArray(_salesCache)?_salesCache.find(s=>s.id===r.sale_id):null;
+    if(sale){ prodCost=sale.cogs; shipCost=sale.shipping_fee; packCost=sale.other_deductions; }
+  }
+  set('rf_return_ship',r.return_shipping_cost); set('rf_prod_cost',prodCost); set('rf_shipping',shipCost);
+  set('rf_packing',packCost); set('rf_prod_adjusted',r.product_cost_adjusted); set('rf_status',r.status||'pending');
   set('rf_refund',r.refund_given||0); set('rf_reason',r.reason); set('rf_notes',r.notes); set('rf_unit_condition',r.unit_condition||'');
   setReturnStage(r.stage||'initiated'); onReturnTypeChange();
   document.getElementById('returnFormTitle').textContent='Edit Return';
