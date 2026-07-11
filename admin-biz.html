@@ -2700,7 +2700,11 @@ html[data-theme="dark"] .biz-login{
       <div class="p-head">
         <div><div class="p-title">Money In / Out</div><div class="p-sub">Studio Sales are auto-pulled from All Sales, log payouts &amp; misc income here</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <input type="month" id="ldMonth" onchange="loadLedger()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
+          <select id="ldView" onchange="onLedgerViewChange()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
+            <option value="fy" selected>This Financial Year</option>
+            <option value="month">Select Month</option>
+          </select>
+          <input type="month" id="ldMonth" onchange="loadLedger()" style="display:none;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
           <button class="btn btn-primary btn-sm" onclick="showAddIncome()" title="Shortcut: N">+ Log Income <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">N</span></button>
         </div>
       </div>
@@ -4642,10 +4646,24 @@ async function deleteExpense(id){ if(!confirm('Delete this expense?')) return; c
 // record itself: marketplace payouts (settled later, in a batch) + misc income.
 const INCOME_LABEL={flipkart_payout:'Flipkart Payout',amazon_payout:'Amazon Payout',website_payout:'Website Payout',misc:'Extra / Misc'};
 let _incomeCache=[];
+function onLedgerViewChange(){
+  const view=document.getElementById('ldView')?.value||'fy';
+  const mEl=document.getElementById('ldMonth'); if(mEl) mEl.style.display=view==='month'?'':'none';
+  loadLedger();
+}
 async function loadLedger(){
-  const mEl=document.getElementById('ldMonth'); if(mEl&&!mEl.value) mEl.value=thisMonth();
-  const mo=(mEl&&mEl.value)||thisMonth();
-  const start=mo+'-01'; const [yy,mm]=mo.split('-').map(Number); const next=(mm===12)?`${yy+1}-01-01`:`${yy}-${String(mm+1).padStart(2,'0')}-01`;
+  const view=document.getElementById('ldView')?.value||'fy';
+  let start,next,netLabel;
+  if(view==='month'){
+    const mEl=document.getElementById('ldMonth'); if(mEl&&!mEl.value) mEl.value=thisMonth();
+    const mo=(mEl&&mEl.value)||thisMonth();
+    start=mo+'-01'; const [yy,mm]=mo.split('-').map(Number); next=(mm===12)?`${yy+1}-01-01`:`${yy}-${String(mm+1).padStart(2,'0')}-01`;
+    netLabel='Net This Month';
+  } else {
+    const now=new Date(); const fyStartYear=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
+    start=`${fyStartYear}-04-01`; next=`${fyStartYear+1}-04-01`;
+    netLabel='Net This FY';
+  }
   const [{data:inc,error:e1},{data:studio,error:e2},{data:exp,error:e3}]=await Promise.all([
     sb.from('biz_income').select('*').gte('date',start).lt('date',next).order('date',{ascending:false}),
     sb.from('biz_sales').select('id,order_date,selling_price,customer_name,payment_mode').eq('is_deleted',false).eq('channel_id','shop').eq('is_paid',true).gte('order_date',start).lt('order_date',next),
@@ -4662,14 +4680,14 @@ async function loadLedger(){
     <div class="kpi"><div class="kpi-label">Studio Sales (in)</div><div class="kpi-val">${fmt(studioTotal)}</div></div>
     <div class="kpi"><div class="kpi-label">Payouts + Misc (in)</div><div class="kpi-val">${fmt(payoutTotal)}</div></div>
     <div class="kpi red"><div class="kpi-label">Expenses (out)</div><div class="kpi-val">${fmt(expTotal)}</div></div>
-    <div class="kpi ${totalIn-expTotal>=0?'':'red'}"><div class="kpi-label">Net This Month</div><div class="kpi-val">${fmt(totalIn-expTotal)}</div></div>`;
+    <div class="kpi ${totalIn-expTotal>=0?'':'red'}"><div class="kpi-label">${netLabel}</div><div class="kpi-val">${fmt(totalIn-expTotal)}</div></div>`;
   const rows=[
     ...(studio||[]).map(r=>({date:r.order_date,type:'in',label:'Studio Sale',amount:r.selling_price,mode:r.payment_mode||'',ref:r.customer_name||'',isSale:true})),
     ...(inc||[]).map(r=>({date:r.date,type:'in',label:INCOME_LABEL[r.category]||r.category,amount:r.amount,mode:r.payment_mode||'',ref:r.bank_reference||'',id:r.id})),
     ...(exp||[]).map(r=>({date:r.date,type:'out',label:r.category,amount:r.amount,mode:r.payment_mode||'',ref:r.vendor||'',isExpense:true})),
   ].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const tbody=document.getElementById('ledgerBody'); if(!tbody) return;
-  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="6" class="empty"><div class="em-text">No entries this month</div></div></td></tr>`; return; }
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="6" class="empty"><div class="em-text">No entries</div></div></td></tr>`; return; }
   tbody.innerHTML=rows.map(r=>`<tr>
     <td style="font-family:var(--mono);font-size:11px">${esc(r.date||'')}</td>
     <td><span class="badge badge-${r.type==='in'?'completed':'returned'}">${r.type==='in'?'In':'Out'}</span></td>
