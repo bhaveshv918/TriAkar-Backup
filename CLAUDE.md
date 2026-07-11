@@ -156,6 +156,19 @@ regular feature work:
 - State-wise analytics
 - Security audit completed, medium-severity issues resolved
 - Filament inventory (61 items) migrated to Supabase
+- GST Filing Automation (GSTR-1 reconciliation engine): reconciles Amazon MTR B2B/B2C CSV +
+  Flipkart GSTR-1/8 XLSX into GSTR-1 tables (B2B, B2CS, HSN, Documents Issued). Engine at
+  `server/services/gst-reconciliation.js`, CSV export (GST Offline Tool format) at
+  `server/services/gst-export-templates.js`, API in `server/controllers/gstController.js`
+  (mounted under `/api/admin/gst/*`), tables `biz_gst_calc_periods` /
+  `biz_gst_calc_line_items` / `biz_gst_calc_flags` (migration
+  `supabase/migrations/20260711_gst_reconciliation.sql`, **must be run in the Supabase SQL
+  Editor before this feature works**), admin UI as the "GSTR-1 Auto-File" tab in
+  `admin-biz.html`. Regression-tested with synthetic fixture data
+  (`server/scripts/gst-regression-check.mjs`), not yet against a real month's files. CSV
+  export column headers are best-effort (no internet access to verify against the real GST
+  Offline Tool template); round-trip test against the actual tool before relying on it for
+  a real filing. No automatic filing to the GST portal (by design, out of scope).
 
 **Before building something new, check if it already exists.** Grep/search the codebase first.
 

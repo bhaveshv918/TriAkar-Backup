@@ -793,6 +793,9 @@ html[data-theme="dark"] .biz-login{
     <button class="tab" data-tab="gstportal" onclick="switchTab('gstportal')">
       <span class="tab-icon">⏷</span><span class="tab-label">GST Portal</span>
     </button>
+    <button class="tab" data-tab="gstauto" onclick="switchTab('gstauto')">
+      <span class="tab-icon">⚙</span><span class="tab-label">GSTR-1 Auto-File</span>
+    </button>
     <button class="tab" data-tab="invoicing" onclick="switchTab('invoicing')">
       <span class="tab-icon">▤</span><span class="tab-label">Invoicing</span>
     </button>
@@ -2423,6 +2426,117 @@ html[data-theme="dark"] .biz-login{
     </div><!-- /gstportal -->
 
     <!-- ══════════════════════════════════════════════════════
+         GSTR-1 AUTO-FILE, reconciles Amazon MTR + Flipkart GSTR-1 into GSTR-1 tables,
+         review screen, CSV export for the GST Offline Tool, filing history, trend chart
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelGstauto">
+      <div class="p-head">
+        <div><div class="p-title">GSTR-1 Auto-File</div><div class="p-sub">Upload the 3 monthly source files, review the calculated GSTR-1 tables, export CSVs for the GST Offline Tool</div></div>
+      </div>
+
+      <div class="chart-box" style="margin-bottom:16px">
+        <h3>Calculate a Period</h3>
+        <div class="form-grid" style="margin-top:12px">
+          <div class="form-group"><label>Period</label><input type="month" id="gstaPeriod"></div>
+          <div class="form-group"><label>Seller GSTIN</label><input type="text" id="gstaGstin" style="font-family:var(--mono);letter-spacing:.05em" placeholder="09XXXXX0000X0XX"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px">
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Amazon MTR B2B (CSV)</div>
+            <div class="dropzone" id="gstaDzB2b" style="padding:18px" onclick="document.getElementById('gstaFileB2b').click()" ondragover="gstaDzDragOver(event,'B2b')" ondragleave="gstaDzDragLeave('B2b')" ondrop="gstaDzDrop(event,'B2b')">
+              <div class="dz-icon">📄</div>
+              <div class="dz-title" id="gstaLabelB2b">Click or drag MTR_B2B CSV</div>
+            </div>
+            <input type="file" id="gstaFileB2b" accept=".csv" style="display:none" onchange="gstaFileSelect(event,'B2b')">
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Amazon MTR B2C (CSV)</div>
+            <div class="dropzone" id="gstaDzB2c" style="padding:18px" onclick="document.getElementById('gstaFileB2c').click()" ondragover="gstaDzDragOver(event,'B2c')" ondragleave="gstaDzDragLeave('B2c')" ondrop="gstaDzDrop(event,'B2c')">
+              <div class="dz-icon">📄</div>
+              <div class="dz-title" id="gstaLabelB2c">Click or drag MTR_B2C CSV</div>
+            </div>
+            <input type="file" id="gstaFileB2c" accept=".csv" style="display:none" onchange="gstaFileSelect(event,'B2c')">
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Flipkart GSTR-1/8 (XLSX)</div>
+            <div class="dropzone" id="gstaDzFlipkart" style="padding:18px" onclick="document.getElementById('gstaFileFlipkart').click()" ondragover="gstaDzDragOver(event,'Flipkart')" ondragleave="gstaDzDragLeave('Flipkart')" ondrop="gstaDzDrop(event,'Flipkart')">
+              <div class="dz-icon">📄</div>
+              <div class="dz-title" id="gstaLabelFlipkart">Click or drag Flipkart XLSX</div>
+            </div>
+            <input type="file" id="gstaFileFlipkart" accept=".xlsx,.xls" style="display:none" onchange="gstaFileSelect(event,'Flipkart')">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="gstaCalculate()" style="margin-top:14px" id="gstaCalcBtn">Calculate</button>
+        <span id="gstaCalcStatus" style="font-size:12px;color:var(--text-3);margin-left:8px"></span>
+      </div>
+
+      <div id="gstaReview" style="display:none">
+        <div class="gst-summary" id="gstaKpis" style="margin-bottom:16px"></div>
+
+        <div class="chart-box" id="gstaFlagsBox" style="margin-bottom:16px"></div>
+
+        <div class="chart-box" style="margin-bottom:16px">
+          <h3>Table 7, B2CS (state-wise, Amazon + Flipkart merged)</h3>
+          <div class="tbl-wrap" style="border:none">
+            <table><thead><tr><th>State</th><th>Rate</th><th>Type</th><th class="td-num">Taxable</th><th class="td-num">CGST</th><th class="td-num">SGST</th><th class="td-num">IGST</th></tr></thead>
+            <tbody id="gstaB2csBody"></tbody></table>
+          </div>
+        </div>
+
+        <div class="chart-box" style="margin-bottom:16px">
+          <h3>Table 4, B2B (per-invoice)</h3>
+          <div class="tbl-wrap" style="border:none">
+            <table><thead><tr><th>GSTIN</th><th>Invoice #</th><th>Date</th><th>State</th><th class="td-num">Taxable</th><th class="td-num">CGST</th><th class="td-num">SGST</th><th class="td-num">IGST</th></tr></thead>
+            <tbody id="gstaB2bBody"></tbody></table>
+          </div>
+        </div>
+
+        <div class="chart-box" style="margin-bottom:16px">
+          <h3>Table 12, HSN Summary</h3>
+          <div class="tbl-wrap" style="border:none">
+            <table><thead><tr><th>HSN</th><th class="td-num">Qty</th><th class="td-num">Taxable</th><th class="td-num">CGST</th><th class="td-num">SGST</th><th class="td-num">IGST</th></tr></thead>
+            <tbody id="gstaHsnBody"></tbody></table>
+          </div>
+        </div>
+
+        <div class="chart-box" style="margin-bottom:16px">
+          <h3>Table 13, Documents Issued</h3>
+          <div class="tbl-wrap" style="border:none">
+            <table><thead><tr><th>Series</th><th>From</th><th>To</th><th class="td-num">Total</th><th class="td-num">Cancelled</th><th class="td-num">Net Issued</th></tr></thead>
+            <tbody id="gstaDocsBody"></tbody></table>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+          <button class="btn btn-primary btn-sm" onclick="gstaSave()">Save to Filing History</button>
+          <button class="btn btn-ghost btn-sm" onclick="gstaDownload('b2b')" id="gstaDl_b2b" disabled>↓ b2b.csv</button>
+          <button class="btn btn-ghost btn-sm" onclick="gstaDownload('b2cs')" id="gstaDl_b2cs" disabled>↓ b2cs.csv</button>
+          <button class="btn btn-ghost btn-sm" onclick="gstaDownload('hsn')" id="gstaDl_hsn" disabled>↓ hsn.csv</button>
+          <button class="btn btn-ghost btn-sm" onclick="gstaDownload('docs')" id="gstaDl_docs" disabled>↓ docs.csv</button>
+          <button class="btn btn-ghost btn-sm" onclick="gstaMarkFiled()" id="gstaMarkFiledBtn" disabled>✓ Mark as Filed</button>
+        </div>
+        <div style="margin:-10px 0 20px;font-size:11px;color:var(--text-3);background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px">
+          <strong style="color:var(--text-2)">Before real filing:</strong> do one round-trip "IMPORT CSV" test against the actual GST Offline Tool downloaded from gst.gov.in. Column headers here are the well-documented GSTR-1 field names, not verified byte-for-byte against a specific tool version.
+        </div>
+      </div>
+
+      <div class="chart-box" style="margin-bottom:16px">
+        <h3>Month-over-Month Trend</h3>
+        <canvas id="gstaTrendChart" height="90"></canvas>
+      </div>
+
+      <div class="chart-box">
+        <h3>Filing History</h3>
+        <div class="tbl-wrap" style="border:none">
+          <table>
+            <thead><tr><th>Period</th><th>Status</th><th class="td-num">Taxable</th><th class="td-num">Tax</th><th class="td-num">Total</th><th>Filed Date</th><th class="td-actions"></th></tr></thead>
+            <tbody id="gstaHistoryBody"><tr><td colspan="7" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /gstauto -->
+
+    <!-- ══════════════════════════════════════════════════════
          INVOICING, every invoice ever generated via printInvoice(), linked to its order
     ═══════════════════════════════════════════════════════ -->
     <div class="panel" id="panelInvoicing">
@@ -2830,6 +2944,14 @@ const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 const ADMIN_EMAIL = 'bhaveshv918@gmail.com';
 const MY_STATE = 'Uttar Pradesh'; // your GST registration state, for CGST/SGST vs IGST
+// GSTR-1 Auto-File is the one Business OS feature that needs the Express backend (server-side
+// CSV/XLSX parsing + the reconciliation engine) rather than direct Supabase calls — mirrors
+// admin.html's adminApi()/getToken() pattern.
+const API = (location.hostname === 'localhost') ? 'http://localhost:3000' : 'https://triakar.onrender.com';
+async function getBizToken(){
+  try{ const { data:sess } = await sb.auth.getSession(); const t = sess && sess.session && sess.session.access_token; if(t) return t; }catch(_){}
+  return null;
+}
 
 // ── Business Settings (localStorage) ──────────────────────
 const BIZ_SETTINGS_KEY='triakar_biz_settings';
@@ -3112,7 +3234,7 @@ function switchTab(name){
     import:initImportPanel, settings:loadBizSettings,
     customers:loadCustomers, fees:loadFeesTab, returns:loadReturns, spooltracker:loadSpoolTracker, openorders:loadOpenOrders, expenses:loadExpenses, activity:loadBizActivity,
     ledger:loadLedger, purchases:loadPurchases, balance:loadBalanceSheet, shoplog:loadShopLog, machinery:loadMachinery,
-    gstportal:loadGstPortal, invoicing:loadInvoicing,
+    gstportal:loadGstPortal, invoicing:loadInvoicing, gstauto:loadGstAuto,
   };
   if(loaders[name]) loaders[name]();
   toggleNav(false);   // close mobile drawer after choosing a tab
@@ -6186,12 +6308,14 @@ async function loadGST(){
 
 // ── GST Portal, filed-return uploads + state-wise breakdown + filing reminders ──
 let _gstFilingsCache=[];
-function gstFilingReminderCard(){
+function gstFilingReminderCard(currentPeriodStatus){
   // GSTR-1 due the 10th, GSTR-3B due the 19th of every month, surface a reminder
   // starting 2 days before each deadline, per the owner's ask ("2 din phele hi complete krlu").
+  // GSTR-1 is suppressed once GSTR-1 Auto-File shows this month's calc as reviewed/exported/filed.
   const n=new Date(); const y=n.getFullYear(), m=n.getMonth(), d=n.getDate();
   const items=[];
   [['GSTR-1',10],['GSTR-3B',19]].forEach(([name,dueDay])=>{
+    if(name==='GSTR-1'&&['reviewed','exported','filed'].includes(currentPeriodStatus)) return;
     if(d>=dueDay-2&&d<=dueDay){
       const daysLeft=dueDay-d;
       items.push(`<div class="gst-card" style="border-color:var(--yellow)"><label>${name} due</label><div class="val" style="color:var(--yellow)">${daysLeft<=0?'Due today':daysLeft+'d left'}</div><div class="sub">Files by the ${dueDay}th</div></div>`);
@@ -6256,7 +6380,7 @@ async function markSpoolFinishedFromAlert(id,material){
   if(typeof loadSpoolTracker==='function'&&document.getElementById('panelSpooltracker')?.classList.contains('active')) loadSpoolTracker();
 }
 async function loadGstPortal(){
-  const rem=document.getElementById('gstFilingReminders'); if(rem) rem.innerHTML=gstFilingReminderCard();
+  const rem=document.getElementById('gstFilingReminders'); if(rem){ const st=await gstaCheckCurrentPeriodStatus(); rem.innerHTML=gstFilingReminderCard(st); }
   const pEl=document.getElementById('gstf_period'); if(pEl&&!pEl.value) pEl.value=thisMonth();
   const dEl=document.getElementById('gstf_date'); if(dEl&&!dEl.value) dEl.value=today();
   const {data,error}=await sb.from('biz_gst_filings').select('*').order('period',{ascending:false});
@@ -6326,6 +6450,212 @@ async function loadGstStateBreakdown(){
     <td>${esc(r.state)}</td><td>${chHtml(r.channel)}</td>
     <td class="td-num">${fmt(r.taxable)}</td><td class="td-num">${fmt(r.gst)}</td><td class="td-num" style="font-weight:700">${fmt(r.total)}</td>
   </tr>`).join(''):`<tr><td colspan="5" class="empty"><div class="em-text">No sales this month</div></td></tr>`;
+}
+
+// ── GSTR-1 Auto-File, reconciles Amazon MTR + Flipkart into GSTR-1 tables (server-side engine) ──
+let _gstaFiles={B2b:null,B2c:null,Flipkart:null};
+let _gstaResult=null;   // last /gst/calculate response
+let _gstaSavedPeriodId=null;
+let _gstaHistory=[];
+let _gstaTrendChart=null;
+let _gstaCurrentStatusCache; // undefined = not yet fetched this session
+
+function gstaDzDragOver(e,which){ e.preventDefault(); document.getElementById('gstaDz'+which).classList.add('drag-over'); }
+function gstaDzDragLeave(which){ document.getElementById('gstaDz'+which).classList.remove('drag-over'); }
+function gstaDzDrop(e,which){ e.preventDefault(); gstaDzDragLeave(which); const f=e.dataTransfer.files[0]; if(f) gstaSetFile(which,f); }
+function gstaFileSelect(e,which){ const f=e.target.files[0]; if(f) gstaSetFile(which,f); }
+function gstaSetFile(which,f){
+  _gstaFiles[which]=f;
+  const lbl=document.getElementById('gstaLabel'+which); if(lbl) lbl.textContent=f.name;
+}
+
+async function loadGstAuto(){
+  const pEl=document.getElementById('gstaPeriod'); if(pEl&&!pEl.value) pEl.value=thisMonth();
+  const gEl=document.getElementById('gstaGstin'); if(gEl&&!gEl.value) gEl.value=(getBizSettings().gstin||'');
+  await gstaLoadHistory();
+}
+
+async function gstaCalculate(){
+  const period=document.getElementById('gstaPeriod')?.value;
+  const gstin=(document.getElementById('gstaGstin')?.value||'').trim();
+  if(!period){ toast('Pick a period','error'); return; }
+  if(!gstin){ toast('Enter the seller GSTIN','error'); return; }
+  const token=await getBizToken(); if(!token){ toast('Session expired, please re-login','error'); return; }
+
+  const fd=new FormData();
+  fd.append('period',period); fd.append('gstin',gstin);
+  if(_gstaFiles.B2b) fd.append('amazonB2b',_gstaFiles.B2b);
+  if(_gstaFiles.B2c) fd.append('amazonB2c',_gstaFiles.B2c);
+  if(_gstaFiles.Flipkart) fd.append('flipkart',_gstaFiles.Flipkart);
+
+  const btn=document.getElementById('gstaCalcBtn'); const status=document.getElementById('gstaCalcStatus');
+  if(btn) btn.disabled=true; if(status) status.textContent='Calculating…';
+  try{
+    const res=await fetch(API+'/api/admin/gst/calculate',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+    const data=await res.json();
+    if(!res.ok) throw new Error(data.error||'Calculate failed');
+    _gstaResult={...data,period,gstin};
+    _gstaSavedPeriodId=null;
+    gstaRenderReview();
+    if(status) status.textContent='Done';
+  }catch(e){
+    toast('Error: '+e.message,'error'); if(status) status.textContent='';
+  }finally{
+    if(btn) btn.disabled=false;
+  }
+}
+
+function gstaRenderReview(){
+  const r=_gstaResult; if(!r) return;
+  document.getElementById('gstaReview').style.display='';
+
+  document.getElementById('gstaKpis').innerHTML=`
+    <div class="gst-card"><label>Taxable</label><div class="val">${fmt(r.summary.taxable)}</div></div>
+    <div class="gst-card"><label>CGST</label><div class="val">${fmt(r.summary.cgst)}</div></div>
+    <div class="gst-card"><label>SGST</label><div class="val">${fmt(r.summary.sgst)}</div></div>
+    <div class="gst-card"><label>IGST</label><div class="val">${fmt(r.summary.igst)}</div></div>
+    <div class="gst-card"><label>Total</label><div class="val" style="color:var(--yellow)">${fmt(r.summary.total)}</div></div>
+    <div class="gst-card"><label>Net Documents</label><div class="val">${r.summary.docCount}</div></div>`;
+
+  const flags=r.flags||[];
+  const flagsBox=document.getElementById('gstaFlagsBox');
+  flagsBox.innerHTML=`<h3>Audit Flags ${flags.length?`(${flags.length})`:''}</h3>`+
+    (flags.length?`<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">${flags.map(f=>`
+      <div style="border-left:3px solid ${f.severity==='blocker'?'var(--red)':'var(--yellow)'};padding:8px 12px;background:var(--bg-2);border-radius:6px">
+        <span class="badge" style="background:${f.severity==='blocker'?'var(--red)':'var(--yellow)'};color:#000;font-size:9px">${f.severity.toUpperCase()}</span>
+        <span style="font-size:12px;margin-left:6px">${esc(f.message)}</span>
+      </div>`).join('')}</div>`
+      :`<div class="em-text" style="margin-top:8px">No flags, all cross-checks passed.</div>`);
+
+  const t=r.tables;
+  document.getElementById('gstaB2csBody').innerHTML=(t.b2cs||[]).length?t.b2cs.map(x=>`<tr>
+    <td>${esc(x.state)}</td><td>${x.rate}%</td><td>${x.placeOfSupplyType==='inter'?'Inter':'Intra'}</td>
+    <td class="td-num">${fmt(x.taxable)}</td><td class="td-num">${fmt(x.cgst)}</td><td class="td-num">${fmt(x.sgst)}</td><td class="td-num">${fmt(x.igst)}</td>
+  </tr>`).join(''):`<tr><td colspan="7" class="empty"><div class="em-text">No B2CS rows</div></td></tr>`;
+
+  document.getElementById('gstaB2bBody').innerHTML=(t.b2b||[]).length?t.b2b.map(x=>`<tr>
+    <td style="font-family:var(--mono);font-size:11px">${esc(x.gstin)}</td><td>${esc(x.invoiceNumber)}</td><td>${esc(x.invoiceDate||'')}</td><td>${esc(x.state)}</td>
+    <td class="td-num">${fmt(x.taxable)}</td><td class="td-num">${fmt(x.cgst)}</td><td class="td-num">${fmt(x.sgst)}</td><td class="td-num">${fmt(x.igst)}</td>
+  </tr>`).join(''):`<tr><td colspan="8" class="empty"><div class="em-text">No B2B invoices</div></td></tr>`;
+
+  document.getElementById('gstaHsnBody').innerHTML=(t.hsn||[]).length?t.hsn.map(x=>`<tr>
+    <td>${esc(x.hsn)}</td><td class="td-num">${x.qty}</td><td class="td-num">${fmt(x.taxable)}</td>
+    <td class="td-num">${fmt(x.cgst)}</td><td class="td-num">${fmt(x.sgst)}</td><td class="td-num">${fmt(x.igst)}</td>
+  </tr>`).join(''):`<tr><td colspan="6" class="empty"><div class="em-text">No HSN rows</div></td></tr>`;
+
+  document.getElementById('gstaDocsBody').innerHTML=(t.docs||[]).length?t.docs.map(x=>`<tr>
+    <td>${esc(x.series)}</td><td>${esc(x.from)}</td><td>${esc(x.to)}</td>
+    <td class="td-num">${x.totalNumber}</td><td class="td-num">${x.cancelled}</td><td class="td-num">${x.netIssued}</td>
+  </tr>`).join(''):`<tr><td colspan="6" class="empty"><div class="em-text">No documents</div></td></tr>`;
+
+  ['b2b','b2cs','hsn','docs'].forEach(k=>{ const b=document.getElementById('gstaDl_'+k); if(b) b.disabled=true; });
+  const mf=document.getElementById('gstaMarkFiledBtn'); if(mf) mf.disabled=true;
+}
+
+async function gstaSave(){
+  const r=_gstaResult; if(!r){ toast('Calculate first','error'); return; }
+  const token=await getBizToken(); if(!token){ toast('Session expired, please re-login','error'); return; }
+  try{
+    const res=await fetch(API+'/api/admin/gst/save',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({period:r.period,gstin:r.gstin,summary:r.summary,tables:r.tables,flags:r.flags,sourceFiles:r.sourceFiles})});
+    const data=await res.json();
+    if(!res.ok) throw new Error(data.error||'Save failed');
+    _gstaSavedPeriodId=data.periodId;
+    ['b2b','b2cs','hsn','docs'].forEach(k=>{ const b=document.getElementById('gstaDl_'+k); if(b) b.disabled=false; });
+    const mf=document.getElementById('gstaMarkFiledBtn'); if(mf) mf.disabled=false;
+    toast('Saved to filing history');
+    _gstaCurrentStatusCache=undefined; // invalidate reminder-suppression cache
+    gstaLoadHistory();
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+async function gstaDownload(table){
+  if(!_gstaSavedPeriodId){ toast('Save to filing history first','error'); return; }
+  const token=await getBizToken(); if(!token) return;
+  const res=await fetch(API+`/api/admin/gst/${_gstaSavedPeriodId}/export/${table}`,{headers:{'Authorization':'Bearer '+token}});
+  if(!res.ok){ toast('Download failed','error'); return; }
+  const blob=await res.blob();
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${table}_${_gstaResult.period}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+async function gstaMarkFiled(){
+  if(!_gstaSavedPeriodId) return;
+  if(!confirm('Mark this period as filed on the GST portal?')) return;
+  const token=await getBizToken(); if(!token) return;
+  const res=await fetch(API+`/api/admin/gst/${_gstaSavedPeriodId}/mark-filed`,{method:'POST',headers:{'Authorization':'Bearer '+token}});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok){ toast('Error: '+(data.error||'Failed'),'error'); return; }
+  toast('Marked as filed'); gstaLoadHistory();
+}
+
+async function gstaLoadHistory(){
+  const token=await getBizToken();
+  const tbody=document.getElementById('gstaHistoryBody'); if(!tbody) return;
+  if(!token){ tbody.innerHTML=`<tr><td colspan="7" class="empty"><div class="em-text">Session expired</div></td></tr>`; return; }
+  try{
+    const res=await fetch(API+'/api/admin/gst/history',{headers:{'Authorization':'Bearer '+token}});
+    const data=await res.json();
+    if(!res.ok) throw new Error(data.error||'Failed to load history');
+    _gstaHistory=data.periods||[];
+  }catch(e){
+    tbody.innerHTML=`<tr><td colspan="7" class="empty"><div class="em-text">${esc(e.message)}, has 20260711_gst_reconciliation.sql been run?</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML=_gstaHistory.length?_gstaHistory.map(p=>`<tr>
+    <td>${esc(p.period)}</td>
+    <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(p.status)}</span></td>
+    <td class="td-num">${fmt(p.totals?.taxable||0)}</td>
+    <td class="td-num">${fmt((p.totals?.cgst||0)+(p.totals?.sgst||0)+(p.totals?.igst||0))}</td>
+    <td class="td-num">${fmt(p.totals?.total||0)}</td>
+    <td>${esc(p.filed_date||'—')}</td>
+    <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="gstaReopenPeriod('${p.id}')">Open</button></td>
+  </tr>`).join(''):`<tr><td colspan="7" class="empty"><div class="em-text">No periods calculated yet</div></td></tr>`;
+  gstaRenderTrendChart();
+}
+
+async function gstaReopenPeriod(periodId){
+  const token=await getBizToken(); if(!token) return;
+  const res=await fetch(API+'/api/admin/gst/'+periodId,{headers:{'Authorization':'Bearer '+token}});
+  const data=await res.json();
+  if(!res.ok){ toast('Error: '+(data.error||'Failed'),'error'); return; }
+  _gstaResult={summary:data.period.totals,tables:data.tables,flags:data.flags,period:data.period.period,gstin:data.period.seller_gstin,sourceFiles:data.period.source_files};
+  _gstaSavedPeriodId=periodId;
+  document.getElementById('gstaPeriod').value=data.period.period;
+  document.getElementById('gstaGstin').value=data.period.seller_gstin;
+  gstaRenderReview();
+  ['b2b','b2cs','hsn','docs'].forEach(k=>{ const b=document.getElementById('gstaDl_'+k); if(b) b.disabled=false; });
+  const mf=document.getElementById('gstaMarkFiledBtn'); if(mf) mf.disabled=(data.period.status==='filed');
+  document.getElementById('gstaReview').scrollIntoView({behavior:'smooth'});
+}
+
+function gstaRenderTrendChart(){
+  const canvas=document.getElementById('gstaTrendChart'); if(!canvas||typeof Chart==='undefined') return;
+  const sorted=[..._gstaHistory].sort((a,b)=>a.period<b.period?-1:1);
+  const labels=sorted.map(p=>p.period);
+  const taxable=sorted.map(p=>p.totals?.taxable||0);
+  const tax=sorted.map(p=>(p.totals?.cgst||0)+(p.totals?.sgst||0)+(p.totals?.igst||0));
+  if(_gstaTrendChart) _gstaTrendChart.destroy();
+  _gstaTrendChart=new Chart(canvas,{type:'bar',data:{labels,datasets:[
+    {label:'Taxable',data:taxable,backgroundColor:'#C4622A'},
+    {label:'Tax',data:tax,backgroundColor:'#1C1917'},
+  ]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true}}}});
+}
+
+// Reminder-suppression check used by gstFilingReminderCard() — cached per session so the
+// Business OS home/GST Portal load doesn't hit the backend on every tab switch.
+async function gstaCheckCurrentPeriodStatus(){
+  if(_gstaCurrentStatusCache!==undefined) return _gstaCurrentStatusCache;
+  try{
+    const n=new Date(); const period=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0');
+    const token=await getBizToken(); if(!token){ _gstaCurrentStatusCache=null; return null; }
+    const res=await fetch(API+'/api/admin/gst/history',{headers:{'Authorization':'Bearer '+token}});
+    if(!res.ok){ _gstaCurrentStatusCache=null; return null; }
+    const {periods}=await res.json();
+    const row=(periods||[]).find(p=>p.period===period);
+    _gstaCurrentStatusCache=row?row.status:null;
+  }catch(_){ _gstaCurrentStatusCache=null; }
+  return _gstaCurrentStatusCache;
 }
 
 // ── Invoicing, every invoice ever generated via printInvoice(), linked to its order ──

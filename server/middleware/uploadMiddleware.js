@@ -24,3 +24,19 @@ export async function compressImage(buffer) {
     .webp({ quality: 82 })
     .toBuffer();
 }
+
+/* ── GST Filing Automation: 3 monthly source files (Amazon B2B/B2C CSV, Flipkart XLSX) ── */
+export const uploadGstFiles = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  fileFilter(_req, file, cb) {
+    const okExt = /\.(csv|xlsx|xls)$/i.test(file.originalname || '');
+    const okMime = [
+      'text/csv', 'application/vnd.ms-excel', 'application/csv',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/octet-stream', // some browsers send this for CSV/XLSX
+    ].includes(file.mimetype);
+    if (okExt && okMime) return cb(null, true);
+    cb(new Error('Only CSV and XLSX files are allowed'));
+  },
+});

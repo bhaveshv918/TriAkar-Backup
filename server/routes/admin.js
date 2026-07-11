@@ -18,8 +18,11 @@ import {
 } from '../controllers/productStudioController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
-import { upload, compressImage } from '../middleware/uploadMiddleware.js';
+import { upload, compressImage, uploadGstFiles } from '../middleware/uploadMiddleware.js';
 import { uploadBufferToCloudinary } from '../services/cloudinaryService.js';
+import {
+  calculateGst, saveGstCalc, getGstHistory, getGstPeriodDetail, exportGstCsv, markGstFiled,
+} from '../controllers/gstController.js';
 
 const router = Router();
 
@@ -83,5 +86,15 @@ router.get('/activity',             getActivity);
 router.get('/recycle-bin',          listRecycleBin);
 router.post('/recycle-bin/restore', restoreItem);
 router.post('/recycle-bin/purge',   purgeItem);
+
+// ── GST Filing Automation, GSTR-1 reconciliation engine ──
+router.post('/gst/calculate', uploadGstFiles.fields([
+  { name: 'amazonB2b', maxCount: 1 }, { name: 'amazonB2c', maxCount: 1 }, { name: 'flipkart', maxCount: 1 },
+]), calculateGst);
+router.post('/gst/save',                    saveGstCalc);
+router.get('/gst/history',                  getGstHistory);
+router.get('/gst/:periodId',                getGstPeriodDetail);
+router.get('/gst/:periodId/export/:table',  exportGstCsv);
+router.post('/gst/:periodId/mark-filed',    markGstFiled);
 
 export default router;
