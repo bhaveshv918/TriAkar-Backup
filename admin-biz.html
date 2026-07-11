@@ -846,11 +846,22 @@ html[data-theme="dark"] .biz-login{
           <div class="p-title">Dashboard</div>
           <div class="p-sub" id="dashPeriodLabel">Loading…</div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <select id="dashMonth" class="month-select" onchange="loadDashboard()">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="dashView" onchange="onDashViewChange()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
+            <option value="fy" selected>This Financial Year</option>
+            <option value="calendar">Calendar Year</option>
+            <option value="month">Select Month</option>
+            <option value="custom">Custom Range</option>
+          </select>
+          <select id="dashMonth" class="month-select" onchange="loadDashboard()" style="display:none">
             <!-- filled by JS -->
           </select>
-          <button class="btn btn-ghost btn-sm" onclick="exportMonthExcel()">↓ Export this month</button>
+          <div id="dashCustomRange" style="display:none;gap:6px;align-items:center">
+            <input type="month" id="dashFrom" onchange="loadDashboard()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
+            <span style="color:var(--text-3);font-size:11px">to</span>
+            <input type="month" id="dashTo" onchange="loadDashboard()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="exportMonthExcel()">↓ Export this period</button>
           <button class="btn btn-ghost btn-sm" onclick="toggleDashCustomize()" title="Show / hide / reorder widgets">⚙ Widgets</button>
         </div>
       </div>
@@ -873,13 +884,13 @@ html[data-theme="dark"] .biz-login{
 
       <!-- Margin by Channel, separate from the Channel Breakdown table for visibility -->
       <div class="chart-box" style="margin-bottom:16px">
-        <h3>Margin % by Channel, <span id="marginMonthName">this month</span></h3>
+        <h3>Margin % by Channel, <span id="marginMonthName">this financial year</span></h3>
         <div id="marginByChannel" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px"></div>
       </div>
 
       <!-- Orders by Channel, quick order-count cards, one per channel -->
       <div class="chart-box" style="margin-bottom:16px">
-        <h3>Orders by Channel, <span id="ordersByChMonthName">this month</span></h3>
+        <h3>Orders by Channel, <span id="ordersByChMonthName">this financial year</span></h3>
         <div id="ordersByChannel" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px"></div>
       </div>
 
@@ -895,7 +906,7 @@ html[data-theme="dark"] .biz-login{
         </div>
       </div>
       <div class="chart-box" style="margin-bottom:16px">
-        <h3>New Customers by Channel, <span id="newCustMonthName">this month</span></h3>
+        <h3>New Customers by Channel, <span id="newCustMonthName">this financial year</span></h3>
         <div id="newCustByChannel" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px"></div>
       </div>
 
@@ -963,7 +974,7 @@ html[data-theme="dark"] .biz-login{
 
       <!-- Channel breakdown table -->
       <div class="chart-box" style="margin-bottom:16px">
-        <h3>Channel Breakdown, <span id="dashMonthName">this month</span></h3>
+        <h3>Channel Breakdown, <span id="dashMonthName">this financial year</span></h3>
         <div class="tbl-wrap" style="border:none;margin-top:12px">
           <table>
             <thead><tr>
@@ -4721,8 +4732,23 @@ function resolvePeriodRange(viewId,monthId,fromId,toId){
   }
   return {start,next,view};
 }
-function periodLabel(view,noun){
-  return view==='month'?`${noun} This Month`:view==='calendar'?`${noun} This Year`:view==='custom'?`${noun} (Custom Range)`:`${noun} This FY`;
+function periodNoun(view){
+  return view==='month'?'This Month':view==='calendar'?'This Year':view==='custom'?'Custom Range':'This FY';
+}
+function periodLabel(view,noun){ return `${noun} ${periodNoun(view)}`; }
+// Human-readable label for the active range, e.g. "December 2025" / "Calendar Year 2026" /
+// "FY 2026-27" / "Jan 2026 – Jun 2026". Used for panel subtitles across the period-picker tabs.
+function formatPeriodLabel(view,start,next){
+  if(view==='month') return new Date(start+'T00:00:00').toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  if(view==='calendar') return 'Calendar Year '+start.slice(0,4);
+  if(view==='custom'){
+    const f=new Date(start+'T00:00:00').toLocaleDateString('en-IN',{month:'short',year:'numeric'});
+    const endIncl=new Date(next+'T00:00:00'); endIncl.setDate(endIncl.getDate()-1);
+    const t=endIncl.toLocaleDateString('en-IN',{month:'short',year:'numeric'});
+    return `${f} – ${t}`;
+  }
+  const fyY=Number(start.slice(0,4));
+  return `FY ${fyY}-${String((fyY+1)%100).padStart(2,'0')}`;
 }
 function onLedgerViewChange(){ togglePeriodInputs('ldView','ldMonth','ldCustomRange'); loadLedger(); }
 async function loadLedger(){
@@ -6944,16 +6970,19 @@ function spoolSaveCfg(cfg){ try{ localStorage.setItem('biz_spool_widgets',JSON.s
 function spoolToggleWidget(k){ const cfg=spoolWidgetCfg(); const i=cfg.hidden.indexOf(k); if(i>=0) cfg.hidden.splice(i,1); else cfg.hidden.push(k); spoolSaveCfg(cfg); }
 function spoolMoveWidget(k,dir){ const cfg=spoolWidgetCfg(); const i=cfg.order.indexOf(k), j=i+dir; if(i<0||j<0||j>=cfg.order.length) return; const t=cfg.order[i]; cfg.order[i]=cfg.order[j]; cfg.order[j]=t; spoolSaveCfg(cfg); }
 
+function onDashViewChange(){ togglePeriodInputs('dashView','dashMonth','dashCustomRange'); loadDashboard(); }
 async function loadDashboard(){
-  const sel=document.getElementById('dashMonth');
-  if(!sel||!sel.value){ initDashMonths(); }
-  const mo=document.getElementById('dashMonth').value;
-  const [y,m]=mo.split('-').map(Number);
-  const from=`${mo}-01`;
-  const nextM=(m===12)?`${y+1}-01-01`:`${y}-${String(m+1).padStart(2,'0')}-01`;   // exclusive, avoids invalid YYYY-MM-31
-  const label=new Date(y,m-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  const msel=document.getElementById('dashMonth');
+  if(msel&&!msel.options.length) initDashMonths();
+  const {start:from,next:nextM,view:dashView}=resolvePeriodRange('dashView','dashMonth','dashFrom','dashTo');
+  const label=formatPeriodLabel(dashView,from,nextM);
   document.getElementById('dashMonthName').textContent=label;
   const pl=document.getElementById('dashPeriodLabel'); if(pl) pl.textContent=label;
+
+  // Top Customer, Year widget stays pinned to a real calendar year: the year the selected
+  // month falls in when browsing a specific month, otherwise the current calendar year
+  // (an FY/Calendar/Custom range doesn't map to a single unambiguous "year").
+  const topCustYear=dashView==='month'?Number(from.slice(0,4)):new Date().getFullYear();
 
   // §2.9, trend range: Current FY (Apr-Mar) / Calendar Year (Jan-Dec) / Custom, always
   // capped at the current month so upcoming zero-data months never appear.
@@ -6981,7 +7010,7 @@ async function loadDashboard(){
   const trendEndExclY=trendEndM===12?trendEndY+1:trendEndY, trendEndExclM=trendEndM===12?1:trendEndM+1;
   const trendEndExcl=`${trendEndExclY}-${String(trendEndExclM).padStart(2,'0')}-01`;
 
-  const yearStart=`${y}-01-01`, yearEnd=`${y+1}-01-01`;
+  const yearStart=`${topCustYear}-01-01`, yearEnd=`${topCustYear+1}-01-01`;
   const [salesRes,retsRes,monthlyRes,yearCustRes,shopLogRes,firstOrderRes]=await Promise.all([
     sb.from('biz_sales').select('channel_id,product_name,sku,color,order_id,customer_name,selling_price,platform_fee,shipping_fee,other_deductions,cogs,gst_rate,status,qty,payment_mode,grams_used,delivery_date,completed_at').eq('is_deleted',false).gte('order_date',from).lt('order_date',nextM),
     sb.from('biz_returns').select('*').gte('date',from).lt('date',nextM),
@@ -7080,10 +7109,10 @@ async function loadDashboard(){
   const custYear={}; yearCust.forEach(s=>{ const n=(s.customer_name||'').trim(); if(n) custYear[n]=(custYear[n]||0)+num(s.selling_price); });
   const topYear=Object.entries(custYear).sort((a,b)=>b[1]-a[1])[0];
   document.getElementById('kpiTopCustYear').textContent=topYear?topYear[0]:'—';
-  document.getElementById('kpiTopCustYearSub').textContent=topYear?fmt(topYear[1])+' spent in '+y:'No customer data';
+  document.getElementById('kpiTopCustYearSub').textContent=topYear?fmt(topYear[1])+' spent in '+topCustYear:'No customer data';
 
   // Cache everything the drill-down modal needs so clicking a tile doesn't re-query
-  _dashCache={label,completed,rets,byChannel,channels,byColor,totalGrams,custMonth,custYear,year:y,totRev,totNet,totProfit,totGst,totOrders,totItems,totUnits,totLost,cancelledRows,totCancelled};
+  _dashCache={label,completed,rets,byChannel,channels,byColor,totalGrams,custMonth,custYear,year:topCustYear,totRev,totNet,totProfit,totGst,totOrders,totItems,totUnits,totLost,cancelledRows,totCancelled};
 
   // Chart: by channel, rendered per the per-widget setting (type + metric, #3)
   _dashByChannel=byChannel; renderChannelChart();
@@ -7156,7 +7185,7 @@ async function loadDashboard(){
   let hToday=0,hWeek=0,hMonth=0;
   shopLog.forEach(r=>{ const h=hoursOf(r); hMonth+=h; if(r.date===todayStr) hToday+=h; if(r.date>=weekAgoStr) hWeek+=h; });
   const shc=document.getElementById('studioHoursCards');
-  if(shc) shc.innerHTML=[['Today',hToday],['Last 7 Days',hWeek],['This Month',hMonth]].map(([lbl,h])=>`
+  if(shc) shc.innerHTML=[['Today',hToday],['Last 7 Days',hWeek],[periodNoun(dashView),hMonth]].map(([lbl,h])=>`
     <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px">
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">${lbl}</div>
       <div style="font-size:18px;font-weight:700;margin-top:4px">${h.toFixed(1)}h</div>
@@ -7734,22 +7763,18 @@ function exportTableExcel(tableId,name){
   XLSX.writeFile(wb,`triakar_${name}_${thisMonth()}.xlsx`);
 }
 
-// Dashboard export, only the selected month's sales + returns
+// Dashboard export, only the sales + returns in the currently selected period (FY/Calendar/Month/Custom)
 async function exportMonthExcel(){
-  const mo=document.getElementById('dashMonth')?.value;
-  if(!mo){ return exportAllExcel(); }
-  const [y,m]=mo.split('-').map(Number);
-  const from=`${mo}-01`;
-  const nextM=(m===12)?`${y+1}-01-01`:`${y}-${String(m+1).padStart(2,'0')}-01`;
+  const {start:from,next:nextM,view}=resolvePeriodRange('dashView','dashMonth','dashFrom','dashTo');
   const [{data:sales},{data:returns}]=await Promise.all([
     sb.from('biz_sales').select('*').eq('is_deleted',false).gte('order_date',from).lt('order_date',nextM).order('order_date',{ascending:false}),
     sb.from('biz_returns').select('*').gte('date',from).lt('date',nextM).order('date',{ascending:false})
   ]);
-  if(!(sales||[]).length && !(returns||[]).length){ toast('No data for this month','error'); return; }
+  if(!(sales||[]).length && !(returns||[]).length){ toast('No data for this period','error'); return; }
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sales||[]),'Sales');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(returns||[]),'Returns');
-  const label=new Date(y,m-1,1).toLocaleDateString('en-IN',{month:'short',year:'numeric'}).replace(/\s+/g,'_');
+  const label=formatPeriodLabel(view,from,nextM).replace(/\s+/g,'_');
   XLSX.writeFile(wb,`triakar_${label}.xlsx`);
   toast('Exported '+label.replace(/_/g,' '));
 }
