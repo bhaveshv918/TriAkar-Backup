@@ -30,8 +30,11 @@ export const STATE_CODES = {
   '38': 'Ladakh', '97': 'Other Territory', '99': 'Centre Jurisdiction',
 };
 
+// '%' is kept (not stripped like other punctuation) so a rate column ("IGST %") never collapses
+// to the same key as its corresponding amount column ("IGST") once spacing/case is normalized
+// away, since those two columns commonly coexist on the same sheet and mean very different things.
 function normKey(s) {
-  return String(s ?? '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  return String(s ?? '').trim().toLowerCase().replace(/[^a-z0-9%]/g, '');
 }
 
 /** Build a case/punctuation-insensitive field picker for one parsed row. */
@@ -47,10 +50,23 @@ function rowPicker(row) {
   };
 }
 
+/**
+ * Real-world spreadsheet exports sometimes carry thousands separators, a currency symbol, a
+ * trailing "%", a non-breaking space, or accounting-style parentheses for negatives, none of
+ * which `Number()` tolerates on its own (silently NaN -> would parse as 0 with the old version).
+ * Strip all of that before converting, so a genuinely-populated money/rate cell never silently
+ * reads as zero just because of formatting.
+ */
 function parseNumber(v) {
   if (v === '' || v === null || v === undefined) return 0;
-  const n = Number(String(v).replace(/,/g, '').trim());
-  return Number.isFinite(n) ? n : 0;
+  let s = String(v).trim();
+  if (!s) return 0;
+  const negative = /^\(.*\)$/.test(s);
+  if (negative) s = s.slice(1, -1);
+  s = s.replace(/[, %₹$]/g, '').replace(/\bRs\.?\b/gi, '').replace(/\bINR\b/gi, '').trim();
+  const n = Number(s);
+  if (!Number.isFinite(n)) return 0;
+  return negative ? -Math.abs(n) : n;
 }
 
 function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
@@ -351,12 +367,16 @@ function processFlipkart(buffer, flags) {
   const stateRows = (sec7b2 || []).map((raw) => {
     const p = rowPicker(raw);
     const gross = parseNumber(p('Gross Taxable Value', 'Gross Taxable', 'Gross Taxable Amount'));
-    const ret = parseNumber(p('Taxable Sales Return', 'Sales Return', 'Taxable Value Return', 'Return Taxable Value'));
+    // 'Taxable Sales Return Value' confirmed as the real header by hand-inspecting the live file;
+    // the spec's own prose shorthand ("Taxable Sales Return") never actually appears verbatim.
+    const ret = parseNumber(p('Taxable Sales Return Value', 'Taxable Sales Return', 'Sales Return', 'Taxable Value Return', 'Return Taxable Value'));
     const net = parseNumber(p('Net (Aggregate) Taxable Value', 'Net Aggregate Taxable Value', 'Net Taxable Value', 'Net Taxable Amount', 'Aggregate Taxable Value'));
     const state = p('Place of Supply', 'State', 'Ship To State', 'State of Supply', 'Destination State');
     // Snap to a real GST slab so this bucket lines up exactly with the Amazon-side bucket for
     // the same state in the merge step below (see effectiveRate for why exact matching matters).
-    const rate = snapRate(parseNumber(p('Rate', 'GST Rate', 'IGST Rate', 'Tax Rate', 'Rate (%)')));
+    // 'IGST %' confirmed as the real header. Normalizes to "igst" once the '%' is stripped,
+    // which never matched the old 'IGST Rate'/'GST Rate' candidates (different word entirely).
+    const rate = snapRate(parseNumber(p('IGST %', 'Rate', 'GST Rate', 'IGST Rate', 'Tax Rate', 'Rate (%)')));
     const igst = parseNumber(p('IGST', 'IGST Amount', 'Integrated Tax Amount', 'Integrated Tax'));
     if (state && Math.abs((gross - ret) - net) > 1) {
       flags.push(blocker('flipkart_state_net_mismatch', `Flipkart Section 7(B)(2), ${state}: Gross (₹${gross}) − Return (₹${ret}) ≠ reported Net (₹${net}). Bad data, stop and check the source file before filing.`, { state, gross, ret, net }));
@@ -368,7 +388,7 @@ function processFlipkart(buffer, flags) {
   // usable state (Place of Supply) value, meaning the column-name candidates above are wrong for
   // this file. Without this flag, that degrades silently into "Flipkart contributed nothing".
   if (sec7b2 && sec7b2.length && !stateRows.length) {
-    flags.push(blocker('flipkart_state_col_unmatched', `Flipkart Section 7(B)(2) has ${sec7b2.length} row(s) but none had a resolvable state column ("Place of Supply", "State", etc.), so 0 rows were counted. Check the actual column headers and update gst-reconciliation.js.`));
+    flags.push(blocker('flipkart_state_col_unmatched', `Flipkart Section 7(B)(2) has ${sec7b2.length} row(s) but none had a resolvable state column ("Place of Supply", "State", etc.), so 0 rows were counted. Check the actual column headers and update gst-reconciliation.js. See context.rawSampleRow for the actual first row as read from the sheet.`, { rawSampleRow: sec7b2[0] }));
   }
 
   // Section 12 (HSN) and Section 13 (Documents Issued) are both part of GSTR-1 itself, so a
@@ -393,7 +413,11 @@ function processFlipkart(buffer, flags) {
   // vanished from the totals without a single flag. This is the live bug: 16 documents came back
   // instead of 54 with zero Flipkart-related flags, which only fits "rows found, money read as 0".
   if (stateRows.length && netTotalFromStates === 0) {
-    flags.push(blocker('flipkart_state_amount_col_unmatched', `Flipkart Section 7(B)(2) has ${stateRows.length} row(s) with a resolvable state but the total net taxable value came out to ₹0. The money columns ("Gross Taxable Value", "Taxable Sales Return", "Net (Aggregate) Taxable Value") likely don't match this file's real headers. Check the actual column names and update gst-reconciliation.js.`));
+    // Include the actual raw first row (headers AND values, verbatim as read from the sheet) in
+    // the flag's context, not just the message. If this still fires after the confirmed real
+    // header names were added, the raw sample below shows exactly what's different immediately,
+    // no more back-and-forth manual Python inspection needed.
+    flags.push(blocker('flipkart_state_amount_col_unmatched', `Flipkart Section 7(B)(2) has ${stateRows.length} row(s) with a resolvable state but the total net taxable value came out to ₹0. The money columns ("Gross Taxable Value", "Taxable Sales Return Value", "Net Taxable Value") likely don't match this file's real headers, or the cell values aren't parsing as numbers. See context.rawSampleRow for the actual first row as read from the sheet.`, { rawSampleRow: sec7b2[0] }));
   }
 
   // Same principle for Section 13: if Flipkart clearly had real sales this period (stateRows) but

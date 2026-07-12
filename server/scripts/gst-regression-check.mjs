@@ -210,6 +210,28 @@ const wrongMoneyColsResult = reconcileGstPeriod({ gstin: '09XYZAB5678L1Z3', peri
 check('Flipkart rows with a resolvable state but unmatched money columns raise flipkart_state_amount_col_unmatched', wrongMoneyColsResult.flags.some((f) => f.code === 'flipkart_state_amount_col_unmatched'));
 check('That blocker does NOT fire when money columns tie out correctly (existing fixture)', !flipkartOnlyResult.flags.some((f) => f.code === 'flipkart_state_amount_col_unmatched'));
 
+// Regression guard for the LIVE bug reported this round: the exact real-world column set the
+// admin confirmed by hand ("GSTIN, Place of Supply, Gross Taxable Value, Taxable Sales Return
+// Value, Net Taxable Value, IGST %, IGST Amount, Cess %, Cess Amount, State, State Code") must
+// parse correctly end to end. This is also the exact case that exposed a second, self-inflicted
+// bug: 'IGST %' and 'IGST' (an entirely different, already-present column) both normalized to
+// the same key once '%' was stripped, so the new 'IGST %' candidate silently grabbed the IGST
+// AMOUNT column's value instead of the rate; normKey now keeps '%' specifically to prevent this.
+function flipkartBufferRealColumnSet() {
+  const wb = XLSX.utils.book_new();
+  const sec7b2 = XLSX.utils.json_to_sheet([
+    { GSTIN: '09XYZAB5678L1Z3', 'Place of Supply': 'Karnataka', 'Gross Taxable Value': 800, 'Taxable Sales Return Value': 0, 'Net Taxable Value': 800, 'IGST %': 18, 'IGST Amount': 144, 'Cess %': 0, 'Cess Amount': 0, State: 'Karnataka', 'State Code': 29 },
+    { GSTIN: '09XYZAB5678L1Z3', 'Place of Supply': 'Maharashtra', 'Gross Taxable Value': '₹1,200.00', 'Taxable Sales Return Value': '₹200.00', 'Net Taxable Value': '₹1,000.00', 'IGST %': '18%', 'IGST Amount': 180, 'Cess %': 0, 'Cess Amount': 0, State: 'Maharashtra', 'State Code': 27 },
+  ]);
+  XLSX.utils.book_append_sheet(wb, sec7b2, 'Section 7(B)(2) in GSTR-1');
+  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+}
+const realColumnSetResult = reconcileGstPeriod({ gstin: '09XYZAB5678L1Z3', period: '2026-06', flipkartBuffer: flipkartBufferRealColumnSet() });
+check('Real-world Flipkart column set does NOT raise flipkart_state_amount_col_unmatched', !realColumnSetResult.flags.some((f) => f.code === 'flipkart_state_amount_col_unmatched'));
+check('Real-world Flipkart column set: net taxable totals 800 + 1000 = 1800 (incl. currency-formatted cells)', realColumnSetResult.summary.taxable === 1800);
+const karnatakaRow = realColumnSetResult.tables.b2cs.find((r) => r.state === 'Karnataka');
+check('Real-world Flipkart column set: IGST % (18) read as the rate, not the IGST Amount column (144)', karnatakaRow && karnatakaRow.rate === 18);
+
 console.log('\n── Checks ──');
 let failed = 0;
 for (const c of checks) {
