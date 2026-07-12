@@ -8790,6 +8790,9 @@ function bizAnyModalOpen(){
   return ids.some(id=>{ const el=document.getElementById(id); return el&&el.style.display!=='none'; });
 }
 document.addEventListener('keydown',function(ev){
+  // Guard against synthetic/malformed keydown events (some browser extensions dispatch a plain
+  // Event rather than a real KeyboardEvent) where .key is undefined, not just an unrecognised key.
+  if(!ev.key) return;
   const k=ev.key.toLowerCase();
   if(!(k in BIZ_TAB_KEYS)) return;
   if(ev.ctrlKey||ev.metaKey||ev.altKey) return;
