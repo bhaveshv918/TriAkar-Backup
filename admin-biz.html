@@ -5271,6 +5271,7 @@ function renderOrderDetail(items){
       <button class="btn btn-ghost btn-sm" id="revealBtn_${key}" onclick="revealCost('${key}')">🔒 Show cost &amp; profit</button>
       <button class="btn btn-ghost btn-sm" onclick="printOrderInvoice('${key}')">🧾 Invoice</button>
       <button class="btn btn-ghost btn-sm" onclick="printOrderInvoice('${key}','record')">📋 Order Record</button>
+      <button class="btn btn-ghost btn-sm" onclick="duplicateOrder('${key}')" title="Copy this order's customer, items &amp; pricing into Quick Add Sale as a new order">⧉ Duplicate</button>
       ${['delivered','completed','dispatched'].includes(f.status)?`<button class="btn btn-ghost btn-sm" onclick="initiateReturnFromOrder('${key}')">↩ Initiate Return</button>`:''}
       ${locked?'<span style="font-size:11px;color:var(--text-3)">Paid, unmark to edit</span>'
         :`<button class="btn btn-danger btn-sm" onclick="deleteOrder('${key}')">✕ Delete order</button>`}
@@ -5282,6 +5283,61 @@ function printOrderInvoice(firstId,docKind){
   const items=_orderGroup(firstId); if(!items.length){ toast('Could not load order','error'); return; }
   const anyGst=items.some(s=>parseFloat(s.gst_rate)>0);
   printInvoice({...items[0], items}, anyGst?'gst':'nongst', docKind);
+}
+// Copy an existing order's customer, items, HSN, pricing etc. into Quick Add Sale as the
+// starting point for a new order. Order ID / date / status are left at resetQuickAdd()'s
+// fresh defaults (this is a new order, not a resave of the old one), and the spool pick is
+// cleared since the original spool may have moved on since, everything else carries over.
+function duplicateOrder(firstId){
+  const items=_orderGroup(firstId); if(!items.length){ toast('Could not load order','error'); return; }
+  const f=items[0];
+  switchTab('quickadd');
+  setTimeout(()=>{
+    resetQuickAdd();
+    const set=(id,v)=>{const e=document.getElementById(id); if(e) e.value=(v==null?'':v);};
+    set('qa_channel',f.channel_id||'shop'); onChannelChange();
+    set('qa_payment',f.payment_mode||'upi');
+    set('qa_cname',f.customer_name);
+    set('qa_phone',f.customer_phone);
+    set('qa_address',f.customer_address);
+    set('qa_city',f.customer_city);
+    set('qa_state',f.customer_state);
+    set('qa_pin',f.customer_pincode);
+    set('qa_gstin',f.customer_gstin);
+    set('qa_courier',f.courier_partner);
+    set('qa_packet',f.package_size);
+    if(typeof setLeadSource==='function') setLeadSource(f.lead_source||'');
+    if(f.fulfillment_type==='pickup'){
+      const d=f.fulfillment_detail;
+      setFulfillment(d==='self'?'pickup_self':d==='porter'?'pickup_porter':'pickup_other');
+      if(d&&d!=='self'&&d!=='porter'){ set('qa_fulfil_other',d); onFulfilOther(d); }
+    }
+    _items=items.map(s=>{
+      const gstRate=parseFloat(s.gst_rate)||0;
+      return {
+        productId:s.product_id||null,
+        name:s.product_name||'',
+        variant:s.variant||'',
+        qty:parseInt(s.qty)||1,
+        rate:Math.round(((parseFloat(s.selling_price)||0)/(1+gstRate/100))*100)/100,
+        disc:parseFloat(s.discount_amount)||0,
+        gst:gstRate,
+        cost:parseFloat(s.cogs)||0,
+        grams:parseFloat(s.grams_used)||0,
+        waste:parseFloat(s.spool_waste_grams)||0,
+        hsn:s.hsn_code||(_bizDefaults&&_bizDefaults.hsn)||'3926',
+        sku:s.sku||'',
+        spool:'',
+        extraSpools:[],
+      };
+    });
+    renderItems();
+    set('qa_platformfee',f.platform_fee||0);
+    set('qa_shipping',f.shipping_fee||0);
+    recalcTotals();
+    toast('Order duplicated into Quick Add Sale, review and save','success');
+    document.getElementById('panelQuickadd')?.scrollIntoView({behavior:'smooth',block:'start'});
+  },300);
 }
 async function deleteOrder(firstId){
   const items=_orderGroup(firstId), ids=items.map(s=>s.id);
