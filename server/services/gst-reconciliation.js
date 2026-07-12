@@ -215,10 +215,16 @@ function snapRate(r) {
   return best;
 }
 
-/** Effective bucketing rate for a row: prefer an explicit TOTAL-rate column, else derive from
- *  tax amounts, then snap to the nearest real GST slab so equivalent rows always bucket together. */
+/** Effective bucketing rate for a row: prefer the rate implied by the actual tax amounts (always
+ *  correctly scaled, since it's arithmetic on real money columns) over an explicit rate column,
+ *  falling back to the column only when no tax amount is available to derive it from. Confirmed
+ *  against a real live Amazon B2C export (May 2026 MTR file): Amazon's own 'Igst Rate' column
+ *  stores the rate as a FRACTION (0.18 for 18%), not a percentage number, so trusting it directly
+ *  snapped every 18% row to the unrelated 0.25% slab instead (0.18 is closer to 0.25 than to 18
+ *  once run through snapRate). Then snap to the nearest real GST slab so equivalent rows bucket
+ *  together. */
 function effectiveRate(row) {
-  return snapRate(row.rate ?? impliedRate(row));
+  return snapRate(impliedRate(row) || row.rate || 0);
 }
 
 // Same class of bug as the Flipkart sheet-name matching: 'Transaction Type' is a CELL VALUE, not
@@ -361,10 +367,17 @@ function processAmazonB2c(rows, period, sellerState, flags) {
       }
 
       if (row.customerGstin) {
-        // B2B credit note: net against the B2B totals downstream via b2bFromB2c using negative
-        // amounts. qty must be negated too (not just the money fields), since these rows also
-        // feed the HSN summary (Table 12) below and an un-negated qty would overcount there.
-        b2bFromB2c.push({ ...row, taxable: -row.taxable, cgst: -row.cgst, sgst: -row.sgst, igst: -row.igst, qty: -row.qty, isCreditNote: true });
+        // B2B credit note: net against the B2B totals downstream via b2bFromB2c. Confirmed against
+        // a real live Amazon B2C export: Amazon already reports EVERY money column (Tax Exclusive
+        // Gross, Cgst/Sgst/Igst Tax, Invoice Amount) as a NEGATIVE number on a Refund row, so
+        // row.taxable etc. are already the correct signed delta to apply, no manual negation needed
+        // (negating an already-negative number here previously flipped it back to positive, silently
+        // DOUBLING refunded amounts into the total instead of removing them, see effectiveRate's
+        // neighboring netting block below for the same bug and full explanation). qty is the one
+        // exception: Amazon's Quantity column is always a positive count regardless of transaction
+        // type, so it still needs an explicit negation here (it also feeds the HSN summary below,
+        // where an un-negated qty would overcount).
+        b2bFromB2c.push({ ...row, qty: -row.qty, isCreditNote: true });
         continue;
       }
 
@@ -377,13 +390,23 @@ function processAmazonB2c(rows, period, sellerState, flags) {
       const rate = original ? effectiveRate(original) : effectiveRate(row);
       const key = stateKey(shipToState, rate, inter);
       const acc = stateNet.get(key) || { state: shipToState, rate, inter, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
-      acc.taxable -= row.taxable; acc.cgst -= row.cgst; acc.sgst -= row.sgst; acc.igst -= row.igst;
+      // Confirmed against a real live Amazon B2C export (May 2026 MTR file): every money column on
+      // a Refund row is already negative (e.g. Tax Exclusive Gross -846.61, Igst Tax -152.39), so
+      // ADDING it nets the bucket down correctly. The previous `-=` assumed row.taxable held a
+      // positive magnitude needing an explicit sign flip, so subtracting an already-negative number
+      // flipped it back to positive, silently INFLATING the affected state's taxable value by 2x the
+      // refund amount instead of removing it, this was live-broken against every real refund. Traced
+      // and confirmed via the real filed May 2026 GSTR-1: Delhi should net to 2 shipments (₹1,693.22)
+      // after the one refund there, the old code produced 4x (₹3,386.44).
+      acc.taxable += row.taxable; acc.cgst += row.cgst; acc.sgst += row.sgst; acc.igst += row.igst;
       stateNet.set(key, acc);
 
       const hsn = row.hsn || (original && original.hsn);
       if (hsn) {
         const h = hsnNet.get(hsn) || { hsn, qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
-        h.qty -= row.qty; h.taxable -= row.taxable; h.cgst -= row.cgst; h.sgst -= row.sgst; h.igst -= row.igst;
+        // Same already-negative convention as the state-netting block above: qty is a positive
+        // count that still needs subtracting, the money fields are already negative and get added.
+        h.qty -= row.qty; h.taxable += row.taxable; h.cgst += row.cgst; h.sgst += row.sgst; h.igst += row.igst;
         hsnNet.set(hsn, h);
       }
     }

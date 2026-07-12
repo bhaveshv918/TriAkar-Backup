@@ -32,11 +32,13 @@ const b2cRows = [
   { 'Transaction Type': 'Shipment', 'Order Id': 'O3', 'Shipment Item Id': 'SI3', 'Invoice Number': 'INV-003', 'Invoice Date': '2026-06-05', 'Invoice Amount': 1180, 'Tax Exclusive Gross': 1000, 'Cgst Tax': 90, 'Sgst Tax': 90, 'Hsn/Sac': '3926', Quantity: 1, 'Ship From State': 'Uttar Pradesh', 'Ship To State': 'Uttar Pradesh' },
   // 4. Inter-state shipment (UP -> Maharashtra), 18%.
   { 'Transaction Type': 'Shipment', 'Order Id': 'O4', 'Shipment Item Id': 'SI4', 'Invoice Number': 'INV-004', 'Invoice Date': '2026-06-10', 'Invoice Amount': 2360, 'Tax Exclusive Gross': 2000, 'Igst Tax': 360, 'Igst Rate': 18, 'Hsn/Sac': '3926', Quantity: 1, 'Ship From State': 'Uttar Pradesh', 'Ship To State': 'Maharashtra' },
-  // 5. Refund matching #4, same month, nets Maharashtra down.
-  { 'Transaction Type': 'Refund', 'Order Id': 'O4', 'Shipment Item Id': 'SI4', 'Invoice Number': 'INV-004', 'Credit Note No': 'CN-001', 'Credit Note Date': '2026-06-20', 'Tax Exclusive Gross': 500, 'Igst Tax': 90, 'Hsn/Sac': '3926', Quantity: 1, 'Ship From State': 'Uttar Pradesh', 'Ship To State': 'Maharashtra' },
+  // 5. Refund matching #4, same month, nets Maharashtra down. Amazon reports refund money columns
+  //    as already-negative (confirmed against a real live May 2026 MTR export), not positive
+  //    magnitudes for the code to subtract, so these fixture values are negative to match.
+  { 'Transaction Type': 'Refund', 'Order Id': 'O4', 'Shipment Item Id': 'SI4', 'Invoice Number': 'INV-004', 'Credit Note No': 'CN-001', 'Credit Note Date': '2026-06-20', 'Tax Exclusive Gross': -500, 'Igst Tax': -90, 'Hsn/Sac': '3926', Quantity: 1, 'Ship From State': 'Uttar Pradesh', 'Ship To State': 'Maharashtra' },
   // 6. Refund with NO matching shipment in this file, referencing an earlier month's invoice.
   //    Lands in Karnataka which has no other current-month sale -> negative net, flagged.
-  { 'Transaction Type': 'Refund', 'Order Id': 'O99', 'Shipment Item Id': 'SI99', 'Invoice Number': 'INV-OLD-099', 'Credit Note No': 'CN-002', 'Credit Note Date': '2026-06-25', 'Tax Exclusive Gross': 300, 'Igst Tax': 54, 'Hsn/Sac': '3926', Quantity: 1, 'Ship From State': 'Uttar Pradesh', 'Ship To State': 'Karnataka' },
+  { 'Transaction Type': 'Refund', 'Order Id': 'O99', 'Shipment Item Id': 'SI99', 'Invoice Number': 'INV-OLD-099', 'Credit Note No': 'CN-002', 'Credit Note Date': '2026-06-25', 'Tax Exclusive Gross': -300, 'Igst Tax': -54, 'Hsn/Sac': '3926', Quantity: 1, 'Ship From State': 'Uttar Pradesh', 'Ship To State': 'Karnataka' },
   // 7. Shipment carrying a customer GSTIN -> pulled into Table 4 (B2B), not netted into B2CS.
   { 'Transaction Type': 'Shipment', 'Order Id': 'O7', 'Shipment Item Id': 'SI7', 'Invoice Number': 'INV-007', 'Invoice Date': '2026-06-12', 'Invoice Amount': 5900, 'Tax Exclusive Gross': 5000, 'Igst Tax': 900, 'Hsn/Sac': '3926', Quantity: 1, 'Ship From State': 'Uttar Pradesh', 'Ship To State': 'Maharashtra', 'Customer Bill To Gstid': '27ABCDE1234F1Z5' },
 ];
@@ -128,7 +130,7 @@ check('Total net documents = 3 Amazon invoices net + 2 Amazon credit notes + 9 F
 const b2cRateBugHeaders = ['Transaction Type', 'Shipment Item Id', 'Invoice Number', 'Invoice Date', 'Tax Exclusive Gross', 'Cgst Tax', 'Sgst Tax', 'Cgst Rate', 'Credit Note No', 'Credit Note Date', 'Ship From State', 'Ship To State'];
 const b2cRateBugRows = [
   { 'Transaction Type': 'Shipment', 'Shipment Item Id': 'SIX1', 'Invoice Number': 'INV-X01', 'Invoice Date': '2026-06-08', 'Tax Exclusive Gross': 2000, 'Cgst Tax': 180, 'Sgst Tax': 180, 'Cgst Rate': 9, 'Ship From State': 'Uttar Pradesh', 'Ship To State': 'Odisha' },
-  { 'Transaction Type': 'Refund', 'Shipment Item Id': 'SIX1', 'Invoice Number': 'INV-X01', 'Tax Exclusive Gross': 2000, 'Cgst Tax': 180, 'Sgst Tax': 180, 'Credit Note No': 'CN-X01', 'Credit Note Date': '2026-06-15', 'Ship From State': 'Uttar Pradesh', 'Ship To State': 'Odisha' },
+  { 'Transaction Type': 'Refund', 'Shipment Item Id': 'SIX1', 'Invoice Number': 'INV-X01', 'Tax Exclusive Gross': -2000, 'Cgst Tax': -180, 'Sgst Tax': -180, 'Credit Note No': 'CN-X01', 'Credit Note Date': '2026-06-15', 'Ship From State': 'Uttar Pradesh', 'Ship To State': 'Odisha' },
 ];
 const rateBugCsv = csv(b2cRateBugHeaders, b2cRateBugRows);
 const rateBugResult = reconcileGstPeriod({ gstin: '09XYZAB5678L1Z3', period: '2026-06', amazonB2cBuffer: rateBugCsv });
