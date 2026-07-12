@@ -8160,10 +8160,11 @@ function nextDocNumber(){
 // was per-device and lost on storage clear. Reuses the same number if this exact
 // sale/order already has one logged, so reprinting doesn't burn a new number every time.
 // Falls back to nextDocNumber() if the migration hasn't been run yet or the RPC errors.
-// manualNumber, the "Invoice No" typed on the sale (Quick Add / Edit Sale), lets the
-// operator override the auto-sequential number, e.g. to match a paper series or fix a
-// number after the fact. When set it always wins, updating the logged row if one already
-// exists so the Invoicing tab reflects whatever number is actually on the printed invoice.
+// manualNumber, the "Invoice No" typed on the sale (Quick Add / Edit Sale), seeds the
+// number the FIRST time an invoice is generated for that sale/order (e.g. a Flipkart
+// import's own invoice number, or a paper-series number picked up front). Once a number
+// is logged, the logged row always wins, so a correction made in the Invoicing tab sticks
+// on every later reprint instead of being silently overwritten back to manualNumber.
 async function allocateInvoiceNumber(saleId, orderId, docKind, manualNumber){
   try{
     const now=new Date(), fyStartYear=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
@@ -8176,12 +8177,11 @@ async function allocateInvoiceNumber(saleId, orderId, docKind, manualNumber){
       const {data:ex}=await sb.from('biz_invoices').select('id,invoice_number').eq('order_id',orderId).eq('doc_kind',docKind).limit(1);
       existing=(ex&&ex[0])||null;
     }
+    if(existing) return existing.invoice_number;
     if(manualNumber){
-      if(existing&&existing.invoice_number!==manualNumber) await sb.from('biz_invoices').update({invoice_number:manualNumber}).eq('id',existing.id);
-      else if(!existing) await sb.from('biz_invoices').insert({invoice_number:manualNumber,financial_year:fy,sale_id:saleId||null,order_id:orderId||null,doc_kind:docKind});
+      await sb.from('biz_invoices').insert({invoice_number:manualNumber,financial_year:fy,sale_id:saleId||null,order_id:orderId||null,doc_kind:docKind});
       return manualNumber;
     }
-    if(existing) return existing.invoice_number;
     const {data:seq,error}=await sb.rpc('biz_next_invoice_number',{p_fy:fy});
     if(error||seq==null) throw error||new Error('no seq');
     const num=`TRK/${fy}/${String(seq).padStart(6,'0')}`;
