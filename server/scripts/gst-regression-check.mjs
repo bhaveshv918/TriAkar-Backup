@@ -157,6 +157,19 @@ check('Zero files uploaded raises an explicit blocker instead of failing silentl
 const wrongSheetNamesResult = reconcileGstPeriod({ gstin: '09XYZAB5678L1Z3', period: '2026-06', flipkartBuffer: flipkartBuffer({ sec7b2: 'B2C Interstate Summary' }) });
 check('Unrecognised Section 7(B)(2) sheet name raises flipkart_sheet_not_found, not a silent blank', wrongSheetNamesResult.flags.some((f) => f.code === 'flipkart_sheet_not_found'));
 
+// Regression guard for the LIVE bug: a real Flipkart file (confirmed by hand, May and June 2026)
+// names its sheets "Section <N> in GSTR-<form>" (e.g. "Section 7(B)(2) in GSTR-1"), which an
+// exact-equality-after-normalization match can never catch (it's a real sheet with extra suffix
+// text, not a typo). All 4 sheets must resolve correctly under this exact real-world naming.
+const realWorldNamesResult = reconcileGstPeriod({ gstin: '09XYZAB5678L1Z3', period: '2026-06', flipkartBuffer: flipkartBuffer({
+  sec7b2: 'Section 7(B)(2) in GSTR-1', sec12: 'Section 12 in GSTR-1', sec13: 'Section 13 in GSTR-1', sec3: 'Section 3 in GSTR-8',
+}) });
+check('Real-world "Section 7(B)(2) in GSTR-1" sheet name is found (no flipkart_sheet_not_found)', !realWorldNamesResult.flags.some((f) => f.code === 'flipkart_sheet_not_found'));
+check('Real-world Flipkart sheet names still produce the correct state-wise data', realWorldNamesResult.tables.b2cs.some((r) => r.state === 'Karnataka' && r.taxable === 800));
+check('Real-world Flipkart sheet names still produce the correct HSN data', realWorldNamesResult.tables.hsn.some((r) => r.hsn === '3926' && r.qty === 5));
+check('Real-world Flipkart sheet names still produce the correct Documents Issued data', realWorldNamesResult.tables.docs.some((d) => d.series === 'Flipkart' && d.totalNumber === 10));
+check('Real-world Flipkart sheet names do NOT raise flipkart_hsn_total_mismatch (Section 12 found and ties out)', !realWorldNamesResult.flags.some((f) => f.code === 'flipkart_hsn_total_mismatch'));
+
 console.log('\n── Checks ──');
 let failed = 0;
 for (const c of checks) {

@@ -78,11 +78,25 @@ function parseCsvBuffer(buffer) {
   return parseCsv(text, { columns: true, skip_empty_lines: true, trim: true, relax_column_count: true });
 }
 
+/**
+ * Real Flipkart exports were found to name sheets like "Section 7(B)(2) in GSTR-1" rather than
+ * the bare "Section 7(B)(2)", a suffix naming an exact-equality match after normalization can
+ * never catch, and the old code printed the sheet in its own "sheets present" error list while
+ * still reporting it as unmatched. Match by prefix instead: either the normalized sheet name
+ * starts with the normalized candidate (handles the "... in GSTR-1/8" suffix), or vice versa
+ * (handles a candidate carrying extra text the real, shorter sheet name doesn't have). Plain
+ * substring containment (`includes`) is deliberately avoided: "Section 1" would then falsely
+ * match inside "Section 12 in GSTR-1" since normalization strips the space between them.
+ */
 function findSheet(wb, sheetNameCandidates) {
-  const normSheetNames = new Map(wb.SheetNames.map((n) => [normKey(n), n]));
   for (const cand of sheetNameCandidates) {
-    const real = normSheetNames.get(normKey(cand));
-    if (real) return XLSX.utils.sheet_to_json(wb.Sheets[real], { defval: '' });
+    const normCand = normKey(cand);
+    for (const sheetName of wb.SheetNames) {
+      const normSheet = normKey(sheetName);
+      if (normSheet.startsWith(normCand) || normCand.startsWith(normSheet)) {
+        return XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: '' });
+      }
+    }
   }
   return null; // no candidate matched any sheet name in the workbook
 }
@@ -287,10 +301,14 @@ function processAmazonB2b(rows) {
 function processFlipkart(buffer, flags) {
   const wb = XLSX.read(buffer, { type: 'buffer' });
 
-  const sec7b2 = findSheet(wb, ['Section 7(B)(2)', 'Section 7B2', '7(B)(2)', 'Section 7 B 2', '7B2']);
-  const sec12 = findSheet(wb, ['Section 12']);
-  const sec13 = findSheet(wb, ['Section 13']);
-  const sec3 = findSheet(wb, ['Section 3']);
+  // Real-world Flipkart exports (confirmed against May and June 2026 files) name each sheet
+  // "Section <N> in GSTR-<form>", e.g. "Section 7(B)(2) in GSTR-1", "Section 3 in GSTR-8" for
+  // the one section that's actually part of GSTR-8 rather than GSTR-1. findSheet's prefix match
+  // already handles this suffix, but the confirmed exact strings are listed first regardless.
+  const sec7b2 = findSheet(wb, ['Section 7(B)(2) in GSTR-1', 'Section 7(B)(2)', 'Section 7B2', '7(B)(2)', 'Section 7 B 2', '7B2']);
+  const sec12 = findSheet(wb, ['Section 12 in GSTR-1', 'Section 12']);
+  const sec13 = findSheet(wb, ['Section 13 in GSTR-1', 'Section 13']);
+  const sec3 = findSheet(wb, ['Section 3 in GSTR-8', 'Section 3 in GSTR-1', 'Section 3']);
 
   // Loud failure instead of a silently blank result: Section 7(B)(2) is THE primary B2C table,
   // so if the sheet-name candidates above don't match anything in this workbook, say so and list
