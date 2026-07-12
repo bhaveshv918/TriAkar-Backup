@@ -193,6 +193,23 @@ const unknownTxTypeResult = reconcileGstPeriod({ gstin: '09XYZAB5678L1Z3', perio
 const unknownTxTypeFlag = unknownTxTypeResult.flags.find((f) => f.code === 'amazon_b2c_transaction_type_unrecognized');
 check('Totally unrecognized Transaction Type values raise a blocker naming the actual value found', unknownTxTypeFlag && unknownTxTypeFlag.message.includes('Dispatch Completed'));
 
+// Regression guard for the LIVE bug reported after the sheet-name fix shipped: sheet found, rows
+// have a resolvable state (so flipkart_state_col_unmatched never fires), but the money columns
+// ("Gross Taxable Value" etc.) use headers this file's candidates don't match, so every row taxes
+// at ₹0 and Flipkart's whole contribution silently disappears from the totals with ZERO flags,
+// producing exactly the reported symptom (16 documents instead of 54, no error shown).
+function flipkartBufferWrongMoneyColumns() {
+  const wb = XLSX.utils.book_new();
+  const sec7b2 = XLSX.utils.json_to_sheet([
+    { 'Place of Supply': 'Karnataka', Rate: 18, 'Some Other Gross Column': 800, 'Some Other Return Column': 0, 'Some Other Net Column': 800, IGST: 144 },
+  ]);
+  XLSX.utils.book_append_sheet(wb, sec7b2, 'Section 7(B)(2) in GSTR-1');
+  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+}
+const wrongMoneyColsResult = reconcileGstPeriod({ gstin: '09XYZAB5678L1Z3', period: '2026-06', flipkartBuffer: flipkartBufferWrongMoneyColumns() });
+check('Flipkart rows with a resolvable state but unmatched money columns raise flipkart_state_amount_col_unmatched', wrongMoneyColsResult.flags.some((f) => f.code === 'flipkart_state_amount_col_unmatched'));
+check('That blocker does NOT fire when money columns tie out correctly (existing fixture)', !flipkartOnlyResult.flags.some((f) => f.code === 'flipkart_state_amount_col_unmatched'));
+
 console.log('\n── Checks ──');
 let failed = 0;
 for (const c of checks) {

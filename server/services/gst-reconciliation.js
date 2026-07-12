@@ -385,6 +385,24 @@ function processFlipkart(buffer, flags) {
   const sec3Rows = sec3 || [];
 
   const netTotalFromStates = round2(stateRows.reduce((s, r) => s + r.taxable, 0));
+
+  // Loud failure for the gap the other two checks above miss: the sheet was found AND rows had a
+  // resolvable state (so flipkart_state_col_unmatched never fires), but the MONEY columns ("Gross
+  // Taxable Value" / "Taxable Sales Return" / "Net (Aggregate) Taxable Value") didn't match this
+  // file's real headers, so every row silently taxed at ₹0 and Flipkart's whole contribution
+  // vanished from the totals without a single flag. This is the live bug: 16 documents came back
+  // instead of 54 with zero Flipkart-related flags, which only fits "rows found, money read as 0".
+  if (stateRows.length && netTotalFromStates === 0) {
+    flags.push(blocker('flipkart_state_amount_col_unmatched', `Flipkart Section 7(B)(2) has ${stateRows.length} row(s) with a resolvable state but the total net taxable value came out to ₹0. The money columns ("Gross Taxable Value", "Taxable Sales Return", "Net (Aggregate) Taxable Value") likely don't match this file's real headers. Check the actual column names and update gst-reconciliation.js.`));
+  }
+
+  // Same principle for Section 13: if Flipkart clearly had real sales this period (stateRows) but
+  // its own Documents Issued sheet resolved to zero rows (found but empty, not merely missing),
+  // that is unusual enough to warn about rather than silently reporting 0 Flipkart documents.
+  if (sec13 !== null && !sec13Rows.length && stateRows.length) {
+    flags.push(warning('flipkart_docs_sheet_empty', `Flipkart Section 13 (Documents Issued) sheet was found but has 0 rows, despite Flipkart having real sales this period per Section 7(B)(2). Documents Issued will be missing Flipkart's contribution.`));
+  }
+
   const sec12Total = sec12Rows.reduce((s, raw) => s + parseNumber(rowPicker(raw)('Total Taxable Value', 'Taxable Value')), 0);
   const sec3NetTaxable = sec3Rows.reduce((s, raw) => s + parseNumber(rowPicker(raw)('Net Taxable Value', 'Taxable Value')), 0);
   if (sec12Rows.length && Math.abs(netTotalFromStates - round2(sec12Total)) > 1) {
