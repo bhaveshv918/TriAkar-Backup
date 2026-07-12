@@ -160,3 +160,33 @@ export async function markGstFiled(req, res, next) {
     res.json({ ok: true });
   } catch (err) { next(err); }
 }
+
+// ── POST /api/admin/gst/:periodId/unmark-filed, reverts an accidental "Mark as Filed" ──
+export async function unmarkGstFiled(req, res, next) {
+  try {
+    const { periodId } = req.params;
+    const { data: period, error: e1 } = await supabase.from('biz_gst_calc_periods').select('status').eq('id', periodId).single();
+    if (e1) throw e1;
+    if (period.status !== 'filed') return res.status(400).json({ error: 'This period is not marked as filed' });
+    const { error } = await supabase.from('biz_gst_calc_periods')
+      .update({ status: 'exported', filed_date: null })
+      .eq('id', periodId);
+    if (error) throw error;
+    logActivity(req.user?.email, 'gst.calc.unmark_filed', 'gst_calc_period', periodId, '');
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+}
+
+// ── DELETE /api/admin/gst/:periodId, removes a calculated period (cascades line items/flags) ──
+export async function deleteGstPeriod(req, res, next) {
+  try {
+    const { periodId } = req.params;
+    const { data: period, error: e1 } = await supabase.from('biz_gst_calc_periods').select('period').eq('id', periodId).maybeSingle();
+    if (e1) throw e1;
+    if (!period) return res.status(404).json({ error: 'Period not found' });
+    const { error } = await supabase.from('biz_gst_calc_periods').delete().eq('id', periodId);
+    if (error) throw error;
+    logActivity(req.user?.email, 'gst.calc.delete', 'gst_calc_period', periodId, period.period);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+}

@@ -22,6 +22,7 @@ import { upload, compressImage, uploadGstFiles } from '../middleware/uploadMiddl
 import { uploadBufferToCloudinary } from '../services/cloudinaryService.js';
 import {
   calculateGst, saveGstCalc, getGstHistory, getGstPeriodDetail, exportGstCsv, markGstFiled,
+  unmarkGstFiled, deleteGstPeriod,
 } from '../controllers/gstController.js';
 
 const router = Router();
@@ -96,5 +97,7 @@ router.get('/gst/history',                  getGstHistory);
 router.get('/gst/:periodId',                getGstPeriodDetail);
 router.get('/gst/:periodId/export/:table',  exportGstCsv);
 router.post('/gst/:periodId/mark-filed',    markGstFiled);
+router.post('/gst/:periodId/unmark-filed',  unmarkGstFiled);
+router.delete('/gst/:periodId',             deleteGstPeriod);
 
 export default router;
