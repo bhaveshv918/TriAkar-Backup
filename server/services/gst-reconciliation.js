@@ -513,11 +513,13 @@ function processFlipkart(buffer, flags) {
     flags.push(blocker('flipkart_tcs_total_mismatch', `Flipkart: sum of Section 7(B)(2) net taxable (₹${netTotalFromStates}) does not tie to Section 3's Net Taxable Value (₹${round2(sec3NetTaxable)}).`));
   }
 
+  // 'HSN Number' and 'Total Quantity in Nos.' confirmed as the real headers by hand-inspecting
+  // the live file's rawSampleRow (the earlier candidates only covered a bare "HSN"/"Total Quantity").
   const hsnRows = sec12Rows.map((raw) => {
     const p = rowPicker(raw);
     return {
-      hsn: p('HSN', 'HSN Code', 'Hsn', 'HSN/SAC', 'HSN/SAC Code'),
-      qty: parseNumber(p('Total Quantity', 'Qty', 'Quantity', 'Total Qty', 'Net Quantity')),
+      hsn: p('HSN', 'HSN Code', 'Hsn', 'HSN/SAC', 'HSN/SAC Code', 'HSN Number'),
+      qty: parseNumber(p('Total Quantity', 'Qty', 'Quantity', 'Total Qty', 'Net Quantity', 'Total Quantity in Nos.')),
       taxable: parseNumber(p('Total Taxable Value', 'Taxable Value')),
     };
   }).filter((r) => r.hsn);
@@ -533,11 +535,15 @@ function processFlipkart(buffer, flags) {
     flags.push(warning('flipkart_hsn_qty_mismatch', `Flipkart: Section 12 total quantity (${sec12Qty}) differs from Section 3's Invoice Qty (Net) (${sec3Qty}). Both figures surfaced, not auto-resolved.`, { sec12Qty, sec3Qty }));
   }
 
+  // 'Invoice Series From/To', 'Total Number of Invoices' and 'Cancelled if any' confirmed as the
+  // real headers by hand-inspecting the live file's rawSampleRow. The source cell for "To" carries
+  // an embedded newline ("Invoice Series \nTo"), harmless here since normKey strips it same as
+  // any other non-alnum character, so the plain candidate below still matches.
   const docsRows = sec13Rows.map((raw) => {
     const p = rowPicker(raw);
-    const from = p('Sr No From', 'From', 'Serial No From', 'Serial Number From', 'From Sr No', 'Invoice From', 'Starting Number', 'From Number');
-    const to = p('Sr No To', 'To', 'Serial No To', 'Serial Number To', 'To Sr No', 'Invoice To', 'Ending Number', 'To Number');
-    let totalNumber = parseNumber(p('Total Number', 'Total No', 'Total Count', 'Total Invoices', 'No. Issued', 'Number of Documents', 'Total Documents', 'Count'));
+    const from = p('Sr No From', 'From', 'Serial No From', 'Serial Number From', 'From Sr No', 'Invoice From', 'Starting Number', 'From Number', 'Invoice Series From');
+    const to = p('Sr No To', 'To', 'Serial No To', 'Serial Number To', 'To Sr No', 'Invoice To', 'Ending Number', 'To Number', 'Invoice Series To');
+    let totalNumber = parseNumber(p('Total Number', 'Total No', 'Total Count', 'Total Invoices', 'No. Issued', 'Number of Documents', 'Total Documents', 'Count', 'Total Number of Invoices'));
     // Fallback when no "total number" column matched: derive the count from the from/to range
     // itself, when both end in a plain numeric sequence (e.g. "FK-0001".."FK-0037" -> 37).
     if (!totalNumber) {
@@ -549,7 +555,7 @@ function processFlipkart(buffer, flags) {
       series: p('Series', 'Nature of Document', 'Nature Of Document', 'Document Series', 'Document Type', 'Type of Document') || 'Flipkart',
       from, to,
       totalNumber,
-      cancelled: parseNumber(p('Cancelled', 'No. of Cancelled', 'Cancelled Count', 'No Of Cancelled', 'Cancelled Documents')),
+      cancelled: parseNumber(p('Cancelled', 'No. of Cancelled', 'Cancelled Count', 'No Of Cancelled', 'Cancelled Documents', 'Cancelled if any')),
     };
   });
 
