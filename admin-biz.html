@@ -6749,6 +6749,17 @@ async function gstaMarkFiled(){
   toast('Marked as filed'); gstaLoadHistory();
 }
 
+async function gstaMarkFiledFromHistory(periodId){
+  if(!confirm('Mark this period as filed on the GST portal?')) return;
+  const token=await getBizToken(); if(!token) return;
+  const res=await fetch(API+`/api/admin/gst/${periodId}/mark-filed`,{method:'POST',headers:{'Authorization':'Bearer '+token}});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok){ toast('Error: '+(data.error||'Failed'),'error'); return; }
+  toast('Marked as filed'); _gstaCurrentStatusCache=undefined;
+  if(_gstaSavedPeriodId===periodId){ const mf=document.getElementById('gstaMarkFiledBtn'); if(mf) mf.disabled=true; }
+  gstaLoadHistory();
+}
+
 async function gstaLoadHistory(){
   const token=await getBizToken();
   const tbody=document.getElementById('gstaHistoryBody'); if(!tbody) return;
@@ -6771,7 +6782,7 @@ async function gstaLoadHistory(){
     <td>${esc(p.filed_date||'Not filed')}</td>
     <td class="td-actions">
       <button class="btn btn-ghost btn-sm" onclick="gstaReopenPeriod('${p.id}')">Open</button>
-      ${p.status==='filed'?`<button class="btn btn-ghost btn-sm" onclick="gstaUnmarkFiled('${p.id}')">Unmark Filed</button>`:''}
+      ${p.status==='filed'?`<button class="btn btn-ghost btn-sm" onclick="gstaUnmarkFiled('${p.id}')">Unmark Filed</button>`:`<button class="btn btn-ghost btn-sm" onclick="gstaMarkFiledFromHistory('${p.id}')">✓ Mark as Filed</button>`}
       <button class="btn btn-danger btn-sm" onclick="gstaDeletePeriod('${p.id}','${esc(p.period)}')">✕</button>
     </td>
   </tr>`).join(''):`<tr><td colspan="7" class="empty"><div class="em-text">No periods calculated yet</div></td></tr>`;
