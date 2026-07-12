@@ -123,6 +123,21 @@ Section 9(5) notified services (ride-hailing, food delivery, etc.) where the e-c
 is the person liable to pay tax — not applicable to a seller shipping physical goods through a
 marketplace that only collects TCS under Section 52.
 
+## File upload requirements — none of the 3 are mandatory
+
+Each channel can legitimately have zero activity in a given month (Flipkart hadn't launched yet
+in some months; B2B-via-Amazon sales don't happen every month). The engine must calculate from
+whatever subset of the 3 files is present — reconcile Amazon-only, Flipkart-only, B2B-only, or
+any combination, not just "all 3 or nothing."
+
+**Confirmed bug (live, reproduced):** uploading a single file alone (tested: Flipkart-only, one
+month) produces a **silent failure** — no error message, no calculation, blank/zero result. The
+upload/calculate flow currently appears to require all 3 files present before it will run at all,
+and fails without telling the user why. Fix: (1) run the calculation on whatever files are
+present, treating a missing file as "zero supplies for that channel" rather than a precondition,
+(2) if a truly blocking condition exists (e.g., need at least 1 file), surface an explicit error
+message — never fail silently.
+
 ## Suggested build shape
 
 - New Supabase tables: `gst_filings` (one row per period: gstin, period, status, totals,

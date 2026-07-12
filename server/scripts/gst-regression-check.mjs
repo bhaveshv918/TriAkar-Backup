@@ -46,7 +46,7 @@ const b2bRows = [
   { 'Customer Bill To Gstid': '09XYZAB5678L1Z3', 'Invoice Number': 'INV-B01', 'Invoice Date': '2026-06-08', 'Tax Exclusive Gross': 3000, 'Cgst Tax': 270, 'Sgst Tax': 270, 'Hsn/Sac': '3926', Quantity: 1, 'Ship From State': 'Uttar Pradesh', 'Ship To State': 'Uttar Pradesh' },
 ];
 
-function flipkartBuffer() {
+function flipkartBuffer(sheetNames = {}) {
   const wb = XLSX.utils.book_new();
   const sec7b2 = XLSX.utils.json_to_sheet([
     { 'Place of Supply': 'Uttar Pradesh', Rate: 18, 'Gross Taxable Value': 1200, 'Taxable Sales Return': 200, 'Net (Aggregate) Taxable Value': 1000, IGST: 0 },
@@ -63,10 +63,10 @@ function flipkartBuffer() {
   const sec3 = XLSX.utils.json_to_sheet([
     { 'Net Taxable Value': 2300, 'Invoice Qty (Net)': 5 },
   ]);
-  XLSX.utils.book_append_sheet(wb, sec7b2, 'Section 7(B)(2)');
-  XLSX.utils.book_append_sheet(wb, sec12, 'Section 12');
-  XLSX.utils.book_append_sheet(wb, sec13, 'Section 13');
-  XLSX.utils.book_append_sheet(wb, sec3, 'Section 3');
+  XLSX.utils.book_append_sheet(wb, sec7b2, sheetNames.sec7b2 || 'Section 7(B)(2)');
+  XLSX.utils.book_append_sheet(wb, sec12, sheetNames.sec12 || 'Section 12');
+  XLSX.utils.book_append_sheet(wb, sec13, sheetNames.sec13 || 'Section 13');
+  XLSX.utils.book_append_sheet(wb, sec3, sheetNames.sec3 || 'Section 3');
   return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 }
 
@@ -105,11 +105,57 @@ check('flipkart_state_net_mismatch blocker raised for Rajasthan', result.flags.s
 check('flipkart_hsn_total_mismatch NOT raised (totals were made to tie)', !result.flags.some((f) => f.code === 'flipkart_hsn_total_mismatch'));
 check('flipkart_tcs_total_mismatch NOT raised (totals were made to tie)', !result.flags.some((f) => f.code === 'flipkart_tcs_total_mismatch'));
 const hsn3926 = result.tables.hsn.find((r) => r.hsn === '3926');
-check('HSN 3926 present and qty > 0', hsn3926 && hsn3926.qty > 0);
-const amazonDocs = result.tables.docs.find((d) => d.series === 'Amazon');
-check('Amazon docs range spans INV-003..INV-007 with 1 cancelled (INV-002)', amazonDocs && amazonDocs.cancelled === 1);
+// Regression guard for the real bug found against June 2026 data: Table 12 (HSN) must include
+// B2B supplies too, not just B2C. Amazon B2C net qty for 3926 is 0 (two shipments net out with
+// two refunds), Amazon B2B contributes 2 (INV-B01 + INV-007, both qty 1), Flipkart Section 12
+// contributes 5 -> 7 total. Before this fix B2B was silently excluded, undercounting Table 12.
+check('HSN 3926 qty includes B2B contribution (0 B2C net + 2 B2B + 5 Flipkart = 7)', hsn3926 && hsn3926.qty === 7);
+const amazonInvoices = result.tables.docs.find((d) => d.series === 'Amazon Invoices');
+check('Amazon invoice series spans INV-003..INV-007 with 1 cancelled (INV-002)', amazonInvoices && amazonInvoices.cancelled === 1);
+// Regression guard for the real bug found against June 2026 data: Amazon credit notes (CN-001
+// matched to a shipment, CN-002 unmatched) must show up as their OWN Table 13 series, not be
+// silently dropped the way they were before this fix.
+const amazonCreditNotes = result.tables.docs.find((d) => d.series === 'Amazon Credit Notes');
+check('Amazon credit notes appear as their own Table 13 series (CN-001, CN-002)', amazonCreditNotes && amazonCreditNotes.totalNumber === 2);
 const flipkartDocs = result.tables.docs.find((d) => d.series === 'Flipkart');
 check('Flipkart Section 13 docs row passed through', flipkartDocs && flipkartDocs.totalNumber === 10);
+check('Total net documents = 3 Amazon invoices net + 2 Amazon credit notes + 9 Flipkart net = 14', result.summary.docCount === 14);
+
+// Regression guard for the real bug found against June 2026 data: a Shipment row carrying an
+// explicit half-rate 'Cgst Rate' column (9, not the true 18% total) must still bucket together
+// with its matching Refund row (which has no such column and falls back to the correctly-implied
+// total rate), netting to exactly zero. This is the Odisha "should be ₹0 but showed ₹1,693" bug.
+const b2cRateBugHeaders = ['Transaction Type', 'Shipment Item Id', 'Invoice Number', 'Invoice Date', 'Tax Exclusive Gross', 'Cgst Tax', 'Sgst Tax', 'Cgst Rate', 'Credit Note No', 'Credit Note Date', 'Ship From State', 'Ship To State'];
+const b2cRateBugRows = [
+  { 'Transaction Type': 'Shipment', 'Shipment Item Id': 'SIX1', 'Invoice Number': 'INV-X01', 'Invoice Date': '2026-06-08', 'Tax Exclusive Gross': 2000, 'Cgst Tax': 180, 'Sgst Tax': 180, 'Cgst Rate': 9, 'Ship From State': 'Uttar Pradesh', 'Ship To State': 'Odisha' },
+  { 'Transaction Type': 'Refund', 'Shipment Item Id': 'SIX1', 'Invoice Number': 'INV-X01', 'Tax Exclusive Gross': 2000, 'Cgst Tax': 180, 'Sgst Tax': 180, 'Credit Note No': 'CN-X01', 'Credit Note Date': '2026-06-15', 'Ship From State': 'Uttar Pradesh', 'Ship To State': 'Odisha' },
+];
+const rateBugCsv = csv(b2cRateBugHeaders, b2cRateBugRows);
+const rateBugResult = reconcileGstPeriod({ gstin: '09XYZAB5678L1Z3', period: '2026-06', amazonB2cBuffer: rateBugCsv });
+const odishaRow = rateBugResult.tables.b2cs.find((r) => r.state === 'Odisha');
+check('Full-refund Odisha nets to exactly zero despite a half-rate Cgst Rate column on the shipment only', !odishaRow || Math.abs(odishaRow.taxable) < 0.01);
+check('Odisha does NOT split into two separate rows (rate-bucket collision fixed)', rateBugResult.tables.b2cs.filter((r) => r.state === 'Odisha').length <= 1);
+
+// Regression guard for the real bug found against June 2026 data: "File upload requirements"
+// (GST-AUTOMATION-SPEC.md) says none of the 3 files are mandatory and a single-file upload
+// (Flipkart-only, reproduced live) produced a silent blank/zero result instead of a real
+// calculation. None of these 3 checks should crash or blank out.
+const flipkartOnlyResult = reconcileGstPeriod({ gstin: '09XYZAB5678L1Z3', period: '2026-06', flipkartBuffer: flipkartBuffer() });
+check('Flipkart-only calculation produces a real (non-zero) result, not a silent blank', flipkartOnlyResult.summary.taxable > 0);
+check('Flipkart-only calculation warns about missing Amazon files, not silently', flipkartOnlyResult.flags.some((f) => f.code === 'missing_amazon_b2c'));
+check('Flipkart-only calculation still produces real B2CS rows from the Flipkart data', flipkartOnlyResult.tables.b2cs.length > 0);
+
+const amazonOnlyResult = reconcileGstPeriod({ gstin: '09XYZAB5678L1Z3', period: '2026-06', amazonB2cBuffer: csv(b2cHeaders, b2cRows) });
+check('Amazon-B2C-only calculation produces a real (non-zero) result, not a silent blank', amazonOnlyResult.summary.taxable > 0);
+
+const noFilesResult = reconcileGstPeriod({ gstin: '09XYZAB5678L1Z3', period: '2026-06' });
+check('Zero files uploaded raises an explicit blocker instead of failing silently', noFilesResult.flags.some((f) => f.code === 'no_files_provided'));
+
+// Regression guard: if a real Flipkart file's sheet names don't match any of the candidates
+// (the actual root cause of the live silent-failure bug), that must surface as a loud, specific
+// blocker naming the sheets that WERE found, not a quiet zero.
+const wrongSheetNamesResult = reconcileGstPeriod({ gstin: '09XYZAB5678L1Z3', period: '2026-06', flipkartBuffer: flipkartBuffer({ sec7b2: 'B2C Interstate Summary' }) });
+check('Unrecognised Section 7(B)(2) sheet name raises flipkart_sheet_not_found, not a silent blank', wrongSheetNamesResult.flags.some((f) => f.code === 'flipkart_sheet_not_found'));
 
 console.log('\n── Checks ──');
 let failed = 0;
