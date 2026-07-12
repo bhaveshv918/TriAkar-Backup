@@ -211,7 +211,7 @@ tr:hover td{background:var(--bg-2)}
 
 /* ── Items line grid (Add Sale) ───────────────────────────── */
 .items-wrap{border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-1);overflow-x:auto;-webkit-overflow-scrolling:touch;box-shadow:var(--shadow)}
-.items-grid{display:grid;grid-template-columns:30px minmax(140px,1.6fr) 48px 84px 64px 58px 74px 62px 62px 90px 30px;align-items:center;min-width:820px;gap:6px}
+.items-grid{display:grid;grid-template-columns:30px minmax(140px,1.6fr) 48px 84px 64px 58px 64px 74px 62px 62px 90px 30px;align-items:center;min-width:880px;gap:6px}
 .items-head{background:var(--bg-2);font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-3);padding:8px 10px}
 .items-head .r{text-align:right}
 .item-row{border-top:1px solid var(--border);padding:7px 10px;gap:6px}
@@ -1290,9 +1290,10 @@ html[data-theme="dark"] .biz-login{
             <div class="r">#</div>
             <div>Item</div>
             <div class="r">Qty</div>
-            <div class="r" title="Rate including GST">Rate ₹</div>
+            <div class="r" title="Rate excluding GST, tax is added on top">Rate ₹</div>
             <div class="r">Disc ₹</div>
             <div class="r">GST %</div>
+            <div class="r" title="HSN/SAC code for this item">HSN</div>
             <div class="r">Cost ₹</div>
             <div class="r" title="Filament grams used in the product">Grams</div>
             <div class="r" title="Filament grams wasted (failed prints, purge)">Waste</div>
@@ -1327,7 +1328,7 @@ html[data-theme="dark"] .biz-login{
         <div class="calc-row" id="calcRow" style="grid-template-columns:repeat(auto-fill,minmax(115px,1fr))">
           <div class="calc-item"><label>Items</label><span id="t_count">0</span></div>
           <div class="calc-item"><label>Total Qty</label><span id="t_qty">0</span></div>
-          <div class="calc-item revenue"><label>Subtotal (incl GST)</label><span id="t_sub">₹0</span></div>
+          <div class="calc-item revenue"><label>Subtotal (excl GST)</label><span id="t_sub">₹0</span></div>
           <div class="calc-item"><label>GST Amount</label><span id="t_gst">₹0</span></div>
           <div class="calc-item cost"><label>Total Cost</label><span id="t_cost">₹0</span></div>
           <div class="calc-item profit"><label>Gross Profit</label><span id="t_profit">₹0</span></div>
@@ -3713,6 +3714,7 @@ function renderItems(){
       <div class="r"><input type="number" step="0.01" value="${it.rate||''}" placeholder="0" oninput="onItemNum(${i},'rate',this.value)"></div>
       <div class="r"><input type="number" step="0.01" value="${it.disc||''}" placeholder="0" oninput="onItemNum(${i},'disc',this.value)"></div>
       <div class="r"><select onchange="onItemNum(${i},'gst',this.value)">${[0,5,12,18,28].map(v=>`<option value="${v}"${v==it.gst?' selected':''}>${v}%</option>`).join('')}</select></div>
+      <div class="r"><input type="text" value="${esc(it.hsn||'')}" placeholder="${esc((_bizDefaults&&_bizDefaults.hsn)||'3926')}" title="HSN/SAC code, prefilled from your default, edit per item as needed" oninput="_items[${i}].hsn=this.value"></div>
       <div class="r"><input type="number" step="0.01" value="${it.cost||''}" placeholder="0" title="auto-fills from spool grams × waste × ₹/g" oninput="onItemNum(${i},'cost',this.value)"></div>
       <div class="r"><input type="number" step="1" min="0" value="${it.grams||''}" placeholder="0" title="filament grams used in the product" oninput="onItemGramsOrWaste(${i},'grams',this.value)"></div>
       <div class="r"><input type="number" step="1" min="0" value="${it.waste||''}" placeholder="0" title="filament grams wasted (failed prints, purge)" oninput="onItemGramsOrWaste(${i},'waste',this.value)"></div>
@@ -3773,7 +3775,7 @@ function removeItem(i){ if(_items.length<=1) return; _items.splice(i,1); renderI
 function onItemName(i,val){
   _items[i].name=val;
   const p=_catalogByName[(val||'').trim().toLowerCase()];
-  if(p){ _items[i].productId=p.id; if(!_items[i].cost) _items[i].cost=parseFloat(p.base_cost)||0; _items[i].gst=parseFloat(p.gst_rate)||0; _items[i].hsn=p.hsn_code||'3926'; _items[i].sku=p.sku||''; if(!_items[i].grams&&p.grams_per_unit) _items[i].grams=parseFloat(p.grams_per_unit)||0; renderItems(); }
+  if(p){ _items[i].productId=p.id; if(!_items[i].cost) _items[i].cost=parseFloat(p.base_cost)||0; _items[i].gst=parseFloat(p.gst_rate)||0; _items[i].hsn=p.hsn_code||(_bizDefaults&&_bizDefaults.hsn)||'3926'; _items[i].sku=p.sku||''; if(!_items[i].grams&&p.grams_per_unit) _items[i].grams=parseFloat(p.grams_per_unit)||0; renderItems(); }
   else { _items[i].productId=null; recalcTotals(); }
 }
 function onItemNum(i,f,v){
@@ -3785,26 +3787,29 @@ function onItemNum(i,f,v){
 function recalcTotals(){
   let count=0,qty=0,sub=0,gst=0,cost=0,anyGst=false;
   _items.forEach(it=>{
+    // Rate ₹ is entered excluding GST, so the item amount is already the taxable
+    // value and GST is added on top (not extracted back out of an inclusive price).
     const amt=it.qty*it.rate-it.disc;
     if((it.name&&it.name.trim())||it.rate) count++;
     qty+=it.qty;
     sub+=amt;
-    gst+=amt-(amt/(1+(it.gst||0)/100));
+    gst+=amt*((it.gst||0)/100);
     cost+=it.qty*it.cost;
     if((it.gst||0)>0) anyGst=true;
   });
   const fee=parseFloat(document.getElementById('qa_platformfee')?.value)||0;
   const ship=parseFloat(document.getElementById('qa_shipping')?.value)||0;
-  // Round-off auto-calculates when GST applies (rounds grand total to nearest
-  // rupee); without GST it stays a manual field.
+  // Round-off auto-calculates when GST applies (rounds grand total, taxable + GST,
+  // to the nearest rupee); without GST it stays a manual field.
+  const preRound=sub+gst;
   const roundEl=document.getElementById('qa_roundoff');
   let round;
-  if(anyGst){ round=Math.round((Math.round(sub)-sub)*100)/100; if(roundEl){ roundEl.value=round.toFixed(2); roundEl.readOnly=true; roundEl.title='Auto (GST round-off)'; } }
+  if(anyGst){ round=Math.round((Math.round(preRound)-preRound)*100)/100; if(roundEl){ roundEl.value=round.toFixed(2); roundEl.readOnly=true; roundEl.title='Auto (GST round-off)'; } }
   else { if(roundEl){ roundEl.readOnly=false; roundEl.title=''; } round=parseFloat(roundEl?.value)||0; }
   const netRev=sub-fee-ship;
-  const profit=netRev-cost-gst;
+  const profit=netRev-cost;
   const margin=netRev>0?(profit/netRev*100):0;
-  const grand=sub+round;
+  const grand=sub+gst+round;
   const S=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
   S('t_count',count); S('t_qty',qty);
   S('t_sub',fmt(sub)); S('t_gst',fmt(gst)); S('t_cost',fmt(cost));
@@ -3859,7 +3864,9 @@ function buildSaleRows(){
     sku:it.sku||null,
     hsn_code:it.hsn||null,
     qty:it.qty||1,
-    selling_price:it.rate||0,
+    // Rate ₹ is entered excluding GST; selling_price must stay the true GST-inclusive
+    // total (every report/GST-filing figure downstream extracts tax back out of it).
+    selling_price:(it.rate||0)*(1+(it.gst||0)/100),
     discount_amount:it.disc||0,
     gst_rate:it.gst||0,
     cogs:it.cost||0,
@@ -8281,6 +8288,7 @@ ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
     ${d.customer_name?`<div class="cust-name">${esc(d.customer_name)}</div>`:''}
     <div class="cust-detail">
       ${docInv('shipping_address')?`${d.customer_phone?esc(d.customer_phone)+'<br>':''}${d.customer_address?esc(d.customer_address)+'<br>':''}${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' &mdash; '+esc(d.customer_pincode):''}`:''}
+      ${d.customer_gstin?`<br>GSTIN: ${esc(d.customer_gstin)}`:''}
     </div>
   </div>
 </div>
