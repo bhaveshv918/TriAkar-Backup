@@ -152,8 +152,11 @@ export async function exportGstCsv(req, res, next) {
 
     const csv = buildExportCsv(table, tables);
     await supabase.from('biz_gst_calc_periods').update({ status: 'exported' }).eq('id', periodId).eq('status', 'reviewed');
+    // Table 4 covers B2B, SEZ and Deemed Export together, the GST Offline Tool's own
+    // Section_wise_CSV_files template names it "b2b, sez, de" rather than a bare "b2b".
+    const exportFilename = table === 'b2b' ? 'b2b,sez,de' : table;
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="${table}_${period.period}.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${exportFilename}_${period.period}.csv"`);
     res.send(csv);
   } catch (err) { respondGstError(res, err); }
 }

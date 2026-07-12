@@ -2514,7 +2514,7 @@ html[data-theme="dark"] .biz-login{
         </div>
 
         <div class="chart-box" style="margin-bottom:16px">
-          <h3>Table 4, B2B (per-invoice)</h3>
+          <h3>Table 4, B2B, SEZ, DE (per-invoice)</h3>
           <div class="tbl-wrap" style="border:none">
             <table><thead><tr><th>GSTIN</th><th>Invoice #</th><th>Date</th><th>State</th><th class="td-num">Taxable</th><th class="td-num">CGST</th><th class="td-num">SGST</th><th class="td-num">IGST</th></tr></thead>
             <tbody id="gstaB2bBody"></tbody></table>
@@ -2539,7 +2539,7 @@ html[data-theme="dark"] .biz-login{
 
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
           <button class="btn btn-primary btn-sm" onclick="gstaSave()">Save to Filing History</button>
-          <button class="btn btn-ghost btn-sm" onclick="gstaDownload('b2b')" id="gstaDl_b2b" disabled>↓ b2b.csv</button>
+          <button class="btn btn-ghost btn-sm" onclick="gstaDownload('b2b')" id="gstaDl_b2b" disabled>↓ b2b,sez,de.csv</button>
           <button class="btn btn-ghost btn-sm" onclick="gstaDownload('b2cs')" id="gstaDl_b2cs" disabled>↓ b2cs.csv</button>
           <button class="btn btn-ghost btn-sm" onclick="gstaDownload('hsn')" id="gstaDl_hsn" disabled>↓ hsn.csv</button>
           <button class="btn btn-ghost btn-sm" onclick="gstaDownload('docs')" id="gstaDl_docs" disabled>↓ docs.csv</button>
@@ -6730,13 +6730,17 @@ async function gstaSave(){
   }catch(e){ toast('Error: '+e.message,'error'); }
 }
 
+// Table 4 covers B2B, SEZ and Deemed Export invoices together, so the GST Offline Tool's own
+// Section_wise_CSV_files template names it "b2b, sez, de" rather than a bare "b2b". The other 3
+// tables' real template names already match their internal table key 1:1.
+const GSTA_EXPORT_FILENAMES = { b2b: 'b2b,sez,de', b2cs: 'b2cs', hsn: 'hsn', docs: 'docs' };
 async function gstaDownload(table){
   if(!_gstaSavedPeriodId){ toast('Save to filing history first','error'); return; }
   const token=await getBizToken(); if(!token) return;
   const res=await fetch(API+`/api/admin/gst/${_gstaSavedPeriodId}/export/${table}`,{headers:{'Authorization':'Bearer '+token}});
   if(!res.ok){ toast('Download failed','error'); return; }
   const blob=await res.blob();
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${table}_${_gstaResult.period}.csv`;
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${GSTA_EXPORT_FILENAMES[table]||table}_${_gstaResult.period}.csv`;
   document.body.appendChild(a); a.click(); a.remove();
 }
 
