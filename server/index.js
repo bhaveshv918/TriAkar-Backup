@@ -302,10 +302,14 @@ app.get('/api/track/:id', async (req, res) => {
   }
 });
 
-/* Bump DEPLOY_VERSION on every deploy so /health confirms which build is live */
+/* Render sets RENDER_GIT_COMMIT on every deploy automatically, no manual bump needed. Lets
+   /health answer "is my latest push actually live yet" directly instead of guessing from
+   timestamps, the exact confusion that repeatedly cost time debugging "fixed" GST/SW issues
+   that were really just an in-flight deploy. */
 const DEPLOY_VERSION = '2026-06-07-otp-fix-9';
-app.get('/',       (_req, res) => res.json({ status: 'ok', brand: 'TriAkar', version: DEPLOY_VERSION }));
-app.get('/health', (_req, res) => res.json({ status: 'ok', brand: 'TriAkar', version: DEPLOY_VERSION }));
+const DEPLOY_COMMIT = process.env.RENDER_GIT_COMMIT || null;
+app.get('/',       (_req, res) => res.json({ status: 'ok', brand: 'TriAkar', version: DEPLOY_VERSION, commit: DEPLOY_COMMIT }));
+app.get('/health', (_req, res) => res.json({ status: 'ok', brand: 'TriAkar', version: DEPLOY_VERSION, commit: DEPLOY_COMMIT }));
 
 /* ── 10. 404 HANDLER ──────────────────────────────────────── */
 app.use((_req, res) => {

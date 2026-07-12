@@ -116,8 +116,32 @@ function parseCsvBuffer(buffer) {
  * assuming it's always row 1.
  */
 const HEADER_ROW_HINTS = ['gstin', 'placeofsupply', 'state', 'taxable', 'hsn', 'invoice', 'section', 'rate', 'quantity', 'document', 'gross', 'igst', 'cgst', 'sgst'];
+
+/**
+ * `sheet_to_json` trusts the sheet's own `!ref` dimension tag to know how much of the sheet to
+ * read. Confirmed against a real live Flipkart export: its report generator (not real Excel)
+ * writes a `!ref` that understates the actual populated range, so `sheet_to_json` silently
+ * truncates to just the header row, header row detected fine, zero data rows, exactly the
+ * flipkart_state_sheet_empty blocker seen in production. Recompute the true range by scanning
+ * actual cell addresses present on the worksheet instead of trusting the claimed dimensions.
+ */
+function actualSheetRange(ws) {
+  let minR = Infinity, minC = Infinity, maxR = -1, maxC = -1;
+  for (const addr in ws) {
+    if (addr[0] === '!') continue;
+    const cell = XLSX.utils.decode_cell(addr);
+    if (cell.r < minR) minR = cell.r;
+    if (cell.c < minC) minC = cell.c;
+    if (cell.r > maxR) maxR = cell.r;
+    if (cell.c > maxC) maxC = cell.c;
+  }
+  if (maxR < 0) return null; // no cells at all
+  return { s: { r: minR, c: minC }, e: { r: maxR, c: maxC } };
+}
+
 function sheetToRows(ws) {
-  const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false });
+  const range = actualSheetRange(ws);
+  const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false, range: range || undefined });
   if (!aoa.length) return [];
   let headerRowIdx = 0;
   let bestScore = -1;
