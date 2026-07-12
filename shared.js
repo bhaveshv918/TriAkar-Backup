@@ -1137,6 +1137,21 @@ document.addEventListener('DOMContentLoaded',function(){
     window.openSearch();
   });
 
+  // Spacebar shortcut, same overlay. Unlike "/", space has a native action
+  // on lots of focused elements (activates a button, ticks a checkbox,
+  // scrolls the page), so this only fires when nothing is actually focused,
+  // not just when the focused thing isn't a text field.
+  document.addEventListener('keydown', function(e){
+    if (e.code !== 'Space' || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+    const t = e.target;
+    const tag = t && t.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' || tag === 'A'
+      || (t && t.isContentEditable)
+      || (t && typeof t.closest === 'function' && t.closest('[role="button"],[role="link"],[tabindex]'))) return;
+    e.preventDefault();
+    window.openSearch();
+  });
+
   // Hook nav/drawer search inputs to open the overlay on focus
   document.addEventListener('DOMContentLoaded', function(){
     document.querySelectorAll('.nav-search input, .drawer-search input').forEach(function(inp){
