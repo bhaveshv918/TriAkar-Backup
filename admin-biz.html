@@ -6768,10 +6768,37 @@ async function gstaLoadHistory(){
     <td class="td-num">${fmt(p.totals?.taxable||0)}</td>
     <td class="td-num">${fmt((p.totals?.cgst||0)+(p.totals?.sgst||0)+(p.totals?.igst||0))}</td>
     <td class="td-num">${fmt(p.totals?.total||0)}</td>
-    <td>${esc(p.filed_date||'—')}</td>
-    <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="gstaReopenPeriod('${p.id}')">Open</button></td>
+    <td>${esc(p.filed_date||'Not filed')}</td>
+    <td class="td-actions">
+      <button class="btn btn-ghost btn-sm" onclick="gstaReopenPeriod('${p.id}')">Open</button>
+      ${p.status==='filed'?`<button class="btn btn-ghost btn-sm" onclick="gstaUnmarkFiled('${p.id}')">Unmark Filed</button>`:''}
+      <button class="btn btn-danger btn-sm" onclick="gstaDeletePeriod('${p.id}','${esc(p.period)}')">✕</button>
+    </td>
   </tr>`).join(''):`<tr><td colspan="7" class="empty"><div class="em-text">No periods calculated yet</div></td></tr>`;
   gstaRenderTrendChart();
+}
+
+async function gstaUnmarkFiled(periodId){
+  if(!confirm('Revert this period from "filed" back to "exported"? Use this if Mark as Filed was clicked by mistake.')) return;
+  const token=await getBizToken(); if(!token) return;
+  const res=await fetch(API+`/api/admin/gst/${periodId}/unmark-filed`,{method:'POST',headers:{'Authorization':'Bearer '+token}});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok){ toast('Error: '+(data.error||'Failed'),'error'); return; }
+  toast('Unmarked as filed'); _gstaCurrentStatusCache=undefined; gstaLoadHistory();
+}
+
+async function gstaDeletePeriod(periodId,period){
+  if(!confirm(`Delete the calculated GSTR-1 for ${period}? This removes the saved tables, flags and filing-history entry. You can always re-upload the source files and recalculate. This cannot be undone.`)) return;
+  const token=await getBizToken(); if(!token) return;
+  const res=await fetch(API+'/api/admin/gst/'+periodId,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok){ toast('Error: '+(data.error||'Failed'),'error'); return; }
+  toast('Deleted');
+  if(_gstaSavedPeriodId===periodId){
+    _gstaSavedPeriodId=null; _gstaResult=null;
+    const rev=document.getElementById('gstaReview'); if(rev) rev.style.display='none';
+  }
+  _gstaCurrentStatusCache=undefined; gstaLoadHistory();
 }
 
 async function gstaReopenPeriod(periodId){

@@ -1126,7 +1126,7 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
       <button class="sb-collapse" id="adminCollapseBtn" onclick="toggleAdminSidebar()" title="Collapse / expand sidebar">‹‹</button>
       <div class="top-logo">TRIAKAR</div>
       <div class="top-badge">Admin</div>
-      <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">v153</span>
+      <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">v154</span>
     </div>
     <div class="top-center">
       <div style="position:relative;width:100%">
@@ -2864,6 +2864,24 @@ document.addEventListener('keydown',function(ev){
   if(tag==='input'||tag==='textarea'||tag==='select'||(document.activeElement&&document.activeElement.isContentEditable)) return;
   if(adminAnyModalOpen()) return;
   ev.preventDefault(); switchTab(ADMIN_TAB_KEYS[k]);
+});
+
+// Space, focus the global search. Unlike the letter keys above, space has a
+// native action on lots of focused elements (activates a button, ticks a
+// checkbox, scrolls the page), so this also skips buttons/links/custom
+// tabindex controls, not just typing fields. No-op on mobile where
+// .top-center (holding #globalSearch) is hidden below 768px, there's
+// nowhere sensible to send focus so plain space keeps scrolling instead.
+document.addEventListener('keydown',function(ev){
+  if(ev.code!=='Space'||ev.repeat) return;
+  if(ev.ctrlKey||ev.metaKey||ev.altKey) return;
+  const el=document.activeElement, tag=(el&&el.tagName||'').toLowerCase();
+  if(tag==='input'||tag==='textarea'||tag==='select'||tag==='button'||tag==='a'||(el&&el.isContentEditable)) return;
+  if(el&&typeof el.closest==='function'&&el.closest('[role="button"],[role="link"],[tabindex]')) return;
+  if(adminAnyModalOpen()) return;
+  const gs=document.getElementById('globalSearch');
+  if(!gs||gs.offsetParent===null) return;
+  ev.preventDefault(); gs.focus();
 });
 
 setInterval(refreshNotifBadge, 20000);
