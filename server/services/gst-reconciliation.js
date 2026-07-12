@@ -33,8 +33,14 @@ export const STATE_CODES = {
 // '%' is kept (not stripped like other punctuation) so a rate column ("IGST %") never collapses
 // to the same key as its corresponding amount column ("IGST") once spacing/case is normalized
 // away, since those two columns commonly coexist on the same sheet and mean very different things.
+//
+// Confirmed against a real live Flipkart export: every money column carries a trailing currency
+// suffix as its own word, e.g. "Gross Taxable Value Rs.", "IGST Amount Rs.", which an exact-match
+// candidate list like "Gross Taxable Value" can never catch. Strip that standalone " Rs"/" Rs."
+// token (only when it's its own trailing word, not any string ending in "rs", so a real column
+// legitimately named e.g. "Years" is untouched) before the punctuation-stripping below.
 function normKey(s) {
-  return String(s ?? '').trim().toLowerCase().replace(/[^a-z0-9%]/g, '');
+  return String(s ?? '').trim().toLowerCase().replace(/\s+rs\.?\s*$/i, '').replace(/[^a-z0-9%]/g, '');
 }
 
 /** Build a case/punctuation-insensitive field picker for one parsed row. */
@@ -441,7 +447,8 @@ function processFlipkart(buffer, flags) {
     // the spec's own prose shorthand ("Taxable Sales Return") never actually appears verbatim.
     const ret = parseNumber(p('Taxable Sales Return Value', 'Taxable Sales Return', 'Sales Return', 'Taxable Value Return', 'Return Taxable Value'));
     const net = parseNumber(p('Net (Aggregate) Taxable Value', 'Net Aggregate Taxable Value', 'Net Taxable Value', 'Net Taxable Amount', 'Aggregate Taxable Value'));
-    const state = p('Place of Supply', 'State', 'Ship To State', 'State of Supply', 'Destination State');
+    // 'Delivered State (PoS)' confirmed as the real header by hand-inspecting the live file.
+    const state = p('Place of Supply', 'State', 'Ship To State', 'State of Supply', 'Destination State', 'Delivered State (PoS)', 'Delivered State');
     // Snap to a real GST slab so this bucket lines up exactly with the Amazon-side bucket for
     // the same state in the merge step below (see effectiveRate for why exact matching matters).
     // 'IGST %' confirmed as the real header. Normalizes to "igst" once the '%' is stripped,
@@ -517,7 +524,7 @@ function processFlipkart(buffer, flags) {
 
   // Same loud-failure principle as Section 7(B)(2): sheet found with rows, but no HSN column matched.
   if (sec12Rows.length && !hsnRows.length) {
-    flags.push(blocker('flipkart_hsn_col_unmatched', `Flipkart Section 12 has ${sec12Rows.length} row(s) but none had a resolvable HSN column, so 0 rows were counted. Check the actual column headers and update gst-reconciliation.js.`));
+    flags.push(blocker('flipkart_hsn_col_unmatched', `Flipkart Section 12 has ${sec12Rows.length} row(s) but none had a resolvable HSN column, so 0 rows were counted. Check the actual column headers and update gst-reconciliation.js. See context.rawSampleRow for the actual first row as read from the sheet.`, { rawSampleRow: sec12Rows[0] }));
   }
 
   const sec12Qty = hsnRows.reduce((s, r) => s + r.qty, 0);
@@ -550,7 +557,7 @@ function processFlipkart(buffer, flags) {
   // none of the column-name candidates above matched this file's actual headers. Surfacing this
   // as a blocker beats silently reporting a near-empty Documents Issued table on a real filing.
   if (sec13Rows.length && docsRows.every((d) => !d.totalNumber)) {
-    flags.push(blocker('flipkart_docs_unparsed', `Flipkart Section 13 has ${sec13Rows.length} row(s) but none of the expected column names ("Total Number", "Sr No From/To", etc.) matched, so 0 documents were counted from it. Check the actual column headers in the source file and update gst-reconciliation.js.`));
+    flags.push(blocker('flipkart_docs_unparsed', `Flipkart Section 13 has ${sec13Rows.length} row(s) but none of the expected column names ("Total Number", "Sr No From/To", etc.) matched, so 0 documents were counted from it. Check the actual column headers in the source file and update gst-reconciliation.js. See context.rawSampleRow for the actual first row as read from the sheet.`, { rawSampleRow: sec13Rows[0] }));
   }
 
   return { stateRows, hsnRows, docsRows };
