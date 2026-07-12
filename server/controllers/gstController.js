@@ -5,6 +5,16 @@ import { buildExportCsv } from '../services/gst-export-templates.js';
 
 const PERIOD_RE = /^\d{4}-\d{2}$/;
 
+// This admin-only, single-user feature deliberately bypasses the app's shared errorHandler
+// (server/middleware/errorHandler.js), which masks any 500-status message behind a generic
+// "Something went wrong" in production. That policy is correct for customer-facing routes, but
+// for a spreadsheet-reconciliation tool the actual error message (a parse failure, an unexpected
+// row shape) is exactly what's needed to fix the file or the code, not a security leak.
+function respondGstError(res, err) {
+  console.error('[GST]', err.message, err.stack);
+  res.status(err.status || err.statusCode || 500).json({ error: err.message || 'GST operation failed' });
+}
+
 // ── POST /api/admin/gst/calculate, runs the reconciliation, nothing persisted yet ──
 export async function calculateGst(req, res, next) {
   try {
@@ -29,7 +39,7 @@ export async function calculateGst(req, res, next) {
         flipkart: files.flipkart?.[0] ? { name: files.flipkart[0].originalname, size: files.flipkart[0].size } : null,
       },
     });
-  } catch (err) { next(err); }
+  } catch (err) { respondGstError(res, err); }
 }
 
 // ── POST /api/admin/gst/save, persists a reviewed calculation, upsert on period ──
@@ -85,7 +95,7 @@ export async function saveGstCalc(req, res, next) {
 
     logActivity(req.user?.email, 'gst.calc.save', 'gst_calc_period', periodId, period);
     res.json({ ok: true, periodId });
-  } catch (err) { next(err); }
+  } catch (err) { respondGstError(res, err); }
 }
 
 // ── GET /api/admin/gst/history, saved periods + totals, for history list + trend chart ──
@@ -95,7 +105,7 @@ export async function getGstHistory(req, res, next) {
       .from('biz_gst_calc_periods').select('*').order('period', { ascending: false });
     if (error) throw error;
     res.json({ periods: data || [] });
-  } catch (err) { next(err); }
+  } catch (err) { respondGstError(res, err); }
 }
 
 // ── GET /api/admin/gst/:periodId, full detail of one saved period ──
@@ -118,7 +128,7 @@ export async function getGstPeriodDetail(req, res, next) {
     }
 
     res.json({ period, tables, flags: flags || [] });
-  } catch (err) { next(err); }
+  } catch (err) { respondGstError(res, err); }
 }
 
 // ── GET /api/admin/gst/:periodId/export/:table, streams one Offline-Tool-shaped CSV ──
@@ -145,7 +155,7 @@ export async function exportGstCsv(req, res, next) {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="${table}_${period.period}.csv"`);
     res.send(csv);
-  } catch (err) { next(err); }
+  } catch (err) { respondGstError(res, err); }
 }
 
 // ── POST /api/admin/gst/:periodId/mark-filed ──
@@ -158,7 +168,7 @@ export async function markGstFiled(req, res, next) {
     if (error) throw error;
     logActivity(req.user?.email, 'gst.calc.mark_filed', 'gst_calc_period', periodId, '');
     res.json({ ok: true });
-  } catch (err) { next(err); }
+  } catch (err) { respondGstError(res, err); }
 }
 
 // ── POST /api/admin/gst/:periodId/unmark-filed, reverts an accidental "Mark as Filed" ──
@@ -174,7 +184,7 @@ export async function unmarkGstFiled(req, res, next) {
     if (error) throw error;
     logActivity(req.user?.email, 'gst.calc.unmark_filed', 'gst_calc_period', periodId, '');
     res.json({ ok: true });
-  } catch (err) { next(err); }
+  } catch (err) { respondGstError(res, err); }
 }
 
 // ── DELETE /api/admin/gst/:periodId, removes a calculated period (cascades line items/flags) ──
@@ -188,5 +198,5 @@ export async function deleteGstPeriod(req, res, next) {
     if (error) throw error;
     logActivity(req.user?.email, 'gst.calc.delete', 'gst_calc_period', periodId, period.period);
     res.json({ ok: true });
-  } catch (err) { next(err); }
+  } catch (err) { respondGstError(res, err); }
 }

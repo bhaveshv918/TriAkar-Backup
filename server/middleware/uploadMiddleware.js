@@ -25,7 +25,13 @@ export async function compressImage(buffer) {
     .toBuffer();
 }
 
-/* ── GST Filing Automation: 3 monthly source files (Amazon B2B/B2C CSV, Flipkart XLSX) ── */
+/* ── GST Filing Automation: 3 monthly source files (Amazon B2B/B2C CSV, Flipkart XLSX) ──
+   Browser/OS MIME-type detection for .xlsx is unreliable (Windows sometimes reports it as a
+   generic zip type since the format IS a zip container; some browsers send '' for extensions
+   they don't recognize). Requiring BOTH extension and mimetype to match risked silently
+   rejecting a genuinely valid file before it ever reached the parser, no error surfaced to the
+   admin, indistinguishable from "the calculation just didn't use this file". Extension is the
+   more reliable signal here, so either one matching is enough; only reject if NEITHER matches. */
 export const uploadGstFiles = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
@@ -34,9 +40,17 @@ export const uploadGstFiles = multer({
     const okMime = [
       'text/csv', 'application/vnd.ms-excel', 'application/csv',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/octet-stream', // some browsers send this for CSV/XLSX
+      'application/octet-stream', 'application/zip', 'application/x-zip-compressed',
+      'application/x-compressed', 'multipart/x-zip', '', // some browsers send blank
     ].includes(file.mimetype);
-    if (okExt && okMime) return cb(null, true);
-    cb(new Error('Only CSV and XLSX files are allowed'));
+    if (okExt || okMime) return cb(null, true);
+    const err = new Error(`"${file.originalname}" was rejected (mimetype "${file.mimetype}", expected .csv/.xlsx/.xls). If this is genuinely a CSV/XLSX file, tell the admin to report this exact mimetype.`);
+    // This error is thrown from inside multer's own middleware, before the route handler's own
+    // try/catch ever runs, so it goes straight to the app's shared error handler. That handler
+    // masks messages behind a generic "Something went wrong" in production for status >= 500
+    // (a deliberate, correct policy for most routes), but a rejected file is a 400-shaped problem
+    // and this specific message is exactly what's needed to diagnose it, not a leak.
+    err.status = 400;
+    cb(err);
   },
 });
