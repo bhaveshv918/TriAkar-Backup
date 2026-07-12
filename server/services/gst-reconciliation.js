@@ -290,6 +290,18 @@ function processAmazonB2c(rows, period, sellerState, flags) {
     flags.push(warning('amazon_b2c_transaction_type_partial', `Amazon B2C file: ${unrecognizedTypes.length} of ${standardized.length} row(s) had an unrecognized Transaction Type and were skipped (zero GST impact assumed). Values found: ${distinctValues.map((v) => `"${v}"`).join(', ')}.`));
   }
 
+  // Loud failure for a wrong Period field, not just a wrong column name: Shipment rows outside
+  // the selected period are correctly (and silently, by design) excluded from Table 7/13, since a
+  // multi-month file legitimately has out-of-period rows. But if the file has real Shipment rows
+  // and NONE of them fall in the selected period, that's not "a few excluded", it's almost
+  // certainly the wrong period picked for this file (e.g. period says July, file is a June export),
+  // which would otherwise silently zero out B2C's entire contribution with no flag at all.
+  const shipmentRowsAll = standardized.filter((r) => r.transactionType === 'Shipment' && r.invoiceDate);
+  if (shipmentRowsAll.length && !shipmentRowsAll.some((r) => monthOf(r.invoiceDate) === period)) {
+    const sampleDates = [...new Set(shipmentRowsAll.map((r) => r.invoiceDate))].slice(0, 5);
+    flags.push(blocker('amazon_b2c_period_mismatch', `Amazon B2C file has ${shipmentRowsAll.length} Shipment row(s) but none are dated in the selected period "${period}". Sample invoice dates found in the file: ${sampleDates.join(', ')}. Check the Period field, this file's B2C rows will otherwise contribute nothing to Table 7/13.`, { sampleDates }));
+  }
+
   for (const row of standardized) {
     if (row.orderId && row.transactionType === 'Shipment') orderIdsWithShipment.add(row.orderId);
   }
