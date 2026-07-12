@@ -134,6 +134,20 @@ function effectiveRate(row) {
   return snapRate(row.rate ?? impliedRate(row));
 }
 
+// Same class of bug as the Flipkart sheet-name matching: 'Transaction Type' is a CELL VALUE, not
+// a column header, so rowPicker's header-normalization never touches it. A raw `=== 'Shipment'`
+// comparison silently classifies every row as "unrecognized" (dropped with zero GST impact,
+// exactly like a Cancel row) if the real file spells it differently, e.g. lowercase or "Shipped".
+// Canonicalize known spellings and flag loudly when nothing in the file matches any of them.
+const TX_TYPE_ALIASES = {
+  shipment: 'Shipment', shipped: 'Shipment', delivered: 'Shipment', dispatched: 'Shipment', despatched: 'Shipment',
+  cancel: 'Cancel', cancelled: 'Cancel', canceled: 'Cancel', cancellation: 'Cancel',
+  refund: 'Refund', refunded: 'Refund', return: 'Refund', returned: 'Refund', creditnote: 'Refund',
+};
+function normTxType(v) {
+  return TX_TYPE_ALIASES[normKey(v)] || null;
+}
+
 // ── Amazon B2C: Cancel / Shipment / Refund ──────────────────────────────────
 function processAmazonB2c(rows, period, sellerState, flags) {
   const shipmentsByItemId = new Map(); // Shipment Item Id -> shipment row (standardized)
@@ -146,9 +160,11 @@ function processAmazonB2c(rows, period, sellerState, flags) {
 
   const standardized = rows.map((raw) => {
     const p = rowPicker(raw);
+    const transactionTypeRaw = p('Transaction Type');
     return {
       raw,
-      transactionType: p('Transaction Type'),
+      transactionType: normTxType(transactionTypeRaw),
+      transactionTypeRaw,
       orderId: p('Order Id', 'Order ID'),
       shipmentItemId: p('Shipment Item Id', 'Shipment Item ID'),
       invoiceNumber: p('Invoice Number'),
@@ -172,6 +188,20 @@ function processAmazonB2c(rows, period, sellerState, flags) {
       customerGstin: p('Customer Bill To Gstid', 'Customer Bill To GSTID', 'Bill To Gstin'),
     };
   });
+
+  // Loud failure instead of a silently blank result: every row with an unrecognized Transaction
+  // Type is skipped exactly like a Cancel row (zero GST impact), which is correct for a genuine
+  // typo/rare value but catastrophic if it happens on every row because the file's real values
+  // don't match TX_TYPE_ALIASES at all. Surface the actual distinct values found so they can be
+  // added directly, the same way the Flipkart sheet-name mismatch got fixed.
+  const unrecognizedTypes = standardized.filter((r) => !r.transactionType);
+  if (standardized.length && unrecognizedTypes.length === standardized.length) {
+    const distinctValues = [...new Set(unrecognizedTypes.map((r) => r.transactionTypeRaw || '(blank)'))].slice(0, 10);
+    flags.push(blocker('amazon_b2c_transaction_type_unrecognized', `Amazon B2C file has ${standardized.length} row(s) but none of the Transaction Type values matched Cancel/Shipment/Refund. Values found: ${distinctValues.map((v) => `"${v}"`).join(', ')}. Update TX_TYPE_ALIASES in gst-reconciliation.js with the real spelling.`));
+  } else if (unrecognizedTypes.length) {
+    const distinctValues = [...new Set(unrecognizedTypes.map((r) => r.transactionTypeRaw || '(blank)'))].slice(0, 10);
+    flags.push(warning('amazon_b2c_transaction_type_partial', `Amazon B2C file: ${unrecognizedTypes.length} of ${standardized.length} row(s) had an unrecognized Transaction Type and were skipped (zero GST impact assumed). Values found: ${distinctValues.map((v) => `"${v}"`).join(', ')}.`));
+  }
 
   for (const row of standardized) {
     if (row.orderId && row.transactionType === 'Shipment') orderIdsWithShipment.add(row.orderId);

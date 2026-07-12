@@ -170,6 +170,29 @@ check('Real-world Flipkart sheet names still produce the correct HSN data', real
 check('Real-world Flipkart sheet names still produce the correct Documents Issued data', realWorldNamesResult.tables.docs.some((d) => d.series === 'Flipkart' && d.totalNumber === 10));
 check('Real-world Flipkart sheet names do NOT raise flipkart_hsn_total_mismatch (Section 12 found and ties out)', !realWorldNamesResult.flags.some((f) => f.code === 'flipkart_hsn_total_mismatch'));
 
+// Regression guard for a second "shows Done but nothing appears" bug: 'Transaction Type' is a
+// CELL VALUE, not a header, so header-normalization never touches it. A raw === 'Shipment'
+// comparison would classify every row as unrecognized (silently zero GST impact) if the real
+// file spells it differently, e.g. lowercase or "Shipped" instead of "Shipment".
+const lowercaseTxTypeHeaders = ['Transaction Type', 'Shipment Item Id', 'Invoice Number', 'Invoice Date', 'Tax Exclusive Gross', 'Cgst Tax', 'Sgst Tax', 'Ship From State', 'Ship To State'];
+const lowercaseTxTypeRows = [
+  { 'Transaction Type': 'shipment', 'Shipment Item Id': 'SIY1', 'Invoice Number': 'INV-Y01', 'Invoice Date': '2026-06-08', 'Tax Exclusive Gross': 1000, 'Cgst Tax': 90, 'Sgst Tax': 90, 'Ship From State': 'Uttar Pradesh', 'Ship To State': 'Uttar Pradesh' },
+  { 'Transaction Type': 'Shipped', 'Shipment Item Id': 'SIY2', 'Invoice Number': 'INV-Y02', 'Invoice Date': '2026-06-09', 'Tax Exclusive Gross': 500, 'Cgst Tax': 45, 'Sgst Tax': 45, 'Ship From State': 'Uttar Pradesh', 'Ship To State': 'Uttar Pradesh' },
+];
+const lowercaseTxTypeResult = reconcileGstPeriod({ gstin: '09XYZAB5678L1Z3', period: '2026-06', amazonB2cBuffer: csv(lowercaseTxTypeHeaders, lowercaseTxTypeRows) });
+check('Lowercase/varied Transaction Type values ("shipment", "Shipped") are still recognized as Shipment', lowercaseTxTypeResult.summary.taxable === 1500);
+check('Lowercase Transaction Type does NOT raise the unrecognized-type blocker', !lowercaseTxTypeResult.flags.some((f) => f.code === 'amazon_b2c_transaction_type_unrecognized'));
+
+// And the loud-failure side: if NONE of the values match any known spelling at all, that must
+// block with the actual values found, not silently return a blank/zero result.
+const unknownTxTypeHeaders = ['Transaction Type', 'Invoice Number', 'Invoice Date', 'Tax Exclusive Gross', 'Ship From State', 'Ship To State'];
+const unknownTxTypeRows = [
+  { 'Transaction Type': 'Dispatch Completed', 'Invoice Number': 'INV-Z01', 'Invoice Date': '2026-06-08', 'Tax Exclusive Gross': 1000, 'Ship From State': 'Uttar Pradesh', 'Ship To State': 'Uttar Pradesh' },
+];
+const unknownTxTypeResult = reconcileGstPeriod({ gstin: '09XYZAB5678L1Z3', period: '2026-06', amazonB2cBuffer: csv(unknownTxTypeHeaders, unknownTxTypeRows) });
+const unknownTxTypeFlag = unknownTxTypeResult.flags.find((f) => f.code === 'amazon_b2c_transaction_type_unrecognized');
+check('Totally unrecognized Transaction Type values raise a blocker naming the actual value found', unknownTxTypeFlag && unknownTxTypeFlag.message.includes('Dispatch Completed'));
+
 console.log('\n── Checks ──');
 let failed = 0;
 for (const c of checks) {
