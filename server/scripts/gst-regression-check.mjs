@@ -232,6 +232,41 @@ check('Real-world Flipkart column set: net taxable totals 800 + 1000 = 1800 (inc
 const karnatakaRow = realColumnSetResult.tables.b2cs.find((r) => r.state === 'Karnataka');
 check('Real-world Flipkart column set: IGST % (18) read as the rate, not the IGST Amount column (144)', karnatakaRow && karnatakaRow.rate === 18);
 
+// Regression guard for the LIVE bug reported after every column-name fix shipped: calculate
+// returned "Done" with EXACTLY ONE flag (the unrelated "no B2C file" warning), zero Flipkart
+// flags, and ₹0 across the board. That combination is only possible if sheet_to_json returned
+// literally zero rows, which happens when a title/banner row sits above the real header row (a
+// very common real-world export pattern) and plain "row 1 is always the header" parsing breaks.
+function flipkartBufferWithTitleRowAboveHeader() {
+  const wb = XLSX.utils.book_new();
+  const aoa = [
+    ['Flipkart GSTR-1 Report', '', '', '', '', '', '', '', '', '', ''], // banner/title row
+    ['GSTIN', 'Place of Supply', 'Gross Taxable Value', 'Taxable Sales Return Value', 'Net Taxable Value', 'IGST %', 'IGST Amount', 'Cess %', 'Cess Amount', 'State', 'State Code'],
+    ['09XYZAB5678L1Z3', 'Karnataka', 800, 0, 800, 18, 144, 0, 0, 'Karnataka', 29],
+    ['09XYZAB5678L1Z3', 'Kerala', 1500, 0, 1500, 18, 270, 0, 0, 'Kerala', 32],
+  ];
+  const sec7b2 = XLSX.utils.aoa_to_sheet(aoa);
+  XLSX.utils.book_append_sheet(wb, sec7b2, 'Section 7(B)(2) in GSTR-1');
+  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+}
+const titleRowResult = reconcileGstPeriod({ gstin: '09XYZAB5678L1Z3', period: '2026-06', flipkartBuffer: flipkartBufferWithTitleRowAboveHeader() });
+check('Title/banner row above the real header does NOT produce a silent ₹0 result', titleRowResult.summary.taxable > 0);
+check('Title row case: net taxable = 800 + 1500 = 2300, correctly skipping the banner row', titleRowResult.summary.taxable === 2300);
+check('Title row case does NOT raise flipkart_state_sheet_empty (header correctly auto-detected)', !titleRowResult.flags.some((f) => f.code === 'flipkart_state_sheet_empty'));
+check('Title row case does NOT raise flipkart_state_col_unmatched', !titleRowResult.flags.some((f) => f.code === 'flipkart_state_col_unmatched'));
+
+// A genuinely empty sheet (header only, zero data rows) must still be flagged, not silently zero.
+function flipkartBufferHeaderOnlyNoData() {
+  const wb = XLSX.utils.book_new();
+  const sec7b2 = XLSX.utils.aoa_to_sheet([
+    ['GSTIN', 'Place of Supply', 'Gross Taxable Value', 'Taxable Sales Return Value', 'Net Taxable Value', 'IGST %', 'IGST Amount'],
+  ]);
+  XLSX.utils.book_append_sheet(wb, sec7b2, 'Section 7(B)(2) in GSTR-1');
+  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+}
+const emptyDataResult = reconcileGstPeriod({ gstin: '09XYZAB5678L1Z3', period: '2026-06', flipkartBuffer: flipkartBufferHeaderOnlyNoData() });
+check('Header-only sheet (zero data rows) raises flipkart_state_sheet_empty, not a silent ₹0', emptyDataResult.flags.some((f) => f.code === 'flipkart_state_sheet_empty'));
+
 console.log('\n── Checks ──');
 let failed = 0;
 for (const c of checks) {

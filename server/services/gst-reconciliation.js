@@ -104,13 +104,54 @@ function parseCsvBuffer(buffer) {
  * substring containment (`includes`) is deliberately avoided: "Section 1" would then falsely
  * match inside "Section 12 in GSTR-1" since normalization strips the space between them.
  */
+/**
+ * Plain `sheet_to_json` blindly trusts row 1 as the header row. Real-world exports commonly have
+ * a title/banner row (or several) above the actual header, e.g. a merged "Flipkart GSTR-1 Report"
+ * row spanning the top: sheet_to_json would then either produce garbage single-cell keys, or, if
+ * the sheet's `!ref` dimensions get confused by the banner, silently return ZERO rows even though
+ * real data exists a row or two down. This produced exactly the reported bug: sheet found, no
+ * column-mismatch flags (because there was nothing to mismatch, `sheet_to_json` returned nothing
+ * at all), totals stayed ₹0. Scans the first several rows for the one that actually looks like a
+ * header (several populated cells, at least one recognisable GST-report keyword) instead of
+ * assuming it's always row 1.
+ */
+const HEADER_ROW_HINTS = ['gstin', 'placeofsupply', 'state', 'taxable', 'hsn', 'invoice', 'section', 'rate', 'quantity', 'document', 'gross', 'igst', 'cgst', 'sgst'];
+function sheetToRows(ws) {
+  const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false });
+  if (!aoa.length) return [];
+  let headerRowIdx = 0;
+  let bestScore = -1;
+  for (let i = 0; i < Math.min(aoa.length, 15); i++) {
+    const row = aoa[i];
+    const populated = row.filter((c) => String(c ?? '').trim() !== '').length;
+    if (populated < 2) continue; // a single banner cell spanning the row can't be a real header
+    const normCells = row.map((c) => normKey(c));
+    const hintMatches = HEADER_ROW_HINTS.filter((h) => normCells.some((c) => c.includes(h))).length;
+    if (!hintMatches) continue; // require at least one recognisable column name, not just "populated"
+    const score = hintMatches * 10 + populated;
+    if (score > bestScore) { bestScore = score; headerRowIdx = i; }
+  }
+  // No row scored (no recognisable keywords anywhere in the first 15 rows): fall back to row 1,
+  // the old assumption, rather than silently returning nothing.
+  const headers = aoa[headerRowIdx].map((h) => String(h ?? '').trim());
+  const rows = [];
+  for (let i = headerRowIdx + 1; i < aoa.length; i++) {
+    const raw = aoa[i];
+    if (raw.every((c) => String(c ?? '').trim() === '')) continue;
+    const obj = {};
+    headers.forEach((h, idx) => { if (h) obj[h] = raw[idx] ?? ''; });
+    rows.push(obj);
+  }
+  return rows;
+}
+
 function findSheet(wb, sheetNameCandidates) {
   for (const cand of sheetNameCandidates) {
     const normCand = normKey(cand);
     for (const sheetName of wb.SheetNames) {
       const normSheet = normKey(sheetName);
       if (normSheet.startsWith(normCand) || normCand.startsWith(normSheet)) {
-        return XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: '' });
+        return sheetToRows(wb.Sheets[sheetName]);
       }
     }
   }
@@ -362,6 +403,11 @@ function processFlipkart(buffer, flags) {
   // whole calculation come back looking like "Flipkart had zero sales this month".
   if (sec7b2 === null) {
     flags.push(blocker('flipkart_sheet_not_found', `Could not find the Section 7(B)(2) sheet in this Flipkart file. Sheets present: ${wb.SheetNames.join(', ') || '(none)'}. Update the sheet-name candidates in gst-reconciliation.js to match.`));
+  } else if (!sec7b2.length) {
+    // Sheet found, header row detected (or the fallback row-1 assumption used), but there is
+    // genuinely nothing below it. Distinct from flipkart_state_col_unmatched (rows existed but
+    // couldn't resolve a state) and from flipkart_sheet_not_found (no matching sheet at all).
+    flags.push(blocker('flipkart_state_sheet_empty', 'Flipkart Section 7(B)(2) sheet was found but no data rows could be read from it. If the sheet visibly has data, the header row (or a title/banner row above it) may not be getting detected correctly, check gst-reconciliation.js sheetToRows().'));
   }
 
   const stateRows = (sec7b2 || []).map((raw) => {
