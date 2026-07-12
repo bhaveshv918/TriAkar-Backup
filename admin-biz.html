@@ -6939,8 +6939,21 @@ async function loadInvoicing(){
     <td style="font-family:var(--mono);font-size:11px">${esc(r.order_id||'—')}</td>
     <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${r.doc_kind==='record'?'Record':'Invoice'}</span></td>
     <td style="font-family:var(--mono);font-size:11px">${fmtDay(r.generated_at)}</td>
-    <td class="td-actions" style="white-space:nowrap">${r.order_id?`<button class="btn btn-ghost btn-sm" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${esc(r.order_id)}';loadSales();}},300)">↗ Order</button>`:''} <button class="btn btn-danger btn-sm" onclick="deleteInvoiceLog('${r.id}','${esc(r.invoice_number)}')">✕</button></td>
+    <td class="td-actions" style="white-space:nowrap">${r.order_id?`<button class="btn btn-ghost btn-sm" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${esc(r.order_id)}';loadSales();}},300)">↗ Order</button>`:''} <button class="btn btn-ghost btn-sm" onclick="editInvoiceLog('${r.id}','${esc(r.invoice_number)}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteInvoiceLog('${r.id}','${esc(r.invoice_number)}')">✕</button></td>
   </tr>`).join(''):`<tr><td colspan="5" class="empty"><div class="em-text">No invoices generated yet</div></td></tr>`;
+}
+// Renumber a logged invoice directly, e.g. to fix a typo or align with a paper series.
+// Blocked by the invoice_number UNIQUE constraint if the new number is already in use
+// elsewhere, surfaced as an error rather than silently failing.
+async function editInvoiceLog(id,cur){
+  const val=prompt('Invoice number:',cur);
+  if(val==null) return;
+  const num=val.trim();
+  if(!num||num===cur) return;
+  const {error}=await sb.from('biz_invoices').update({invoice_number:num}).eq('id',id);
+  if(error){ toast('Update failed: '+(error.message.includes('duplicate')?'that number is already in use':error.message),'error'); return; }
+  toast('Invoice number updated','success');
+  loadInvoicing();
 }
 // Deletes just the logged number (frees it up / cleans up a mistaken or test invoice),
 // does not touch the underlying sale/order. Reprinting the same sale afterward allocates
