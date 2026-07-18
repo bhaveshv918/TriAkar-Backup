@@ -2,6 +2,7 @@ import supabase from '../db/supabaseClient.js';
 import { logActivity } from '../services/activityLog.js';
 import { reconcileGstPeriod } from '../services/gst-reconciliation.js';
 import { buildExportCsv } from '../services/gst-export-templates.js';
+import { parseGstr2bB2b, suggestCategorization } from '../services/gst-purchase-import.js';
 
 const PERIOD_RE = /^\d{4}-\d{2}$/;
 
@@ -201,5 +202,117 @@ export async function deleteGstPeriod(req, res, next) {
     if (error) throw error;
     logActivity(req.user?.email, 'gst.calc.delete', 'gst_calc_period', periodId, period.period);
     res.json({ ok: true });
+  } catch (err) { respondGstError(res, err); }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GST-sourced bulk import into Business OS accounting (Purchases/Expenses), per
+// GST-AUTOMATION-SPEC.md's "Downstream" section. Review-first workflow, same shape as the
+// GSTR-1 calculate/save flow above: /parse never writes to the DB, only /commit does.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── POST /api/admin/gst/import/parse, parses a GSTR-2B B2B xlsx, nothing persisted yet ──
+export async function parseGstImport(req, res, next) {
+  try {
+    const { period } = req.body || {};
+    if (!PERIOD_RE.test(period || '')) return res.status(400).json({ error: 'period must be YYYY-MM' });
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: 'No GSTR-2B B2B file uploaded' });
+
+    const { rows, error } = parseGstr2bB2b(file.buffer);
+    if (error) return res.status(400).json({ error });
+    if (!rows.length) return res.status(400).json({ error: 'No B2B rows found in this file' });
+
+    // Duplicate check is invoice-level (gstin + invoice number), not period-level, per the
+    // migration's own reasoning: a supplier's credit note can shift which period an invoice
+    // resurfaces in on a later GSTR-2B pull, so the same real invoice must only ever be
+    // committed once regardless of which month's file it's read from this time.
+    const pairs = rows.map((r) => `and(supplier_gstin.eq.${r.gstin},invoice_number.eq.${r.invoiceNumber})`);
+    const { data: existing, error: dupErr } = await supabase
+      .from('biz_gst_import_lines').select('supplier_gstin,invoice_number,action,category,target_table')
+      .or(pairs.join(','));
+    if (dupErr) throw dupErr;
+    const existingMap = new Map((existing || []).map((e) => [`${e.supplier_gstin}|${e.invoice_number}`, e]));
+
+    const reviewed = rows.map((r) => {
+      const dup = existingMap.get(`${r.gstin}|${r.invoiceNumber}`);
+      const suggestion = suggestCategorization(r);
+      return {
+        ...r,
+        taxTotal: Math.round((r.igst + r.cgst + r.sgst + r.cess) * 100) / 100,
+        suggestedTarget: suggestion.target,
+        suggestedCategory: suggestion.category,
+        reason: suggestion.reason,
+        alreadyProcessed: dup ? { action: dup.action, category: dup.category, targetTable: dup.target_table } : null,
+      };
+    });
+
+    res.json({ period, rows: reviewed });
+  } catch (err) { respondGstError(res, err); }
+}
+
+const EXPENSE_CATEGORIES = ['materials', 'equipment', 'packaging', 'marketing', 'rent', 'utilities', 'shipping', 'staff_salary', 'other'];
+const PURCHASE_CATEGORIES = ['raw_material', 'packaging', 'equipment', 'other'];
+
+// ── POST /api/admin/gst/import/commit, inserts reviewed rows into Purchases/Expenses ──
+export async function commitGstImport(req, res, next) {
+  try {
+    const { period, rows } = req.body || {};
+    if (!PERIOD_RE.test(period || '')) return res.status(400).json({ error: 'period must be YYYY-MM' });
+    if (!Array.isArray(rows) || !rows.length) return res.status(400).json({ error: 'rows is required' });
+
+    const results = { purchases: 0, expenses: 0, excluded: 0, skippedDuplicate: 0, errors: [] };
+
+    for (const r of rows) {
+      const gstin = String(r.gstin || '').trim().toUpperCase();
+      const invoiceNumber = String(r.invoiceNumber || '').trim();
+      if (!gstin || !invoiceNumber) { results.errors.push(`Row missing GSTIN/invoice number, skipped: ${JSON.stringify(r).slice(0, 100)}`); continue; }
+
+      // Re-check at commit time (not just at /parse) so two review sessions started around the
+      // same time can't both commit the same invoice.
+      const { data: dup } = await supabase.from('biz_gst_import_lines')
+        .select('id').eq('supplier_gstin', gstin).eq('invoice_number', invoiceNumber).maybeSingle();
+      if (dup) { results.skippedDuplicate++; continue; }
+
+      const target = r.target;
+      const taxable = Number(r.taxable) || 0;
+      const taxTotal = Number(r.taxTotal) || (Number(r.igst) || 0) + (Number(r.cgst) || 0) + (Number(r.sgst) || 0) + (Number(r.cess) || 0);
+      const total = Math.round((taxable + taxTotal) * 100) / 100;
+      const notes = `Imported from GSTR-2B ${period} (invoice ${invoiceNumber})`;
+
+      let targetTable = null, targetId = null, category = null;
+
+      if (target === 'purchase') {
+        category = PURCHASE_CATEGORIES.includes(r.category) ? r.category : 'raw_material';
+        const { data, error } = await supabase.from('biz_purchases').insert({
+          date: r.invoiceDate || `${period}-01`, vendor: r.vendorName || null, category,
+          item: r.vendorName ? `GST import: ${r.vendorName}` : 'GST import', qty: 1,
+          unit_amount: total, total_amount: total, notes,
+        }).select('id').single();
+        if (error) { results.errors.push(`${gstin}/${invoiceNumber}: ${error.message}`); continue; }
+        targetTable = 'biz_purchases'; targetId = data.id; results.purchases++;
+      } else if (target === 'expense') {
+        category = EXPENSE_CATEGORIES.includes(r.category) ? r.category : 'other';
+        const { data, error } = await supabase.from('biz_expenses').insert({
+          date: r.invoiceDate || `${period}-01`, category, vendor: r.vendorName || null,
+          amount: total, gst_amount: taxTotal, source: 'GST Import', notes,
+        }).select('id').single();
+        if (error) { results.errors.push(`${gstin}/${invoiceNumber}: ${error.message}`); continue; }
+        targetTable = 'biz_expenses'; targetId = data.id; results.expenses++;
+      } else {
+        results.excluded++;
+      }
+
+      const { error: dedupErr } = await supabase.from('biz_gst_import_lines').insert({
+        period, supplier_gstin: gstin, invoice_number: invoiceNumber, vendor_name: r.vendorName || null,
+        invoice_date: r.invoiceDate || null, taxable, tax_total: taxTotal,
+        action: target === 'exclude' ? 'excluded' : 'imported',
+        target_table: targetTable, target_id: targetId, category, notes: r.reason || null,
+      });
+      if (dedupErr) results.errors.push(`${gstin}/${invoiceNumber}: dedup record failed (${dedupErr.message}), the row above may re-appear on the next import`);
+    }
+
+    logActivity(req.user?.email, 'gst.import.commit', 'gst_import', null, `${period}: ${results.purchases} purchases, ${results.expenses} expenses, ${results.excluded} excluded`);
+    res.json({ ok: true, ...results });
   } catch (err) { respondGstError(res, err); }
 }

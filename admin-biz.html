@@ -2565,6 +2565,39 @@ html[data-theme="dark"] .biz-login{
           </table>
         </div>
       </div>
+
+      <!-- ── GST Purchase Import, backfills Purchases/Expenses from a GSTR-2B B2B pull so the
+           Balance Sheet doesn't need the same vendor invoices re-entered by hand. Review-first,
+           same calculate-then-review shape as GSTR-1 Auto-File above: nothing is written to
+           Purchases/Expenses until "Import Reviewed Rows" is clicked. ── -->
+      <div class="chart-box" style="margin-top:16px">
+        <h3>GST Purchase Import</h3>
+        <div class="p-sub" style="margin:-6px 0 14px">Upload a GSTR-2B B2B export to backfill Purchases/Expenses. Vendor category is only a suggestion, review every row before importing.</div>
+        <div class="form-grid" style="margin-bottom:12px">
+          <div class="form-group"><label>Period</label><input type="month" id="gstiPeriod"></div>
+        </div>
+        <div class="dropzone" id="gstiDz" style="padding:18px" onclick="document.getElementById('gstiFile').click()" ondragover="gstiDzDragOver(event)" ondragleave="gstiDzDragLeave()" ondrop="gstiDzDrop(event)">
+          <div class="dz-title" id="gstiLabel">Click or drag the GSTR-2B B2B file (xlsx)</div>
+        </div>
+        <input type="file" id="gstiFile" accept=".xlsx,.xls" style="display:none" onchange="gstiFileSelect(event)">
+        <button class="btn btn-primary btn-sm" onclick="gstiParse()" style="margin-top:14px" id="gstiParseBtn">Parse</button>
+        <span id="gstiParseStatus" style="font-size:12px;color:var(--text-3);margin-left:8px"></span>
+
+        <div id="gstiReview" style="display:none;margin-top:16px">
+          <div class="tbl-wrap" style="border:none">
+            <table>
+              <thead><tr>
+                <th></th><th>Vendor</th><th>Invoice #</th><th>Date</th>
+                <th class="td-num">Taxable</th><th class="td-num">Tax</th><th>RCM</th>
+                <th>Target</th><th>Category</th><th>Reason</th>
+              </tr></thead>
+              <tbody id="gstiReviewBody"></tbody>
+            </table>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="gstiCommit()" style="margin-top:12px" id="gstiCommitBtn">Import Reviewed Rows</button>
+          <span id="gstiCommitStatus" style="font-size:12px;color:var(--text-3);margin-left:8px"></span>
+        </div>
+      </div>
     </div><!-- /gstauto -->
 
     <!-- ══════════════════════════════════════════════════════
@@ -6922,6 +6955,95 @@ async function gstaCheckCurrentPeriodStatus(){
     _gstaCurrentStatusCache=row?row.status:null;
   }catch(_){ _gstaCurrentStatusCache=null; }
   return _gstaCurrentStatusCache;
+}
+
+// ── GST Purchase Import, backfills Purchases/Expenses from a GSTR-2B B2B pull. Review-first:
+//    /parse never writes anything, only /commit does, same separation as gstaCalculate/gstaSave. ──
+let _gstiFile=null, _gstiRows=[], _gstiPeriod=null;
+const GSTI_PURCHASE_CATS=['raw_material','packaging','equipment','other'];
+const GSTI_EXPENSE_CATS=['materials','equipment','packaging','marketing','rent','utilities','shipping','staff_salary','other'];
+function gstiDzDragOver(e){ e.preventDefault(); document.getElementById('gstiDz').classList.add('drag-over'); }
+function gstiDzDragLeave(){ document.getElementById('gstiDz').classList.remove('drag-over'); }
+function gstiDzDrop(e){ e.preventDefault(); gstiDzDragLeave(); const f=e.dataTransfer.files[0]; if(f) gstiSetFile(f); }
+function gstiFileSelect(e){ const f=e.target.files[0]; if(f) gstiSetFile(f); }
+function gstiSetFile(f){ _gstiFile=f; const lbl=document.getElementById('gstiLabel'); if(lbl) lbl.textContent=f.name; }
+
+async function gstiParse(){
+  const period=document.getElementById('gstiPeriod')?.value;
+  if(!period){ toast('Pick a period','error'); return; }
+  if(!_gstiFile){ toast('Choose a GSTR-2B B2B file','error'); return; }
+  const token=await getBizToken(); if(!token){ toast('Session expired, please re-login','error'); return; }
+  const fd=new FormData(); fd.append('period',period); fd.append('gstr2bB2b',_gstiFile);
+  const btn=document.getElementById('gstiParseBtn'); const status=document.getElementById('gstiParseStatus');
+  if(btn) btn.disabled=true; if(status) status.textContent='Parsing…';
+  try{
+    const res=await fetch(API+'/api/admin/gst/import/parse',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+    const data=await res.json();
+    if(!res.ok) throw new Error(data.error||'Parse failed');
+    _gstiPeriod=period; _gstiRows=data.rows||[];
+    gstiRenderReview();
+    if(status) status.textContent=`${_gstiRows.length} row(s) found`;
+  }catch(e){ toast('Error: '+e.message,'error'); if(status) status.textContent=''; }
+  finally{ if(btn) btn.disabled=false; }
+}
+
+function gstiCategoryOptions(target,cat){
+  const list=target==='expense'?GSTI_EXPENSE_CATS:GSTI_PURCHASE_CATS;
+  return list.map(c=>`<option value="${c}"${c===cat?' selected':''}>${c.replace(/_/g,' ')}</option>`).join('');
+}
+function gstiOnTargetChange(sel){
+  const tr=sel.closest('tr'); const catSel=tr.querySelector('.gsti-cat'); const target=sel.value;
+  if(target==='exclude'){ catSel.innerHTML='<option value="">—</option>'; catSel.disabled=true; }
+  else { catSel.disabled=false; catSel.innerHTML=gstiCategoryOptions(target, target==='expense'?'other':'raw_material'); }
+}
+function gstiRenderReview(){
+  document.getElementById('gstiReview').style.display='';
+  const tbody=document.getElementById('gstiReviewBody');
+  tbody.innerHTML=_gstiRows.map((r,i)=>`<tr data-idx="${i}"${r.alreadyProcessed?' style="opacity:.5"':''}>
+    <td>${r.alreadyProcessed?`<span class="badge" style="background:var(--bg-3);color:var(--text-2)" title="${esc(r.alreadyProcessed.action)} as ${esc(r.alreadyProcessed.category||'')}">Done</span>`:''}</td>
+    <td>${esc(r.vendorName)}</td>
+    <td style="font-family:var(--mono);font-size:11px">${esc(r.invoiceNumber)}</td>
+    <td style="font-family:var(--mono);font-size:11px">${esc(r.invoiceDate||'')}</td>
+    <td class="td-num">${fmt(r.taxable)}</td>
+    <td class="td-num">${fmt(r.taxTotal)}</td>
+    <td>${r.rcm?'<span class="badge" style="background:var(--yellow);color:#000">RCM</span>':''}</td>
+    <td><select class="gsti-target" ${r.alreadyProcessed?'disabled':''} onchange="gstiOnTargetChange(this)">
+      <option value="purchase"${r.suggestedTarget==='purchase'?' selected':''}>Purchase</option>
+      <option value="expense"${r.suggestedTarget==='expense'?' selected':''}>Expense</option>
+      <option value="exclude"${r.suggestedTarget==='exclude'?' selected':''}>Skip / Exclude</option>
+    </select></td>
+    <td><select class="gsti-cat" ${r.alreadyProcessed||r.suggestedTarget==='exclude'?'disabled':''}>${gstiCategoryOptions(r.suggestedTarget,r.suggestedCategory||'other')}</select></td>
+    <td style="font-size:11px;color:var(--text-3);max-width:220px">${esc(r.reason)}</td>
+  </tr>`).join('');
+}
+
+async function gstiCommit(){
+  if(!_gstiRows.length){ toast('Parse a file first','error'); return; }
+  const token=await getBizToken(); if(!token){ toast('Session expired, please re-login','error'); return; }
+  const tbody=document.getElementById('gstiReviewBody');
+  const rows=[];
+  tbody.querySelectorAll('tr').forEach(tr=>{
+    const idx=Number(tr.dataset.idx); const r=_gstiRows[idx]; if(!r||r.alreadyProcessed) return;
+    const target=tr.querySelector('.gsti-target').value;
+    const category=tr.querySelector('.gsti-cat').value||null;
+    rows.push({...r,target,category});
+  });
+  if(!rows.length){ toast('Nothing new to import, every row is already processed','error'); return; }
+  const btn=document.getElementById('gstiCommitBtn'); const status=document.getElementById('gstiCommitStatus');
+  if(btn) btn.disabled=true; if(status) status.textContent='Importing…';
+  try{
+    const res=await fetch(API+'/api/admin/gst/import/commit',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({period:_gstiPeriod,rows})});
+    const data=await res.json();
+    if(!res.ok) throw new Error(data.error||'Import failed');
+    toast(`Imported: ${data.purchases} purchase(s), ${data.expenses} expense(s), ${data.excluded} excluded`+(data.skippedDuplicate?`, ${data.skippedDuplicate} already done`:''));
+    if(status) status.textContent=(data.errors&&data.errors.length)?`${data.errors.length} row(s) had errors, see console`:'Done';
+    if(data.errors&&data.errors.length) console.warn('GST import errors:',data.errors);
+    gstiParse(); // re-parse so the review table reflects what's now marked "Done"
+    if(typeof loadPurchases==='function') loadPurchases();
+    if(typeof loadExpenses==='function') loadExpenses();
+  }catch(e){ toast('Error: '+e.message,'error'); }
+  finally{ if(btn) btn.disabled=false; }
 }
 
 // ── Invoicing, every invoice ever generated via printInvoice(), linked to its order ──

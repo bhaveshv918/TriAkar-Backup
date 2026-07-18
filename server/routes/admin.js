@@ -22,7 +22,7 @@ import { upload, compressImage, uploadGstFiles } from '../middleware/uploadMiddl
 import { uploadBufferToCloudinary } from '../services/cloudinaryService.js';
 import {
   calculateGst, saveGstCalc, getGstHistory, getGstPeriodDetail, exportGstCsv, markGstFiled,
-  unmarkGstFiled, deleteGstPeriod,
+  unmarkGstFiled, deleteGstPeriod, parseGstImport, commitGstImport,
 } from '../controllers/gstController.js';
 
 const router = Router();
@@ -99,5 +99,9 @@ router.get('/gst/:periodId/export/:table',  exportGstCsv);
 router.post('/gst/:periodId/mark-filed',    markGstFiled);
 router.post('/gst/:periodId/unmark-filed',  unmarkGstFiled);
 router.delete('/gst/:periodId',             deleteGstPeriod);
+
+// ── GST-sourced bulk import into Purchases/Expenses (Business OS accounting backfill) ──
+router.post('/gst/import/parse',  uploadGstFiles.single('gstr2bB2b'), parseGstImport);
+router.post('/gst/import/commit', commitGstImport);
 
 export default router;

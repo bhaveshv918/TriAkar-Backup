@@ -109,19 +109,89 @@ The only two paths that work:
    before shipping it, or prefer path 1 (plain CSV) as the default since it has no such fragility.
 
 **E-Commerce GSTIN field**: Table 4/7 have an optional `E-Commerce GSTIN` column plus a `Type`
-flag (`E` = via e-commerce operator, `OE` = not). Getting Amazon's own operator GSTIN reliably has
-not been solved — it doesn't appear in seller-facing invoice PDFs or MTR reports. In the one month
-processed, marking these rows `E` with the GSTIN populated caused the Offline Tool to reject every
-such row (reason not conclusively diagnosed — checksum-valid GSTIN, still failed; suspect an
-internal e-commerce-operator master-list check). Marking `OE` (blank GSTIN) imported cleanly with
-identical tax figures — this field is reconciliation metadata only, doesn't affect any tax amount.
-Recommend defaulting to `OE` for both channels and treating the GSTIN linkage as a v2 nice-to-have,
-not a launch blocker.
+flag (`E` = via e-commerce operator, `OE` = not). In the one month processed, marking these rows
+`E` with a GSTIN populated caused the Offline Tool to reject every such row (reason not
+conclusively diagnosed — checksum-valid GSTIN, still failed; suspect an internal e-commerce-
+operator master-list check). Marking `OE` (blank GSTIN) imported cleanly with identical tax
+figures — this field is reconciliation metadata only, doesn't affect any tax amount. Since then,
+**real operator GSTINs were found via an actual GSTR-2B pull** (suppliers' own filings, which
+include Amazon/Flipkart as suppliers of platform fees):
+- Amazon Seller Services Pvt Ltd: `29AAICA3918J1ZE` (Karnataka)
+- Flipkart Internet Pvt Ltd: `29AACCF0683K1ZD` (Karnataka) — note Flipkart's own seller-facing
+  report (Section 3/GSTR-8) instead lists `09AACCF0683K1ZF` (Uttar Pradesh) as "GSTIN of
+  Flipkart.Com" — both are real, different state registrations of the same company. The UP one is
+  what got rejected by the Offline Tool; the Karnataka one from GSTR-2B has not been tried yet and
+  is the more likely candidate for the `E` + GSTIN path. Try it before defaulting to `OE`.
+Recommend: try `E` + the Karnataka GSTINs above first; fall back to `OE` (current default) only if
+that still fails. Either way this field never changes any tax amount — not a launch blocker.
 
 **Table 14 (Supplies made through ECO)**: Do not populate this table for this business. It's for
 Section 9(5) notified services (ride-hailing, food delivery, etc.) where the e-commerce operator
 is the person liable to pay tax — not applicable to a seller shipping physical goods through a
 marketplace that only collects TCS under Section 52.
+
+## GSTR-3B and GSTR-2B cross-checks (post-filing verification, v2 scope)
+
+Once GSTR-1 is filed, two more checks are worth automating rather than doing by hand every month:
+
+- **GSTR-1 vs GSTR-3B Table 3.1(a)**: should match exactly (taxable value, IGST, CGST, SGST) — if
+  it doesn't, something is wrong with the GSTR-3B draft, not GSTR-1.
+- **GSTR-3B Table 3.2** (inter-state supplies to unregistered) should equal GSTR-1 Table 7's total
+  *minus* any intra-state (same-state, CGST+SGST) rows — Table 3.2 is inter-state-only by
+  definition. Don't flag this as a mismatch; it's expected.
+- **GSTR-3B Table 4A(5) "All other ITC" vs a GSTR-2B B2B-section export**: these will *not* match
+  by simple summation, and that's expected, not a bug to chase. The GSTR-2B "Auto-Drafted ITC
+  Statement" summary screen (portal UI, not the section-specific Excel export) breaks ITC into
+  **Part A** (gross ITC available, matches a plain sum of the B2B sheet) and **Part B** (credit
+  notes from suppliers that must be *netted off* against Part A before it reaches GSTR-3B). GSTR-3B
+  correctly shows `Part A − Part B`. If building an automated cross-check, pull the GSTR-2B summary
+  screen's Part A and Part B figures specifically (not just the B2B-section Excel export, which is
+  Part A only) — verified in June 2026: Part A ₹3,176.80 − Part B ₹276.92 = ₹2,899.88, which matched
+  GSTR-3B exactly. A B2B-only export will always look short by whatever Part B contains; that's not
+  evidence of a missing invoice.
+- **RCM (reverse charge) sanity check**: any inward supply row marked "Supply Attract Reverse
+  Charge = Yes" in GSTR-2B should sum to exactly GSTR-3B Table 3.1(d)/4A(3). In June 2026 this was
+  Porter (GTA/delivery) charges, taxable ₹582 → IGST ₹29.10 at 5%. Remember for user-facing
+  explanations: RCM tax must always be paid in cash (Electronic Cash Ledger), never offset against
+  existing ITC balance in the Electronic Credit Ledger, even when that balance is large — this is a
+  hard rule, not a portal quirk. The same amount becomes claimable as the recipient's own ITC in
+  the same return, so it's cash-flow-neutral over the return cycle, just not offsettable in place.
+
+## Downstream: feeding transactions into Business OS accounting (balance sheet accuracy)
+
+Not yet spec'd in detail, but a confirmed goal: the same source data this engine reconciles
+(Amazon/Flipkart sales by state, RCM-liable purchases like Porter, ITC-eligible purchases from
+GSTR-2B) should also populate Business OS's accounting views (`Purchases`, `Expenses`, `Money
+In/Out`, `Balance Sheet` in the admin-biz.html sidebar) with correct categorization, so that at
+financial year-end the balance sheet is accurate without separate manual re-entry of the same
+transactions. Before building this, check what categorization scheme the existing Purchases/
+Expenses/Balance Sheet modules already use (query the relevant Supabase tables and existing admin
+UI) rather than inventing a new one — this should slot into whatever chart-of-accounts-like
+structure already exists, not replace it. Scope this as a second phase after the core GST engine
+is reliable, since it depends on the same reconciled data being trustworthy first.
+
+**Scope confirmed with user**: this needs to cover the business's full history (multiple months/
+years), not just June 2026, and the user explicitly wants a **bulk-import tool built first**
+rather than one-off manual data entry — because this will recur every month going forward, same
+as the GST engine itself. Treat this as a proper feature, not a data-cleanup script:
+
+- Input: historical GST filing files per month (GSTR-1 exports, GSTR-2B pulls, GSTR-3B PDFs — same
+  file types this session worked with) for as many past months as the user can supply, plus
+  whatever this session already reconciled for June 2026 as the first known-good month.
+- Needs a categorization scheme for non-sales items (RCM/GTA charges like Porter, ad spend like
+  Google, payment gateway fees like Razorpay, bank charges, etc.) — derive categories by first
+  reading how `Purchases`, `Expenses`, and `Balance Sheet` already categorize things in the
+  Supabase schema, don't invent new categories that don't map to what the balance sheet already
+  expects.
+- Since this is backfilling *historical* financial records (not just this month's live entry), be
+  extra careful about duplicate-detection (re-running the import for a month that's already been
+  entered) and about matching the emphasis on verification from
+  [[gst-reconciliation-verification-discipline]] — a bulk historical import is exactly the kind of
+  operation where a silent double-count or mis-categorization would corrupt the balance sheet
+  without being obvious until year-end.
+- Before writing any data, confirm with the user which months are already reflected in the Business
+  OS (Purchases/Expenses/Money In-Out) via other means (e.g. already manually entered) versus which
+  are genuinely missing — don't assume the OS is empty for past months.
 
 ## File upload requirements — none of the 3 are mandatory
 
