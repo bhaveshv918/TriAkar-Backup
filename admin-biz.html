@@ -2866,7 +2866,7 @@ html[data-theme="dark"] .biz-login{
         <div><div class="p-title">Business Settings</div><div class="p-sub">Invoice details, saved locally on this device</div></div>
       </div>
 
-      <div style="max-width:560px;display:flex;flex-direction:column;gap:10px">
+      <div style="max-width:1100px;display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;align-items:start">
 
         <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
           <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:14px">Business Identity</div>
@@ -2890,7 +2890,7 @@ html[data-theme="dark"] .biz-login{
           </div>
         </div>
 
-        <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+        <div style="grid-column:1/-1;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
           <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Document Settings</div>
           <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">What shows on generated invoices &amp; internal order records. Untick to hide, applies to both the Business OS and Admin invoice generators (shared).</div>
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin:8px 0 6px">Invoice</div>
@@ -2937,7 +2937,7 @@ html[data-theme="dark"] .biz-login{
           <div style="margin-top:10px"><button class="btn btn-primary btn-sm" onclick="saveBizDefaults()">Save Defaults</button> <span id="defaultsSavedMsg" style="font-size:12px;color:var(--green);display:none">✓ Saved</span></div>
         </div>
 
-        <div style="display:flex;gap:10px;align-items:center;padding-top:4px">
+        <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;padding-top:4px">
           <button class="btn btn-primary" onclick="saveBizSettings()">Save Invoice Details</button>
           <span id="settingsSavedMsg" style="font-size:12px;color:var(--green);display:none">✓ Saved</span>
         </div>
@@ -3164,20 +3164,26 @@ const NAV_CONFIG = [
     ]
   },
   {
+    // 12 items is too dense for one flat list, and "GST Portal" sitting next to
+    // "Studio Hours" doesn't share an identity. Split into labeled sub-groups
+    // within the same dropdown (still one header category, still one navConfig
+    // array) rather than a 6th header button, since 5 categories is already the
+    // width budget (@media(max-width:1080px) below hands off to the hamburger).
+    // Every item keeps its original shortcut letter; only the grouping/order changed.
     id: 'finance', label: 'Finance', color: 'var(--ch-website)',
     items: [
-      { id: 'returns',   label: 'Returns & Claims',  icon: '↩', shortcut: 'r', badge: 'returnCount' },
-      { id: 'fees',      label: 'Fees & Costs',      icon: '₹', shortcut: 'f' },
-      { id: 'gst',       label: 'GST Summary',       icon: '◊', shortcut: 'g' },
-      { id: 'gstportal', label: 'GST Portal',        icon: '⏷', shortcut: 'l' },
-      { id: 'gstauto',   label: 'GSTR-1 Auto-File',  icon: '⚙', shortcut: 'j' },
-      { id: 'invoicing', label: 'Invoicing',         icon: '▤', shortcut: 'v' },
-      { id: 'reports',   label: 'Reports & Export',  icon: '↗', shortcut: 'x' },
-      { id: 'expenses',  label: 'Expenses',          icon: '▤', shortcut: 'e' },
-      { id: 'ledger',    label: 'Money In/Out',      icon: '⇄', shortcut: 'm' },
-      { id: 'purchases', label: 'Purchases',         icon: '▣', shortcut: 'u' },
-      { id: 'balance',   label: 'Balance Sheet',     icon: '⚖', shortcut: 'b' },
-      { id: 'shoplog',   label: 'Studio Hours',      icon: '🕒', shortcut: 'h' },
+      { id: 'gst',       label: 'GST Summary',       icon: '◊', shortcut: 'g', group: 'Tax & Filing' },
+      { id: 'gstportal', label: 'GST Portal',        icon: '⏷', shortcut: 'l', group: 'Tax & Filing' },
+      { id: 'gstauto',   label: 'GSTR-1 Auto-File',  icon: '⚙', shortcut: 'j', group: 'Tax & Filing' },
+      { id: 'invoicing', label: 'Invoicing',         icon: '▤', shortcut: 'v', group: 'Tax & Filing' },
+      { id: 'fees',      label: 'Fees & Costs',      icon: '₹', shortcut: 'f', group: 'Money' },
+      { id: 'expenses',  label: 'Expenses',          icon: '▤', shortcut: 'e', group: 'Money' },
+      { id: 'ledger',    label: 'Money In/Out',      icon: '⇄', shortcut: 'm', group: 'Money' },
+      { id: 'purchases', label: 'Purchases',         icon: '▣', shortcut: 'u', group: 'Money' },
+      { id: 'balance',   label: 'Balance Sheet',     icon: '⚖', shortcut: 'b', group: 'Money' },
+      { id: 'returns',   label: 'Returns & Claims',  icon: '↩', shortcut: 'r', badge: 'returnCount', group: 'Operations' },
+      { id: 'reports',   label: 'Reports & Export',  icon: '↗', shortcut: 'x', group: 'Operations' },
+      { id: 'shoplog',   label: 'Studio Hours',      icon: '🕒', shortcut: 'h', group: 'Operations' },
     ]
   },
   {
@@ -3198,6 +3204,27 @@ function visibleNavConfig(){
     .map(sec=>({...sec,items:sec.items.filter(it=>_staffTabs.includes(it.id))}))
     .filter(sec=>sec.items.length);
 }
+// Splits a section's items into consecutive runs by their optional `group`
+// field, preserving item order. Sections with no `group` on any item come
+// back as one ungrouped run, so this is a no-op for the 4 flat sections.
+function _groupSectionItems(items){
+  const runs=[]; let cur=null;
+  items.forEach(it=>{
+    const g=it.group||null;
+    if(!cur||cur.group!==g){ cur={group:g,items:[]}; runs.push(cur); }
+    cur.items.push(it);
+  });
+  return runs;
+}
+function _navDdItemHtml(sec,it){
+  return `
+          <button type="button" class="biz-tb-dd-item" data-tab="${it.id}" onclick="switchTab('${it.id}');_bizCatCloseAll()">
+            <span class="biz-tb-dd-icon" style="color:${sec.color}">${it.icon}</span>
+            <span class="biz-tb-dd-label">${esc(it.label)}</span>
+            ${it.badge?`<span class="biz-tb-dd-badge" id="${it.badge}_hdr">—</span>`:''}
+            ${it.shortcut?`<span class="biz-tb-dd-key">${it.shortcut.toUpperCase()}</span>`:''}
+          </button>`;
+}
 function renderBizHeaderNav(){
   const host=document.getElementById('bizTbNav'); if(!host) return;
   host.innerHTML=visibleNavConfig().map(sec=>`
@@ -3205,13 +3232,9 @@ function renderBizHeaderNav(){
          onmouseenter="_bizCatOpen('${sec.id}')" onmouseleave="_bizCatCloseSoon('${sec.id}')">
       <span>${esc(sec.label)}</span><span class="cat-chev">▾</span>
       <div class="biz-tb-dropdown" onmouseenter="_bizCatCancelClose('${sec.id}')" onmouseleave="_bizCatCloseSoon('${sec.id}')">
-        ${sec.items.map(it=>`
-          <button type="button" class="biz-tb-dd-item" data-tab="${it.id}" onclick="switchTab('${it.id}');_bizCatCloseAll()">
-            <span class="biz-tb-dd-icon" style="color:${sec.color}">${it.icon}</span>
-            <span class="biz-tb-dd-label">${esc(it.label)}</span>
-            ${it.badge?`<span class="biz-tb-dd-badge" id="${it.badge}_hdr">—</span>`:''}
-            ${it.shortcut?`<span class="biz-tb-dd-key">${it.shortcut.toUpperCase()}</span>`:''}
-          </button>`).join('')}
+        ${_groupSectionItems(sec.items).map(run=>`
+          ${run.group?`<div class="biz-tb-dd-group">${esc(run.group)}</div>`:''}
+          ${run.items.map(it=>_navDdItemHtml(sec,it)).join('')}`).join('')}
       </div>
     </div>`).join('');
 }
@@ -3245,7 +3268,10 @@ setInterval(syncBizHeaderBadges,4000);
 // Flat, fuzzy-searchable list of every NAV_CONFIG item the current
 // user can see (staff-filtered via visibleNavConfig()).
 function getCmdkItems(){
-  return visibleNavConfig().flatMap(sec=>sec.items.map(it=>({...it,section:sec.label,color:sec.color})));
+  return visibleNavConfig().flatMap(sec=>sec.items.map(it=>({
+    ...it,color:sec.color,
+    section: it.group ? sec.label+' · '+it.group : sec.label,
+  })));
 }
 let _cmdkResults=[], _cmdkSel=0;
 function openCmdPalette(){
@@ -3303,7 +3329,9 @@ function openShortcutCheatSheet(){
         ${visibleNavConfig().map(sec=>`
           <div>
             <div class="cheat-group-title" style="--cheat-color:${sec.color}">${esc(sec.label)}</div>
-            ${sec.items.map(it=>`<div class="cheat-row"><span>${esc(it.label)}</span>${it.shortcut?`<span class="cmdk-key">${it.shortcut.toUpperCase()}</span>`:''}</div>`).join('')}
+            ${_groupSectionItems(sec.items).map(run=>`
+              ${run.group?`<div class="cheat-subgroup-title">${esc(run.group)}</div>`:''}
+              ${run.items.map(it=>`<div class="cheat-row"><span>${esc(it.label)}</span>${it.shortcut?`<span class="cmdk-key">${it.shortcut.toUpperCase()}</span>`:''}</div>`).join('')}`).join('')}
           </div>`).join('')}
       </div>
     </div>`;
