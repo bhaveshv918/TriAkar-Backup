@@ -2230,6 +2230,12 @@ html[data-theme="dark"] .biz-login{
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('spoolBulkInput').click()" title="Bulk add spools from Excel">⇲ Bulk Excel</button>
           <input type="file" id="spoolBulkInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="spoolBulkUpload(event)">
           <button class="btn btn-ghost btn-sm" onclick="toggleSpoolCustomize()" title="Show / hide / reorder KPI tiles">⚙ Widgets</button>
+          <select id="spoolFilterStatus" onchange="renderSpoolTracker()" style="border-radius:6px;border:1px solid var(--border);font-size:12px;padding:6px 8px;background:var(--bg-1);color:var(--text-1)">
+            <option value="all">All Spools</option>
+            <option value="available">Available</option>
+            <option value="used">Used (Finsh)</option>
+            <option value="resold">Resold</option>
+          </select>
           <button class="btn btn-primary btn-sm" onclick="showAddSpool()" title="Shortcut: N">+ Add Spool <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">N</span></button>
         </div>
       </div>
@@ -2276,6 +2282,26 @@ html[data-theme="dark"] .biz-login{
         <div style="display:flex;gap:8px;margin-top:12px">
           <button class="btn btn-primary btn-sm" onclick="saveSpool()" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('spoolForm').style.display='none'">Cancel</button>
+        </div>
+      </div>
+</div>
+
+      <div id="resellSpoolForm" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.style.display='none'">
+<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto">
+        <input type="hidden" id="rs_spool_id">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px" id="resellFormTitle">Resell Spool</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Buyer Name *</label><input type="text" id="rs_buyer" placeholder="e.g. Yatin"></div>
+          <div class="form-group"><label>Cost ₹ (this spool)</label><input type="number" id="rs_cost" step="0.01" readonly></div>
+          <div class="form-group"><label>Sale Price ₹ *</label><input type="number" id="rs_price" step="0.01" oninput="updateResellProfit()"></div>
+          <div class="form-group"><label>Profit ₹</label><input type="number" id="rs_profit" step="0.01" readonly></div>
+          <div class="form-group"><label>Payment Mode</label><select id="rs_paymode"><option value="cash">Cash</option><option value="upi">UPI</option><option value="card">Card</option><option value="bank_transfer">Bank Transfer</option></select></div>
+          <div class="form-group"><label>Date</label><input type="date" id="rs_date"></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="rs_notes"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary btn-sm" onclick="saveResellSpool()">Mark Resold &amp; Record Income</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('resellSpoolForm').style.display='none'">Cancel</button>
         </div>
       </div>
 </div>
@@ -5949,21 +5975,33 @@ function spoolSwatch(r){
   const shiny=/silk|shiny|gloss|metallic|glitter|sparkle/i.test(r.finish||'')||/silk|shiny|gloss|metallic|glitter|sparkle/i.test(r.color||'');
   return `<span title="${esc(r.color||'')}" style="display:inline-block;width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,.15);vertical-align:middle;margin-right:6px;background:${bg}${shiny?';background-image:linear-gradient(135deg,rgba(255,255,255,.6),rgba(255,255,255,0) 40%,rgba(255,255,255,.35) 60%,rgba(255,255,255,0))':''}"></span>`;
 }
+let _resaleProfitTotal=0;
 async function loadSpoolTracker(){
   const {data,error}=await sb.from('filament_inventory').select('*').order('s_no',{ascending:true});
   if(error){ toast('Error: '+error.message,'error'); return; }
   _spoolRows=data||[];
+  const {data:resales}=await sb.from('biz_filament_resales').select('profit');
+  _resaleProfitTotal=(resales||[]).reduce((s,x)=>s+(Number(x.profit)||0),0);
   renderSpoolTracker();
+}
+function spoolMatchesFilter(r,filter){
+  if(filter==='available') return r.status!=='Finsh';
+  if(filter==='used') return r.status==='Finsh' && r.finish_reason!=='resold';
+  if(filter==='resold') return r.status==='Finsh' && r.finish_reason==='resold';
+  return true;
 }
 function renderSpoolTracker(){
   // finished spools sort to the bottom, otherwise by s_no
   const rows=[..._spoolRows].sort((a,b)=>(a.status==='Finsh'?1:0)-(b.status==='Finsh'?1:0)||a.s_no-b.s_no);
+  const filterVal=document.getElementById('spoolFilterStatus')?.value||'all';
+  const filteredRows=rows.filter(r=>spoolMatchesFilter(r,filterVal));
   const kpi=document.getElementById('spoolKpi');
   if(kpi){
     const total=rows.length;
     const value=rows.reduce((s,r)=>s+(Number(r.price)||0)*(spoolPct(r)/100),0);
     const opened=rows.filter(r=>r.status==='Opened').length;
-    const finished=rows.filter(r=>r.status==='Finsh').length;
+    const finished=rows.filter(r=>r.status==='Finsh' && r.finish_reason!=='resold').length;
+    const resold=rows.filter(r=>r.status==='Finsh' && r.finish_reason==='resold').length;
     const gramsCap=rows.reduce((s,r)=>s+(parseFloat(r.total_grams)||0),0);
     const gramsUsed=rows.reduce((s,r)=>s+(parseFloat(r.grams_used)||0),0);
     const gramsWaste=rows.reduce((s,r)=>s+(parseFloat(r.waste_grams)||0),0);
@@ -5972,7 +6010,7 @@ function renderSpoolTracker(){
       total, value:'₹'+Math.round(value).toLocaleString('en-IN'),
       capacity:(gramsCap/1000).toFixed(3)+' kg', used:(gramsUsed/1000).toFixed(3)+' kg',
       left:(gramsLeft/1000).toFixed(3)+' kg', waste:(gramsWaste/1000).toFixed(3)+' kg',
-      opened, finished
+      opened, finished, resold, resaleProfit:'₹'+Math.round(_resaleProfitTotal).toLocaleString('en-IN')
     };
     const cfg=spoolWidgetCfg();
     SPOOL_WIDGETS.forEach(w=>{ if(!cfg.order.includes(w.k)) cfg.order.push(w.k); });
@@ -5983,18 +6021,20 @@ function renderSpoolTracker(){
   }
   const tbody=document.getElementById('spoolBody');
   if(!tbody) return;
-  if(!rows.length){ tbody.innerHTML='<tr><td colspan="11" class="empty"><div class="em-text">No spools found</div></td></tr>'; return; }
-  tbody.innerHTML=rows.map(r=>{
+  if(!filteredRows.length){ tbody.innerHTML='<tr><td colspan="11" class="empty"><div class="em-text">No spools found</div></td></tr>'; return; }
+  tbody.innerHTML=filteredRows.map(r=>{
     const badgeClass=SPOOL_BADGE[r.status]||'badge-pending';
     const pct=spoolPct(r);
     const barColor=pct<20?'var(--red)':pct<50?'var(--yellow)':'var(--green)';
+    const isResold=r.status==='Finsh'&&r.finish_reason==='resold';
+    const statusLabel=isResold?'Sold':(r.status||'—');
     return `<tr onclick="rowSelectOrAction(event,'spool-cb',null)" style="cursor:pointer;${r.status==='Finsh'?'opacity:.6':''}">
       <td><input type="checkbox" class="spool-cb" data-id="${r.id}" onchange="updateSpoolBulkBar()"></td>
       <td>${r.s_no}</td>
       <td>${esc(r.brand)}<br><span style="font-size:11px;color:var(--text-3)">${esc(r.filament_type||'')}${r.finish?' · '+esc(r.finish):''}</span></td>
       <td>${spoolSwatch(r)}${esc(r.color||'—')}</td>
       <td style="font-size:11px;color:var(--text-3)">${esc(r.vendor||'—')}</td>
-      <td><span class="badge ${badgeClass}">${esc(r.status||'—')}</span></td>
+      <td><span class="badge ${isResold?'badge-delivered':badgeClass}">${esc(statusLabel)}</span></td>
       <td>
         <div style="display:flex;align-items:center;gap:8px">
           <div style="flex:1;height:8px;border-radius:4px;background:var(--bg-3);overflow:hidden">
@@ -6006,7 +6046,10 @@ function renderSpoolTracker(){
       <td class="td-num">${r.cost_per_gram!=null?Number(r.cost_per_gram).toFixed(2):'—'}</td>
       <td style="font-size:11px;color:var(--text-3)">${esc(r.opened_date||'—')}</td>
       <td style="font-size:11px;color:var(--text-3)">${esc(r.finished_date||'—')}</td>
-      <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="showSpoolEdit('${r.id}')">✎</button></td>
+      <td class="td-actions">
+        <button class="btn btn-ghost btn-sm" onclick="showSpoolEdit('${r.id}')">✎</button>
+        ${r.status!=='Finsh'?`<button class="btn btn-ghost btn-sm" title="Mark resold" onclick="showResellSpool('${r.id}')">♻</button>`:''}
+      </td>
     </tr>`;
   }).join('');
   updateSpoolBulkBar();
@@ -6102,6 +6145,64 @@ async function spoolBulkUpload(e){
     if(error){ toast('Error: '+error.message,'error'); } else { toast('Added '+batch.length+' spool(s)'); loadSpoolTracker(); }
   }catch(err){ toast('Upload failed: '+err.message,'error'); }
   e.target.value='';
+}
+function showResellSpool(id){
+  const r=_spoolRows.find(x=>String(x.id)===String(id));
+  if(!r) return;
+  document.getElementById('rs_spool_id').value=r.id;
+  document.getElementById('rs_buyer').value='';
+  const cost=Number(r.price)||((Number(r.cost_per_gram)||0)*(Number(r.total_grams)||1000));
+  document.getElementById('rs_cost').value=cost.toFixed(2);
+  document.getElementById('rs_price').value='';
+  document.getElementById('rs_profit').value='';
+  document.getElementById('rs_paymode').value='cash';
+  document.getElementById('rs_date').value=today();
+  document.getElementById('rs_notes').value='';
+  document.getElementById('resellFormTitle').textContent='Resell Spool #'+r.s_no+', '+(r.brand||'')+' '+(r.color||'');
+  document.getElementById('resellSpoolForm').style.display='flex';
+}
+function updateResellProfit(){
+  const cost=parseFloat(document.getElementById('rs_cost').value)||0;
+  const price=parseFloat(document.getElementById('rs_price').value)||0;
+  document.getElementById('rs_profit').value=(price-cost).toFixed(2);
+}
+async function saveResellSpool(){
+  const spoolId=document.getElementById('rs_spool_id').value;
+  const r=_spoolRows.find(x=>String(x.id)===String(spoolId));
+  if(!r) return;
+  const buyer=document.getElementById('rs_buyer').value.trim();
+  if(!buyer){ toast('Buyer name is required','error'); return; }
+  const cost=parseFloat(document.getElementById('rs_cost').value)||0;
+  const price=parseFloat(document.getElementById('rs_price').value)||0;
+  if(!price){ toast('Sale price is required','error'); return; }
+  const paymode=document.getElementById('rs_paymode').value;
+  const date=document.getElementById('rs_date').value||today();
+  const extraNotes=document.getElementById('rs_notes').value.trim();
+  const profit=price-cost;
+  // 1) Money In — feeds the Balance Sheet
+  const {data:incRow,error:incErr}=await sb.from('biz_income').insert({
+    date, category:'filament_resale', amount:price, payment_mode:paymode,
+    notes:'Filament resale to '+buyer+' — spool #'+r.s_no+' ('+(r.brand||'')+' '+(r.color||'')+'). Cost ₹'+cost.toFixed(2)+', profit ₹'+profit.toFixed(2)+(extraNotes?'. '+extraNotes:'')
+  }).select().single();
+  if(incErr){ toast('Error recording income: '+incErr.message,'error'); return; }
+  // 2) Resale ledger — traceable both ways (spool <-> income)
+  const {error:resErr}=await sb.from('biz_filament_resales').insert({
+    spool_id:r.id, buyer_name:buyer, cost_price:cost, sale_price:price,
+    date, payment_mode:paymode, income_id:incRow.id, notes:extraNotes||null
+  });
+  if(resErr){ toast('Error recording resale: '+resErr.message,'error'); return; }
+  // 3) Mark the spool itself Finsh/resold so it drops out of available stock
+  //    without polluting in-house consumption stats (grams_used stays 0 — it
+  //    was never printed with, the whole spool left as a resale).
+  const spoolNotes=((r.notes?r.notes+' | ':'')+'Resold to '+buyer+' @₹'+price.toFixed(2)).slice(0,100);
+  const {error:spErr}=await sb.from('filament_inventory').update({
+    status:'Finsh', finish_reason:'resold', grams_used:0, finished_date:date, notes:spoolNotes
+  }).eq('id',r.id);
+  if(spErr){ toast('Income+resale saved, but spool update failed: '+spErr.message,'error'); }
+  logBizActivity('edit','spool',r.id,'Resold #'+r.s_no+' to '+buyer+' for ₹'+price.toFixed(2));
+  toast('Marked resold — profit ₹'+profit.toFixed(2)+' recorded in Money In');
+  document.getElementById('resellSpoolForm').style.display='none';
+  loadSpoolTracker();
 }
 function showSpoolEdit(id){
   const r=_spoolRows.find(x=>String(x.id)===String(id));
@@ -7215,7 +7316,7 @@ function dashDrop(e){
 }
 function dashDragEnd(e){ e.currentTarget.style.opacity=''; _dashDragKey=null; }
 
-const SPOOL_WIDGETS=[{k:'total',name:'Total Spools'},{k:'value',name:'Stock Value'},{k:'capacity',name:'Total Kg'},{k:'used',name:'Kg Used'},{k:'left',name:'Kg Left'},{k:'waste',name:'Kg Wasted'},{k:'opened',name:'Opened'},{k:'finished',name:'Finished'}];
+const SPOOL_WIDGETS=[{k:'total',name:'Total Spools'},{k:'value',name:'Stock Value'},{k:'capacity',name:'Total Kg'},{k:'used',name:'Kg Used'},{k:'left',name:'Kg Left'},{k:'waste',name:'Kg Wasted'},{k:'opened',name:'Opened'},{k:'finished',name:'Finished'},{k:'resold',name:'Resold'},{k:'resaleProfit',name:'Resale Profit'}];
 function spoolWidgetCfg(){
   try{ const c=JSON.parse(localStorage.getItem('biz_spool_widgets')||'null'); if(c&&Array.isArray(c.order)) return {order:c.order,hidden:c.hidden||[]}; }catch(_){}
   return {order:SPOOL_WIDGETS.map(w=>w.k),hidden:[]};
