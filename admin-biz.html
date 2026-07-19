@@ -184,10 +184,10 @@ tr:hover td{background:var(--bg-2)}
 /* ── Channel dots ─────────────────────────────────────────── */
 .ch{display:inline-flex;align-items:center;gap:5px;font-size:11px}
 .ch-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.ch-shop    .ch-dot{background:#16A34A}                                  /* Studio, green */
-.ch-amazon  .ch-dot{background:#FF9900}                                  /* Amazon, orange */
-.ch-flipkart .ch-dot{background:linear-gradient(135deg,#FFE11B 0 50%,#2874F0 50% 100%)} /* Flipkart, yellow + blue */
-.ch-website .ch-dot{background:#A78BFA}                                  /* Website, purple */
+.ch-shop    .ch-dot{background:var(--ch-studio)}                         /* Studio, green */
+.ch-amazon  .ch-dot{background:var(--ch-amazon)}                         /* Amazon, orange */
+.ch-flipkart .ch-dot{background:linear-gradient(135deg,var(--ch-flipkart-1) 0 50%,var(--ch-flipkart-2) 50% 100%)} /* Flipkart, yellow + blue */
+.ch-website .ch-dot{background:var(--ch-website)}                        /* Website, purple */
 
 /* ── Forms ────────────────────────────────────────────────── */
 .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:16px}
@@ -701,10 +701,11 @@ html[data-theme="dark"] .biz-login{
        replaced by a second, hand-maintained bar (that used to leave search/
        notifications/sign-out unreachable on phones). -->
   <div class="biz-topbar">
-    <button class="biz-tb-icon biz-tb-hamburger" onclick="toggleNav()" aria-label="Menu">☰</button>
-    <button class="biz-tb-icon biz-tb-collapse" onclick="toggleBizSidebar()" title="Collapse / expand sidebar">‹‹</button>
+    <button class="biz-tb-icon biz-tb-hamburger" onclick="toggleNav()" aria-label="Menu, opens the command palette">☰</button>
     <div class="biz-tb-brand">TriĀkar <span>· Business OS</span></div>
     <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;margin-left:-4px;white-space:nowrap">v124</span>
+    <nav class="biz-tb-nav" id="bizTbNav"></nav>
+    <button class="biz-tb-icon biz-tb-cmdk" onclick="openCmdPalette()" title="Command palette (Ctrl/Cmd+K)">⌘</button>
     <div class="biz-tb-search">
       <input type="text" id="bizSearchTop" placeholder="Search sales, products, customers…" oninput="bizGlobalSearch(this.value)" onkeydown="if(event.key==='Escape')closeBizSearch()" autocomplete="off">
     </div>
@@ -718,124 +719,9 @@ html[data-theme="dark"] .biz-login{
   </div>
 
   <div class="biz-body">
-  <!-- Sidebar -->
-  <nav class="sidebar">
-    <div class="sb-header">
-      <div class="sb-logo">TriĀkar</div>
-      <div class="sb-title">Business OS</div>
-      <div style="display:flex;gap:10px;align-items:center;margin-top:6px">
-        <a href="/admin.html" class="sb-back" id="sbBackToAdmin">← Admin</a>
-        <button id="bizThemeToggle" onclick="toggleTheme()" title="Toggle dark / light" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;line-height:1">🌙</button>
-        <button id="bizSidebarRefresh" onclick="refreshCurrentBizTab()" title="Refresh current tab" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text-3);padding:2px 4px;line-height:1">⟳</button>
-        <button id="bizCollapseBtn" onclick="toggleBizSidebar()" title="Collapse / expand sidebar">‹‹</button>
-      </div>
-      <input type="text" id="bizSearch" placeholder="🔍 Search sales / products / customers" oninput="bizGlobalSearch(this.value)" onkeydown="if(event.key==='Escape')closeBizSearch()" autocomplete="off" style="width:100%;margin-top:10px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;outline:none">
-    </div>
-
-    <div class="sidebar-section">Overview</div>
-    <button class="tab active" data-tab="openorders" onclick="switchTab('openorders')">
-      <span class="tab-icon">⚑</span><span class="tab-label">Today's Tasks</span><span class="tab-badge" id="openCount">—</span>
-    <span class="tab-keyhint">O</span>
-    </button>
-    <button class="tab" data-tab="dashboard" onclick="switchTab('dashboard')">
-      <span class="tab-icon">◈</span><span class="tab-label">Dashboard</span>
-    <span class="tab-keyhint">D</span>
-    </button>
-
-    <div class="sidebar-section">Sales</div>
-    <button class="tab" data-tab="quickadd" onclick="switchTab('quickadd')">
-      <span class="tab-icon">＋</span><span class="tab-label">Quick Add Sale</span>
-    <span class="tab-keyhint">Q</span>
-    </button>
-    <button class="tab" data-tab="sales" onclick="switchTab('sales')">
-      <span class="tab-icon">≡</span><span class="tab-label">All Sales</span><span class="tab-badge" id="salesCount">—</span>
-    <span class="tab-keyhint">A</span>
-    </button>
-    <button class="tab" data-tab="import" onclick="switchTab('import')">
-      <span class="tab-icon">⇲</span><span class="tab-label">Import &amp; Labels</span>
-    <span class="tab-keyhint">I</span>
-    </button>
-    <button class="tab" data-tab="customers" onclick="switchTab('customers')">
-      <span class="tab-icon">☺</span><span class="tab-label">Customers</span><span class="tab-badge" id="custCount">—</span>
-    <span class="tab-keyhint">C</span>
-    </button>
-
-    <div class="sidebar-section">Products</div>
-    <button class="tab" data-tab="products" onclick="switchTab('products')">
-      <span class="tab-icon">▦</span><span class="tab-label">Products</span><span class="tab-badge" id="prodCount">—</span>
-    <span class="tab-keyhint">P</span>
-    </button>
-    <button class="tab" data-tab="stock" onclick="switchTab('stock')">
-      <span class="tab-icon">◫</span><span class="tab-label">Stock</span>
-    <span class="tab-keyhint">K</span>
-    </button>
-    <button class="tab" data-tab="spooltracker" onclick="switchTab('spooltracker')">
-      <span class="tab-icon">🧵</span><span class="tab-label">Spool Tracker</span>
-    <span class="tab-keyhint">S</span>
-    </button>
-    <button class="tab" data-tab="machinery" onclick="switchTab('machinery')">
-      <span class="tab-icon">🖨</span><span class="tab-label">Machinery</span>
-    </button>
-
-    <div class="sidebar-section">Finance</div>
-    <button class="tab" data-tab="returns" onclick="switchTab('returns')">
-      <span class="tab-icon">↩</span><span class="tab-label">Returns & Claims</span><span class="tab-badge" id="returnCount">—</span>
-    <span class="tab-keyhint">R</span>
-    </button>
-    <button class="tab" data-tab="fees" onclick="switchTab('fees')">
-      <span class="tab-icon">₹</span><span class="tab-label">Fees & Costs</span>
-    <span class="tab-keyhint">F</span>
-    </button>
-    <button class="tab" data-tab="gst" onclick="switchTab('gst')">
-      <span class="tab-icon">◊</span><span class="tab-label">GST Summary</span>
-    <span class="tab-keyhint">G</span>
-    </button>
-    <button class="tab" data-tab="gstportal" onclick="switchTab('gstportal')">
-      <span class="tab-icon">⏷</span><span class="tab-label">GST Portal</span>
-    </button>
-    <button class="tab" data-tab="gstauto" onclick="switchTab('gstauto')">
-      <span class="tab-icon">⚙</span><span class="tab-label">GSTR-1 Auto-File</span>
-    </button>
-    <button class="tab" data-tab="invoicing" onclick="switchTab('invoicing')">
-      <span class="tab-icon">▤</span><span class="tab-label">Invoicing</span>
-    </button>
-    <button class="tab" data-tab="reports" onclick="switchTab('reports')">
-      <span class="tab-icon">↗</span><span class="tab-label">Reports & Export</span>
-    <span class="tab-keyhint">X</span>
-    </button>
-    <button class="tab" data-tab="expenses" onclick="switchTab('expenses')">
-      <span class="tab-icon">▤</span><span class="tab-label">Expenses</span>
-    <span class="tab-keyhint">E</span>
-    </button>
-    <button class="tab" data-tab="ledger" onclick="switchTab('ledger')">
-      <span class="tab-icon">⇄</span><span class="tab-label">Money In/Out</span>
-    <span class="tab-keyhint">M</span>
-    </button>
-    <button class="tab" data-tab="purchases" onclick="switchTab('purchases')">
-      <span class="tab-icon">▣</span><span class="tab-label">Purchases</span>
-    <span class="tab-keyhint">U</span>
-    </button>
-    <button class="tab" data-tab="balance" onclick="switchTab('balance')">
-      <span class="tab-icon">⚖</span><span class="tab-label">Balance Sheet</span>
-    <span class="tab-keyhint">B</span>
-    </button>
-    <button class="tab" data-tab="shoplog" onclick="switchTab('shoplog')">
-      <span class="tab-icon">🕒</span><span class="tab-label">Studio Hours</span>
-    <span class="tab-keyhint">H</span>
-    </button>
-
-    <div class="sidebar-section">System</div>
-    <button class="tab" data-tab="activity" onclick="switchTab('activity')">
-      <span class="tab-icon">≣</span><span class="tab-label">Activity Log</span>
-    <span class="tab-keyhint">Y</span>
-    </button>
-    <button class="tab" data-tab="settings" onclick="switchTab('settings')">
-      <span class="tab-icon">⚙</span><span class="tab-label">Settings</span>
-    <span class="tab-keyhint">T</span>
-    </button>
-  </nav>
-
-  <!-- Main area -->
+  <!-- Main area, Phase 5: the sidebar is gone, the header (NAV_CONFIG-driven,
+       see .biz-tb-nav above) plus the Ctrl/Cmd+K command palette are now the
+       only navigation surfaces. -->
   <div class="main-area">
     <!-- ══════════════════════════════════════════════════════
          DASHBOARD
@@ -3245,6 +3131,202 @@ function chHtml(id){
   return `<span class="ch ch-${esc(id)}"><span class="ch-dot"></span>${esc(CH_NAMES[id]||id)}</span>`;
 }
 
+// ── Nav config, single source of truth for Business OS navigation ──
+// Drives the sidebar today (data only, not yet wired) and will drive
+// the header + hover mega-menu + Cmd/Ctrl+K command palette from
+// Phase 3 onward. Add a tab by pushing one item here; every surface
+// that reads NAV_CONFIG updates without further changes.
+// item.id must match the existing switchTab(id) / panel<Id> convention.
+const NAV_CONFIG = [
+  {
+    id: 'overview', label: 'Overview', color: 'var(--tri-orange)',
+    items: [
+      { id: 'openorders', label: "Today's Tasks", icon: '⚑', shortcut: 'o', badge: 'openCount' },
+      { id: 'dashboard',  label: 'Dashboard',      icon: '◈', shortcut: 'd' },
+    ]
+  },
+  {
+    id: 'sales', label: 'Sales', color: 'var(--ch-studio)',
+    items: [
+      { id: 'quickadd',  label: 'Quick Add Sale', icon: '＋', shortcut: 'q' },
+      { id: 'sales',     label: 'All Sales',       icon: '≡', shortcut: 'a', badge: 'salesCount' },
+      { id: 'import',    label: 'Import & Labels', icon: '⇲', shortcut: 'i' },
+      { id: 'customers', label: 'Customers',       icon: '☺', shortcut: 'c', badge: 'custCount' },
+    ]
+  },
+  {
+    id: 'products', label: 'Products', color: 'var(--ch-amazon)',
+    items: [
+      { id: 'products',     label: 'Products',      icon: '▦', shortcut: 'p', badge: 'prodCount' },
+      { id: 'stock',        label: 'Stock',          icon: '◫', shortcut: 'k' },
+      { id: 'spooltracker', label: 'Spool Tracker',  icon: '🧵', shortcut: 's' },
+      { id: 'machinery',    label: 'Machinery',      icon: '🖨', shortcut: 'n' },
+    ]
+  },
+  {
+    id: 'finance', label: 'Finance', color: 'var(--ch-website)',
+    items: [
+      { id: 'returns',   label: 'Returns & Claims',  icon: '↩', shortcut: 'r', badge: 'returnCount' },
+      { id: 'fees',      label: 'Fees & Costs',      icon: '₹', shortcut: 'f' },
+      { id: 'gst',       label: 'GST Summary',       icon: '◊', shortcut: 'g' },
+      { id: 'gstportal', label: 'GST Portal',        icon: '⏷', shortcut: 'l' },
+      { id: 'gstauto',   label: 'GSTR-1 Auto-File',  icon: '⚙', shortcut: 'j' },
+      { id: 'invoicing', label: 'Invoicing',         icon: '▤', shortcut: 'v' },
+      { id: 'reports',   label: 'Reports & Export',  icon: '↗', shortcut: 'x' },
+      { id: 'expenses',  label: 'Expenses',          icon: '▤', shortcut: 'e' },
+      { id: 'ledger',    label: 'Money In/Out',      icon: '⇄', shortcut: 'm' },
+      { id: 'purchases', label: 'Purchases',         icon: '▣', shortcut: 'u' },
+      { id: 'balance',   label: 'Balance Sheet',     icon: '⚖', shortcut: 'b' },
+      { id: 'shoplog',   label: 'Studio Hours',      icon: '🕒', shortcut: 'h' },
+    ]
+  },
+  {
+    id: 'system', label: 'System', color: '#6B7280',
+    items: [
+      { id: 'activity', label: 'Activity Log', icon: '≣', shortcut: 'y' },
+      { id: 'settings', label: 'Settings',      icon: '⚙', shortcut: 't' },
+    ]
+  },
+];
+
+// ── Header nav, built from NAV_CONFIG (Phase 3) ─────────────────
+// Staff accounts only see the sections/items their biz_tabs allow-list
+// grants (mirrors the switchTab() guard, which stays as defense-in-depth).
+function visibleNavConfig(){
+  if(!_isStaffUser||!_staffTabs) return NAV_CONFIG;
+  return NAV_CONFIG
+    .map(sec=>({...sec,items:sec.items.filter(it=>_staffTabs.includes(it.id))}))
+    .filter(sec=>sec.items.length);
+}
+function renderBizHeaderNav(){
+  const host=document.getElementById('bizTbNav'); if(!host) return;
+  host.innerHTML=visibleNavConfig().map(sec=>`
+    <div class="biz-tb-cat" data-cat="${sec.id}" style="--cat-color:${sec.color}"
+         onmouseenter="_bizCatOpen('${sec.id}')" onmouseleave="_bizCatCloseSoon('${sec.id}')">
+      <span>${esc(sec.label)}</span><span class="cat-chev">▾</span>
+      <div class="biz-tb-dropdown" onmouseenter="_bizCatCancelClose('${sec.id}')" onmouseleave="_bizCatCloseSoon('${sec.id}')">
+        ${sec.items.map(it=>`
+          <button type="button" class="biz-tb-dd-item" data-tab="${it.id}" onclick="switchTab('${it.id}');_bizCatCloseAll()">
+            <span class="biz-tb-dd-icon" style="color:${sec.color}">${it.icon}</span>
+            <span class="biz-tb-dd-label">${esc(it.label)}</span>
+            ${it.badge?`<span class="biz-tb-dd-badge" id="${it.badge}_hdr">—</span>`:''}
+            ${it.shortcut?`<span class="biz-tb-dd-key">${it.shortcut.toUpperCase()}</span>`:''}
+          </button>`).join('')}
+      </div>
+    </div>`).join('');
+}
+let _bizCatCloseTimer=null;
+function _bizCatOpen(catId){
+  clearTimeout(_bizCatCloseTimer);
+  document.querySelectorAll('.biz-tb-cat').forEach(el=>el.classList.toggle('cat-open',el.dataset.cat===catId));
+}
+function _bizCatCloseSoon(){ clearTimeout(_bizCatCloseTimer); _bizCatCloseTimer=setTimeout(_bizCatCloseAll,180); }
+function _bizCatCancelClose(){ clearTimeout(_bizCatCloseTimer); }
+function _bizCatCloseAll(){ document.querySelectorAll('.biz-tb-cat.cat-open').forEach(el=>el.classList.remove('cat-open')); }
+document.addEventListener('click',e=>{ if(!e.target.closest('.biz-tb-nav')) _bizCatCloseAll(); });
+
+// Header category underline reflects whichever tab is active, and the
+// header dropdown badges mirror the sidebar's live counts.
+function updateBizHeaderNavActive(tabId){
+  const sec=visibleNavConfig().find(s=>s.items.some(it=>it.id===tabId));
+  document.querySelectorAll('.biz-tb-cat').forEach(el=>el.classList.toggle('cat-active',sec&&el.dataset.cat===sec.id));
+  document.querySelectorAll('.biz-tb-dd-item').forEach(el=>el.classList.toggle('dd-active',el.dataset.tab===tabId));
+}
+function syncBizHeaderBadges(){
+  NAV_CONFIG.flatMap(s=>s.items).forEach(it=>{
+    if(!it.badge) return;
+    const src=document.getElementById(it.badge), dst=document.getElementById(it.badge+'_hdr');
+    if(src&&dst) dst.textContent=src.textContent;
+  });
+}
+setInterval(syncBizHeaderBadges,4000);
+
+// ── Command palette, Ctrl/Cmd+K (Phase 4) ────────────────────────
+// Flat, fuzzy-searchable list of every NAV_CONFIG item the current
+// user can see (staff-filtered via visibleNavConfig()).
+function getCmdkItems(){
+  return visibleNavConfig().flatMap(sec=>sec.items.map(it=>({...it,section:sec.label,color:sec.color})));
+}
+let _cmdkResults=[], _cmdkSel=0;
+function openCmdPalette(){
+  let ov=document.getElementById('cmdkOverlay');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='cmdkOverlay'; ov.className='cmdk-overlay';
+    ov.innerHTML=`<div class="cmdk-box">
+      <input type="text" class="cmdk-input" id="cmdkInput" placeholder="Jump to a page or action…" autocomplete="off">
+      <div class="cmdk-list" id="cmdkList"></div>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click',e=>{ if(e.target===ov) closeCmdPalette(); });
+    document.getElementById('cmdkInput').addEventListener('input',e=>_cmdkFilter(e.target.value));
+    document.getElementById('cmdkInput').addEventListener('keydown',_cmdkNav);
+  }
+  ov.classList.add('show');
+  _cmdkFilter('');
+  setTimeout(()=>document.getElementById('cmdkInput').focus(),10);
+}
+function closeCmdPalette(){ const ov=document.getElementById('cmdkOverlay'); if(ov) ov.classList.remove('show'); }
+function _cmdkFilter(q){
+  const query=(q||'').trim().toLowerCase();
+  const items=getCmdkItems();
+  _cmdkResults=!query?items:items.filter(it=>it.label.toLowerCase().includes(query)||it.section.toLowerCase().includes(query));
+  _cmdkSel=0;
+  _cmdkRender();
+}
+function _cmdkRender(){
+  const list=document.getElementById('cmdkList'); if(!list) return;
+  if(!_cmdkResults.length){ list.innerHTML='<div class="cmdk-empty">No matches</div>'; return; }
+  list.innerHTML=_cmdkResults.map((it,i)=>`
+    <button type="button" class="cmdk-item${i===_cmdkSel?' cmdk-active':''}" onclick="_cmdkGo(${i})">
+      <span class="cmdk-icon">${it.icon}</span>
+      <span class="cmdk-label">${esc(it.label)}</span>
+      <span class="cmdk-section" style="--cmd-color:${it.color}">${esc(it.section)}</span>
+      ${it.shortcut?`<span class="cmdk-key">${it.shortcut.toUpperCase()}</span>`:''}
+    </button>`).join('');
+}
+function _cmdkGo(i){ const it=_cmdkResults[i]; if(!it) return; switchTab(it.id); closeCmdPalette(); }
+function _cmdkNav(ev){
+  if(ev.key==='ArrowDown'){ ev.preventDefault(); _cmdkSel=Math.min(_cmdkSel+1,_cmdkResults.length-1); _cmdkRender(); }
+  else if(ev.key==='ArrowUp'){ ev.preventDefault(); _cmdkSel=Math.max(_cmdkSel-1,0); _cmdkRender(); }
+  else if(ev.key==='Enter'){ ev.preventDefault(); _cmdkGo(_cmdkSel); }
+  else if(ev.key==='Escape'){ ev.preventDefault(); closeCmdPalette(); }
+}
+
+// ── Shortcut cheat-sheet, Ctrl/Cmd+/ (Phase 4) ───────────────────
+function openShortcutCheatSheet(){
+  let ov=document.getElementById('cheatOverlay');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='cheatOverlay'; ov.className='cmdk-overlay';
+    ov.innerHTML=`<div class="cmdk-box cheat-box">
+      <input type="text" class="cmdk-input" value="Keyboard shortcuts" readonly style="cursor:default">
+      <div class="cheat-grid">
+        ${visibleNavConfig().map(sec=>`
+          <div>
+            <div class="cheat-group-title" style="--cheat-color:${sec.color}">${esc(sec.label)}</div>
+            ${sec.items.map(it=>`<div class="cheat-row"><span>${esc(it.label)}</span>${it.shortcut?`<span class="cmdk-key">${it.shortcut.toUpperCase()}</span>`:''}</div>`).join('')}
+          </div>`).join('')}
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click',e=>{ if(e.target===ov) closeShortcutCheatSheet(); });
+  }
+  ov.classList.add('show');
+}
+function closeShortcutCheatSheet(){ const ov=document.getElementById('cheatOverlay'); if(ov) ov.classList.remove('show'); }
+
+document.addEventListener('keydown',function(ev){
+  if((ev.ctrlKey||ev.metaKey)&&ev.key==='k'){
+    const auth=document.getElementById('authOverlay');
+    if(auth&&auth.style.display!=='none') return;
+    ev.preventDefault(); openCmdPalette(); return;
+  }
+  if((ev.ctrlKey||ev.metaKey)&&ev.key==='/'){
+    const auth=document.getElementById('authOverlay');
+    if(auth&&auth.style.display!=='none') return;
+    ev.preventDefault(); openShortcutCheatSheet(); return;
+  }
+});
+
 // ── Auth ────────────────────────────────────────────────────
 // Staff accounts (role='staff' on profiles, with a biz_tabs allow-list) can log into
 // Business OS only, never admin.html. Tab visibility is enforced client-side below;
@@ -3301,15 +3383,8 @@ async function bizLogin(e){
 // actually have instead of Open Orders if that's not one of them.
 function applyStaffTabRestrictions(){
   if(!_isStaffUser||!_staffTabs) return;
-  const backBtn=document.getElementById('sbBackToAdmin'); if(backBtn) backBtn.style.display='none';   // staff have no admin.html access
-  document.querySelectorAll('.tab[data-tab]').forEach(btn=>{
-    if(!_staffTabs.includes(btn.dataset.tab)) btn.style.display='none';
-  });
-  document.querySelectorAll('.sidebar-section').forEach(sec=>{
-    let n=sec.nextElementSibling, anyVisible=false;
-    while(n&&!n.classList.contains('sidebar-section')){ if(n.classList.contains('tab')&&n.style.display!=='none') anyVisible=true; n=n.nextElementSibling; }
-    sec.style.display=anyVisible?'':'none';
-  });
+  const adminLink=document.querySelector('.biz-tb-admin-link'); if(adminLink) adminLink.style.display='none';   // staff have no admin.html access
+  renderBizHeaderNav();   // re-render header nav filtered to visibleNavConfig()
   if(!_staffTabs.includes(_curBizTab)){
     const first=_staffTabs[0]; if(first) switchTab(first);
   }
@@ -3325,7 +3400,8 @@ async function startApp(){
   document.getElementById('authOverlay').style.display = 'none';
   document.getElementById('shell').style.display = 'flex';
   updateBizClock(); setInterval(updateBizClock,30000);
-  restoreBizSidebar();
+  renderBizHeaderNav();
+  updateBizHeaderNavActive(_curBizTab);
   applyStaffTabRestrictions();
   applyDashWidgets();
   loadBizSettings();
@@ -3358,6 +3434,8 @@ function switchTab(name){
   _curBizTab=name;
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel'+name.charAt(0).toUpperCase()+name.slice(1)));
+  updateBizHeaderNavActive(name);
+  _bizCatCloseAll();
   const loaders = {
     sales:loadSales, products:loadProducts, stock:loadStock,
     gst:loadGST, dashboard:loadDashboard,
@@ -3370,57 +3448,21 @@ function switchTab(name){
   toggleNav(false);   // close mobile drawer after choosing a tab
 }
 
-// §2b, collapse/expand the desktop sidebar (remembered)
-function toggleBizSidebar(){
-  const shell=document.getElementById('shell'); if(!shell) return;
-  const collapsed=shell.classList.toggle('sb-collapsed');
-  try{ localStorage.setItem('biz_sidebar_collapsed',collapsed?'1':'0'); }catch(e){}
-  const b=document.getElementById('bizCollapseBtn'); if(b) b.textContent=collapsed?'››':'‹‹';
-}
-function restoreBizSidebar(){
-  try{ if(localStorage.getItem('biz_sidebar_collapsed')==='1'){ const sh=document.getElementById('shell'); if(sh) sh.classList.add('sb-collapsed'); const b=document.getElementById('bizCollapseBtn'); if(b) b.textContent='››'; } }catch(e){}
-}
-
-// -- Dock-style hover magnify for the collapsed sidebar --
-(function(){
-  const sidebar=document.querySelector('.shell .sidebar'); if(!sidebar) return;
-  let tip=document.querySelector('.dock-tooltip');
-  if(!tip){ tip=document.createElement('div'); tip.className='dock-tooltip'; document.body.appendChild(tip); }
-  const collapsed=()=>{ const sh=document.getElementById('shell'); return !!(sh&&sh.classList.contains('sb-collapsed')); };
-  function clearDock(){ sidebar.querySelectorAll('.tab').forEach(t=>t.classList.remove('dock-hover','dock-near','dock-far')); tip.classList.remove('show'); }
-  sidebar.addEventListener('mouseenter',()=>{ if(collapsed()) sidebar.style.overflow='visible'; });
-  sidebar.addEventListener('mouseleave',()=>{ sidebar.style.overflow=''; clearDock(); });
-  sidebar.addEventListener('mouseover',e=>{
-    if(!collapsed()) return;
-    const tab=e.target.closest('.tab'); if(!tab||!sidebar.contains(tab)) return;
-    const list=Array.from(sidebar.querySelectorAll('.tab'));
-    const idx=list.indexOf(tab);
-    list.forEach((t,i)=>{
-      t.classList.remove('dock-hover','dock-near','dock-far');
-      const d=Math.abs(i-idx);
-      if(d===0) t.classList.add('dock-hover');
-      else if(d===1) t.classList.add('dock-near');
-      else if(d===2) t.classList.add('dock-far');
-    });
-    const label=tab.querySelector('.tab-label'), r=tab.getBoundingClientRect();
-    tip.textContent=label?label.textContent.trim():'';
-    tip.style.top=(r.top+r.height/2)+'px'; tip.style.left=(r.right+14)+'px';
-    tip.classList.add('show');
-  });
-})();
-
 // Mobile nav drawer
+// Phase 5, the sidebar drawer is gone; the hamburger (mobile) and the Esc/
+// swipe paths that used to open it now open the command palette instead,
+// which is the "browsable list" the header's hover mega-menu can't offer
+// on a touch device (no hover).
 function toggleNav(force){
-  const sb=document.querySelector('.sidebar'); const bd=document.getElementById('navBackdrop');
-  if(!sb) return;
-  const open = (force===undefined) ? !sb.classList.contains('open') : !!force;
-  sb.classList.toggle('open',open);
-  if(bd) bd.classList.toggle('show',open);
+  const ov=document.getElementById('cmdkOverlay');
+  const isOpen=ov&&ov.classList.contains('show');
+  const open=(force===undefined)?!isOpen:!!force;
+  if(open) openCmdPalette(); else closeCmdPalette();
 }
 
-/* ── Right-swipe to open sidebar (mobile only) ── */
+/* ── Right-swipe to open the command palette (mobile only), left-swipe closes it ── */
 (function(){
-  let swX=0,swY=0,swOK=false,swOpen=false;
+  let swX=0,swY=0,swOK=false;
   const inHScroll=el=>{
     for(let n=el;n&&n!==document.body&&n.nodeType===1;n=n.parentElement){
       const cs=getComputedStyle(n);
@@ -3433,9 +3475,7 @@ function toggleNav(force){
     if(window.innerWidth>768)return;
     const t=e.touches[0];
     swX=t.clientX;swY=t.clientY;
-    const sb=document.querySelector('.sidebar');
-    swOpen=sb&&sb.classList.contains('open');
-    swOK=!e.target.closest('.sidebar')&&!inHScroll(e.target);
+    swOK=!e.target.closest('#cmdkOverlay')&&!inHScroll(e.target);
   },{passive:true});
   document.addEventListener('touchend',e=>{
     if(!swOK||window.innerWidth>768)return;
@@ -3443,8 +3483,10 @@ function toggleNav(force){
     const t=e.changedTouches[0];
     const dx=t.clientX-swX,dy=t.clientY-swY;
     if(Math.abs(dy)>60||Math.abs(dx)<70)return;
-    if(!swOpen&&dx>0)toggleNav();
-    else if(swOpen&&dx<0)toggleNav(false);
+    const ov=document.getElementById('cmdkOverlay');
+    const isOpen=ov&&ov.classList.contains('show');
+    if(!isOpen&&dx>0)toggleNav();
+    else if(isOpen&&dx<0)toggleNav(false);
   },{passive:true});
 })();
 
@@ -9021,7 +9063,7 @@ async function bizGlobalSearchRun(q){
   _gsResults=items;
   if(!items.length){ box.innerHTML='<div class="gs-empty">No matches</div>'; }
   else box.innerHTML=items.map((it,i)=>`<div class="gs-item" onclick="bizSearchPick(${i})"><span class="gs-type">${it.t}</span><span class="gs-main"><span class="gs-label">${esc(it.label)}</span><span class="gs-sub">${esc(it.sub)}</span></span></div>`).join('');
-  const inp=document.querySelector('#bizSearchTop:focus')||document.getElementById('bizSearch'); const r=inp.getBoundingClientRect();
+  const inp=document.getElementById('bizSearchTop'); if(!inp) return; const r=inp.getBoundingClientRect();
   box.style.left=r.left+'px'; box.style.top=(r.bottom+4)+'px'; box.style.width=Math.max(240,r.width)+'px';
   box.style.display='block';
 }
@@ -9039,6 +9081,11 @@ function closeBizSearch(){ const b=document.getElementById('bizSearchResults'); 
 document.addEventListener('click',e=>{ if(!e.target.closest('#bizSearch,#bizSearchTop,#bizSearchResults')) closeBizSearch(); });
 document.addEventListener('keydown',function(ev){
   if(ev.key!=='Escape') return;
+  var cmdk=document.getElementById('cmdkOverlay');
+  if(cmdk&&cmdk.classList.contains('show')){closeCmdPalette();return;}
+  var cheat=document.getElementById('cheatOverlay');
+  if(cheat&&cheat.classList.contains('show')){closeShortcutCheatSheet();return;}
+  if(document.querySelector('.biz-tb-cat.cat-open')){_bizCatCloseAll();return;}
   var rb=document.getElementById('recycleBinModal');
   if(rb&&rb.style.display!=='none'){rb.style.display='none';return;}
   var es=document.getElementById('editSaleModal');
@@ -9062,8 +9109,6 @@ document.addEventListener('keydown',function(ev){
   if(spc&&spc.style.display!=='none'){spc.style.display='none';return;}
   var bs=document.getElementById('bizSearchResults');
   if(bs&&bs.style.display!=='none'){closeBizSearch();return;}
-  var sbEl=document.querySelector('.sidebar');
-  if(sbEl&&sbEl.classList.contains('open')){toggleNav(false);return;}
   // Nothing was open to close, Esc again goes "home" (Open Orders), so Esc,Esc,N is a
   // fast path back to Add Sale from anywhere.
   if(_curBizTab!=='openorders') switchTab('openorders');
@@ -9103,12 +9148,11 @@ document.addEventListener('keydown',function(ev){
 // One-letter tab jump, S=Spool, P=Products, C=Customers, etc. Skipped while typing in a
 // field, while a modal/form is open (so the letter isn't hijacked mid-task), or combined
 // with Ctrl/Cmd/Alt. Respects staff tab restrictions (won't jump to a tab they don't have).
-const BIZ_TAB_KEYS={
-  d:'dashboard', o:'openorders', q:'quickadd', a:'sales', i:'import',
-  c:'customers', p:'products', k:'stock', s:'spooltracker', r:'returns', f:'fees',
-  g:'gst', x:'reports', e:'expenses', m:'ledger', u:'purchases', b:'balance',
-  h:'shoplog', y:'activity', t:'settings',
-};
+// Derived from NAV_CONFIG (the single source of truth), not hardcoded, so a
+// tab added there automatically gets its shortcut wired here too.
+const BIZ_TAB_KEYS=Object.fromEntries(
+  NAV_CONFIG.flatMap(sec=>sec.items).filter(it=>it.shortcut).map(it=>[it.shortcut,it.id])
+);
 function bizAnyModalOpen(){
   const ids=['recycleBinModal','editSaleModal','orderDetailModal','customerModal','dashDrilldown',
     'productForm','stockForm','returnForm','spoolForm','spoolAddForm','expenseForm',
