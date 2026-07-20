@@ -946,7 +946,7 @@ html[data-theme="dark"] .biz-login{
            so the things you'd otherwise open 3 other tabs for are one click away here. -->
       <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <button class="btn btn-primary btn-sm" onclick="switchTab('quickadd')">＋ Add Sale</button>
+          <button class="btn btn-primary btn-sm" onclick="switchTab('quickadd')">＋ Add Order</button>
           <span style="width:1px;height:22px;background:var(--border)"></span>
           <button class="btn btn-sm" onclick="punchShop('open')">🟢 Studio Open</button>
           <button class="btn btn-sm" onclick="punchShop('break_start')">☕ Break Start</button>
@@ -1029,10 +1029,12 @@ html[data-theme="dark"] .biz-login{
         title="Save Sale"
         onclick="document.getElementById('quickAddForm').requestSubmit()"
         style="position:fixed;top:14px;right:16px;z-index:150;padding:8px 14px;box-shadow:0 4px 14px rgba(16,32,24,.20)">↓ Save</button>
+      <button type="button" id="qaCancelEditBtn" class="btn btn-ghost btn-sm" onclick="exitAddOrderEditMode()"
+        style="display:none;position:fixed;top:14px;right:96px;z-index:150">✕ Cancel edit</button>
       <div class="p-head">
         <div>
-          <div class="p-title">Quick Add Sale</div>
-          <div class="p-sub">Log a single order fast, channel auto-fills costs</div>
+          <div class="p-title">Add Order</div>
+          <div class="p-sub">Log an order, channel auto-fills costs</div>
         </div>
       </div>
 
@@ -1222,6 +1224,38 @@ html[data-theme="dark"] .biz-login{
           <div class="calc-item"><label>Grand Total</label><span id="t_grand" style="color:var(--text);font-size:16px">₹0</span></div>
         </div>
 
+        <!-- ── Payment (Phase 10 Group 1), only meaningful once an order exists,
+             shown in edit mode only (a brand-new order has no order_id to key
+             payments on until it's saved once) ── -->
+        <div class="qa-card" id="qaPaymentCard" style="display:none">
+          <div class="qa-sec-title">Payment</div>
+          <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px">
+            <div><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Order Total</div><div style="font-size:18px;font-weight:700" id="qaPayTotal">₹0</div></div>
+            <div><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Received</div><div style="font-size:18px;font-weight:700;color:var(--green)" id="qaPayReceived">₹0</div></div>
+            <div><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Balance Due</div><div style="font-size:18px;font-weight:700;color:var(--red)" id="qaPayBalance">₹0</div></div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group"><label>Amount</label><input type="number" id="qaPayAmount" step="0.01"></div>
+            <div class="form-group"><label>Date</label><input type="date" id="qaPayDate"></div>
+            <div class="form-group"><label>Source / Mode</label>
+              <select id="qaPaySource">
+                <option value="upi">UPI</option><option value="bharatpe">BharatPe</option>
+                <option value="cash">Cash</option><option value="card">Card</option>
+                <option value="bank_transfer">Bank Transfer</option><option value="gpay">GPay</option>
+                <option value="paytm">Paytm</option><option value="razorpay">Razorpay</option>
+                <option value="online">Online / Prepaid</option><option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="addPaymentInstallment()">+ Add Payment</button>
+          <div class="tbl-wrap" style="margin-top:10px;box-shadow:none">
+            <table>
+              <thead><tr><th>Date</th><th class="td-num">Amount</th><th>Source</th><th></th></tr></thead>
+              <tbody id="qaPayHistoryBody"><tr><td colspan="4" class="empty"><div class="em-text">No payments logged yet</div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- ── Shipping & Tracking (collapsible) ── -->
         <details style="margin-bottom:12px">
           <summary style="cursor:pointer;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);padding:6px 0;user-select:none">Shipping & Tracking</summary>
@@ -1283,10 +1317,11 @@ html[data-theme="dark"] .biz-login{
         </div>
 
         <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button type="submit" class="btn" style="background:#16a34a;color:#fff">💾 Save Sale</button>
+          <button type="submit" class="btn" style="background:#16a34a;color:#fff">💾 Save</button>
           <button type="button" class="btn" style="background:#2563eb;color:#fff" onclick="saveOrderRecord()">📋 Save Order Record</button>
           <button type="button" class="btn" style="background:var(--accent);color:#fff" onclick="saveAndPrint()">🧾 Make Invoice</button>
-          <button type="button" class="btn btn-ghost" onclick="resetQuickAdd()">✕ Clear</button>
+          <button type="button" class="btn btn-ghost" onclick="exitAddOrderEditMode()">✕ Clear</button>
+          <button type="button" class="btn btn-danger btn-sm" id="qaMarkReturnBtn" onclick="markReturn()" style="display:none;margin-left:auto" title="Mark as returned and log in Returns">↩ Mark Return</button>
         </div>
       </form>
     </div><!-- /quickadd -->
@@ -1297,7 +1332,7 @@ html[data-theme="dark"] .biz-login{
     <div class="panel" id="panelSales">
       <div class="p-head">
         <div>
-          <div class="p-title">All Sales</div>
+          <div class="p-title">All Orders</div>
           <div class="p-sub" id="salesSubtitle">—</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1311,6 +1346,9 @@ html[data-theme="dark"] .biz-login{
           <button class="btn btn-ghost btn-sm" onclick="openRecycleBin()" title="Recycle Bin">🗑️</button>
         </div>
       </div>
+      <!-- Phase 10 Group 1: All Orders gets its own stat cards (it had none before,
+           just a text subtitle), unfiltered, every status including cancelled/returned. -->
+      <div id="allOrdersKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
       <!-- Round 3, one-click colored channel buttons, quicker than opening Filters for the
            single most common sort ("kis channel ka dekhna hai"). -->
       <div id="sfChannelBtns" class="filter-bar" style="align-items:center;margin-bottom:8px"></div>
@@ -1457,80 +1495,6 @@ html[data-theme="dark"] .biz-login{
         </div>
       </div>
 
-      <!-- Edit Sale Modal -->
-      <div id="editSaleModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;overflow-y:auto;padding:20px">
-        <div style="max-width:720px;margin:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:20px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-            <div style="font-size:14px;font-weight:700">Edit Sale</div>
-            <button onclick="closeEditSale()" style="background:none;border:none;color:var(--text-3);font-size:18px;cursor:pointer">✕</button>
-          </div>
-          <input type="hidden" id="es_id">
-          <div class="form-grid">
-            <div class="form-group"><label>Channel</label>
-              <select id="es_channel"><option value="shop">🏠 Studio / Offline</option><option value="amazon">📦 Amazon</option><option value="flipkart">🛍️ Flipkart</option><option value="website">🌐 Website</option></select>
-            </div>
-            <div class="form-group"><label>Order ID (Platform)</label><input type="text" id="es_orderid"></div>
-            <div class="form-group" style="grid-column:span 2"><label>Product Name</label><input type="text" id="es_product"></div>
-            <div class="form-group"><label>Variant</label><input type="text" id="es_variant" placeholder="size / colour"></div>
-            <div class="form-group"><label>HSN</label><input type="text" id="es_hsn" placeholder="3926"></div>
-            <div class="form-group"><label>Qty</label><input type="number" id="es_qty" min="1"></div>
-            <div class="form-group"><label>Selling Price ₹ (incl GST)</label><input type="number" id="es_price" step="0.01"></div>
-            <div class="form-group"><label>Discount ₹</label><input type="number" id="es_disc" step="0.01"></div>
-            <div class="form-group"><label>GST %</label>
-              <select id="es_gst"><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select>
-            </div>
-            <div class="form-group"><label>COGS ₹</label><input type="number" id="es_cogs" step="0.01"></div>
-            <div class="form-group"><label>Filament Grams</label><input type="number" id="es_grams" step="1" min="0"></div>
-            <div class="form-group"><label>Platform Fee ₹</label><input type="number" id="es_platformfee" step="0.01"></div>
-            <div class="form-group"><label>Shipping Cost ₹</label><input type="number" id="es_shipping" step="0.01"></div>
-            <div class="form-group"><label>Order Date</label><input type="date" id="es_date"></div>
-            <div class="form-group"><label>Promised Date</label><input type="date" id="es_delivery"></div>
-            <div class="form-group"><label>Dispatch Date</label><input type="date" id="es_dispatch"></div>
-            <div class="form-group"><label>Status</label>
-              <select id="es_status">
-                <option value="pending">Pending</option>
-                <option value="order_received">Order Received</option>
-                <option value="processing">Processing</option>
-                <option value="printing">Printing</option>
-                <option value="packed">Packed</option>
-                <option value="dispatched">Dispatched</option>
-                <option value="delivered">Delivered</option>
-                <option value="completed">Completed</option>
-                <option value="delayed">Delayed</option>
-                <option value="returned">Returned</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="claimed">Claimed (A-Z / SPF)</option>
-              </select>
-            </div>
-            <div class="form-group"><label>Payment Mode</label>
-              <select id="es_payment"><option value="">—</option><option value="upi">UPI</option><option value="bharatpe">BharatPe</option><option value="ca_sbi">C/A, SBI</option><option value="ca_karur">C/A, Karur Vysya</option><option value="razorpay">Razorpay</option><option value="cash">Cash</option><option value="card">Card</option><option value="gpay">GPay</option><option value="paytm">Paytm</option><option value="cod">COD</option><option value="online">Online / Prepaid</option></select>
-            </div>
-            <div class="form-group"><label>Lead Source</label>
-              <select id="es_lead"><option value="">—</option><option value="studio_walkin">Studio Walk-in</option><option value="whatsapp">WhatsApp</option><option value="google">Google</option><option value="instagram">Instagram</option><option value="referral">Referral</option><option value="other">Other</option></select>
-            </div>
-            <div class="form-group"><label>Fulfillment</label>
-              <select id="es_fulfillment"><option value="">—</option><option value="delivery">Delivery</option><option value="pickup">Pickup</option></select>
-            </div>
-            <div class="form-group"><label>Courier</label><input type="text" id="es_courier"></div>
-            <div class="form-group"><label>Tracking Number</label><input type="text" id="es_tracking"></div>
-            <div class="form-group"><label>Invoice No</label><input type="text" id="es_invoiceno"></div>
-            <div class="form-group"><label>Packet Size</label><input type="text" id="es_packet"></div>
-            <div class="form-group"><label>Customer Name</label><input type="text" id="es_cname"></div>
-            <div class="form-group"><label>Phone</label><input type="tel" id="es_phone"></div>
-            <div class="form-group" style="grid-column:1/-1"><label>Address</label><input type="text" id="es_address"></div>
-            <div class="form-group"><label>City</label><input type="text" id="es_city"></div>
-            <div class="form-group"><label>State</label><input type="text" id="es_state" list="stateList"></div>
-            <div class="form-group"><label>Pincode</label><input type="text" id="es_pin" maxlength="6" inputmode="numeric"></div>
-            <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="es_notes"></div>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-            <button class="btn btn-primary" onclick="saveEditSale()">Save</button>
-            <button class="btn btn-ghost" onclick="closeEditSale()">Cancel</button>
-            <button class="btn btn-danger btn-sm" onclick="markReturn()" style="margin-left:auto" title="Mark as returned and log in Returns">↩ Mark Return</button>
-          </div>
-        </div>
-      </div>
-
       <!-- Recycle Bin Modal -->
       <div id="recycleBinModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1100;overflow-y:auto;padding:20px">
         <div style="max-width:800px;margin:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:20px">
@@ -1546,6 +1510,78 @@ html[data-theme="dark"] .biz-login{
         </div>
       </div>
     </div><!-- /sales -->
+
+    <!-- ══════════════════════════════════════════════════════
+         SALES (Phase 10 Group 1): All Orders minus cancelled/returned. A read
+         focused reporting view, not a second place to bulk-edit orders, that
+         still lives in All Orders.
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelSalesview">
+      <div class="p-head">
+        <div>
+          <div class="p-title">Sales</div>
+          <div class="p-sub" id="salesviewSubtitle">Confirmed orders, excludes cancelled &amp; returned</div>
+        </div>
+      </div>
+      <div id="salesviewKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
+      <div id="salesviewCompare" style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap"></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Date</th><th>Channel</th><th>Customer</th><th>Item</th><th class="td-num">Qty</th><th class="td-num">Price</th><th>Status</th></tr></thead>
+          <tbody id="salesviewBody"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+    </div><!-- /salesview -->
+
+    <!-- ══════════════════════════════════════════════════════
+         QUOTATIONS (Phase 10 Group 1)
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelQuotations">
+      <div class="p-head">
+        <div>
+          <div class="p-title">Quotations</div>
+          <div class="p-sub" id="quotationsSubtitle">—</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="showAddQuotation()">+ New Quotation</button>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Quotation #</th><th>Customer</th><th class="td-num">Total</th><th>Status</th><th>Validity</th><th class="td-actions"></th></tr></thead>
+          <tbody id="quotationsBody"><tr><td colspan="6" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+
+      <!-- Quotation create/edit form -->
+      <div id="quotationForm" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:14px">
+        <input type="hidden" id="qt_id">
+        <div class="qa-sec-title">Customer</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Name</label><input type="text" id="qt_cname"></div>
+          <div class="form-group"><label>Phone</label><input type="tel" id="qt_phone"></div>
+          <div class="form-group" style="grid-column:span 2"><label>Address</label><input type="text" id="qt_address"></div>
+          <div class="form-group"><label>City</label><input type="text" id="qt_city"></div>
+          <div class="form-group"><label>State</label><input type="text" id="qt_state" list="stateList"></div>
+          <div class="form-group"><label>Pincode</label><input type="text" id="qt_pin" maxlength="6" inputmode="numeric"></div>
+          <div class="form-group"><label>GSTIN</label><input type="text" id="qt_gstin"></div>
+          <div class="form-group"><label>Valid Until</label><input type="date" id="qt_validity"></div>
+        </div>
+        <div class="qa-sec-title" style="margin-top:14px">Items</div>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="addQuoteItem()">＋ Add Item</button>
+        <div id="quoteItemRows" style="margin-top:8px"></div>
+        <div class="calc-row" style="margin-top:10px">
+          <div class="calc-item"><label>Subtotal</label><span id="qt_sub">₹0</span></div>
+          <div class="calc-item"><label>GST</label><span id="qt_gstamt">₹0</span></div>
+          <div class="calc-item profit"><label>Total</label><span id="qt_total">₹0</span></div>
+        </div>
+        <div class="form-group" style="margin-top:10px"><label>Terms / Notes</label><textarea id="qt_terms" rows="2" style="resize:vertical"></textarea></div>
+        <div style="display:flex;gap:10px;margin-top:14px">
+          <button type="button" class="btn btn-primary" onclick="saveQuotation()">💾 Save Quotation</button>
+          <button type="button" class="btn btn-ghost" onclick="closeQuotationForm()">✕ Cancel</button>
+        </div>
+      </div>
+    </div><!-- /quotations -->
 
     <!-- ══════════════════════════════════════════════════════
          IMPORT CSV
@@ -2897,6 +2933,8 @@ html[data-theme="dark"] .biz-login{
           <div id="bizDocInvoiceFields" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:4px 12px"></div>
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin:14px 0 6px">Internal Order Record</div>
           <div id="bizDocRecordFields" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:4px 12px"></div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin:14px 0 6px">Quotation</div>
+          <div id="bizDocQuotationFields" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:4px 12px"></div>
           <div style="margin-top:14px"><button class="btn btn-primary" onclick="saveDocCustomization()">Save document settings</button> <span id="bizDocStatus" style="font-size:12px;color:var(--green)"></span></div>
         </div>
 
@@ -2985,21 +3023,28 @@ function loadBizSettings(){
 }
 // ── B14: operational defaults (synced via site_settings) ──
 let _bizDefaults={hsn:'3926',gst:0,cogs:0};
-// A7, document field toggles (default ON unless explicitly false)
-let _docInvCfg={}, _docRecCfg={};
-function docInv(k){ return _docInvCfg[k]!==false; }
-function docRec(k){ return _docRecCfg[k]!==false; }
-
-/* Round-2 #6, Document Settings editor (moved here from Admin → Site Content).
-   Writes the shared site_settings keys; the Admin invoice generator still reads them. */
-const DOC_INVOICE_FIELDS=[['logo','Logo'],['business_address','Business address'],['gstin','Your GSTIN'],['invoice_no_date','Invoice no & date'],['billing_address','Billing address'],['shipping_address','Shipping address'],['customer_gstin','Customer GSTIN'],['items_table','Itemized table'],['subtotal','Subtotal'],['gst_breakup','CGST/SGST/IGST breakup'],['shipping_charge','Shipping charge'],['total','Total'],['paid_amount','Paid amount'],['balance_due','Balance due'],['payment_mode','Payment mode'],['signature','Signature / stamp'],['upi_qr','UPI / bank QR'],['terms','Terms'],['reprint_note','Reprint guarantee note']];
-const DOC_RECORD_FIELDS=[['order_id','Order ID'],['date','Date'],['customer','Customer info'],['product_details','Product details'],['cost_price','Cost price'],['margin','Margin'],['designer_maker','Designer / maker'],['production_status','Production status'],['material','Material'],['printer','Printer used'],['dispatch_date','Dispatch date'],['courier_tracking','Courier + tracking'],['special_instructions','Special instructions'],['internal_notes','Internal notes'],['priority_flag','Priority flag'],['hsn','HSN']];
+// A7, document field toggles (default ON unless explicitly false).
+// Phase 10 Group 1: generalized from two hand-copied groups into a config-driven
+// list (DOC_FIELD_GROUPS) so a third (Quotation) needed no new render/save/load
+// code, and any future doc kind just pushes one more entry here. docInv()/docRec()
+// keep their exact old names/signatures (printInvoice() calls them throughout) but
+// now read from the shared _docCfg store via the generic docCfg() lookup.
+let _docCfg={};   // { invoice:{...}, record:{...}, quotation:{...} }
+const DOC_FIELD_GROUPS=[
+  { key:'invoice', label:'Invoice', containerId:'bizDocInvoiceFields', settingsKey:'doc_invoice_fields', fields:[['logo','Logo'],['business_address','Business address'],['gstin','Your GSTIN'],['invoice_no_date','Invoice no & date'],['billing_address','Billing address'],['shipping_address','Shipping address'],['customer_gstin','Customer GSTIN'],['items_table','Itemized table'],['subtotal','Subtotal'],['gst_breakup','CGST/SGST/IGST breakup'],['shipping_charge','Shipping charge'],['total','Total'],['paid_amount','Paid amount'],['balance_due','Balance due'],['payment_mode','Payment mode'],['signature','Signature / stamp'],['upi_qr','UPI / bank QR'],['terms','Terms'],['reprint_note','Reprint guarantee note']] },
+  { key:'record', label:'Internal Order Record', containerId:'bizDocRecordFields', settingsKey:'doc_record_fields', fields:[['order_id','Order ID'],['date','Date'],['customer','Customer info'],['product_details','Product details'],['cost_price','Cost price'],['margin','Margin'],['designer_maker','Designer / maker'],['production_status','Production status'],['material','Material'],['printer','Printer used'],['dispatch_date','Dispatch date'],['courier_tracking','Courier + tracking'],['special_instructions','Special instructions'],['internal_notes','Internal notes'],['priority_flag','Priority flag'],['hsn','HSN']] },
+  { key:'quotation', label:'Quotation', containerId:'bizDocQuotationFields', settingsKey:'doc_quotation_fields', fields:[['business_identity','Business name / address / logo'],['gstin','Your GSTIN'],['customer_name','Customer name'],['items_table','Item / qty / rate / amount'],['subtotal','Subtotal'],['validity_period','Validity period'],['terms_notes','Terms / notes'],['signature','Signature'],['upi_qr','UPI / bank QR']] },
+];
+function docCfg(groupKey,fieldKey){ return (_docCfg[groupKey]||{})[fieldKey]!==false; }
+function docInv(k){ return docCfg('invoice',k); }
+function docRec(k){ return docCfg('record',k); }
+function docQuo(k){ return docCfg('quotation',k); }
 function _docRender(containerId,fields,cfg){ const el=document.getElementById(containerId); if(!el)return; el.innerHTML=fields.map(function(f){return '<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" data-k="'+f[0]+'" '+(cfg[f[0]]===false?'':'checked')+'> '+esc(f[1])+'</label>';}).join(''); }
-function renderDocSettings(){ _docRender('bizDocInvoiceFields',DOC_INVOICE_FIELDS,_docInvCfg||{}); _docRender('bizDocRecordFields',DOC_RECORD_FIELDS,_docRecCfg||{}); }
+function renderDocSettings(){ DOC_FIELD_GROUPS.forEach(g=>_docRender(g.containerId,g.fields,_docCfg[g.key]||{})); }
 async function saveDocCustomization(){
   const collect=function(id){var o={};document.querySelectorAll('#'+id+' input[data-k]').forEach(function(c){o[c.dataset.k]=c.checked;});return o;};
   const now=new Date().toISOString();
-  const rows=[{key:'doc_invoice_fields',value:JSON.stringify(collect('bizDocInvoiceFields')),updated_at:now},{key:'doc_record_fields',value:JSON.stringify(collect('bizDocRecordFields')),updated_at:now}];
+  const rows=DOC_FIELD_GROUPS.map(g=>({key:g.settingsKey,value:JSON.stringify(collect(g.containerId)),updated_at:now}));
   try{ const {error}=await sb.from('site_settings').upsert(rows,{onConflict:'key'}); if(error)throw error;
     await loadBizDefaults();
     const st=document.getElementById('bizDocStatus'); if(st){st.textContent='Saved ✓';setTimeout(function(){st.textContent='';},2500);} toast('Document settings saved');
@@ -3007,11 +3052,12 @@ async function saveDocCustomization(){
 }
 async function loadBizDefaults(){
   try{
-    const {data}=await sb.from('site_settings').select('key,value').in('key',['biz_default_hsn','biz_default_gst','biz_default_cogs','doc_invoice_fields','doc_record_fields']);
+    const settingsKeys=DOC_FIELD_GROUPS.map(g=>g.settingsKey);
+    const {data}=await sb.from('site_settings').select('key,value').in('key',['biz_default_hsn','biz_default_gst','biz_default_cogs',...settingsKeys]);
     const m={}; (data||[]).forEach(r=>m[r.key]=r.value);
     _bizDefaults={ hsn:m.biz_default_hsn||'3926', gst:parseFloat(m.biz_default_gst)||0, cogs:parseFloat(m.biz_default_cogs)||0 };
-    try{ _docInvCfg=JSON.parse(m.doc_invoice_fields||'{}')||{}; }catch(_){ _docInvCfg={}; }
-    try{ _docRecCfg=JSON.parse(m.doc_record_fields||'{}')||{}; }catch(_){ _docRecCfg={}; }
+    _docCfg={};
+    DOC_FIELD_GROUPS.forEach(g=>{ try{ _docCfg[g.key]=JSON.parse(m[g.settingsKey]||'{}')||{}; }catch(_){ _docCfg[g.key]={}; } });
     if(typeof renderDocSettings==='function') renderDocSettings();
     const set=(id,v)=>{const e=document.getElementById(id);if(e&&v!=null&&v!=='')e.value=v;};
     set('def_hsn',_bizDefaults.hsn); set('def_gst',String(_bizDefaults.gst)); set('def_cogs',_bizDefaults.cogs||'');
@@ -3148,10 +3194,16 @@ const NAV_CONFIG = [
   {
     id: 'sales', label: 'Sales', color: 'var(--ch-studio)',
     items: [
-      { id: 'quickadd',  label: 'Quick Add Sale', icon: '＋', shortcut: 'q' },
-      { id: 'sales',     label: 'All Sales',       icon: '≡', shortcut: 'a', badge: 'salesCount' },
-      { id: 'import',    label: 'Import & Labels', icon: '⇲', shortcut: 'i' },
-      { id: 'customers', label: 'Customers',       icon: '☺', shortcut: 'c', badge: 'custCount' },
+      // Phase 10 Group 1: "Quick Add Sale" -> "Add Order" and "All Sales" -> "All
+      // Orders" are label-only renames (id/panel/loader/badge stay quickadd/sales so
+      // the hundreds of existing references to them don't ripple). salesview and
+      // quotations are genuinely new tabs, not renames.
+      { id: 'quickadd',   label: 'Add Order',    icon: '＋', shortcut: 'q' },
+      { id: 'sales',      label: 'All Orders',   icon: '≡', shortcut: 'a', badge: 'salesCount' },
+      { id: 'salesview',  label: 'Sales',        icon: '✓', shortcut: 'w', badge: 'salesviewCount' },
+      { id: 'quotations', label: 'Quotations',   icon: '⎘', shortcut: 'z' },
+      { id: 'import',     label: 'Import & Labels', icon: '⇲', shortcut: 'i' },
+      { id: 'customers',  label: 'Customers',    icon: '☺', shortcut: 'c', badge: 'custCount' },
     ]
   },
   {
@@ -3471,6 +3523,7 @@ function switchTab(name){
     customers:loadCustomers, fees:loadFeesTab, returns:loadReturns, spooltracker:loadSpoolTracker, openorders:loadOpenOrders, expenses:loadExpenses, activity:loadBizActivity,
     ledger:loadLedger, purchases:loadPurchases, balance:loadBalanceSheet, shoplog:loadShopLog, machinery:loadMachinery,
     gstportal:loadGstPortal, invoicing:loadInvoicing, gstauto:loadGstAuto,
+    salesview:loadSalesview, quotations:loadQuotations,
   };
   if(loaders[name]) loaders[name]();
   toggleNav(false);   // close mobile drawer after choosing a tab
@@ -3675,7 +3728,7 @@ async function saveProduct(){
 
 // ── Quick Add Sale (multi-item) ─────────────────────────────
 let _items=[];
-function blankItem(){ return {productId:null,name:'',variant:'',qty:1,rate:0,disc:0,gst:0,cost:0,grams:0,waste:0,hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:'',spool:'',extraSpools:[]}; }
+function blankItem(){ return {rowId:null,productId:null,name:'',variant:'',qty:1,rate:0,disc:0,gst:0,cost:0,grams:0,waste:0,hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:'',spool:'',extraSpools:[]}; }
 let _catalogByName={}, _catalogBySku={};
 
 // ── Spool deduction ──────────────────────────────────────────
@@ -3979,35 +4032,42 @@ function getOrderFields(){
     order_time:new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}),
   };
 }
-function buildSaleRows(){
+// Returns {rowId, row} pairs so the Add Order edit flow (saveEditedOrder) can tell
+// which output row maps back to an existing biz_sales row (UPDATE) vs. a brand-new
+// item added during the edit (INSERT). rowId is null for a new order/new item.
+function buildSaleRowsWithIds(){
   const order=getOrderFields();
   const fee=parseFloat(document.getElementById('qa_platformfee')?.value)||0;
   const ship=parseFloat(document.getElementById('qa_shipping')?.value)||0;
   const valid=_items.filter(it=>(it.name&&it.name.trim())||it.rate>0);
   return valid.map((it,idx)=>({
-    ...order,
-    product_id:it.productId||null,
-    spool_id:it.spool||null,
-    product_name:(it.name&&it.name.trim())||'—',
-    variant:it.variant||null,
-    sku:it.sku||null,
-    hsn_code:it.hsn||null,
-    qty:it.qty||1,
-    // Rate ₹ is entered excluding GST; selling_price must stay the true GST-inclusive
-    // total (every report/GST-filing figure downstream extracts tax back out of it).
-    selling_price:(it.rate||0)*(1+(it.gst||0)/100),
-    discount_amount:it.disc||0,
-    gst_rate:it.gst||0,
-    cogs:it.cost||0,
-    grams_used:it.grams||0,
-    spool_waste_grams:it.waste||0,
-    extra_spool_usage:(it.extraSpools||[]).filter(x=>x.spool).length
-      ? (it.extraSpools||[]).filter(x=>x.spool).map(x=>({spool_id:x.spool,grams:parseFloat(x.grams)||0,waste:parseFloat(x.waste)||0}))
-      : null,
-    platform_fee: idx===0?fee:0,
-    shipping_fee: idx===0?ship:0,
+    rowId: it.rowId||null,
+    row: {
+      ...order,
+      product_id:it.productId||null,
+      spool_id:it.spool||null,
+      product_name:(it.name&&it.name.trim())||'—',
+      variant:it.variant||null,
+      sku:it.sku||null,
+      hsn_code:it.hsn||null,
+      qty:it.qty||1,
+      // Rate ₹ is entered excluding GST; selling_price must stay the true GST-inclusive
+      // total (every report/GST-filing figure downstream extracts tax back out of it).
+      selling_price:(it.rate||0)*(1+(it.gst||0)/100),
+      discount_amount:it.disc||0,
+      gst_rate:it.gst||0,
+      cogs:it.cost||0,
+      grams_used:it.grams||0,
+      spool_waste_grams:it.waste||0,
+      extra_spool_usage:(it.extraSpools||[]).filter(x=>x.spool).length
+        ? (it.extraSpools||[]).filter(x=>x.spool).map(x=>({spool_id:x.spool,grams:parseFloat(x.grams)||0,waste:parseFloat(x.waste)||0}))
+        : null,
+      platform_fee: idx===0?fee:0,
+      shipping_fee: idx===0?ship:0,
+    }
   }));
 }
+function buildSaleRows(){ return buildSaleRowsWithIds().map(x=>x.row); }
 
 function resetQuickAdd(){
   document.getElementById('quickAddForm').reset();
@@ -4025,6 +4085,187 @@ function resetQuickAdd(){
   if(typeof setFulfillment==='function') setFulfillment('pickup_self');
   _items=[blankItem()];
   renderItems();
+}
+
+// ── Add Order modes (Phase 10 Group 1) ───────────────────────
+// The single Quick Add Sale form now runs in three modes instead of always
+// creating a brand-new order: 'new' (unchanged default), 'edit' (replaces the old
+// editSaleModal, loads every biz_sales row sharing one order_id back into _items so
+// the whole multi-item order can be edited at once, not just one line), and
+// 'fromQuotation' (a new order, pre-filled from an accepted quotation).
+let _qaMode='new', _qaEditOrderId=null, _qaEditRowIds=[], _qaSourceQuotationId=null;
+
+function updateAddOrderModeUI(){
+  const title=document.querySelector('#panelQuickadd .p-title');
+  const sub=document.querySelector('#panelQuickadd .p-sub');
+  const payCard=document.getElementById('qaPaymentCard');
+  const cancelBtn=document.getElementById('qaCancelEditBtn');
+  const returnBtn=document.getElementById('qaMarkReturnBtn');
+  if(_qaMode==='edit'){
+    if(title) title.textContent='Edit Order';
+    if(sub) sub.textContent='Editing order #'+(_qaEditOrderId||'');
+    if(payCard) payCard.style.display='';
+    if(cancelBtn) cancelBtn.style.display='';
+    if(returnBtn) returnBtn.style.display='';
+  } else {
+    if(title) title.textContent='Add Order';
+    if(sub) sub.textContent=_qaMode==='fromQuotation' ? 'New order, pre-filled from quotation' : 'Log an order, channel auto-fills costs';
+    if(payCard) payCard.style.display='none';
+    if(cancelBtn) cancelBtn.style.display='none';
+    if(returnBtn) returnBtn.style.display='none';
+  }
+}
+
+function exitAddOrderEditMode(){
+  _qaMode='new'; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceQuotationId=null;
+  resetQuickAdd();
+  updateAddOrderModeUI();
+}
+
+// Replaces openEditSale(): loads every line item sharing the order's order_id (not
+// just one row) into _items, so the whole order can be edited, items added or
+// removed, in one place.
+function openAddOrderEdit(firstId){
+  const items=_orderGroup(firstId);
+  if(!items.length) return;
+  const f=items[0];
+  _qaMode='edit'; _qaEditOrderId=f.order_id||null; _qaEditRowIds=items.map(s=>s.id);
+  _qaSourceQuotationId=null;
+  switchTab('quickadd');
+  const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
+  set('qa_channel',f.channel_id||'shop'); set('qa_date',f.order_date); set('qa_delivery_date',f.delivery_date);
+  set('qa_dispatch_date',f.dispatch_date); set('qa_orderid',f.order_id); set('qa_payment',f.payment_mode);
+  if(typeof setQaStatus==='function') setQaStatus(f.status||'pending');
+  if(typeof setLeadSource==='function') setLeadSource(f.lead_source||'');
+  let fulfilChip='delivery';
+  if(f.fulfillment_type==='pickup'){ fulfilChip=f.fulfillment_detail==='self'?'pickup_self':f.fulfillment_detail==='porter'?'pickup_porter':'pickup_other'; }
+  if(typeof setFulfillment==='function') setFulfillment(fulfilChip);
+  if(fulfilChip==='pickup_other'){ const fo=document.getElementById('qa_fulfil_other'); if(fo) fo.value=f.fulfillment_detail||''; }
+  set('qa_tracking',f.tracking_number); set('qa_courier',f.courier_partner); set('qa_invoiceno',f.invoice_no);
+  set('qa_packet',f.package_size); set('qa_cname',f.customer_name); set('qa_phone',f.customer_phone);
+  set('qa_address',f.customer_address); set('qa_city',f.customer_city); set('qa_state',f.customer_state);
+  set('qa_pin',f.customer_pincode); set('qa_gstin',f.customer_gstin); set('qa_notes',f.notes);
+  set('qa_platformfee', f.platform_fee||0); set('qa_shipping', f.shipping_fee||0);
+  _items=items.map(s=>({
+    rowId:s.id, productId:s.product_id||null, name:s.product_name||'', variant:s.variant||'',
+    qty:s.qty||1,
+    rate: (parseFloat(s.gst_rate)||0) ? (parseFloat(s.selling_price)||0)/(1+(parseFloat(s.gst_rate)||0)/100) : (parseFloat(s.selling_price)||0),
+    disc:s.discount_amount||0, gst:s.gst_rate||0, cost:s.cogs||0, grams:s.grams_used||0, waste:s.spool_waste_grams||0,
+    hsn:s.hsn_code||'', sku:s.sku||'', spool:s.spool_id||'',
+    extraSpools:(s.extra_spool_usage||[]).map(x=>({spool:x.spool_id,grams:x.grams,waste:x.waste})),
+  }));
+  renderItems();
+  updateAddOrderModeUI();
+  loadOrderPayments(_qaEditOrderId);
+}
+
+// New order, pre-filled from an accepted-in-principle quotation (Accept button in
+// the Quotations panel). Not an edit, this always creates fresh biz_sales rows.
+async function openAddOrderFromQuotation(quotationId){
+  const {data,error}=await sb.from('biz_quotations').select('*').eq('id',quotationId).single();
+  if(error||!data){ toast('Could not load quotation','error'); return; }
+  _qaMode='fromQuotation'; _qaSourceQuotationId=quotationId; _qaEditOrderId=null; _qaEditRowIds=[];
+  switchTab('quickadd');
+  resetQuickAdd();
+  const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
+  set('qa_cname',data.customer_name); set('qa_phone',data.customer_phone); set('qa_address',data.customer_address);
+  set('qa_city',data.customer_city); set('qa_state',data.customer_state); set('qa_pin',data.customer_pincode);
+  set('qa_gstin',data.customer_gstin);
+  const qItems=Array.isArray(data.items)?data.items:[];
+  _items=qItems.length ? qItems.map(it=>({
+    rowId:null, productId:null, name:it.name||'', variant:'', qty:it.qty||1, rate:it.rate||0, disc:0,
+    gst:it.gst||0, cost:0, grams:0, waste:0, hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926', sku:'', spool:'', extraSpools:[],
+  })) : [blankItem()];
+  renderItems();
+  updateAddOrderModeUI();
+}
+
+// Saves an order already open in edit mode: existing rows that are still present get
+// UPDATEd, rows removed from the item grid get soft-deleted (and their spool grams
+// restored), and any newly added rows get INSERTed, all sharing the original order_id.
+async function saveEditedOrder(){
+  if(!(document.getElementById('qa_state')?.value||'').trim()){ toast('Please enter the customer\'s state','error'); document.getElementById('qa_state')?.focus(); return; }
+  const withIds=buildSaleRowsWithIds();
+  if(!withIds.length){ toast('Add at least one item','error'); return; }
+  const keptIds=withIds.filter(x=>x.rowId).map(x=>x.rowId);
+  const removedIds=(_qaEditRowIds||[]).filter(id=>!keptIds.includes(id));
+  if(removedIds.length){
+    await restoreSpoolsForIds(removedIds);
+    await sb.from('biz_sales').update({is_deleted:true}).in('id',removedIds);
+  }
+  const newRows=[];
+  for(const x of withIds){
+    if(x.rowId){
+      const {error}=await sb.from('biz_sales').update(x.row).eq('id',x.rowId);
+      if(error){ toast('Error updating item: '+error.message,'error'); return; }
+    } else {
+      newRows.push(x.row);
+    }
+  }
+  if(newRows.length){
+    const {error}=await insertSalesResilient(newRows);
+    if(error){ toast('Error: '+error.message,'error'); return; }
+    await deductSpoolsForRows(newRows);
+  }
+  await loadAddSaleSpools();
+  logBizActivity('edit','sale',_qaEditOrderId,'order updated ('+withIds.length+' item(s))');
+  toast('Order updated');
+  loadSalesBadge();
+  const wasOrderId=_qaEditOrderId;
+  exitAddOrderEditMode();
+  switchTab('sales');
+  if(typeof loadSales==='function') loadSales();
+}
+
+// ── Payment installments (Phase 10 Group 1) ──────────────────
+// is_paid stays exactly the manual boolean it always was, every existing system
+// that reads it (return-window lock, bulk-delete protection, status-edit lock,
+// Balance Sheet, the Paid filter, exports) keeps working unmodified. This only adds
+// automatic locking once installments cover the total; the manual lock/unlock
+// button remains a full override in either direction at any time.
+async function loadOrderPayments(orderId){
+  const card=document.getElementById('qaPaymentCard');
+  if(!orderId){ if(card) card.style.display='none'; return; }
+  const dateEl=document.getElementById('qaPayDate'); if(dateEl) dateEl.value=today();
+  const {data,error}=await sb.from('biz_sale_payments').select('*').eq('order_id',orderId).order('payment_date',{ascending:false});
+  const rows=error?[]:(data||[]);
+  const received=rows.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+  const grand=parseFloat((document.getElementById('t_grand')?.textContent||'0').replace(/[^0-9.-]/g,''))||0;
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('qaPayTotal',fmt(grand)); set('qaPayReceived',fmt(received)); set('qaPayBalance',fmt(Math.max(0,grand-received)));
+  const amtEl=document.getElementById('qaPayAmount'); if(amtEl) amtEl.value=Math.max(0,grand-received)||'';
+  const body=document.getElementById('qaPayHistoryBody');
+  if(body){
+    body.innerHTML=rows.length ? rows.map(r=>`<tr><td>${fmtDay(r.payment_date)}</td><td class="td-num">${fmt(r.amount)}</td><td>${esc(r.source||'—')}</td><td style="text-align:right"><button type="button" class="btn btn-ghost btn-sm" onclick="deletePaymentInstallment('${r.id}')">✕</button></td></tr>`).join('')
+      : '<tr><td colspan="4" class="empty"><div class="em-text">No payments logged yet</div></td></tr>';
+  }
+}
+async function addPaymentInstallment(){
+  if(!_qaEditOrderId){ toast('Save the order first','error'); return; }
+  const amount=parseFloat(document.getElementById('qaPayAmount')?.value)||0;
+  if(amount<=0){ toast('Enter a payment amount','error'); return; }
+  const payment_date=document.getElementById('qaPayDate')?.value||today();
+  const source=document.getElementById('qaPaySource')?.value||null;
+  const {error}=await sb.from('biz_sale_payments').insert({order_id:_qaEditOrderId,amount,payment_date,source});
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Payment logged');
+  await loadOrderPayments(_qaEditOrderId);
+  await autoMarkPaidIfComplete(_qaEditOrderId);
+}
+async function deletePaymentInstallment(id){
+  if(!confirm('Remove this payment entry?')) return;
+  await sb.from('biz_sale_payments').delete().eq('id',id);
+  await loadOrderPayments(_qaEditOrderId);
+}
+async function autoMarkPaidIfComplete(orderId){
+  const {data}=await sb.from('biz_sale_payments').select('amount').eq('order_id',orderId);
+  const received=(data||[]).reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+  const grand=parseFloat((document.getElementById('t_grand')?.textContent||'0').replace(/[^0-9.-]/g,''))||0;
+  if(grand>0 && received>=grand){
+    await sb.from('biz_sales').update({is_paid:true}).eq('order_id',orderId);
+    toast('Order fully paid, locked');
+    if(typeof loadSales==='function') loadSales();
+  }
 }
 
 // ── Quick-select chip handlers (status / lead source / fulfillment) ──
@@ -4087,19 +4328,31 @@ async function insertSalesResilient(rows){
 }
 async function submitQuickAdd(e){
   if(e) e.preventDefault();
+  if(_qaMode==='edit'){ await saveEditedOrder(); return; }
   // §2.8, state feeds state-wise reporting; a silently-defaulted value was polluting
   // historical shop-channel data, so it's now a hard requirement, not just an HTML hint.
   if(!(document.getElementById('qa_state')?.value||'').trim()){ toast('Please enter the customer\'s state','error'); document.getElementById('qa_state')?.focus(); return; }
   const rows=buildSaleRows();
   if(!rows.length){ toast('Add at least one item','error'); return; }
+  // Universal Record ID (Phase 10 Group 1), generated server-side (retry-on-collision
+  // RPC) so it's safe under concurrent saves; best-effort, a failure here (e.g. the
+  // migration hasn't run yet) must never block saving the order itself.
+  try{
+    const {data:rid}=await sb.rpc('gen_record_id',{p_entity_type:'order',p_entity_ref:rows[0].order_id});
+    if(rid) rows.forEach(r=>r.record_id=rid);
+  }catch(_){}
   const {error}=await insertSalesResilient(rows);
   if(error){ toast('Error: '+error.message,'error'); return; }
   await deductSpoolsForRows(rows);   // reduce spool stock by grams+waste logged
   await loadAddSaleSpools();         // refresh remaining for the next entry
   logBizActivity('create','sale',rows[0]&&rows[0].order_id,rows.length+' item(s)');
-  toast(rows.length===1?'Sale saved!':rows.length+' items saved!');
-  resetQuickAdd();
+  if(_qaMode==='fromQuotation' && _qaSourceQuotationId){
+    await sb.from('biz_quotations').update({status:'accepted',converted_order_id:rows[0].order_id}).eq('id',_qaSourceQuotationId);
+  }
+  toast(rows.length===1?'Order saved!':rows.length+' items saved!');
+  exitAddOrderEditMode();
   loadSalesBadge();
+  if(typeof loadSalesviewBadge==='function') loadSalesviewBadge();
 }
 
 // "Save Order Record", persists the sale like Save Sale; the internal
@@ -4121,6 +4374,157 @@ async function saveOrderRecord(){
   printInvoice(order, anyGst?'gst':'nongst', 'record');
   resetQuickAdd();
   loadSalesBadge();
+}
+
+// ── Sales view (Phase 10 Group 1) ────────────────────────────
+// Sales = All Orders minus cancelled/returned; payment status is not part of the
+// definition (a Sale can be paid or unpaid). Uses the shared NON_REVENUE_STATUSES
+// list (not loadSalesBadge's narrower hand-rolled one) so this stays consistent
+// with how Dashboard already defines "counts as revenue".
+async function loadSalesviewBadge(){
+  const {count}=await sb.from('biz_sales').select('*',{count:'exact',head:true}).eq('is_deleted',false)
+    .not('status','in',`(${NON_REVENUE_STATUSES.join(',')})`);
+  const el=document.getElementById('salesviewCount'); if(el) el.textContent=count||0;
+}
+async function loadSalesview(){
+  loadSalesviewBadge();
+  const [{data:allData},{data:salesData}]=await Promise.all([
+    sb.from('biz_sales').select('order_id,selling_price').eq('is_deleted',false).limit(5000),
+    sb.from('biz_sales').select('*').eq('is_deleted',false).not('status','in',`(${NON_REVENUE_STATUSES.join(',')})`).order('order_date',{ascending:false}).limit(2000),
+  ]);
+  const allRows=allData||[], rows=salesData||[];
+  const orderGroups={}; allRows.forEach(r=>{ const k=r.order_id||('r:'+Math.random()); (orderGroups[k]=orderGroups[k]||[]).push(r); });
+  const ordersTotal=allRows.reduce((a,r)=>a+(parseFloat(r.selling_price)||0),0), ordersCount=Object.keys(orderGroups).length;
+  const salesGroups={}; rows.forEach(r=>{ const k=r.order_id||('r:'+Math.random()); (salesGroups[k]=salesGroups[k]||[]).push(r); });
+  const salesTotal=rows.reduce((a,r)=>a+(parseFloat(r.selling_price)||0),0), salesCount=Object.keys(salesGroups).length;
+  const aov=salesCount?salesTotal/salesCount:0;
+  const kpi=document.getElementById('salesviewKpi');
+  if(kpi) kpi.innerHTML=`
+    <div class="kpi green"><div class="kpi-label">Total Revenue</div><div class="kpi-val">${fmt(salesTotal)}</div></div>
+    <div class="kpi"><div class="kpi-label">Order Count</div><div class="kpi-val">${salesCount}</div></div>
+    <div class="kpi"><div class="kpi-label">Avg Order Value</div><div class="kpi-val">${fmt(aov)}</div></div>`;
+  const conv=ordersCount?(salesCount/ordersCount*100):0;
+  const cmp=document.getElementById('salesviewCompare');
+  if(cmp) cmp.innerHTML=`
+    <div><div class="kpi-label">All Orders</div><div class="kpi-val" style="font-size:16px">${ordersCount} <span style="font-size:11px;color:var(--text-3);font-weight:400">(${fmt(ordersTotal)})</span></div></div>
+    <div><div class="kpi-label">Sales</div><div class="kpi-val" style="font-size:16px">${salesCount} <span style="font-size:11px;color:var(--text-3);font-weight:400">(${fmt(salesTotal)})</span></div></div>
+    <div><div class="kpi-label">Conversion</div><div class="kpi-val" style="font-size:16px">${conv.toFixed(1)}%</div></div>`;
+  const groups=Object.values(salesGroups);
+  const body=document.getElementById('salesviewBody');
+  if(!body) return;
+  if(!groups.length){ body.innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">No sales found</div></td></tr>'; return; }
+  body.innerHTML=groups.map((items,idx)=>{
+    const f=items[0], totalQty=items.reduce((a,s)=>a+(parseInt(s.qty)||0),0), totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
+    return `<tr class="sale-row" onclick="switchTab('sales');setTimeout(()=>openOrderDetail('${f.id}'),150)" style="cursor:pointer">
+      <td>${idx+1}</td><td>${fmtDay(f.order_date)}</td><td>${chHtml(f.channel_id)}</td>
+      <td>${esc(f.customer_name||'—')}</td><td>${esc(f.product_name||'—')}${items.length>1?` <span style="color:var(--text-3);font-size:10px">+${items.length-1} more</span>`:''}</td>
+      <td class="td-num">${totalQty}</td><td class="td-num">${fmt(totalPrice)}</td>
+      <td><span class="badge badge-${f.status}">${STATUS_LABEL?.[f.status]||f.status}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Quotations (Phase 10 Group 1) ────────────────────────────
+let _quotations=[], _quoteItems=[];
+function blankQuoteItem(){ return {name:'',qty:1,rate:0,gst:0}; }
+async function loadQuotations(){
+  const {data,error}=await sb.from('biz_quotations').select('*').order('created_at',{ascending:false}).limit(500);
+  const body=document.getElementById('quotationsBody'); if(!body) return;
+  if(error){ body.innerHTML=`<tr><td colspan="6" class="empty"><div class="em-text">${esc(error.message)}</div></td></tr>`; return; }
+  _quotations=data||[];
+  const sub=document.getElementById('quotationsSubtitle'); if(sub) sub.textContent=_quotations.length+' quotation'+(_quotations.length!==1?'s':'');
+  if(!_quotations.length){ body.innerHTML='<tr><td colspan="6" class="empty"><div class="em-text">No quotations yet</div></td></tr>'; return; }
+  body.innerHTML=_quotations.map(q=>`
+    <tr>
+      <td style="font-family:var(--mono);font-size:11px">${esc(q.quotation_number||'—')}</td>
+      <td>${esc(q.customer_name||'—')}</td>
+      <td class="td-num">${fmt(q.total)}</td>
+      <td><span class="badge badge-${q.status==='accepted'?'completed':q.status==='declined'?'cancelled':'pending'}">${esc(q.status)}</span></td>
+      <td>${q.validity_date?fmtDay(q.validity_date):'—'}</td>
+      <td class="td-actions" style="white-space:nowrap;text-align:right">
+        ${!['accepted','declined','expired'].includes(q.status)?`<button class="btn btn-primary btn-sm" onclick="acceptQuotation('${q.id}')">✓ Accept</button> <button class="btn btn-ghost btn-sm" onclick="editQuotation('${q.id}')">✎</button>`:''}
+        <button class="btn btn-danger btn-sm" onclick="deleteQuotation('${q.id}')">✕</button>
+      </td>
+    </tr>`).join('');
+}
+function renderQuoteItems(){
+  const wrap=document.getElementById('quoteItemRows'); if(!wrap) return;
+  if(!_quoteItems.length) _quoteItems=[blankQuoteItem()];
+  wrap.innerHTML=_quoteItems.map((it,i)=>`
+    <div class="form-grid" style="grid-template-columns:2fr 70px 90px 70px 90px 30px;margin-bottom:4px;align-items:end">
+      <div class="form-group"><input type="text" placeholder="Item name" value="${esc(it.name)}" oninput="_quoteItems[${i}].name=this.value"></div>
+      <div class="form-group"><input type="number" min="1" value="${it.qty}" oninput="_quoteItems[${i}].qty=parseInt(this.value)||1;recalcQuoteTotals()"></div>
+      <div class="form-group"><input type="number" step="0.01" value="${it.rate||''}" placeholder="Rate ₹" oninput="_quoteItems[${i}].rate=parseFloat(this.value)||0;recalcQuoteTotals()"></div>
+      <div class="form-group"><select onchange="_quoteItems[${i}].gst=parseFloat(this.value)||0;recalcQuoteTotals()">${[0,5,12,18,28].map(v=>`<option value="${v}"${v==it.gst?' selected':''}>${v}%</option>`).join('')}</select></div>
+      <div class="form-group"><span style="font-weight:700;font-size:13px">${fmt(it.qty*it.rate)}</span></div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="removeQuoteItem(${i})"${_quoteItems.length<=1?' disabled':''}>✕</button>
+    </div>`).join('');
+  recalcQuoteTotals();
+}
+function addQuoteItem(){ _quoteItems.push(blankQuoteItem()); renderQuoteItems(); }
+function removeQuoteItem(i){ if(_quoteItems.length<=1) return; _quoteItems.splice(i,1); renderQuoteItems(); }
+function recalcQuoteTotals(){
+  let sub=0,gst=0;
+  _quoteItems.forEach(it=>{ const amt=(it.qty||0)*(it.rate||0); sub+=amt; gst+=amt*((it.gst||0)/100); });
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=fmt(v);};
+  set('qt_sub',sub); set('qt_gstamt',gst); set('qt_total',sub+gst);
+}
+function showAddQuotation(){
+  document.getElementById('qt_id').value='';
+  ['qt_cname','qt_phone','qt_address','qt_city','qt_state','qt_pin','qt_gstin','qt_validity','qt_terms'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  _quoteItems=[blankQuoteItem()];
+  renderQuoteItems();
+  document.getElementById('quotationForm').style.display='block';
+}
+function closeQuotationForm(){ document.getElementById('quotationForm').style.display='none'; }
+function editQuotation(id){
+  const q=_quotations.find(x=>x.id===id); if(!q) return;
+  document.getElementById('qt_id').value=q.id;
+  const set=(id2,v)=>{const e=document.getElementById(id2);if(e)e.value=(v==null?'':v);};
+  set('qt_cname',q.customer_name); set('qt_phone',q.customer_phone); set('qt_address',q.customer_address);
+  set('qt_city',q.customer_city); set('qt_state',q.customer_state); set('qt_pin',q.customer_pincode);
+  set('qt_gstin',q.customer_gstin); set('qt_validity',q.validity_date); set('qt_terms',q.terms_notes);
+  _quoteItems=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0})) : [blankQuoteItem()];
+  renderQuoteItems();
+  document.getElementById('quotationForm').style.display='block';
+}
+async function saveQuotation(){
+  const g=id=>document.getElementById(id)?.value?.trim()||null;
+  const items=_quoteItems.filter(it=>it.name&&it.name.trim());
+  if(!items.length){ toast('Add at least one item','error'); return; }
+  let sub=0,gstAmt=0; items.forEach(it=>{ const amt=(it.qty||0)*(it.rate||0); sub+=amt; gstAmt+=amt*((it.gst||0)/100); });
+  const payload={
+    customer_name:g('qt_cname'), customer_phone:g('qt_phone'), customer_address:g('qt_address'),
+    customer_city:g('qt_city'), customer_state:g('qt_state'), customer_pincode:g('qt_pin'), customer_gstin:g('qt_gstin'),
+    items, subtotal:sub, gst_amount:gstAmt, total:sub+gstAmt,
+    validity_date:g('qt_validity'), terms_notes:g('qt_terms'), updated_at:new Date().toISOString(),
+  };
+  const id=document.getElementById('qt_id').value;
+  if(id){
+    const {error}=await sb.from('biz_quotations').update(payload).eq('id',id);
+    if(error){ toast('Error: '+error.message,'error'); return; }
+  } else {
+    const now=new Date(), fyStart=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
+    const fy=`${fyStart}-${String((fyStart+1)%100).padStart(2,'0')}`;
+    let quotationNumber=null, recordId=null;
+    try{ const {data:seq}=await sb.rpc('biz_next_quotation_number',{p_fy:fy}); if(seq!=null) quotationNumber=`QT/${fy}/${String(seq).padStart(3,'0')}`; }catch(_){}
+    try{ const {data:rid}=await sb.rpc('gen_record_id',{p_entity_type:'quotation',p_entity_ref:quotationNumber}); recordId=rid||null; }catch(_){}
+    payload.quotation_number=quotationNumber; payload.financial_year=fy; payload.record_id=recordId; payload.status='draft';
+    const {error}=await sb.from('biz_quotations').insert(payload);
+    if(error){ toast('Error: '+error.message,'error'); return; }
+  }
+  toast('Quotation saved');
+  closeQuotationForm();
+  loadQuotations();
+}
+async function deleteQuotation(id){
+  if(!confirm('Delete this quotation?')) return;
+  await sb.from('biz_quotations').delete().eq('id',id);
+  loadQuotations();
+}
+async function acceptQuotation(id){
+  if(!confirm('Accept this quotation and start a new order from it?')) return;
+  await openAddOrderFromQuotation(id);
 }
 
 // ── Customers (auto-built from orders) ──────────────────────
@@ -5205,7 +5609,24 @@ function renderSfChannelBtns(){
   }).join('');
 }
 function setSfChannel(c){ const el=document.getElementById('sfChannel'); if(el) el.value=c; renderSfChannelBtns(); loadSales(); }
+// Phase 10 Group 1: always unfiltered (every status, including cancelled/returned),
+// independent of whatever filters are currently applied to the table below it, so the
+// stat cards stay a stable "whole picture" reference while the table itself narrows.
+async function loadAllOrdersKpi(){
+  const kpi=document.getElementById('allOrdersKpi'); if(!kpi) return;
+  const {data}=await sb.from('biz_sales').select('order_id,selling_price').eq('is_deleted',false).limit(5000);
+  const rows=data||[];
+  const groups={}; rows.forEach(r=>{ const k=r.order_id||('r:'+Math.random()); (groups[k]=groups[k]||[]).push(r); });
+  const orderCount=Object.keys(groups).length;
+  const revenue=rows.reduce((a,r)=>a+(parseFloat(r.selling_price)||0),0);
+  const aov=orderCount?revenue/orderCount:0;
+  kpi.innerHTML=`
+    <div class="kpi"><div class="kpi-label">Total Revenue</div><div class="kpi-val">${fmt(revenue)}</div></div>
+    <div class="kpi"><div class="kpi-label">Order Count</div><div class="kpi-val">${orderCount}</div></div>
+    <div class="kpi"><div class="kpi-label">Avg Order Value</div><div class="kpi-val">${fmt(aov)}</div></div>`;
+}
 async function loadSales(){
+  loadAllOrdersKpi();
   renderSfChannelBtns();
   const v=id=>{const e=document.getElementById(id);return e?e.value:'';};
   const ch=v('sfChannel'), st=v('sfStatus'), pay=v('sfPayment'), paid=v('sfPaid');
@@ -5268,7 +5689,7 @@ async function loadSales(){
       <td onclick="event.stopPropagation()"><select onchange="updateOrderStatus('${key}',this.value)" ${allPaid?'disabled title="Paid, unlock to change status"':''} class="badge-select badge-${status==='mixed'?'pending':status}">${status==='mixed'?'<option value="" selected disabled>Mixed</option>':''}${UNIFIED_STATUSES.map(x=>`<option value="${x}"${status===x?' selected':''}>${STATUS_LABEL[x]}</option>`).join('')}</select></td>
       <td style="text-align:center" onclick="event.stopPropagation()">
         <button class="btn btn-sm" title="${allPaid?'Paid & locked, click to unlock for editing':'Unlocked, click to lock (mark paid)'}" onclick="togglePaidOrder('${key}',${allPaid})" style="font-size:16px;padding:2px 6px;background:${allPaid?'var(--green-bg)':'var(--bg-2)'};color:${allPaid?'var(--green)':'var(--text-3)'};border:1px solid ${allPaid?'var(--green)':'var(--border)'};border-radius:3px">${allPaid?'✓':'◯'}</button>
-        ${(!allPaid&&items.length===1)?`<button class="btn btn-ghost btn-sm" title="Edit" onclick="openEditSale('${items[0].id}')" style="padding:2px 6px;margin-left:3px">✎</button>`:''}
+        ${!allPaid?`<button class="btn btn-ghost btn-sm" title="Edit order" onclick="openAddOrderEdit('${items[0].id}')" style="padding:2px 6px;margin-left:3px">✎</button>`:''}
       </td>
     </tr>`;
   }).join('');
@@ -5352,7 +5773,7 @@ function renderOrderDetail(items){
       <td>${s.sku?`<span style="font-family:var(--mono);font-weight:600">${esc(s.sku)}</span> · `:''}${esc(s.product_name||'—')}${vl?` <span style="color:var(--text-3)">(${esc(vl)})</span>`:''}${s.hsn_code?` <span style="color:var(--text-3);font-size:10px;font-family:var(--mono)">HSN ${esc(s.hsn_code)}</span>`:''}${extraColorNote}</td>
       <td class="td-num">${s.qty||1}</td>
       <td class="td-num">${fmt(s.selling_price)}</td>
-      <td class="td-actions" style="white-space:nowrap;text-align:right">${(locked||items.length<2)?'':`<button class="btn btn-ghost btn-sm" onclick="openEditSale('${s.id}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteSale('${s.id}')">✕</button>`}</td>
+      <td class="td-actions" style="white-space:nowrap;text-align:right">${(locked||items.length<2)?'':`<button class="btn btn-danger btn-sm" onclick="deleteSale('${s.id}')">✕</button>`}</td>
     </tr>`; }).join('');
   return `<div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;border-top:2px solid var(--accent)">
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:11px">
@@ -5396,11 +5817,11 @@ function renderOrderDetail(items){
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <select onchange="updateOrderStatus('${key}',this.value)" class="month-select" style="font-size:11px;padding:5px 8px" ${locked?'disabled title="Paid, unlock to change status"':''}>${UNIFIED_STATUSES.map(x=>`<option value="${x}"${f.status===x?' selected':''}>${STATUS_LABEL[x]}</option>`).join('')}</select>
       <button class="btn btn-sm" onclick="togglePaidOrder('${key}',${locked})" style="background:${locked?'var(--green-bg)':'var(--bg-2)'};color:${locked?'var(--green)':'var(--text-3)'};border:1px solid ${locked?'var(--green)':'var(--border)'}">${locked?'✓ Paid · unlock':'◯ Mark paid'}</button>
-      ${(!locked&&items.length===1)?`<button class="btn btn-ghost btn-sm" onclick="openEditSale('${items[0].id}')">✎ Edit</button>`:''}
+      ${!locked?`<button class="btn btn-ghost btn-sm" onclick="openAddOrderEdit('${items[0].id}')">✎ Edit</button>`:''}
       <button class="btn btn-ghost btn-sm" id="revealBtn_${key}" onclick="revealCost('${key}')">🔒 Show cost &amp; profit</button>
       <button class="btn btn-ghost btn-sm" onclick="printOrderInvoice('${key}')">🧾 Invoice</button>
       <button class="btn btn-ghost btn-sm" onclick="printOrderInvoice('${key}','record')">📋 Order Record</button>
-      <button class="btn btn-ghost btn-sm" onclick="duplicateOrder('${key}')" title="Copy this order's customer, items &amp; pricing into Quick Add Sale as a new order">⧉ Duplicate</button>
+      <button class="btn btn-ghost btn-sm" onclick="duplicateOrder('${key}')" title="Copy this order's customer, items &amp; pricing into Add Order as a new order">⧉ Duplicate</button>
       ${['delivered','completed','dispatched'].includes(f.status)?`<button class="btn btn-ghost btn-sm" onclick="initiateReturnFromOrder('${key}')">↩ Initiate Return</button>`:''}
       ${locked?'<span style="font-size:11px;color:var(--text-3)">Paid, unmark to edit</span>'
         :`<button class="btn btn-danger btn-sm" onclick="deleteOrder('${key}')">✕ Delete order</button>`}
@@ -5420,9 +5841,11 @@ function printOrderInvoice(firstId,docKind){
 function duplicateOrder(firstId){
   const items=_orderGroup(firstId); if(!items.length){ toast('Could not load order','error'); return; }
   const f=items[0];
+  _qaMode='new'; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceQuotationId=null;
   switchTab('quickadd');
   setTimeout(()=>{
     resetQuickAdd();
+    updateAddOrderModeUI();
     const set=(id,v)=>{const e=document.getElementById(id); if(e) e.value=(v==null?'':v);};
     set('qa_channel',f.channel_id||'shop'); onChannelChange();
     set('qa_payment',f.payment_mode||'upi');
@@ -5464,7 +5887,7 @@ function duplicateOrder(firstId){
     set('qa_platformfee',f.platform_fee||0);
     set('qa_shipping',f.shipping_fee||0);
     recalcTotals();
-    toast('Order duplicated into Quick Add Sale, review and save','success');
+    toast('Order duplicated into Add Order, review and save','success');
     document.getElementById('panelQuickadd')?.scrollIntoView({behavior:'smooth',block:'start'});
   },300);
 }
@@ -5771,91 +6194,13 @@ function updateSalesFilterBadge(){
   b.textContent=n; b.style.display=n?'inline-block':'none';
 }
 
-function openEditSale(id){
-  const s=_salesCache.find(x=>x.id===id); if(!s) return;
-  const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
-  set('es_id',s.id);
-  set('es_channel',s.channel_id||'shop');
-  set('es_orderid',s.order_id);
-  set('es_product',s.product_name);
-  set('es_variant',s.variant);
-  set('es_hsn',s.hsn_code);
-  set('es_qty',s.qty||1);
-  set('es_price',s.selling_price);
-  set('es_disc',s.discount_amount);
-  set('es_gst',(s.gst_rate!=null?s.gst_rate:0));
-  set('es_cogs',s.cogs);
-  set('es_grams',s.grams_used);
-  set('es_platformfee',s.platform_fee);
-  set('es_shipping',s.shipping_fee);
-  set('es_date',s.order_date);
-  set('es_delivery',s.delivery_date);
-  set('es_dispatch',s.dispatch_date);
-  set('es_status',s.status||'pending');
-  set('es_payment',s.payment_mode);
-  set('es_lead',s.lead_source);
-  set('es_fulfillment',s.fulfillment_type);
-  set('es_courier',s.courier_partner);
-  set('es_tracking',s.tracking_number);
-  set('es_invoiceno',s.invoice_no);
-  set('es_packet',s.package_size);
-  set('es_cname',s.customer_name);
-  set('es_phone',s.customer_phone);
-  set('es_address',s.customer_address);
-  set('es_city',s.customer_city);
-  set('es_state',s.customer_state);
-  set('es_pin',s.customer_pincode);
-  set('es_notes',s.notes);
-  document.getElementById('editSaleModal').style.display='block';
-}
-function closeEditSale(){ document.getElementById('editSaleModal').style.display='none'; }
-async function saveEditSale(){
-  const id=document.getElementById('es_id').value;
-  const g=k=>{const e=document.getElementById(k);return e?e.value:'';};
-  const num=k=>parseFloat(g(k))||0;
-  const txt=k=>g(k).trim()||null;
-  const payload={
-    channel_id:g('es_channel')||null,
-    order_id:txt('es_orderid'),
-    product_name:g('es_product').trim(),
-    variant:txt('es_variant'),
-    hsn_code:txt('es_hsn'),
-    qty:parseInt(g('es_qty'))||1,
-    selling_price:num('es_price'),
-    discount_amount:num('es_disc'),
-    gst_rate:num('es_gst'),
-    cogs:num('es_cogs'),
-    grams_used:num('es_grams'),
-    platform_fee:num('es_platformfee'),
-    shipping_fee:num('es_shipping'),
-    order_date:g('es_date')||today(),
-    delivery_date:g('es_delivery')||null,
-    dispatch_date:g('es_dispatch')||null,
-    status:g('es_status')||'pending',
-    payment_mode:g('es_payment')||null,
-    lead_source:g('es_lead')||null,
-    fulfillment_type:g('es_fulfillment')||null,
-    courier_partner:txt('es_courier'),
-    tracking_number:txt('es_tracking'),
-    invoice_no:txt('es_invoiceno'),
-    package_size:txt('es_packet'),
-    customer_name:txt('es_cname'),
-    customer_phone:txt('es_phone'),
-    customer_address:txt('es_address'),
-    customer_city:txt('es_city'),
-    customer_state:txt('es_state'),
-    customer_pincode:txt('es_pin'),
-    notes:txt('es_notes'),
-  };
-  const {error}=await sb.from('biz_sales').update(payload).eq('id',id);
-  if(error){toast('Error: '+error.message,'error');return;}
-  logBizActivity('edit','sale',id,''); toast('Sale updated'); closeEditSale(); loadSales();
-}
-async function markReturn(){
-  const id=document.getElementById('es_id').value;
+// Replaces the old editSaleModal's "Mark Return" button. Takes an explicit id now
+// instead of reading a hidden es_id field (that modal is gone, replaced by the Add
+// Order edit page); semantics unchanged, marks one line item Returned and logs it.
+async function markReturn(id){
+  id=id||(_qaEditRowIds&&_qaEditRowIds[0]);
   const s=_salesCache.find(x=>x.id===id); if(!s) return;
   if(!confirm('Mark this order as Returned and log in Returns?')) return;
-  // Update sale status
   const {error:e1}=await sb.from('biz_sales').update({status:'returned'}).eq('id',id);
   if(e1){toast('Error: '+e1.message,'error');return;}
   // Insert return record. Also snapshot the sale's real cost breakdown (not just the
@@ -5876,7 +6221,10 @@ async function markReturn(){
     reason:'Marked from All Sales',
   });
   if(e2){toast('Sale marked returned but return log failed: '+e2.message,'error');return;}
-  toast('Marked as returned'); closeEditSale(); loadSales();
+  toast('Marked as returned');
+  exitAddOrderEditMode();
+  switchTab('sales');
+  if(typeof loadSales==='function') loadSales();
 }
 
 function exportSalesExcel(){
@@ -8477,7 +8825,10 @@ async function allocateInvoiceNumber(saleId, orderId, docKind, manualNumber){
     }
     const {data:seq,error}=await sb.rpc('biz_next_invoice_number',{p_fy:fy});
     if(error||seq==null) throw error||new Error('no seq');
-    const num=`TRK/${fy}/${String(seq).padStart(6,'0')}`;
+    // Phase 10 Group 1: 3-digit padding instead of 6 (TRK/2026-27/001). padStart is a
+    // no-op once seq reaches 1000+, so it naturally extends to 4+ digits past 999
+    // without any special-casing needed.
+    const num=`TRK/${fy}/${String(seq).padStart(3,'0')}`;
     await sb.from('biz_invoices').insert({invoice_number:num,financial_year:fy,sale_id:saleId||null,order_id:orderId||null,doc_kind:docKind});
     return num;
   }catch(_){
@@ -9116,8 +9467,7 @@ document.addEventListener('keydown',function(ev){
   if(document.querySelector('.biz-tb-cat.cat-open')){_bizCatCloseAll();return;}
   var rb=document.getElementById('recycleBinModal');
   if(rb&&rb.style.display!=='none'){rb.style.display='none';return;}
-  var es=document.getElementById('editSaleModal');
-  if(es&&es.style.display!=='none'){closeEditSale();return;}
+  if(_qaMode==='edit'){exitAddOrderEditMode();return;}
   var od=document.getElementById('orderDetailModal');
   if(od&&od.style.display!=='none'){closeOrderDetail();return;}
   var cm=document.getElementById('customerModal');
@@ -9182,10 +9532,10 @@ const BIZ_TAB_KEYS=Object.fromEntries(
   NAV_CONFIG.flatMap(sec=>sec.items).filter(it=>it.shortcut).map(it=>[it.shortcut,it.id])
 );
 function bizAnyModalOpen(){
-  const ids=['recycleBinModal','editSaleModal','orderDetailModal','customerModal','dashDrilldown',
+  const ids=['recycleBinModal','orderDetailModal','customerModal','dashDrilldown',
     'productForm','stockForm','returnForm','spoolForm','spoolAddForm','expenseForm',
     'incomeForm','purchaseForm','shopLogForm','qlExpense','qlPayment','qlFilament'];
-  return ids.some(id=>{ const el=document.getElementById(id); return el&&el.style.display!=='none'; });
+  return _qaMode==='edit' || ids.some(id=>{ const el=document.getElementById(id); return el&&el.style.display!=='none'; });
 }
 document.addEventListener('keydown',function(ev){
   // Guard against synthetic/malformed keydown events (some browser extensions dispatch a plain
