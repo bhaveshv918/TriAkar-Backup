@@ -307,15 +307,23 @@ tr:hover td{background:var(--bg-2)}
 .biz-topbar{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:60;
   background:var(--bg-1);border-bottom:1px solid var(--border);border-top:3px solid var(--accent);
   padding:9px 18px;box-shadow:var(--shadow)}
-.biz-tb-brand{font-weight:700;font-size:13px;color:var(--text);white-space:nowrap}
+.biz-tb-brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:var(--text);white-space:nowrap}
+.biz-tb-mark{flex-shrink:0;border-radius:6px}
 .biz-tb-brand span{color:var(--text-3);font-weight:500}
 .biz-tb-search{flex:1;max-width:440px;position:relative}
 .biz-tb-search input{width:100%;padding:7px 11px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;outline:none}
 .biz-tb-search input:focus{border-color:var(--accent)}
-.biz-tb-icon{background:var(--bg-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);width:32px;height:32px;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0}
+/* Phase 10 Group 2: the icon row (refresh / privacy / theme) was flat monochrome
+   grey, give each a distinct subtle tint on hover/focus so the header reads as
+   more than one color without touching the category buttons' own accent colors. */
+.biz-tb-icon{background:var(--bg-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);width:32px;height:32px;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0;text-decoration:none;transition:background .15s ease,border-color .15s ease,color .15s ease}
 .biz-tb-icon:hover{border-color:var(--accent)}
-.biz-tb-btn{background:var(--bg-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);padding:7px 12px;font-size:12px;cursor:pointer;text-decoration:none;white-space:nowrap;flex-shrink:0}
-.biz-tb-btn:hover{border-color:var(--accent)}
+.biz-tb-icon-blue:hover{background:rgba(37,99,235,.12);border-color:#2563EB;color:#2563EB}
+.biz-tb-icon-purple:hover{background:rgba(124,58,237,.12);border-color:#7C3AED;color:#7C3AED}
+.biz-tb-icon-amber:hover{background:rgba(217,119,6,.12);border-color:#D97706;color:#D97706}
+.biz-tb-signout:hover{background:rgba(220,38,38,.12);border-color:#DC2626;color:#DC2626}
+/* ADMIN / SIGN OUT are icon-only .biz-tb-icon buttons at every width now, not just
+   below 768px, so no separate .biz-tb-btn class is needed for them any more. */
 /* Hamburger, mobile-only twin of the desktop collapse button, same
    pairing pattern as Admin's .nav-toggle / .sb-collapse */
 .biz-tb-hamburger{display:none;font-size:18px}
@@ -334,10 +342,6 @@ tr:hover td{background:var(--bg-2)}
   .biz-tb-brand span{display:none}
   .biz-tb-search{display:none}
   #privacyBtn{display:none}
-  .biz-tb-btn{padding:5px 8px!important;font-size:9px!important}
-  .biz-tb-admin-link,.biz-tb-signout{font-size:0!important;padding:6px 9px!important}
-  .biz-tb-admin-link::before{content:"◳";font-size:15px;line-height:1}
-  .biz-tb-signout::before{content:"🚪";font-size:13px;line-height:1}
 
   /* Sidebar → slide-in drawer below the top bar */
   .sidebar{
@@ -702,7 +706,20 @@ html[data-theme="dark"] .biz-login{
        notifications/sign-out unreachable on phones). -->
   <div class="biz-topbar">
     <button class="biz-tb-icon biz-tb-hamburger" onclick="toggleNav()" aria-label="Menu, opens the command palette">☰</button>
-    <div class="biz-tb-brand">TriĀkar <span>· Business OS</span></div>
+    <!-- Phase 10 Group 2: icon mark only, no "TriAkar" wordmark text. Colors (orange
+         top, near-black bottom, त्रि in orange on a light circle) match the real
+         wordmark's mark exactly (assets/logo/triakar-logo-*.svg), cropped to just
+         that square and inlined so it stays crisp and needs no extra image request. -->
+    <div class="biz-tb-brand" title="TriAkar Business OS">
+      <svg class="biz-tb-mark" viewBox="0 0 240 240" width="26" height="26" aria-hidden="true">
+        <defs><clipPath id="bizTbMarkClip"><rect x="0" y="0" width="240" height="240" rx="22"/></clipPath></defs>
+        <rect x="0" y="0" width="240" height="120" fill="#C4622A" clip-path="url(#bizTbMarkClip)"/>
+        <rect x="0" y="120" width="240" height="120" fill="#161614" clip-path="url(#bizTbMarkClip)"/>
+        <circle cx="120" cy="120" r="92" fill="#F4F2EC"/>
+        <text x="120" y="122" font-family="'Noto Sans Devanagari',Mangal,'Arial Unicode MS',sans-serif" font-size="106" font-weight="700" fill="#C4622A" text-anchor="middle" dominant-baseline="central">त्रि</text>
+      </svg>
+      <span>Business OS</span>
+    </div>
     <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;margin-left:-4px;white-space:nowrap">v124</span>
     <nav class="biz-tb-nav" id="bizTbNav"></nav>
     <button class="biz-tb-icon biz-tb-cmdk" onclick="openCmdPalette()" title="Command palette (Ctrl/Cmd+K)">⌘</button>
@@ -710,12 +727,11 @@ html[data-theme="dark"] .biz-login{
       <input type="text" id="bizSearchTop" placeholder="Search sales, products, customers…" oninput="bizGlobalSearch(this.value)" onkeydown="if(event.key==='Escape')closeBizSearch()" autocomplete="off">
     </div>
     <div class="biz-tb-time" id="bizTopTime"></div>
-    <div class="top-status"><span class="pulse"></span> Business OS Online</div>
-    <button class="biz-tb-icon" onclick="refreshCurrentBizTab()" title="Refresh current tab">⟳</button>
-    <button class="biz-tb-icon" id="privacyBtn" onclick="togglePrivacyMode()" title="Hide sensitive values">👁</button>
-    <button class="biz-tb-icon" onclick="toggleTheme()" title="Toggle dark / light">🌙</button>
-    <a href="/admin.html" class="biz-tb-btn biz-tb-admin-link" title="Open Admin Panel">◳ Admin</a>
-    <button class="biz-tb-btn biz-tb-signout" onclick="bizLogout()" title="Sign out">Sign Out</button>
+    <button class="biz-tb-icon biz-tb-icon-blue" onclick="refreshCurrentBizTab()" title="Refresh current tab">⟳</button>
+    <button class="biz-tb-icon biz-tb-icon-purple" id="privacyBtn" onclick="togglePrivacyMode()" title="Hide sensitive values">👁</button>
+    <button class="biz-tb-icon biz-tb-icon-amber" onclick="toggleTheme()" title="Toggle dark / light">🌙</button>
+    <a href="/admin.html" class="biz-tb-icon biz-tb-admin-link" title="Open Admin Panel">◳</a>
+    <button class="biz-tb-icon biz-tb-signout" onclick="bizLogout()" title="Sign out">🚪</button>
   </div>
 
   <div class="biz-body">
