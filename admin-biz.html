@@ -963,6 +963,7 @@ html[data-theme="dark"] .biz-login{
       <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-primary btn-sm" onclick="switchTab('quickadd')">＋ Add Order</button>
+          <button class="btn btn-sm" onclick="switchTab('import')" title="Jumps straight to Import &amp; Labels, whichever mode (CSV / Shipping Labels) you last used">🏷 Import &amp; Labels</button>
           <span style="width:1px;height:22px;background:var(--border)"></span>
           <button class="btn btn-sm" onclick="punchShop('open')">🟢 Studio Open</button>
           <button class="btn btn-sm" onclick="punchShop('break_start')">☕ Break Start</button>
@@ -2168,6 +2169,7 @@ html[data-theme="dark"] .biz-login{
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('spoolBulkInput').click()" title="Bulk add spools from Excel">⇲ Bulk Excel</button>
           <input type="file" id="spoolBulkInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="spoolBulkUpload(event)">
           <button class="btn btn-ghost btn-sm" onclick="toggleSpoolCustomize()" title="Show / hide / reorder KPI tiles">⚙ Widgets</button>
+          <button class="btn btn-ghost btn-sm" id="spoolViewToggleBtn" onclick="toggleSpoolViewMode()" title="Switch between grouped (Color → Material → Company) and a flat list">☰ Flat list</button>
           <select id="spoolFilterStatus" onchange="renderSpoolTracker()" style="border-radius:6px;border:1px solid var(--border);font-size:12px;padding:6px 8px;background:var(--bg-1);color:var(--text-1)">
             <option value="all">All Spools</option>
             <option value="available">Available</option>
@@ -3762,6 +3764,11 @@ async function loadAddSaleSpools(rerender){
   if(typeof renderImportSpoolRows==='function'){ renderImportSpoolRows('import'); renderImportSpoolRows('lbl'); }
 }
 function ensureSpools(){ if(_spoolsTried) return; _spoolsTried=true; loadAddSaleSpools(true); }
+// Phase 10 Group 3 (J): already-opened/partial spools matching the current row's
+// material (the material of whatever spool is already picked on this row, if any)
+// surface first, in their own group above the normal brand-grouped list, so the
+// picker doesn't default to cracking open a fresh spool when a part-used one of
+// the same material is sitting right there.
 function spoolOptions(selected){
   // Round 3: only offer spools that still have grams left (0g/finished rolls were showing
   // up as if they were still usable), grouped by company/brand so a long list is scannable.
@@ -3769,14 +3776,21 @@ function spoolOptions(selected){
     const rem=Math.max(0,(parseFloat(r.total_grams)||0)-(parseFloat(r.grams_used)||0)-(parseFloat(r.waste_grams)||0));
     return {...r,rem};
   }).filter(r=>r.rem>0||String(selected)===String(r.id));  // keep the already-selected spool visible even if now empty
+  const optRow=r=>{
+    const label=(r.color+' '+(r.filament_type||'')).trim()+', '+Math.round(r.rem)+'g left';
+    return `<option value="${r.id}" data-rate="${r.cost_per_gram||0}"${String(selected)===String(r.id)?' selected':''}>${esc(label)}</option>`;
+  };
+  const curMaterial=selected?(_addSaleSpools.find(r=>String(r.id)===String(selected))||{}).filament_type:null;
+  let matchHtml='';
+  if(curMaterial){
+    const opened=rows.filter(r=>r.filament_type===curMaterial && (parseFloat(r.grams_used)||0)>0 && String(r.id)!==String(selected));
+    if(opened.length) matchHtml=`<optgroup label="Already open, ${esc(curMaterial)}">`+opened.map(optRow).join('')+'</optgroup>';
+  }
   const byBrand={};
   rows.forEach(r=>{ const b=(r.brand||'Other').trim()||'Other'; (byBrand[b]=byBrand[b]||[]).push(r); });
   const brands=Object.keys(byBrand).sort((a,b)=>a.localeCompare(b));
-  return '<option value="">Spool (optional, deducts stock)</option>'+
-    brands.map(b=>`<optgroup label="${esc(b)}">`+byBrand[b].map(r=>{
-      const label=(r.color+' '+(r.filament_type||'')).trim()+', '+Math.round(r.rem)+'g left';
-      return `<option value="${r.id}" data-rate="${r.cost_per_gram||0}"${String(selected)===String(r.id)?' selected':''}>${esc(label)}</option>`;
-    }).join('')+'</optgroup>').join('');
+  return '<option value="">Spool (optional, deducts stock)</option>'+matchHtml+
+    brands.map(b=>`<optgroup label="${esc(b)}">`+byBrand[b].map(optRow).join('')+'</optgroup>').join('');
 }
 function spoolRate(id){ const s=_addSaleSpools.find(r=>String(r.id)===String(id)); return s?(parseFloat(s.cost_per_gram)||0):0; }
 // delta>0 consumes, delta<0 restores; clamped to [0, total]. Also flips
@@ -4866,6 +4880,53 @@ const PROD_LANE_STATUSES=['pending','order_received','processing','printing','pa
 // progress (requested but not yet physically back) still shows here so it isn't lost;
 // once marked 'returned' it drops out of Open Orders entirely and only lives in Returns & Claims.
 const TRACK_LANE_STATUSES=['dispatched','delivered','return_initiated','return_picked_up'];
+// Phase 10 Group 3 (G): In Production / Dispatched already have their own tables
+// lower on this same panel, so their KPI just scrolls to and briefly highlights
+// that table instead of opening a redundant popup with the same rows.
+function scrollToOpenTable(bodyId){
+  const body=document.getElementById(bodyId); if(!body) return;
+  const wrap=body.closest('.tbl-wrap')||body;
+  wrap.scrollIntoView({behavior:'smooth',block:'center'});
+  wrap.style.outline='2px solid var(--accent)'; wrap.style.outlineOffset='2px';
+  setTimeout(()=>{ wrap.style.outline=''; wrap.style.outlineOffset=''; },1200);
+}
+// SLA Breached / Due Today have no table of their own on this panel, so these get
+// a lightweight drawer (not the Dashboard's #dashDrilldown, that's tied to
+// _dashCache, a different data source entirely).
+let _openOrderKpiGroups={breached:[],dueToday:[]};
+function openOpenOrdersDrawer(kind){
+  const groups=_openOrderKpiGroups[kind]||[];
+  const title=kind==='breached'?'SLA Breached':'Due Today';
+  let ov=document.getElementById('openOrdersDrawer');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='openOrdersDrawer';
+    ov.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;overflow-y:auto;padding:20px';
+    ov.onclick=e=>{ if(e.target===ov) closeOpenOrdersDrawer(); };
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML=`<div style="max-width:640px;margin:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:14px;font-weight:700">${title} (${groups.length})</div>
+      <button onclick="closeOpenOrdersDrawer()" style="background:none;border:none;color:var(--text-3);font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div class="tbl-wrap">
+      <table><thead><tr><th>Order</th><th>Customer</th><th>Promised</th><th class="td-num">Value</th><th></th></tr></thead>
+      <tbody>${groups.length?groups.map(g=>{
+        const f=g.items[0], total=g.items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
+        return `<tr style="cursor:pointer" onclick="closeOpenOrdersDrawer();switchTab('sales');setTimeout(()=>openOrderDetail('${f.id}'),150)">
+          <td>${chHtml(f.channel_id)} ${esc(f.order_id||f.product_name||'—')}</td>
+          <td>${esc(f.customer_name||'—')}</td>
+          <td>${f.delivery_date?fmtDay(f.delivery_date):'—'}</td>
+          <td class="td-num">${fmt(total)}</td>
+          <td style="text-align:right;color:var(--text-3)">→</td>
+        </tr>`;
+      }).join(''):'<tr><td colspan="5" class="empty"><div class="em-text">None</div></td></tr>'}</tbody></table>
+    </div>
+  </div>`;
+  ov.style.display='block';
+}
+function closeOpenOrdersDrawer(){ const ov=document.getElementById('openOrdersDrawer'); if(ov) ov.style.display='none'; }
+
 async function loadOpenOrders(){
   // "Open" = anything not yet in a terminal state, rather than an explicit include-list —
   // the old include-list named values ('pending','processing','dispatched','delivered')
@@ -4893,15 +4954,19 @@ async function loadOpenOrders(){
   const trackGroups=groups.filter(g=>TRACK_LANE_STATUSES.includes(g.items[0].status));
 
   const td=today(); let breached=0,dueToday=0,inTransit=0;
-  groups.forEach(g=>{ const f=g.items[0]; if(f.delivery_date){ if(f.delivery_date<td)breached++; else if(f.delivery_date===td)dueToday++; } if(f.status==='dispatched')inTransit++; });
+  const breachedGroups=[], dueTodayGroups=[];
+  groups.forEach(g=>{ const f=g.items[0]; if(f.delivery_date){ if(f.delivery_date<td){breached++;breachedGroups.push(g);} else if(f.delivery_date===td){dueToday++;dueTodayGroups.push(g);} } if(f.status==='dispatched')inTransit++; });
+  // Phase 10 Group 3 (G): kept for the two drawer-opening KPIs (SLA Breached, Due
+  // Today), which have no dedicated table on this panel to scroll to.
+  _openOrderKpiGroups={breached:breachedGroups,dueToday:dueTodayGroups};
   const badge=document.getElementById('openCount'); if(badge) badge.textContent=groups.length;
   const kpi=document.getElementById('openKpi');
   if(kpi) kpi.innerHTML=`
     <div class="kpi" style="cursor:pointer" title="Manual entry, click to edit. Not counted in any total" onclick="editUpcomingOrders()"><div class="kpi-label">Upcoming Orders</div><div class="kpi-val">${esc(upcomingOrders)}</div></div>
-    <div class="kpi"><div class="kpi-label">In Production</div><div class="kpi-val">${prodGroups.length}</div></div>
-    <div class="kpi"><div class="kpi-label">Dispatched</div><div class="kpi-val">${trackGroups.length}</div></div>
-    <div class="kpi red"><div class="kpi-label">SLA Breached</div><div class="kpi-val">${breached}</div></div>
-    <div class="kpi yellow"><div class="kpi-label">Due Today</div><div class="kpi-val">${dueToday}</div></div>`;
+    <div class="kpi" style="cursor:pointer" title="Jump to the In Production table below" onclick="scrollToOpenTable('prodOrdersBody')"><div class="kpi-label">In Production</div><div class="kpi-val">${prodGroups.length}</div></div>
+    <div class="kpi" style="cursor:pointer" title="Jump to the Dispatched table below" onclick="scrollToOpenTable('trackOrdersBody')"><div class="kpi-label">Dispatched</div><div class="kpi-val">${trackGroups.length}</div></div>
+    <div class="kpi red" style="cursor:pointer" title="Show breached orders" onclick="openOpenOrdersDrawer('breached')"><div class="kpi-label">SLA Breached</div><div class="kpi-val">${breached}</div></div>
+    <div class="kpi yellow" style="cursor:pointer" title="Show orders due today" onclick="openOpenOrdersDrawer('dueToday')"><div class="kpi-label">Due Today</div><div class="kpi-val">${dueToday}</div></div>`;
   // Round 3, GST filing reminders surfaced right on the Open Orders landing tab, 2 days
   // ahead of the 10th (GSTR-1) / 19th (GSTR-3B), so they're seen without a separate visit.
   const gstRem=document.getElementById('openGstReminder');
@@ -6424,6 +6489,15 @@ function spoolMatchesFilter(r,filter){
   if(filter==='resold') return r.status==='Finsh' && r.finish_reason==='resold';
   return true;
 }
+// Phase 10 Group 3 (J): grouped (Color -> Material -> Company) is the default;
+// toggles to a flat list for whoever just wants the old plain table.
+let _spoolViewMode='grouped';
+function toggleSpoolViewMode(){
+  _spoolViewMode=_spoolViewMode==='grouped'?'flat':'grouped';
+  const btn=document.getElementById('spoolViewToggleBtn');
+  if(btn) btn.textContent=_spoolViewMode==='grouped'?'☰ Flat list':'▤ Grouped view';
+  renderSpoolTracker();
+}
 function renderSpoolTracker(){
   // finished spools sort to the bottom, otherwise by s_no
   const rows=[..._spoolRows].sort((a,b)=>(a.status==='Finsh'?1:0)-(b.status==='Finsh'?1:0)||a.s_no-b.s_no);
@@ -6456,7 +6530,7 @@ function renderSpoolTracker(){
   const tbody=document.getElementById('spoolBody');
   if(!tbody) return;
   if(!filteredRows.length){ tbody.innerHTML='<tr><td colspan="11" class="empty"><div class="em-text">No spools found</div></td></tr>'; return; }
-  tbody.innerHTML=filteredRows.map(r=>{
+  const spoolRowHtml=r=>{
     const badgeClass=SPOOL_BADGE[r.status]||'badge-pending';
     const pct=spoolPct(r);
     const barColor=pct<20?'var(--red)':pct<50?'var(--yellow)':'var(--green)';
@@ -6485,7 +6559,37 @@ function renderSpoolTracker(){
         ${r.status!=='Finsh'?`<button class="btn btn-ghost btn-sm" title="Mark resold" onclick="showResellSpool('${r.id}')">♻</button>`:''}
       </td>
     </tr>`;
-  }).join('');
+  };
+  if(_spoolViewMode!=='grouped'){
+    tbody.innerHTML=filteredRows.map(spoolRowHtml).join('');
+    updateSpoolBulkBar();
+    return;
+  }
+  // Phase 10 Group 3 (J): Color -> Material -> Company, color first since it's the
+  // fastest way to visually search a physical shelf of spools.
+  const byColor={};
+  filteredRows.forEach(r=>{
+    const color=(r.color||'').trim()||'Unspecified';
+    const mat=(r.filament_type||'').trim()||'Unspecified';
+    const brand=(r.brand||'').trim()||'Unspecified';
+    ((byColor[color]=byColor[color]||{})[mat]=byColor[color][mat]||{});
+    (byColor[color][mat][brand]=byColor[color][mat][brand]||[]).push(r);
+  });
+  let html='';
+  Object.keys(byColor).sort().forEach(color=>{
+    const colorRows=Object.values(byColor[color]).flatMap(m=>Object.values(m).flat());
+    const hex=colorRows.find(r=>r.color_hex)?.color_hex||'#ccc';
+    html+=`<tr class="spool-group-header spool-group-color"><td colspan="11" style="background:var(--bg-2);font-weight:700;font-size:12px;padding:8px 10px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${esc(hex)};border:1px solid var(--border);margin-right:6px;vertical-align:middle"></span>${esc(color)} <span style="font-weight:400;color:var(--text-3);font-size:11px">(${colorRows.length})</span></td></tr>`;
+    Object.keys(byColor[color]).sort().forEach(mat=>{
+      const matRows=Object.values(byColor[color][mat]).flat();
+      html+=`<tr class="spool-group-header spool-group-material"><td colspan="11" style="padding:5px 10px 5px 26px;font-size:11px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.4px">${esc(mat)} <span style="font-weight:400;color:var(--text-3)">(${matRows.length})</span></td></tr>`;
+      Object.keys(byColor[color][mat]).sort().forEach(brand=>{
+        html+=`<tr class="spool-group-header spool-group-brand"><td colspan="11" style="padding:3px 10px 3px 42px;font-size:10.5px;font-style:italic;color:var(--text-3)">${esc(brand)}</td></tr>`;
+        html+=byColor[color][mat][brand].map(spoolRowHtml).join('');
+      });
+    });
+  });
+  tbody.innerHTML=html;
   updateSpoolBulkBar();
 }
 function getSelectedSpoolIds(){
@@ -9483,6 +9587,8 @@ document.addEventListener('keydown',function(ev){
   if(document.querySelector('.biz-tb-cat.cat-open')){_bizCatCloseAll();return;}
   var rb=document.getElementById('recycleBinModal');
   if(rb&&rb.style.display!=='none'){rb.style.display='none';return;}
+  var ood=document.getElementById('openOrdersDrawer');
+  if(ood&&ood.style.display!=='none'){closeOpenOrdersDrawer();return;}
   if(_qaMode==='edit'){exitAddOrderEditMode();return;}
   var od=document.getElementById('orderDetailModal');
   if(od&&od.style.display!=='none'){closeOrderDetail();return;}
@@ -9548,7 +9654,7 @@ const BIZ_TAB_KEYS=Object.fromEntries(
   NAV_CONFIG.flatMap(sec=>sec.items).filter(it=>it.shortcut).map(it=>[it.shortcut,it.id])
 );
 function bizAnyModalOpen(){
-  const ids=['recycleBinModal','orderDetailModal','customerModal','dashDrilldown',
+  const ids=['recycleBinModal','orderDetailModal','customerModal','dashDrilldown','openOrdersDrawer',
     'productForm','stockForm','returnForm','spoolForm','spoolAddForm','expenseForm',
     'incomeForm','purchaseForm','shopLogForm','qlExpense','qlPayment','qlFilament'];
   return _qaMode==='edit' || ids.some(id=>{ const el=document.getElementById(id); return el&&el.style.display!=='none'; });
