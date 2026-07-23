@@ -1085,6 +1085,12 @@ html[data-theme="dark"] .biz-login{
           <div class="p-sub">Log an order, channel auto-fills costs</div>
         </div>
       </div>
+      <!-- Recommendation #3 (deep-pass review): a rack item marked "Sold" isn't
+           actually deducted from the rack until this form is saved, so make that
+           pending state impossible to miss or lose track of. -->
+      <div id="qaRackPendingBanner" style="display:none;background:var(--tri-orange-dim,rgba(196,98,42,.12));border:1px solid var(--accent);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text)">
+        ⏳ Completing a Rack sale, the rack item won't be removed until you Save. Click Clear to cancel and leave the rack listing untouched.
+      </div>
 
       <form id="quickAddForm" onsubmit="submitQuickAdd(event)">
 
@@ -4118,6 +4124,35 @@ function recalcTotals(){
 }
 function recalc(){ recalcTotals(); }
 
+// Extends A1's universal Record ID beyond Orders/Quotations to Expenses,
+// Purchases, Returns, and Customers (recommendation #5 from the deep-pass
+// review). Best-effort and only on create, never blocks a save if it fails.
+async function attachRecordId(payload, isNew, entityType, entityRef){
+  if(!isNew) return payload;
+  try{
+    const {data:rid}=await sb.rpc('gen_record_id',{p_entity_type:entityType,p_entity_ref:entityRef||null});
+    if(rid) payload.record_id=rid;
+  }catch(_){}
+  return payload;
+}
+// Single-row counterpart to insertRowsResilient(): strips a column and retries
+// if the DB doesn't have it yet (e.g. record_id before its migration has run),
+// so attaching a Record ID to Expenses/Purchases/Returns/Customers can never
+// block the save itself. Supports an optional .select(cols).single() chain for
+// callers that need the inserted row back (resolveCustomerId needs the new id).
+async function insertResilient(table, payload, selectCols){
+  let data={...payload};
+  for(let i=0;i<3;i++){
+    let q=sb.from(table).insert(data);
+    if(selectCols) q=q.select(selectCols).single();
+    const r=await q;
+    if(!r.error) return r;
+    const m=(r.error.message||'').match(/column "([^"]+)"/);
+    if(!m) return r;
+    delete data[m[1]];
+  }
+  return {error:{message:table+' insert failed (unknown columns)'}};
+}
 // Phase 10 (A2): auto-generated order IDs now get a real server-side uniqueness
 // check instead of a one-shot random string. A manually-typed Order ID (the field
 // is left blank most of the time) is never touched, only the auto-generated
@@ -4236,6 +4271,8 @@ function updateAddOrderModeUI(){
   const payCard=document.getElementById('qaPaymentCard');
   const cancelBtn=document.getElementById('qaCancelEditBtn');
   const returnBtn=document.getElementById('qaMarkReturnBtn');
+  const rackBanner=document.getElementById('qaRackPendingBanner');
+  if(rackBanner) rackBanner.style.display=_qaSourceRackItemId?'block':'none';
   if(_qaMode==='edit'){
     if(title) title.textContent='Edit Order';
     if(sub) sub.textContent='Editing order #'+(_qaEditOrderId||'');
@@ -4244,7 +4281,7 @@ function updateAddOrderModeUI(){
     if(returnBtn) returnBtn.style.display='';
   } else {
     if(title) title.textContent='Add Order';
-    if(sub) sub.textContent=_qaMode==='fromQuotation' ? 'New order, pre-filled from quotation' : 'Log an order, channel auto-fills costs';
+    if(sub) sub.textContent=_qaSourceRackItemId ? 'New order, completing a Rack sale' : _qaMode==='fromQuotation' ? 'New order, pre-filled from quotation' : 'Log an order, channel auto-fills costs';
     if(payCard) payCard.style.display='none';
     if(cancelBtn) cancelBtn.style.display='none';
     if(returnBtn) returnBtn.style.display='none';
@@ -4438,7 +4475,8 @@ async function resolveCustomerId(name, phone){
     if(phone){ const {data}=await sb.from('biz_customers').select('id').eq('phone',phone).limit(1); if(data&&data.length) return data[0].id; }
     const {data:byName}=await sb.from('biz_customers').select('id').ilike('name',name).limit(1);
     if(byName&&byName.length) return byName[0].id;
-    const {data:created,error}=await sb.from('biz_customers').insert({name,phone:phone||null}).select('id').single();
+    const custPayload=await attachRecordId({name,phone:phone||null},true,'customer',name);
+    const {data:created,error}=await insertResilient('biz_customers',custPayload,'id');
     if(error||!created) return null;
     return created.id;
   }catch(_){ return null; }
@@ -5597,11 +5635,12 @@ async function saveExpense(){
     if(upErr){ toast('Invoice upload failed: '+upErr.message,'error'); return; }
     invoice_url=path;
   }
-  const payload={ date:g('ex_date')||today(), category:g('ex_category'), vendor:g('ex_vendor').trim()||null,
+  let payload={ date:g('ex_date')||today(), category:g('ex_category'), vendor:g('ex_vendor').trim()||null,
     amount:parseFloat(g('ex_amount'))||0, gst_amount:parseFloat(g('ex_gst'))||0, payment_mode:g('ex_payment')||null,
     source:g('ex_source').trim()||null, recurring:!!document.getElementById('ex_recurring')?.checked,
     invoice_url, notes:g('ex_notes').trim()||null };
-  const {error}=id?await sb.from('biz_expenses').update(payload).eq('id',id):await sb.from('biz_expenses').insert(payload);
+  if(!id) payload=await attachRecordId(payload,true,'expense',payload.vendor);
+  const {error}=id?(await sb.from('biz_expenses').update(payload).eq('id',id)):(await insertResilient('biz_expenses',payload));
   if(error){ toast('Error: '+error.message,'error'); return; }
   if(!id) await applyExpenseToSpoolStock();  // only on create, editing an old expense shouldn't re-apply stock
   logBizActivity(id?'edit':'create','expense',id,(payload.vendor||'')+' ₹'+payload.amount); toast(id?'Expense updated':'Expense added'); document.getElementById('expenseForm').style.display='none'; loadExpenses();
@@ -5828,10 +5867,11 @@ async function savePurchase(){
     if(spoolErr){ toast('Purchase saved, but spool creation failed: '+spoolErr.message,'error'); }
     else madeSpool=true;
   }
-  const payload={ date:g('pu_date')||today(), category:g('pu_category'), vendor:g('pu_vendor').trim()||null,
+  let payload={ date:g('pu_date')||today(), category:g('pu_category'), vendor:g('pu_vendor').trim()||null,
     item:g('pu_item').trim(), qty:parseFloat(g('pu_qty'))||1, unit_amount:parseFloat(g('pu_unit'))||0,
     total_amount:parseFloat(g('pu_total'))||0, invoice_url, notes:g('pu_notes').trim()||null };
-  const {error}=id?await sb.from('biz_purchases').update(payload).eq('id',id):await sb.from('biz_purchases').insert(payload);
+  if(!id) payload=await attachRecordId(payload,true,'purchase',payload.item);
+  const {error}=id?(await sb.from('biz_purchases').update(payload).eq('id',id)):(await insertResilient('biz_purchases',payload));
   if(error){ toast('Error: '+error.message,'error'); return; }
   logBizActivity(id?'edit':'create','purchase',id,(payload.vendor||'')+' '+payload.item+' ₹'+payload.total_amount);
   toast(id?'Purchase updated':(madeSpool?'Purchase logged + spool added':'Purchase logged'));
@@ -6162,8 +6202,8 @@ function renderOrderDetail(items){
   return `<div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;border-top:2px solid var(--accent)">
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:11px">
       ${F('Order ID',esc(f.order_id||'—'))}
-      ${F('Record ID',f.record_id?esc(f.record_id):'')}
-      ${F('Invoice No',f.invoice_no?esc(f.invoice_no):'')}
+      ${F('Record ID <span style="text-transform:none;font-weight:400">(internal tracking)</span>',f.record_id?`<span style="font-family:var(--mono);color:var(--text-3)">${esc(f.record_id)}</span>`:'')}
+      ${F('Invoice No <span style="text-transform:none;font-weight:400">(platform, not GST series)</span>',f.invoice_no?esc(f.invoice_no):'')}
       ${F('Date',fmtDay(f.order_date)+(f.order_time?' · '+esc(f.order_time):''))}
       ${F('Customer',esc(f.customer_name||'—'))}
       ${F('Phone',f.customer_phone?esc(f.customer_phone):'')}
@@ -6581,8 +6621,11 @@ async function loadOrderDetailPayments(orderId, key, fallbackMode, totalPrice){
   const {data,error}=await sb.from('biz_sale_payments').select('*').eq('order_id',orderId).order('payment_date',{ascending:false});
   const rows=error?[]:(data||[]);
   if(!rows.length){
+    // Recommendation #1 (deep-pass review): this single-row fallback used to look
+    // identical to a real itemized history, worth telling them apart at a glance.
     body.innerHTML = fallbackMode
-      ? `<tr><td>—</td><td class="td-num">${fmt(totalPrice)}</td><td>${esc(fallbackMode)}</td></tr>`
+      ? `<tr><td colspan="3" style="font-size:10px;font-style:italic;color:var(--text-3);padding-bottom:2px">Single payment on record, no itemized installments logged</td></tr>
+         <tr><td>—</td><td class="td-num">${fmt(totalPrice)}</td><td>${esc(fallbackMode)}</td></tr>`
       : '<tr><td colspan="3" class="empty"><div class="em-text">No payment recorded</div></td></tr>';
     return;
   }
@@ -7430,7 +7473,7 @@ async function saveReturn(){
   const id=document.getElementById('rf_id').value;
   const g=k=>{const e=document.getElementById(k);return e?e.value:'';};
   const num=k=>{const val=g(k);return val===''?null:(parseFloat(val)||0);};
-  const payload={
+  let payload={
     sale_id:g('rf_saleid')||null, channel_id:g('rf_channel'), type:g('rf_type'),
     order_id:g('rf_orderid').trim()||null, date:g('rf_date')||today(), stage:g('rf_stage')||'initiated',
     pickup_date:g('rf_pickup')||null, received_date:g('rf_received')||null,
@@ -7445,7 +7488,8 @@ async function saveReturn(){
     status:g('rf_status'), reason:g('rf_reason').trim()||null, notes:g('rf_notes').trim()||null,
   };
   if(!payload.channel_id||!payload.type){ toast('Channel and type required','error'); return; }
-  const {error}=id?await sb.from('biz_returns').update(payload).eq('id',id):await sb.from('biz_returns').insert(payload);
+  if(!id) payload=await attachRecordId(payload,true,'return',payload.order_id);
+  const {error}=id?(await sb.from('biz_returns').update(payload).eq('id',id)):(await insertResilient('biz_returns',payload));
   if(error){ toast('Error: '+error.message,'error'); return; }
   logBizActivity(id?'edit':'create','return',id||payload.order_id,payload.type+' '+payload.stage);
   // Claims land in the bank as part of a later payout, offer to log it straight into
@@ -7571,7 +7615,9 @@ function gstFilingReminderCard(currentPeriodStatus){
     } else {
       // 'published' kind, GSTR-2B: government usually posts it around the given day,
       // no taxpayer deadline, so this is a "go check" nudge, not an overdue flag.
-      if(d>=rt.dueDay-2){
+      // Recommendation #4 (deep-pass review): capped at +10 days so it doesn't nag
+      // indefinitely if never marked reviewed, it's a heads-up, not a block.
+      if(d>=rt.dueDay-2 && d<=rt.dueDay+10){
         items.push(`<div class="gst-card" style="border-color:var(--blue)"><label>${rt.label}</label><div class="val" style="color:var(--blue)">Check if published</div><div class="sub">Usually posted around the ${rt.dueDay}th</div></div>`);
       }
     }
