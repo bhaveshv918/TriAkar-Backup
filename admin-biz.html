@@ -4192,7 +4192,7 @@ function resetQuickAdd(){
 // editSaleModal, loads every biz_sales row sharing one order_id back into _items so
 // the whole multi-item order can be edited at once, not just one line), and
 // 'fromQuotation' (a new order, pre-filled from an accepted quotation).
-let _qaMode='new', _qaEditOrderId=null, _qaEditRowIds=[], _qaSourceQuotationId=null;
+let _qaMode='new', _qaEditOrderId=null, _qaEditRowIds=[], _qaSourceQuotationId=null, _qaSourceRackItemId=null;
 
 function updateAddOrderModeUI(){
   const title=document.querySelector('#panelQuickadd .p-title');
@@ -4216,7 +4216,7 @@ function updateAddOrderModeUI(){
 }
 
 function exitAddOrderEditMode(){
-  _qaMode='new'; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceQuotationId=null;
+  _qaMode='new'; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceQuotationId=null; _qaSourceRackItemId=null;
   resetQuickAdd();
   updateAddOrderModeUI();
 }
@@ -4229,7 +4229,7 @@ function openAddOrderEdit(firstId){
   if(!items.length) return;
   const f=items[0];
   _qaMode='edit'; _qaEditOrderId=f.order_id||null; _qaEditRowIds=items.map(s=>s.id);
-  _qaSourceQuotationId=null;
+  _qaSourceQuotationId=null; _qaSourceRackItemId=null;
   switchTab('quickadd');
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
   set('qa_channel',f.channel_id||'shop'); set('qa_date',f.order_date); set('qa_delivery_date',f.delivery_date);
@@ -4263,7 +4263,7 @@ function openAddOrderEdit(firstId){
 async function openAddOrderFromQuotation(quotationId){
   const {data,error}=await sb.from('biz_quotations').select('*').eq('id',quotationId).single();
   if(error||!data){ toast('Could not load quotation','error'); return; }
-  _qaMode='fromQuotation'; _qaSourceQuotationId=quotationId; _qaEditOrderId=null; _qaEditRowIds=[];
+  _qaMode='fromQuotation'; _qaSourceQuotationId=quotationId; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceRackItemId=null;
   switchTab('quickadd');
   resetQuickAdd();
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
@@ -4448,6 +4448,7 @@ async function submitQuickAdd(e){
   if(_qaMode==='fromQuotation' && _qaSourceQuotationId){
     await sb.from('biz_quotations').update({status:'accepted',converted_order_id:rows[0].order_id}).eq('id',_qaSourceQuotationId);
   }
+  await _consumeRackItemIfPending();   // only touches the rack row now that the order actually saved
   toast(rows.length===1?'Order saved!':rows.length+' items saved!');
   exitAddOrderEditMode();
   loadSalesBadge();
@@ -4698,15 +4699,16 @@ async function deleteRackItem(id){
   await sb.from('biz_rack_items').delete().eq('id',id);
   loadRackItems();
 }
-// Marks one unit sold: decrements rack qty (or removes the row at 0), and opens
-// Add Order pre-filled with this product so it goes through the real order flow
-// (shows up in Sales/Orders/the ledger, per H29), not a silent stock decrement.
-async function markRackItemSold(id){
+// Opens Add Order pre-filled with this rack product so it goes through the real
+// order flow (shows up in Sales/Orders/the ledger, per H29). Does NOT touch the
+// rack row here — that used to happen immediately, before the order was ever
+// saved, so navigating away or failing validation silently lost stock with no
+// order to show for it. _qaSourceRackItemId defers the decrement/delete until
+// submitQuickAdd() actually confirms the insert succeeded.
+function markRackItemSold(id){
   const r=_rackItems.find(x=>x.id===id); if(!r) return;
-  const remaining=(parseInt(r.qty)||1)-1;
-  if(remaining>0) await sb.from('biz_rack_items').update({qty:remaining}).eq('id',id);
-  else await sb.from('biz_rack_items').delete().eq('id',id);
   _qaMode='new'; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceQuotationId=null;
+  _qaSourceRackItemId=id;
   switchTab('quickadd');
   setTimeout(()=>{
     resetQuickAdd();
@@ -4715,9 +4717,18 @@ async function markRackItemSold(id){
       rate:r.cost_price||0, disc:0, gst:0, cost:r.cost_price||0, grams:0, waste:0,
       hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926', sku:'', spool:'', extraSpools:[] }];
     renderItems();
-    toast('Rack item moved into Add Order, set the real selling price and save','success');
+    toast('Rack item loaded into Add Order, set the real selling price and save to confirm the sale','success');
   },300);
-  loadRackItems();
+}
+// Called only after submitQuickAdd() confirms the order insert succeeded.
+async function _consumeRackItemIfPending(){
+  if(!_qaSourceRackItemId) return;
+  const rackId=_qaSourceRackItemId; _qaSourceRackItemId=null;
+  const r=_rackItems.find(x=>x.id===rackId);
+  const remaining=r?(parseInt(r.qty)||1)-1:0;
+  if(r&&remaining>0) await sb.from('biz_rack_items').update({qty:remaining}).eq('id',rackId);
+  else await sb.from('biz_rack_items').delete().eq('id',rackId);
+  if(typeof loadRackItems==='function') loadRackItems();
 }
 
 // ── Customers (auto-built from orders) ──────────────────────
@@ -6032,6 +6043,7 @@ function renderOrderDetail(items){
   return `<div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;border-top:2px solid var(--accent)">
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:11px">
       ${F('Order ID',esc(f.order_id||'—'))}
+      ${F('Record ID',f.record_id?esc(f.record_id):'')}
       ${F('Invoice No',f.invoice_no?esc(f.invoice_no):'')}
       ${F('Date',fmtDay(f.order_date)+(f.order_time?' · '+esc(f.order_time):''))}
       ${F('Customer',esc(f.customer_name||'—'))}
@@ -6057,6 +6069,16 @@ function renderOrderDetail(items){
         </tbody>
       </table>
     </div>
+    ${f.order_id?`
+    <div id="odPaymentsWrap_${key}">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:6px">Payment History</div>
+      <div class="tbl-wrap" style="box-shadow:none">
+        <table>
+          <thead><tr><th>Date</th><th class="td-num">Amount</th><th>Source</th></tr></thead>
+          <tbody id="odPaymentsBody_${key}"><tr><td colspan="3" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+    </div>`:''}
     <div id="cost_${key}" style="display:none;background:var(--bg-2);border:1px solid var(--border);border-radius:6px;padding:10px 12px">
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:10px">
         ${F('Total COGS',fmt(cogs))}
@@ -6095,7 +6117,7 @@ function printOrderInvoice(firstId,docKind){
 function duplicateOrder(firstId){
   const items=_orderGroup(firstId); if(!items.length){ toast('Could not load order','error'); return; }
   const f=items[0];
-  _qaMode='new'; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceQuotationId=null;
+  _qaMode='new'; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceQuotationId=null; _qaSourceRackItemId=null;
   switchTab('quickadd');
   setTimeout(()=>{
     resetQuickAdd();
@@ -6426,6 +6448,28 @@ function renderODModal(){
   const prev=document.getElementById('odPrev'), next=document.getElementById('odNext');
   if(prev) prev.disabled=(i<=0);
   if(next) next.disabled=(i>=_orderKeys.length-1);
+  if(f.order_id){
+    const totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
+    loadOrderDetailPayments(f.order_id, f.id, f.payment_mode, totalPrice);
+  }
+}
+// Read-only payment history for the order-detail modal (K, Order Record view).
+// Falls back to the plain payment_mode as a single row for orders that never used
+// the installment UI (everything before this feature, or paid in full at once),
+// so the section is never silently empty for an order that IS actually paid.
+async function loadOrderDetailPayments(orderId, key, fallbackMode, totalPrice){
+  const body=document.getElementById('odPaymentsBody_'+key); if(!body) return;
+  const {data,error}=await sb.from('biz_sale_payments').select('*').eq('order_id',orderId).order('payment_date',{ascending:false});
+  const rows=error?[]:(data||[]);
+  if(!rows.length){
+    body.innerHTML = fallbackMode
+      ? `<tr><td>—</td><td class="td-num">${fmt(totalPrice)}</td><td>${esc(fallbackMode)}</td></tr>`
+      : '<tr><td colspan="3" class="empty"><div class="em-text">No payment recorded</div></td></tr>';
+    return;
+  }
+  const total=rows.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+  body.innerHTML = rows.map(r=>`<tr><td>${fmtDay(r.payment_date)}</td><td class="td-num">${fmt(r.amount)}</td><td>${esc(r.source||'—')}</td></tr>`).join('')
+    + `<tr><td style="font-weight:700">Total received</td><td class="td-num" style="font-weight:700">${fmt(total)}</td><td></td></tr>`;
 }
 // Keep an open modal in sync after loadSales() rebuilds the cache.
 function refreshOrderDetailModal(){
