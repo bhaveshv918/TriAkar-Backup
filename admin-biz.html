@@ -272,6 +272,13 @@ tr:hover td{background:var(--bg-2)}
 .qchip[data-s="delayed"].active{background:#dc2626;border-color:#dc2626}
 .qchip[data-s="returned"].active{background:#d97706;border-color:#d97706}
 .qchip[data-s="cancelled"].active{background:#dc2626;border-color:#dc2626}
+.qchip[data-s="delaying"].active{background:#f59e0b;border-color:#f59e0b}
+.qchip[data-s="return_initiated"].active{background:#a855f7;border-color:#a855f7}
+.qchip[data-s="return_picked_up"].active{background:#c026d3;border-color:#c026d3}
+.qchip[data-s="claim_filed"].active{background:#db2777;border-color:#db2777}
+.qchip[data-s="claimed"].active{background:#be185d;border-color:#be185d}
+.qchip[data-s="cancelled_before_dispatch"].active{background:#b91c1c;border-color:#b91c1c}
+.qchip[data-s="cancelled_before_delivery"].active{background:#991b1b;border-color:#991b1b}
 /* Drag handle / serial cell on item rows */
 .item-row .srl{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--text-3);cursor:grab;user-select:none}
 .item-row .srl:active{cursor:grabbing}
@@ -1139,8 +1146,19 @@ html[data-theme="dark"] .biz-login{
               <button type="button" class="qchip" data-s="delivered"  onclick="setQaStatus('delivered')">Delivered</button>
               <button type="button" class="qchip" data-s="completed"  onclick="setQaStatus('completed')">Completed</button>
               <span style="width:1px;height:22px;background:var(--border);margin:0 4px"></span>
+              <!-- Phase 10 (K37): these 7 exist in UNIFIED_STATUSES (used by All Orders'
+                   status dropdown) but were never selectable from Add Order/Edit's chip
+                   set, so opening an order already in one of these states left no chip
+                   showing as active. -->
               <button type="button" class="qchip" data-s="delayed"   onclick="setQaStatus('delayed')">Delayed</button>
+              <button type="button" class="qchip" data-s="delaying"  onclick="setQaStatus('delaying')">Delaying</button>
+              <button type="button" class="qchip" data-s="return_initiated" onclick="setQaStatus('return_initiated')">Return Initiated</button>
+              <button type="button" class="qchip" data-s="return_picked_up" onclick="setQaStatus('return_picked_up')">Return Picked Up</button>
               <button type="button" class="qchip" data-s="returned"  onclick="setQaStatus('returned')">Returned</button>
+              <button type="button" class="qchip" data-s="claim_filed" onclick="setQaStatus('claim_filed')">Claim Filed</button>
+              <button type="button" class="qchip" data-s="claimed"   onclick="setQaStatus('claimed')">Claimed</button>
+              <button type="button" class="qchip" data-s="cancelled_before_dispatch" onclick="setQaStatus('cancelled_before_dispatch')">Cancelled (Before Dispatch)</button>
+              <button type="button" class="qchip" data-s="cancelled_before_delivery" onclick="setQaStatus('cancelled_before_delivery')">Cancelled (Before Delivery)</button>
               <button type="button" class="qchip" data-s="cancelled" onclick="setQaStatus('cancelled')">Cancelled</button>
             </div>
             <input type="hidden" id="qa_status" value="order_received">
@@ -4100,14 +4118,32 @@ function recalcTotals(){
 }
 function recalc(){ recalcTotals(); }
 
-function getOrderFields(){
+// Phase 10 (A2): auto-generated order IDs now get a real server-side uniqueness
+// check instead of a one-shot random string. A manually-typed Order ID (the field
+// is left blank most of the time) is never touched, only the auto-generated
+// fallback path retries on an actual collision against biz_sales.
+async function ensureUniqueOrderId(){
+  for(let i=0;i<5;i++){
+    const candidate=genOrderId();
+    try{
+      const {data,error}=await sb.from('biz_sales').select('id').eq('order_id',candidate).limit(1);
+      if(error) return candidate;   // the check itself failing must never block saving the order
+      if(!data||!data.length) return candidate;
+    }catch(_){ return candidate; }
+  }
+  // Should never happen at this ID's keyspace; last-resort disambiguator so a save
+  // is never blocked outright.
+  return genOrderId()+'-'+Date.now().toString().slice(-4);
+}
+async function getOrderFields(){
   const g=id=>{const el=document.getElementById(id);return el?el.value.trim()||null:null;};
+  const manualOrderId=g('qa_orderid');
   return {
     channel_id:g('qa_channel'),
     order_date:g('qa_date')||today(),
     delivery_date:g('qa_delivery_date'),
     dispatch_date:g('qa_dispatch_date'),
-    order_id:g('qa_orderid')||genOrderId(),
+    order_id:manualOrderId||await ensureUniqueOrderId(),
     payment_mode:g('qa_payment'),
     status:g('qa_status')||'pending',
     lead_source:g('qa_lead_source'),
@@ -4134,8 +4170,8 @@ function getOrderFields(){
 // Returns {rowId, row} pairs so the Add Order edit flow (saveEditedOrder) can tell
 // which output row maps back to an existing biz_sales row (UPDATE) vs. a brand-new
 // item added during the edit (INSERT). rowId is null for a new order/new item.
-function buildSaleRowsWithIds(){
-  const order=getOrderFields();
+async function buildSaleRowsWithIds(){
+  const order=await getOrderFields();
   const fee=parseFloat(document.getElementById('qa_platformfee')?.value)||0;
   const ship=parseFloat(document.getElementById('qa_shipping')?.value)||0;
   const valid=_items.filter(it=>(it.name&&it.name.trim())||it.rate>0);
@@ -4166,7 +4202,7 @@ function buildSaleRowsWithIds(){
     }
   }));
 }
-function buildSaleRows(){ return buildSaleRowsWithIds().map(x=>x.row); }
+async function buildSaleRows(){ return (await buildSaleRowsWithIds()).map(x=>x.row); }
 
 function resetQuickAdd(){
   document.getElementById('quickAddForm').reset();
@@ -4284,7 +4320,7 @@ async function openAddOrderFromQuotation(quotationId){
 // restored), and any newly added rows get INSERTed, all sharing the original order_id.
 async function saveEditedOrder(){
   if(!(document.getElementById('qa_state')?.value||'').trim()){ toast('Please enter the customer\'s state','error'); document.getElementById('qa_state')?.focus(); return; }
-  const withIds=buildSaleRowsWithIds();
+  const withIds=await buildSaleRowsWithIds();
   if(!withIds.length){ toast('Add at least one item','error'); return; }
   const keptIds=withIds.filter(x=>x.rowId).map(x=>x.rowId);
   const removedIds=(_qaEditRowIds||[]).filter(id=>!keptIds.includes(id));
@@ -4431,7 +4467,7 @@ async function submitQuickAdd(e){
   // §2.8, state feeds state-wise reporting; a silently-defaulted value was polluting
   // historical shop-channel data, so it's now a hard requirement, not just an HTML hint.
   if(!(document.getElementById('qa_state')?.value||'').trim()){ toast('Please enter the customer\'s state','error'); document.getElementById('qa_state')?.focus(); return; }
-  const rows=buildSaleRows();
+  const rows=await buildSaleRows();
   if(!rows.length){ toast('Add at least one item','error'); return; }
   // Universal Record ID (Phase 10 Group 1), generated server-side (retry-on-collision
   // RPC) so it's safe under concurrent saves; best-effort, a failure here (e.g. the
@@ -4459,7 +4495,7 @@ async function submitQuickAdd(e){
 // order-record document layout is controlled in Settings (A7). printOrderRecord()
 // is invoked here once that template ships.
 async function saveOrderRecord(){
-  const rows=buildSaleRows();
+  const rows=await buildSaleRows();
   if(!rows.length){ toast('Add at least one item','error'); return; }
   const {error}=await insertSalesResilient(rows);
   if(error){ toast('Error: '+error.message,'error'); return; }
@@ -4543,6 +4579,7 @@ async function loadQuotations(){
       <td>${q.validity_date?fmtDay(q.validity_date):'—'}</td>
       <td class="td-actions" style="white-space:nowrap;text-align:right">
         ${!['accepted','declined','expired'].includes(q.status)?`<button class="btn btn-primary btn-sm" onclick="acceptQuotation('${q.id}')">✓ Accept</button> <button class="btn btn-ghost btn-sm" onclick="editQuotation('${q.id}')">✎</button>`:''}
+        <button class="btn btn-ghost btn-sm" onclick="printQuotation('${q.id}')" title="Print / PDF">🧾</button>
         <button class="btn btn-danger btn-sm" onclick="deleteQuotation('${q.id}')">✕</button>
       </td>
     </tr>`).join('');
@@ -4625,6 +4662,88 @@ async function deleteQuotation(id){
 async function acceptQuotation(id){
   if(!confirm('Accept this quotation and start a new order from it?')) return;
   await openAddOrderFromQuotation(id);
+}
+
+// Phase 10 (B): the actual customer-facing document. The Document Settings
+// toggles built for Quotation (docQuo()) had no consumer until now, this is it.
+// Mirrors printInvoice()'s window.open + document.write mechanism and general
+// look, but built fresh for a quotation's own shape rather than threading it
+// through printInvoice()'s sale/order-specific logic (cost, margin, production
+// status, etc, none of which apply to a quotation).
+async function printQuotation(id){
+  const {data:q,error}=await sb.from('biz_quotations').select('*').eq('id',id).single();
+  if(error||!q){ toast('Could not load quotation','error'); return; }
+  const cfg=getBizSettings();
+  const SELLER_NAME=cfg.name||'TriAkar';
+  const SELLER_ADDR=cfg.addr||'';
+  const SELLER_GSTIN=cfg.gstin||'';
+  const items=Array.isArray(q.items)?q.items:[];
+  const rowsHtml=items.map(it=>{
+    const qty=parseInt(it.qty)||1, rate=parseFloat(it.rate)||0, gst=parseFloat(it.gst)||0;
+    const amt=qty*rate;
+    return `<tr>
+      <td style="padding:8px;border-bottom:1px solid #eee">${esc(it.name||'—')}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${qty}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">₹${rate.toFixed(2)}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${gst}%</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">₹${amt.toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+  const addr=[q.customer_address,[q.customer_city,q.customer_state].filter(Boolean).join(', ')+(q.customer_pincode?', '+q.customer_pincode:'')].map(x=>(x||'').trim()).filter(Boolean).join('<br>');
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quotation ${esc(q.quotation_number||'')}</title>
+  <style>
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#1a1916;max-width:800px;margin:0 auto;padding:32px}
+    .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #C4622A;padding-bottom:16px;margin-bottom:20px}
+    .brand{font-size:22px;font-weight:800;color:#C4622A}
+    .doc-title{font-size:16px;font-weight:700;text-align:right}
+    .doc-no{font-family:monospace;font-size:12px;color:#666;text-align:right;margin-top:4px}
+    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+    .info-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#999;margin-bottom:2px}
+    table{width:100%;border-collapse:collapse;margin-bottom:20px}
+    th{background:#f7f5f2;padding:8px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#666;text-align:left}
+    th.r,td.r{text-align:right}
+    .totals{margin-left:auto;width:260px}
+    .totals div{display:flex;justify-content:space-between;padding:4px 0}
+    .totals .grand{font-weight:700;font-size:15px;border-top:2px solid #C4622A;padding-top:8px;margin-top:4px}
+    .terms{margin-top:20px;font-size:12px;color:#555;white-space:pre-wrap}
+    .sig{margin-top:40px;text-align:right;font-size:11px;color:#777}
+    @media print{.no-print{display:none}}
+  </style></head><body>
+  <div class="head">
+    <div>
+      ${docQuo('business_identity')?`<div class="brand">${esc(SELLER_NAME)}</div><div style="font-size:11px;color:#666;margin-top:4px">${esc(SELLER_ADDR)}</div>`:''}
+      ${docQuo('gstin')&&SELLER_GSTIN?`<div style="font-size:11px;color:#666">GSTIN: ${esc(SELLER_GSTIN)}</div>`:''}
+    </div>
+    <div>
+      <div class="doc-title">QUOTATION</div>
+      <div class="doc-no">${esc(q.quotation_number||'')}</div>
+      <div class="doc-no">${fmtDay(q.created_at?q.created_at.slice(0,10):today())}</div>
+    </div>
+  </div>
+  <div class="info-grid">
+    ${docQuo('customer_name')?`<div><div class="info-lbl">Quoted To</div><div>${esc(q.customer_name||'—')}${q.customer_phone?'<br>'+esc(q.customer_phone):''}${addr?'<br>'+addr:''}${q.customer_gstin?'<br>GSTIN: '+esc(q.customer_gstin):''}</div></div>`:''}
+    ${docQuo('validity_period')&&q.validity_date?`<div><div class="info-lbl">Valid Until</div><div>${fmtDay(q.validity_date)}</div></div>`:''}
+  </div>
+  ${docQuo('items_table')?`<table>
+    <thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">GST</th><th class="r">Amount</th></tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>`:''}
+  ${docQuo('subtotal')?`<div class="totals">
+    <div><span>Subtotal</span><span>₹${(parseFloat(q.subtotal)||0).toFixed(2)}</span></div>
+    <div><span>GST</span><span>₹${(parseFloat(q.gst_amount)||0).toFixed(2)}</span></div>
+    <div class="grand"><span>Total</span><span>₹${(parseFloat(q.total)||0).toFixed(2)}</span></div>
+  </div>`:''}
+  ${docQuo('terms_notes')&&q.terms_notes?`<div class="terms"><strong>Terms &amp; Notes</strong><br>${esc(q.terms_notes)}</div>`:''}
+  ${(docQuo('upi_qr')&&q.show_qr)?`<div style="margin-top:16px;font-size:11px;color:#777">Payment via UPI / bank transfer available on request.</div>`:''}
+  ${docQuo('signature')?`<div class="sig">For ${esc(SELLER_NAME)}<div style="margin-top:30px;border-top:1px solid #ccc;width:170px;margin-left:auto;padding-top:4px">Authorised Signatory</div></div>`:''}
+  <div class="no-print" style="margin-top:24px;text-align:right">
+    <button onclick="window.print()" style="padding:10px 24px;background:#C4622A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700">Print / PDF</button>
+  </div>
+  </body></html>`;
+  const win=window.open('','_blank');
+  if(!win){ toast('Allow popups to open document','error'); return; }
+  win.document.write(html);
+  win.document.close();
 }
 
 // ── Rack / Shelf inventory (Phase 10 Group 3, H) ─────────────
@@ -7954,6 +8073,13 @@ async function editInvoiceLog(id,cur){
   if(val==null) return;
   const num=val.trim();
   if(!num||num===cur) return;
+  const {data:row}=await sb.from('biz_invoices').select('financial_year').eq('id',id).single();
+  const fy=row?row.financial_year:null;
+  if(fy){
+    const {isDup,gapMsg}=await checkInvoiceNumberIssues(num,fy,id);
+    if(isDup&&!confirm(`"${num}" is already used by another invoice this FY. Use it anyway?`)) return;
+    if(gapMsg&&!isDup&&!confirm('Invoice number: '+gapMsg+' Continue anyway?')) return;
+  }
   const {error}=await sb.from('biz_invoices').update({invoice_number:num}).eq('id',id);
   if(error){ toast('Update failed: '+(error.message.includes('duplicate')?'that number is already in use':error.message),'error'); return; }
   toast('Invoice number updated','success');
@@ -9120,7 +9246,7 @@ async function exportStateReport(){
 
 // ── Print Invoice ───────────────────────────────────────────
 async function saveAndPrint(){
-  const rows=buildSaleRows();
+  const rows=await buildSaleRows();
   if(!rows.length){ toast('Add at least one item','error'); return; }
   const {error}=await sb.from('biz_sales').insert(rows);
   if(error){toast('Error: '+error.message,'error');return;}
@@ -9169,6 +9295,27 @@ function nextDocNumber(){
 // import's own invoice number, or a paper-series number picked up front). Once a number
 // is logged, the logged row always wins, so a correction made in the Invoicing tab sticks
 // on every later reprint instead of being silently overwritten back to manualNumber.
+// Phase 10 (A3/A4): duplicate/gap check for a manually-typed invoice number.
+// Duplicate = warn strongly, still lets the save proceed if confirmed (the
+// biz_invoices.invoice_number UNIQUE constraint is the real backstop, so
+// nothing unsafe happens if they confirm and it turns out to genuinely collide,
+// the insert/update will still fail with a clear error at that point). Gap =
+// informational only, sequence gaps in an invoice series are normal and legal,
+// this is a heads-up, not a block.
+async function checkInvoiceNumberIssues(candidateNumber, fy, excludeId){
+  const {data:fyRows}=await sb.from('biz_invoices').select('id,invoice_number').eq('financial_year',fy);
+  const rows=(fyRows||[]).filter(r=>r.id!==excludeId);
+  const isDup=rows.some(r=>r.invoice_number===candidateNumber);
+  let gapMsg=null;
+  const m=String(candidateNumber||'').match(/(\d+)\s*$/);
+  if(m){
+    const candidateSeq=parseInt(m[1],10);
+    let maxSeq=0;
+    rows.forEach(r=>{ const mm=(r.invoice_number||'').match(/(\d+)\s*$/); if(mm){ const s=parseInt(mm[1],10); if(s>maxSeq) maxSeq=s; } });
+    if(candidateSeq>maxSeq+1) gapMsg=`Skips ahead: last issued this FY is #${maxSeq}, this would be #${candidateSeq}.`;
+  }
+  return {isDup, gapMsg};
+}
 async function allocateInvoiceNumber(saleId, orderId, docKind, manualNumber){
   try{
     const now=new Date(), fyStartYear=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
@@ -9182,7 +9329,13 @@ async function allocateInvoiceNumber(saleId, orderId, docKind, manualNumber){
       existing=(ex&&ex[0])||null;
     }
     if(existing) return existing.invoice_number;
+    let useManual=!!manualNumber;
     if(manualNumber){
+      const {isDup,gapMsg}=await checkInvoiceNumberIssues(manualNumber,fy,null);
+      if(isDup&&!confirm(`"${manualNumber}" is already used by another invoice this FY. Use it anyway?`)) useManual=false;   // fall through to the sequential number instead
+      else if(gapMsg) toast('Invoice number: '+gapMsg,'error');
+    }
+    if(useManual){
       await sb.from('biz_invoices').insert({invoice_number:manualNumber,financial_year:fy,sale_id:saleId||null,order_id:orderId||null,doc_kind:docKind});
       return manualNumber;
     }
