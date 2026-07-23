@@ -3411,21 +3411,20 @@ function _bizCatCancelClose(){ clearTimeout(_bizCatCloseTimer); }
 function _bizCatCloseAll(){ document.querySelectorAll('.biz-tb-cat.cat-open').forEach(el=>el.classList.remove('cat-open')); }
 document.addEventListener('click',e=>{ if(!e.target.closest('.biz-tb-nav')) _bizCatCloseAll(); });
 
-// Header category underline reflects whichever tab is active, and the
-// header dropdown badges mirror the sidebar's live counts.
+// Header category underline reflects whichever tab is active.
 function updateBizHeaderNavActive(tabId){
   const sec=visibleNavConfig().find(s=>s.items.some(it=>it.id===tabId));
   document.querySelectorAll('.biz-tb-cat').forEach(el=>el.classList.toggle('cat-active',sec&&el.dataset.cat===sec.id));
   document.querySelectorAll('.biz-tb-dd-item').forEach(el=>el.classList.toggle('dd-active',el.dataset.tab===tabId));
 }
-function syncBizHeaderBadges(){
-  NAV_CONFIG.flatMap(s=>s.items).forEach(it=>{
-    if(!it.badge) return;
-    const src=document.getElementById(it.badge), dst=document.getElementById(it.badge+'_hdr');
-    if(src&&dst) dst.textContent=src.textContent;
-  });
-}
-setInterval(syncBizHeaderBadges,4000);
+// Live-tested bug fix: header dropdown badges (prodCount_hdr, salesCount_hdr,
+// custCount_hdr, openCount_hdr, returnCount_hdr, salesviewCount_hdr) used to be
+// filled by polling a same-named sidebar element that Phase 5 deleted, so this
+// silently never worked, and two of the six (prodCount, salesCount) crashed
+// outright since they set textContent unguarded, aborting the rest of
+// startApp()'s init chain. loadProducts()/loadSalesBadge()/loadCustomers()/
+// loadOpenOrders()/loadReturnsBadge()/loadSalesviewBadge() now write directly
+// to the "_hdr" element, this polling indirection is no longer needed.
 
 // ── Command palette, Ctrl/Cmd+K (Phase 4) ────────────────────────
 // Flat, fuzzy-searchable list of every NAV_CONFIG item the current
@@ -3688,7 +3687,11 @@ async function loadProducts(){
   const {data,error} = await sb.from('biz_products').select('*').eq('is_active',true).order('name');
   if(error){ toast('Error loading products: '+error.message,'error'); return; }
   _products = data||[];
-  document.getElementById('prodCount').textContent = _products.length;
+  // Phase 5 removed the sidebar, which is where this badge id used to live; the
+  // header dropdown now shows counts via the "_hdr" suffixed element instead
+  // (this was throwing unguarded and, worse, aborting the rest of startApp()'s
+  // Promise.all chain, so Dashboard/Open Orders never loaded after it).
+  const prodCountEl=document.getElementById('prodCount_hdr'); if(prodCountEl) prodCountEl.textContent=_products.length;
   renderProductsTable();
   populateProductSelects();
   populateLabelProductSelect();
@@ -4558,7 +4561,7 @@ async function saveOrderRecord(){
 async function loadSalesviewBadge(){
   const {count}=await sb.from('biz_sales').select('*',{count:'exact',head:true}).eq('is_deleted',false)
     .not('status','in',`(${NON_REVENUE_STATUSES.join(',')})`);
-  const el=document.getElementById('salesviewCount'); if(el) el.textContent=count||0;
+  const el=document.getElementById('salesviewCount_hdr'); if(el) el.textContent=count||0;
 }
 async function loadSalesview(){
   loadSalesviewBadge();
@@ -4934,7 +4937,7 @@ async function loadCustomers(){
   });
   _customersList=list.sort((a,b)=>b.spent-a.spent);
   _customersByName={}; _customersList.forEach(c=>{ _customersByName[c.name.toLowerCase()]=c; });
-  const badge=document.getElementById('custCount'); if(badge) badge.textContent=_customersList.length;
+  const badge=document.getElementById('custCount_hdr'); if(badge) badge.textContent=_customersList.length;
   const dl=document.getElementById('customerList'); if(dl) dl.innerHTML=_customersList.map(c=>`<option value="${esc(c.name)}">`).join('');
   renderCustomers();
 }
@@ -5290,7 +5293,7 @@ async function loadOpenOrders(){
   // Phase 10 Group 3 (G): kept for the two drawer-opening KPIs (SLA Breached, Due
   // Today), which have no dedicated table on this panel to scroll to.
   _openOrderKpiGroups={breached:breachedGroups,dueToday:dueTodayGroups};
-  const badge=document.getElementById('openCount'); if(badge) badge.textContent=groups.length;
+  const badge=document.getElementById('openCount_hdr'); if(badge) badge.textContent=groups.length;
   const kpi=document.getElementById('openKpi');
   if(kpi) kpi.innerHTML=`
     <div class="kpi" style="cursor:pointer" title="Manual entry, click to edit. Not counted in any total" onclick="editUpcomingOrders()"><div class="kpi-label">Upcoming Orders</div><div class="kpi-val">${esc(upcomingOrders)}</div></div>
@@ -6012,7 +6015,7 @@ async function loadSalesBadge(){
   // Round 3, cancelled orders shouldn't inflate the All Sales tab count.
   const {count}=await sb.from('biz_sales').select('*',{count:'exact',head:true}).eq('is_deleted',false)
     .not('status','in','(cancelled,cancelled_before_dispatch,cancelled_before_delivery)');
-  document.getElementById('salesCount').textContent=count||0;
+  const salesCountEl=document.getElementById('salesCount_hdr'); if(salesCountEl) salesCountEl.textContent=count||0;
 }
 
 let _salesCache=[];
@@ -7160,7 +7163,7 @@ async function saveSpool(){
 }
 
 async function loadReturnsBadge(){
-  const el=document.getElementById('returnCount'); if(!el) return;
+  const el=document.getElementById('returnCount_hdr'); if(!el) return;
   const {count}=await sb.from('biz_returns').select('*',{count:'exact',head:true});
   el.textContent=count||0;
 }
