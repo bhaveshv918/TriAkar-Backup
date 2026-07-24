@@ -120,6 +120,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .btn-primary:hover{background:var(--accent-h)}
 .btn-ghost{background:var(--bg-2);color:var(--text-2);border:1px solid var(--border)}
 .btn-ghost:hover{border-color:var(--border-h);color:var(--text)}
+.btn-ghost.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .btn-danger{background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,.2)}
 .btn-sm{padding:5px 10px;font-size:11px}
 
@@ -1625,6 +1626,82 @@ html[data-theme="dark"] .biz-login{
       </div>
       <div id="salesviewKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
       <div id="salesviewCompare" style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap"></div>
+      <!-- Same filter set as All Orders, plus a one-click "not done yet" view: orders
+           that are neither in a completed/delivered state NOR locked (marked paid), i.e.
+           the ones that still need work or a payment follow-up. -->
+      <div class="filter-bar" style="align-items:center">
+        <input type="text" id="svSearch" placeholder="Search order / product / customer…" oninput="loadSalesview()" style="min-width:200px;flex:1">
+        <button class="btn btn-ghost btn-sm" id="svPendingBtn" onclick="toggleSvPending()" title="Orders that are neither completed/delivered nor marked paid">⏳ Pending &amp; Unlocked</button>
+        <button class="btn btn-ghost btn-sm" id="svToggleBtn" onclick="toggleSalesviewFilters()">⚙ Filters<span id="svActiveCount" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:6px">0</span></button>
+        <button class="btn btn-ghost btn-sm" onclick="clearSalesviewFilters()">Clear</button>
+      </div>
+      <div id="salesviewFilters" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Channel</label>
+            <select id="svChannel" onchange="loadSalesview()">
+              <option value="">All Channels</option>
+              <option value="shop">Studio</option>
+              <option value="amazon">Amazon</option>
+              <option value="flipkart">Flipkart</option>
+              <option value="website">Website</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="svStatus" onchange="loadSalesview()">
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="order_received">Order Received</option>
+              <option value="processing">Processing</option>
+              <option value="printing">Printing</option>
+              <option value="packed">Packed</option>
+              <option value="dispatched">Dispatched</option>
+              <option value="delivered">Delivered</option>
+              <option value="delaying">Delaying</option>
+              <option value="delayed">Delayed</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Payment</label>
+            <select id="svPayment" onchange="loadSalesview()">
+              <option value="">All Payments</option>
+              <option value="upi">UPI</option>
+              <option value="bharatpe">BharatPe</option>
+              <option value="ca_sbi">C/A, SBI</option>
+              <option value="ca_karur">C/A, Karur Vysya</option>
+              <option value="razorpay">Razorpay</option>
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
+              <option value="gpay">GPay</option>
+              <option value="paytm">Paytm</option>
+              <option value="cod">COD</option>
+              <option value="online">Online / Prepaid</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Paid?</label>
+            <select id="svPaid" onchange="loadSalesview()">
+              <option value="">Paid &amp; Unpaid</option>
+              <option value="1">Paid only</option>
+              <option value="0">Unpaid only</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Month</label><input type="month" id="svMonth" onchange="loadSalesview()"></div>
+          <div class="form-group"><label>From</label><input type="date" id="svFrom" onchange="loadSalesview()"></div>
+          <div class="form-group"><label>To</label><input type="date" id="svTo" onchange="loadSalesview()"></div>
+          <div class="form-group">
+            <label>Sort</label>
+            <select id="svSort" onchange="loadSalesview()">
+              <option value="date_desc">Newest first</option>
+              <option value="date_asc">Oldest first</option>
+              <option value="price_desc">Price: high → low</option>
+              <option value="price_asc">Price: low → high</option>
+            </select>
+          </div>
+        </div>
+      </div>
       <div class="tbl-wrap">
         <table>
           <thead><tr><th>#</th><th>Date</th><th>Channel</th><th>Customer</th><th>Item</th><th class="td-num">Qty</th><th class="td-num">Price</th><th>Status</th></tr></thead>
@@ -4760,12 +4837,59 @@ async function loadSalesviewBadge(){
     .not('status','in',`(${NON_REVENUE_STATUSES.join(',')})`);
   const el=document.getElementById('salesviewCount_hdr'); if(el) el.textContent=count||0;
 }
+// Same filter set as All Orders' sf* controls, sv-prefixed so both panels can be open
+// in the same session without colliding on element ids.
+let _svPending=false;
+function toggleSalesviewFilters(){
+  const p=document.getElementById('salesviewFilters'); if(!p) return;
+  const show=p.style.display==='none';
+  p.style.display=show?'block':'none';
+  const btn=document.getElementById('svToggleBtn'); if(btn) btn.classList.toggle('active',show);
+}
+function updateSvFilterBadge(){
+  const b=document.getElementById('svActiveCount'); if(!b) return;
+  let n=0; ['svChannel','svStatus','svPayment','svPaid','svMonth','svFrom','svTo'].forEach(id=>{ const e=document.getElementById(id); if(e&&e.value) n++; });
+  b.textContent=n; b.style.display=n?'inline-block':'none';
+}
+function clearSalesviewFilters(){
+  ['svChannel','svStatus','svPayment','svPaid','svMonth','svFrom','svTo','svSearch'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const so=document.getElementById('svSort'); if(so) so.value='date_desc';
+  _svPending=false; document.getElementById('svPendingBtn')?.classList.remove('active');
+  loadSalesview();
+}
+// One-click "still needs attention" view: not in a completed/delivered state AND not
+// marked paid, i.e. orders that are neither finished nor locked. Overrides the manual
+// Status/Paid dropdowns while active so the two controls never quietly disagree.
+function toggleSvPending(){
+  _svPending=!_svPending;
+  document.getElementById('svPendingBtn')?.classList.toggle('active',_svPending);
+  loadSalesview();
+}
 async function loadSalesview(){
   loadSalesviewBadge();
-  const [{data:allData},{data:salesData}]=await Promise.all([
+  const g=id=>{const e=document.getElementById(id);return e?e.value:'';};
+  const ch=g('svChannel'), pay=g('svPayment'), mo=g('svMonth'), from=g('svFrom'), to=g('svTo'), se=g('svSearch').trim();
+  const sort=g('svSort')||'date_desc';
+  const st=_svPending?'':g('svStatus'), paid=_svPending?'0':g('svPaid');
+  let q=sb.from('biz_sales').select('*').eq('is_deleted',false).not('status','in',`(${NON_REVENUE_STATUSES.join(',')})`).limit(2000);
+  if(_svPending) q=q.not('status','in','(completed,delivered)');
+  if(ch) q=q.eq('channel_id',ch);
+  if(st) q=q.eq('status',st);
+  if(pay) q=q.eq('payment_mode',pay);
+  if(paid!=='') q=q.eq('is_paid',paid==='1');
+  if(mo){ const [yy,mm]=mo.split('-').map(Number); const nm=(mm===12)?`${yy+1}-01-01`:`${yy}-${String(mm+1).padStart(2,'0')}-01`; q=q.gte('order_date',mo+'-01').lt('order_date',nm); }
+  if(from) q=q.gte('order_date',from);
+  if(to) q=q.lte('order_date',to);
+  if(se) q=q.or(`product_name.ilike.%${se}%,order_id.ilike.%${se}%,customer_name.ilike.%${se}%`);
+  const sortMap={date_desc:['order_date',false],date_asc:['order_date',true],price_desc:['selling_price',false],price_asc:['selling_price',true]};
+  const [col,asc]=sortMap[sort]||['order_date',false];
+  q=q.order(col,{ascending:asc});
+  const [{data:allData},{data:salesData,error}]=await Promise.all([
     sb.from('biz_sales').select('order_id,selling_price').eq('is_deleted',false).limit(5000),
-    sb.from('biz_sales').select('*').eq('is_deleted',false).not('status','in',`(${NON_REVENUE_STATUSES.join(',')})`).order('order_date',{ascending:false}).limit(2000),
+    q,
   ]);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  updateSvFilterBadge();
   const allRows=allData||[], rows=salesData||[];
   const orderGroups={}; allRows.forEach(r=>{ const k=r.order_id||('r:'+Math.random()); (orderGroups[k]=orderGroups[k]||[]).push(r); });
   const ordersTotal=allRows.reduce((a,r)=>a+(parseFloat(r.selling_price)||0),0), ordersCount=Object.keys(orderGroups).length;
