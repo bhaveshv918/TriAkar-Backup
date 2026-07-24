@@ -246,6 +246,10 @@ tr:hover td{background:var(--bg-2)}
 .field-invalid{border-color:var(--red)!important}
 .field-shake{animation:fieldShake .4s linear}
 
+/* ── GST reminder nudge, a brief shake every few seconds, not once ────── */
+@keyframes gstCardShake{0%,94%,100%{transform:translateX(0)}95%{transform:translateX(-3px)}96%{transform:translateX(3px)}97%{transform:translateX(-3px)}98%{transform:translateX(3px)}99%{transform:translateX(0)}}
+.gst-card-shake{animation:gstCardShake 3s ease-in-out infinite}
+
 /* ── Filter bar ───────────────────────────────────────────── */
 .filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
 .filter-bar select,.filter-bar input{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-2);font-family:var(--sans);font-size:12px;padding:6px 9px;outline:none;transition:border-color .15s}
@@ -3209,6 +3213,14 @@ function saveBizSettings(){
 function esc(s){ return (s==null)?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmt(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function fmtD(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+// GST periods are stored/keyed as "YYYY-MM" everywhere (comparisons, API calls, filenames),
+// this is display-only: "2026-06" → "June 2026". Never use this for the stored/compared value.
+function fmtPeriod(period){
+  if(!period) return '—';
+  const [y,m]=String(period).split('-');
+  const mon=['','January','February','March','April','May','June','July','August','September','October','November','December'][parseInt(m,10)];
+  return mon ? `${mon} ${y}` : period;
+}
 // Round 3 fix, toISOString() always converts to UTC first. For India (UTC+5:30) that's
 // usually harmless, but any time between local midnight and ~5:30 AM IST, the UTC date is
 // still the PREVIOUS day, so today()/thisMonth() silently returned yesterday's date —
@@ -7703,18 +7715,30 @@ function gstFilingReminderCard(currentPeriodStatus){
     if(marked) return;   // manual "mark as filed" (or, for GSTR-2B, "mark as reviewed") turns this off
     if(rt.kind==='filing'){
       if(d>rt.dueDay){
-        items.push(`<div class="gst-card" style="border-color:var(--red)"><label>${rt.label} overdue</label><div class="val" style="color:var(--red)">${d-rt.dueDay}d overdue</div><div class="sub">Was due the ${rt.dueDay}th</div></div>`);
+        // Overdue keeps shaking every few seconds (not just once) for as long as it stays
+        // unfiled, it's meant to be nagging, not a one-time flash you can miss.
+        items.push(`<div class="gst-card gst-card-shake" style="border-color:var(--red)"><label>${rt.label} overdue</label><div class="val" style="color:var(--red)">${d-rt.dueDay}d overdue</div><div class="sub">Was due the ${rt.dueDay}th</div></div>`);
       } else if(d>=rt.dueDay-2){
         const daysLeft=rt.dueDay-d;
         items.push(`<div class="gst-card" style="border-color:var(--yellow)"><label>${rt.label} due</label><div class="val" style="color:var(--yellow)">${daysLeft<=0?'Due today':daysLeft+'d left'}</div><div class="sub">Files by the ${rt.dueDay}th</div></div>`);
+      } else if(d>=rt.dueDay-5){
+        // Early heads-up window (green), before it turns yellow at dueDay-2. For GSTR-1
+        // (dueDay 10) this is the 5th-7th, so the reminder starts showing well ahead of
+        // the deadline instead of appearing suddenly 2 days out.
+        const daysLeft=rt.dueDay-d;
+        items.push(`<div class="gst-card" style="border-color:var(--green)"><label>${rt.label} upcoming</label><div class="val" style="color:var(--green)">${daysLeft}d left</div><div class="sub">Files by the ${rt.dueDay}th</div></div>`);
       }
     } else {
-      // 'published' kind, GSTR-2B: government usually posts it around the given day,
-      // no taxpayer deadline, so this is a "go check" nudge, not an overdue flag.
-      // Recommendation #4 (deep-pass review): capped at +10 days so it doesn't nag
-      // indefinitely if never marked reviewed, it's a heads-up, not a block.
-      if(d>=rt.dueDay-2 && d<=rt.dueDay+10){
-        items.push(`<div class="gst-card" style="border-color:var(--blue)"><label>${rt.label}</label><div class="val" style="color:var(--blue)">Check if published</div><div class="sub">Usually posted around the ${rt.dueDay}th</div></div>`);
+      // 'published' kind, GSTR-2B: government usually posts it around the given day, no
+      // taxpayer deadline, so this is a "go check" nudge, not an overdue flag. Starts the
+      // 15th (dueDay+1), turns red from the 18th (dueDay+4, unusually late to still be
+      // unchecked), and starts shaking from the 20th (dueDay+6). Recommendation #4
+      // (deep-pass review): still capped at dueDay+10 so it doesn't nag forever if never
+      // marked reviewed, it's a heads-up, not a block.
+      if(d>=rt.dueDay+1 && d<=rt.dueDay+10){
+        const isRed=d>=rt.dueDay+4, isShake=d>=rt.dueDay+6;
+        const color=isRed?'var(--red)':'var(--blue)';
+        items.push(`<div class="gst-card${isShake?' gst-card-shake':''}" style="border-color:${color}"><label>${rt.label}</label><div class="val" style="color:${color}">Check if published</div><div class="sub">Usually posted around the ${rt.dueDay}th</div></div>`);
       }
     }
   });
@@ -7784,7 +7808,7 @@ async function loadGstPortal(){
   const tbody=document.getElementById('gstFilingsBody');
   if(tbody) tbody.innerHTML=_gstFilingsCache.length?_gstFilingsCache.map(r=>`<tr>
     <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${GST_RETURN_LABEL[r.return_type]||r.return_type}</span></td>
-    <td style="font-family:var(--mono);font-size:11px">${esc(r.period)}</td>
+    <td style="font-family:var(--mono);font-size:11px">${esc(fmtPeriod(r.period))}</td>
     <td style="font-family:var(--mono);font-size:11px">${esc(r.filed_date||'—')}</td>
     <td>${r.file_url?`<a href="#" data-u="${esc(r.file_url)}" onclick="event.preventDefault();openGstFile(this.dataset.u)" style="color:var(--accent)">view</a>`:'—'}</td>
     <td style="font-size:12px">${esc(r.notes||'—')}</td>
@@ -8018,7 +8042,7 @@ async function gstaLoadHistory(){
     return;
   }
   tbody.innerHTML=_gstaHistory.length?_gstaHistory.map(p=>`<tr>
-    <td>${esc(p.period)}</td>
+    <td>${esc(fmtPeriod(p.period))}</td>
     <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(p.status)}</span></td>
     <td class="td-num">${fmt(p.totals?.taxable||0)}</td>
     <td class="td-num">${fmt((p.totals?.cgst||0)+(p.totals?.sgst||0)+(p.totals?.igst||0))}</td>
@@ -8043,7 +8067,7 @@ async function gstaUnmarkFiled(periodId){
 }
 
 async function gstaDeletePeriod(periodId,period){
-  if(!confirm(`Delete the calculated GSTR-1 for ${period}? This removes the saved tables, flags and filing-history entry. You can always re-upload the source files and recalculate. This cannot be undone.`)) return;
+  if(!confirm(`Delete the calculated GSTR-1 for ${fmtPeriod(period)}? This removes the saved tables, flags and filing-history entry. You can always re-upload the source files and recalculate. This cannot be undone.`)) return;
   const token=await getBizToken(); if(!token) return;
   const res=await fetch(API+'/api/admin/gst/'+periodId,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
   const data=await res.json().catch(()=>({}));
@@ -8074,7 +8098,7 @@ async function gstaReopenPeriod(periodId){
 function gstaRenderTrendChart(){
   const canvas=document.getElementById('gstaTrendChart'); if(!canvas||typeof Chart==='undefined') return;
   const sorted=[..._gstaHistory].sort((a,b)=>a.period<b.period?-1:1);
-  const labels=sorted.map(p=>p.period);
+  const labels=sorted.map(p=>fmtPeriod(p.period));
   const taxable=sorted.map(p=>p.totals?.taxable||0);
   const tax=sorted.map(p=>(p.totals?.cgst||0)+(p.totals?.sgst||0)+(p.totals?.igst||0));
   if(_gstaTrendChart) _gstaTrendChart.destroy();

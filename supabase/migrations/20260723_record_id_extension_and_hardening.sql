@@ -46,6 +46,11 @@ ON CONFLICT (filename) DO NOTHING;
 -- 3. Standardized anon-execute hardening ──────────────────────────────────────────
 -- REVOKE is a no-op if already run by hand after the security-audit round
 -- earlier this project; safe either way.
+-- CORRECTED by 20260724_anon_execute_hardening_fix.sql: REVOKE ... FROM PUBLIC alone
+-- turned out to be a no-op against Supabase's actual grants (anon/authenticated get
+-- direct EXECUTE grants at function-creation time, separate from PUBLIC), verified live
+-- via an anon-key RPC call that still succeeded after this file had run. The statements
+-- below are left as-applied for history; the follow-up file is the authoritative state.
 REVOKE EXECUTE ON FUNCTION purge_old_recycle_bin() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION gen_record_id(TEXT, TEXT) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION biz_next_quotation_number(TEXT) FROM PUBLIC;
