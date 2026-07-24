@@ -241,6 +241,12 @@ tr:hover td{background:var(--bg-2)}
 .pricing-toggle button:first-child{border-right:1px solid var(--border)}
 .pricing-toggle button.active{background:var(--accent);color:#fff}
 
+.pay-status-group{display:flex;gap:6px;flex-wrap:wrap;padding:4px;border-radius:8px;border:1px solid transparent}
+.pay-status-group.field-invalid{border-color:var(--red)!important}
+.pay-status-group button{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-2);font-family:var(--sans);font-size:12px;font-weight:600;padding:6px 12px;cursor:pointer;transition:border-color .15s,background .15s,color .15s}
+.pay-status-group button.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.pay-status-group button[data-v="no_payment_yet"].active{background:var(--text-3);border-color:var(--text-3)}
+
 /* ── Required-field validation (red border + shake) ──────────────────── */
 @keyframes fieldShake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-4px)}40%,60%{transform:translateX(4px)}}
 .field-invalid{border-color:var(--red)!important}
@@ -1302,18 +1308,29 @@ html[data-theme="dark"] .biz-login{
           <div class="calc-item"><label>Grand Total</label><span id="t_grand" style="color:var(--text);font-size:16px">₹0</span></div>
         </div>
 
-        <!-- ── Payment (Phase 10 Group 1), only meaningful once an order exists,
-             shown in edit mode only (a brand-new order has no order_id to key
-             payments on until it's saved once) ── -->
-        <div class="qa-card" id="qaPaymentCard" style="display:none">
+        <!-- ── Payment (Phase 10 Group 1). Shown for both new orders and edits now,
+             a brand-new order has no order_id to key an installment row on yet, so
+             for 'new' the chosen status + amount are held here and only actually
+             written (biz_sale_payments + is_paid) once the order itself saves. ── -->
+        <div class="qa-card" id="qaPaymentCard">
           <div class="qa-sec-title">Payment</div>
-          <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px">
+          <div id="qaPaySummaryRow" style="display:none;gap:20px;flex-wrap:wrap;margin-bottom:12px">
             <div><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Order Total</div><div style="font-size:18px;font-weight:700" id="qaPayTotal">₹0</div></div>
             <div><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Received</div><div style="font-size:18px;font-weight:700;color:var(--green)" id="qaPayReceived">₹0</div></div>
             <div><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Balance Due</div><div style="font-size:18px;font-weight:700;color:var(--red)" id="qaPayBalance">₹0</div></div>
           </div>
-          <div class="form-grid">
-            <div class="form-group"><label>Amount</label><input type="number" id="qaPayAmount" step="0.01"></div>
+          <div id="qaPayStatusRow" style="margin-bottom:12px">
+            <label style="display:block;font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Payment Status <span style="color:var(--red)">*</span></label>
+            <div class="pay-status-group" id="qaPayStatusGroup">
+              <button type="button" data-v="partial_advance" onclick="setQaPayStatus('partial_advance')">Partial Advance</button>
+              <button type="button" data-v="full_advance" onclick="setQaPayStatus('full_advance')">Full Advance</button>
+              <button type="button" data-v="after_work" onclick="setQaPayStatus('after_work')">After Work</button>
+              <button type="button" data-v="no_payment_yet" onclick="setQaPayStatus('no_payment_yet')">No Payment Yet</button>
+            </div>
+            <input type="hidden" id="qa_pay_status" required data-shake-target="qaPayStatusGroup">
+          </div>
+          <div class="form-grid" id="qaPayFieldsRow">
+            <div class="form-group"><label>Amount</label><input type="number" id="qaPayAmount" step="0.01" oninput="onQaPayAmountInput()"></div>
             <div class="form-group"><label>Date</label><input type="date" id="qaPayDate"></div>
             <div class="form-group"><label>Source / Mode</label>
               <select id="qaPaySource">
@@ -1325,8 +1342,9 @@ html[data-theme="dark"] .biz-login{
               </select>
             </div>
           </div>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="addPaymentInstallment()">+ Add Payment</button>
-          <div class="tbl-wrap" style="margin-top:10px;box-shadow:none">
+          <button type="button" class="btn btn-secondary btn-sm" id="qaAddPaymentBtn" onclick="addPaymentInstallment()" style="display:none">+ Add Payment</button>
+          <div id="qaPayNewHint" style="font-size:11px;color:var(--text-3)">This payment logs automatically when you save the order.</div>
+          <div class="tbl-wrap" id="qaPayHistoryWrap" style="margin-top:10px;box-shadow:none;display:none">
             <table>
               <thead><tr><th>Date</th><th class="td-num">Amount</th><th>Source</th><th></th></tr></thead>
               <tbody id="qaPayHistoryBody"><tr><td colspan="4" class="empty"><div class="em-text">No payments logged yet</div></td></tr></tbody>
@@ -2859,6 +2877,7 @@ html[data-theme="dark"] .biz-login{
             <option value="flipkart">Flipkart</option>
             <option value="website">Website</option>
           </select>
+          <button class="btn btn-ghost btn-sm" onclick="showAddExpense()" title="Opens the same Add Expense form as the Expenses tab">+ Add Expense</button>
           <button class="btn btn-primary btn-sm" onclick="showAddIncome()" title="Shortcut: N">+ Log Income <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">N</span></button>
         </div>
       </div>
@@ -4313,6 +4332,33 @@ function resetQuickAdd(){
   if(typeof setFulfillment==='function') setFulfillment('pickup_self');
   _items=[blankItem()];
   renderItems();
+  resetQaPayment();
+}
+
+// ── Payment status pills (new-order flow) ────────────────────────────
+// Whichever pill is active decides what happens to payment when the order saves:
+// partial/full advance insert a biz_sale_payments row (full also locks is_paid),
+// after_work/no_payment_yet insert nothing. Typing an amount before the operator
+// has made an explicit choice defaults to Full Advance, matching how most studio
+// walk-ins actually pay; a manual pill click always wins over that default.
+let _qaPayStatusManual=false;
+function resetQaPayment(){
+  _qaPayStatusManual=false;
+  document.getElementById('qa_pay_status').value='';
+  document.querySelectorAll('#qaPayStatusGroup button').forEach(b=>b.classList.remove('active'));
+  const amt=document.getElementById('qaPayAmount'); if(amt) amt.value='';
+  const src=document.getElementById('qaPaySource'); if(src) src.value='upi';
+  const dt=document.getElementById('qaPayDate'); if(dt) dt.value=today();
+}
+function setQaPayStatus(v){
+  _qaPayStatusManual=true;
+  document.getElementById('qa_pay_status').value=v;
+  document.querySelectorAll('#qaPayStatusGroup button').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
+  document.getElementById('qa_pay_status').classList.remove('field-invalid');
+}
+function onQaPayAmountInput(){
+  const amt=parseFloat(document.getElementById('qaPayAmount')?.value)||0;
+  if(amt>0 && !_qaPayStatusManual) setQaPayStatus('full_advance');
 }
 
 // ── Add Order modes (Phase 10 Group 1) ───────────────────────
@@ -4331,18 +4377,40 @@ function updateAddOrderModeUI(){
   const returnBtn=document.getElementById('qaMarkReturnBtn');
   const rackBanner=document.getElementById('qaRackPendingBanner');
   if(rackBanner) rackBanner.style.display=_qaSourceRackItemId?'block':'none';
+  const paySummary=document.getElementById('qaPaySummaryRow');
+  const addPayBtn=document.getElementById('qaAddPaymentBtn');
+  const payHist=document.getElementById('qaPayHistoryWrap');
+  const payHint=document.getElementById('qaPayNewHint');
+  const payStatusRow=document.getElementById('qaPayStatusRow');
+  const payStatusInput=document.getElementById('qa_pay_status');
+  // The Payment Status pill is only a required choice for brand-new orders, the
+  // pre-existing edit-mode installment workflow doesn't use it at all.
+  if(payStatusRow) payStatusRow.style.display=(_qaMode==='edit')?'none':'';
+  if(payStatusInput) payStatusInput.required=(_qaMode!=='edit');
   if(_qaMode==='edit'){
     if(title) title.textContent='Edit Order';
     if(sub) sub.textContent='Editing order #'+(_qaEditOrderId||'');
     if(payCard) payCard.style.display='';
     if(cancelBtn) cancelBtn.style.display='';
     if(returnBtn) returnBtn.style.display='';
+    // Edit mode keeps the original installment workflow, payments post straight to
+    // biz_sale_payments the moment "+ Add Payment" is clicked (the order already exists).
+    if(paySummary) paySummary.style.display='flex';
+    if(addPayBtn) addPayBtn.style.display='';
+    if(payHist) payHist.style.display='';
+    if(payHint) payHint.style.display='none';
   } else {
     if(title) title.textContent='Add Order';
     if(sub) sub.textContent=_qaSourceRackItemId ? 'New order, completing a Rack sale' : _qaMode==='fromQuotation' ? 'New order, pre-filled from quotation' : 'Log an order, channel auto-fills costs';
-    if(payCard) payCard.style.display='none';
+    if(payCard) payCard.style.display='';
     if(cancelBtn) cancelBtn.style.display='none';
     if(returnBtn) returnBtn.style.display='none';
+    // New order has no order_id yet to key a payment row on, so the status/amount
+    // picked here are held in the form and only actually written on save.
+    if(paySummary) paySummary.style.display='none';
+    if(addPayBtn) addPayBtn.style.display='none';
+    if(payHist) payHist.style.display='none';
+    if(payHint) payHint.style.display='';
   }
 }
 
@@ -4430,7 +4498,7 @@ async function openAddOrderFromQuotation(quotationId){
 // restored), and any newly added rows get INSERTed, all sharing the original order_id.
 async function saveEditedOrder(){
   const invalid=flagInvalidFields('quickAddForm');
-  if(invalid.length){ toast(invalid.length>1?invalid.length+' required fields are missing':'Please fill '+(invalid[0].closest('.form-group')?.querySelector('label')?.textContent||'this field'),'error'); invalid[0].focus(); return; }
+  if(invalid.length){ reportInvalid(invalid); return; }
   const withIds=await buildSaleRowsWithIds();
   if(!withIds.length){ toast('Add at least one item','error'); return; }
   const keptIds=withIds.filter(x=>x.rowId).map(x=>x.rowId);
@@ -4582,24 +4650,58 @@ function flagInvalidFields(formId){
   if(!form) return [];
   const invalid=[];
   form.querySelectorAll('[required]').forEach(el=>{
-    if(el.offsetParent===null) return; // hidden fields (e.g. a card not shown in this mode) can't be filled
-    if((el.value||'').trim()){ el.classList.remove('field-invalid'); return; }
+    // type=hidden backs a custom control (e.g. the Payment Status pills) that has no
+    // offsetParent of its own to check visibility on, use data-shake-target to flag the
+    // visible control instead of the invisible input.
+    const isHidden=el.type==='hidden';
+    if(!isHidden && el.offsetParent===null) return; // a card not shown in this mode can't be filled
+    const target=isHidden ? (document.getElementById(el.dataset.shakeTarget)||el) : el;
+    if((el.value||'').trim()){ target.classList.remove('field-invalid'); return; }
     invalid.push(el);
-    el.classList.add('field-invalid');
-    el.classList.remove('field-shake'); void el.offsetWidth; el.classList.add('field-shake');
+    target.classList.add('field-invalid');
+    target.classList.remove('field-shake'); void target.offsetWidth; target.classList.add('field-shake');
   });
   return invalid;
 }
 document.addEventListener('animationend', e=>{ if(e.animationName==='fieldShake') e.target.classList.remove('field-shake'); });
+// Shared toast + focus/scroll for whatever flagInvalidFields() found, hidden inputs
+// (data-shake-target, e.g. Payment Status) scroll their visible pill group into view
+// instead of trying to focus an invisible field.
+function reportInvalid(invalid){
+  const el=invalid[0];
+  const label=el.dataset.shakeTarget ? 'Payment Status' : (el.closest('.form-group')?.querySelector('label')?.textContent||'this field');
+  toast(invalid.length>1?invalid.length+' required fields are missing':'Please fill '+label,'error');
+  const target=el.dataset.shakeTarget?document.getElementById(el.dataset.shakeTarget):el;
+  if(target){ if(target.focus && el.type!=='hidden') target.focus(); target.scrollIntoView({behavior:'smooth',block:'center'}); }
+}
 document.addEventListener('input', e=>{ if(e.target.classList && e.target.classList.contains('field-invalid') && (e.target.value||'').trim()) e.target.classList.remove('field-invalid'); });
+
+// Applies the Payment Status pill chosen on a brand-new order. Full/Partial Advance
+// with a real amount logs a biz_sale_payments row against the order_id that just got
+// generated; After Work / No Payment Yet log nothing, the order simply stays unpaid
+// until a real payment comes in (via Edit Order's installment workflow later).
+function applyNewOrderIsPaid(rows){
+  if(document.getElementById('qa_pay_status')?.value==='full_advance') rows.forEach(r=>r.is_paid=true);
+}
+async function applyNewOrderPaymentIfAny(orderId){
+  const status=document.getElementById('qa_pay_status')?.value;
+  const amount=parseFloat(document.getElementById('qaPayAmount')?.value)||0;
+  if((status==='partial_advance'||status==='full_advance') && amount>0){
+    const payment_date=document.getElementById('qaPayDate')?.value||today();
+    const source=document.getElementById('qaPaySource')?.value||null;
+    const notes=status==='full_advance'?'Full Advance':'Partial Advance';
+    await sb.from('biz_sale_payments').insert({order_id:orderId,amount,payment_date,source,notes});
+  }
+}
 
 async function submitQuickAdd(e){
   if(e) e.preventDefault();
   if(_qaMode==='edit'){ await saveEditedOrder(); return; }
   const invalid=flagInvalidFields('quickAddForm');
-  if(invalid.length){ toast(invalid.length>1?invalid.length+' required fields are missing':'Please fill '+(invalid[0].closest('.form-group')?.querySelector('label')?.textContent||'this field'),'error'); invalid[0].focus(); return; }
+  if(invalid.length){ reportInvalid(invalid); return; }
   const rows=await buildSaleRows();
   if(!rows.length){ toast('Add at least one item','error'); return; }
+  applyNewOrderIsPaid(rows);
   // Universal Record ID (Phase 10 Group 1), generated server-side (retry-on-collision
   // RPC) so it's safe under concurrent saves; best-effort, a failure here (e.g. the
   // migration hasn't run yet) must never block saving the order itself.
@@ -4609,6 +4711,7 @@ async function submitQuickAdd(e){
   }catch(_){}
   const {error}=await insertSalesResilient(rows);
   if(error){ toast('Error: '+error.message,'error'); return; }
+  await applyNewOrderPaymentIfAny(rows[0].order_id);
   await deductSpoolsForRows(rows);   // reduce spool stock by grams+waste logged
   await loadAddSaleSpools();         // refresh remaining for the next entry
   logBizActivity('create','sale',rows[0]&&rows[0].order_id,rows.length+' item(s)');
@@ -4627,11 +4730,13 @@ async function submitQuickAdd(e){
 // is invoked here once that template ships.
 async function saveOrderRecord(){
   const invalid=flagInvalidFields('quickAddForm');
-  if(invalid.length){ toast(invalid.length>1?invalid.length+' required fields are missing':'Please fill '+(invalid[0].closest('.form-group')?.querySelector('label')?.textContent||'this field'),'error'); invalid[0].focus(); return; }
+  if(invalid.length){ reportInvalid(invalid); return; }
   const rows=await buildSaleRows();
   if(!rows.length){ toast('Add at least one item','error'); return; }
+  applyNewOrderIsPaid(rows);
   const {error}=await insertSalesResilient(rows);
   if(error){ toast('Error: '+error.message,'error'); return; }
+  await applyNewOrderPaymentIfAny(rows[0].order_id);
   await deductSpoolsForRows(rows);
   await loadAddSaleSpools();
   toast('Order record saved');
@@ -5739,6 +5844,9 @@ async function saveExpense(){
   if(error){ toast('Error: '+error.message,'error'); return; }
   if(!id) await applyExpenseToSpoolStock();  // only on create, editing an old expense shouldn't re-apply stock
   logBizActivity(id?'edit':'create','expense',id,(payload.vendor||'')+' ₹'+payload.amount); toast(id?'Expense updated':'Expense added'); document.getElementById('expenseForm').style.display='none'; loadExpenses();
+  // Expenses can now also be added from Money In/Out (they show there as "money out"
+  // alongside income), so refresh that table too if it's the panel in view.
+  if(typeof loadLedger==='function' && document.getElementById('panelLedger')?.classList.contains('active')) loadLedger();
 }
 // open an invoice: direct for legacy links, signed URL for private storage paths
 async function openInvoice(url){
@@ -5814,12 +5922,17 @@ function onLedgerViewChange(){ togglePeriodInputs('ldView','ldMonth','ldCustomRa
 async function loadLedger(){
   const {start,next,view}=resolvePeriodRange('ldView','ldMonth','ldFrom','ldTo');
   const netLabel=periodLabel(view,'Net');
-  const [{data:inc,error:e1},{data:studio,error:e2},{data:exp,error:e3}]=await Promise.all([
+  const [{data:inc,error:e1},{data:studio,error:e2},{data:exp,error:e3},{data:payRows,error:e4}]=await Promise.all([
     sb.from('biz_income').select('*').gte('date',start).lt('date',next).order('date',{ascending:false}),
-    sb.from('biz_sales').select('id,order_date,selling_price,customer_name,payment_mode').eq('is_deleted',false).eq('channel_id','shop').eq('is_paid',true).gte('order_date',start).lt('order_date',next),
+    sb.from('biz_sales').select('id,order_id,record_id,order_date,selling_price,customer_name,payment_mode').eq('is_deleted',false).eq('channel_id','shop').eq('is_paid',true).gte('order_date',start).lt('order_date',next),
     sb.from('biz_expenses').select('*').gte('date',start).lt('date',next),
+    // Payments logged directly on an order (new-order Payment Status, or an edit-mode
+    // installment) show up here too, "preset" from what was entered on the order itself,
+    // not a separate manual Log Income entry. biz_sale_payments has no FK to biz_sales
+    // (order_id is a free-text key), joined client-side below.
+    sb.from('biz_sale_payments').select('*').gte('payment_date',start).lt('payment_date',next),
   ]);
-  if(e1||e2||e3){ toast('Error loading ledger','error'); return; }
+  if(e1||e2||e3||e4){ toast('Error loading ledger','error'); return; }
   _incomeCache=inc||[];
   // Channel filter: Studio Sales (always channel=shop) & Payouts (matched via category) get
   // filtered; misc income has no channel so it drops out once a specific channel is picked.
@@ -5827,18 +5940,30 @@ async function loadLedger(){
   const ch=document.getElementById('ldChannel')?.value||'';
   const studioF=(!ch||ch==='shop')?(studio||[]):[];
   const incF=ch?(inc||[]).filter(r=>INCOME_CHANNEL[r.category]===ch):(inc||[]);
+  // Order-payments: exclude shop-channel orders, those are already fully represented
+  // above via Studio Sales (selling_price on is_paid), showing both would double-count.
+  const payOrderIds=[...new Set((payRows||[]).map(r=>r.order_id).filter(Boolean))];
+  let payMeta={};
+  if(payOrderIds.length){
+    const {data:metaRows}=await sb.from('biz_sales').select('order_id,record_id,channel_id,customer_name,id').in('order_id',payOrderIds).neq('channel_id','shop');
+    (metaRows||[]).forEach(m=>{ if(!payMeta[m.order_id]) payMeta[m.order_id]=m; });
+  }
+  const payF=(payRows||[]).filter(r=>{ const m=payMeta[r.order_id]; if(!m) return false; return !ch||m.channel_id===ch; });
   const studioTotal=studioF.reduce((s,r)=>s+(parseFloat(r.selling_price)||0),0);
   const payoutTotal=incF.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const orderPayTotal=payF.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   const expTotal=(exp||[]).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-  const totalIn=studioTotal+payoutTotal;
+  const totalIn=studioTotal+payoutTotal+orderPayTotal;
   const kpi=document.getElementById('ldKpi');
   if(kpi) kpi.innerHTML=`
     <div class="kpi"><div class="kpi-label">Studio Sales (in)</div><div class="kpi-val">${fmt(studioTotal)}</div></div>
+    <div class="kpi"><div class="kpi-label">Order Payments (in)</div><div class="kpi-val">${fmt(orderPayTotal)}</div></div>
     <div class="kpi"><div class="kpi-label">Payouts + Misc (in)</div><div class="kpi-val">${fmt(payoutTotal)}</div></div>
     <div class="kpi red"><div class="kpi-label">Expenses (out)</div><div class="kpi-val">${fmt(expTotal)}</div></div>
     <div class="kpi ${totalIn-expTotal>=0?'':'red'}"><div class="kpi-label">${netLabel}</div><div class="kpi-val">${fmt(totalIn-expTotal)}</div></div>`;
   const rows=[
-    ...studioF.map(r=>({date:r.order_date,type:'in',label:'Studio Sale',amount:r.selling_price,mode:r.payment_mode||'',ref:r.customer_name||'',isSale:true})),
+    ...studioF.map(r=>({date:r.order_date,type:'in',label:'Studio Sale',amount:r.selling_price,mode:r.payment_mode||'',ref:r.customer_name||'',isSale:true,saleId:r.id,orderId:r.order_id,recordId:r.record_id})),
+    ...payF.map(r=>{ const m=payMeta[r.order_id]||{}; return {date:r.payment_date,type:'in',label:(r.notes||'Order Payment'),amount:r.amount,mode:r.source||'',ref:m.customer_name||'',isSale:true,saleId:m.id,orderId:m.order_id,recordId:m.record_id}; }),
     ...incF.map(r=>({date:r.date,type:'in',label:INCOME_LABEL[r.category]||r.category,amount:r.amount,mode:r.payment_mode||'',ref:r.bank_reference||'',id:r.id})),
     ...(exp||[]).map(r=>({date:r.date,type:'out',label:r.category,amount:r.amount,mode:r.payment_mode||'',ref:r.vendor||'',isExpense:true})),
   ].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
@@ -5850,7 +5975,9 @@ async function loadLedger(){
     <td>${esc(r.label||'—')}</td>
     <td class="td-num" style="font-weight:700;color:${r.type==='in'?'var(--green)':'var(--red)'}">${r.type==='in'?'+':'-'}${fmt(r.amount)}</td>
     <td style="font-size:11px;color:var(--text-3)">${esc(r.mode||'—')}${r.ref?' · '+esc(r.ref):''}</td>
-    <td class="td-actions">${r.id?`<button class="btn btn-ghost btn-sm" onclick="editIncome('${r.id}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteIncome('${r.id}')">✕</button>`:(r.isSale?'<span style="color:var(--text-3);font-size:10px">from All Sales</span>':r.isExpense?'<span style="color:var(--text-3);font-size:10px">from Expenses</span>':'')}</td>
+    <td class="td-actions">${r.id?`<button class="btn btn-ghost btn-sm" onclick="editIncome('${r.id}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteIncome('${r.id}')">✕</button>`
+      :(r.isSale&&r.saleId?`<a href="#" onclick="event.preventDefault();switchTab('sales');setTimeout(()=>openOrderDetail('${r.saleId}'),150)" style="color:var(--accent);font-size:10px;font-family:var(--mono)" title="Open order details">${esc(r.recordId||r.orderId||'view order')}</a>`
+      :r.isExpense?'<span style="color:var(--text-3);font-size:10px">from Expenses</span>':'')}</td>
   </tr>`).join('');
 }
 function showAddIncome(){
