@@ -1,0 +1,44 @@
+App,Nav Category,Feature/Tab,Description,Maturity,Notes
+Admin Panel,Operations,Dashboard,"Drag-reorderable KPI grid (revenue, avg order, paid/pending order counts, low stock, pending reviews), layout persisted per-admin via localStorage",Standard,
+Admin Panel,Operations,Orders,"Storefront order management: status/time/text filters, dedicated WhatsApp-order filter, bulk status apply/delete, tracking entry, payment-status editing with Razorpay deep-link, customization-note pills, prev/next detail modal, send-email action",Built-out,Heavy edge-case handling; WhatsApp treated as first-class channel per business rules
+Admin Panel,Operations,Callbacks (hidden),"Legacy callback queue, folded into Unified Inbox but kept functional for deep-links",Hidden/legacy,Not deleted, just hidden from nav
+Admin Panel,Operations,Customers,"Auth-linked storefront customer directory + detail modal (orders, addresses, stats), role/disable management, CSV export",Standard,
+Admin Panel,Catalogue,Products,"Deep CRUD: pricing auto-calc from print specs, homepage showcase slots (max 10), licence-compliance flagging, drag-reorder Cloudinary images, variants, custom options, bulk actions, dual-mode Excel import",Built-out,Deepest form in the file; multiple iteration rounds referenced in comments
+Admin Panel,Catalogue,Categories,"Inline CRUD (name/slug/description/order/status), orphan-slug warning banner",Thin,No bulk actions or image/icon field
+Admin Panel,Catalogue,Import from MakerWorld,"AI (Claude)-assisted single or bulk (up to 20) listing generation from source URLs; drafts saved hidden pending review",Built-out,Bulk-insert still writes directly via Supabase, not backend API (tracked as known gap)
+Admin Panel,Catalogue,Reviews,"Two separate systems: per-product review moderation (status/rating/product filters) and curated homepage Google Reviews / trust-section editor",Standard,Two rating sources intentionally distinct per business rules
+Admin Panel,Catalogue,Product Studio,"Per-product AI image-prompt generator (6 live text prompts for external tools like Midjourney/Tripo3D, does not generate images itself), custom per-category attribute fields, prompt history log",Built-out,Sophisticated pairing with MakerWorld Import
+Admin Panel,Inbox,Unified Inbox,"Merges callbacks/messages/enquiries into one filterable table with source/status/date filters",Standard,
+Admin Panel,Inbox,Messages (hidden),Legacy detail panel retained for Unified Inbox deep-links,Hidden/legacy,
+Admin Panel,Inbox,Enquiries (hidden),Legacy detail panel retained for Unified Inbox deep-links,Hidden/legacy,
+Admin Panel,Marketing,Promo Codes,"Standard coupon CRUD: type/value/min-order/usage-limit/per-product scope/expiry",Standard,
+Admin Panel,Marketing,Analytics,GA4 traffic integration (service-account backed) plus internal analytics,Standard,
+Admin Panel,Marketing,Site Content,"Live CMS: announcement bar (3 rotating notices), social/contact links, Stories CMS, Anthropic API key field, admin password change",Standard,States document customization moved to Business OS Settings
+Admin Panel,System,Activity Log,"Search over admin_logs audit trail (who/what/when/detail)",Standard,
+Admin Panel,System,Security Logs,"Login/security event table: time, action, email, IP, device, location, result",Standard,
+Admin Panel,System,Recycle Bin,"Generic soft-delete restore/purge across multiple entity types, bulk restore/delete-forever/empty-all",Built-out,Shared generic bulkSoftDelete/softDeleteOne helpers reused everywhere
+Admin Panel,System,Appearance,Single setting: mobile navigation menu style picker (3 options),Thin,Nav label implies broader scope than what exists
+Business OS,Overview,Today's Tasks,"Default landing tab, actionable task queue with Add Sale shortcut",Standard,
+Business OS,Overview,Dashboard,"Period selector (FY/calendar/month/custom), Excel export, customizable widgets, channel chart, top products/customers, returns breakdown, trend chart, filament-used KPI",Built-out,
+Business OS,Sales,Quick Add Sale,"Manual multi-channel order entry: channel/payment/customer autofill, fulfillment type, multi-item lines with per-item filament grams/waste/cost auto-calc, Duplicate Order shortcut",Built-out,Dense section-numbered comments document real fixes (SLA from dispatch date etc.)
+Business OS,Sales,All Sales,"Filterable/searchable order table across all channels, edit-in-place detail modal",Built-out,
+Business OS,Sales,Import & Labels,"Bulk CSV/label import mapping, default COGS/grams settings, paste-from-label-PDF extraction",Standard,
+Business OS,Sales,Customers,"Searchable business customer directory (GSTIN field, min-orders filter), separate from Admin Panel customers",Standard,
+Business OS,Products,Products,"Internal SKU/COGS tracking, platform-SKU linking (links platform sales to internal product), bulk category-set",Standard,
+Business OS,Products,Stock,"Stock movement log (qty +/-, cost, reference/PO note)",Standard,
+Business OS,Products,Spool Tracker,"Physical filament spool inventory (brand/type/finish/color/cost-per-gram), status lifecycle, bulk Excel import, Resell Spool flow recording income directly",Built-out,
+Business OS,Products,Machinery,"Printer/equipment registry (feeds Balance Sheet) plus print-attempt log with reason codes tied to 7-Day Reprint Guarantee",Thin,No utilization/cost-per-hour analytics despite feeding Balance Sheet
+Business OS,Finance,Returns & Claims,"6-stage lifecycle state machine (Initiated to Claim Paid), live COGS recompute, adjusted cost for damaged units, 10-day return window tied to actual Delivered date",Built-out,Documented fixed bug (#8) for duplicate return-row creation
+Business OS,Finance,Fees & Costs,"Per-platform (Amazon/Flipkart/Studio/Website) shipping/return/packing fee-range editor, drives auto-calculated return loss",Thin,No history/audit trail of rate changes
+Business OS,Finance,GST Summary,"CGST/SGST/IGST breakdown by month backed out from GST-inclusive prices, CA export",Thin,Much simpler than GSTR-1 Auto-File
+Business OS,Finance,GST Portal,"Manual upload/recordkeeping of already-filed GSTR-1/3B returns, state-wise sales/tax breakdown with filing reminders",Standard,
+Business OS,Finance,GSTR-1 Auto-File,"Flagship module: reconciles Amazon MTR B2B/B2C + Flipkart GSTR-1/8 into GSTR-1 Tables 4/7/12/13, audit-flag cross-checks, CSV export in GST Offline Tool format, filing history, nested GST Purchase Import (review-then-commit)",Built-out,Regression-tested per project docs; most mature module in either app
+Business OS,Finance,Invoicing,"Table of every generated invoice with real sequential number, linked to order, month filter, manual invoice number editing",Standard,
+Business OS,Finance,Reports & Export,"Six export types: P&L, GST (FY), Channel, Returns, State-wise Analytics, Full Data Dump",Built-out,
+Business OS,Finance,Expenses,"Categorized expense log, staff-name field for salary category, GST-inclusive split, recurring-monthly flag, invoice file upload",Standard,
+Business OS,Finance,Money In/Out (Ledger),"Studio sales auto-pulled from All Sales, manual income logging (platform payouts or misc), channel-filtered view",Standard,
+Business OS,Finance,Purchases,"Vendor purchase log with qty/unit/total auto-calc, invoice upload, optional simultaneous Spool Tracker entry creation",Standard,GST-sourced bulk import added most recently
+Business OS,Finance,Balance Sheet,"Bank balance + stock value vs outstanding receivables, view scope (month/FY/all-time), settable opening balance",Standard,
+Business OS,Finance,Studio Hours,"Daily open/close log with break times, explicitly informational only",Thin,Intentionally minimal scope per its own subtitle
+Business OS,System,Activity Log,"Immutable log across sale/product/customer/return/expense/filament entities, fire-and-forget so it never blocks a save",Standard,Separate audit trail from Admin Panel's Activity Log
+Business OS,System,Settings,"Business identity (name/GSTIN/PAN), shared invoice-field customization (Business OS + Admin), contact details, operational defaults (HSN/GST%/making cost)",Standard,Document customization consolidated here from Admin Panel

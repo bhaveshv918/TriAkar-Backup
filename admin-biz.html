@@ -236,6 +236,15 @@ tr:hover td{background:var(--bg-2)}
 .item-row .del{background:none;border:none;color:var(--text-3);cursor:pointer;font-size:15px;padding:2px;width:100%}
 .item-row .del:hover:not(:disabled){color:var(--red)}
 .item-row .del:disabled{opacity:.3;cursor:default}
+.pricing-toggle{display:flex;border:1px solid var(--border);border-radius:5px;overflow:hidden;width:fit-content}
+.pricing-toggle button{background:var(--bg-2);border:none;color:var(--text-3);font-family:var(--sans);font-size:10px;font-weight:600;padding:3px 8px;cursor:pointer}
+.pricing-toggle button:first-child{border-right:1px solid var(--border)}
+.pricing-toggle button.active{background:var(--accent);color:#fff}
+
+/* ── Required-field validation (red border + shake) ──────────────────── */
+@keyframes fieldShake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-4px)}40%,60%{transform:translateX(4px)}}
+.field-invalid{border-color:var(--red)!important}
+.field-shake{animation:fieldShake .4s linear}
 
 /* ── Filter bar ───────────────────────────────────────────── */
 .filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
@@ -1201,7 +1210,7 @@ html[data-theme="dark"] .biz-login{
         <div class="form-grid" style="margin-bottom:0">
           <div class="form-group">
             <label>Customer Name</label>
-            <input type="text" id="qa_cname" placeholder="Type name or phone, existing customers autofill" oninput="onCustomerName(this.value);custSuggest(this.value,'qa_cname')" onfocus="ensureCustomers()" autocomplete="off">
+            <input type="text" id="qa_cname" placeholder="Type name or phone, existing customers autofill" oninput="onCustomerName(this.value);custSuggest(this.value,'qa_cname')" onfocus="ensureCustomers()" autocomplete="off" required>
             <datalist id="customerList"></datalist>
           </div>
           <div class="form-group">
@@ -3842,7 +3851,15 @@ async function saveProduct(){
 
 // ── Quick Add Sale (multi-item) ─────────────────────────────
 let _items=[];
-function blankItem(){ return {rowId:null,productId:null,name:'',variant:'',qty:1,rate:0,disc:0,gst:0,cost:0,grams:0,waste:0,hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:'',spool:'',extraSpools:[]}; }
+function blankItem(){ return {rowId:null,productId:null,name:'',variant:'',pricingMode:'piece',qty:1,rate:12,disc:0,gst:0,cost:0,grams:0,waste:0,hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:'',spool:'',extraSpools:[]}; }
+// Amount for one line: per-piece is qty × rate (unchanged); per-gram is
+// qty × totalGrams × rate, where totalGrams is this piece's own grams plus
+// every part's grams (parts live in extraSpools, each carrying its own label).
+function itemTotalGrams(it){ return (it.grams||0)+(it.extraSpools||[]).reduce((a,es)=>a+(parseFloat(es.grams)||0),0); }
+function itemAmount(it){
+  const base=it.pricingMode==='gram' ? (it.qty*itemTotalGrams(it)*it.rate) : (it.qty*it.rate);
+  return base-(it.disc||0);
+}
 let _catalogByName={}, _catalogBySku={};
 
 // ── Spool deduction ──────────────────────────────────────────
@@ -4017,49 +4034,63 @@ function renderItems(){
         <input list="catalogList" value="${esc(it.name)}" placeholder="Item name / type to search" oninput="onItemName(${i},this.value)">
         <input class="variant" value="${esc(it.variant)}" placeholder="size / colour / customisation (optional)" oninput="_items[${i}].variant=this.value">
         <select class="variant" style="cursor:pointer" title="Spool, logging grams+waste deducts from this spool's stock" onchange="onItemSpool(${i},this.value)">${spoolOptions(it.spool)}</select>
+        <div class="pricing-toggle" role="group" aria-label="Pricing method">
+          <button type="button" class="${it.pricingMode!=='gram'?'active':''}" onclick="setPricingMode(${i},'piece')">₹/pc</button>
+          <button type="button" class="${it.pricingMode==='gram'?'active':''}" onclick="setPricingMode(${i},'gram')">₹/gram</button>
+        </div>
       </div>
       <div class="r"><input type="number" min="1" value="${it.qty}" oninput="onItemNum(${i},'qty',this.value)"></div>
-      <div class="r"><input type="number" step="0.01" value="${it.rate||''}" placeholder="0" oninput="onItemNum(${i},'rate',this.value)"></div>
+      <div class="r"><input type="number" step="0.01" value="${it.rate||''}" placeholder="12" title="${it.pricingMode==='gram'?'Price per gram, excluding GST':'Price per piece, excluding GST'}" oninput="onItemNum(${i},'rate',this.value)"></div>
       <div class="r"><input type="number" step="0.01" value="${it.disc||''}" placeholder="0" oninput="onItemNum(${i},'disc',this.value)"></div>
       <div class="r"><select onchange="onItemNum(${i},'gst',this.value)">${[0,5,12,18,28].map(v=>`<option value="${v}"${v==it.gst?' selected':''}>${v}%</option>`).join('')}</select></div>
       <div class="r"><input type="text" value="${esc(it.hsn||'')}" placeholder="${esc((_bizDefaults&&_bizDefaults.hsn)||'3926')}" title="HSN/SAC code, prefilled from your default, edit per item as needed" oninput="_items[${i}].hsn=this.value"></div>
       <div class="r"><input type="number" step="0.01" value="${it.cost||''}" placeholder="0" title="auto-fills from spool grams × waste × ₹/g" oninput="onItemNum(${i},'cost',this.value)"></div>
       <div class="r"><input type="number" step="1" min="0" value="${it.grams||''}" placeholder="0" title="filament grams used in the product" oninput="onItemGramsOrWaste(${i},'grams',this.value)"></div>
       <div class="r"><input type="number" step="1" min="0" value="${it.waste||''}" placeholder="0" title="filament grams wasted (failed prints, purge)" oninput="onItemGramsOrWaste(${i},'waste',this.value)"></div>
-      <div class="amt" id="amt_${i}">${fmt(it.qty*it.rate-it.disc)}</div>
+      <div class="amt" id="amt_${i}">${fmt(itemAmount(it))}${it.pricingMode==='gram'?`<div style="font-size:9px;color:var(--text-3);font-weight:400">${itemTotalGrams(it)}g total</div>`:''}</div>
       <div><button type="button" class="del" onclick="removeItem(${i})"${_items.length<=1?' disabled':''}>✕</button></div>
     </div>
     ${(it.extraSpools||[]).map((es,j)=>`
     <div class="items-grid item-row" style="opacity:.9">
       <div></div>
       <div class="item-cell">
-        <span style="font-size:11px;color:var(--text-3);grid-column:1/-1">Color ${j+2} <span style="font-weight:400">(same item, another spool used)</span></span>
+        <input value="${esc(es.label||'')}" placeholder="${it.pricingMode==='gram'?'Part name (e.g. Lid, Base)':'Colour '+(j+2)}" style="grid-column:1/-1;font-size:11px" oninput="onItemColorLabel(${i},${j},this.value)">
         <select class="variant" style="cursor:pointer" onchange="onItemColorSpool(${i},${j},this.value)">${spoolOptions(es.spool)}</select>
       </div>
       <div class="r"></div><div class="r"></div><div class="r"></div><div class="r"></div>
-      <div class="r"><input type="number" step="1" min="0" value="${es.grams||''}" placeholder="0" title="grams used of this color" oninput="onItemColorGrams(${i},${j},'grams',this.value)"></div>
-      <div class="r"><input type="number" step="1" min="0" value="${es.waste||''}" placeholder="0" title="grams wasted of this color" oninput="onItemColorGrams(${i},${j},'waste',this.value)"></div>
+      <div class="r"><input type="number" step="1" min="0" value="${es.grams||''}" placeholder="0" title="grams used of this ${it.pricingMode==='gram'?'part':'colour'}" oninput="onItemColorGrams(${i},${j},'grams',this.value)"></div>
+      <div class="r"><input type="number" step="1" min="0" value="${es.waste||''}" placeholder="0" title="grams wasted of this ${it.pricingMode==='gram'?'part':'colour'}" oninput="onItemColorGrams(${i},${j},'waste',this.value)"></div>
       <div></div>
       <div><button type="button" class="del" onclick="removeItemColor(${i},${j})">✕</button></div>
     </div>`).join('')}
     <div style="grid-column:1/-1;margin:2px 0 8px 30px">
-      <button type="button" class="btn btn-ghost btn-sm" onclick="addItemColor(${i})" title="If this item used more than one filament colour/spool (e.g. AMS multi-colour print)">+ Add colour</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="addItemColor(${i})" title="${it.pricingMode==='gram'?'This piece is assembled from more than one printed part, each with its own weight/spool':'If this item used more than one filament colour/spool (e.g. AMS multi-colour print)'}">${it.pricingMode==='gram'?'+ Add part':'+ Add colour'}</button>
     </div>`).join('');
   recalcTotals();
 }
+function setPricingMode(i,mode){ _items[i].pricingMode=mode; renderItems(); }
 // Round 3, one item can use more than one filament spool (dual-colour / AMS multi-material
-// prints). Color 1 stays on the item's own spool/grams/waste fields (unchanged); Color 2+
-// live in extraSpools, each deducted from its own spool the same way on save.
-function addItemColor(i){ _items[i].extraSpools=_items[i].extraSpools||[]; _items[i].extraSpools.push({spool:'',grams:0,waste:0}); renderItems(); }
-function removeItemColor(i,j){ _items[i].extraSpools.splice(j,1); renderItems(); }
-function onItemColorSpool(i,j,v){ _items[i].extraSpools[j].spool=v; }
-function onItemColorGrams(i,j,f,v){ _items[i].extraSpools[j][f]=parseFloat(v)||0; }
+// prints), and in per-gram mode the same array doubles as "parts" (a piece assembled from
+// several printed pieces, each weighed and costed separately). Color/part 1 stays on the
+// item's own spool/grams/waste fields (unchanged); 2+ live in extraSpools, each deducted
+// from its own spool the same way on save.
+function addItemColor(i){ _items[i].extraSpools=_items[i].extraSpools||[]; _items[i].extraSpools.push({label:'',spool:'',grams:0,waste:0}); renderItems(); }
+function removeItemColor(i,j){ _items[i].extraSpools.splice(j,1); autoCostFromSpool(i); renderItems(); }
+function onItemColorSpool(i,j,v){ _items[i].extraSpools[j].spool=v; autoCostFromSpool(i); }
+function onItemColorLabel(i,j,v){ _items[i].extraSpools[j].label=v; }
+function onItemColorGrams(i,j,f,v){ _items[i].extraSpools[j][f]=parseFloat(v)||0; autoCostFromSpool(i); const el=document.getElementById('amt_'+i); if(el) el.innerHTML=`${fmt(itemAmount(_items[i]))}${_items[i].pricingMode==='gram'?`<div style="font-size:9px;color:var(--text-3);font-weight:400">${itemTotalGrams(_items[i])}g total</div>`:''}`; }
 function onItemSpool(i,v){ _items[i].spool=v; autoCostFromSpool(i); }
 function onItemGramsOrWaste(i,f,v){ onItemNum(i,f,v); autoCostFromSpool(i); }
+// Total cost = own grams+waste on the item's spool, plus every part/extra-colour's own
+// grams+waste on its own spool. Previously extra colours were deducted from stock but never
+// counted towards COGS at all, a latent undercount this also fixes.
 function autoCostFromSpool(i){
-  const it=_items[i]; if(!it||!it.spool) return;
-  const rate=spoolRate(it.spool); if(!rate) return;
-  it.cost=Math.round(((it.grams||0)+(it.waste||0))*rate*100)/100;
+  const it=_items[i]; if(!it) return;
+  let total=0, any=false;
+  if(it.spool){ const r=spoolRate(it.spool); if(r){ total+=((it.grams||0)+(it.waste||0))*r; any=true; } }
+  (it.extraSpools||[]).forEach(es=>{ if(es.spool){ const r=spoolRate(es.spool); if(r){ total+=((parseFloat(es.grams)||0)+(parseFloat(es.waste)||0))*r; any=true; } } });
+  if(!any) return;
+  it.cost=Math.round(total*100)/100;
   const el=document.querySelector(`.item-row[data-idx="${i}"] input[title^="auto-fills"]`);
   if(el) el.value=it.cost;
   recalcTotals();
@@ -4089,7 +4120,7 @@ function onItemName(i,val){
 function onItemNum(i,f,v){
   _items[i][f]= f==='qty' ? (parseInt(v)||1) : (parseFloat(v)||0);
   const el=document.getElementById('amt_'+i);
-  if(el) el.textContent=fmt(_items[i].qty*_items[i].rate-_items[i].disc);
+  if(el) el.innerHTML=`${fmt(itemAmount(_items[i]))}${_items[i].pricingMode==='gram'?`<div style="font-size:9px;color:var(--text-3);font-weight:400">${itemTotalGrams(_items[i])}g total</div>`:''}`;
   recalcTotals();
 }
 function recalcTotals(){
@@ -4097,7 +4128,8 @@ function recalcTotals(){
   _items.forEach(it=>{
     // Rate ₹ is entered excluding GST, so the item amount is already the taxable
     // value and GST is added on top (not extracted back out of an inclusive price).
-    const amt=it.qty*it.rate-it.disc;
+    // Per-piece: qty × rate. Per-gram: qty × totalGrams × rate (see itemAmount()).
+    const amt=itemAmount(it);
     if((it.name&&it.name.trim())||it.rate) count++;
     qty+=it.qty;
     sub+=amt;
@@ -4224,16 +4256,22 @@ async function buildSaleRowsWithIds(){
       sku:it.sku||null,
       hsn_code:it.hsn||null,
       qty:it.qty||1,
-      // Rate ₹ is entered excluding GST; selling_price must stay the true GST-inclusive
-      // total (every report/GST-filing figure downstream extracts tax back out of it).
-      selling_price:(it.rate||0)*(1+(it.gst||0)/100),
+      pricing_mode:it.pricingMode||'piece',
+      // itemAmount() already is the full line's taxable value (qty × rate for a piece,
+      // qty × totalGrams × rate for a gram-priced item, minus discount), so selling_price
+      // stays the true GST-inclusive line total, matching how every downstream report
+      // sums selling_price directly (not selling_price × qty).
+      selling_price:itemAmount(it)*(1+(it.gst||0)/100),
       discount_amount:it.disc||0,
       gst_rate:it.gst||0,
-      cogs:it.cost||0,
+      cogs:(it.qty||1)*(it.cost||0),
+      // Base spool's own grams only, extra_spool_usage entries below are deducted from
+      // their own spool_id separately (deductSpoolsForRows/restoreSpoolsForIds), summing
+      // them in here too would double-count stock deduction against the wrong spool.
       grams_used:it.grams||0,
       spool_waste_grams:it.waste||0,
       extra_spool_usage:(it.extraSpools||[]).filter(x=>x.spool).length
-        ? (it.extraSpools||[]).filter(x=>x.spool).map(x=>({spool_id:x.spool,grams:parseFloat(x.grams)||0,waste:parseFloat(x.waste)||0}))
+        ? (it.extraSpools||[]).filter(x=>x.spool).map(x=>({spool_id:x.spool,label:x.label||null,grams:parseFloat(x.grams)||0,waste:parseFloat(x.waste)||0}))
         : null,
       platform_fee: idx===0?fee:0,
       shipping_fee: idx===0?ship:0,
@@ -4321,14 +4359,29 @@ function openAddOrderEdit(firstId){
   set('qa_address',f.customer_address); set('qa_city',f.customer_city); set('qa_state',f.customer_state);
   set('qa_pin',f.customer_pincode); set('qa_gstin',f.customer_gstin); set('qa_notes',f.notes);
   set('qa_platformfee', f.platform_fee||0); set('qa_shipping', f.shipping_fee||0);
-  _items=items.map(s=>({
-    rowId:s.id, productId:s.product_id||null, name:s.product_name||'', variant:s.variant||'',
-    qty:s.qty||1,
-    rate: (parseFloat(s.gst_rate)||0) ? (parseFloat(s.selling_price)||0)/(1+(parseFloat(s.gst_rate)||0)/100) : (parseFloat(s.selling_price)||0),
-    disc:s.discount_amount||0, gst:s.gst_rate||0, cost:s.cogs||0, grams:s.grams_used||0, waste:s.spool_waste_grams||0,
-    hsn:s.hsn_code||'', sku:s.sku||'', spool:s.spool_id||'',
-    extraSpools:(s.extra_spool_usage||[]).map(x=>({spool:x.spool_id,grams:x.grams,waste:x.waste})),
-  }));
+  _items=items.map(s=>{
+    const mode=s.pricing_mode==='gram'?'gram':'piece';
+    const qty=s.qty||1;
+    const disc=s.discount_amount||0;
+    const gstRate=parseFloat(s.gst_rate)||0;
+    const taxable=gstRate ? (parseFloat(s.selling_price)||0)/(1+gstRate/100) : (parseFloat(s.selling_price)||0);
+    const extraSpools=(s.extra_spool_usage||[]).map(x=>({label:x.label||'',spool:x.spool_id,grams:x.grams,waste:x.waste}));
+    const baseGrams=s.grams_used||0;
+    const totalGrams=baseGrams+extraSpools.reduce((a,es)=>a+(parseFloat(es.grams)||0),0);
+    // selling_price is the full line total (qty × rate, or qty × totalGrams × rate for
+    // gram mode, minus disc, GST on top), reverse that back out to the per-unit rate the
+    // operator originally typed so re-editing shows the same number they entered.
+    const rate = mode==='gram'
+      ? (qty*totalGrams ? (taxable+disc)/(qty*totalGrams) : 0)
+      : (qty ? (taxable+disc)/qty : 0);
+    return {
+      rowId:s.id, productId:s.product_id||null, name:s.product_name||'', variant:s.variant||'',
+      pricingMode:mode, qty, rate:Math.round(rate*100)/100,
+      disc, gst:gstRate, cost: qty ? (s.cogs||0)/qty : (s.cogs||0), grams:baseGrams, waste:s.spool_waste_grams||0,
+      hsn:s.hsn_code||'', sku:s.sku||'', spool:s.spool_id||'',
+      extraSpools,
+    };
+  });
   renderItems();
   updateAddOrderModeUI();
   loadOrderPayments(_qaEditOrderId);
@@ -4359,7 +4412,8 @@ async function openAddOrderFromQuotation(quotationId){
 // UPDATEd, rows removed from the item grid get soft-deleted (and their spool grams
 // restored), and any newly added rows get INSERTed, all sharing the original order_id.
 async function saveEditedOrder(){
-  if(!(document.getElementById('qa_state')?.value||'').trim()){ toast('Please enter the customer\'s state','error'); document.getElementById('qa_state')?.focus(); return; }
+  const invalid=flagInvalidFields('quickAddForm');
+  if(invalid.length){ toast(invalid.length>1?invalid.length+' required fields are missing':'Please fill '+(invalid[0].closest('.form-group')?.querySelector('label')?.textContent||'this field'),'error'); invalid[0].focus(); return; }
   const withIds=await buildSaleRowsWithIds();
   if(!withIds.length){ toast('Add at least one item','error'); return; }
   const keptIds=withIds.filter(x=>x.rowId).map(x=>x.rowId);
@@ -4502,12 +4556,31 @@ async function insertSalesResilient(rows){
   }
   return insertRowsResilient('biz_sales', rows);
 }
+// Flags every empty [required] field inside a form at once, red border + a brief shake,
+// instead of stopping at the first one, so the operator sees everything missing in one
+// pass rather than fixing fields one toast at a time. Returns the invalid elements
+// (empty array = form is valid); caller focuses/toasts off the first one.
+function flagInvalidFields(formId){
+  const form=document.getElementById(formId);
+  if(!form) return [];
+  const invalid=[];
+  form.querySelectorAll('[required]').forEach(el=>{
+    if(el.offsetParent===null) return; // hidden fields (e.g. a card not shown in this mode) can't be filled
+    if((el.value||'').trim()){ el.classList.remove('field-invalid'); return; }
+    invalid.push(el);
+    el.classList.add('field-invalid');
+    el.classList.remove('field-shake'); void el.offsetWidth; el.classList.add('field-shake');
+  });
+  return invalid;
+}
+document.addEventListener('animationend', e=>{ if(e.animationName==='fieldShake') e.target.classList.remove('field-shake'); });
+document.addEventListener('input', e=>{ if(e.target.classList && e.target.classList.contains('field-invalid') && (e.target.value||'').trim()) e.target.classList.remove('field-invalid'); });
+
 async function submitQuickAdd(e){
   if(e) e.preventDefault();
   if(_qaMode==='edit'){ await saveEditedOrder(); return; }
-  // §2.8, state feeds state-wise reporting; a silently-defaulted value was polluting
-  // historical shop-channel data, so it's now a hard requirement, not just an HTML hint.
-  if(!(document.getElementById('qa_state')?.value||'').trim()){ toast('Please enter the customer\'s state','error'); document.getElementById('qa_state')?.focus(); return; }
+  const invalid=flagInvalidFields('quickAddForm');
+  if(invalid.length){ toast(invalid.length>1?invalid.length+' required fields are missing':'Please fill '+(invalid[0].closest('.form-group')?.querySelector('label')?.textContent||'this field'),'error'); invalid[0].focus(); return; }
   const rows=await buildSaleRows();
   if(!rows.length){ toast('Add at least one item','error'); return; }
   // Universal Record ID (Phase 10 Group 1), generated server-side (retry-on-collision
@@ -4536,6 +4609,8 @@ async function submitQuickAdd(e){
 // order-record document layout is controlled in Settings (A7). printOrderRecord()
 // is invoked here once that template ships.
 async function saveOrderRecord(){
+  const invalid=flagInvalidFields('quickAddForm');
+  if(invalid.length){ toast(invalid.length>1?invalid.length+' required fields are missing':'Please fill '+(invalid[0].closest('.form-group')?.querySelector('label')?.textContent||'this field'),'error'); invalid[0].focus(); return; }
   const rows=await buildSaleRows();
   if(!rows.length){ toast('Add at least one item','error'); return; }
   const {error}=await insertSalesResilient(rows);
@@ -6303,22 +6378,35 @@ function duplicateOrder(firstId){
       if(d&&d!=='self'&&d!=='porter'){ set('qa_fulfil_other',d); onFulfilOther(d); }
     }
     _items=items.map(s=>{
+      const mode=s.pricing_mode==='gram'?'gram':'piece';
+      const qty=parseInt(s.qty)||1;
+      const disc=parseFloat(s.discount_amount)||0;
       const gstRate=parseFloat(s.gst_rate)||0;
+      const taxable=(parseFloat(s.selling_price)||0)/(1+gstRate/100);
+      const baseGrams=parseFloat(s.grams_used)||0;
+      const extraGrams=(s.extra_spool_usage||[]).reduce((a,x)=>a+(parseFloat(x.grams)||0),0);
+      const totalGrams=baseGrams+extraGrams;
+      const rate=mode==='gram'
+        ? (qty*totalGrams ? (taxable+disc)/(qty*totalGrams) : 0)
+        : (qty ? (taxable+disc)/qty : 0);
       return {
         productId:s.product_id||null,
         name:s.product_name||'',
         variant:s.variant||'',
-        qty:parseInt(s.qty)||1,
-        rate:Math.round(((parseFloat(s.selling_price)||0)/(1+gstRate/100))*100)/100,
-        disc:parseFloat(s.discount_amount)||0,
+        pricingMode:mode,
+        qty,
+        rate:Math.round(rate*100)/100,
+        disc,
         gst:gstRate,
-        cost:parseFloat(s.cogs)||0,
-        grams:parseFloat(s.grams_used)||0,
+        cost: qty ? Math.round(((parseFloat(s.cogs)||0)/qty)*100)/100 : (parseFloat(s.cogs)||0),
+        grams:baseGrams,
         waste:parseFloat(s.spool_waste_grams)||0,
         hsn:s.hsn_code||(_bizDefaults&&_bizDefaults.hsn)||'3926',
         sku:s.sku||'',
+        // Spool selection is deliberately cleared, the original spool may be finished/
+        // moved on by now, but the part breakdown (labels/grams/waste) still carries over.
         spool:'',
-        extraSpools:[],
+        extraSpools:(s.extra_spool_usage||[]).map(x=>({label:x.label||'',spool:'',grams:x.grams,waste:x.waste})),
       };
     });
     renderItems();
