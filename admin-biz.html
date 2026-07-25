@@ -1156,6 +1156,10 @@ html[data-theme="dark"] .biz-login{
             </select>
           </div>
         </div>
+        <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <button type="button" class="qchip" id="qaGiftToggle" onclick="toggleQaGift()" title="Friends, clients, relatives, anyone you're gifting a print to">🎁 Mark as Gift</button>
+          <span id="qaGiftHint" style="display:none;font-size:11px;color:var(--text-3)">No revenue logged, its production cost auto-logs as a Marketing expense so gifting still shows up in costing</span>
+        </div>
         </div>
 
         <!-- ── Status / Lead / Fulfillment, quick-select chips ── -->
@@ -4157,7 +4161,7 @@ function renderItems(){
       <div class="r"><input type="number" step="0.01" value="${it.disc||''}" placeholder="0" oninput="onItemNum(${i},'disc',this.value)"></div>
       <div class="r"><select onchange="onItemNum(${i},'gst',this.value)">${[0,5,12,18,28].map(v=>`<option value="${v}"${v==it.gst?' selected':''}>${v}%</option>`).join('')}</select></div>
       <div class="r"><input type="text" value="${esc(it.hsn||'')}" placeholder="${esc((_bizDefaults&&_bizDefaults.hsn)||'3926')}" title="HSN/SAC code, prefilled from your default, edit per item as needed" oninput="_items[${i}].hsn=this.value"></div>
-      <div class="r"><input type="number" step="0.01" value="${it.cost||''}" placeholder="0" title="auto-fills from spool grams × waste × ₹/g" oninput="onItemNum(${i},'cost',this.value)"></div>
+      <div class="r"><input type="number" step="0.01" value="${it.cost||''}" placeholder="0" data-cost-input title="Cost to make ONE piece, auto-fills from spool grams × waste × ₹/g. Multiplied by qty for the total below." oninput="onItemNum(${i},'cost',this.value)"><div id="costHint_${i}" style="font-size:9px;color:var(--text-3);font-weight:400;white-space:nowrap">${it.cost?`= ${fmt(it.qty*it.cost)} total`:''}</div></div>
       <div class="r"><input type="number" step="1" min="0" value="${it.grams||''}" placeholder="0" title="filament grams used in the product" oninput="onItemGramsOrWaste(${i},'grams',this.value)"></div>
       <div class="r"><input type="number" step="1" min="0" value="${it.waste||''}" placeholder="0" title="filament grams wasted (failed prints, purge)" oninput="onItemGramsOrWaste(${i},'waste',this.value)"></div>
       <div class="amt" id="amt_${i}">${fmt(itemAmount(it))}${it.pricingMode==='gram'?`<div style="font-size:9px;color:var(--text-3);font-weight:400">${itemTotalGrams(it)}g total</div>`:''}</div>
@@ -4204,8 +4208,10 @@ function autoCostFromSpool(i){
   (it.extraSpools||[]).forEach(es=>{ if(es.spool){ const r=spoolRate(es.spool); if(r){ total+=((parseFloat(es.grams)||0)+(parseFloat(es.waste)||0))*r; any=true; } } });
   if(!any) return;
   it.cost=Math.round(total*100)/100;
-  const el=document.querySelector(`.item-row[data-idx="${i}"] input[title^="auto-fills"]`);
+  const el=document.querySelector(`.item-row[data-idx="${i}"] input[data-cost-input]`);
   if(el) el.value=it.cost;
+  const costHint=document.getElementById('costHint_'+i);
+  if(costHint) costHint.textContent=it.cost?`= ${fmt(it.qty*it.cost)} total`:'';
   recalcTotals();
 }
 // Add Item drops the new row directly below the last one and focuses it.
@@ -4234,6 +4240,8 @@ function onItemNum(i,f,v){
   _items[i][f]= f==='qty' ? (parseInt(v)||1) : (parseFloat(v)||0);
   const el=document.getElementById('amt_'+i);
   if(el) el.innerHTML=`${fmt(itemAmount(_items[i]))}${_items[i].pricingMode==='gram'?`<div style="font-size:9px;color:var(--text-3);font-weight:400">${itemTotalGrams(_items[i])}g total</div>`:''}`;
+  const costHint=document.getElementById('costHint_'+i);
+  if(costHint) costHint.textContent=_items[i].cost?`= ${fmt(_items[i].qty*_items[i].cost)} total`:'';
   recalcTotals();
 }
 function recalcTotals(){
@@ -4318,10 +4326,33 @@ async function ensureUniqueOrderId(){
   // is never blocked outright.
   return genOrderId()+'-'+Date.now().toString().slice(-4);
 }
+// ── Gift orders ──────────────────────────────────────────────
+// Friends/clients/relatives/neighbours you give a print to, no money changes hands.
+// The order still saves (production, status, tracking all work normally) but with
+// ₹0 revenue, and its real production cost auto-logs as a Marketing expense so
+// gifting still shows up in costing instead of vanishing off the books entirely.
+let _qaIsGift=false;
+function toggleQaGift(){
+  _qaIsGift=!_qaIsGift;
+  document.getElementById('qaGiftToggle')?.classList.toggle('active',_qaIsGift);
+  const hint=document.getElementById('qaGiftHint'); if(hint) hint.style.display=_qaIsGift?'':'none';
+  updateAddOrderModeUI();
+}
+async function applyGiftExpenseIfAny(rows){
+  if(!_qaIsGift||!rows.length) return;
+  const totalCogs=rows.reduce((s,r)=>s+(parseFloat(r.cogs)||0),0); // cogs is already qty × unit cost, not per-unit
+  if(totalCogs<=0) return;
+  const f=rows[0];
+  let payload={ date:f.order_date||today(), category:'marketing', vendor:'Gift — '+(f.customer_name||f.product_name||'unnamed'),
+    amount:Math.round(totalCogs*100)/100, notes:'Auto-logged from gift order '+(f.order_id||''), source:'gift_order' };
+  payload=await attachRecordId(payload,true,'expense',payload.vendor);
+  await insertResilient('biz_expenses',payload);
+}
 async function getOrderFields(){
   const g=id=>{const el=document.getElementById(id);return el?el.value.trim()||null:null;};
   const manualOrderId=g('qa_orderid');
   return {
+    is_gift:_qaIsGift,
     channel_id:g('qa_channel'),
     order_date:g('qa_date')||today(),
     delivery_date:g('qa_delivery_date'),
@@ -4373,8 +4404,11 @@ async function buildSaleRowsWithIds(){
       // itemAmount() already is the full line's taxable value (qty × rate for a piece,
       // qty × totalGrams × rate for a gram-priced item, minus discount), so selling_price
       // stays the true GST-inclusive line total, matching how every downstream report
-      // sums selling_price directly (not selling_price × qty).
-      selling_price:itemAmount(it)*(1+(it.gst||0)/100),
+      // sums selling_price directly (not selling_price × qty). Gift orders are the one
+      // exception, ₹0 revenue by design, no money is actually changing hands.
+      selling_price: order.is_gift ? 0 : itemAmount(it)*(1+(it.gst||0)/100),
+      // Nothing is owed on a gift, so it's never a "receivable" or an unpaid follow-up.
+      is_paid: order.is_gift ? true : undefined,
       discount_amount:it.disc||0,
       gst_rate:it.gst||0,
       cogs:(it.qty||1)*(it.cost||0),
@@ -4410,6 +4444,9 @@ function resetQuickAdd(){
   _items=[blankItem()];
   renderItems();
   resetQaPayment();
+  _qaIsGift=false;
+  document.getElementById('qaGiftToggle')?.classList.remove('active');
+  const giftHint=document.getElementById('qaGiftHint'); if(giftHint) giftHint.style.display='none';
 }
 
 // ── Payment status pills (new-order flow) ────────────────────────────
@@ -4488,6 +4525,15 @@ function updateAddOrderModeUI(){
     if(addPayBtn) addPayBtn.style.display='none';
     if(payHist) payHist.style.display='none';
     if(payHint) payHint.style.display='';
+  }
+  // Gift only applies to a fresh order (an existing paid/tracked order turning into a
+  // gift after the fact is a different operation, not this toggle), and it makes the
+  // whole Payment section moot, nothing is owed on something given away.
+  const giftToggle=document.getElementById('qaGiftToggle');
+  if(giftToggle) giftToggle.style.display=(_qaMode==='edit')?'none':'';
+  if(_qaIsGift && _qaMode!=='edit'){
+    if(payCard) payCard.style.display='none';
+    if(payStatusInput) payStatusInput.required=false;
   }
 }
 
@@ -4789,6 +4835,7 @@ async function submitQuickAdd(e){
   const {error}=await insertSalesResilient(rows);
   if(error){ toast('Error: '+error.message,'error'); return; }
   await applyNewOrderPaymentIfAny(rows[0].order_id);
+  await applyGiftExpenseIfAny(rows);
   await deductSpoolsForRows(rows);   // reduce spool stock by grams+waste logged
   await loadAddSaleSpools();         // refresh remaining for the next entry
   logBizActivity('create','sale',rows[0]&&rows[0].order_id,rows.length+' item(s)');
@@ -4814,6 +4861,7 @@ async function saveOrderRecord(){
   const {error}=await insertSalesResilient(rows);
   if(error){ toast('Error: '+error.message,'error'); return; }
   await applyNewOrderPaymentIfAny(rows[0].order_id);
+  await applyGiftExpenseIfAny(rows);
   await deductSpoolsForRows(rows);
   await loadAddSaleSpools();
   toast('Order record saved');
@@ -4915,7 +4963,7 @@ async function loadSalesview(){
     const f=items[0], totalQty=items.reduce((a,s)=>a+(parseInt(s.qty)||0),0), totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
     return `<tr class="sale-row" onclick="switchTab('sales');setTimeout(()=>openOrderDetail('${f.id}'),150)" style="cursor:pointer">
       <td>${idx+1}</td><td>${fmtDay(f.order_date)}</td><td>${chHtml(f.channel_id)}</td>
-      <td>${esc(f.customer_name||'—')}</td><td>${esc(f.product_name||'—')}${items.length>1?` <span style="color:var(--text-3);font-size:10px">+${items.length-1} more</span>`:''}</td>
+      <td>${esc(f.customer_name||'—')}</td><td>${esc(f.product_name||'—')}${f.is_gift?' <span title="Gift, ₹0 revenue">🎁</span>':''}${items.length>1?` <span style="color:var(--text-3);font-size:10px">+${items.length-1} more</span>`:''}</td>
       <td class="td-num">${totalQty}</td><td class="td-num">${fmt(totalPrice)}</td>
       <td><span class="badge badge-${f.status}">${STATUS_LABEL?.[f.status]||f.status}</span></td>
     </tr>`;
@@ -6446,7 +6494,8 @@ async function loadSales(){
     // Round 3, Order ID visible but minimal (doesn't take extra space, needed for
     // find-in-page / matching against platform dashboards).
     const orderIdLine=f.order_id?`<div style="color:var(--text-3);font-size:9px;font-family:var(--mono)">#${esc(f.order_id)}</div>`:'';
-    const itemCol=thumb+`<span style="display:inline-block;vertical-align:middle">${skuLine}${orderIdLine}${items.length>1?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">+${items.length-1} more</span>`:''}</span>`;
+    const giftBadge=f.is_gift?` <span title="Gift, ₹0 revenue, cost logged as a Marketing expense">🎁</span>`:'';
+    const itemCol=thumb+`<span style="display:inline-block;vertical-align:middle">${skuLine}${giftBadge}${orderIdLine}${items.length>1?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">+${items.length-1} more</span>`:''}</span>`;
     return `<tr class="sale-row" onclick="rowSelectOrAction(event,'sale-cb',()=>openOrderDetail('${key}',event))" style="cursor:pointer;${allPaid?'opacity:.78':''}">
       <td><input type="checkbox" class="sale-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateBulkBar()"></td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${idx+1}</td>
@@ -9785,14 +9834,17 @@ async function printInvoice(d, type, docKind){
   let subtotal=0, gstAmt=0;
   const rowsHtml=items.map(it=>{
     const iqty=parseInt(it.qty)||1;
-    const iunit=parseFloat(it.selling_price)||0;
     const idisc=parseFloat(it.discount_amount)||0;
-    const iamt_incl=iunit*iqty-idisc;
+    // selling_price is already the full GST-inclusive line total (qty × rate − discount,
+    // then GST on top), not a per-unit price, multiplying by qty again here used to
+    // inflate every invoice/order-record by a factor of qty. Discount is shown as an
+    // informational note only, it's already netted into this total.
+    const iamt_incl=parseFloat(it.selling_price)||0;
     const irate=parseFloat(it.gst_rate)||0;
     const igst=(type==='gst'&&irate>0)?iamt_incl-(iamt_incl/(1+irate/100)):0;
     // For GST invoices show taxable (ex-GST) amounts in the rate/amount columns
     const iamt=iamt_incl-igst;
-    const iunit_show=(type==='gst'&&irate>0)?(iqty>0?iamt/iqty:iamt):iunit;
+    const iunit_show=iqty>0 ? ((type==='gst'&&irate>0)?iamt/iqty:iamt_incl/iqty) : ((type==='gst'&&irate>0)?iamt:iamt_incl);
     subtotal+=iamt; gstAmt+=igst;
     const vline=[it.size,it.color,it.variant].filter(Boolean).join(' · ');
     const metaBits=[it.sku?'SKU: '+it.sku:'', it.hsn_code?'HSN: '+it.hsn_code:''].filter(Boolean).join('  ·  ');
