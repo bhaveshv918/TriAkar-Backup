@@ -4468,7 +4468,10 @@ function setQaPayStatus(v){
   _qaPayStatusManual=true;
   document.getElementById('qa_pay_status').value=v;
   document.querySelectorAll('#qaPayStatusGroup button').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
-  document.getElementById('qa_pay_status').classList.remove('field-invalid');
+  // The red border lives on the visible pill group (data-shake-target), not the hidden
+  // input itself, clearing it off the hidden input was a no-op, leaving the border
+  // stuck even after a valid pick.
+  document.getElementById('qaPayStatusGroup').classList.remove('field-invalid');
 }
 function onQaPayAmountInput(){
   const amt=parseFloat(document.getElementById('qaPayAmount')?.value)||0;
