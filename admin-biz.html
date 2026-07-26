@@ -168,6 +168,11 @@ th{background:var(--bg-2);padding:8px 12px;text-align:left;font-size:10px;font-w
 td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-2);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:var(--bg-2)}
+/* Shared "this row needs attention" convention, red-tinted row background, used
+   anywhere an SLA/promise date has been breached (Open Orders, All Orders/Sales,
+   Today's Tasks). One class so the same visual meaning reads the same everywhere. */
+.row-breached td{background:var(--red-bg)}
+.row-breached:hover td{background:var(--red-bg)}
 .td-num{font-family:var(--mono);font-size:11px;text-align:right}
 .td-actions{white-space:nowrap;text-align:right}
 
@@ -1052,6 +1057,7 @@ html[data-theme="dark"] .biz-login{
       </div>
 
       <div id="openGstReminder" style="display:none;margin-bottom:16px"></div>
+      <div id="openOrderAlerts" style="display:none;margin-bottom:16px"></div>
       <div id="openFilamentAlert" style="display:none;margin-bottom:16px"></div>
       <div id="openKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
 
@@ -1390,6 +1396,7 @@ html[data-theme="dark"] .biz-login{
                 <option value="bluedart">BlueDart</option>
                 <option value="xpressbees">XpressBees</option>
                 <option value="shadowfax">Shadowfax</option>
+                <option value="porter">Porter</option>
                 <option value="pickup_studio">Pickup from Studio</option>
                 <option value="self">Self / Hand Delivery</option>
                 <option value="other">Other</option>
@@ -3423,7 +3430,7 @@ const NAV_CONFIG = [
   {
     id: 'overview', label: 'Overview', color: 'var(--tri-orange)',
     items: [
-      { id: 'openorders', label: "Today's Tasks", icon: '⚑', shortcut: 'o', badge: 'openCount' },
+      { id: 'openorders', label: "Today's Tasks", icon: '⚑', shortcut: 't', badge: 'openCount' },
       { id: 'dashboard',  label: 'Dashboard',      icon: '◈', shortcut: 'd' },
     ]
   },
@@ -3479,7 +3486,7 @@ const NAV_CONFIG = [
     id: 'system', label: 'System', color: '#6B7280',
     items: [
       { id: 'activity', label: 'Activity Log', icon: '≣', shortcut: 'y' },
-      { id: 'settings', label: 'Settings',      icon: '⚙', shortcut: 't' },
+      { id: 'settings', label: 'Settings',      icon: '⚙', shortcut: 'o' },
     ]
   },
 ];
@@ -5578,6 +5585,36 @@ function slaBreachDays(f){
   const d=Math.round((new Date(f.completed_at.slice(0,10)+'T00:00:00')-new Date(f.delivery_date+'T00:00:00'))/86400000);
   return d>0?d:0;
 }
+// Two operational reminders, requested directly, both computed client-side off columns
+// that already exist (delivery_date, completed_at, is_paid), so they apply to every
+// existing order/sale immediately, no backfill or migration needed.
+const NOT_COMPLETED_ALERT_DAYS=15, NOT_LOCKED_ALERT_DAYS=10;
+const TERMINAL_STATUSES=['completed','returned','cancelled','cancelled_before_dispatch','cancelled_before_delivery','claim_filed','claimed'];
+// 1. Promised (delivery_date) is more than 15 days in the past and the order still
+// hasn't been marked Completed (and isn't Returned/Cancelled either, those are also
+// "done" as far as this reminder cares).
+function daysPastPromiseNotCompleted(f){
+  if(!f.delivery_date||TERMINAL_STATUSES.includes(f.status)) return null;
+  const d=Math.round((new Date(today()+'T00:00:00')-new Date(f.delivery_date+'T00:00:00'))/86400000);
+  return d>NOT_COMPLETED_ALERT_DAYS ? d : null;
+}
+// 2. Marked Completed more than 10 days ago but never locked (is_paid still false),
+// so a completed order can silently sit unpaid/unlocked with no visible signal.
+function daysCompletedNotLocked(f){
+  if(f.status!=='completed'||f.is_paid||!f.completed_at) return null;
+  const d=Math.round((new Date(today()+'T00:00:00')-new Date(f.completed_at.slice(0,10)+'T00:00:00'))/86400000);
+  return d>NOT_LOCKED_ALERT_DAYS ? d : null;
+}
+// Small inline badge, shown per-row in any order/sales table, so the same signal
+// that drives the summary reminder card is also visible on the actual transaction
+// (existing orders included, both functions above read plain columns).
+function orderAlertBadge(f){
+  const nc=daysPastPromiseNotCompleted(f);
+  if(nc!=null) return `<span title="Promised ${NOT_COMPLETED_ALERT_DAYS}+ days ago, still not marked Completed" style="display:inline-flex;align-items:center;gap:2px;background:var(--red-bg);color:var(--red);font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:5px">⚠ ${nc}d, not completed</span>`;
+  const nl=daysCompletedNotLocked(f);
+  if(nl!=null) return `<span title="Completed ${NOT_LOCKED_ALERT_DAYS}+ days ago, still not locked (paid)" style="display:inline-flex;align-items:center;gap:2px;background:var(--yellow-bg);color:var(--yellow);font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:5px">◯ ${nl}d, not locked</span>`;
+  return '';
+}
 // Pre-dispatch: still needs studio action (make/print → pack → ready to ship).
 // 'delaying' is a pre-dispatch order running behind, still shown here, not moved to Tracking.
 const PROD_LANE_STATUSES=['pending','order_received','processing','printing','packed','delaying'];
@@ -5599,10 +5636,11 @@ function scrollToOpenTable(bodyId){
 // SLA Breached / Due Today have no table of their own on this panel, so these get
 // a lightweight drawer (not the Dashboard's #dashDrilldown, that's tied to
 // _dashCache, a different data source entirely).
-let _openOrderKpiGroups={breached:[],dueToday:[]};
+let _openOrderKpiGroups={breached:[],dueToday:[],notCompleted:[],notLocked:[]};
+const OPEN_ORDER_DRAWER_TITLES={breached:'SLA Breached',dueToday:'Due Today',notCompleted:'Not Completed, 15d+ past promise',notLocked:'Completed, Not Locked 10d+'};
 function openOpenOrdersDrawer(kind){
   const groups=_openOrderKpiGroups[kind]||[];
-  const title=kind==='breached'?'SLA Breached':'Due Today';
+  const title=OPEN_ORDER_DRAWER_TITLES[kind]||kind;
   let ov=document.getElementById('openOrdersDrawer');
   if(!ov){
     ov=document.createElement('div'); ov.id='openOrdersDrawer';
@@ -5638,21 +5676,25 @@ async function loadOpenOrders(){
   // the old include-list named values ('pending','processing','dispatched','delivered')
   // that used to be outside the DB CHECK constraint entirely, so this query could never
   // return a row; NOT-IN on the terminal states stays correct as new statuses are added.
-  const [{data,error},{data:uo}]=await Promise.all([
+  const [{data,error},{data:uo},{data:unlockedData}]=await Promise.all([
     sb.from('biz_sales').select('*').eq('is_deleted',false)
       .not('status','in','(completed,returned,cancelled,cancelled_before_dispatch,cancelled_before_delivery,claim_filed,claimed)').limit(800),
-    sb.from('site_settings').select('value').eq('key','biz_upcoming_orders').maybeSingle()
+    sb.from('site_settings').select('value').eq('key','biz_upcoming_orders').maybeSingle(),
+    // Completed-but-not-locked reminder needs completed orders too, which the query
+    // above deliberately excludes (that's the "still open" set).
+    sb.from('biz_sales').select('*').eq('is_deleted',false).eq('status','completed').eq('is_paid',false).limit(500)
   ]);
   if(error){ return; }
   // Manual, editable count only, not derived from biz_sales, so it must never feed breached/dueToday/prodGroups etc.
   const upcomingOrders=(uo&&uo.value)?uo.value:'0';
   const rows=data||[];
+  const unlockedRows=unlockedData||[];
   // Status changes, paid toggle, delete, invoice, initiate-return etc. all resolve their
   // target order via _orderGroup(), which reads _salesCache, populated only by loadSales()
   // (All Sales). Open Orders is now the landing tab, so a fresh session that never visits
   // All Sales had an empty cache and every action here silently updated 0 rows. Merge (not
   // replace, so a broader All Sales load isn't clobbered) these rows in by id.
-  const _cacheById={}; _salesCache.forEach(s=>_cacheById[s.id]=s); rows.forEach(s=>_cacheById[s.id]=s); _salesCache=Object.values(_cacheById);
+  const _cacheById={}; _salesCache.forEach(s=>_cacheById[s.id]=s); rows.forEach(s=>_cacheById[s.id]=s); unlockedRows.forEach(s=>_cacheById[s.id]=s); _salesCache=Object.values(_cacheById);
   const gmap={},groups=[];
   rows.forEach(s=>{ const k=s.order_id?('o:'+s.order_id):('r:'+s.id); if(!gmap[k]){gmap[k]={items:[]};groups.push(gmap[k]);} gmap[k].items.push(s); });
   groups.sort((a,b)=>{ const da=a.items[0].delivery_date||'9999-99', db=b.items[0].delivery_date||'9999-99'; return da<db?-1:da>db?1:0; });
@@ -5662,9 +5704,24 @@ async function loadOpenOrders(){
   const td=today(); let breached=0,dueToday=0,inTransit=0;
   const breachedGroups=[], dueTodayGroups=[];
   groups.forEach(g=>{ const f=g.items[0]; if(f.delivery_date){ if(f.delivery_date<td){breached++;breachedGroups.push(g);} else if(f.delivery_date===td){dueToday++;dueTodayGroups.push(g);} } if(f.status==='dispatched')inTransit++; });
-  // Phase 10 Group 3 (G): kept for the two drawer-opening KPIs (SLA Breached, Due
-  // Today), which have no dedicated table on this panel to scroll to.
-  _openOrderKpiGroups={breached:breachedGroups,dueToday:dueTodayGroups};
+  // Two more reminders, requested directly: promised 15d+ ago and still not Completed
+  // (grouped from the same open-orders set), and Completed 10d+ ago but never locked
+  // (grouped from the separate unlockedRows fetch above).
+  const notCompletedGroups=groups.filter(g=>daysPastPromiseNotCompleted(g.items[0])!=null);
+  const ugmap={},uGroups=[];
+  unlockedRows.forEach(s=>{ const k=s.order_id?('o:'+s.order_id):('r:'+s.id); if(!ugmap[k]){ugmap[k]={items:[]};uGroups.push(ugmap[k]);} ugmap[k].items.push(s); });
+  const notLockedGroups=uGroups.filter(g=>daysCompletedNotLocked(g.items[0])!=null);
+  // Phase 10 Group 3 (G): kept for the four drawer-opening KPIs (SLA Breached, Due
+  // Today, Not Completed, Not Locked), which have no dedicated table on this panel to scroll to.
+  _openOrderKpiGroups={breached:breachedGroups,dueToday:dueTodayGroups,notCompleted:notCompletedGroups,notLocked:notLockedGroups};
+  const alertsEl=document.getElementById('openOrderAlerts');
+  if(alertsEl){
+    const cards=[];
+    if(notCompletedGroups.length) cards.push(`<div class="gst-card" style="border-color:var(--red);cursor:pointer" onclick="openOpenOrdersDrawer('notCompleted')"><label>Not completed</label><div class="val" style="color:var(--red)">${notCompletedGroups.length} order${notCompletedGroups.length===1?'':'s'}</div><div class="sub">Promised ${NOT_COMPLETED_ALERT_DAYS}+ days ago</div></div>`);
+    if(notLockedGroups.length) cards.push(`<div class="gst-card" style="border-color:var(--yellow);cursor:pointer" onclick="openOpenOrdersDrawer('notLocked')"><label>Not locked</label><div class="val" style="color:var(--yellow)">${notLockedGroups.length} order${notLockedGroups.length===1?'':'s'}</div><div class="sub">Completed ${NOT_LOCKED_ALERT_DAYS}+ days ago</div></div>`);
+    alertsEl.innerHTML=cards.length?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">${cards.join('')}</div>`:'';
+    alertsEl.style.display=cards.length?'block':'none';
+  }
   const badge=document.getElementById('openCount_hdr'); if(badge) badge.textContent=groups.length;
   const kpi=document.getElementById('openKpi');
   if(kpi) kpi.innerHTML=`
@@ -5695,8 +5752,8 @@ async function loadOpenOrders(){
     if(!prodGroups.length){ prodBody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="em-icon">✓</div><div class="em-text">Nothing waiting on the studio</div></div></td></tr>`; }
     else prodBody.innerHTML=prodGroups.map(g=>{ const f=g.items[0]; const ids=g.items.map(s=>s.id).join(',');
       const more=g.items.length>1?`+${g.items.length-1} more`:'';
-      const term=esc(f.order_id||f.customer_name||f.product_name||'');
-      return `<tr class="sale-row" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>{switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${term}';loadSales();}},300);})">
+      const breached=f.delivery_date&&f.delivery_date<td;
+      return `<tr class="sale-row${breached?' row-breached':''}" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>openOrderDetail('${f.id}'))">
         <td onclick="event.stopPropagation()"><input type="checkbox" class="open-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateOpenBulkBar()"></td>
         <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.delivery_date?fmtDay(f.delivery_date):'—'}</td>
         <td style="white-space:nowrap">${slaText(f.delivery_date)}</td>
@@ -5714,10 +5771,10 @@ async function loadOpenOrders(){
     if(!trackGroups.length){ trackBody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="em-icon">✓</div><div class="em-text">Nothing being tracked post-dispatch</div></div></td></tr>`; }
     else trackBody.innerHTML=trackGroups.map(g=>{ const f=g.items[0]; const ids=g.items.map(s=>s.id).join(',');
       const more=g.items.length>1?`+${g.items.length-1} more`:'';
-      const term=esc(f.order_id||f.customer_name||f.product_name||'');
       const dispatchInfo=dispatchSlaText(f);
       const rw=returnWindowInfo(f)||'<span style="color:var(--text-3)">—</span>';
-      return `<tr class="sale-row" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>{switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${term}';loadSales();}},300);})">
+      const breached=f.delivery_date&&f.delivery_date<td;
+      return `<tr class="sale-row${breached?' row-breached':''}" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>openOrderDetail('${f.id}'))">
         <td onclick="event.stopPropagation()"><input type="checkbox" class="open-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateOpenBulkBar()"></td>
         <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.dispatch_date?fmtDay(f.dispatch_date):'—'}${dispatchInfo?'<br>'+dispatchInfo:''}</td>
         <td style="white-space:nowrap">${esc(f.customer_name||'—')}</td>
@@ -6498,8 +6555,9 @@ async function loadSales(){
     // find-in-page / matching against platform dashboards).
     const orderIdLine=f.order_id?`<div style="color:var(--text-3);font-size:9px;font-family:var(--mono)">#${esc(f.order_id)}</div>`:'';
     const giftBadge=f.is_gift?` <span title="Gift, ₹0 revenue, cost logged as a Marketing expense">🎁</span>`:'';
-    const itemCol=thumb+`<span style="display:inline-block;vertical-align:middle">${skuLine}${giftBadge}${orderIdLine}${items.length>1?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">+${items.length-1} more</span>`:''}</span>`;
-    return `<tr class="sale-row" onclick="rowSelectOrAction(event,'sale-cb',()=>openOrderDetail('${key}',event))" style="cursor:pointer;${allPaid?'opacity:.78':''}">
+    const itemCol=thumb+`<span style="display:inline-block;vertical-align:middle">${skuLine}${giftBadge}${orderIdLine}${items.length>1?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">+${items.length-1} more</span>`:''}${orderAlertBadge(f)}</span>`;
+    const breached=daysPastPromiseNotCompleted(f)!=null;
+    return `<tr class="sale-row${breached?' row-breached':''}" onclick="rowSelectOrAction(event,'sale-cb',()=>openOrderDetail('${key}',event))" style="cursor:pointer;${allPaid?'opacity:.78':''}">
       <td><input type="checkbox" class="sale-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateBulkBar()"></td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${idx+1}</td>
       <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(f.order_date)}</td>
@@ -10537,6 +10595,11 @@ document.addEventListener('keydown',function(ev){
   const tag=(document.activeElement&&document.activeElement.tagName||'').toLowerCase();
   if(tag==='input'||tag==='textarea'||tag==='select'||(document.activeElement&&document.activeElement.isContentEditable)) return;
   if(bizAnyModalOpen()) return;
+  // 'n' is double-booked: it's both Machinery's tab-jump letter AND the global
+  // "add new" hotkey (BIZ_ADD_NEW, registered separately above). Whichever tab
+  // you're on, "new" is the more useful meaning for 'n' when it applies; only
+  // fall through to the Machinery jump when the current tab has no add-new action.
+  if(k==='n'&&BIZ_ADD_NEW[_curBizTab]) return;
   const tab=BIZ_TAB_KEYS[k];
   if(_isStaffUser&&_staffTabs&&!_staffTabs.includes(tab)) return;
   ev.preventDefault(); switchTab(tab);
