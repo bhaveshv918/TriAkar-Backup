@@ -25,6 +25,7 @@ import storyRoutes       from './routes/stories.js';
 import siteSettingsRoutes from './routes/siteSettings.js';
 import wishlistRoutes    from './routes/wishlist.js';
 import webhookRoutes     from './routes/webhooks.js';
+import newsletterRoutes  from './routes/newsletter.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import supabase from './db/supabaseClient.js';
 
@@ -179,6 +180,7 @@ const contactLimiter = rateLimit({
 });
 app.use('/api/inquiries', contactLimiter);
 app.use('/api/addresses', contactLimiter);
+app.use('/api/newsletter', contactLimiter);
 
 const notifyLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -238,6 +240,7 @@ app.use('/api/reviews',    reviewRoutes);    // Product reviews — public + adm
 app.use('/api/stories',    storyRoutes);     // Stories CMS — public + admin CRUD
 app.use('/api/site-settings', siteSettingsRoutes); // Public presentation values (Google stats, etc.)
 app.use('/api/wishlist',   wishlistRoutes);  // Saved items — per-user, auth required
+app.use('/api/newsletter', newsletterRoutes); // Footer email signup — public
 
 /* /api/profile — see server/routes/auth.js handlers; also accessible at /api/auth/profile */
 

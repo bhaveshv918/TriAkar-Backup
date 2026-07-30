@@ -646,6 +646,30 @@ const Wishlist=(function(){
 
 /* Toggle handler for heart buttons. Pass the clicked element so its
    pressed state updates instantly. Element must carry data-slug + data-name. */
+/* Footer "Stay inspired" email capture — see partials.js _FOOTER_HTML */
+function taNewsletterSignup(form){
+  var btn=form.querySelector('button');
+  var input=form.querySelector('input[type="email"]');
+  var email=(input&&input.value||'').trim();
+  if(!email)return false;
+  var prevLabel=btn.textContent;
+  btn.disabled=true;btn.textContent='...';
+  fetch('/api/newsletter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})})
+    .then(function(r){return r.json().then(function(d){return {ok:r.ok,data:d};});})
+    .then(function(res){
+      if(res.ok){
+        form.innerHTML='<span class="foot-news-ok">Thanks, you\'re on the list.</span>';
+      }else{
+        btn.disabled=false;btn.textContent=prevLabel;
+        input.setCustomValidity(res.data&&res.data.error||'Something went wrong');
+        input.reportValidity();
+        input.oninput=function(){input.setCustomValidity('');};
+      }
+    })
+    .catch(function(){btn.disabled=false;btn.textContent=prevLabel;});
+  return false;
+}
+
 function toggleWishlist(el){
   if(!el)return;
   const slug=el.getAttribute('data-slug');
