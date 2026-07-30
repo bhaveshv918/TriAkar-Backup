@@ -2652,10 +2652,17 @@ function showDashboard(user){
   loadCategories().then(()=>{loadProducts();loadOrders();loadDashboard();loadLogs();loadCustomers();loadMessages();loadCustomEnquiries();loadCallbacks();loadRecycleBin();loadReviewsAdmin();loadGoogleSettings();loadActivity();setTimeout(refreshNotifBadge,2500);});
 }
 
-// Check existing session on load
+// Check existing session on load, must re-check the admin whitelist here too:
+// a staff account can hold a valid Supabase session (from logging into Business OS)
+// and land on this page directly by URL, bypassing doLogin()'s whitelist check entirely.
 (async function(){
   const{data:{session}}=await sb.auth.getSession();
   if(session){
+    if(!session.user?.email || !ADMIN_EMAILS.includes(session.user.email.toLowerCase())){
+      _log({action:'unauthorized_access',ip:_visitorData.ip,user_agent:_visitorData.userAgent,email_attempted:session.user?.email||'',success:false,extra:{reason:'not_admin_email_session_restore'}});
+      await sb.auth.signOut().catch(()=>{});
+      return;
+    }
     _isLoggedIn=true;
     document.getElementById('loginScreen').classList.add('hidden');
     showDashboard(session.user);
@@ -6557,9 +6564,9 @@ async function loadStoriesAdmin(){
       <td>${s.year}</td>
       <td>${MONTH_NAMES_ST[s.month]||s.month}</td>
       <td>${esc(s.tag)}</td>
-      <td>${esc(s.title)}</td>
+      <td>${esc(s.title)}${s.image_url?' <span title="Has photo" style="opacity:.6">📷</span>':''}${s.customer_name?'<br><span style="font-size:11px;color:var(--text-3)">'+esc(s.customer_name)+(s.customer_location?', '+esc(s.customer_location):'')+'</span>':''}</td>
       <td>${s.published?'<span style="color:var(--green)">Yes</span>':'<span style="color:var(--text-3)">Hidden</span>'}</td>
-      <td><button class="btn-secondary" onclick="openStoryModal('${s.id}')">Edit</button> <button class="btn-secondary" style="color:#fca5a5" onclick="deleteStoryAdmin('${s.id}')">Delete</button></td>
+      <td><button class="btn-secondary" onclick="openStoryModal('${s.id}')">Edit</button> <button class="btn-secondary" style="color:#fca5a5" onclick="deleteStoryAdmin('${s.id}')">Delete</button>${s.published&&s.slug?` <a class="btn-secondary" href="https://www.triakar.com/stories/${encodeURIComponent(s.slug)}" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none">View ↗</a>`:''}</td>
     </tr>`).join(''):'<tr><td colspan="6" class="tbl-msg">No stories yet</td></tr>';
   }catch(e){ body.innerHTML='<tr><td colspan="6" class="tbl-msg">Error: '+esc(e.message)+'</td></tr>'; }
 }
@@ -6572,13 +6579,44 @@ function openStoryModal(id){
   document.getElementById('stTag').value=s?s.tag:'Replacement Part';
   document.getElementById('stPublished').value=s?String(!!s.published):'true';
   document.getElementById('stTitle').value=s?s.title:'';
+  document.getElementById('stSlug').value=(s&&s.slug)||'';
   document.getElementById('stExcerpt').value=s?s.excerpt:'';
   document.getElementById('stFullText').value=s?s.full_text:'';
   document.getElementById('stImageUrl').value=(s&&s.image_url)||'';
+  document.getElementById('stCustomerName').value=(s&&s.customer_name)||'';
+  document.getElementById('stCustomerLocation').value=(s&&s.customer_location)||'';
+  document.getElementById('stImageFile').value='';
+  document.getElementById('stImageUploadStatus').textContent='';
+  updateStoryImagePreview();
   document.getElementById('stModalTitle').textContent=s?'Edit Story':'Add Story';
   document.getElementById('storyModal').style.display='flex';
 }
 function closeStoryModal(){ document.getElementById('storyModal').style.display='none'; }
+function updateStoryImagePreview(){
+  const url=document.getElementById('stImageUrl').value.trim();
+  const img=document.getElementById('stImagePreview');
+  if(url){ img.src=url; img.style.display=''; } else { img.style.display='none'; img.src=''; }
+}
+async function uploadStoryImage(input){
+  const file=input.files&&input.files[0];
+  if(!file) return;
+  const status=document.getElementById('stImageUploadStatus');
+  status.textContent='Uploading…'; status.style.color='var(--text-3)';
+  try{
+    const{data:sess}=await sb.auth.getSession();
+    const token=sess&&sess.session&&sess.session.access_token;
+    const fd=new FormData(); fd.append('image',file);
+    const r=await fetch(API+'/api/admin/upload-image?folder=triakar/stories',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+    if(!r.ok) throw new Error((await r.json()).error||'Upload failed');
+    const{url}=await r.json();
+    document.getElementById('stImageUrl').value=url;
+    updateStoryImagePreview();
+    status.textContent='Uploaded ✓'; status.style.color='var(--green)';
+  }catch(err){
+    status.textContent='Failed: '+err.message; status.style.color='#fca5a5';
+  }
+  input.value='';
+}
 async function saveStory(){
   const id=document.getElementById('stId').value;
   const payload={
@@ -6588,9 +6626,12 @@ async function saveStory(){
     tag:document.getElementById('stTag').value,
     published:document.getElementById('stPublished').value==='true',
     title:document.getElementById('stTitle').value.trim(),
+    slug:document.getElementById('stSlug').value.trim(),
     excerpt:document.getElementById('stExcerpt').value.trim(),
     full_text:document.getElementById('stFullText').value.trim(),
     image_url:document.getElementById('stImageUrl').value.trim()||null,
+    customer_name:document.getElementById('stCustomerName').value.trim()||null,
+    customer_location:document.getElementById('stCustomerLocation').value.trim()||null,
   };
   if(!payload.title||!payload.excerpt||!payload.full_text){ toast('Title, excerpt and full story are required','error'); return; }
   try{
@@ -6820,11 +6861,29 @@ async function saveReview(){
           <select id="stPublished" class="form-input"><option value="true">Yes, shown on stories.html</option><option value="false">No, hidden</option></select></div>
       </div>
       <div><label class="form-label">Title *</label><input id="stTitle" class="form-input" placeholder="e.g. A 23-year-old Maruti bracket, found nowhere in India"></div>
+      <div><label class="form-label">URL <span style="font-weight:400;color:var(--text-3);font-size:10px">/stories/… , auto-filled from the title, edit if you want a shorter link</span></label><input id="stSlug" class="form-input" placeholder="auto-generated from title"></div>
       <div><label class="form-label">Excerpt * <span style="font-weight:400;color:var(--text-3);font-size:11px">· short line shown on the card</span></label>
         <input id="stExcerpt" class="form-input" placeholder="e.g. Rajesh from Pune had searched every spare parts shop for 8 months."></div>
       <div><label class="form-label">Full Story * <span style="font-weight:400;color:var(--text-3);font-size:11px">· shown in the popup when clicked</span></label>
         <textarea id="stFullText" class="form-input" rows="3" style="resize:vertical" placeholder="The complete story…"></textarea></div>
-      <div><label class="form-label">Image URL (optional)</label><input id="stImageUrl" class="form-input" placeholder="https://res.cloudinary.com/…"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label class="form-label">Customer Name <span style="font-weight:400;color:var(--text-3);font-size:10px">optional</span></label>
+          <input id="stCustomerName" class="form-input" placeholder="e.g. Rajesh"></div>
+        <div><label class="form-label">City <span style="font-weight:400;color:var(--text-3);font-size:10px">optional</span></label>
+          <input id="stCustomerLocation" class="form-input" placeholder="e.g. Pune"></div>
+      </div>
+      <p style="font-size:11px;color:var(--text-3);margin:-4px 0 0;line-height:1.5">A real name + city turns the card from an anonymous excerpt into a verifiable customer story, same trust signal as product reviews. Leave blank to keep it anonymous (e.g. a bulk/corporate order where no individual is named).</p>
+      <div>
+        <label class="form-label">Photo <span style="font-weight:400;color:var(--text-3);font-size:11px">· the finished piece, or the customer with it</span></label>
+        <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
+          <img id="stImagePreview" src="" style="width:84px;height:84px;object-fit:cover;border-radius:8px;border:1px solid var(--border);display:none;background:var(--bg-2)">
+          <div style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:6px">
+            <input id="stImageFile" type="file" accept="image/jpeg,image/png,image/webp" onchange="uploadStoryImage(this)">
+            <input id="stImageUrl" class="form-input" placeholder="https://res.cloudinary.com/… (or upload above)" oninput="updateStoryImagePreview()">
+            <span id="stImageUploadStatus" style="font-size:11px;color:var(--text-3)"></span>
+          </div>
+        </div>
+      </div>
       <div style="display:flex;gap:10px;margin-top:6px">
         <button class="btn-primary" onclick="saveStory()" title="Shortcut: Ctrl+Enter" style="flex:1">Save Story <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
         <button class="btn-secondary" onclick="closeStoryModal()">Cancel</button>

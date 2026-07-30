@@ -49,12 +49,17 @@ router.get('/products/:id/prompt-history',     getProductPromptHistory);
 
 // Image upload — receives file, compresses it, stores in Cloudinary, returns URL.
 // Replaces direct Supabase Storage uploads from the admin panel.
+// Optional ?folder= lets callers (e.g. the Stories editor) route into their own
+// Cloudinary folder instead of the default product one; only a small fixed allowlist
+// is accepted so this can't be used to write arbitrary paths into the Cloudinary account.
+const UPLOAD_FOLDERS = ['triakar/products', 'triakar/stories'];
 router.post('/upload-image', upload.single('image'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No image file provided' });
+    const folder = UPLOAD_FOLDERS.includes(req.query.folder) ? req.query.folder : 'triakar/products';
     const compressed = await compressImage(req.file.buffer);
     const result = await uploadBufferToCloudinary(compressed, {
-      folder:       'triakar/products',
+      folder,
       fetch_format: 'auto',
       quality:      'auto',
     });
