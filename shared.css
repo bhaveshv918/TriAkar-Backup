@@ -181,14 +181,17 @@ nav.main-nav{
   background:var(--ivory);
   border:1px solid transparent;
   border-bottom-color:rgba(22,22,20,.1);
-  /* Promotes the nav to its own compositing layer so the browser doesn't
-     have to repaint the rest of the page on every frame of the transition
-     below, the shape/backdrop-filter changes stay isolated to this box. */
-  will-change:top,left,right,height,border-radius,backdrop-filter;
   /* smooth "liquid glass pop-up" transition into the floating capsule */
   transition:top .45s cubic-bezier(.22,1,.36,1), left .45s cubic-bezier(.22,1,.36,1),
              right .45s cubic-bezier(.22,1,.36,1), height .45s cubic-bezier(.22,1,.36,1),
              border-radius .45s cubic-bezier(.22,1,.36,1), background .4s, box-shadow .4s, border-color .4s;
+}
+/* Promotes the nav to its own compositing layer only for the ~480ms the
+   shape is actually morphing (toggled by shared.js), so the browser isn't
+   holding an expensive layer/backdrop-filter promotion open for the whole
+   page lifetime once the capsule has settled. */
+nav.main-nav.nav-morphing{
+  will-change:top,left,right,height,border-radius,backdrop-filter;
 }
 /* On scroll the bar detaches from the edges and becomes a rounded,
    frosted glass capsule with a visible curved boundary (iOS-style). A flat

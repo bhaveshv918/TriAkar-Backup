@@ -70,7 +70,15 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
   btn.className='scroll-top';btn.setAttribute('aria-label','Back to top');
   btn.innerHTML='<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11V3M3 7l4-4 4 4"/></svg>';
   document.body.appendChild(btn);
-  window.addEventListener('scroll',()=>btn.classList.toggle('show',window.scrollY>300),{passive:true});
+  /* rAF-throttled: raw scroll events can fire many times per frame
+     (trackpad/momentum scroll), classList.toggle is cheap but there's no
+     reason to run it more than once per paint. */
+  let sttTicking=false;
+  window.addEventListener('scroll',()=>{
+    if(sttTicking)return;
+    sttTicking=true;
+    requestAnimationFrame(()=>{sttTicking=false;btn.classList.toggle('show',window.scrollY>300);});
+  },{passive:true});
 
   // Fast eased scroll, 320ms ease-out (much snappier than native smooth)
   btn.addEventListener('click',function(){
@@ -98,6 +106,7 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
   var isAndroid=/Android/i.test(navigator.userAgent);
 
   var navEl=null,ticking=false,wasScrolled=false,distortTimer=null,offsetTimer=null;
+  var firstRun=true,morphRafId=0,morphEndTime=0;
 
   /* The filter sidebar / sticky filter bar on the shop page reserve a
      fixed top offset (var(--header-offset), see shared.css) sized for the
@@ -112,6 +121,29 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
     document.documentElement.style.setProperty('--header-offset',Math.max(0,bottom+12)+'px');
   }
 
+  /* Runs updateHeaderOffset() on its own rAF chain for the duration of the
+     .45s top/left/right/height/border-radius morph, then stops. The nav's
+     real geometry only changes during that window, measuring it on every
+     scroll-driven tick forever (the old behaviour) meant a forced
+     getBoundingClientRect() + style write on every single scroll frame of
+     the page's life, long after the shape had settled. will-change is
+     applied only for the same window so the compositor layer promotion
+     isn't held open indefinitely either. */
+  function runMorphUpdates(){
+    updateHeaderOffset();
+    if(performance.now()<morphEndTime){
+      morphRafId=requestAnimationFrame(runMorphUpdates);
+    }else{
+      morphRafId=0;
+      navEl.classList.remove('nav-morphing');
+    }
+  }
+  function startMorph(){
+    navEl.classList.add('nav-morphing');
+    morphEndTime=performance.now()+480; /* covers the .45s shape transition + margin */
+    if(!morphRafId) morphRafId=requestAnimationFrame(runMorphUpdates);
+  }
+
   function applyScrollState(){
     ticking=false;
     if(!navEl){
@@ -121,6 +153,16 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
     var s=window.scrollY>10;
     navEl.classList.toggle('scrolled',s);
     document.documentElement.classList.toggle('is-scrolled',s); /* slides the top notice bar away on scroll */
+
+    if(firstRun){
+      /* Page can load already scrolled (anchor link, browser restoring
+         scroll position). No transition is in flight yet, one measurement
+         is enough, no need for the morph rAF chain. */
+      firstRun=false;
+      wasScrolled=s;
+      updateHeaderOffset();
+      return;
+    }
 
     if(s!==wasScrolled){
       wasScrolled=s;
@@ -135,19 +177,8 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
       }else{
         navEl.classList.remove('nav-distort');
       }
-      /* Catches the transition's tail end for whichever state we just
-         settled into, in case the user stopped scrolling mid-morph and no
-         further scroll ticks arrive to refresh it below. */
-      clearTimeout(offsetTimer);
-      offsetTimer=setTimeout(updateHeaderOffset,470);
+      startMorph();
     }
-    /* Recomputed on every throttled tick, not only when the state flips —
-       during the .45s shrink/grow the nav's real geometry changes every
-       frame, and gating this behind threshold-crossing alone could go
-       stale if the user hovers right at the 10px boundary and the state
-       flips back and forth rapidly. Already capped to once per rAF frame
-       by the scroll listener below, so this is cheap. */
-    updateHeaderOffset();
   }
 
   /* rAF-throttled: raw scroll events can fire far more often than the
