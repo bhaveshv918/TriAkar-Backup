@@ -452,6 +452,33 @@ window._FOOTER_HTML = `<footer>
     document.body.appendChild(nav);
     document.body.classList.add('has-bottomnav');
 
+    /* ── Hide on scroll-down, reveal on scroll-up ──────────────────────
+       Standard native-app tab bar behaviour: reuses the same
+       tabn-peek-hidden class/transform the PDP bar uses for its
+       buyButtons visibility toggle, just driven by scroll direction here
+       since the icon tab bar has no on-page anchor to watch. Always shown
+       near the top of the page regardless of direction. */
+    (function initScrollHide(){
+      var lastY=window.scrollY,hidden=false,ticking=false;
+      var THRESHOLD=6,TOP_GUARD=40;
+      function update(){
+        ticking=false;
+        var y=window.scrollY;
+        var dy=y-lastY;
+        if(y<=TOP_GUARD){
+          if(hidden){hidden=false;nav.classList.remove('tabn-peek-hidden');}
+        }else if(dy>THRESHOLD&&!hidden){
+          hidden=true;nav.classList.add('tabn-peek-hidden');
+        }else if(dy<-THRESHOLD&&hidden){
+          hidden=false;nav.classList.remove('tabn-peek-hidden');
+        }
+        lastY=y;
+      }
+      window.addEventListener('scroll',function(){
+        if(!ticking){ticking=true;requestAnimationFrame(update);}
+      },{passive:true});
+    })();
+
     /* ── Sliding glass highlight ──────────────────────────────────────
        A single pill slides behind the active tab. To make the slide
        visible across full page loads (this is a multi-page site), we
@@ -474,17 +501,14 @@ window._FOOTER_HTML = `<footer>
           }catch(_){return false;}
         };
 
-        /* ── Liquid-glass motion effects: chromatic edge fringe + passing-
-           label compression. Wired into both the drag gesture and the CSS-
-           driven pill transitions (cross-page arrival slide, drag-release
-           settle) via one shared engine, so a tap-triggered slide across
-           several tabs gets the same live sweep-through feedback as an
-           actual drag. Fringe is gated to tabn-distort (skipped on
-           Android); label squeeze runs everywhere since it's cheap. Both
-           no-op under reduced motion. transform/opacity only, no layout
-           reads on the item list (their centers are measured once, not
-           per frame), the only per-frame reads are on the pill itself,
-           unavoidable since the CSS transition engine drives its value. */
+        /* ── Liquid-glass motion effect: chromatic edge fringe on the pill.
+           Wired into both the drag gesture and the CSS-driven pill
+           transitions (cross-page arrival slide, drag-release settle) via
+           one shared engine, so a tap-triggered slide across several tabs
+           gets the same live sweep-through feedback as an actual drag.
+           Gated to tabn-distort (skipped on Android) and a no-op under
+           reduced motion. transform/opacity only. Labels themselves are
+           never animated, no squeeze/scale effect on tab text. */
         var fringeLeft=null,fringeRight=null;
         try{
           ind.innerHTML=
@@ -493,12 +517,6 @@ window._FOOTER_HTML = `<footer>
           fringeLeft=ind.querySelector('.tabn-fringe-left');
           fringeRight=ind.querySelector('.tabn-fringe-right');
         }catch(_){}
-
-        var itemCenters=[];
-        var measureItemCenters=function(){
-          itemCenters=items.map(function(el){return el.offsetLeft+el.offsetWidth/2;});
-        };
-        measureItemCenters();
 
         var lastFxX=null,lastFxT=null;
         var velocityAt=function(x){
@@ -521,28 +539,12 @@ window._FOOTER_HTML = `<footer>
           fringeLeft.style.opacity=speed*(goingRight?0.9:(goingLeft?0.28:0));
           fringeRight.style.opacity=speed*(goingLeft?0.9:(goingRight?0.28:0));
         };
-        var SQUEEZE_SIGMA=(items[0]&&items[0].offsetWidth?items[0].offsetWidth:60)*0.62;
-        var MAX_SQUEEZE=0.3;
-        var applyLabelSqueeze=function(pillLeft,pillWidth){
-          var reduced=reduceMotion();
-          var center=pillLeft+pillWidth/2;
-          items.forEach(function(item,i){
-            var label=item.lastElementChild;
-            if(!label)return;
-            if(reduced){if(label.style.transform)label.style.transform='';return;}
-            var d=Math.abs(center-itemCenters[i]);
-            if(d>SQUEEZE_SIGMA*2.6){if(label.style.transform)label.style.transform='';return;}
-            var sq=MAX_SQUEEZE*Math.exp(-(d*d)/(2*SQUEEZE_SIGMA*SQUEEZE_SIGMA));
-            label.style.transform=sq>0.01?('scaleX('+(1-sq).toFixed(3)+')'):'';
-          });
-        };
         var resetFx=function(){
           lastFxX=null;lastFxT=null;
           if(fringeLeft)fringeLeft.style.opacity=0;
           if(fringeRight)fringeRight.style.opacity=0;
-          items.forEach(function(item){var l=item.lastElementChild;if(l&&l.style.transform)l.style.transform='';});
         };
-        var fxFrame=function(x,w){applyFringe(velocityAt(x));applyLabelSqueeze(x,w);};
+        var fxFrame=function(x){applyFringe(velocityAt(x));};
         var currentIndTransformX=function(){
           try{
             var t=getComputedStyle(ind).transform;
@@ -556,8 +558,7 @@ window._FOOTER_HTML = `<footer>
           lastFxX=null;lastFxT=null;
           function step(now){
             var x=currentIndTransformX();
-            var w=parseFloat(getComputedStyle(ind).width)||0;
-            fxFrame(x,w);
+            fxFrame(x);
             if(now-t0<ms){requestAnimationFrame(step);}else{resetFx();}
           }
           requestAnimationFrame(step);
@@ -626,7 +627,6 @@ window._FOOTER_HTML = `<footer>
             var visRO=new ResizeObserver(function(){
               if(nav.offsetWidth>0){
                 visRO.disconnect();
-                measureItemCenters(); /* was measured at 0 while hidden, redo it now the box has real dimensions */
                 doInitialPlace();
               }
             });
@@ -640,7 +640,6 @@ window._FOOTER_HTML = `<footer>
         window.addEventListener('resize',function(){
           clearTimeout(rt);
           rt=setTimeout(function(){
-            measureItemCenters();
             ind.classList.add('tabn-indicator--noanim');
             if(place(activeEl)){
               ind.classList.add('on');
@@ -696,7 +695,7 @@ window._FOOTER_HTML = `<footer>
             ind.style.transform='translateX('+left+'px)';
             var hoverIdx=nearestIndexForCenter(left+pillW/2);
             items.forEach(function(it,i){it.classList.toggle('active',i===hoverIdx);});
-            fxFrame(left,pillW); /* continuous drag-through: fringe + label squeeze, live every move */
+            fxFrame(left); /* continuous drag-through: fringe, live every move */
           });
 
           function endDrag(e){
