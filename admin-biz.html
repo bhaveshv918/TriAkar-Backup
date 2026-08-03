@@ -155,6 +155,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .kpi.orange{border-top:2px solid var(--orange);background:linear-gradient(var(--orange-bg),var(--bg-1) 60%)}
 .kpi.orange .kpi-val{color:var(--orange)}
 
+/* Privacy mode, plain CSS blur backing the JS dot-masking (applyPrivacyMasking). Pure
+   CSS matches the instant a fresh node lands in the DOM, no MutationObserver round-trip
+   to wait on, which is what actually closes the ~1s flash of real numbers/charts that
+   used to show on every tab switch before the debounced observer caught up. */
+body.privacy-mode .kpi-val,body.privacy-mode .td-num,body.privacy-mode .amt{filter:blur(5px);user-select:none}
+body.privacy-mode .chart-box canvas{filter:blur(7px);pointer-events:none}
+
 /* ── Charts ───────────────────────────────────────────────── */
 .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
 .chart-box{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
@@ -1735,6 +1742,10 @@ html[data-theme="dark"] .biz-login{
             </select>
           </div>
         </div>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:10px;font-size:12px;color:var(--text-3)">
+          <input type="checkbox" id="svIncludeExcluded" onchange="loadSalesview()">
+          Peek at cancelled &amp; returned too <span style="font-weight:400">(they still don't count toward Sales totals)</span>
+        </label>
       </div>
       <div class="tbl-wrap">
         <table>
@@ -3414,6 +3425,11 @@ function unmaskEl(el){
 }
 function applyPrivacyMasking(){
   const on=isPrivacyOn();
+  // A body class backs this with a plain CSS blur rule (below) that matches the instant
+  // a fresh KPI/table/chart node is painted, the JS dot-masking loop below still runs,
+  // but the CSS is what actually closes the ~1s flash on tab switch, it doesn't have to
+  // wait for the (debounced) MutationObserver tick to catch up with newly-rendered nodes.
+  document.body.classList.toggle('privacy-mode',on);
   document.querySelectorAll(PRIVACY_SELECTOR).forEach(on?maskEl:unmaskEl);
   // Chart canvases can't be text-masked (values are drawn on canvas, not in the DOM) —
   // blur them instead so figures aren't readable at a glance while privacy mode is on.
@@ -3438,7 +3454,12 @@ function applyTableLabels(root){
   });
 }
 (function(){
-  var t=null, run=function(){ clearTimeout(t); t=setTimeout(function(){applyTableLabels(); applyPrivacyMasking();},80); };
+  // applyTableLabels is the heavier DOM walk (full thead/tbody scan), stays debounced.
+  // applyPrivacyMasking runs on every mutation, undebounced, it's a cheap querySelectorAll
+  // and the whole point is to close the window where a freshly-rendered tab shows real
+  // numbers before masking catches up, a redundant call here is far cheaper than a flash
+  // of ₹ figures being visible even briefly.
+  var t=null, run=function(){ if(isPrivacyOn()) applyPrivacyMasking(); clearTimeout(t); t=setTimeout(applyTableLabels,80); };
   function init(){ applyTableLabels(); applyPrivacyMasking(); try{ new MutationObserver(run).observe(document.querySelector('.main-area')||document.body,{childList:true,subtree:true}); }catch(e){} }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
 })();
@@ -4055,13 +4076,20 @@ function spoolOptions(selected){
     return `<option value="${r.id}" data-rate="${r.cost_per_gram||0}"${String(selected)===String(r.id)?' selected':''}>${esc(label)}</option>`;
   };
   const curMaterial=selected?(_addSaleSpools.find(r=>String(r.id)===String(selected))||{}).filament_type:null;
+  // Any already-opened/partial spool (grams_used>0, not just whatever matches the current
+  // row's material) surfaces first, grouped by material, so the picker never defaults to
+  // cracking open a fresh sealed roll when a part-used one is already sitting on the shelf.
+  const openedAll=rows.filter(r=>(parseFloat(r.grams_used)||0)>0 && String(r.id)!==String(selected));
   let matchHtml='';
-  if(curMaterial){
-    const opened=rows.filter(r=>r.filament_type===curMaterial && (parseFloat(r.grams_used)||0)>0 && String(r.id)!==String(selected));
-    if(opened.length) matchHtml=`<optgroup label="Already open, ${esc(curMaterial)}">`+opened.map(optRow).join('')+'</optgroup>';
+  if(openedAll.length){
+    const byMat={};
+    openedAll.forEach(r=>{ const m=(r.filament_type||'Unspecified').trim()||'Unspecified'; (byMat[m]=byMat[m]||[]).push(r); });
+    const mats=Object.keys(byMat).sort((a,b)=>(a===curMaterial?-1:b===curMaterial?1:a.localeCompare(b)));
+    matchHtml=mats.map(m=>`<optgroup label="Already open, ${esc(m)}">`+byMat[m].map(optRow).join('')+'</optgroup>').join('');
   }
+  const openedIds=new Set(openedAll.map(r=>String(r.id)));
   const byBrand={};
-  rows.forEach(r=>{ const b=(r.brand||'Other').trim()||'Other'; (byBrand[b]=byBrand[b]||[]).push(r); });
+  rows.forEach(r=>{ if(openedIds.has(String(r.id))) return; const b=(r.brand||'Other').trim()||'Other'; (byBrand[b]=byBrand[b]||[]).push(r); });
   const brands=Object.keys(byBrand).sort((a,b)=>a.localeCompare(b));
   return '<option value="">Spool (optional, deducts stock)</option>'+matchHtml+
     brands.map(b=>`<optgroup label="${esc(b)}">`+byBrand[b].map(optRow).join('')+'</optgroup>').join('');
@@ -4986,23 +5014,31 @@ async function loadSalesview(){
   const ch=g('svChannel'), pay=g('svPayment'), mo=g('svMonth'), from=g('svFrom'), to=g('svTo'), se=g('svSearch').trim();
   const sort=g('svSort')||'date_desc';
   const st=_svPending?'':g('svStatus'), paid=_svPending?'0':g('svPaid');
-  let q=sb.from('biz_sales').select('*').eq('is_deleted',false).not('status','in',`(${NON_REVENUE_STATUSES.join(',')})`).limit(2000);
-  if(_svPending) q=q.not('status','in','(completed,delivered)');
-  if(ch) q=q.eq('channel_id',ch);
-  if(st) q=q.eq('status',st);
-  if(pay) q=q.eq('payment_mode',pay);
-  if(paid!=='') q=q.eq('is_paid',paid==='1');
-  if(mo){ const [yy,mm]=mo.split('-').map(Number); const nm=(mm===12)?`${yy+1}-01-01`:`${yy}-${String(mm+1).padStart(2,'0')}-01`; q=q.gte('order_date',mo+'-01').lt('order_date',nm); }
-  if(from) q=q.gte('order_date',from);
-  if(to) q=q.lte('order_date',to);
-  if(se) q=q.or(`product_name.ilike.%${se}%,order_id.ilike.%${se}%,customer_name.ilike.%${se}%`);
-  const sortMap={date_desc:['order_date',false],date_asc:['order_date',true],price_desc:['selling_price',false],price_asc:['selling_price',true]};
-  const [col,asc]=sortMap[sort]||['order_date',false];
-  q=q.order(col,{ascending:asc});
-  const [{data:allData},{data:salesData,error}]=await Promise.all([
+  // "Peek" shows cancelled/returned rows in the table below without letting them touch
+  // the Sales KPIs/comparison strip, those stay confirmed-orders-only no matter what.
+  const peek=!!document.getElementById('svIncludeExcluded')?.checked;
+  const applyFilters=q=>{
+    if(ch) q=q.eq('channel_id',ch);
+    if(st) q=q.eq('status',st);
+    if(pay) q=q.eq('payment_mode',pay);
+    if(paid!=='') q=q.eq('is_paid',paid==='1');
+    if(mo){ const [yy,mm]=mo.split('-').map(Number); const nm=(mm===12)?`${yy+1}-01-01`:`${yy}-${String(mm+1).padStart(2,'0')}-01`; q=q.gte('order_date',mo+'-01').lt('order_date',nm); }
+    if(from) q=q.gte('order_date',from);
+    if(to) q=q.lte('order_date',to);
+    if(se) q=q.or(`product_name.ilike.%${se}%,order_id.ilike.%${se}%,customer_name.ilike.%${se}%`);
+    const sortMap={date_desc:['order_date',false],date_asc:['order_date',true],price_desc:['selling_price',false],price_asc:['selling_price',true]};
+    const [col,asc]=sortMap[sort]||['order_date',false];
+    return q.order(col,{ascending:asc});
+  };
+  let statsQ=sb.from('biz_sales').select('*').eq('is_deleted',false).not('status','in',`(${NON_REVENUE_STATUSES.join(',')})`).limit(2000);
+  if(_svPending) statsQ=statsQ.not('status','in','(completed,delivered)');
+  statsQ=applyFilters(statsQ);
+  const queries=[
     sb.from('biz_sales').select('order_id,selling_price').eq('is_deleted',false).limit(5000),
-    q,
-  ]);
+    statsQ,
+  ];
+  if(peek) queries.push(applyFilters(sb.from('biz_sales').select('*').eq('is_deleted',false).limit(2000)));
+  const [{data:allData},{data:salesData,error},peekResult]=await Promise.all(queries);
   if(error){ toast('Error: '+error.message,'error'); return; }
   updateSvFilterBadge();
   const allRows=allData||[], rows=salesData||[];
@@ -5022,15 +5058,20 @@ async function loadSalesview(){
     <div><div class="kpi-label">All Orders</div><div class="kpi-val" style="font-size:16px">${ordersCount} <span style="font-size:11px;color:var(--text-3);font-weight:400">(${fmt(ordersTotal)})</span></div></div>
     <div><div class="kpi-label">Sales</div><div class="kpi-val" style="font-size:16px">${salesCount} <span style="font-size:11px;color:var(--text-3);font-weight:400">(${fmt(salesTotal)})</span></div></div>
     <div><div class="kpi-label">Conversion</div><div class="kpi-val" style="font-size:16px">${conv.toFixed(1)}%</div></div>`;
-  const groups=Object.values(salesGroups);
+  // Display rows: peeked (everything, filters applied) when the toggle is on, otherwise
+  // the same confirmed-only set the KPIs are built from.
+  const displayRows=peek?(peekResult&&peekResult.data)||[]:rows;
+  const dispGroups={}; displayRows.forEach(r=>{ const k=r.order_id||('r:'+Math.random()); (dispGroups[k]=dispGroups[k]||[]).push(r); });
+  const groups=Object.values(dispGroups);
   const body=document.getElementById('salesviewBody');
   if(!body) return;
   if(!groups.length){ body.innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">No sales found</div></td></tr>'; return; }
   body.innerHTML=groups.map((items,idx)=>{
     const f=items[0], totalQty=items.reduce((a,s)=>a+(parseInt(s.qty)||0),0), totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
-    return `<tr class="sale-row" onclick="switchTab('sales');setTimeout(()=>openOrderDetail('${f.id}'),150)" style="cursor:pointer">
+    const excluded=NON_REVENUE_STATUSES.includes(f.status);
+    return `<tr class="sale-row${excluded?' row-breached':''}" onclick="switchTab('sales');setTimeout(()=>openOrderDetail('${f.id}'),150)" style="cursor:pointer${excluded?';opacity:.7':''}">
       <td>${idx+1}</td><td>${fmtDay(f.order_date)}</td><td>${chHtml(f.channel_id)}</td>
-      <td>${esc(f.customer_name||'—')}</td><td>${esc(f.product_name||'—')}${f.is_gift?' <span title="Gift, ₹0 revenue">🎁</span>':''}${items.length>1?` <span style="color:var(--text-3);font-size:10px">+${items.length-1} more</span>`:''}</td>
+      <td>${esc(f.customer_name||'—')}</td><td>${esc(f.product_name||'—')}${f.is_gift?' <span title="Gift, ₹0 revenue">🎁</span>':''}${items.length>1?` <span style="color:var(--text-3);font-size:10px">+${items.length-1} more</span>`:''}${excluded?' <span style="color:var(--red);font-size:10px">(excluded from Sales)</span>':''}</td>
       <td class="td-num">${totalQty}</td><td class="td-num">${fmt(totalPrice)}</td>
       <td><span class="badge badge-${f.status}">${STATUS_LABEL?.[f.status]||f.status}</span></td>
     </tr>`;
