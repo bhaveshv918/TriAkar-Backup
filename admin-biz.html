@@ -780,7 +780,7 @@ html[data-theme="dark"] .biz-login{
         <text x="120" y="122" font-family="'Noto Sans Devanagari',Mangal,'Arial Unicode MS',sans-serif" font-size="106" font-weight="700" fill="#C4622A" text-anchor="middle" dominant-baseline="central">त्रि</text>
       </svg>
     </div>
-    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.75</span>
+    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.76</span>
     <nav class="biz-tb-nav" id="bizTbNav"></nav>
     <button class="biz-tb-icon biz-tb-cmdk" onclick="openCmdPalette()" title="Command palette (Ctrl/Cmd+K)">⌘</button>
     <div class="biz-tb-search">
@@ -810,12 +810,12 @@ html[data-theme="dark"] .biz-login{
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <select id="dashView" onchange="onDashViewChange()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
-            <option value="fy" selected>This Financial Year</option>
+            <option value="fy">This Financial Year</option>
             <option value="calendar">Calendar Year</option>
-            <option value="month">Select Month</option>
+            <option value="month" selected>Select Month</option>
             <option value="custom">Custom Range</option>
           </select>
-          <select id="dashMonth" class="month-select" onchange="loadDashboard()" style="display:none">
+          <select id="dashMonth" class="month-select" onchange="loadDashboard()">
             <!-- filled by JS -->
           </select>
           <div id="dashCustomRange" style="display:none;gap:6px;align-items:center">
@@ -840,8 +840,6 @@ html[data-theme="dark"] .biz-login{
         <div class="kpi" data-w="cancelled" style="cursor:pointer" onclick="openDashDrilldown('cancelled')"><div class="kpi-label">Total Cancelled</div><div class="kpi-val" id="kpiCancelled">—</div><div class="kpi-sub" id="kpiCancelledSub">—</div></div>
         <div class="kpi red" data-w="returns" style="cursor:pointer" onclick="openDashDrilldown('returns')"><div class="kpi-label">Returns / Claims</div><div class="kpi-val" id="kpiReturns">—</div><div class="kpi-sub">Loss this period</div></div>
         <div class="kpi" data-w="filament" style="cursor:pointer" onclick="openDashDrilldown('filament')"><div class="kpi-label">Filament Used</div><div class="kpi-val" id="kpiFilament">—</div><div class="kpi-sub">This period, by colour</div></div>
-        <div class="kpi" data-w="topcust_month" style="cursor:pointer" onclick="openDashDrilldown('topcust_month')"><div class="kpi-label">Top Customer, Month</div><div class="kpi-val" id="kpiTopCustMonth" style="font-size:16px">—</div><div class="kpi-sub" id="kpiTopCustMonthSub">—</div></div>
-        <div class="kpi" data-w="topcust_year" style="cursor:pointer" onclick="openDashDrilldown('topcust_year')"><div class="kpi-label">Top Customer, Year</div><div class="kpi-val" id="kpiTopCustYear" style="font-size:16px">—</div><div class="kpi-sub" id="kpiTopCustYearSub">—</div></div>
       </div>
 
       <!-- Margin by Channel, separate from the Channel Breakdown table for visibility -->
@@ -1550,8 +1548,8 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group">
             <label>Period</label>
             <select id="sfView" onchange="onSfViewChange()">
-              <option value="all" selected>All Time</option>
-              <option value="month">Select Month</option>
+              <option value="all">All Time</option>
+              <option value="month" selected>Select Month</option>
               <option value="fy">This Financial Year</option>
               <option value="calendar">Calendar Year</option>
               <option value="custom">Custom Range</option>
@@ -1812,7 +1810,7 @@ html[data-theme="dark"] .biz-login{
       <div class="p-head">
         <div>
           <div class="p-title">Import &amp; Labels</div>
-          <div class="p-sub" id="importModeSub">Upload Amazon or Flipkart order reports, columns auto-detected</div>
+          <div class="p-sub" id="importModeSub">Upload daily Amazon / Flipkart shipping label PDFs, order IDs &amp; addresses auto-extracted</div>
         </div>
       </div>
 
@@ -1821,13 +1819,13 @@ html[data-theme="dark"] .biz-login{
       <div class="form-group" style="max-width:500px;margin-bottom:14px">
         <label>What are you uploading?</label>
         <div class="seg" id="importKindSeg">
-          <button type="button" class="seg-btn active" data-v="csv" onclick="setImportKind('csv')">📄 Order Report (CSV/Excel)</button>
-          <button type="button" class="seg-btn" data-v="labels" onclick="setImportKind('labels')">🏷 Shipping Labels (PDF)</button>
+          <button type="button" class="seg-btn" data-v="csv" onclick="setImportKind('csv')">📄 Order Report (CSV/Excel)</button>
+          <button type="button" class="seg-btn active" data-v="labels" onclick="setImportKind('labels')">🏷 Shipping Labels (PDF)</button>
         </div>
       </div>
 
       <!-- ── Order Report (CSV/Excel) ── -->
-      <div id="importModeCsv">
+      <div id="importModeCsv" style="display:none">
         <!-- Step 1: Settings -->
         <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px">
           <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:10px">Step 1, Set defaults (applied to all rows in this file)</div>
@@ -1903,7 +1901,7 @@ html[data-theme="dark"] .biz-login{
       </div><!-- /importModeCsv -->
 
       <!-- ── Shipping Labels (PDF) ── -->
-      <div id="importModeLabels" style="display:none">
+      <div id="importModeLabels">
         <!-- Step 1: Settings -->
         <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px">
           <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:10px">Step 1, Set defaults (applied to all labels in this batch)</div>
@@ -1911,10 +1909,10 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group">
               <label>Platform * <span style="font-weight:400;color:var(--text-3);font-size:10px">tap both to mix Amazon + Flipkart labels in one upload</span></label>
               <div class="seg" id="lblPlatformSeg">
-                <button type="button" class="seg-btn active" data-v="amazon" onclick="setLblPlatform('amazon')">📦 Amazon</button>
-                <button type="button" class="seg-btn" data-v="flipkart" onclick="setLblPlatform('flipkart')">🛍️ Flipkart</button>
+                <button type="button" class="seg-btn active" data-v="flipkart" onclick="setLblPlatform('flipkart')">🛍️ Flipkart</button>
+                <button type="button" class="seg-btn" data-v="amazon" onclick="setLblPlatform('amazon')">📦 Amazon</button>
               </div>
-              <input type="hidden" id="lbl_platform" value="amazon">
+              <input type="hidden" id="lbl_platform" value="flipkart">
             </div>
             <div class="form-group">
               <label>Default Product</label>
@@ -2646,12 +2644,12 @@ html[data-theme="dark"] .biz-login{
         <h3>State-wise Sales &amp; Tax by Platform, <span id="gstStateMonthName">this financial year</span></h3>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 12px">
           <select id="gstStateView" onchange="onGstStateViewChange()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
-            <option value="fy" selected>This Financial Year</option>
+            <option value="fy">This Financial Year</option>
             <option value="calendar">Calendar Year</option>
-            <option value="month">Select Month</option>
+            <option value="month" selected>Select Month</option>
             <option value="custom">Custom Range</option>
           </select>
-          <input type="month" id="gstStateMonth" onchange="loadGstStateBreakdown()" style="display:none;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
+          <input type="month" id="gstStateMonth" onchange="loadGstStateBreakdown()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
           <div id="gstStateCustomRange" style="display:none;gap:6px;align-items:center">
             <input type="month" id="gstStateFrom" onchange="loadGstStateBreakdown()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
             <span style="color:var(--text-3);font-size:11px">to</span>
@@ -2923,12 +2921,12 @@ html[data-theme="dark"] .biz-login{
         <div><div class="p-title">Expenses &amp; Purchases</div><div class="p-sub">Monthly purchase log, feeds P&amp;L</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <select id="expView" onchange="onExpViewChange()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
-            <option value="fy" selected>This Financial Year</option>
+            <option value="fy">This Financial Year</option>
             <option value="calendar">Calendar Year</option>
-            <option value="month">Select Month</option>
+            <option value="month" selected>Select Month</option>
             <option value="custom">Custom Range</option>
           </select>
-          <input type="month" id="expMonth" onchange="loadExpenses()" style="display:none;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
+          <input type="month" id="expMonth" onchange="loadExpenses()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
           <div id="expCustomRange" style="display:none;gap:6px;align-items:center">
             <input type="month" id="expFrom" onchange="loadExpenses()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
             <span style="color:var(--text-3);font-size:11px">to</span>
@@ -2981,12 +2979,12 @@ html[data-theme="dark"] .biz-login{
         <div><div class="p-title">Money In / Out</div><div class="p-sub">Studio Sales are auto-pulled from All Sales, log payouts &amp; misc income here</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <select id="ldView" onchange="onLedgerViewChange()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
-            <option value="fy" selected>This Financial Year</option>
+            <option value="fy">This Financial Year</option>
             <option value="calendar">Calendar Year</option>
-            <option value="month">Select Month</option>
+            <option value="month" selected>Select Month</option>
             <option value="custom">Custom Range</option>
           </select>
-          <input type="month" id="ldMonth" onchange="loadLedger()" style="display:none;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
+          <input type="month" id="ldMonth" onchange="loadLedger()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
           <div id="ldCustomRange" style="display:none;gap:6px;align-items:center">
             <input type="month" id="ldFrom" onchange="loadLedger()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
             <span style="color:var(--text-3);font-size:11px">to</span>
@@ -3036,12 +3034,12 @@ html[data-theme="dark"] .biz-login{
         <div><div class="p-title">Purchases</div><div class="p-sub">Vendor purchases, raw material buys can link to a filament roll</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <select id="puView" onchange="onPuViewChange()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
-            <option value="fy" selected>This Financial Year</option>
+            <option value="fy">This Financial Year</option>
             <option value="calendar">Calendar Year</option>
-            <option value="month">Select Month</option>
+            <option value="month" selected>Select Month</option>
             <option value="custom">Custom Range</option>
           </select>
-          <input type="month" id="puMonth" onchange="loadPurchases()" style="display:none;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
+          <input type="month" id="puMonth" onchange="loadPurchases()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
           <div id="puCustomRange" style="display:none;gap:6px;align-items:center">
             <input type="month" id="puFrom" onchange="loadPurchases()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
             <span style="color:var(--text-3);font-size:11px">to</span>
@@ -4748,11 +4746,9 @@ async function saveEditedOrder(){
 }
 
 // ── Payment installments (Phase 10 Group 1) ──────────────────
-// is_paid stays exactly the manual boolean it always was, every existing system
-// that reads it (return-window lock, bulk-delete protection, status-edit lock,
-// Balance Sheet, the Paid filter, exports) keeps working unmodified. This only adds
-// automatic locking once installments cover the total; the manual lock/unlock
-// button remains a full override in either direction at any time.
+// is_paid only ever changes via the explicit 🔒/🔓 Lock button now (togglePaidOrder),
+// logging installments here never touches it, a fully-paid order stays editable and
+// its status stays changeable until someone deliberately locks it.
 async function loadOrderPayments(orderId){
   const card=document.getElementById('qaPaymentCard');
   if(!orderId){ if(card) card.style.display='none'; return; }
@@ -4780,22 +4776,11 @@ async function addPaymentInstallment(){
   if(error){ toast('Error: '+error.message,'error'); return; }
   toast('Payment logged');
   await loadOrderPayments(_qaEditOrderId);
-  await autoMarkPaidIfComplete(_qaEditOrderId);
 }
 async function deletePaymentInstallment(id){
   if(!confirm('Remove this payment entry?')) return;
   await sb.from('biz_sale_payments').delete().eq('id',id);
   await loadOrderPayments(_qaEditOrderId);
-}
-async function autoMarkPaidIfComplete(orderId){
-  const {data}=await sb.from('biz_sale_payments').select('amount').eq('order_id',orderId);
-  const received=(data||[]).reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
-  const grand=parseFloat((document.getElementById('t_grand')?.textContent||'0').replace(/[^0-9.-]/g,''))||0;
-  if(grand>0 && received>=grand){
-    await sb.from('biz_sales').update({is_paid:true}).eq('order_id',orderId);
-    toast('Order fully paid, locked');
-    if(typeof loadSales==='function') loadSales();
-  }
 }
 
 // ── Quick-select chip handlers (status / lead source / fulfillment) ──
@@ -4896,9 +4881,13 @@ document.addEventListener('input', e=>{ if(e.target.classList && e.target.classL
 // with a real amount logs a biz_sale_payments row against the order_id that just got
 // generated; After Work / No Payment Yet log nothing, the order simply stays unpaid
 // until a real payment comes in (via Edit Order's installment workflow later).
-function applyNewOrderIsPaid(rows){
-  if(document.getElementById('qa_pay_status')?.value==='full_advance') rows.forEach(r=>r.is_paid=true);
-}
+// Full Advance/full payment used to auto-set is_paid=true here, which is the exact
+// same flag the Lock button uses, so a fully-paid order silently locked itself the
+// moment it saved: no more editing, no more status changes, without anyone actually
+// clicking Lock. Payment amount/balance still track correctly via biz_sale_payments
+// regardless (see loadOrderPayments), locking now only happens when the operator
+// explicitly clicks 🔒.
+function applyNewOrderIsPaid(rows){}
 async function applyNewOrderPaymentIfAny(orderId){
   const status=document.getElementById('qa_pay_status')?.value;
   const amount=parseFloat(document.getElementById('qaPayAmount')?.value)||0;
@@ -6669,6 +6658,10 @@ async function loadSales(){
   loadAllOrdersKpi();
   renderSfChannelBtns();
   const v=id=>{const e=document.getElementById(id);return e?e.value:'';};
+  // Default period is "this month" (sfView starts on "month"), self-fills sfMonth the
+  // same way resolvePeriodRange does elsewhere, so it works however loadSales() first
+  // gets called, not just when the operator manually touches the Period dropdown.
+  if(v('sfView')==='month'&&!v('sfMonth')){ const mEl=document.getElementById('sfMonth'); if(mEl) mEl.value=thisMonth(); }
   const ch=v('sfChannel'), st=v('sfStatus'), pay=v('sfPayment'), paid=v('sfPaid');
   const mo=v('sfMonth'), from=v('sfFrom'), to=v('sfTo'), sort=v('sfSort')||'date_desc', se=v('sfSearch').trim();
   let q=sb.from('biz_sales').select('*').eq('is_deleted',false).limit(2000);
@@ -8859,7 +8852,7 @@ function _skuToProduct(sku){
 }
 
 // ── B2, customizable dashboard widgets (per admin, localStorage) ──
-const DASH_WIDGETS=[{k:'revenue',name:'Total Revenue'},{k:'net',name:'Net Revenue'},{k:'profit',name:'Gross Profit'},{k:'gst',name:'Total GST'},{k:'orders',name:'Total Orders Received'},{k:'cancelled',name:'Total Cancelled'},{k:'returns',name:'Returns / Claims'},{k:'filament',name:'Filament Used'},{k:'topcust_month',name:'Top Customer, Month'},{k:'topcust_year',name:'Top Customer, Year'}];
+const DASH_WIDGETS=[{k:'revenue',name:'Total Revenue'},{k:'net',name:'Net Revenue'},{k:'profit',name:'Gross Profit'},{k:'gst',name:'Total GST'},{k:'orders',name:'Total Orders Received'},{k:'cancelled',name:'Total Cancelled'},{k:'returns',name:'Returns / Claims'},{k:'filament',name:'Filament Used'}];
 function dashWidgetCfg(){
   try{ const c=JSON.parse(localStorage.getItem('biz_dash_widgets')||'null'); if(c&&Array.isArray(c.order)) return {order:c.order,hidden:c.hidden||[],size:c.size||{}}; }catch(_){}
   return {order:DASH_WIDGETS.map(w=>w.k),hidden:[],size:{}};
@@ -9068,12 +9061,8 @@ async function loadDashboard(){
   // calendar year the selected month falls in, independent of the month filter above).
   const custMonth={}; completed.forEach(s=>{ const n=(s.customer_name||'').trim(); if(n) custMonth[n]=(custMonth[n]||0)+num(s.selling_price); });
   const topMonth=Object.entries(custMonth).sort((a,b)=>b[1]-a[1])[0];
-  document.getElementById('kpiTopCustMonth').textContent=topMonth?topMonth[0]:'—';
-  document.getElementById('kpiTopCustMonthSub').textContent=topMonth?fmt(topMonth[1])+' spent':'No customer data';
   const custYear={}; yearCust.forEach(s=>{ const n=(s.customer_name||'').trim(); if(n) custYear[n]=(custYear[n]||0)+num(s.selling_price); });
   const topYear=Object.entries(custYear).sort((a,b)=>b[1]-a[1])[0];
-  document.getElementById('kpiTopCustYear').textContent=topYear?topYear[0]:'—';
-  document.getElementById('kpiTopCustYearSub').textContent=topYear?fmt(topYear[1])+' spent in '+topCustYear:'No customer data';
 
   // Cache everything the drill-down modal needs so clicking a tile doesn't re-query
   _dashCache={label,completed,rets,byChannel,channels,byColor,totalGrams,custMonth,custYear,year:topCustYear,totRev,totNet,totProfit,totGst,totOrders,totItems,totUnits,totLost,cancelledRows,totCancelled};
