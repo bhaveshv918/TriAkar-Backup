@@ -362,6 +362,16 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
 .biz-tb-brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:var(--text);white-space:nowrap}
 .biz-tb-mark{flex-shrink:0;border-radius:6px}
 .biz-tb-brand span{color:var(--text-3);font-weight:500}
+/* Direct one-click nav button (Today's Tasks), styled like the dropdown categories
+   next to it but with no hover-menu, just a straight tab switch. */
+.biz-tb-direct{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--radius);
+  border:1px solid var(--border);background:var(--bg-2);color:var(--text);font-size:12.5px;font-weight:700;
+  cursor:pointer;white-space:nowrap;transition:background .15s ease,border-color .15s ease}
+.biz-tb-direct:hover{border-color:var(--accent)}
+.biz-tb-direct.tab-active{background:var(--accent);border-color:var(--accent);color:#fff}
+.biz-tb-direct.tab-active .biz-tb-dd-badge{background:rgba(255,255,255,.25);color:#fff}
+.biz-tb-direct-icon{font-size:13px}
+@media(max-width:1080px){.biz-tb-direct span:not(.biz-tb-direct-icon):not(.biz-tb-dd-badge){display:none}}
 .biz-tb-search{flex:1;max-width:440px;position:relative}
 .biz-tb-search input{width:100%;padding:7px 11px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;outline:none}
 .biz-tb-search input:focus{border-color:var(--accent)}
@@ -780,7 +790,13 @@ html[data-theme="dark"] .biz-login{
         <text x="120" y="122" font-family="'Noto Sans Devanagari',Mangal,'Arial Unicode MS',sans-serif" font-size="106" font-weight="700" fill="#C4622A" text-anchor="middle" dominant-baseline="central">त्रि</text>
       </svg>
     </div>
-    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.76</span>
+    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.77</span>
+    <!-- Direct one-click button, not a dropdown category, this is the actual landing
+         tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
+    <button type="button" class="biz-tb-direct" id="bizTbTodayBtn" onclick="switchTab('openorders')" title="Today's Tasks">
+      <span class="biz-tb-direct-icon">⚑</span><span>Today's Tasks</span>
+      <span class="biz-tb-dd-badge" id="openCount_hdr">—</span>
+    </button>
     <nav class="biz-tb-nav" id="bizTbNav"></nav>
     <button class="biz-tb-icon biz-tb-cmdk" onclick="openCmdPalette()" title="Command palette (Ctrl/Cmd+K)">⌘</button>
     <div class="biz-tb-search">
@@ -3484,13 +3500,6 @@ function chHtml(id){
 // item.id must match the existing switchTab(id) / panel<Id> convention.
 const NAV_CONFIG = [
   {
-    id: 'overview', label: 'Overview', color: 'var(--tri-orange)',
-    items: [
-      { id: 'openorders', label: "Today's Tasks", icon: '⚑', shortcut: 't', badge: 'openCount' },
-      { id: 'dashboard',  label: 'Dashboard',      icon: '◈', shortcut: 'd' },
-    ]
-  },
-  {
     id: 'sales', label: 'Sales', color: 'var(--ch-studio)',
     items: [
       // Phase 10 Group 1: "Quick Add Sale" -> "Add Order" and "All Sales" -> "All
@@ -3524,6 +3533,7 @@ const NAV_CONFIG = [
     // Every item keeps its original shortcut letter; only the grouping/order changed.
     id: 'finance', label: 'Finance', color: 'var(--ch-website)',
     items: [
+      { id: 'dashboard', label: 'Dashboard',        icon: '◈', shortcut: 'd', group: 'Overview' },
       { id: 'gst',       label: 'GST Summary',       icon: '◊', shortcut: 'g', group: 'Tax & Filing' },
       { id: 'gstportal', label: 'GST Portal',        icon: '⏷', shortcut: 'l', group: 'Tax & Filing' },
       { id: 'gstauto',   label: 'GSTR-1 Auto-File',  icon: '⚙', shortcut: 'j', group: 'Tax & Filing' },
@@ -3579,6 +3589,8 @@ function _navDdItemHtml(sec,it){
 }
 function renderBizHeaderNav(){
   const host=document.getElementById('bizTbNav'); if(!host) return;
+  const todayBtn=document.getElementById('bizTbTodayBtn');
+  if(todayBtn) todayBtn.style.display=(_isStaffUser&&_staffTabs&&!_staffTabs.includes('openorders'))?'none':'';
   host.innerHTML=visibleNavConfig().map(sec=>`
     <div class="biz-tb-cat" data-cat="${sec.id}" style="--cat-color:${sec.color}"
          onmouseenter="_bizCatOpen('${sec.id}')" onmouseleave="_bizCatCloseSoon('${sec.id}')">
@@ -3605,6 +3617,7 @@ function updateBizHeaderNavActive(tabId){
   const sec=visibleNavConfig().find(s=>s.items.some(it=>it.id===tabId));
   document.querySelectorAll('.biz-tb-cat').forEach(el=>el.classList.toggle('cat-active',sec&&el.dataset.cat===sec.id));
   document.querySelectorAll('.biz-tb-dd-item').forEach(el=>el.classList.toggle('dd-active',el.dataset.tab===tabId));
+  document.getElementById('bizTbTodayBtn')?.classList.toggle('tab-active',tabId==='openorders');
 }
 // Live-tested bug fix: header dropdown badges (prodCount_hdr, salesCount_hdr,
 // custCount_hdr, openCount_hdr, returnCount_hdr, salesviewCount_hdr) used to be
@@ -3619,10 +3632,16 @@ function updateBizHeaderNavActive(tabId){
 // Flat, fuzzy-searchable list of every NAV_CONFIG item the current
 // user can see (staff-filtered via visibleNavConfig()).
 function getCmdkItems(){
-  return visibleNavConfig().flatMap(sec=>sec.items.map(it=>({
+  const items=visibleNavConfig().flatMap(sec=>sec.items.map(it=>({
     ...it,color:sec.color,
     section: it.group ? sec.label+' · '+it.group : sec.label,
   })));
+  // Today's Tasks lives outside NAV_CONFIG (direct header button), add it back in
+  // manually so it's still reachable from the command palette / search.
+  if(!_isStaffUser||!_staffTabs||_staffTabs.includes('openorders')){
+    items.unshift({id:'openorders',label:"Today's Tasks",icon:'⚑',shortcut:'t',color:'var(--accent)',section:'Overview'});
+  }
+  return items;
 }
 let _cmdkResults=[], _cmdkSel=0;
 function openCmdPalette(){
@@ -10745,9 +10764,11 @@ document.addEventListener('keydown',function(ev){
 // with Ctrl/Cmd/Alt. Respects staff tab restrictions (won't jump to a tab they don't have).
 // Derived from NAV_CONFIG (the single source of truth), not hardcoded, so a
 // tab added there automatically gets its shortcut wired here too.
-const BIZ_TAB_KEYS=Object.fromEntries(
+// 't' for Today's Tasks stays hardcoded, that tab lives outside NAV_CONFIG now (it's
+// the direct header button, not a dropdown item), so it won't show up in the flatMap below.
+const BIZ_TAB_KEYS=Object.assign({t:'openorders'},Object.fromEntries(
   NAV_CONFIG.flatMap(sec=>sec.items).filter(it=>it.shortcut).map(it=>[it.shortcut,it.id])
-);
+));
 function bizAnyModalOpen(){
   const ids=['recycleBinModal','orderDetailModal','customerModal','dashDrilldown','openOrdersDrawer',
     'productForm','stockForm','returnForm','spoolForm','spoolAddForm','expenseForm',
