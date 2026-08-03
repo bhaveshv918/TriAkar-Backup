@@ -790,7 +790,7 @@ html[data-theme="dark"] .biz-login{
         <text x="120" y="122" font-family="'Noto Sans Devanagari',Mangal,'Arial Unicode MS',sans-serif" font-size="106" font-weight="700" fill="#C4622A" text-anchor="middle" dominant-baseline="central">त्रि</text>
       </svg>
     </div>
-    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.77</span>
+    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.78</span>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
     <button type="button" class="biz-tb-direct" id="bizTbTodayBtn" onclick="switchTab('openorders')" title="Today's Tasks">
@@ -1039,6 +1039,9 @@ html[data-theme="dark"] .biz-login{
         <button class="btn btn-ghost btn-sm" onclick="loadOpenOrders()" title="Refresh">⟳</button>
       </div>
 
+      <!-- One-click channel filter, applies to every KPI/table on this page -->
+      <div id="ooChannelBtns" class="filter-bar" style="align-items:center;margin-bottom:12px"></div>
+
       <!-- Daily quick-log strip, the landing tab doubles as a punch-clock / daily log,
            so the things you'd otherwise open 3 other tabs for are one click away here. -->
       <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px">
@@ -1114,27 +1117,33 @@ html[data-theme="dark"] .biz-login{
         <button class="btn btn-sm" onclick="bulkDeleteOpen()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2);margin-left:auto">🗑 Move to Recycle Bin</button>
       </div>
 
-      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">In Production, needs studio action</div>
-      <div class="tbl-wrap" style="margin-bottom:20px">
-        <table>
-          <thead><tr><th style="width:32px"><input type="checkbox" id="selectAllOpenProd" onchange="toggleSelectAllOpen(this,'prod')"></th><th>Promised</th><th>SLA</th><th>Customer</th><th>Item</th><th>Channel</th><th>Status</th><th class="td-actions"></th></tr></thead>
-          <tbody id="prodOrdersBody">
-            <tr class="skel-row"><td colspan="8"><div style="display:flex;gap:16px;align-items:center"><span class="skel-bar" style="width:60px"></span><span class="skel-bar" style="width:110px"></span><span class="skel-bar" style="width:70px"></span><span class="skel-bar" style="width:50px"></span></div></td></tr>
-            <tr class="skel-row"><td colspan="8"><div style="display:flex;gap:16px;align-items:center"><span class="skel-bar" style="width:60px"></span><span class="skel-bar" style="width:110px"></span><span class="skel-bar" style="width:70px"></span><span class="skel-bar" style="width:50px"></span></div></td></tr>
-          </tbody>
-        </table>
-      </div>
+      <!-- Production stays open/closed however you last left it (remembered), Dispatched
+           always starts collapsed, it's checked far less often. -->
+      <details id="prodDetails" style="margin-bottom:20px" ontoggle="onProdDetailsToggle()">
+        <summary style="cursor:pointer;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">In Production, needs studio action</summary>
+        <div class="tbl-wrap" style="margin-top:8px">
+          <table>
+            <thead><tr><th style="width:32px"><input type="checkbox" id="selectAllOpenProd" onchange="toggleSelectAllOpen(this,'prod')"></th><th>Promised</th><th>SLA</th><th>Customer</th><th>Item</th><th>Channel</th><th>Status</th><th class="td-actions"></th></tr></thead>
+            <tbody id="prodOrdersBody">
+              <tr class="skel-row"><td colspan="8"><div style="display:flex;gap:16px;align-items:center"><span class="skel-bar" style="width:60px"></span><span class="skel-bar" style="width:110px"></span><span class="skel-bar" style="width:70px"></span><span class="skel-bar" style="width:50px"></span></div></td></tr>
+              <tr class="skel-row"><td colspan="8"><div style="display:flex;gap:16px;align-items:center"><span class="skel-bar" style="width:60px"></span><span class="skel-bar" style="width:110px"></span><span class="skel-bar" style="width:70px"></span><span class="skel-bar" style="width:50px"></span></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
 
-      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">Dispatched <span style="text-transform:none;font-weight:400;color:var(--text-3)">(until return window closes &amp; review is in)</span></div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th style="width:32px"><input type="checkbox" id="selectAllOpenTrack" onchange="toggleSelectAllOpen(this,'track')"></th><th>Dispatched</th><th>Customer</th><th>Item</th><th>Channel</th><th>Return Window</th><th>Review</th><th>Status</th></tr></thead>
-          <tbody id="trackOrdersBody">
-            <tr class="skel-row"><td colspan="8"><div style="display:flex;gap:16px;align-items:center"><span class="skel-bar" style="width:60px"></span><span class="skel-bar" style="width:110px"></span><span class="skel-bar" style="width:70px"></span><span class="skel-bar" style="width:50px"></span></div></td></tr>
-            <tr class="skel-row"><td colspan="8"><div style="display:flex;gap:16px;align-items:center"><span class="skel-bar" style="width:60px"></span><span class="skel-bar" style="width:110px"></span><span class="skel-bar" style="width:70px"></span><span class="skel-bar" style="width:50px"></span></div></td></tr>
-          </tbody>
-        </table>
-      </div>
+      <details id="dispatchDetails">
+        <summary style="cursor:pointer;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">Dispatched <span style="text-transform:none;font-weight:400;color:var(--text-3)">(until return window closes &amp; review is in)</span></summary>
+        <div class="tbl-wrap" style="margin-top:8px">
+          <table>
+            <thead><tr><th style="width:32px"><input type="checkbox" id="selectAllOpenTrack" onchange="toggleSelectAllOpen(this,'track')"></th><th>Dispatched</th><th>Customer</th><th>Item</th><th>Channel</th><th>Return Window</th><th>Review</th><th>Status</th></tr></thead>
+            <tbody id="trackOrdersBody">
+              <tr class="skel-row"><td colspan="8"><div style="display:flex;gap:16px;align-items:center"><span class="skel-bar" style="width:60px"></span><span class="skel-bar" style="width:110px"></span><span class="skel-bar" style="width:70px"></span><span class="skel-bar" style="width:50px"></span></div></td></tr>
+              <tr class="skel-row"><td colspan="8"><div style="display:flex;gap:16px;align-items:center"><span class="skel-bar" style="width:60px"></span><span class="skel-bar" style="width:110px"></span><span class="skel-bar" style="width:70px"></span><span class="skel-bar" style="width:50px"></span></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
     </div><!-- /openorders -->
 
     <!-- ══════════════════════════════════════════════════════
@@ -5793,6 +5802,37 @@ function openOpenOrdersDrawer(kind){
 }
 function closeOpenOrdersDrawer(){ const ov=document.getElementById('openOrdersDrawer'); if(ov) ov.style.display='none'; }
 
+// Production remembers whatever open/closed state you last left it in (persisted),
+// Dispatched always starts collapsed on every visit to this tab, it's checked far
+// less often, so it shouldn't stay expanded just because it was last time.
+const PROD_DETAILS_KEY='biz_prod_details_open';
+let _prodDetailsInited=false;
+function initOpenOrdersDetails(){
+  const dd=document.getElementById('dispatchDetails'); if(dd) dd.open=false;
+  if(_prodDetailsInited) return;   // don't fight an in-session manual toggle on later refreshes
+  _prodDetailsInited=true;
+  const pd=document.getElementById('prodDetails'); if(!pd) return;
+  let stored=true;
+  try{ const v=localStorage.getItem(PROD_DETAILS_KEY); if(v!==null) stored=v==='1'; }catch(_){}
+  pd.open=stored;
+}
+function onProdDetailsToggle(){
+  const pd=document.getElementById('prodDetails'); if(!pd) return;
+  try{ localStorage.setItem(PROD_DETAILS_KEY, pd.open?'1':'0'); }catch(_){}
+}
+
+let _ooChannel='';
+function renderOoChannelBtns(){
+  const box=document.getElementById('ooChannelBtns'); if(!box) return;
+  const channels=['','shop','amazon','flipkart','website'];
+  box.innerHTML=channels.map(c=>{
+    const active=_ooChannel===c;
+    const label=c?CH_NAMES[c]:'All Channels';
+    const color=c?CH_COLORS[c]:'#6b7280';
+    return `<button type="button" class="btn btn-sm" onclick="setOoChannel('${c}')" style="background:${active?color:'transparent'};color:${active?'#fff':color};border:1px solid ${color};font-weight:600">${label}</button>`;
+  }).join('');
+}
+function setOoChannel(c){ _ooChannel=c; loadOpenOrders(); }
 async function loadOpenOrders(){
   // "Open" = anything not yet in a terminal state, rather than an explicit include-list —
   // the old include-list named values ('pending','processing','dispatched','delivered')
@@ -5809,8 +5849,13 @@ async function loadOpenOrders(){
   if(error){ return; }
   // Manual, editable count only, not derived from biz_sales, so it must never feed breached/dueToday/prodGroups etc.
   const upcomingOrders=(uo&&uo.value)?uo.value:'0';
-  const rows=data||[];
-  const unlockedRows=unlockedData||[];
+  // Channel quick-filter (renderOoChannelBtns/setOoChannel), applied uniformly to every
+  // KPI/table on this panel, not just Production/Dispatched, so "Studio only" actually
+  // means Studio only everywhere here.
+  const rows=(data||[]).filter(s=>!_ooChannel||s.channel_id===_ooChannel);
+  const unlockedRows=(unlockedData||[]).filter(s=>!_ooChannel||s.channel_id===_ooChannel);
+  renderOoChannelBtns();
+  initOpenOrdersDetails();
   // Status changes, paid toggle, delete, invoice, initiate-return etc. all resolve their
   // target order via _orderGroup(), which reads _salesCache, populated only by loadSales()
   // (All Sales). Open Orders is now the landing tab, so a fresh session that never visits
