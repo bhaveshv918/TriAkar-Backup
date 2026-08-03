@@ -348,8 +348,10 @@ tr:hover td{background:var(--bg-2)}
    separate, hand-maintained mobile-only .mtopbar, that split left
    search/notifications/sign-out unreachable on phones.) ───────── */
 .biz-topbar{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:60;
-  background:var(--bg-1);border-bottom:1px solid var(--border);border-top:3px solid var(--accent);
+  background:linear-gradient(90deg,rgba(196,98,42,.07),var(--bg-1) 45%);
+  border-bottom:1px solid var(--border);border-top:3px solid var(--accent);
   padding:9px 18px;box-shadow:var(--shadow)}
+html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98,42,.13),var(--bg-1) 45%)}
 .biz-tb-brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:var(--text);white-space:nowrap}
 .biz-tb-mark{flex-shrink:0;border-radius:6px}
 .biz-tb-brand span{color:var(--text-3);font-weight:500}
@@ -361,10 +363,19 @@ tr:hover td{background:var(--bg-2)}
    more than one color without touching the category buttons' own accent colors. */
 .biz-tb-icon{background:var(--bg-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);width:32px;height:32px;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0;text-decoration:none;transition:background .15s ease,border-color .15s ease,color .15s ease}
 .biz-tb-icon:hover{border-color:var(--accent)}
-.biz-tb-icon-blue:hover{background:rgba(37,99,235,.12);border-color:#2563EB;color:#2563EB}
-.biz-tb-icon-purple:hover{background:rgba(124,58,237,.12);border-color:#7C3AED;color:#7C3AED}
-.biz-tb-icon-amber:hover{background:rgba(217,119,6,.12);border-color:#D97706;color:#D97706}
-.biz-tb-signout:hover{background:rgba(220,38,38,.12);border-color:#DC2626;color:#DC2626}
+/* Always-on tints (not just hover), one color per icon, so the header reads as
+   more than one flat grey row at rest, not only on interaction. */
+.biz-tb-icon-blue{background:rgba(37,99,235,.10);border-color:rgba(37,99,235,.28);color:#2563EB}
+.biz-tb-icon-blue:hover{background:rgba(37,99,235,.18);border-color:#2563EB}
+.biz-tb-icon-purple{background:rgba(124,58,237,.10);border-color:rgba(124,58,237,.28);color:#7C3AED}
+.biz-tb-icon-purple:hover{background:rgba(124,58,237,.18);border-color:#7C3AED}
+.biz-tb-icon-amber{background:rgba(217,119,6,.10);border-color:rgba(217,119,6,.28);color:#D97706}
+.biz-tb-icon-amber:hover{background:rgba(217,119,6,.18);border-color:#D97706}
+.biz-tb-admin-link{background:rgba(196,98,42,.10);border-color:rgba(196,98,42,.28);color:var(--accent)}
+.biz-tb-admin-link:hover{background:rgba(196,98,42,.18);border-color:var(--accent)}
+.biz-tb-signout{background:rgba(220,38,38,.08);border-color:rgba(220,38,38,.24);color:#DC2626}
+.biz-tb-signout:hover{background:rgba(220,38,38,.16);border-color:#DC2626}
+.biz-tb-time{font-weight:700;font-size:12px;color:var(--text);white-space:nowrap;letter-spacing:.02em}
 /* ADMIN / SIGN OUT are icon-only .biz-tb-icon buttons at every width now, not just
    below 768px, so no separate .biz-tb-btn class is needed for them any more. */
 /* Hamburger, mobile-only twin of the desktop collapse button, same
@@ -761,9 +772,8 @@ html[data-theme="dark"] .biz-login{
         <circle cx="120" cy="120" r="92" fill="#F4F2EC"/>
         <text x="120" y="122" font-family="'Noto Sans Devanagari',Mangal,'Arial Unicode MS',sans-serif" font-size="106" font-weight="700" fill="#C4622A" text-anchor="middle" dominant-baseline="central">त्रि</text>
       </svg>
-      <span>Business OS</span>
     </div>
-    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;margin-left:-4px;white-space:nowrap">v124</span>
+    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">v125</span>
     <nav class="biz-tb-nav" id="bizTbNav"></nav>
     <button class="biz-tb-icon biz-tb-cmdk" onclick="openCmdPalette()" title="Command palette (Ctrl/Cmd+K)">⌘</button>
     <div class="biz-tb-search">
@@ -1066,7 +1076,19 @@ html[data-theme="dark"] .biz-login{
         <span id="openBulkCount" style="font-size:12px;font-weight:700;margin-right:4px">0 selected</span>
         <select onchange="if(this.value){bulkMarkStatusOpen(this.value);this.value='';}" title="Set status for selected" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;font-size:11px;padding:5px 8px;cursor:pointer">
           <option value="" style="color:#111">↻ Set status…</option>
-          ${['pending','order_received','processing','printing','packed','dispatched','delivered','completed','delayed','cancelled_before_dispatch','cancelled_before_delivery','return_initiated','returned'].map(s=>`<option value="${s}" style="color:#111">${s}</option>`).join('')}
+          <option value="pending" style="color:#111">Pending</option>
+          <option value="order_received" style="color:#111">Order Received</option>
+          <option value="processing" style="color:#111">Processing</option>
+          <option value="printing" style="color:#111">Printing</option>
+          <option value="packed" style="color:#111">Packed</option>
+          <option value="dispatched" style="color:#111">Dispatched</option>
+          <option value="delivered" style="color:#111">Delivered</option>
+          <option value="completed" style="color:#111">Completed</option>
+          <option value="delayed" style="color:#111">Delayed</option>
+          <option value="cancelled_before_dispatch" style="color:#111">Cancelled (Before Dispatch)</option>
+          <option value="cancelled_before_delivery" style="color:#111">Cancelled (Before Delivery)</option>
+          <option value="return_initiated" style="color:#111">Return Initiated</option>
+          <option value="returned" style="color:#111">Returned</option>
         </select>
         <button class="btn btn-sm" onclick="bulkDeleteOpen()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2);margin-left:auto">🗑 Move to Recycle Bin</button>
       </div>
@@ -1145,84 +1167,11 @@ html[data-theme="dark"] .biz-login{
             <label>Order ID</label>
             <input type="text" id="qa_orderid" placeholder="Platform order number">
           </div>
-          <div class="form-group">
-            <label>Payment Mode</label>
-            <select id="qa_payment">
-              <option value="upi" selected>UPI</option>
-              <option value="bharatpe">BharatPe</option>
-              <option value="ca_sbi">C/A, SBI</option>
-              <option value="ca_karur">C/A, Karur Vysya</option>
-              <option value="razorpay">Razorpay</option>
-              <option value="cash">Cash</option>
-              <option value="card">Card</option>
-              <option value="gpay">GPay</option>
-              <option value="paytm">Paytm</option>
-              <option value="cod">COD</option>
-              <option value="online">Online / Prepaid</option>
-            </select>
-          </div>
         </div>
         <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <button type="button" class="qchip" id="qaGiftToggle" onclick="toggleQaGift()" title="Friends, clients, relatives, anyone you're gifting a print to">🎁 Mark as Gift</button>
           <span id="qaGiftHint" style="display:none;font-size:11px;color:var(--text-3)">No revenue logged, its production cost auto-logs as a Marketing expense so gifting still shows up in costing</span>
         </div>
-        </div>
-
-        <!-- ── Status / Lead / Fulfillment, quick-select chips ── -->
-        <div class="qa-chip-stack" style="display:grid;gap:12px;margin:6px 0 16px">
-          <div class="qa-card">
-            <label class="chip-label">Order Status</label>
-            <div class="qchips" id="qaStatusChips">
-              <button type="button" class="qchip" data-s="pending"    onclick="setQaStatus('pending')">Pending</button>
-              <button type="button" class="qchip active" data-s="order_received" onclick="setQaStatus('order_received')">Order Received</button>
-              <button type="button" class="qchip" data-s="processing" onclick="setQaStatus('processing')">Processing</button>
-              <button type="button" class="qchip" data-s="printing"  onclick="setQaStatus('printing')">Printing</button>
-              <button type="button" class="qchip" data-s="packed"    onclick="setQaStatus('packed')">Packed</button>
-              <button type="button" class="qchip" data-s="dispatched" onclick="setQaStatus('dispatched')">Dispatched</button>
-              <button type="button" class="qchip" data-s="delivered"  onclick="setQaStatus('delivered')">Delivered</button>
-              <button type="button" class="qchip" data-s="completed"  onclick="setQaStatus('completed')">Completed</button>
-              <span style="width:1px;height:22px;background:var(--border);margin:0 4px"></span>
-              <!-- Phase 10 (K37): these 7 exist in UNIFIED_STATUSES (used by All Orders'
-                   status dropdown) but were never selectable from Add Order/Edit's chip
-                   set, so opening an order already in one of these states left no chip
-                   showing as active. -->
-              <button type="button" class="qchip" data-s="delayed"   onclick="setQaStatus('delayed')">Delayed</button>
-              <button type="button" class="qchip" data-s="delaying"  onclick="setQaStatus('delaying')">Delaying</button>
-              <button type="button" class="qchip" data-s="return_initiated" onclick="setQaStatus('return_initiated')">Return Initiated</button>
-              <button type="button" class="qchip" data-s="return_picked_up" onclick="setQaStatus('return_picked_up')">Return Picked Up</button>
-              <button type="button" class="qchip" data-s="returned"  onclick="setQaStatus('returned')">Returned</button>
-              <button type="button" class="qchip" data-s="claim_filed" onclick="setQaStatus('claim_filed')">Claim Filed</button>
-              <button type="button" class="qchip" data-s="claimed"   onclick="setQaStatus('claimed')">Claimed</button>
-              <button type="button" class="qchip" data-s="cancelled_before_dispatch" onclick="setQaStatus('cancelled_before_dispatch')">Cancelled (Before Dispatch)</button>
-              <button type="button" class="qchip" data-s="cancelled_before_delivery" onclick="setQaStatus('cancelled_before_delivery')">Cancelled (Before Delivery)</button>
-              <button type="button" class="qchip" data-s="cancelled" onclick="setQaStatus('cancelled')">Cancelled</button>
-            </div>
-            <input type="hidden" id="qa_status" value="order_received">
-          </div>
-          <div class="qa-card">
-            <label class="chip-label">Lead Source</label>
-            <div class="qchips" id="qaLeadChips">
-              <button type="button" class="qchip" data-v="studio_walkin" onclick="setLeadSource('studio_walkin')">Studio Walk-in</button>
-              <button type="button" class="qchip" data-v="whatsapp" onclick="setLeadSource('whatsapp')">WhatsApp</button>
-              <button type="button" class="qchip" data-v="google" onclick="setLeadSource('google')">Google</button>
-              <button type="button" class="qchip" data-v="instagram" onclick="setLeadSource('instagram')">Instagram</button>
-              <button type="button" class="qchip" data-v="referral" onclick="setLeadSource('referral')">Referral</button>
-              <button type="button" class="qchip" data-v="other" onclick="setLeadSource('other')">Other</button>
-            </div>
-            <input type="hidden" id="qa_lead_source" value="">
-          </div>
-          <div class="qa-card">
-            <label class="chip-label">Delivery / Pickup</label>
-            <div class="qchips" id="qaFulfilChips">
-              <button type="button" class="qchip active" data-v="delivery" onclick="setFulfillment('delivery')">🚚 Delivery</button>
-              <button type="button" class="qchip" data-v="pickup_self" onclick="setFulfillment('pickup_self')">🧍 Pickup, Self</button>
-              <button type="button" class="qchip" data-v="pickup_porter" onclick="setFulfillment('pickup_porter')">🛵 Pickup, Porter</button>
-              <button type="button" class="qchip" data-v="pickup_other" onclick="setFulfillment('pickup_other')">Pickup, Other</button>
-              <input type="text" id="qa_fulfil_other" placeholder="specify…" oninput="onFulfilOther(this.value)" style="display:none;max-width:150px;padding:6px 12px;background:var(--bg-2);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:12px">
-            </div>
-            <input type="hidden" id="qa_fulfillment" value="delivery">
-            <input type="hidden" id="qa_fulfillment_detail" value="">
-          </div>
         </div>
 
         <!-- ── Customer & Address (moved above items) ── -->
@@ -1301,6 +1250,10 @@ html[data-theme="dark"] .biz-login{
             <input type="number" id="qa_shipping" step="0.01" value="0" onchange="recalcTotals()">
           </div>
           <div class="form-group">
+            <label>Porter / Pickup Expense (₹) <span style="font-weight:400;color:var(--text-3);font-size:10px">material sourced for this order</span></label>
+            <input type="number" id="qa_porter" step="0.01" value="0" onchange="recalcTotals()">
+          </div>
+          <div class="form-group">
             <label>Round Off (₹)</label>
             <input type="number" id="qa_roundoff" step="0.01" value="0" onchange="recalcTotals()">
           </div>
@@ -1317,6 +1270,65 @@ html[data-theme="dark"] .biz-login{
           <div class="calc-item profit"><label>Gross Profit</label><span id="t_profit">₹0</span></div>
           <div class="calc-item profit"><label>Margin %</label><span id="t_margin">0%</span></div>
           <div class="calc-item"><label>Grand Total</label><span id="t_grand" style="color:var(--text);font-size:16px">₹0</span></div>
+        </div>
+
+        <!-- ── Status / Lead / Fulfillment, quick-select chips (moved down next to Payment
+             so the top of the form is just order + items, not every field at once) ── -->
+        <div class="qa-chip-stack" style="display:grid;gap:12px;margin:6px 0 16px">
+          <div class="qa-card">
+            <label class="chip-label">Order Status</label>
+            <div class="qchips" id="qaStatusChips">
+              <button type="button" class="qchip" data-s="pending"    onclick="setQaStatus('pending')">Pending</button>
+              <button type="button" class="qchip active" data-s="order_received" onclick="setQaStatus('order_received')">Order Received</button>
+              <button type="button" class="qchip" data-s="processing" onclick="setQaStatus('processing')">Processing</button>
+              <button type="button" class="qchip" data-s="printing"  onclick="setQaStatus('printing')">Printing</button>
+              <button type="button" class="qchip" data-s="packed"    onclick="setQaStatus('packed')">Packed</button>
+              <button type="button" class="qchip" data-s="dispatched" onclick="setQaStatus('dispatched')">Dispatched</button>
+              <button type="button" class="qchip" data-s="delivered"  onclick="setQaStatus('delivered')">Delivered</button>
+              <button type="button" class="qchip" data-s="completed"  onclick="setQaStatus('completed')">Completed</button>
+              <span style="width:1px;height:22px;background:var(--border);margin:0 4px"></span>
+              <!-- Phase 10 (K37): these 7 exist in UNIFIED_STATUSES (used by All Orders'
+                   status dropdown) but were never selectable from Add Order/Edit's chip
+                   set, so opening an order already in one of these states left no chip
+                   showing as active. -->
+              <button type="button" class="qchip" data-s="delayed"   onclick="setQaStatus('delayed')">Delayed</button>
+              <button type="button" class="qchip" data-s="delaying"  onclick="setQaStatus('delaying')">Delaying</button>
+              <button type="button" class="qchip" data-s="return_initiated" onclick="setQaStatus('return_initiated')">Return Initiated</button>
+              <button type="button" class="qchip" data-s="return_picked_up" onclick="setQaStatus('return_picked_up')">Return Picked Up</button>
+              <button type="button" class="qchip" data-s="returned"  onclick="setQaStatus('returned')">Returned</button>
+              <button type="button" class="qchip" data-s="claim_filed" onclick="setQaStatus('claim_filed')">Claim Filed</button>
+              <button type="button" class="qchip" data-s="claimed"   onclick="setQaStatus('claimed')">Claimed</button>
+              <button type="button" class="qchip" data-s="cancelled_before_dispatch" onclick="setQaStatus('cancelled_before_dispatch')">Cancelled (Before Dispatch)</button>
+              <button type="button" class="qchip" data-s="cancelled_before_delivery" onclick="setQaStatus('cancelled_before_delivery')">Cancelled (Before Delivery)</button>
+              <button type="button" class="qchip" data-s="cancelled" onclick="setQaStatus('cancelled')">Cancelled</button>
+            </div>
+            <input type="hidden" id="qa_status" value="order_received">
+          </div>
+          <div class="qa-card">
+            <label class="chip-label">Lead Source</label>
+            <div class="qchips" id="qaLeadChips">
+              <button type="button" class="qchip" data-v="existing" onclick="setLeadSource('existing')" title="Auto-picked when the typed name/phone matches a known customer">🔁 Existing Customer</button>
+              <button type="button" class="qchip" data-v="studio_walkin" onclick="setLeadSource('studio_walkin')">Studio Walk-in</button>
+              <button type="button" class="qchip" data-v="whatsapp" onclick="setLeadSource('whatsapp')">WhatsApp</button>
+              <button type="button" class="qchip" data-v="google" onclick="setLeadSource('google')">Google</button>
+              <button type="button" class="qchip" data-v="instagram" onclick="setLeadSource('instagram')">Instagram</button>
+              <button type="button" class="qchip" data-v="referral" onclick="setLeadSource('referral')">Referral</button>
+              <button type="button" class="qchip" data-v="other" onclick="setLeadSource('other')">Other</button>
+            </div>
+            <input type="hidden" id="qa_lead_source" value="">
+          </div>
+          <div class="qa-card">
+            <label class="chip-label">Delivery / Pickup</label>
+            <div class="qchips" id="qaFulfilChips">
+              <button type="button" class="qchip active" data-v="delivery" onclick="setFulfillment('delivery')">🚚 Delivery</button>
+              <button type="button" class="qchip" data-v="pickup_self" onclick="setFulfillment('pickup_self')">🧍 Pickup, Self</button>
+              <button type="button" class="qchip" data-v="pickup_porter" onclick="setFulfillment('pickup_porter')">🛵 Pickup, Porter</button>
+              <button type="button" class="qchip" data-v="pickup_other" onclick="setFulfillment('pickup_other')">Pickup, Other</button>
+              <input type="text" id="qa_fulfil_other" placeholder="specify…" oninput="onFulfilOther(this.value)" style="display:none;max-width:150px;padding:6px 12px;background:var(--bg-2);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:12px">
+            </div>
+            <input type="hidden" id="qa_fulfillment" value="delivery">
+            <input type="hidden" id="qa_fulfillment_detail" value="">
+          </div>
         </div>
 
         <!-- ── Payment (Phase 10 Group 1). Shown for both new orders and edits now,
@@ -1347,7 +1359,8 @@ html[data-theme="dark"] .biz-login{
               <select id="qaPaySource">
                 <option value="upi">UPI</option><option value="bharatpe">BharatPe</option>
                 <option value="cash">Cash</option><option value="card">Card</option>
-                <option value="bank_transfer">Bank Transfer</option><option value="gpay">GPay</option>
+                <option value="bank_transfer">Bank Transfer</option><option value="ca_sbi">C/A, SBI</option>
+                <option value="ca_karur">C/A, Karur Vysya</option><option value="gpay">GPay</option>
                 <option value="paytm">Paytm</option><option value="razorpay">Razorpay</option>
                 <option value="online">Online / Prepaid</option><option value="other">Other</option>
               </select>
@@ -1525,6 +1538,16 @@ html[data-theme="dark"] .biz-login{
               <option value="">Paid &amp; Unpaid</option>
               <option value="1">Paid only</option>
               <option value="0">Unpaid only</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Period</label>
+            <select id="sfView" onchange="onSfViewChange()">
+              <option value="all" selected>All Time</option>
+              <option value="month">Select Month</option>
+              <option value="fy">This Financial Year</option>
+              <option value="calendar">Calendar Year</option>
+              <option value="custom">Custom Range</option>
             </select>
           </div>
           <div class="form-group"><label>Month</label><input type="month" id="sfMonth" onchange="loadSales()"></div>
@@ -1875,7 +1898,7 @@ html[data-theme="dark"] .biz-login{
           <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:10px">Step 1, Set defaults (applied to all labels in this batch)</div>
           <div class="form-grid">
             <div class="form-group">
-              <label>Platform *</label>
+              <label>Platform * <span style="font-weight:400;color:var(--text-3);font-size:10px">tap both to mix Amazon + Flipkart labels in one upload</span></label>
               <div class="seg" id="lblPlatformSeg">
                 <button type="button" class="seg-btn active" data-v="amazon" onclick="setLblPlatform('amazon')">📦 Amazon</button>
                 <button type="button" class="seg-btn" data-v="flipkart" onclick="setLblPlatform('flipkart')">🛍️ Flipkart</button>
@@ -2917,7 +2940,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>Vendor <span style="color:var(--text-3);font-weight:400;text-transform:none">(expense name)</span></label><input type="text" id="ex_vendor"></div>
           <div class="form-group"><label>Amount ₹ (incl GST)</label><input type="number" id="ex_amount" step="0.01"></div>
           <div class="form-group"><label>GST ₹ (of amount)</label><input type="number" id="ex_gst" step="0.01"></div>
-          <div class="form-group"><label>Payment Mode</label><select id="ex_payment"><option value="">—</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="bank">Bank</option><option value="gpay">GPay</option><option value="paytm">Paytm</option></select></div>
+          <div class="form-group"><label>Payment Mode</label><select id="ex_payment"><option value="">—</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="bank">Bank</option><option value="ca_sbi">C/A, SBI</option><option value="ca_karur">C/A, Karur Vysya</option><option value="gpay">GPay</option><option value="paytm">Paytm</option></select></div>
           <div class="form-group"><label>Debited From <span style="color:var(--text-3);font-weight:400;text-transform:none">money-out source</span></label><input type="text" id="ex_source" placeholder="e.g. HDFC Current A/c, Cash Drawer"></div>
           <div class="form-group"><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="ex_recurring"> Recurring monthly</label></div>
           <div class="form-group" style="grid-column:span 2"><label>Invoice file <span style="color:var(--text-3);font-weight:400;text-transform:none">(any format, uploaded to private storage)</span></label>
@@ -2978,7 +3001,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>Date</label><input type="date" id="in_date"></div>
           <div class="form-group"><label>Category</label><select id="in_category"><option value="flipkart_payout">Flipkart Payout</option><option value="amazon_payout">Amazon Payout</option><option value="website_payout">Website Payout</option><option value="misc">Extra / Misc Income</option></select></div>
           <div class="form-group"><label>Amount ₹</label><input type="number" id="in_amount" step="0.01"></div>
-          <div class="form-group"><label>Payment Mode</label><select id="in_payment"><option value="">—</option><option value="bank_transfer">Bank Transfer</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="gpay">GPay</option><option value="paytm">Paytm</option></select></div>
+          <div class="form-group"><label>Payment Mode</label><select id="in_payment"><option value="">—</option><option value="bank_transfer">Bank Transfer</option><option value="ca_sbi">C/A, SBI</option><option value="ca_karur">C/A, Karur Vysya</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="gpay">GPay</option><option value="paytm">Paytm</option></select></div>
           <div class="form-group"><label>Bank Reference <span style="color:var(--text-3);font-weight:400;text-transform:none">optional</span></label><input type="text" id="in_bankref"></div>
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="in_notes"></div>
         </div>
@@ -3187,6 +3210,18 @@ html[data-theme="dark"] .biz-login{
         </div>
 
         <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Bank Account Details <span style="font-weight:400;text-transform:none;letter-spacing:0">(for invoice &amp; quotation payment info)</span></div>
+          <div class="form-group"><label>Account Holder Name</label><input type="text" id="cfg_bank_holder" placeholder="TriAkar / your name"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="form-group"><label>Bank Name</label><input type="text" id="cfg_bank_name" placeholder="State Bank of India"></div>
+            <div class="form-group"><label>Branch</label><input type="text" id="cfg_bank_branch" placeholder="Greater Noida West"></div>
+            <div class="form-group"><label>Account Number</label><input type="text" id="cfg_bank_acc" style="font-family:var(--mono);letter-spacing:.05em"></div>
+            <div class="form-group"><label>IFSC</label><input type="text" id="cfg_bank_ifsc" style="font-family:var(--mono);letter-spacing:.05em" placeholder="SBIN0000000"></div>
+          </div>
+          <div class="form-group" style="margin-bottom:0"><label>Payment Due, days from invoice date</label><input type="number" id="cfg_due_days" step="1" min="0" placeholder="7"></div>
+        </div>
+
+        <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
           <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:14px">Invoice Footer Note <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
           <div class="form-group" style="margin-bottom:0">
             <label>Custom note shown at bottom of every invoice</label>
@@ -3245,7 +3280,8 @@ function getBizSettings(){
 }
 function loadBizSettings(){
   const cfg=getBizSettings();
-  const map={cfg_name:'name',cfg_addr:'addr',cfg_gstin:'gstin',cfg_pan:'pan',cfg_phone:'phone',cfg_email:'email',cfg_web:'web',cfg_footer:'footer'};
+  const map={cfg_name:'name',cfg_addr:'addr',cfg_gstin:'gstin',cfg_pan:'pan',cfg_phone:'phone',cfg_email:'email',cfg_web:'web',cfg_footer:'footer',
+    cfg_bank_holder:'bankHolder',cfg_bank_name:'bankName',cfg_bank_branch:'bankBranch',cfg_bank_acc:'bankAcc',cfg_bank_ifsc:'bankIfsc',cfg_due_days:'dueDays'};
   Object.entries(map).forEach(([elId,key])=>{
     const el=document.getElementById(elId); if(el&&cfg[key]) el.value=cfg[key];
   });
@@ -3261,9 +3297,9 @@ let _bizDefaults={hsn:'3926',gst:0,cogs:0};
 // now read from the shared _docCfg store via the generic docCfg() lookup.
 let _docCfg={};   // { invoice:{...}, record:{...}, quotation:{...} }
 const DOC_FIELD_GROUPS=[
-  { key:'invoice', label:'Invoice', containerId:'bizDocInvoiceFields', settingsKey:'doc_invoice_fields', fields:[['logo','Logo'],['business_address','Business address'],['gstin','Your GSTIN'],['invoice_no_date','Invoice no & date'],['billing_address','Billing address'],['shipping_address','Shipping address'],['customer_gstin','Customer GSTIN'],['items_table','Itemized table'],['subtotal','Subtotal'],['gst_breakup','CGST/SGST/IGST breakup'],['shipping_charge','Shipping charge'],['total','Total'],['paid_amount','Paid amount'],['balance_due','Balance due'],['payment_mode','Payment mode'],['signature','Signature / stamp'],['upi_qr','UPI / bank QR'],['terms','Terms'],['reprint_note','Reprint guarantee note']] },
+  { key:'invoice', label:'Invoice', containerId:'bizDocInvoiceFields', settingsKey:'doc_invoice_fields', fields:[['logo','Logo'],['business_address','Business address'],['gstin','Your GSTIN'],['invoice_no_date','Invoice no & date'],['due_date','Due date'],['billing_address','Billing address'],['shipping_address','Shipping address'],['customer_gstin','Customer GSTIN'],['items_table','Itemized table'],['subtotal','Subtotal'],['gst_breakup','CGST/SGST/IGST breakup'],['shipping_charge','Shipping charge'],['total','Total'],['paid_amount','Paid amount'],['balance_due','Balance due'],['payment_mode','Payment mode'],['bank_details','Bank account details'],['signature','Signature / stamp'],['upi_qr','UPI / bank QR'],['terms','Terms'],['reprint_note','Reprint guarantee note']] },
   { key:'record', label:'Internal Order Record', containerId:'bizDocRecordFields', settingsKey:'doc_record_fields', fields:[['order_id','Order ID'],['date','Date'],['customer','Customer info'],['product_details','Product details'],['cost_price','Cost price'],['margin','Margin'],['designer_maker','Designer / maker'],['production_status','Production status'],['material','Material'],['printer','Printer used'],['dispatch_date','Dispatch date'],['courier_tracking','Courier + tracking'],['special_instructions','Special instructions'],['internal_notes','Internal notes'],['priority_flag','Priority flag'],['hsn','HSN']] },
-  { key:'quotation', label:'Quotation', containerId:'bizDocQuotationFields', settingsKey:'doc_quotation_fields', fields:[['business_identity','Business name / address / logo'],['gstin','Your GSTIN'],['customer_name','Customer name'],['items_table','Item / qty / rate / amount'],['subtotal','Subtotal'],['validity_period','Validity period'],['terms_notes','Terms / notes'],['signature','Signature'],['upi_qr','UPI / bank QR']] },
+  { key:'quotation', label:'Quotation', containerId:'bizDocQuotationFields', settingsKey:'doc_quotation_fields', fields:[['business_identity','Business name / address / logo'],['gstin','Your GSTIN'],['customer_name','Customer name'],['items_table','Item / qty / rate / amount'],['subtotal','Subtotal'],['validity_period','Validity period'],['due_date','Due date'],['bank_details','Bank account details'],['terms_notes','Terms / notes'],['signature','Signature'],['upi_qr','UPI / bank QR']] },
 ];
 function docCfg(groupKey,fieldKey){ return (_docCfg[groupKey]||{})[fieldKey]!==false; }
 function docInv(k){ return docCfg('invoice',k); }
@@ -3309,7 +3345,8 @@ async function saveBizDefaults(){
 }
 function saveBizSettings(){
   const g=id=>(document.getElementById(id)?.value.trim()||'');
-  const cfg={name:g('cfg_name'),addr:g('cfg_addr'),gstin:g('cfg_gstin'),pan:g('cfg_pan'),phone:g('cfg_phone'),email:g('cfg_email'),web:g('cfg_web'),footer:g('cfg_footer')};
+  const cfg={name:g('cfg_name'),addr:g('cfg_addr'),gstin:g('cfg_gstin'),pan:g('cfg_pan'),phone:g('cfg_phone'),email:g('cfg_email'),web:g('cfg_web'),footer:g('cfg_footer'),
+    bankHolder:g('cfg_bank_holder'),bankName:g('cfg_bank_name'),bankBranch:g('cfg_bank_branch'),bankAcc:g('cfg_bank_acc'),bankIfsc:g('cfg_bank_ifsc'),dueDays:g('cfg_due_days')};
   localStorage.setItem(BIZ_SETTINGS_KEY,JSON.stringify(cfg));
   const msg=document.getElementById('settingsSavedMsg');
   msg.style.display='inline';
@@ -4000,7 +4037,7 @@ async function loadAddSaleSpools(rerender){
   if(rerender && typeof renderItems==='function') renderItems();
   if(typeof renderImportSpoolRows==='function'){ renderImportSpoolRows('import'); renderImportSpoolRows('lbl'); }
 }
-function ensureSpools(){ if(_spoolsTried) return; _spoolsTried=true; loadAddSaleSpools(true); }
+function ensureSpools(){ if(_spoolsTried) return Promise.resolve(); _spoolsTried=true; return loadAddSaleSpools(true); }
 // Phase 10 Group 3 (J): already-opened/partial spools matching the current row's
 // material (the material of whatever spool is already picked on this row, if any)
 // surface first, in their own group above the normal brand-grouped list, so the
@@ -4267,6 +4304,7 @@ function recalcTotals(){
   });
   const fee=parseFloat(document.getElementById('qa_platformfee')?.value)||0;
   const ship=parseFloat(document.getElementById('qa_shipping')?.value)||0;
+  const porter=parseFloat(document.getElementById('qa_porter')?.value)||0;
   // Round-off auto-calculates when GST applies (rounds grand total, taxable + GST,
   // to the nearest rupee); without GST it stays a manual field.
   const preRound=sub+gst;
@@ -4274,7 +4312,7 @@ function recalcTotals(){
   let round;
   if(anyGst){ round=Math.round((Math.round(preRound)-preRound)*100)/100; if(roundEl){ roundEl.value=round.toFixed(2); roundEl.readOnly=true; roundEl.title='Auto (GST round-off)'; } }
   else { if(roundEl){ roundEl.readOnly=false; roundEl.title=''; } round=parseFloat(roundEl?.value)||0; }
-  const netRev=sub-fee-ship;
+  const netRev=sub-fee-ship-porter;
   const profit=netRev-cost;
   const margin=netRev>0?(profit/netRev*100):0;
   const grand=sub+gst+round;
@@ -4355,6 +4393,19 @@ async function applyGiftExpenseIfAny(rows){
   payload=await attachRecordId(payload,true,'expense',payload.vendor);
   await insertResilient('biz_expenses',payload);
 }
+// Porter / local-pickup cost of sourcing material for this specific order, entered on
+// Add Order, logs straight into Money Out (biz_expenses) so it's never just an invisible
+// deduction inside the order's own profit math.
+async function applyPorterExpenseIfAny(rows){
+  if(!rows.length) return;
+  const porter=parseFloat(document.getElementById('qa_porter')?.value)||0;
+  if(porter<=0) return;
+  const f=rows[0];
+  let payload={ date:f.order_date||today(), category:'shipping', vendor:'Porter',
+    amount:porter, notes:'Order '+(f.order_id||'')+', material pickup', source:'order_porter' };
+  payload=await attachRecordId(payload,true,'expense',payload.vendor);
+  await insertResilient('biz_expenses',payload);
+}
 async function getOrderFields(){
   const g=id=>{const el=document.getElementById(id);return el?el.value.trim()||null:null;};
   const manualOrderId=g('qa_orderid');
@@ -4365,7 +4416,9 @@ async function getOrderFields(){
     delivery_date:g('qa_delivery_date'),
     dispatch_date:g('qa_dispatch_date'),
     order_id:manualOrderId||await ensureUniqueOrderId(),
-    payment_mode:g('qa_payment'),
+    // Payment Mode used to be its own top-of-form dropdown, duplicating the Source/Mode
+    // picked lower down in the Payment section, now it's just read from there directly.
+    payment_mode:g('qaPaySource')||'upi',
     status:g('qa_status')||'pending',
     lead_source:g('qa_lead_source'),
     fulfillment_type:g('qa_fulfillment'),
@@ -4395,6 +4448,7 @@ async function buildSaleRowsWithIds(){
   const order=await getOrderFields();
   const fee=parseFloat(document.getElementById('qa_platformfee')?.value)||0;
   const ship=parseFloat(document.getElementById('qa_shipping')?.value)||0;
+  const porter=parseFloat(document.getElementById('qa_porter')?.value)||0;
   const valid=_items.filter(it=>(it.name&&it.name.trim())||it.rate>0);
   return valid.map((it,idx)=>({
     rowId: it.rowId||null,
@@ -4429,6 +4483,7 @@ async function buildSaleRowsWithIds(){
         : null,
       platform_fee: idx===0?fee:0,
       shipping_fee: idx===0?ship:0,
+      other_deductions: idx===0?porter:0,
     }
   }));
 }
@@ -4441,7 +4496,7 @@ function resetQuickAdd(){
   document.getElementById('qa_state').value='';   // §2.8, no silent default; operator must pick a real state
   document.getElementById('qa_channel').value='shop';
   const z=id=>{const e=document.getElementById(id);if(e)e.value='0';};
-  z('qa_platformfee'); z('qa_shipping'); z('qa_roundoff');
+  z('qa_platformfee'); z('qa_shipping'); z('qa_porter'); z('qa_roundoff');
   if(typeof setQaStatus==='function') setQaStatus('order_received');
   const fo=document.getElementById('qa_fulfil_other'); if(fo){ fo.value=''; fo.style.display='none'; }
   // Studio (the default channel) walks in and picks up in person far more often than it
@@ -4565,7 +4620,7 @@ function openAddOrderEdit(firstId){
   switchTab('quickadd');
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
   set('qa_channel',f.channel_id||'shop'); set('qa_date',f.order_date); set('qa_delivery_date',f.delivery_date);
-  set('qa_dispatch_date',f.dispatch_date); set('qa_orderid',f.order_id); set('qa_payment',f.payment_mode);
+  set('qa_dispatch_date',f.dispatch_date); set('qa_orderid',f.order_id); set('qaPaySource',f.payment_mode);
   if(typeof setQaStatus==='function') setQaStatus(f.status||'pending');
   if(typeof setLeadSource==='function') setLeadSource(f.lead_source||'');
   let fulfilChip='delivery';
@@ -4576,7 +4631,7 @@ function openAddOrderEdit(firstId){
   set('qa_packet',f.package_size); set('qa_cname',f.customer_name); set('qa_phone',f.customer_phone);
   set('qa_address',f.customer_address); set('qa_city',f.customer_city); set('qa_state',f.customer_state);
   set('qa_pin',f.customer_pincode); set('qa_gstin',f.customer_gstin); set('qa_notes',f.notes);
-  set('qa_platformfee', f.platform_fee||0); set('qa_shipping', f.shipping_fee||0);
+  set('qa_platformfee', f.platform_fee||0); set('qa_shipping', f.shipping_fee||0); set('qa_porter', f.other_deductions||0);
   _items=items.map(s=>{
     const mode=s.pricing_mode==='gram'?'gram':'piece';
     const qty=s.qty||1;
@@ -4846,6 +4901,7 @@ async function submitQuickAdd(e){
   if(error){ toast('Error: '+error.message,'error'); return; }
   await applyNewOrderPaymentIfAny(rows[0].order_id);
   await applyGiftExpenseIfAny(rows);
+  await applyPorterExpenseIfAny(rows);
   await deductSpoolsForRows(rows);   // reduce spool stock by grams+waste logged
   await loadAddSaleSpools();         // refresh remaining for the next entry
   logBizActivity('create','sale',rows[0]&&rows[0].order_id,rows.length+' item(s)');
@@ -4853,6 +4909,7 @@ async function submitQuickAdd(e){
     await sb.from('biz_quotations').update({status:'accepted',converted_order_id:rows[0].order_id}).eq('id',_qaSourceQuotationId);
   }
   await _consumeRackItemIfPending();   // only touches the rack row now that the order actually saved
+  await decrementUpcomingOrders();
   toast(rows.length===1?'Order saved!':rows.length+' items saved!');
   exitAddOrderEditMode();
   loadSalesBadge();
@@ -5097,6 +5154,11 @@ async function printQuotation(id){
   const SELLER_NAME=cfg.name||'TriAkar';
   const SELLER_ADDR=cfg.addr||'';
   const SELLER_GSTIN=cfg.gstin||'';
+  const SELLER_BANK={holder:cfg.bankHolder||'',name:cfg.bankName||'',branch:cfg.bankBranch||'',acc:cfg.bankAcc||'',ifsc:cfg.bankIfsc||''};
+  const DUE_DAYS=parseInt(cfg.dueDays,10)||7;
+  const qCreated=q.created_at?q.created_at.slice(0,10):today();
+  const qDueObj=new Date(qCreated+'T00:00:00'); qDueObj.setDate(qDueObj.getDate()+DUE_DAYS);
+  const qDueStr=qDueObj.toISOString().slice(0,10);
   const items=Array.isArray(q.items)?q.items:[];
   const rowsHtml=items.map(it=>{
     const qty=parseInt(it.qty)||1, rate=parseFloat(it.rate)||0, gst=parseFloat(it.gst)||0;
@@ -5143,6 +5205,7 @@ async function printQuotation(id){
   <div class="info-grid">
     ${docQuo('customer_name')?`<div><div class="info-lbl">Quoted To</div><div>${esc(q.customer_name||'—')}${q.customer_phone?'<br>'+esc(q.customer_phone):''}${addr?'<br>'+addr:''}${q.customer_gstin?'<br>GSTIN: '+esc(q.customer_gstin):''}</div></div>`:''}
     ${docQuo('validity_period')&&q.validity_date?`<div><div class="info-lbl">Valid Until</div><div>${fmtDay(q.validity_date)}</div></div>`:''}
+    ${docQuo('due_date')?`<div><div class="info-lbl">Payment Due</div><div>${fmtDay(qDueStr)}</div></div>`:''}
   </div>
   ${docQuo('items_table')?`<table>
     <thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">GST</th><th class="r">Amount</th></tr></thead>
@@ -5153,6 +5216,12 @@ async function printQuotation(id){
     <div><span>GST</span><span>₹${(parseFloat(q.gst_amount)||0).toFixed(2)}</span></div>
     <div class="grand"><span>Total</span><span>₹${(parseFloat(q.total)||0).toFixed(2)}</span></div>
   </div>`:''}
+  ${docQuo('bank_details')&&(SELLER_BANK.acc||SELLER_BANK.ifsc)?`<div class="terms"><strong>Bank Account Details</strong><br>${[
+    SELLER_BANK.holder?esc(SELLER_BANK.holder):'',
+    SELLER_BANK.name?esc(SELLER_BANK.name)+(SELLER_BANK.branch?', '+esc(SELLER_BANK.branch):''):'',
+    SELLER_BANK.acc?'A/c No: '+esc(SELLER_BANK.acc):'',
+    SELLER_BANK.ifsc?'IFSC: '+esc(SELLER_BANK.ifsc):''
+  ].filter(Boolean).join('<br>')}</div>`:''}
   ${docQuo('terms_notes')&&q.terms_notes?`<div class="terms"><strong>Terms &amp; Notes</strong><br>${esc(q.terms_notes)}</div>`:''}
   ${(docQuo('upi_qr')&&q.show_qr)?`<div style="margin-top:16px;font-size:11px;color:#777">Payment via UPI / bank transfer available on request.</div>`:''}
   ${docQuo('signature')?`<div class="sig">For ${esc(SELLER_NAME)}<div style="margin-top:30px;border-top:1px solid #ccc;width:170px;margin-left:auto;padding-top:4px">Authorised Signatory</div></div>`:''}
@@ -5446,6 +5515,8 @@ function onCustomerName(val){
   const c=_customersByName[(val||'').trim().toLowerCase()]; if(!c) return;
   const set=(id,v)=>{ const e=document.getElementById(id); if(e&&v) e.value=v; };
   set('qa_phone',c.phone); set('qa_address',c.address); set('qa_city',c.city); set('qa_state',c.state); set('qa_pin',c.pincode); set('qa_gstin',c.gstin);
+  // Known customer, no need to ask how they found us again every time they order.
+  if(typeof setLeadSource==='function') setLeadSource('existing');
 }
 
 /* Round-2 #8, Add-Sale customer autocomplete (search name OR phone → details, fill on pick) */
@@ -5469,6 +5540,8 @@ function custPick(i){
   const set=function(id,v){ const e=document.getElementById(id); if(e) e.value=v||''; };
   set('qa_cname',c.name); set('qa_phone',c.phone); set('qa_address',c.address); set('qa_city',c.city); set('qa_state',c.state); set('qa_pin',c.pincode); set('qa_gstin',c.gstin);
   const box=document.getElementById('custSuggestBox'); if(box) box.style.display='none';
+  // Picked from the known-customers list, so this is a repeat customer, skip re-asking lead source.
+  if(typeof setLeadSource==='function') setLeadSource('existing');
 }
 document.addEventListener('click',function(e){ if(!e.target.closest('#qa_cname,#qa_phone,#custSuggestBox')){ const b=document.getElementById('custSuggestBox'); if(b) b.style.display='none'; } });
 
@@ -5636,8 +5709,8 @@ function scrollToOpenTable(bodyId){
 // SLA Breached / Due Today have no table of their own on this panel, so these get
 // a lightweight drawer (not the Dashboard's #dashDrilldown, that's tied to
 // _dashCache, a different data source entirely).
-let _openOrderKpiGroups={breached:[],dueToday:[],notCompleted:[],notLocked:[]};
-const OPEN_ORDER_DRAWER_TITLES={breached:'SLA Breached',dueToday:'Due Today',notCompleted:'Not Completed, 15d+ past promise',notLocked:'Completed, Not Locked 10d+'};
+let _openOrderKpiGroups={breached:[],dueToday:[],notCompleted:[],notLocked:[],production:[],dispatched:[]};
+const OPEN_ORDER_DRAWER_TITLES={breached:'SLA Breached',dueToday:'Due Today',notCompleted:'Not Completed, 15d+ past promise',notLocked:'Completed, Not Locked 10d+',production:'In Production',dispatched:'Dispatched'};
 function openOpenOrdersDrawer(kind){
   const groups=_openOrderKpiGroups[kind]||[];
   const title=OPEN_ORDER_DRAWER_TITLES[kind]||kind;
@@ -5713,7 +5786,7 @@ async function loadOpenOrders(){
   const notLockedGroups=uGroups.filter(g=>daysCompletedNotLocked(g.items[0])!=null);
   // Phase 10 Group 3 (G): kept for the four drawer-opening KPIs (SLA Breached, Due
   // Today, Not Completed, Not Locked), which have no dedicated table on this panel to scroll to.
-  _openOrderKpiGroups={breached:breachedGroups,dueToday:dueTodayGroups,notCompleted:notCompletedGroups,notLocked:notLockedGroups};
+  _openOrderKpiGroups={breached:breachedGroups,dueToday:dueTodayGroups,notCompleted:notCompletedGroups,notLocked:notLockedGroups,production:prodGroups,dispatched:trackGroups};
   const alertsEl=document.getElementById('openOrderAlerts');
   if(alertsEl){
     const cards=[];
@@ -5726,8 +5799,8 @@ async function loadOpenOrders(){
   const kpi=document.getElementById('openKpi');
   if(kpi) kpi.innerHTML=`
     <div class="kpi" style="cursor:pointer" title="Manual entry, click to edit. Not counted in any total" onclick="editUpcomingOrders()"><div class="kpi-label">Upcoming Orders</div><div class="kpi-val">${esc(upcomingOrders)}</div></div>
-    <div class="kpi" style="cursor:pointer" title="Jump to the In Production table below" onclick="scrollToOpenTable('prodOrdersBody')"><div class="kpi-label">In Production</div><div class="kpi-val">${prodGroups.length}</div></div>
-    <div class="kpi" style="cursor:pointer" title="Jump to the Dispatched table below" onclick="scrollToOpenTable('trackOrdersBody')"><div class="kpi-label">Dispatched</div><div class="kpi-val">${trackGroups.length}</div></div>
+    <div class="kpi" style="cursor:pointer" title="Show all in-production orders" onclick="openOpenOrdersDrawer('production')"><div class="kpi-label">In Production</div><div class="kpi-val">${prodGroups.length}</div></div>
+    <div class="kpi" style="cursor:pointer" title="Show all dispatched orders" onclick="openOpenOrdersDrawer('dispatched')"><div class="kpi-label">Dispatched</div><div class="kpi-val">${trackGroups.length}</div></div>
     <div class="kpi red" style="cursor:pointer" title="Show breached orders" onclick="openOpenOrdersDrawer('breached')"><div class="kpi-label">SLA Breached</div><div class="kpi-val">${breached}</div></div>
     <div class="kpi yellow" style="cursor:pointer" title="Show orders due today" onclick="openOpenOrdersDrawer('dueToday')"><div class="kpi-label">Due Today</div><div class="kpi-val">${dueToday}</div></div>`;
   // Round 3, GST filing reminders surfaced right on the Open Orders landing tab, 2 days
@@ -5753,7 +5826,7 @@ async function loadOpenOrders(){
     else prodBody.innerHTML=prodGroups.map(g=>{ const f=g.items[0]; const ids=g.items.map(s=>s.id).join(',');
       const more=g.items.length>1?`+${g.items.length-1} more`:'';
       const breached=f.delivery_date&&f.delivery_date<td;
-      return `<tr class="sale-row${breached?' row-breached':''}" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>openOrderDetail('${f.id}'))">
+      return `<tr class="sale-row${breached?' row-breached':''}" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>{switchTab('sales');setTimeout(()=>openOrderDetail('${f.id}'),150)})">
         <td onclick="event.stopPropagation()"><input type="checkbox" class="open-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateOpenBulkBar()"></td>
         <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.delivery_date?fmtDay(f.delivery_date):'—'}</td>
         <td style="white-space:nowrap">${slaText(f.delivery_date)}</td>
@@ -5774,7 +5847,7 @@ async function loadOpenOrders(){
       const dispatchInfo=dispatchSlaText(f);
       const rw=returnWindowInfo(f)||'<span style="color:var(--text-3)">—</span>';
       const breached=f.delivery_date&&f.delivery_date<td;
-      return `<tr class="sale-row${breached?' row-breached':''}" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>openOrderDetail('${f.id}'))">
+      return `<tr class="sale-row${breached?' row-breached':''}" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>{switchTab('sales');setTimeout(()=>openOrderDetail('${f.id}'),150)})">
         <td onclick="event.stopPropagation()"><input type="checkbox" class="open-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateOpenBulkBar()"></td>
         <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.dispatch_date?fmtDay(f.dispatch_date):'—'}${dispatchInfo?'<br>'+dispatchInfo:''}</td>
         <td style="white-space:nowrap">${esc(f.customer_name||'—')}</td>
@@ -5789,6 +5862,15 @@ async function loadOpenOrders(){
   updateOpenBulkBar();
 }
 // Manual number only, shown before In Production. Never derived from or fed into any order count/total.
+// Auto-decrement by 1 (floor 0) whenever a brand-new order is placed, since "Upcoming
+// Orders" represents work that hasn't landed as a real order yet, once it does, it moves
+// out of that bucket on its own. Still fully manually editable via editUpcomingOrders().
+async function decrementUpcomingOrders(){
+  const {data}=await sb.from('site_settings').select('value').eq('key','biz_upcoming_orders').maybeSingle();
+  const cur=parseInt((data&&data.value)||'0',10)||0;
+  if(cur<=0) return;
+  await sb.from('site_settings').upsert({key:'biz_upcoming_orders',value:String(cur-1),updated_at:new Date().toISOString()},{onConflict:'key'});
+}
 async function editUpcomingOrders(){
   const {data}=await sb.from('site_settings').select('value').eq('key','biz_upcoming_orders').maybeSingle();
   const cur=data&&data.value?data.value:'0';
@@ -5863,16 +5945,21 @@ async function punchShop(action){
   const date=today();
   const nowTime=new Date().toTimeString().slice(0,5);   // "HH:MM", 24-hr, biz_shop_log columns are TIME
   const {data:existing}=await sb.from('biz_shop_log').select('*').eq('date',date).maybeSingle();
+  const FIELD={open:'open_time',break_start:'break_start',break_end:'break_end',close:'close_time'};
+  const field=FIELD[action];
+  const LABEL={open:'Studio opened',break_start:'Break started',break_end:'Break ended',close:'Studio closed'};
+  // First click per action per day wins, repeat clicks are a no-op (same system for
+  // all 4 buttons) so accidentally double-tapping never overwrites the real punch time.
+  if(existing && existing[field]){
+    toast((LABEL[action]||'Already logged')+' already at '+existing[field].slice(0,5));
+    return;
+  }
   const payload={date, closed_all_day:false,
     open_time:existing?existing.open_time:null, close_time:existing?existing.close_time:null,
     break_start:existing?existing.break_start:null, break_end:existing?existing.break_end:null};
-  if(action==='open') payload.open_time=nowTime;
-  else if(action==='break_start') payload.break_start=nowTime;
-  else if(action==='break_end') payload.break_end=nowTime;
-  else if(action==='close') payload.close_time=nowTime;
+  payload[field]=nowTime;
   const {error}=await sb.from('biz_shop_log').upsert(payload,{onConflict:'date'});
   if(error){ toast('Error: '+error.message,'error'); return; }
-  const LABEL={open:'Studio opened',break_start:'Break started',break_end:'Break ended',close:'Studio closed'};
   toast((LABEL[action]||'Logged')+' at '+nowTime);
   loadShopPunchStatus();
 }
@@ -6170,18 +6257,33 @@ async function loadLedger(){
   // filtered; misc income has no channel so it drops out once a specific channel is picked.
   // Expenses have no channel concept at all, so they're always shown regardless of filter.
   const ch=document.getElementById('ldChannel')?.value||'';
-  const studioF=(!ch||ch==='shop')?(studio||[]):[];
   const incF=ch?(inc||[]).filter(r=>INCOME_CHANNEL[r.category]===ch):(inc||[]);
-  // Order-payments: exclude shop-channel orders, those are already fully represented
-  // above via Studio Sales (selling_price on is_paid), showing both would double-count.
+  // Order-payments: matched to their order across ALL channels (including Studio/shop)
+  // now, not just non-shop. A real logged payment (biz_sale_payments, whatever amount
+  // the operator actually typed against the order) is always the source of truth for
+  // "money in" on that order, it must never be re-derived from summing each line item's
+  // selling_price, an order with 3 items and a single ₹10,000 advance is one ₹10,000
+  // entry, not 3 entries at each item's price.
   const payOrderIds=[...new Set((payRows||[]).map(r=>r.order_id).filter(Boolean))];
   let payMeta={};
   if(payOrderIds.length){
-    const {data:metaRows}=await sb.from('biz_sales').select('order_id,record_id,channel_id,customer_name,id').in('order_id',payOrderIds).neq('channel_id','shop');
+    const {data:metaRows}=await sb.from('biz_sales').select('order_id,record_id,channel_id,customer_name,id').in('order_id',payOrderIds);
     (metaRows||[]).forEach(m=>{ if(!payMeta[m.order_id]) payMeta[m.order_id]=m; });
   }
   const payF=(payRows||[]).filter(r=>{ const m=payMeta[r.order_id]; if(!m) return false; return !ch||m.channel_id===ch; });
-  const studioTotal=studioF.reduce((s,r)=>s+(parseFloat(r.selling_price)||0),0);
+  const paidOrderIds=new Set(Object.keys(payMeta).filter(oid=>payMeta[oid]&&(payRows||[]).some(r=>r.order_id===oid)));
+  // Studio Sales (in): is_paid orders with NO logged payment row (legacy / marked paid
+  // some other way) still need to show up, grouped into one entry per order (summed
+  // across its items) rather than one entry per line item.
+  const studioByOrder={};
+  (studio||[]).forEach(r=>{
+    const key=r.order_id||r.id;
+    if(r.order_id && paidOrderIds.has(r.order_id)) return;   // already represented via Order Payments above
+    if(!studioByOrder[key]) studioByOrder[key]={date:r.order_date,amount:0,customer_name:r.customer_name,payment_mode:r.payment_mode,id:r.id,order_id:r.order_id,record_id:r.record_id};
+    studioByOrder[key].amount+=parseFloat(r.selling_price)||0;
+  });
+  const studioF=(!ch||ch==='shop')?Object.values(studioByOrder):[];
+  const studioTotal=studioF.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   const payoutTotal=incF.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   const orderPayTotal=payF.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   const expTotal=(exp||[]).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
@@ -6194,7 +6296,7 @@ async function loadLedger(){
     <div class="kpi red"><div class="kpi-label">Expenses (out)</div><div class="kpi-val">${fmt(expTotal)}</div></div>
     <div class="kpi ${totalIn-expTotal>=0?'':'red'}"><div class="kpi-label">${netLabel}</div><div class="kpi-val">${fmt(totalIn-expTotal)}</div></div>`;
   const rows=[
-    ...studioF.map(r=>({date:r.order_date,type:'in',label:'Studio Sale',amount:r.selling_price,mode:r.payment_mode||'',ref:r.customer_name||'',isSale:true,saleId:r.id,orderId:r.order_id,recordId:r.record_id})),
+    ...studioF.map(r=>({date:r.date,type:'in',label:'Studio Sale',amount:r.amount,mode:r.payment_mode||'',ref:r.customer_name||'',isSale:true,saleId:r.id,orderId:r.order_id,recordId:r.record_id})),
     ...payF.map(r=>{ const m=payMeta[r.order_id]||{}; return {date:r.payment_date,type:'in',label:(r.notes||'Order Payment'),amount:r.amount,mode:r.source||'',ref:m.customer_name||'',isSale:true,saleId:m.id,orderId:m.order_id,recordId:m.record_id}; }),
     ...incF.map(r=>({date:r.date,type:'in',label:INCOME_LABEL[r.category]||r.category,amount:r.amount,mode:r.payment_mode||'',ref:r.bank_reference||'',id:r.id})),
     ...(exp||[]).map(r=>({date:r.date,type:'out',label:r.category,amount:r.amount,mode:r.payment_mode||'',ref:r.vendor||'',isExpense:true})),
@@ -6503,6 +6605,25 @@ async function loadAllOrdersKpi(){
     <div class="kpi"><div class="kpi-label">Order Count</div><div class="kpi-val">${orderCount}</div></div>
     <div class="kpi"><div class="kpi-label">Avg Order Value</div><div class="kpi-val">${fmt(aov)}</div></div>`;
 }
+// One-click period presets (matches Ledger/Dashboard/Expenses/Purchases' pattern),
+// layered on top of the existing precise Month/From/To fields rather than replacing
+// them, "All Time" (the default) leaves those fields exactly as the operator set them.
+function onSfViewChange(){
+  const view=document.getElementById('sfView')?.value||'all';
+  const set=(id,v)=>{const e=document.getElementById(id); if(e) e.value=v;};
+  const now=new Date(), curY=now.getFullYear(), curM=now.getMonth()+1;
+  if(view==='all'){ set('sfMonth',''); set('sfFrom',''); set('sfTo',''); }
+  else if(view==='month'){ set('sfMonth',thisMonth()); set('sfFrom',''); set('sfTo',''); }
+  else if(view==='fy'){
+    const fyStartYear=curM>=4?curY:curY-1;
+    set('sfMonth',''); set('sfFrom',`${fyStartYear}-04-01`); set('sfTo',`${fyStartYear+1}-03-31`);
+  } else if(view==='calendar'){
+    set('sfMonth',''); set('sfFrom',`${curY}-01-01`); set('sfTo',`${curY}-12-31`);
+  }
+  // 'custom' leaves From/To exactly as typed, just clears Month so they aren't both applied.
+  if(view==='custom') set('sfMonth','');
+  loadSales();
+}
 async function loadSales(){
   loadAllOrdersKpi();
   renderSfChannelBtns();
@@ -6739,7 +6860,7 @@ function duplicateOrder(firstId){
     updateAddOrderModeUI();
     const set=(id,v)=>{const e=document.getElementById(id); if(e) e.value=(v==null?'':v);};
     set('qa_channel',f.channel_id||'shop'); onChannelChange();
-    set('qa_payment',f.payment_mode||'upi');
+    set('qaPaySource',f.payment_mode||'upi');
     set('qa_cname',f.customer_name);
     set('qa_phone',f.customer_phone);
     set('qa_address',f.customer_address);
@@ -6790,6 +6911,7 @@ function duplicateOrder(firstId){
     renderItems();
     set('qa_platformfee',f.platform_fee||0);
     set('qa_shipping',f.shipping_fee||0);
+    set('qa_porter',f.other_deductions||0);
     recalcTotals();
     toast('Order duplicated into Add Order, review and save','success');
     document.getElementById('panelQuickadd')?.scrollIntoView({behavior:'smooth',block:'start'});
@@ -7178,7 +7300,7 @@ function exportSalesExcel(){
   XLSX.writeFile(wb,filename+'.xlsx');
 }
 
-function clearSalesFilters(){ ['sfChannel','sfStatus','sfPayment','sfPaid','sfMonth','sfFrom','sfTo','sfSearch'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';}); const so=document.getElementById('sfSort'); if(so) so.value='date_desc'; loadSales(); }
+function clearSalesFilters(){ ['sfChannel','sfStatus','sfPayment','sfPaid','sfMonth','sfFrom','sfTo','sfSearch'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';}); const so=document.getElementById('sfSort'); if(so) so.value='date_desc'; const sv=document.getElementById('sfView'); if(sv) sv.value='all'; loadSales(); }
 
 // ── Recycle Bin ────────────────────────────────────────────
 async function openRecycleBin(){
@@ -9889,6 +10011,8 @@ async function printInvoice(d, type, docKind){
   const SELLER_PHONE=cfg.phone||'';
   const SELLER_WEB=cfg.web||'triakar.com';
   const SELLER_FOOTER=cfg.footer||'Crafted with care · Every piece is made to order · Thank you for supporting Indian design';
+  const SELLER_BANK={holder:cfg.bankHolder||'',name:cfg.bankName||'',branch:cfg.bankBranch||'',acc:cfg.bankAcc||'',ifsc:cfg.bankIfsc||''};
+  const DUE_DAYS=parseInt(cfg.dueDays,10)||7;
 
   // Support multi-item orders (d.items) and legacy single rows (d)
   const items=(d.items&&d.items.length)?d.items:[d];
@@ -9922,6 +10046,8 @@ async function printInvoice(d, type, docKind){
   const isIntraState=!d.customer_state||d.customer_state.trim().toLowerCase()===MY_STATE.toLowerCase();
   const docNo=isRecord?(d.order_id||nextDocNumber()):await allocateInvoiceNumber(d.id||d.sale_id||null, d.order_id||null, docKind||'invoice', (d.invoice_no||'').trim()||null);
   const docDate=d.order_date||today();
+  const dueDateObj=new Date(docDate+'T00:00:00'); dueDateObj.setDate(dueDateObj.getDate()+DUE_DAYS);
+  const dueDateStr=dueDateObj.toISOString().slice(0,10);
   const grandTotal=subtotal+gstAmt;
   const amtWords=amountInWords(grandTotal);
   const docTitle=isRecord?'Order Record':(hasGst?'Tax Invoice':'Invoice');
@@ -10043,7 +10169,7 @@ tbody tr:last-child td{border-bottom:none}
   <div class="hdr-doc">
     <div class="doc-type">${docTitle}</div>
     <div class="doc-no">${esc(docNo)}</div>
-    <div class="doc-meta">Order Date: ${esc(docDate)}<br>Complete Date: ${d.delivery_date?esc(d.delivery_date):'—'}</div>
+    <div class="doc-meta">Order Date: ${esc(docDate)}<br>Complete Date: ${d.delivery_date?esc(d.delivery_date):'—'}${(!isRecord&&docInv('due_date'))?`<br>Due Date: ${esc(dueDateStr)}`:''}</div>
     <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;margin-top:5px">
       ${d.channel_id?`<div class="doc-badge">${esc(CH_NAMES?.[d.channel_id]||d.channel_id)}</div>`:''}
     </div>
@@ -10095,6 +10221,19 @@ ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
 </tbody></table>
 <div class="words-row">${esc(amtWords)}</div>
 </div>
+
+${(!isRecord&&docInv('bank_details')&&(SELLER_BANK.acc||SELLER_BANK.ifsc))?`
+<div class="info-strip">
+  <div class="info-card">
+    <div class="info-lbl">Bank Account Details</div>
+    <div class="info-val">${[
+      SELLER_BANK.holder?esc(SELLER_BANK.holder):'',
+      SELLER_BANK.name?esc(SELLER_BANK.name)+(SELLER_BANK.branch?', '+esc(SELLER_BANK.branch):''):'',
+      SELLER_BANK.acc?'A/c No: '+esc(SELLER_BANK.acc):'',
+      SELLER_BANK.ifsc?'IFSC: '+esc(SELLER_BANK.ifsc):''
+    ].filter(Boolean).join('<br>')}</div>
+  </div>
+</div>`:''}
 
 ${(!isRecord&&(d.payment_mode||d.package_size||d.weight_grams))||((!isRecord||docRec('courier_tracking'))&&(d.tracking_number||d.courier_partner))?`
 <div class="info-strip">
@@ -10625,13 +10764,35 @@ document.addEventListener('keydown',function(ev){
   ev.preventDefault(); top.focus();
 });
 
+// Multi-select toggle, not a single-pick segmented control any more, tapping both
+// Amazon + Flipkart lets one upload mix labels from both platforms; each label then
+// gets its own platform auto-detected (detectLabelPlatform) instead of forcing every
+// page in the batch through one hardcoded parser. Picking just one platform keeps the
+// old fast/certain behavior (no detection needed, everything is that platform).
 function setLblPlatform(v){
-  document.getElementById('lbl_platform').value=v;
-  document.querySelectorAll('#lblPlatformSeg .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
+  const btn=document.querySelector('#lblPlatformSeg .seg-btn[data-v="'+v+'"]');
+  const active=[...document.querySelectorAll('#lblPlatformSeg .seg-btn.active')].map(b=>b.dataset.v);
+  const isOn=active.includes(v);
+  if(isOn && active.length>1){ btn.classList.remove('active'); }
+  else if(!isOn){ btn.classList.add('active'); }
+  // never allow zero selected, re-activate the one just clicked
+  const stillActive=[...document.querySelectorAll('#lblPlatformSeg .seg-btn.active')];
+  if(!stillActive.length) btn.classList.add('active');
+  const chosen=[...document.querySelectorAll('#lblPlatformSeg .seg-btn.active')].map(b=>b.dataset.v);
+  document.getElementById('lbl_platform').value=chosen.join(',');
+}
+// Best-effort platform sniff for a mixed batch: Flipkart order IDs are a very
+// distinctive OD-prefixed long numeric string, Amazon's are NNN-NNNNNNN-NNNNNNN,
+// both are near-impossible to get from the other platform's label by chance.
+function detectLabelPlatform(text){
+  if(/\bOD\d{10,25}\b/i.test(text) || /ekart/i.test(text) || /flipkart/i.test(text)) return 'flipkart';
+  if(/\b\d{3}-\d{7}-\d{7}\b/.test(text) || /amazon/i.test(text)) return 'amazon';
+  return null;
 }
 
 function renderExtractedLabels(pages){
-  const platform=document.getElementById('lbl_platform').value;
+  const chosen=(document.getElementById('lbl_platform').value||'amazon').split(',').filter(Boolean);
+  const mixed=chosen.length>1;
   const defProduct=document.getElementById('lbl_product');
   const defProductName=defProduct.options[defProduct.selectedIndex]?.textContent||'';
   const defPrice=document.getElementById('lbl_price').value||'';
@@ -10639,8 +10800,11 @@ function renderExtractedLabels(pages){
   const defGrams=document.getElementById('lbl_grams').value||'';
 
   _extractedLabels=pages.map((text,i)=>{
+    // Both platforms selected, sniff each label's own platform rather than forcing
+    // every page through one parser, single platform picked stays exactly as before.
+    const platform=mixed?(detectLabelPlatform(text)||chosen[0]):chosen[0];
     const d=extractLabelData(text,platform);
-    return {...d,
+    return {...d, platform,
       productName:d.productName||(defProduct.value?defProductName.replace(/\s*\(.*\)$/,'').trim():''),
       productId:defProduct.value||'',
       sellingPrice:defPrice,
@@ -10660,7 +10824,7 @@ function renderExtractedLabels(pages){
   document.getElementById('lblTableBody').innerHTML=_extractedLabels.map((r,i)=>`
     <tr style="${!r.orderId?'opacity:.6':''}">
       <td>${inp(r.orderId,'lr_oid_'+i,'160px','Order ID')}</td>
-      <td style="font-size:11px;color:var(--text-3)">${esc(CH_NAMES[platform])}</td>
+      <td style="font-size:11px;color:var(--text-3)">${esc(CH_NAMES[r.platform]||r.platform)}</td>
       <td><input type="number" value="${r.qty||1}" id="lr_qty_${i}" style="width:46px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;text-align:center"></td>
       <td>
         <select id="lr_psel_${i}" onchange="onLblProductChange(${i})" style="background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;font-size:11px;max-width:150px;width:100%">
@@ -10706,9 +10870,6 @@ function onLblProductChange(i){
 }
 
 async function importExtractedLabels(){
-  const platform=document.getElementById('lbl_platform').value;
-  const feeMap={amazon:15,flipkart:13,website:2,shop:0};
-  const feePct=feeMap[platform]||0;
   const statusEl=document.getElementById('lblImportStatus');
   const batch=[];
   _extractedLabels.forEach((_,i)=>{
@@ -10721,6 +10882,7 @@ async function importExtractedLabels(){
     const grams=parseFloat(document.getElementById('lr_grams_'+i)?.value)||0;
     if(!price&&!productName) return; // skip empty rows
     const r=_extractedLabels[i];
+    const platform=r.platform||'amazon';
     batch.push({
       channel_id:platform,
       order_id:orderId||null,
@@ -10753,7 +10915,7 @@ async function importExtractedLabels(){
   if(!batch.length){toast('Nothing to import','error');return;}
   // Auto-create products + apply fixed delivery + packing fees for Amazon/Flipkart
   const created=await autoCreateProducts(batch);
-  batch.forEach(r=>{ if(platform==='amazon'||platform==='flipkart') applyPlatformFees(r); });
+  batch.forEach(r=>{ if(r.channel_id==='amazon'||r.channel_id==='flipkart') applyPlatformFees(r); });
   assignSpoolsToRows(batch, importSpoolState('lbl'));
   statusEl.textContent='Importing…';
   for(let i=0;i<batch.length;i+=100){
@@ -10780,9 +10942,13 @@ function populateLabelProductSelect(){
   const sel=document.getElementById('lbl_product');
   if(sel) sel.innerHTML=`<option value="">— select from catalog (optional) —</option>${opts}`;
 }
-function initImportPanel(){
+async function initImportPanel(){
   populateLabelProductSelect();
-  ensureSpools();
+  // ensureSpools() only fetches once per session and used to fire-and-forget, the very
+  // first tab visit rendered the spool picker rows before that fetch resolved, so the
+  // "Default" row showed no real spools to pick, this awaits it so the dropdown is
+  // actually populated by the time it's shown, not a moment after.
+  await ensureSpools();
   renderImportSpoolRows('import');
   renderImportSpoolRows('lbl');
 }
