@@ -812,7 +812,7 @@ html[data-theme="dark"] .biz-login{
         <text x="120" y="122" font-family="'Noto Sans Devanagari',Mangal,'Arial Unicode MS',sans-serif" font-size="106" font-weight="700" fill="#C4622A" text-anchor="middle" dominant-baseline="central">त्रि</text>
       </svg>
     </div>
-    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.83</span>
+    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.84</span>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
     <button type="button" class="biz-tb-direct" id="bizTbTodayBtn" onclick="switchTab('openorders')" title="Today's Tasks">
@@ -5728,7 +5728,7 @@ async function loadCustomers(){
   _customerRecords.forEach(r=>{ if(matched.has(r.id)) return;
     list.push({name:r.name||'(unnamed)',phone:r.phone||'',address:r.address||'',city:r.city||'',state:r.state||'',pincode:r.pincode||'',orders:0,items:0,spent:0,first:null,last:null,channels:[],recordId:r.id,gstin:r.gstin||'',reviewed:!!r.reviewed,country_code:r.country_code||'+91',notes:r.notes||''});
   });
-  list.forEach(c=>{ c.received=receivedByCustomer[c.name.toLowerCase()]||0; c.due=Math.max(0,c.spent-c.received); });
+  list.forEach(c=>{ c.received=receivedByCustomer[c.name.toLowerCase()]||0; c.due=Math.max(0,c.spent-c.received); c.advance=Math.max(0,c.received-c.spent); });
   _customersList=list.sort((a,b)=>b.spent-a.spent);
   _customersByName={}; _customersList.forEach(c=>{ _customersByName[c.name.toLowerCase()]=c; });
   const badge=document.getElementById('custCount_hdr'); if(badge) badge.textContent=_customersList.length;
@@ -5757,7 +5757,7 @@ function renderCustomers(){
     <td style="font-family:var(--mono);font-size:10px">${esc(c.gstin||'—')}</td>
     <td>${esc([c.city,c.state].filter(Boolean).join(', ')||'—')}${c.pincode?', '+esc(c.pincode):''}</td>
     <td class="td-num">${c.orders}</td>
-    <td class="td-num" style="font-weight:700">${fmt(c.spent)}${(c.due>0)?`<div style="font-weight:400;font-size:10px;color:var(--red)">Due ${fmt(c.due)}</div>`:''}</td>
+    <td class="td-num" style="font-weight:700">${fmt(c.spent)}${(c.due>0)?`<div style="font-weight:400;font-size:10px;color:var(--red)">Due ${fmt(c.due)}</div>`:''}${(c.advance>0)?`<div style="font-weight:400;font-size:10px;color:var(--green)" title="Paid more than their order total, credit/advance sitting with us">Advance ${fmt(c.advance)}</div>`:''}</td>
     <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${c.first?fmtDay(c.first):'—'}</td>
     <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${c.last?fmtDay(c.last):'—'}</td>
     <td>${c.reviewed?'<span class="badge" style="background:var(--green-bg);color:var(--green)">✓</span>':''}</td>
