@@ -314,6 +314,9 @@ tr:hover td{background:var(--bg-2)}
   transition:color .2s ease;white-space:nowrap}
 .qa-mode-btn.active{color:#fff}
 .qa-mode-btn:not(.active):hover{color:var(--text)}
+/* Compact variant, sits in the p-head instead of its own boxed-off section */
+.qa-mode-toggle-sm{flex-shrink:0}
+.qa-mode-toggle-sm .qa-mode-btn{min-width:auto;padding:6px 14px;font-size:11.5px}
 /* Status chips get their own colour so the stage is recognisable at a glance */
 .qchip[data-s="pending"].active{background:#6b7280;border-color:#6b7280}
 .qchip[data-s="order_received"].active{background:#0284c7;border-color:#0284c7}
@@ -812,7 +815,7 @@ html[data-theme="dark"] .biz-login{
         <text x="120" y="122" font-family="'Noto Sans Devanagari',Mangal,'Arial Unicode MS',sans-serif" font-size="106" font-weight="700" fill="#C4622A" text-anchor="middle" dominant-baseline="central">त्रि</text>
       </svg>
     </div>
-    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.84</span>
+    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.85</span>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
     <button type="button" class="biz-tb-direct" id="bizTbTodayBtn" onclick="switchTab('openorders')" title="Today's Tasks">
@@ -1184,6 +1187,14 @@ html[data-theme="dark"] .biz-login{
           <div class="p-title">Add Order</div>
           <div class="p-sub">Log an order, channel auto-fills costs</div>
         </div>
+        <!-- ── Mode: same form, one flips into the other, so customer/items entry
+             is never duplicated between them, small quick toggle up here instead
+             of its own boxed-off section ── -->
+        <div class="qa-mode-toggle qa-mode-toggle-sm" id="qaModeSeg" data-v="order">
+          <div class="qa-mode-thumb"></div>
+          <button type="button" class="qa-mode-btn active" data-v="order" onclick="setQaFormMode('order')">🧾 Order</button>
+          <button type="button" class="qa-mode-btn" data-v="quotation" onclick="setQaFormMode('quotation')">⎘ Quotation</button>
+        </div>
       </div>
       <!-- Recommendation #3 (deep-pass review): a rack item marked "Sold" isn't
            actually deducted from the rack until this form is saved, so make that
@@ -1193,16 +1204,6 @@ html[data-theme="dark"] .biz-login{
       </div>
 
       <form id="quickAddForm" onsubmit="submitQuickAdd(event)" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();this.requestSubmit();}">
-
-        <!-- ── Mode: same form, one flips into the other, so customer/items entry
-             is never duplicated between them ── -->
-        <div class="qa-card" style="display:flex;justify-content:center">
-          <div class="qa-mode-toggle" id="qaModeSeg" data-v="order">
-            <div class="qa-mode-thumb"></div>
-            <button type="button" class="qa-mode-btn active" data-v="order" onclick="setQaFormMode('order')">🧾 Order</button>
-            <button type="button" class="qa-mode-btn" data-v="quotation" onclick="setQaFormMode('quotation')">⎘ Quotation</button>
-          </div>
-        </div>
 
         <!-- ── Channel (quick, top) ───────────────── -->
         <div class="qa-card">
@@ -1275,7 +1276,7 @@ html[data-theme="dark"] .biz-login{
             <input type="text" id="qa_pin" placeholder="6-digit pincode" maxlength="6" inputmode="numeric">
           </div>
           <div class="form-group">
-            <label>GSTIN <span style="font-weight:400;color:var(--text-3);font-size:10px">(optional)</span></label>
+            <label>GSTIN <span style="font-weight:400;color:var(--text-3);font-size:10px">(optional)</span> <a href="#" onclick="event.preventDefault();verifyQaGstin()" style="font-size:10px;font-weight:400">check</a></label>
             <input type="text" id="qa_gstin" placeholder="customer GSTIN" style="font-family:var(--mono);letter-spacing:.03em">
           </div>
         </div>
@@ -1860,7 +1861,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>City</label><input type="text" id="qt_city"></div>
           <div class="form-group"><label>State</label><input type="text" id="qt_state" list="stateList"></div>
           <div class="form-group"><label>Pincode</label><input type="text" id="qt_pin" maxlength="6" inputmode="numeric"></div>
-          <div class="form-group"><label>GSTIN</label><input type="text" id="qt_gstin"> <a href="#" onclick="event.preventDefault();verifyQtGstin()" style="font-size:10px">check</a></div>
+          <div class="form-group"><label>GSTIN <a href="#" onclick="event.preventDefault();verifyQtGstin()" style="font-size:10px;font-weight:400">check</a></label><input type="text" id="qt_gstin"></div>
           <div class="form-group"><label>Quotation Date</label><input type="date" id="qt_date"></div>
           <div class="form-group"><label>Promised Date</label><input type="date" id="qt_promised"></div>
           <div class="form-group"><label>Valid Until</label><input type="date" id="qt_validity"></div>
@@ -2102,6 +2103,8 @@ html[data-theme="dark"] .biz-login{
           <button class="btn btn-primary btn-sm" onclick="openCustomerEdit()" title="Shortcut: N">+ Add Customer <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">N</span></button>
         </div>
       </div>
+      <!-- One-click channel filter, same pattern as Today's Tasks / All Orders -->
+      <div id="custChannelBtns" class="filter-bar" style="align-items:center;margin-bottom:8px"></div>
       <div id="custFilters" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow)">
         <div class="form-grid">
           <div class="form-group"><label>Channel</label>
@@ -2134,7 +2137,7 @@ html[data-theme="dark"] .biz-login{
 
     <!-- Customer Edit Modal (B7) -->
     <div id="customerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:1000;overflow-y:auto;padding:20px" onclick="if(event.target===this)closeCustomerModal()">
-      <div style="max-width:560px;margin:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:20px">
+      <div style="max-width:640px;margin:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:20px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
           <div style="font-size:14px;font-weight:700" id="customerModalTitle">Add Customer</div>
           <button onclick="closeCustomerModal()" style="background:none;border:none;color:var(--text-3);font-size:18px;cursor:pointer">✕</button>
@@ -2151,6 +2154,17 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>Pincode</label><input type="text" id="cm_pin" maxlength="6" inputmode="numeric"></div>
           <div class="form-group"><label>Reviewed?</label><select id="cm_reviewed"><option value="0">No</option><option value="1">Yes</option></select></div>
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="cm_notes"></div>
+        </div>
+        <!-- All of this customer's orders/sales, matched by name (same matching this
+             panel already uses to roll up spent/orders/dates from biz_sales). -->
+        <div id="cmOrdersSection" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:8px">All Orders <span id="cmOrdersCount" style="font-weight:400;color:var(--text-3)"></span></div>
+          <div class="tbl-wrap" style="max-height:260px;overflow-y:auto">
+            <table>
+              <thead><tr><th>Date</th><th>Channel</th><th>Item</th><th class="td-num">Amount</th><th>Status</th></tr></thead>
+              <tbody id="cmOrdersBody"><tr><td colspan="5" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+            </table>
+          </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="saveCustomer()">Save</button>
@@ -5401,6 +5415,13 @@ function verifyQtGstin(){
   window.open(url,'_blank');
   if(!gstin) toast('Opened GST portal, paste the GSTIN to search');
 }
+function verifyQaGstin(){
+  const gstin=(document.getElementById('qa_gstin')?.value||'').trim();
+  let url='https://services.gst.gov.in/services/searchtp';
+  try{ const cfg=JSON.parse(localStorage.getItem('biz_gst_portal_url')||'null'); if(cfg) url=cfg; }catch(_){}
+  window.open(url,'_blank');
+  if(!gstin) toast('Opened GST portal, paste the GSTIN to search');
+}
 function showAddQuotation(){
   document.getElementById('qt_id').value='';
   ['qt_cname','qt_phone','qt_address','qt_city','qt_state','qt_pin','qt_gstin','qt_validity','qt_terms','qt_date','qt_promised'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
@@ -5735,10 +5756,30 @@ async function loadCustomers(){
   const dl=document.getElementById('customerList'); if(dl) dl.innerHTML=_customersList.map(c=>`<option value="${esc(c.name)}">`).join('');
   renderCustomers();
 }
+// Studio -> Website -> Flipkart -> Amazon, then A-Z within each; a customer with
+// several channels sorts under whichever one ranks earliest.
+const CUST_CHANNEL_PRIORITY={shop:0,website:1,flipkart:2,amazon:3};
+function custChannelRank(c){
+  const chs=c.channels||[]; if(!chs.length) return 9;
+  return Math.min(...chs.map(ch=>CUST_CHANNEL_PRIORITY[ch]!=null?CUST_CHANNEL_PRIORITY[ch]:9));
+}
+let _custChannelFilter='';
+function renderCustChannelBtns(){
+  const box=document.getElementById('custChannelBtns'); if(!box) return;
+  const channels=['','shop','website','flipkart','amazon'];
+  box.innerHTML=channels.map(c=>{
+    const active=_custChannelFilter===c;
+    const label=c?CH_NAMES[c]:'All Channels';
+    const color=c?CH_COLORS[c]:'#6b7280';
+    return `<button type="button" class="btn btn-sm" onclick="setCustChannel('${c}')" style="background:${active?color:'transparent'};color:${active?'#fff':color};border:1px solid ${color};font-weight:600">${label}</button>`;
+  }).join('');
+}
+function setCustChannel(c){ _custChannelFilter=c; const el=document.getElementById('custChannel'); if(el) el.value=c; renderCustomers(); }
 function renderCustomers(){
   const body=document.getElementById('customersBody'); if(!body) return;
+  renderCustChannelBtns();
   const v=id=>document.getElementById(id)?.value||'';
-  const se=v('custSearch').trim().toLowerCase(), chf=v('custChannel'), rev=v('custReviewed');
+  const se=v('custSearch').trim().toLowerCase(), chf=_custChannelFilter||v('custChannel'), rev=v('custReviewed');
   const minO=parseInt(v('custMinOrders'))||0, from=v('custFrom'), to=v('custTo');
   let list=_customersList;
   if(chf) list=list.filter(c=>(c.channels||[]).includes(chf));
@@ -5748,6 +5789,7 @@ function renderCustomers(){
   if(from) list=list.filter(c=>c.last&&c.last>=from);
   if(to) list=list.filter(c=>c.last&&c.last<=to);
   if(se) list=list.filter(c=>(c.name+' '+c.phone+' '+c.city+' '+c.state+' '+(c.gstin||'')).toLowerCase().includes(se));
+  list=[...list].sort((a,b)=>custChannelRank(a)-custChannelRank(b)||a.name.localeCompare(b.name));
   _custRender=list;
   updateCustFilterCount();
   body.innerHTML=list.length?list.map((c,i)=>`<tr style="cursor:pointer" onclick="openCustomerByIdx(${i})">
@@ -5836,6 +5878,32 @@ function fillCustomerModal(c){
   document.getElementById('customerModalTitle').textContent=(c&&c.recordId)?'Edit Customer':(c?'Save Customer Record':'Add Customer');
   document.getElementById('cm_delBtn').style.display=(c&&c.recordId)?'inline-block':'none';
   document.getElementById('customerModal').style.display='block';
+  const ordSec=document.getElementById('cmOrdersSection');
+  if(ordSec){
+    if(c&&c.name){ ordSec.style.display='block'; loadCustomerOrders(c.name); }
+    else ordSec.style.display='none';
+  }
+}
+async function loadCustomerOrders(name){
+  const body=document.getElementById('cmOrdersBody'), countEl=document.getElementById('cmOrdersCount');
+  if(!body) return;
+  const {data,error}=await sb.from('biz_sales').select('id,order_id,order_date,channel_id,product_name,sku,selling_price,status,qty')
+    .eq('is_deleted',false).ilike('customer_name',name).order('order_date',{ascending:false}).limit(200);
+  if(error||!data||!data.length){ body.innerHTML='<tr><td colspan="5" class="empty"><div class="em-text">No orders found</div></td></tr>'; if(countEl) countEl.textContent=''; return; }
+  const gmap={},groups=[];
+  data.forEach(s=>{ const k=s.order_id?('o:'+s.order_id):('r:'+s.id); if(!gmap[k]){gmap[k]={items:[]};groups.push(gmap[k]);} gmap[k].items.push(s); });
+  if(countEl) countEl.textContent='('+groups.length+' order'+(groups.length===1?'':'s')+')';
+  body.innerHTML=groups.map(g=>{
+    const f=g.items[0], total=g.items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
+    const more=g.items.length>1?` +${g.items.length-1} more`:'';
+    return `<tr style="cursor:pointer" onclick="closeCustomerModal();switchTab('sales');setTimeout(()=>openOrderDetail('${f.id}'),150)">
+      <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(f.order_date)}</td>
+      <td>${chHtml(f.channel_id)}</td>
+      <td>${esc(f.sku||f.product_name||'—')}${more}</td>
+      <td class="td-num">${fmt(total)}</td>
+      <td><span class="badge badge-${f.status}">${STATUS_LABEL?.[f.status]||f.status}</span></td>
+    </tr>`;
+  }).join('');
 }
 function closeCustomerModal(){ const m=document.getElementById('customerModal'); if(m) m.style.display='none'; }
 async function saveCustomer(){
