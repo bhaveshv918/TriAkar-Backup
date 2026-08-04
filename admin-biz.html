@@ -790,7 +790,7 @@ html[data-theme="dark"] .biz-login{
         <text x="120" y="122" font-family="'Noto Sans Devanagari',Mangal,'Arial Unicode MS',sans-serif" font-size="106" font-weight="700" fill="#C4622A" text-anchor="middle" dominant-baseline="central">त्रि</text>
       </svg>
     </div>
-    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.78</span>
+    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.79</span>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
     <button type="button" class="biz-tb-direct" id="bizTbTodayBtn" onclick="switchTab('openorders')" title="Today's Tasks">
@@ -1495,11 +1495,13 @@ html[data-theme="dark"] .biz-login{
           <input type="file" id="restoreSalesInput" accept=".json" style="display:none" onchange="restoreSalesFromFile(event)">
           <button class="btn btn-ghost btn-sm" onclick="exportSalesExcel()">↓ Excel</button>
           <button class="btn btn-ghost btn-sm" onclick="openRecycleBin()" title="Recycle Bin">🗑️</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleStatsView('allOrdersKpi')">📊 View Stats</button>
         </div>
       </div>
       <!-- Phase 10 Group 1: All Orders gets its own stat cards (it had none before,
-           just a text subtitle), unfiltered, every status including cancelled/returned. -->
-      <div id="allOrdersKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
+           just a text subtitle), unfiltered, every status including cancelled/returned.
+           Hidden by default (view toggle above), only Today's Tasks keeps stats always on. -->
+      <div id="allOrdersKpi" style="display:none;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
       <!-- Round 3, one-click colored channel buttons, quicker than opening Filters for the
            single most common sort ("kis channel ka dekhna hai"). -->
       <div id="sfChannelBtns" class="filter-bar" style="align-items:center;margin-bottom:8px"></div>
@@ -1687,9 +1689,10 @@ html[data-theme="dark"] .biz-login{
           <div class="p-title">Sales</div>
           <div class="p-sub" id="salesviewSubtitle">Confirmed orders, excludes cancelled &amp; returned</div>
         </div>
+        <button class="btn btn-ghost btn-sm" onclick="toggleStatsView('salesviewKpi','salesviewCompare')">📊 View Stats</button>
       </div>
-      <div id="salesviewKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
-      <div id="salesviewCompare" style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap"></div>
+      <div id="salesviewKpi" style="display:none;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
+      <div id="salesviewCompare" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;flex-wrap:wrap;gap:24px"></div>
       <!-- Same filter set as All Orders, plus a one-click "not done yet" view: orders
            that are neither in a completed/delivered state NOR locked (marked paid), i.e.
            the ones that still need work or a payment follow-up. -->
@@ -4793,6 +4796,13 @@ async function loadOrderPayments(orderId){
     body.innerHTML=rows.length ? rows.map(r=>`<tr><td>${fmtDay(r.payment_date)}</td><td class="td-num">${fmt(r.amount)}</td><td>${esc(r.source||'—')}</td><td style="text-align:right"><button type="button" class="btn btn-ghost btn-sm" onclick="deletePaymentInstallment('${r.id}')">✕</button></td></tr>`).join('')
       : '<tr><td colspan="4" class="empty"><div class="em-text">No payments logged yet</div></td></tr>';
   }
+  // Composite mode string (e.g. "upi + cash") built from every source actually used,
+  // not one dropdown pick, order can genuinely be paid via more than one mode.
+  const modes=[...new Set(rows.map(r=>r.source).filter(Boolean))];
+  let modeLine=document.getElementById('qaPayModeLine');
+  if(!modeLine && card){ modeLine=document.createElement('div'); modeLine.id='qaPayModeLine'; modeLine.style.cssText='font-size:11px;color:var(--text-3);margin-bottom:8px'; card.querySelector('.qa-sec-title')?.after(modeLine); }
+  if(modeLine) modeLine.textContent=modes.length?('Paid via: '+modes.join(' + ')):'';
+  if(modes.length) await sb.from('biz_sales').update({payment_mode:modes.join('+')}).eq('order_id',orderId);
 }
 async function addPaymentInstallment(){
   if(!_qaEditOrderId){ toast('Save the order first','error'); return; }
@@ -5407,11 +5417,21 @@ async function loadCustomers(){
   const recByPhone={}, recByName={};
   _customerRecords.forEach(r=>{ const ph=norm(r.phone); if(ph) recByPhone[ph]=r; if(r.name) recByName[r.name.trim().toLowerCase()]=r; });
   // 2. Derived stats from sales (first + last order dates)
-  const {data,error}=await sb.from('biz_sales')
-    .select('customer_name,customer_phone,customer_address,customer_city,customer_state,customer_pincode,order_id,order_date,selling_price,channel_id')
-    .eq('is_deleted',false).not('customer_name','is',null)
-    .order('order_date',{ascending:false}).limit(5000);
+  const [{data,error},{data:payRows}]=await Promise.all([
+    sb.from('biz_sales')
+      .select('customer_name,customer_phone,customer_address,customer_city,customer_state,customer_pincode,order_id,order_date,selling_price,channel_id,is_paid')
+      .eq('is_deleted',false).not('customer_name','is',null)
+      .order('order_date',{ascending:false}).limit(5000),
+    sb.from('biz_sale_payments').select('order_id,amount').limit(5000),
+  ]);
   if(error){ return; }
+  // Total actually paid per customer: real logged payments (biz_sale_payments, joined
+  // via order_id) plus is_paid orders that never logged an installment (legacy/manual).
+  const orderIdToCustomer={}; (data||[]).forEach(s=>{ if(s.order_id&&s.customer_name) orderIdToCustomer[s.order_id]=(s.customer_name||'').trim().toLowerCase(); });
+  const receivedByCustomer={};
+  (payRows||[]).forEach(p=>{ const k=orderIdToCustomer[p.order_id]; if(k) receivedByCustomer[k]=(receivedByCustomer[k]||0)+(parseFloat(p.amount)||0); });
+  const paidOrderIdsForReceived=new Set((payRows||[]).map(p=>p.order_id));
+  (data||[]).forEach(s=>{ const k=(s.customer_name||'').trim().toLowerCase(); if(s.is_paid&&s.order_id&&!paidOrderIdsForReceived.has(s.order_id)) receivedByCustomer[k]=(receivedByCustomer[k]||0)+(parseFloat(s.selling_price)||0); });
   const map={};
   (data||[]).forEach(s=>{
     const name=(s.customer_name||'').trim(); if(!name) return;
@@ -5441,6 +5461,7 @@ async function loadCustomers(){
   _customerRecords.forEach(r=>{ if(matched.has(r.id)) return;
     list.push({name:r.name||'(unnamed)',phone:r.phone||'',address:r.address||'',city:r.city||'',state:r.state||'',pincode:r.pincode||'',orders:0,items:0,spent:0,first:null,last:null,channels:[],recordId:r.id,gstin:r.gstin||'',reviewed:!!r.reviewed,country_code:r.country_code||'+91',notes:r.notes||''});
   });
+  list.forEach(c=>{ c.received=receivedByCustomer[c.name.toLowerCase()]||0; c.due=Math.max(0,c.spent-c.received); });
   _customersList=list.sort((a,b)=>b.spent-a.spent);
   _customersByName={}; _customersList.forEach(c=>{ _customersByName[c.name.toLowerCase()]=c; });
   const badge=document.getElementById('custCount_hdr'); if(badge) badge.textContent=_customersList.length;
@@ -5469,7 +5490,7 @@ function renderCustomers(){
     <td style="font-family:var(--mono);font-size:10px">${esc(c.gstin||'—')}</td>
     <td>${esc([c.city,c.state].filter(Boolean).join(', ')||'—')}${c.pincode?', '+esc(c.pincode):''}</td>
     <td class="td-num">${c.orders}</td>
-    <td class="td-num" style="font-weight:700">${fmt(c.spent)}</td>
+    <td class="td-num" style="font-weight:700">${fmt(c.spent)}${(c.due>0)?`<div style="font-weight:400;font-size:10px;color:var(--red)">Due ${fmt(c.due)}</div>`:''}</td>
     <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${c.first?fmtDay(c.first):'—'}</td>
     <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${c.last?fmtDay(c.last):'—'}</td>
     <td>${c.reviewed?'<span class="badge" style="background:var(--green-bg);color:var(--green)">✓</span>':''}</td>
@@ -6682,6 +6703,11 @@ function renderSfChannelBtns(){
     return `<button type="button" class="btn btn-sm" onclick="setSfChannel('${c}')" style="background:${active?color:'transparent'};color:${active?'#fff':color};border:1px solid ${color};font-weight:600">${label}</button>`;
   }).join('');
 }
+// Stats/KPI strips on report-style tabs (All Orders, Sales) are hidden by default,
+// one click reveals them, Today's Tasks is the only page that keeps stats always on.
+function toggleStatsView(...ids){
+  ids.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=el.style.display==='none'?'':'none'; });
+}
 function setSfChannel(c){ const el=document.getElementById('sfChannel'); if(el) el.value=c; renderSfChannelBtns(); loadSales(); }
 // Phase 10 Group 1: always unfiltered (every status, including cancelled/returned),
 // independent of whatever filters are currently applied to the table below it, so the
@@ -6694,10 +6720,15 @@ async function loadAllOrdersKpi(){
   const orderCount=Object.keys(groups).length;
   const revenue=rows.reduce((a,r)=>a+(parseFloat(r.selling_price)||0),0);
   const aov=orderCount?revenue/orderCount:0;
+  // Reuses the same Not Completed / Not Locked groups Today's Tasks already computes
+  // (_openOrderKpiGroups), same buttons, same drawer, now reachable from All Orders too.
+  const nc=(_openOrderKpiGroups.notCompleted||[]).length, nl=(_openOrderKpiGroups.notLocked||[]).length;
   kpi.innerHTML=`
     <div class="kpi"><div class="kpi-label">Total Revenue</div><div class="kpi-val">${fmt(revenue)}</div></div>
     <div class="kpi"><div class="kpi-label">Order Count</div><div class="kpi-val">${orderCount}</div></div>
-    <div class="kpi"><div class="kpi-label">Avg Order Value</div><div class="kpi-val">${fmt(aov)}</div></div>`;
+    <div class="kpi"><div class="kpi-label">Avg Order Value</div><div class="kpi-val">${fmt(aov)}</div></div>
+    <div class="kpi red" style="cursor:pointer" onclick="openOpenOrdersDrawer('notCompleted')"><div class="kpi-label">Not Completed</div><div class="kpi-val">${nc}</div></div>
+    <div class="kpi yellow" style="cursor:pointer" onclick="openOpenOrdersDrawer('notLocked')"><div class="kpi-label">Not Locked</div><div class="kpi-val">${nl}</div></div>`;
 }
 // One-click period presets (matches Ledger/Dashboard/Expenses/Purchases' pattern),
 // layered on top of the existing precise Month/From/To fields rather than replacing
