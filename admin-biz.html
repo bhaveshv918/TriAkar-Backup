@@ -317,6 +317,13 @@ tr:hover td{background:var(--bg-2)}
 /* Compact variant, sits in the p-head instead of its own boxed-off section */
 .qa-mode-toggle-sm{flex-shrink:0}
 .qa-mode-toggle-sm .qa-mode-btn{min-width:auto;padding:6px 14px;font-size:11.5px}
+/* Whole-page tint so which form you're filling is obvious at a glance, not just the
+   little toggle up top, subtle wash behind every card, not a loud solid fill. */
+#panelQuickadd{transition:background .25s ease;border-radius:var(--radius)}
+#panelQuickadd.qa-bg-order{background:linear-gradient(180deg,rgba(196,98,42,.05),transparent 220px)}
+#panelQuickadd.qa-bg-quotation{background:linear-gradient(180deg,rgba(124,58,237,.06),transparent 220px)}
+html[data-theme="dark"] #panelQuickadd.qa-bg-order{background:linear-gradient(180deg,rgba(196,98,42,.10),transparent 220px)}
+html[data-theme="dark"] #panelQuickadd.qa-bg-quotation{background:linear-gradient(180deg,rgba(124,58,237,.14),transparent 220px)}
 /* Status chips get their own colour so the stage is recognisable at a glance */
 .qchip[data-s="pending"].active{background:#6b7280;border-color:#6b7280}
 .qchip[data-s="order_received"].active{background:#0284c7;border-color:#0284c7}
@@ -815,7 +822,7 @@ html[data-theme="dark"] .biz-login{
         <text x="120" y="122" font-family="'Noto Sans Devanagari',Mangal,'Arial Unicode MS',sans-serif" font-size="106" font-weight="700" fill="#C4622A" text-anchor="middle" dominant-baseline="central">त्रि</text>
       </svg>
     </div>
-    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.85</span>
+    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.86</span>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
     <button type="button" class="biz-tb-direct" id="bizTbTodayBtn" onclick="switchTab('openorders')" title="Today's Tasks">
@@ -1174,7 +1181,7 @@ html[data-theme="dark"] .biz-login{
     <!-- ══════════════════════════════════════════════════════
          QUICK ADD SALE
     ═══════════════════════════════════════════════════════ -->
-    <div class="panel" id="panelQuickadd">
+    <div class="panel qa-bg-order" id="panelQuickadd">
       <!-- Sticky quick-save, stays put while scrolling the long form -->
       <button type="button" id="stickySave" class="btn btn-primary"
         title="Save Sale"
@@ -4769,6 +4776,8 @@ function setQaFormMode(mode){
   _qaFormMode=mode;
   const seg=document.getElementById('qaModeSeg'); if(seg) seg.dataset.v=mode;
   document.querySelectorAll('#qaModeSeg .qa-mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.v===mode));
+  const panel=document.getElementById('panelQuickadd');
+  if(panel){ panel.classList.toggle('qa-bg-order',mode==='order'); panel.classList.toggle('qa-bg-quotation',mode==='quotation'); }
   document.querySelectorAll('.qa-order-only').forEach(el=>el.style.display=mode==='order'?'':'none');
   document.querySelectorAll('.qa-quote-only').forEach(el=>el.style.display=mode==='quotation'?'':'none');
   const saveBtn=document.getElementById('qaSaveBtn');
