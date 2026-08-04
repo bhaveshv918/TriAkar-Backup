@@ -799,7 +799,7 @@ html[data-theme="dark"] .biz-login{
         <text x="120" y="122" font-family="'Noto Sans Devanagari',Mangal,'Arial Unicode MS',sans-serif" font-size="106" font-weight="700" fill="#C4622A" text-anchor="middle" dominant-baseline="central">त्रि</text>
       </svg>
     </div>
-    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.81</span>
+    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.82</span>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
     <button type="button" class="biz-tb-direct" id="bizTbTodayBtn" onclick="switchTab('openorders')" title="Today's Tasks">
@@ -1297,7 +1297,6 @@ html[data-theme="dark"] .biz-login{
             <div></div>
           </div>
           <div id="itemRows"></div>
-          <div style="margin-top:10px"><button type="button" class="btn btn-primary btn-sm" onclick="addItem()">＋ Add Item</button></div>
         </div>
         </div>
         <datalist id="catalogList"></datalist>
@@ -1363,7 +1362,8 @@ html[data-theme="dark"] .biz-login{
           <div class="qchips" id="qaFulfilChips">
             <button type="button" class="qchip active" data-v="delivery" onclick="setFulfillment('delivery')">🚚 Delivery</button>
             <button type="button" class="qchip" data-v="pickup_self" onclick="setFulfillment('pickup_self')">🧍 Pickup, Self</button>
-            <button type="button" class="qchip" data-v="pickup_porter" onclick="setFulfillment('pickup_porter')">🛵 Pickup, Porter</button>
+            <button type="button" class="qchip" data-v="pickup_by_us" onclick="setFulfillment('pickup_by_us')" title="We go pick it up">🚗 Pickup (by us)</button>
+            <button type="button" class="qchip" data-v="pickup_porter" onclick="setFulfillment('pickup_porter')" title="Customer arranges Porter to collect it">🛵 Porter (by them)</button>
             <button type="button" class="qchip" data-v="pickup_other" onclick="setFulfillment('pickup_other')">Pickup, Other</button>
             <input type="text" id="qa_fulfil_other" placeholder="specify…" oninput="onFulfilOther(this.value)" style="display:none;max-width:150px;padding:6px 12px;background:var(--bg-2);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:12px">
           </div>
@@ -1384,7 +1384,7 @@ html[data-theme="dark"] .biz-login{
             <input type="number" id="qa_shipping" step="0.01" value="0" onchange="recalcTotals()">
           </div>
           <div class="form-group">
-            <label>Porter / Pickup Expense (₹) <span style="font-weight:400;color:var(--text-3);font-size:10px">material sourced for this order</span></label>
+            <label title="Material sourced for this order via Porter/local pickup">Porter / Pickup Expense (₹)</label>
             <input type="number" id="qa_porter" step="0.01" value="0" onchange="recalcTotals()">
           </div>
           <div class="form-group">
@@ -4338,7 +4338,12 @@ function renderItems(){
     </div>`).join('')}
     <div style="grid-column:1/-1;margin:2px 0 8px 30px">
       <button type="button" class="btn btn-ghost btn-sm" onclick="addItemColor(${i})" title="${it.pricingMode==='gram'?'This piece is assembled from more than one printed part, each with its own weight/spool':'If this item used more than one filament colour/spool (e.g. AMS multi-colour print)'}">${it.pricingMode==='gram'?'+ Add part':'+ Add colour'}</button>
-    </div>`).join('');
+    </div>`).join('')
+    +`<div class="items-grid item-row" style="border:none">
+      <div></div><div></div><div class="r"></div><div class="r"></div><div class="r"></div><div class="r"></div><div class="r"></div><div class="r"></div><div class="r"></div><div class="r"></div>
+      <div><button type="button" class="btn btn-primary btn-sm" onclick="addItem()" title="Add another item">＋ Add Item</button></div>
+      <div></div>
+    </div>`;
   recalcTotals();
 }
 function setPricingMode(i,mode){ _items[i].pricingMode=mode; renderItems(); }
@@ -4646,6 +4651,7 @@ function resetQaPayment(){
   const amt=document.getElementById('qaPayAmount'); if(amt) amt.value='';
   const src=document.getElementById('qaPaySource'); if(src) src.value='upi';
   const dt=document.getElementById('qaPayDate'); if(dt) dt.value=today();
+  _qaNewPayments=[]; if(typeof renderQaNewPayments==='function') renderQaNewPayments();
 }
 function setQaPayStatus(v){
   _qaPayStatusManual=true;
@@ -4709,11 +4715,11 @@ function updateAddOrderModeUI(){
     if(payCard) payCard.style.display='';
     if(cancelBtn) cancelBtn.style.display='none';
     if(returnBtn) returnBtn.style.display='none';
-    // New order has no order_id yet to key a payment row on, so the status/amount
-    // picked here are held in the form and only actually written on save.
+    // New order has no order_id yet, so multiple installments logged here are held
+    // client-side (_qaNewPayments) and only actually written once the order saves.
     if(paySummary) paySummary.style.display='none';
-    if(addPayBtn) addPayBtn.style.display='none';
-    if(payHist) payHist.style.display='none';
+    if(addPayBtn) addPayBtn.style.display='';
+    if(payHist) payHist.style.display=_qaNewPayments.length?'':'none';
     if(payHint) payHint.style.display='';
   }
   // Gift only applies to a fresh order (an existing paid/tracked order turning into a
@@ -4808,7 +4814,7 @@ function openAddOrderEdit(firstId){
   if(typeof setQaStatus==='function') setQaStatus(f.status||'pending');
   if(typeof setLeadSource==='function') setLeadSource(f.lead_source||'');
   let fulfilChip='delivery';
-  if(f.fulfillment_type==='pickup'){ fulfilChip=f.fulfillment_detail==='self'?'pickup_self':f.fulfillment_detail==='porter'?'pickup_porter':'pickup_other'; }
+  if(f.fulfillment_type==='pickup'){ fulfilChip=f.fulfillment_detail==='self'?'pickup_self':f.fulfillment_detail==='by_us'?'pickup_by_us':f.fulfillment_detail==='porter'?'pickup_porter':'pickup_other'; }
   if(typeof setFulfillment==='function') setFulfillment(fulfilChip);
   if(fulfilChip==='pickup_other'){ const fo=document.getElementById('qa_fulfil_other'); if(fo) fo.value=f.fulfillment_detail||''; }
   set('qa_tracking',f.tracking_number); set('qa_courier',f.courier_partner); set('qa_invoiceno',f.invoice_no);
@@ -4931,12 +4937,30 @@ async function loadOrderPayments(orderId){
   if(modeLine) modeLine.textContent=modes.length?('Paid via: '+modes.join(' + ')):'';
   if(modes.length) await sb.from('biz_sales').update({payment_mode:modes.join('+')}).eq('order_id',orderId);
 }
+// Brand-new orders have no order_id yet, so multiple transactions logged before the
+// first Save are held here and only actually written to biz_sale_payments on save.
+let _qaNewPayments=[];
+function renderQaNewPayments(){
+  const wrap=document.getElementById('qaPayHistoryWrap'), body=document.getElementById('qaPayHistoryBody');
+  if(!body) return;
+  if(wrap) wrap.style.display=_qaNewPayments.length?'':'none';
+  body.innerHTML=_qaNewPayments.length ? _qaNewPayments.map((r,i)=>`<tr><td>${fmtDay(r.payment_date)}</td><td class="td-num">${fmt(r.amount)}</td><td>${esc(r.source||'—')}</td><td style="text-align:right"><button type="button" class="btn btn-ghost btn-sm" onclick="removeQaNewPayment(${i})">✕</button></td></tr>`).join('')
+    : '<tr><td colspan="4" class="empty"><div class="em-text">No payments logged yet</div></td></tr>';
+}
+function removeQaNewPayment(i){ _qaNewPayments.splice(i,1); renderQaNewPayments(); }
 async function addPaymentInstallment(){
-  if(!_qaEditOrderId){ toast('Save the order first','error'); return; }
   const amount=parseFloat(document.getElementById('qaPayAmount')?.value)||0;
   if(amount<=0){ toast('Enter a payment amount','error'); return; }
   const payment_date=document.getElementById('qaPayDate')?.value||today();
   const source=document.getElementById('qaPaySource')?.value||null;
+  if(!_qaEditOrderId){
+    // New-order mode: hold it client-side, save() writes every entry at once.
+    _qaNewPayments.push({amount,payment_date,source});
+    renderQaNewPayments();
+    const amtEl=document.getElementById('qaPayAmount'); if(amtEl) amtEl.value='';
+    toast('Payment added, will log when you Save');
+    return;
+  }
   const {error}=await sb.from('biz_sale_payments').insert({order_id:_qaEditOrderId,amount,payment_date,source});
   if(error){ toast('Error: '+error.message,'error'); return; }
   toast('Payment logged');
@@ -4962,6 +4986,7 @@ function setFulfillment(v){
   const otherInp=document.getElementById('qa_fulfil_other');
   let type='delivery', detail='';
   if(v==='pickup_self'){ type='pickup'; detail='self'; }
+  else if(v==='pickup_by_us'){ type='pickup'; detail='by_us'; }
   else if(v==='pickup_porter'){ type='pickup'; detail='porter'; }
   else if(v==='pickup_other'){ type='pickup'; detail=(otherInp?.value||'').trim(); }
   if(otherInp){ const show=(v==='pickup_other'); otherInp.style.display=show?'':'none'; if(show) otherInp.focus(); }
@@ -5054,6 +5079,13 @@ document.addEventListener('input', e=>{ if(e.target.classList && e.target.classL
 // explicitly clicks 🔒.
 function applyNewOrderIsPaid(rows){}
 async function applyNewOrderPaymentIfAny(orderId){
+  // Multiple transactions logged via "+ Add Payment" before the first save take
+  // priority, that's the operator explicitly itemising it, one insert per row.
+  if(_qaNewPayments.length){
+    await sb.from('biz_sale_payments').insert(_qaNewPayments.map(r=>({order_id:orderId,...r})));
+    _qaNewPayments=[];
+    return;
+  }
   const status=document.getElementById('qa_pay_status')?.value;
   const amount=parseFloat(document.getElementById('qaPayAmount')?.value)||0;
   if((status==='partial_advance'||status==='full_advance') && amount>0){
@@ -6613,9 +6645,9 @@ async function loadLedger(){
     <div class="kpi ${totalIn-expTotal>=0?'':'red'}"><div class="kpi-label">${netLabel}</div><div class="kpi-val">${fmt(totalIn-expTotal)}</div></div>`;
   const rows=[
     ...studioF.map(r=>({date:r.date,type:'in',label:'Studio Sale',amount:r.amount,mode:r.payment_mode||'',ref:r.customer_name||'',isSale:true,saleId:r.id,orderId:r.order_id,recordId:r.record_id})),
-    ...payF.map(r=>{ const m=payMeta[r.order_id]||{}; return {date:r.payment_date,type:'in',label:(r.notes||'Order Payment'),amount:r.amount,mode:r.source||'',ref:m.customer_name||'',isSale:true,saleId:m.id,orderId:m.order_id,recordId:m.record_id}; }),
+    ...payF.map(r=>{ const m=payMeta[r.order_id]||{}; return {date:r.payment_date,type:'in',label:(r.notes||'Order Payment'),amount:r.amount,mode:r.source||'',ref:m.customer_name||'',isSale:true,saleId:m.id,orderId:m.order_id,recordId:m.record_id,payId:r.id}; }),
     ...incF.map(r=>({date:r.date,type:'in',label:INCOME_LABEL[r.category]||r.category,amount:r.amount,mode:r.payment_mode||'',ref:r.bank_reference||'',id:r.id})),
-    ...(exp||[]).map(r=>({date:r.date,type:'out',label:r.category,amount:r.amount,mode:r.payment_mode||'',ref:r.vendor||'',isExpense:true})),
+    ...(exp||[]).map(r=>({date:r.date,type:'out',label:r.category,amount:r.amount,mode:r.payment_mode||'',ref:r.vendor||'',isExpense:true,expId:r.id})),
   ].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const tbody=document.getElementById('ledgerBody'); if(!tbody) return;
   if(!rows.length){ tbody.innerHTML=`<tr><td colspan="6" class="empty"><div class="em-text">No entries</div></div></td></tr>`; return; }
@@ -6626,9 +6658,23 @@ async function loadLedger(){
     <td class="td-num" style="font-weight:700;color:${r.type==='in'?'var(--green)':'var(--red)'}">${r.type==='in'?'+':'-'}${fmt(r.amount)}</td>
     <td style="font-size:11px;color:var(--text-3)">${esc(r.mode||'—')}${r.ref?' · '+esc(r.ref):''}</td>
     <td class="td-actions">${r.id?`<button class="btn btn-ghost btn-sm" onclick="editIncome('${r.id}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteIncome('${r.id}')">✕</button>`
-      :(r.isSale&&r.saleId?`<a href="#" onclick="event.preventDefault();switchTab('sales');setTimeout(()=>openOrderDetail('${r.saleId}'),150)" style="color:var(--accent);font-size:10px;font-family:var(--mono)" title="Open order details">${esc(r.recordId||r.orderId||'view order')}</a>`
-      :r.isExpense?'<span style="color:var(--text-3);font-size:10px">from Expenses</span>':'')}</td>
+      :r.payId?`<button class="btn btn-danger btn-sm" onclick="deleteLedgerPayment('${r.payId}')" title="Remove this payment, an accidentally-duplicated entry">✕</button>`
+      :r.expId?`<button class="btn btn-danger btn-sm" onclick="deleteLedgerExpense('${r.expId}')" title="Remove this expense">✕</button>`
+      :(r.isSale&&r.saleId?`<a href="#" onclick="event.preventDefault();switchTab('sales');setTimeout(()=>openOrderDetail('${r.saleId}'),150)" style="color:var(--accent);font-size:10px;font-family:var(--mono)" title="Open order details">${esc(r.recordId||r.orderId||'view order')}</a>`:'')}</td>
   </tr>`).join('');
+}
+async function deleteLedgerPayment(id){
+  if(!confirm('Remove this payment entry? It only removes the payment record, not the order itself.')) return;
+  const {error}=await sb.from('biz_sale_payments').delete().eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Payment removed'); loadLedger();
+}
+async function deleteLedgerExpense(id){
+  if(!confirm('Remove this expense entry?')) return;
+  const {error}=await sb.from('biz_expenses').delete().eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  logBizActivity('delete','expense',id,'');
+  toast('Expense removed'); loadLedger();
 }
 function showAddIncome(){
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};
