@@ -292,6 +292,15 @@ tr:hover td{background:var(--bg-2)}
 .qchip{padding:7px 12px;border:1px solid var(--border);border-radius:20px;background:var(--bg-2);color:var(--text-2);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
 .qchip:hover{border-color:var(--border-h)}
 .qchip.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 1px 2px rgba(16,32,24,.18)}
+/* Add Order's 3 document actions (Order Record / Invoice / Quotation), one consistent
+   pill style instead of 3 differently-sized solid-fill buttons in random colours. */
+.qa-doc-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:20px;
+  border:1px solid var(--border);background:var(--bg-2);color:var(--text);font-family:var(--sans);
+  font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s ease}
+.qa-doc-btn:hover{border-color:var(--accent);color:var(--accent)}
+.qa-doc-btn-accent{background:var(--accent);color:#fff;border-color:var(--accent)}
+.qa-doc-btn-accent:hover{color:#fff;opacity:.9}
+.qa-doc-icon{font-size:13px}
 /* Status chips get their own colour so the stage is recognisable at a glance */
 .qchip[data-s="pending"].active{background:#6b7280;border-color:#6b7280}
 .qchip[data-s="order_received"].active{background:#0284c7;border-color:#0284c7}
@@ -790,7 +799,7 @@ html[data-theme="dark"] .biz-login{
         <text x="120" y="122" font-family="'Noto Sans Devanagari',Mangal,'Arial Unicode MS',sans-serif" font-size="106" font-weight="700" fill="#C4622A" text-anchor="middle" dominant-baseline="central">त्रि</text>
       </svg>
     </div>
-    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.80</span>
+    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.81</span>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
     <button type="button" class="biz-tb-direct" id="bizTbTodayBtn" onclick="switchTab('openorders')" title="Today's Tasks">
@@ -1172,6 +1181,15 @@ html[data-theme="dark"] .biz-login{
 
       <form id="quickAddForm" onsubmit="submitQuickAdd(event)" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();this.requestSubmit();}">
 
+        <!-- ── Mode: same form, one flips into the other, so customer/items entry
+             is never duplicated between them ── -->
+        <div class="qa-card">
+          <div class="seg" id="qaModeSeg" style="max-width:320px">
+            <button type="button" class="seg-btn active" data-v="order" onclick="setQaFormMode('order')">🧾 Order</button>
+            <button type="button" class="seg-btn" data-v="quotation" onclick="setQaFormMode('quotation')">⎘ Quotation</button>
+          </div>
+        </div>
+
         <!-- ── Channel (quick, top) ───────────────── -->
         <div class="qa-card">
         <div class="qa-sec-title">Order</div>
@@ -1297,7 +1315,7 @@ html[data-theme="dark"] .biz-login{
         </div>
 
         <!-- ── Payment, how it's actually being paid ── -->
-        <div class="qa-card" id="qaPaymentCard">
+<div class="qa-card qa-order-only" id="qaPaymentCard">
           <div class="qa-sec-title">Payment</div>
           <div id="qaPaySummaryRow" style="display:none;gap:20px;flex-wrap:wrap;margin-bottom:12px">
             <div><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Order Total</div><div style="font-size:18px;font-weight:700" id="qaPayTotal">₹0</div></div>
@@ -1340,7 +1358,7 @@ html[data-theme="dark"] .biz-login{
         </div>
 
         <!-- ── Pickup or Delivery ── -->
-        <div class="qa-card">
+<div class="qa-card qa-order-only">
           <div class="qa-sec-title">Delivery / Pickup</div>
           <div class="qchips" id="qaFulfilChips">
             <button type="button" class="qchip active" data-v="delivery" onclick="setFulfillment('delivery')">🚚 Delivery</button>
@@ -1354,7 +1372,7 @@ html[data-theme="dark"] .biz-login{
         </div>
 
         <!-- ── Order charges (our costs) ────────── -->
-        <div class="qa-card">
+<div class="qa-card qa-order-only">
         <div class="qa-sec-title">Order Charges <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-3)">— deducted from profit (optional)</span></div>
         <div class="form-grid">
           <div class="form-group">
@@ -1377,7 +1395,7 @@ html[data-theme="dark"] .biz-login{
         </div>
 
         <!-- ── Shipping & Tracking (collapsible) ── -->
-        <details style="margin-bottom:12px">
+        <details class="qa-order-only" style="margin-bottom:12px">
           <summary style="cursor:pointer;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);padding:6px 0;user-select:none">Shipping & Tracking</summary>
           <div class="form-grid" style="margin-top:10px">
             <div class="form-group">
@@ -1418,6 +1436,22 @@ html[data-theme="dark"] .biz-login{
           </div>
         </details>
 
+        <!-- ── Quotation-only fields, hidden in Order mode ── -->
+        <div class="qa-card qa-quote-only" style="display:none">
+          <div class="qa-sec-title">Quotation Details</div>
+          <div class="form-grid">
+            <div class="form-group"><label>Quotation No <span style="font-weight:400;color:var(--text-3);font-size:10px">auto, editable</span></label><input type="text" id="qa_qt_number" style="font-family:var(--mono)"></div>
+            <div class="form-group"><label>Valid Until</label><input type="date" id="qa_qt_validity"></div>
+          </div>
+          <div class="form-group" style="margin-top:6px">
+            <label>Terms &amp; Conditions</label>
+            <div style="display:flex;gap:8px;margin-bottom:6px">
+              <select id="qa_qt_tnc_preset" onchange="applyQaQtTncPreset()" style="max-width:220px"><option value="">— insert a preset —</option></select>
+            </div>
+            <textarea id="qa_qt_terms" rows="3" style="resize:vertical" placeholder="Pick a preset above, or type your own"></textarea>
+          </div>
+        </div>
+
         <!-- ── Notes, internal only, never printed on customer-facing files ── -->
         <div class="form-group" style="margin-bottom:16px">
           <label>Notes <span style="font-weight:400;color:var(--text-3);font-size:10px">internal, never shown on invoice/quotation</span></label>
@@ -1425,7 +1459,7 @@ html[data-theme="dark"] .biz-login{
         </div>
 
         <!-- ── Order Status, very bottom, grouped by outcome ── -->
-        <div class="qa-card">
+<div class="qa-card qa-order-only">
           <div class="qa-sec-title">Order Status</div>
           <div class="qchips" id="qaStatusChips" style="margin-bottom:6px">
             <button type="button" class="qchip" data-s="pending"    onclick="setQaStatus('pending')">Pending</button>
@@ -1456,13 +1490,16 @@ html[data-theme="dark"] .biz-login{
 
         <!-- ── Save row: left = document actions, right = clear/cancel/save ── -->
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between">
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <button type="button" class="btn" style="background:#2563eb;color:#fff" onclick="saveOrderRecord()">📋 Order Record</button>
-            <button type="button" class="btn" style="background:var(--accent);color:#fff" onclick="saveAndPrint()">🧾 Invoice</button>
-            <button type="button" class="btn" style="background:#7C3AED;color:#fff" onclick="switchTab('quotations');setTimeout(showAddQuotation,150)" title="Switch to Quotations">⎘ Quotation</button>
+          <div class="qa-doc-actions qa-order-only" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <button type="button" class="qa-doc-btn" onclick="saveOrderRecord()"><span class="qa-doc-icon">📋</span>Order Record</button>
+            <button type="button" class="qa-doc-btn qa-doc-btn-accent" onclick="saveAndPrint()"><span class="qa-doc-icon">🧾</span>Invoice</button>
+            <button type="button" class="qa-doc-btn" onclick="setQaFormMode('quotation')"><span class="qa-doc-icon">⎘</span>Quotation</button>
             <button type="button" class="qchip" id="qaGiftToggle" onclick="toggleQaGift()" title="Friends, clients, relatives, anyone you're gifting a print to">🎁 Mark as Gift</button>
             <span id="qaGiftHint" style="display:none;font-size:11px;color:var(--text-3)">No revenue logged, its production cost auto-logs as a Marketing expense</span>
             <button type="button" class="btn btn-danger btn-sm" id="qaMarkReturnBtn" onclick="markReturn()" style="display:none" title="Mark as returned and log in Returns">↩ Mark Return</button>
+          </div>
+          <div class="qa-doc-actions qa-quote-only" style="display:none;gap:6px;align-items:center">
+            <button type="button" class="qa-doc-btn" onclick="setQaFormMode('order')"><span class="qa-doc-icon">🧾</span>Back to Order</button>
           </div>
           <div style="display:flex;gap:8px;align-items:center">
             <button type="button" class="btn btn-ghost btn-sm" onclick="confirmClearQuickAdd()" title="Wipes the whole form">Clear</button>
@@ -4691,6 +4728,59 @@ function updateAddOrderModeUI(){
 }
 
 // Small, sits next to Save on purpose, and always confirms, wipes the whole form.
+// Add Order / Quotation share one form (customer + items entry never duplicated),
+// this just shows/hides the order-only sections and swaps what Save does.
+let _qaFormMode='order';
+function setQaFormMode(mode){
+  _qaFormMode=mode;
+  document.querySelectorAll('#qaModeSeg .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.v===mode));
+  document.querySelectorAll('.qa-order-only').forEach(el=>el.style.display=mode==='order'?'':'none');
+  document.querySelectorAll('.qa-quote-only').forEach(el=>el.style.display=mode==='quotation'?'':'none');
+  const saveBtn=document.getElementById('qaSaveBtn');
+  if(saveBtn) saveBtn.innerHTML=mode==='quotation'?'💾 Save Quotation':'💾 Save';
+  if(mode==='quotation'){
+    const numEl=document.getElementById('qa_qt_number'); if(numEl&&!numEl.value) numEl.value=genQuotationNumber();
+    renderQaQtTncPresets();
+  }
+}
+function applyQaQtTncPreset(){
+  const sel=document.getElementById('qa_qt_tnc_preset'); if(!sel||sel.value==='') return;
+  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
+  const p=presets[parseInt(sel.value,10)]; if(!p) return;
+  const ta=document.getElementById('qa_qt_terms'); if(ta) ta.value=p.text||'';
+}
+function renderQaQtTncPresets(){
+  const sel=document.getElementById('qa_qt_tnc_preset'); if(!sel) return;
+  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
+  sel.innerHTML='<option value="">— insert a preset —</option>'+presets.map((p,i)=>`<option value="${i}">${esc(p.name)}</option>`).join('');
+}
+// Reuses the same Customer & Items entered on the shared form, builds a real
+// biz_quotations row from them instead of duplicating the entry.
+async function submitQuickAddAsQuotation(){
+  const cname=(document.getElementById('qa_cname')?.value||'').trim();
+  if(!cname){ toast('Enter a customer name','error'); return; }
+  const items=_items.filter(it=>it.name&&it.name.trim()).map(it=>({name:it.name,qty:it.qty||1,rate:it.rate||0,gst:it.gst||0}));
+  if(!items.length){ toast('Add at least one item','error'); return; }
+  let sub=0,gstAmt=0; items.forEach(it=>{ const amt=(it.qty||0)*(it.rate||0); sub+=amt; gstAmt+=amt*((it.gst||0)/100); });
+  const g=id=>document.getElementById(id)?.value?.trim()||null;
+  const manualNumber=g('qa_qt_number')||genQuotationNumber();
+  const now=new Date(), fyStart=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
+  const fy=`${fyStart}-${String((fyStart+1)%100).padStart(2,'0')}`;
+  const payload={
+    customer_name:cname, customer_phone:g('qa_phone'), customer_address:g('qa_address'),
+    customer_city:g('qa_city'), customer_state:g('qa_state'), customer_pincode:g('qa_pin'), customer_gstin:g('qa_gstin'),
+    items, subtotal:sub, gst_amount:gstAmt, total:sub+gstAmt,
+    validity_date:g('qa_qt_validity'), terms_notes:g('qa_qt_terms'),
+    quotation_number:manualNumber, financial_year:fy, status:'draft',
+  };
+  try{ const {data:rid}=await sb.rpc('gen_record_id',{p_entity_type:'quotation',p_entity_ref:manualNumber}); if(rid) payload.record_id=rid; }catch(_){}
+  const {error}=await insertRowsResilient('biz_quotations',[payload]);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Quotation saved');
+  resetQuickAdd();
+  setQaFormMode('order');
+  if(typeof loadQuotations==='function') loadQuotations();
+}
 function confirmClearQuickAdd(){
   if(!confirm('Clear the whole form? Everything typed so far will be lost.')) return;
   resetQuickAdd();
@@ -4977,6 +5067,7 @@ async function applyNewOrderPaymentIfAny(orderId){
 let _qaSaving=false;
 async function submitQuickAdd(e){
   if(e) e.preventDefault();
+  if(_qaFormMode==='quotation'){ await submitQuickAddAsQuotation(); return; }
   // Guards the "clicked 2-3 times because nothing seemed to happen" duplicate-entry bug.
   if(_qaSaving) return;
   if(_qaMode==='edit'){ await saveEditedOrder(); return; }
