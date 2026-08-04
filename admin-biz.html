@@ -301,6 +301,19 @@ tr:hover td{background:var(--bg-2)}
 .qa-doc-btn-accent{background:var(--accent);color:#fff;border-color:var(--accent)}
 .qa-doc-btn-accent:hover{color:#fff;opacity:.9}
 .qa-doc-icon{font-size:13px}
+/* Order/Quotation mode toggle, one pill, a sliding thumb behind whichever side is
+   active, centered on the page (the "sexy swipe" ask, iOS-settings-style). */
+.qa-mode-toggle{position:relative;display:inline-flex;background:var(--bg-2);border:1px solid var(--border);
+  border-radius:999px;padding:4px;gap:2px;box-shadow:inset 0 1px 2px rgba(0,0,0,.04)}
+.qa-mode-thumb{position:absolute;top:4px;left:4px;width:calc(50% - 4px);height:calc(100% - 8px);
+  background:var(--accent);border-radius:999px;box-shadow:0 2px 8px rgba(196,98,42,.35);
+  transition:transform .28s cubic-bezier(.4,0,.2,1)}
+.qa-mode-toggle[data-v="quotation"] .qa-mode-thumb{transform:translateX(100%)}
+.qa-mode-btn{position:relative;z-index:1;flex:1;min-width:140px;padding:9px 22px;border:none;background:transparent;
+  border-radius:999px;font-family:var(--sans);font-size:13px;font-weight:700;color:var(--text-3);cursor:pointer;
+  transition:color .2s ease;white-space:nowrap}
+.qa-mode-btn.active{color:#fff}
+.qa-mode-btn:not(.active):hover{color:var(--text)}
 /* Status chips get their own colour so the stage is recognisable at a glance */
 .qchip[data-s="pending"].active{background:#6b7280;border-color:#6b7280}
 .qchip[data-s="order_received"].active{background:#0284c7;border-color:#0284c7}
@@ -799,7 +812,7 @@ html[data-theme="dark"] .biz-login{
         <text x="120" y="122" font-family="'Noto Sans Devanagari',Mangal,'Arial Unicode MS',sans-serif" font-size="106" font-weight="700" fill="#C4622A" text-anchor="middle" dominant-baseline="central">त्रि</text>
       </svg>
     </div>
-    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.82</span>
+    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.83</span>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
     <button type="button" class="biz-tb-direct" id="bizTbTodayBtn" onclick="switchTab('openorders')" title="Today's Tasks">
@@ -1183,10 +1196,11 @@ html[data-theme="dark"] .biz-login{
 
         <!-- ── Mode: same form, one flips into the other, so customer/items entry
              is never duplicated between them ── -->
-        <div class="qa-card">
-          <div class="seg" id="qaModeSeg" style="max-width:320px">
-            <button type="button" class="seg-btn active" data-v="order" onclick="setQaFormMode('order')">🧾 Order</button>
-            <button type="button" class="seg-btn" data-v="quotation" onclick="setQaFormMode('quotation')">⎘ Quotation</button>
+        <div class="qa-card" style="display:flex;justify-content:center">
+          <div class="qa-mode-toggle" id="qaModeSeg" data-v="order">
+            <div class="qa-mode-thumb"></div>
+            <button type="button" class="qa-mode-btn active" data-v="order" onclick="setQaFormMode('order')">🧾 Order</button>
+            <button type="button" class="qa-mode-btn" data-v="quotation" onclick="setQaFormMode('quotation')">⎘ Quotation</button>
           </div>
         </div>
 
@@ -4739,14 +4753,18 @@ function updateAddOrderModeUI(){
 let _qaFormMode='order';
 function setQaFormMode(mode){
   _qaFormMode=mode;
-  document.querySelectorAll('#qaModeSeg .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.v===mode));
+  const seg=document.getElementById('qaModeSeg'); if(seg) seg.dataset.v=mode;
+  document.querySelectorAll('#qaModeSeg .qa-mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.v===mode));
   document.querySelectorAll('.qa-order-only').forEach(el=>el.style.display=mode==='order'?'':'none');
   document.querySelectorAll('.qa-quote-only').forEach(el=>el.style.display=mode==='quotation'?'':'none');
   const saveBtn=document.getElementById('qaSaveBtn');
-  if(saveBtn) saveBtn.innerHTML=mode==='quotation'?'💾 Save Quotation':'💾 Save';
   if(mode==='quotation'){
+    saveBtn && (saveBtn.innerHTML=_qaEditQuotationId?'💾 Update Quotation':'💾 Save Quotation');
     const numEl=document.getElementById('qa_qt_number'); if(numEl&&!numEl.value) numEl.value=genQuotationNumber();
     renderQaQtTncPresets();
+  } else {
+    _qaEditQuotationId=null;   // leaving Quotation mode abandons any in-progress edit
+    if(saveBtn) saveBtn.innerHTML='💾 Save';
   }
 }
 function applyQaQtTncPreset(){
@@ -4777,12 +4795,20 @@ async function submitQuickAddAsQuotation(){
     customer_city:g('qa_city'), customer_state:g('qa_state'), customer_pincode:g('qa_pin'), customer_gstin:g('qa_gstin'),
     items, subtotal:sub, gst_amount:gstAmt, total:sub+gstAmt,
     validity_date:g('qa_qt_validity'), terms_notes:g('qa_qt_terms'),
-    quotation_number:manualNumber, financial_year:fy, status:'draft',
+    quotation_number:manualNumber,
   };
-  try{ const {data:rid}=await sb.rpc('gen_record_id',{p_entity_type:'quotation',p_entity_ref:manualNumber}); if(rid) payload.record_id=rid; }catch(_){}
-  const {error}=await insertRowsResilient('biz_quotations',[payload]);
-  if(error){ toast('Error: '+error.message,'error'); return; }
-  toast('Quotation saved');
+  if(_qaEditQuotationId){
+    const {error}=await sb.from('biz_quotations').update(payload).eq('id',_qaEditQuotationId);
+    if(error){ toast('Error: '+error.message,'error'); return; }
+    toast('Quotation updated');
+  } else {
+    payload.financial_year=fy; payload.status='draft';
+    try{ const {data:rid}=await sb.rpc('gen_record_id',{p_entity_type:'quotation',p_entity_ref:manualNumber}); if(rid) payload.record_id=rid; }catch(_){}
+    const {error}=await insertRowsResilient('biz_quotations',[payload]);
+    if(error){ toast('Error: '+error.message,'error'); return; }
+    toast('Quotation saved');
+  }
+  _qaEditQuotationId=null;
   resetQuickAdd();
   setQaFormMode('order');
   if(typeof loadQuotations==='function') loadQuotations();
@@ -5386,18 +5412,26 @@ function showAddQuotation(){
   document.getElementById('quotationForm').style.display='block';
 }
 function closeQuotationForm(){ document.getElementById('quotationForm').style.display='none'; }
+// Editing goes to the same unified Add Order form (Quotation mode), same pattern as
+// editing an order, instead of the old separate small popup.
+let _qaEditQuotationId=null;
 function editQuotation(id){
   const q=_quotations.find(x=>x.id===id); if(!q) return;
-  document.getElementById('qt_id').value=q.id;
-  const set=(id2,v)=>{const e=document.getElementById(id2);if(e)e.value=(v==null?'':v);};
-  set('qt_cname',q.customer_name); set('qt_phone',q.customer_phone); set('qt_address',q.customer_address);
-  set('qt_city',q.customer_city); set('qt_state',q.customer_state); set('qt_pin',q.customer_pincode);
-  set('qt_gstin',q.customer_gstin); set('qt_validity',q.validity_date); set('qt_terms',q.terms_notes);
-  set('qt_number',q.quotation_number); set('qt_date',q.quotation_date); set('qt_promised',q.promised_date);
-  _quoteItems=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0})) : [blankQuoteItem()];
-  renderQuoteItems();
-  renderQtTncPresets();
-  document.getElementById('quotationForm').style.display='block';
+  switchTab('quickadd');
+  setTimeout(()=>{
+    resetQuickAdd();
+    setQaFormMode('quotation');
+    _qaEditQuotationId=q.id;
+    const set=(id2,v)=>{const e=document.getElementById(id2);if(e)e.value=(v==null?'':v);};
+    set('qa_cname',q.customer_name); set('qa_phone',q.customer_phone); set('qa_address',q.customer_address);
+    set('qa_city',q.customer_city); set('qa_state',q.customer_state); set('qa_pin',q.customer_pincode);
+    set('qa_gstin',q.customer_gstin); set('qa_qt_validity',q.validity_date); set('qa_qt_terms',q.terms_notes);
+    set('qa_qt_number',q.quotation_number); set('qa_date',q.quotation_date);
+    _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0})) : [blankItem()];
+    renderItems();
+    renderQaQtTncPresets();
+    const saveBtn=document.getElementById('qaSaveBtn'); if(saveBtn) saveBtn.innerHTML='💾 Update Quotation';
+  },150);
 }
 async function saveQuotation(){
   const g=id=>document.getElementById(id)?.value?.trim()||null;
