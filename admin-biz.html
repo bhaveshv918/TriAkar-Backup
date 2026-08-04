@@ -790,7 +790,7 @@ html[data-theme="dark"] .biz-login{
         <text x="120" y="122" font-family="'Noto Sans Devanagari',Mangal,'Arial Unicode MS',sans-serif" font-size="106" font-weight="700" fill="#C4622A" text-anchor="middle" dominant-baseline="central">त्रि</text>
       </svg>
     </div>
-    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.79</span>
+    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.80</span>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
     <button type="button" class="biz-tb-direct" id="bizTbTodayBtn" onclick="switchTab('openorders')" title="Today's Tasks">
@@ -1170,9 +1170,9 @@ html[data-theme="dark"] .biz-login{
         ⏳ Completing a Rack sale, the rack item won't be removed until you Save. Click Clear to cancel and leave the rack listing untouched.
       </div>
 
-      <form id="quickAddForm" onsubmit="submitQuickAdd(event)">
+      <form id="quickAddForm" onsubmit="submitQuickAdd(event)" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();this.requestSubmit();}">
 
-        <!-- ── Order Info ───────────────────────── -->
+        <!-- ── Channel (quick, top) ───────────────── -->
         <div class="qa-card">
         <div class="qa-sec-title">Order</div>
         <div class="form-grid">
@@ -1198,13 +1198,10 @@ html[data-theme="dark"] .biz-login{
             <input type="text" id="qa_orderid" placeholder="Platform order number">
           </div>
         </div>
-        <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <button type="button" class="qchip" id="qaGiftToggle" onclick="toggleQaGift()" title="Friends, clients, relatives, anyone you're gifting a print to">🎁 Mark as Gift</button>
-          <span id="qaGiftHint" style="display:none;font-size:11px;color:var(--text-3)">No revenue logged, its production cost auto-logs as a Marketing expense so gifting still shows up in costing</span>
-        </div>
         </div>
 
-        <!-- ── Customer & Address (moved above items) ── -->
+        <!-- ── Customer & Address, Lead Source lives right here (existing customer =
+             auto-picked, new customer = asked, default Studio) ── -->
         <div class="qa-card">
         <div class="qa-sec-title">Customer &amp; Address</div>
         <div class="form-grid" style="margin-bottom:0">
@@ -1228,6 +1225,18 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group">
             <label>State</label>
             <input type="text" id="qa_state" placeholder="Type state…" list="stateList" required>
+            <datalist id="stateList">
+              <option value="Andhra Pradesh"><option value="Arunachal Pradesh"><option value="Assam">
+              <option value="Bihar"><option value="Chhattisgarh"><option value="Goa"><option value="Gujarat">
+              <option value="Haryana"><option value="Himachal Pradesh"><option value="Jharkhand">
+              <option value="Karnataka"><option value="Kerala"><option value="Madhya Pradesh">
+              <option value="Maharashtra"><option value="Manipur"><option value="Meghalaya">
+              <option value="Mizoram"><option value="Nagaland"><option value="Odisha"><option value="Punjab">
+              <option value="Rajasthan"><option value="Sikkim"><option value="Tamil Nadu">
+              <option value="Telangana"><option value="Tripura"><option value="Uttar Pradesh">
+              <option value="Uttarakhand"><option value="West Bengal"><option value="Delhi">
+              <option value="Jammu and Kashmir"><option value="Ladakh"><option value="Other">
+            </datalist>
           </div>
           <div class="form-group">
             <label>Pincode</label>
@@ -1238,15 +1247,22 @@ html[data-theme="dark"] .biz-login{
             <input type="text" id="qa_gstin" placeholder="customer GSTIN" style="font-family:var(--mono);letter-spacing:.03em">
           </div>
         </div>
+        <div class="qchips" id="qaLeadChips" style="margin-top:12px">
+          <button type="button" class="qchip" data-v="existing" onclick="setLeadSource('existing')" title="Auto-picked when the typed name/phone matches a known customer">🔁 Existing Customer</button>
+          <button type="button" class="qchip" data-v="studio_walkin" onclick="setLeadSource('studio_walkin')">Studio Walk-in</button>
+          <button type="button" class="qchip" data-v="whatsapp" onclick="setLeadSource('whatsapp')">WhatsApp</button>
+          <button type="button" class="qchip" data-v="google" onclick="setLeadSource('google')">Google</button>
+          <button type="button" class="qchip" data-v="instagram" onclick="setLeadSource('instagram')">Instagram</button>
+          <button type="button" class="qchip" data-v="referral" onclick="setLeadSource('referral')">Referral</button>
+          <button type="button" class="qchip" data-v="other" onclick="setLeadSource('other')">Other</button>
+        </div>
+        <input type="hidden" id="qa_lead_source" value="">
         </div>
         <div id="custSuggestBox" style="display:none;position:fixed;z-index:2000;max-height:50vh;overflow:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-h)"></div>
 
         <!-- ── Items ────────────────────────────── -->
         <div class="qa-card">
-        <div class="qa-sec-head">
-          <div class="qa-sec-title">Items</div>
-          <button type="button" class="btn btn-primary btn-sm" onclick="addItem()">＋ Add Item</button>
-        </div>
+        <div class="qa-sec-title">Items</div>
         <div class="items-wrap">
           <div class="items-grid items-head">
             <div class="r">#</div>
@@ -1263,9 +1279,79 @@ html[data-theme="dark"] .biz-login{
             <div></div>
           </div>
           <div id="itemRows"></div>
+          <div style="margin-top:10px"><button type="button" class="btn btn-primary btn-sm" onclick="addItem()">＋ Add Item</button></div>
         </div>
         </div>
         <datalist id="catalogList"></datalist>
+
+        <!-- ── Totals / profit ──────────────────── -->
+        <div class="calc-row" id="calcRow" style="grid-template-columns:repeat(auto-fill,minmax(115px,1fr))">
+          <div class="calc-item"><label>Items</label><span id="t_count">0</span></div>
+          <div class="calc-item"><label>Total Qty</label><span id="t_qty">0</span></div>
+          <div class="calc-item revenue"><label>Subtotal (excl GST)</label><span id="t_sub">₹0</span></div>
+          <div class="calc-item"><label>GST Amount</label><span id="t_gst">₹0</span></div>
+          <div class="calc-item cost"><label>Total Cost</label><span id="t_cost">₹0</span></div>
+          <div class="calc-item profit"><label>Gross Profit</label><span id="t_profit">₹0</span></div>
+          <div class="calc-item profit"><label>Margin %</label><span id="t_margin">0%</span></div>
+          <div class="calc-item"><label>Grand Total</label><span id="t_grand" style="color:var(--text);font-size:16px">₹0</span></div>
+        </div>
+
+        <!-- ── Payment, how it's actually being paid ── -->
+        <div class="qa-card" id="qaPaymentCard">
+          <div class="qa-sec-title">Payment</div>
+          <div id="qaPaySummaryRow" style="display:none;gap:20px;flex-wrap:wrap;margin-bottom:12px">
+            <div><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Order Total</div><div style="font-size:18px;font-weight:700" id="qaPayTotal">₹0</div></div>
+            <div><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Received</div><div style="font-size:18px;font-weight:700;color:var(--green)" id="qaPayReceived">₹0</div></div>
+            <div><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Balance Due</div><div style="font-size:18px;font-weight:700;color:var(--red)" id="qaPayBalance">₹0</div></div>
+          </div>
+          <div id="qaPayStatusRow" style="margin-bottom:12px">
+            <label style="display:block;font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Payment Status <span style="color:var(--red)">*</span></label>
+            <div class="pay-status-group" id="qaPayStatusGroup">
+              <button type="button" data-v="full_advance" onclick="setQaPayStatus('full_advance')">Full Payment</button>
+              <button type="button" data-v="partial_advance" onclick="setQaPayStatus('partial_advance')">Partial</button>
+              <button type="button" data-v="after_work" onclick="setQaPayStatus('after_work')">After Work</button>
+              <button type="button" data-v="no_payment_yet" onclick="setQaPayStatus('no_payment_yet')">No Payment Yet</button>
+            </div>
+            <input type="hidden" id="qa_pay_status" required data-shake-target="qaPayStatusGroup">
+          </div>
+          <div class="form-grid" id="qaPayFieldsRow">
+            <div class="form-group"><label>Amount</label><input type="number" id="qaPayAmount" step="0.01" oninput="onQaPayAmountInput()"></div>
+            <div class="form-group"><label>Date</label><input type="date" id="qaPayDate"></div>
+            <div class="form-group"><label>Source / Mode</label>
+              <select id="qaPaySource">
+                <option value="upi">UPI</option><option value="bharatpe">BharatPe</option>
+                <option value="cash">Cash</option><option value="card">Card</option>
+                <option value="bank_transfer">Bank Transfer</option><option value="ca_sbi">C/A, SBI</option>
+                <option value="ca_karur">C/A, Karur Vysya</option><option value="gpay">GPay</option>
+                <option value="paytm">Paytm</option><option value="razorpay">Razorpay</option>
+                <option value="online">Online / Prepaid</option><option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" id="qaAddPaymentBtn" onclick="addPaymentInstallment()" style="display:none">+ Add Payment</button>
+          <div id="qaPayNewHint" style="font-size:11px;color:var(--text-3)">This payment logs automatically when you save the order.</div>
+          <div id="qaPayModeLine" style="font-size:11px;color:var(--text-3);margin-top:6px"></div>
+          <div class="tbl-wrap" id="qaPayHistoryWrap" style="margin-top:10px;box-shadow:none;display:none">
+            <table>
+              <thead><tr><th>Date</th><th class="td-num">Amount</th><th>Source</th><th></th></tr></thead>
+              <tbody id="qaPayHistoryBody"><tr><td colspan="4" class="empty"><div class="em-text">No payments logged yet</div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── Pickup or Delivery ── -->
+        <div class="qa-card">
+          <div class="qa-sec-title">Delivery / Pickup</div>
+          <div class="qchips" id="qaFulfilChips">
+            <button type="button" class="qchip active" data-v="delivery" onclick="setFulfillment('delivery')">🚚 Delivery</button>
+            <button type="button" class="qchip" data-v="pickup_self" onclick="setFulfillment('pickup_self')">🧍 Pickup, Self</button>
+            <button type="button" class="qchip" data-v="pickup_porter" onclick="setFulfillment('pickup_porter')">🛵 Pickup, Porter</button>
+            <button type="button" class="qchip" data-v="pickup_other" onclick="setFulfillment('pickup_other')">Pickup, Other</button>
+            <input type="text" id="qa_fulfil_other" placeholder="specify…" oninput="onFulfilOther(this.value)" style="display:none;max-width:150px;padding:6px 12px;background:var(--bg-2);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:12px">
+          </div>
+          <input type="hidden" id="qa_fulfillment" value="delivery">
+          <input type="hidden" id="qa_fulfillment_detail" value="">
+        </div>
 
         <!-- ── Order charges (our costs) ────────── -->
         <div class="qa-card">
@@ -1288,122 +1374,6 @@ html[data-theme="dark"] .biz-login{
             <input type="number" id="qa_roundoff" step="0.01" value="0" onchange="recalcTotals()">
           </div>
         </div>
-        </div>
-
-        <!-- ── Totals / profit ──────────────────── -->
-        <div class="calc-row" id="calcRow" style="grid-template-columns:repeat(auto-fill,minmax(115px,1fr))">
-          <div class="calc-item"><label>Items</label><span id="t_count">0</span></div>
-          <div class="calc-item"><label>Total Qty</label><span id="t_qty">0</span></div>
-          <div class="calc-item revenue"><label>Subtotal (excl GST)</label><span id="t_sub">₹0</span></div>
-          <div class="calc-item"><label>GST Amount</label><span id="t_gst">₹0</span></div>
-          <div class="calc-item cost"><label>Total Cost</label><span id="t_cost">₹0</span></div>
-          <div class="calc-item profit"><label>Gross Profit</label><span id="t_profit">₹0</span></div>
-          <div class="calc-item profit"><label>Margin %</label><span id="t_margin">0%</span></div>
-          <div class="calc-item"><label>Grand Total</label><span id="t_grand" style="color:var(--text);font-size:16px">₹0</span></div>
-        </div>
-
-        <!-- ── Status / Lead / Fulfillment, quick-select chips (moved down next to Payment
-             so the top of the form is just order + items, not every field at once) ── -->
-        <div class="qa-chip-stack" style="display:grid;gap:12px;margin:6px 0 16px">
-          <div class="qa-card">
-            <label class="chip-label">Order Status</label>
-            <div class="qchips" id="qaStatusChips">
-              <button type="button" class="qchip" data-s="pending"    onclick="setQaStatus('pending')">Pending</button>
-              <button type="button" class="qchip active" data-s="order_received" onclick="setQaStatus('order_received')">Order Received</button>
-              <button type="button" class="qchip" data-s="processing" onclick="setQaStatus('processing')">Processing</button>
-              <button type="button" class="qchip" data-s="printing"  onclick="setQaStatus('printing')">Printing</button>
-              <button type="button" class="qchip" data-s="packed"    onclick="setQaStatus('packed')">Packed</button>
-              <button type="button" class="qchip" data-s="dispatched" onclick="setQaStatus('dispatched')">Dispatched</button>
-              <button type="button" class="qchip" data-s="delivered"  onclick="setQaStatus('delivered')">Delivered</button>
-              <button type="button" class="qchip" data-s="completed"  onclick="setQaStatus('completed')">Completed</button>
-              <span style="width:1px;height:22px;background:var(--border);margin:0 4px"></span>
-              <!-- Phase 10 (K37): these 7 exist in UNIFIED_STATUSES (used by All Orders'
-                   status dropdown) but were never selectable from Add Order/Edit's chip
-                   set, so opening an order already in one of these states left no chip
-                   showing as active. -->
-              <button type="button" class="qchip" data-s="delayed"   onclick="setQaStatus('delayed')">Delayed</button>
-              <button type="button" class="qchip" data-s="delaying"  onclick="setQaStatus('delaying')">Delaying</button>
-              <button type="button" class="qchip" data-s="return_initiated" onclick="setQaStatus('return_initiated')">Return Initiated</button>
-              <button type="button" class="qchip" data-s="return_picked_up" onclick="setQaStatus('return_picked_up')">Return Picked Up</button>
-              <button type="button" class="qchip" data-s="returned"  onclick="setQaStatus('returned')">Returned</button>
-              <button type="button" class="qchip" data-s="claim_filed" onclick="setQaStatus('claim_filed')">Claim Filed</button>
-              <button type="button" class="qchip" data-s="claimed"   onclick="setQaStatus('claimed')">Claimed</button>
-              <button type="button" class="qchip" data-s="cancelled_before_dispatch" onclick="setQaStatus('cancelled_before_dispatch')">Cancelled (Before Dispatch)</button>
-              <button type="button" class="qchip" data-s="cancelled_before_delivery" onclick="setQaStatus('cancelled_before_delivery')">Cancelled (Before Delivery)</button>
-              <button type="button" class="qchip" data-s="cancelled" onclick="setQaStatus('cancelled')">Cancelled</button>
-            </div>
-            <input type="hidden" id="qa_status" value="order_received">
-          </div>
-          <div class="qa-card">
-            <label class="chip-label">Lead Source</label>
-            <div class="qchips" id="qaLeadChips">
-              <button type="button" class="qchip" data-v="existing" onclick="setLeadSource('existing')" title="Auto-picked when the typed name/phone matches a known customer">🔁 Existing Customer</button>
-              <button type="button" class="qchip" data-v="studio_walkin" onclick="setLeadSource('studio_walkin')">Studio Walk-in</button>
-              <button type="button" class="qchip" data-v="whatsapp" onclick="setLeadSource('whatsapp')">WhatsApp</button>
-              <button type="button" class="qchip" data-v="google" onclick="setLeadSource('google')">Google</button>
-              <button type="button" class="qchip" data-v="instagram" onclick="setLeadSource('instagram')">Instagram</button>
-              <button type="button" class="qchip" data-v="referral" onclick="setLeadSource('referral')">Referral</button>
-              <button type="button" class="qchip" data-v="other" onclick="setLeadSource('other')">Other</button>
-            </div>
-            <input type="hidden" id="qa_lead_source" value="">
-          </div>
-          <div class="qa-card">
-            <label class="chip-label">Delivery / Pickup</label>
-            <div class="qchips" id="qaFulfilChips">
-              <button type="button" class="qchip active" data-v="delivery" onclick="setFulfillment('delivery')">🚚 Delivery</button>
-              <button type="button" class="qchip" data-v="pickup_self" onclick="setFulfillment('pickup_self')">🧍 Pickup, Self</button>
-              <button type="button" class="qchip" data-v="pickup_porter" onclick="setFulfillment('pickup_porter')">🛵 Pickup, Porter</button>
-              <button type="button" class="qchip" data-v="pickup_other" onclick="setFulfillment('pickup_other')">Pickup, Other</button>
-              <input type="text" id="qa_fulfil_other" placeholder="specify…" oninput="onFulfilOther(this.value)" style="display:none;max-width:150px;padding:6px 12px;background:var(--bg-2);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:12px">
-            </div>
-            <input type="hidden" id="qa_fulfillment" value="delivery">
-            <input type="hidden" id="qa_fulfillment_detail" value="">
-          </div>
-        </div>
-
-        <!-- ── Payment (Phase 10 Group 1). Shown for both new orders and edits now,
-             a brand-new order has no order_id to key an installment row on yet, so
-             for 'new' the chosen status + amount are held here and only actually
-             written (biz_sale_payments + is_paid) once the order itself saves. ── -->
-        <div class="qa-card" id="qaPaymentCard">
-          <div class="qa-sec-title">Payment</div>
-          <div id="qaPaySummaryRow" style="display:none;gap:20px;flex-wrap:wrap;margin-bottom:12px">
-            <div><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Order Total</div><div style="font-size:18px;font-weight:700" id="qaPayTotal">₹0</div></div>
-            <div><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Received</div><div style="font-size:18px;font-weight:700;color:var(--green)" id="qaPayReceived">₹0</div></div>
-            <div><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Balance Due</div><div style="font-size:18px;font-weight:700;color:var(--red)" id="qaPayBalance">₹0</div></div>
-          </div>
-          <div id="qaPayStatusRow" style="margin-bottom:12px">
-            <label style="display:block;font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Payment Status <span style="color:var(--red)">*</span></label>
-            <div class="pay-status-group" id="qaPayStatusGroup">
-              <button type="button" data-v="partial_advance" onclick="setQaPayStatus('partial_advance')">Partial Advance</button>
-              <button type="button" data-v="full_advance" onclick="setQaPayStatus('full_advance')">Full Advance</button>
-              <button type="button" data-v="after_work" onclick="setQaPayStatus('after_work')">After Work</button>
-              <button type="button" data-v="no_payment_yet" onclick="setQaPayStatus('no_payment_yet')">No Payment Yet</button>
-            </div>
-            <input type="hidden" id="qa_pay_status" required data-shake-target="qaPayStatusGroup">
-          </div>
-          <div class="form-grid" id="qaPayFieldsRow">
-            <div class="form-group"><label>Amount</label><input type="number" id="qaPayAmount" step="0.01" oninput="onQaPayAmountInput()"></div>
-            <div class="form-group"><label>Date</label><input type="date" id="qaPayDate"></div>
-            <div class="form-group"><label>Source / Mode</label>
-              <select id="qaPaySource">
-                <option value="upi">UPI</option><option value="bharatpe">BharatPe</option>
-                <option value="cash">Cash</option><option value="card">Card</option>
-                <option value="bank_transfer">Bank Transfer</option><option value="ca_sbi">C/A, SBI</option>
-                <option value="ca_karur">C/A, Karur Vysya</option><option value="gpay">GPay</option>
-                <option value="paytm">Paytm</option><option value="razorpay">Razorpay</option>
-                <option value="online">Online / Prepaid</option><option value="other">Other</option>
-              </select>
-            </div>
-          </div>
-          <button type="button" class="btn btn-secondary btn-sm" id="qaAddPaymentBtn" onclick="addPaymentInstallment()" style="display:none">+ Add Payment</button>
-          <div id="qaPayNewHint" style="font-size:11px;color:var(--text-3)">This payment logs automatically when you save the order.</div>
-          <div class="tbl-wrap" id="qaPayHistoryWrap" style="margin-top:10px;box-shadow:none;display:none">
-            <table>
-              <thead><tr><th>Date</th><th class="td-num">Amount</th><th>Source</th><th></th></tr></thead>
-              <tbody id="qaPayHistoryBody"><tr><td colspan="4" class="empty"><div class="em-text">No payments logged yet</div></td></tr></tbody>
-            </table>
-          </div>
         </div>
 
         <!-- ── Shipping & Tracking (collapsible) ── -->
@@ -1448,31 +1418,57 @@ html[data-theme="dark"] .biz-login{
           </div>
         </details>
 
-        <!-- stateList datalist kept here for the relocated Customer State input above -->
-        <datalist id="stateList">
-          <option value="Andhra Pradesh"><option value="Arunachal Pradesh"><option value="Assam">
-          <option value="Bihar"><option value="Chhattisgarh"><option value="Goa"><option value="Gujarat">
-          <option value="Haryana"><option value="Himachal Pradesh"><option value="Jharkhand">
-          <option value="Karnataka"><option value="Kerala"><option value="Madhya Pradesh">
-          <option value="Maharashtra"><option value="Manipur"><option value="Meghalaya">
-          <option value="Mizoram"><option value="Nagaland"><option value="Odisha"><option value="Punjab">
-          <option value="Rajasthan"><option value="Sikkim"><option value="Tamil Nadu">
-          <option value="Telangana"><option value="Tripura"><option value="Uttar Pradesh">
-          <option value="Uttarakhand"><option value="West Bengal"><option value="Delhi">
-          <option value="Jammu and Kashmir"><option value="Ladakh">
-        </datalist>
-
+        <!-- ── Notes, internal only, never printed on customer-facing files ── -->
         <div class="form-group" style="margin-bottom:16px">
-          <label>Notes</label>
+          <label>Notes <span style="font-weight:400;color:var(--text-3);font-size:10px">internal, never shown on invoice/quotation</span></label>
           <textarea id="qa_notes" rows="2" placeholder="Any extra notes…" style="resize:vertical"></textarea>
         </div>
 
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button type="submit" class="btn" style="background:#16a34a;color:#fff">💾 Save</button>
-          <button type="button" class="btn" style="background:#2563eb;color:#fff" onclick="saveOrderRecord()">📋 Save Order Record</button>
-          <button type="button" class="btn" style="background:var(--accent);color:#fff" onclick="saveAndPrint()">🧾 Make Invoice</button>
-          <button type="button" class="btn btn-ghost" onclick="exitAddOrderEditMode()">✕ Clear</button>
-          <button type="button" class="btn btn-danger btn-sm" id="qaMarkReturnBtn" onclick="markReturn()" style="display:none;margin-left:auto" title="Mark as returned and log in Returns">↩ Mark Return</button>
+        <!-- ── Order Status, very bottom, grouped by outcome ── -->
+        <div class="qa-card">
+          <div class="qa-sec-title">Order Status</div>
+          <div class="qchips" id="qaStatusChips" style="margin-bottom:6px">
+            <button type="button" class="qchip" data-s="pending"    onclick="setQaStatus('pending')">Pending</button>
+            <button type="button" class="qchip active" data-s="order_received" onclick="setQaStatus('order_received')">Order Received</button>
+            <button type="button" class="qchip" data-s="processing" onclick="setQaStatus('processing')">Processing</button>
+            <button type="button" class="qchip" data-s="printing"  onclick="setQaStatus('printing')">Printing</button>
+            <button type="button" class="qchip" data-s="packed"    onclick="setQaStatus('packed')">Packed</button>
+            <button type="button" class="qchip" data-s="dispatched" onclick="setQaStatus('dispatched')">Dispatched</button>
+            <button type="button" class="qchip" data-s="delivered"  onclick="setQaStatus('delivered')">Delivered</button>
+            <button type="button" class="qchip" data-s="delayed"   onclick="setQaStatus('delayed')">Delayed</button>
+            <button type="button" class="qchip" data-s="delaying"  onclick="setQaStatus('delaying')">Delaying</button>
+            <button type="button" class="qchip" data-s="completed"  onclick="setQaStatus('completed')">Completed</button>
+          </div>
+          <div class="qchips" id="qaStatusChipsReturn" style="margin-bottom:6px">
+            <button type="button" class="qchip" data-s="return_initiated" onclick="setQaStatus('return_initiated')">Return Initiated</button>
+            <button type="button" class="qchip" data-s="return_picked_up" onclick="setQaStatus('return_picked_up')">Return Picked Up</button>
+            <button type="button" class="qchip" data-s="returned"  onclick="setQaStatus('returned')">Returned</button>
+            <button type="button" class="qchip" data-s="claim_filed" onclick="setQaStatus('claim_filed')">Claim Filed</button>
+            <button type="button" class="qchip" data-s="claimed"   onclick="setQaStatus('claimed')">Claimed</button>
+          </div>
+          <div class="qchips" id="qaStatusChipsCancel">
+            <button type="button" class="qchip" data-s="cancelled_before_dispatch" onclick="setQaStatus('cancelled_before_dispatch')">Cancelled (Before Dispatch)</button>
+            <button type="button" class="qchip" data-s="cancelled_before_delivery" onclick="setQaStatus('cancelled_before_delivery')">Cancelled (Before Delivery)</button>
+            <button type="button" class="qchip" data-s="cancelled" onclick="setQaStatus('cancelled')">Cancelled</button>
+          </div>
+          <input type="hidden" id="qa_status" value="order_received">
+        </div>
+
+        <!-- ── Save row: left = document actions, right = clear/cancel/save ── -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <button type="button" class="btn" style="background:#2563eb;color:#fff" onclick="saveOrderRecord()">📋 Order Record</button>
+            <button type="button" class="btn" style="background:var(--accent);color:#fff" onclick="saveAndPrint()">🧾 Invoice</button>
+            <button type="button" class="btn" style="background:#7C3AED;color:#fff" onclick="switchTab('quotations');setTimeout(showAddQuotation,150)" title="Switch to Quotations">⎘ Quotation</button>
+            <button type="button" class="qchip" id="qaGiftToggle" onclick="toggleQaGift()" title="Friends, clients, relatives, anyone you're gifting a print to">🎁 Mark as Gift</button>
+            <span id="qaGiftHint" style="display:none;font-size:11px;color:var(--text-3)">No revenue logged, its production cost auto-logs as a Marketing expense</span>
+            <button type="button" class="btn btn-danger btn-sm" id="qaMarkReturnBtn" onclick="markReturn()" style="display:none" title="Mark as returned and log in Returns">↩ Mark Return</button>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="confirmClearQuickAdd()" title="Wipes the whole form">Clear</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="exitAddOrderEditMode()">Cancel</button>
+            <button type="submit" class="btn" id="qaSaveBtn" style="background:#16a34a;color:#fff;font-weight:700;padding:10px 20px" title="Ctrl/Cmd+Enter also saves">💾 Save</button>
+          </div>
         </div>
       </form>
     </div><!-- /quickadd -->
@@ -1804,15 +1800,18 @@ html[data-theme="dark"] .biz-login{
       <!-- Quotation create/edit form -->
       <div id="quotationForm" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:14px">
         <input type="hidden" id="qt_id">
-        <div class="qa-sec-title">Customer</div>
+        <div class="form-group"><label>Quotation No <span style="font-weight:400;color:var(--text-3);font-size:10px">auto, editable before save</span></label><input type="text" id="qt_number" style="font-family:var(--mono);max-width:220px"></div>
+        <div class="qa-sec-title" style="margin-top:10px">Customer</div>
         <div class="form-grid">
-          <div class="form-group"><label>Name</label><input type="text" id="qt_cname"></div>
+          <div class="form-group"><label>Name</label><input type="text" id="qt_cname" oninput="onCustomerName(this.value)" list="customerList"></div>
           <div class="form-group"><label>Phone</label><input type="tel" id="qt_phone"></div>
           <div class="form-group" style="grid-column:span 2"><label>Address</label><input type="text" id="qt_address"></div>
           <div class="form-group"><label>City</label><input type="text" id="qt_city"></div>
           <div class="form-group"><label>State</label><input type="text" id="qt_state" list="stateList"></div>
           <div class="form-group"><label>Pincode</label><input type="text" id="qt_pin" maxlength="6" inputmode="numeric"></div>
-          <div class="form-group"><label>GSTIN</label><input type="text" id="qt_gstin"></div>
+          <div class="form-group"><label>GSTIN</label><input type="text" id="qt_gstin"> <a href="#" onclick="event.preventDefault();verifyQtGstin()" style="font-size:10px">check</a></div>
+          <div class="form-group"><label>Quotation Date</label><input type="date" id="qt_date"></div>
+          <div class="form-group"><label>Promised Date</label><input type="date" id="qt_promised"></div>
           <div class="form-group"><label>Valid Until</label><input type="date" id="qt_validity"></div>
         </div>
         <div class="qa-sec-title" style="margin-top:14px">Items</div>
@@ -1823,7 +1822,13 @@ html[data-theme="dark"] .biz-login{
           <div class="calc-item"><label>GST</label><span id="qt_gstamt">₹0</span></div>
           <div class="calc-item profit"><label>Total</label><span id="qt_total">₹0</span></div>
         </div>
-        <div class="form-group" style="margin-top:10px"><label>Terms / Notes</label><textarea id="qt_terms" rows="2" style="resize:vertical"></textarea></div>
+        <div class="form-group" style="margin-top:10px">
+          <label>Terms &amp; Conditions</label>
+          <div style="display:flex;gap:8px;margin-bottom:6px">
+            <select id="qt_tnc_preset" onchange="applyQtTncPreset()" style="max-width:220px"><option value="">— insert a preset —</option></select>
+          </div>
+          <textarea id="qt_terms" rows="3" style="resize:vertical" placeholder="Pick a preset above, or type your own"></textarea>
+        </div>
         <div style="display:flex;gap:10px;margin-top:14px">
           <button type="button" class="btn btn-primary" onclick="saveQuotation()">💾 Save Quotation</button>
           <button type="button" class="btn btn-ghost" onclick="closeQuotationForm()">✕ Cancel</button>
@@ -3277,6 +3282,17 @@ html[data-theme="dark"] .biz-login{
           <div style="margin-top:10px"><button class="btn btn-primary btn-sm" onclick="saveBizDefaults()">Save Defaults</button> <span id="defaultsSavedMsg" style="font-size:12px;color:var(--green);display:none">✓ Saved</span></div>
         </div>
 
+        <div style="grid-column:1/-1;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Quotation / Invoice T&amp;C Presets</div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">Named terms blocks, pick one from a dropdown on the Quotation form instead of retyping, manual override always still available there.</div>
+          <div style="display:grid;grid-template-columns:180px 1fr auto;gap:8px;margin-bottom:10px">
+            <input type="text" id="tnc_name" placeholder="Preset name">
+            <textarea id="tnc_text" rows="2" placeholder="Terms text" style="resize:vertical"></textarea>
+            <button class="btn btn-primary btn-sm" onclick="addTncPreset()">+ Add</button>
+          </div>
+          <div id="tncPresetList"></div>
+        </div>
+
         <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;padding-top:4px">
           <button class="btn btn-primary" onclick="saveBizSettings()">Save Invoice Details</button>
           <span id="settingsSavedMsg" style="font-size:12px;color:var(--green);display:none">✓ Saved</span>
@@ -3323,6 +3339,7 @@ function loadBizSettings(){
     const el=document.getElementById(elId); if(el&&cfg[key]) el.value=cfg[key];
   });
   loadBizDefaults();
+  loadTncPresets();
 }
 // ── B14: operational defaults (synced via site_settings) ──
 let _bizDefaults={hsn:'3926',gst:0,cogs:0};
@@ -4062,7 +4079,7 @@ async function saveProduct(){
 
 // ── Quick Add Sale (multi-item) ─────────────────────────────
 let _items=[];
-function blankItem(){ return {rowId:null,productId:null,name:'',variant:'',pricingMode:'piece',qty:1,rate:12,disc:0,gst:0,cost:0,grams:0,waste:0,hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:'',spool:'',extraSpools:[]}; }
+function blankItem(){ return {rowId:null,productId:null,name:'',variant:'',pricingMode:'piece',qty:1,rate:12,disc:0,gst:0,cost:0,grams:0,waste:0,hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:'',spool:'',extraSpools:[],remarks:''}; }
 // Amount for one line: per-piece is qty × rate (unchanged); per-gram is
 // qty × totalGrams × rate, where totalGrams is this piece's own grams plus
 // every part's grams (parts live in extraSpools, each carrying its own label).
@@ -4251,6 +4268,7 @@ function renderItems(){
       <div class="item-cell">
         <input list="catalogList" value="${esc(it.name)}" placeholder="Item name / type to search" oninput="onItemName(${i},this.value)">
         <input class="variant" value="${esc(it.variant)}" placeholder="size / colour / customisation (optional)" oninput="_items[${i}].variant=this.value">
+        <input class="variant" style="font-style:italic" value="${esc(it.remarks||'')}" placeholder="remarks (shown italic on invoice)" oninput="_items[${i}].remarks=this.value">
         <select class="variant" style="cursor:pointer" title="Spool, logging grams+waste deducts from this spool's stock" onchange="onItemSpool(${i},this.value)">${spoolOptions(it.spool)}</select>
         <div class="pricing-toggle" role="group" aria-label="Pricing method">
           <button type="button" class="${it.pricingMode!=='gram'?'active':''}" onclick="setPricingMode(${i},'piece')">₹/pc</button>
@@ -4379,6 +4397,14 @@ function recalcTotals(){
   S('t_profit',fmt(profit)); S('t_margin',margin.toFixed(1)+'%'); S('t_grand',fmt(grand));
   const pe=document.getElementById('t_profit'); if(pe) pe.style.color=profit>=0?'var(--green)':'var(--red)';
   const me=document.getElementById('t_margin'); if(me) me.style.color=margin>=0?'var(--green)':'var(--red)';
+  // Keep the payment amount in sync with the bill total while Full/Partial is picked
+  // and the operator hasn't typed a custom amount of their own yet.
+  const payStatus=document.getElementById('qa_pay_status')?.value;
+  const amtEl=document.getElementById('qaPayAmount');
+  if(amtEl && document.activeElement!==amtEl && grand>0){
+    if(payStatus==='full_advance') amtEl.value=grand;
+    else if(payStatus==='partial_advance') amtEl.value=Math.round(grand*0.5*100)/100;
+  }
 }
 function recalc(){ recalcTotals(); }
 
@@ -4541,6 +4567,7 @@ async function buildSaleRowsWithIds(){
       platform_fee: idx===0?fee:0,
       shipping_fee: idx===0?ship:0,
       other_deductions: idx===0?porter:0,
+      remarks: it.remarks||null,
     }
   }));
 }
@@ -4550,7 +4577,7 @@ function resetQuickAdd(){
   document.getElementById('quickAddForm').reset();
   document.getElementById('qa_date').value=today();
   document.getElementById('qa_delivery_date').value=today();
-  document.getElementById('qa_state').value='';   // §2.8, no silent default; operator must pick a real state
+  document.getElementById('qa_state').value='Uttar Pradesh';
   document.getElementById('qa_channel').value='shop';
   const z=id=>{const e=document.getElementById(id);if(e)e.value='0';};
   z('qa_platformfee'); z('qa_shipping'); z('qa_porter'); z('qa_roundoff');
@@ -4577,8 +4604,8 @@ function resetQuickAdd(){
 let _qaPayStatusManual=false;
 function resetQaPayment(){
   _qaPayStatusManual=false;
-  document.getElementById('qa_pay_status').value='';
-  document.querySelectorAll('#qaPayStatusGroup button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('qa_pay_status').value='full_advance';
+  document.querySelectorAll('#qaPayStatusGroup button').forEach(b=>b.classList.toggle('active',b.dataset.v==='full_advance'));
   const amt=document.getElementById('qaPayAmount'); if(amt) amt.value='';
   const src=document.getElementById('qaPaySource'); if(src) src.value='upi';
   const dt=document.getElementById('qaPayDate'); if(dt) dt.value=today();
@@ -4591,6 +4618,10 @@ function setQaPayStatus(v){
   // input itself, clearing it off the hidden input was a no-op, leaving the border
   // stuck even after a valid pick.
   document.getElementById('qaPayStatusGroup').classList.remove('field-invalid');
+  // Full Payment prefills the whole bill, Partial prefills 50%, both editable after.
+  const grand=parseFloat((document.getElementById('t_grand')?.textContent||'0').replace(/[^0-9.-]/g,''))||0;
+  const amtEl=document.getElementById('qaPayAmount');
+  if(amtEl&&grand>0){ if(v==='full_advance') amtEl.value=grand; else if(v==='partial_advance') amtEl.value=Math.round(grand*0.5*100)/100; }
 }
 function onQaPayAmountInput(){
   const amt=parseFloat(document.getElementById('qaPayAmount')?.value)||0;
@@ -4659,6 +4690,12 @@ function updateAddOrderModeUI(){
   }
 }
 
+// Small, sits next to Save on purpose, and always confirms, wipes the whole form.
+function confirmClearQuickAdd(){
+  if(!confirm('Clear the whole form? Everything typed so far will be lost.')) return;
+  resetQuickAdd();
+  toast('Form cleared');
+}
 function exitAddOrderEditMode(){
   _qaMode='new'; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceQuotationId=null; _qaSourceRackItemId=null;
   resetQuickAdd();
@@ -4709,7 +4746,7 @@ function openAddOrderEdit(firstId){
       pricingMode:mode, qty, rate:Math.round(rate*100)/100,
       disc, gst:gstRate, cost: qty ? (s.cogs||0)/qty : (s.cogs||0), grams:baseGrams, waste:s.spool_waste_grams||0,
       hsn:s.hsn_code||'', sku:s.sku||'', spool:s.spool_id||'',
-      extraSpools,
+      extraSpools, remarks:s.remarks||'',
     };
   });
   renderItems();
@@ -4824,7 +4861,7 @@ async function deletePaymentInstallment(id){
 // ── Quick-select chip handlers (status / lead source / fulfillment) ──
 function setQaStatus(v){
   const h=document.getElementById('qa_status'); if(h) h.value=v;
-  document.querySelectorAll('#qaStatusChips .qchip').forEach(b=>b.classList.toggle('active',b.dataset.s===v));
+  document.querySelectorAll('#qaStatusChips .qchip,#qaStatusChipsReturn .qchip,#qaStatusChipsCancel .qchip').forEach(b=>b.classList.toggle('active',b.dataset.s===v));
 }
 function setLeadSource(v){
   const h=document.getElementById('qa_lead_source'); if(h) h.value=v;
@@ -4937,13 +4974,21 @@ async function applyNewOrderPaymentIfAny(orderId){
   }
 }
 
+let _qaSaving=false;
 async function submitQuickAdd(e){
   if(e) e.preventDefault();
+  // Guards the "clicked 2-3 times because nothing seemed to happen" duplicate-entry bug.
+  if(_qaSaving) return;
   if(_qaMode==='edit'){ await saveEditedOrder(); return; }
   const invalid=flagInvalidFields('quickAddForm');
   if(invalid.length){ reportInvalid(invalid); return; }
   const rows=await buildSaleRows();
   if(!rows.length){ toast('Add at least one item','error'); return; }
+  _qaSaving=true;
+  const saveBtn=document.getElementById('qaSaveBtn');
+  const saveBtnOrig=saveBtn?saveBtn.innerHTML:'';
+  if(saveBtn){ saveBtn.disabled=true; saveBtn.innerHTML='⏳ Saving…'; }
+  try{
   applyNewOrderIsPaid(rows);
   // Universal Record ID (Phase 10 Group 1), generated server-side (retry-on-collision
   // RPC) so it's safe under concurrent saves; best-effort, a failure here (e.g. the
@@ -4969,6 +5014,10 @@ async function submitQuickAdd(e){
   exitAddOrderEditMode();
   loadSalesBadge();
   if(typeof loadSalesviewBadge==='function') loadSalesviewBadge();
+  }finally{
+    _qaSaving=false;
+    if(saveBtn){ saveBtn.disabled=false; saveBtn.innerHTML=saveBtnOrig; }
+  }
 }
 
 // "Save Order Record", persists the sale like Save Sale; the internal
@@ -5151,11 +5200,66 @@ function recalcQuoteTotals(){
   const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=fmt(v);};
   set('qt_sub',sub); set('qt_gstamt',gst); set('qt_total',sub+gst);
 }
+// Format: QT/{FY}/{MON}/{3 random letters}, shown pre-filled and editable, not
+// silently generated at save time the way it used to be.
+function genQuotationNumber(){
+  const now=new Date(), fyStart=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
+  const fy=`${fyStart}-${String((fyStart+1)%100).padStart(2,'0')}`;
+  const mon=now.toLocaleDateString('en-IN',{month:'short'}).toUpperCase();
+  const letters='ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const rand=Array.from({length:3},()=>letters[Math.floor(Math.random()*letters.length)]).join('');
+  return `QT/${fy}/${mon}/${rand}`;
+}
+function loadTncPresets(){
+  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
+  const box=document.getElementById('tncPresetList'); if(!box) return;
+  box.innerHTML=presets.length?presets.map((p,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)"><div><b style="font-size:12px">${esc(p.name)}</b><div style="font-size:11px;color:var(--text-3)">${esc((p.text||'').slice(0,80))}</div></div><button class="btn btn-ghost btn-sm" onclick="deleteTncPreset(${i})">✕</button></div>`).join('')
+    :'<div style="font-size:12px;color:var(--text-3)">No presets yet</div>';
+}
+function addTncPreset(){
+  const name=(document.getElementById('tnc_name')?.value||'').trim();
+  const text=(document.getElementById('tnc_text')?.value||'').trim();
+  if(!name||!text){ toast('Enter both a name and the terms text','error'); return; }
+  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
+  presets.push({name,text});
+  localStorage.setItem('biz_tnc_presets',JSON.stringify(presets));
+  document.getElementById('tnc_name').value=''; document.getElementById('tnc_text').value='';
+  loadTncPresets(); toast('Preset added');
+}
+function deleteTncPreset(i){
+  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
+  presets.splice(i,1);
+  localStorage.setItem('biz_tnc_presets',JSON.stringify(presets));
+  loadTncPresets();
+}
+function renderQtTncPresets(){
+  const sel=document.getElementById('qt_tnc_preset'); if(!sel) return;
+  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
+  sel.innerHTML='<option value="">— insert a preset —</option>'+presets.map((p,i)=>`<option value="${i}">${esc(p.name)}</option>`).join('');
+}
+function applyQtTncPreset(){
+  const sel=document.getElementById('qt_tnc_preset'); if(!sel||sel.value==='') return;
+  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
+  const p=presets[parseInt(sel.value,10)]; if(!p) return;
+  const ta=document.getElementById('qt_terms'); if(ta) ta.value=p.text||'';
+}
+// No direct GST-portal API access, this opens the government portal's own GSTIN
+// search so the operator can manually cross-check, the "check" link the ask wanted.
+function verifyQtGstin(){
+  const gstin=(document.getElementById('qt_gstin')?.value||'').trim();
+  let url='https://services.gst.gov.in/services/searchtp';
+  try{ const cfg=JSON.parse(localStorage.getItem('biz_gst_portal_url')||'null'); if(cfg) url=cfg; }catch(_){}
+  window.open(url,'_blank');
+  if(!gstin) toast('Opened GST portal, paste the GSTIN to search');
+}
 function showAddQuotation(){
   document.getElementById('qt_id').value='';
-  ['qt_cname','qt_phone','qt_address','qt_city','qt_state','qt_pin','qt_gstin','qt_validity','qt_terms'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['qt_cname','qt_phone','qt_address','qt_city','qt_state','qt_pin','qt_gstin','qt_validity','qt_terms','qt_date','qt_promised'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const numEl=document.getElementById('qt_number'); if(numEl) numEl.value=genQuotationNumber();
+  const dateEl=document.getElementById('qt_date'); if(dateEl) dateEl.value=today();
   _quoteItems=[blankQuoteItem()];
   renderQuoteItems();
+  renderQtTncPresets();
   document.getElementById('quotationForm').style.display='block';
 }
 function closeQuotationForm(){ document.getElementById('quotationForm').style.display='none'; }
@@ -5166,8 +5270,10 @@ function editQuotation(id){
   set('qt_cname',q.customer_name); set('qt_phone',q.customer_phone); set('qt_address',q.customer_address);
   set('qt_city',q.customer_city); set('qt_state',q.customer_state); set('qt_pin',q.customer_pincode);
   set('qt_gstin',q.customer_gstin); set('qt_validity',q.validity_date); set('qt_terms',q.terms_notes);
+  set('qt_number',q.quotation_number); set('qt_date',q.quotation_date); set('qt_promised',q.promised_date);
   _quoteItems=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0})) : [blankQuoteItem()];
   renderQuoteItems();
+  renderQtTncPresets();
   document.getElementById('quotationForm').style.display='block';
 }
 async function saveQuotation(){
@@ -5179,20 +5285,24 @@ async function saveQuotation(){
     customer_name:g('qt_cname'), customer_phone:g('qt_phone'), customer_address:g('qt_address'),
     customer_city:g('qt_city'), customer_state:g('qt_state'), customer_pincode:g('qt_pin'), customer_gstin:g('qt_gstin'),
     items, subtotal:sub, gst_amount:gstAmt, total:sub+gstAmt,
-    validity_date:g('qt_validity'), terms_notes:g('qt_terms'), updated_at:new Date().toISOString(),
+    validity_date:g('qt_validity'), terms_notes:g('qt_terms'), quotation_date:g('qt_date'), promised_date:g('qt_promised'),
+    updated_at:new Date().toISOString(),
   };
   const id=document.getElementById('qt_id').value;
+  // Manually editable number now (pre-filled QT/FY/MON/XXX at form-open), whatever's
+  // typed here at save time is what gets used, same convention as Invoice No.
+  const manualNumber=g('qt_number')||genQuotationNumber();
   if(id){
+    payload.quotation_number=manualNumber;
     const {error}=await sb.from('biz_quotations').update(payload).eq('id',id);
     if(error){ toast('Error: '+error.message,'error'); return; }
   } else {
     const now=new Date(), fyStart=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
     const fy=`${fyStart}-${String((fyStart+1)%100).padStart(2,'0')}`;
-    let quotationNumber=null, recordId=null;
-    try{ const {data:seq}=await sb.rpc('biz_next_quotation_number',{p_fy:fy}); if(seq!=null) quotationNumber=`QT/${fy}/${String(seq).padStart(3,'0')}`; }catch(_){}
-    try{ const {data:rid}=await sb.rpc('gen_record_id',{p_entity_type:'quotation',p_entity_ref:quotationNumber}); recordId=rid||null; }catch(_){}
-    payload.quotation_number=quotationNumber; payload.financial_year=fy; payload.record_id=recordId; payload.status='draft';
-    const {error}=await sb.from('biz_quotations').insert(payload);
+    let recordId=null;
+    try{ const {data:rid}=await sb.rpc('gen_record_id',{p_entity_type:'quotation',p_entity_ref:manualNumber}); recordId=rid||null; }catch(_){}
+    payload.quotation_number=manualNumber; payload.financial_year=fy; payload.record_id=recordId; payload.status='draft';
+    const {error}=await insertRowsResilient('biz_quotations',[payload]);
     if(error){ toast('Error: '+error.message,'error'); return; }
   }
   toast('Quotation saved');
@@ -10159,7 +10269,7 @@ async function printInvoice(d, type, docKind){
     const vline=[it.size,it.color,it.variant].filter(Boolean).join(' · ');
     const metaBits=[it.sku?'SKU: '+it.sku:'', it.hsn_code?'HSN: '+it.hsn_code:''].filter(Boolean).join('  ·  ');
     return `<tr>
-      <td><strong>${esc(it.product_name||'—')}</strong>${vline?`<div class="item-sub">${esc(vline)}</div>`:''}${metaBits?`<div class="item-sub" style="color:#999">${esc(metaBits)}</div>`:''}${idisc>0?`<div class="item-sub" style="color:#c0392b">Discount −₹${idisc.toFixed(2)}</div>`:''}</td>
+      <td><strong>${esc(it.product_name||'—')}</strong>${vline?`<div class="item-sub">${esc(vline)}</div>`:''}${it.remarks?`<div class="item-sub" style="font-style:italic">${esc(it.remarks)}</div>`:''}${metaBits?`<div class="item-sub" style="color:#999">${esc(metaBits)}</div>`:''}${idisc>0?`<div class="item-sub" style="color:#c0392b">Discount −₹${idisc.toFixed(2)}</div>`:''}</td>
       <td class="td-r">${iqty}</td>
       <td class="td-r">₹${iunit_show.toFixed(2)}</td>
       <td class="td-r">₹${iamt.toFixed(2)}</td>
