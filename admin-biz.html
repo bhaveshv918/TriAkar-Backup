@@ -822,7 +822,7 @@ html[data-theme="dark"] .biz-login{
         <text x="120" y="122" font-family="'Noto Sans Devanagari',Mangal,'Arial Unicode MS',sans-serif" font-size="106" font-weight="700" fill="#C4622A" text-anchor="middle" dominant-baseline="central">त्रि</text>
       </svg>
     </div>
-    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.87</span>
+    <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">1.88</span>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
     <button type="button" class="biz-tb-direct" id="bizTbTodayBtn" onclick="switchTab('openorders')" title="Today's Tasks">
@@ -4508,9 +4508,9 @@ async function insertResilient(table, payload, selectCols){
     if(selectCols) q=q.select(selectCols).single();
     const r=await q;
     if(!r.error) return r;
-    const m=(r.error.message||'').match(/column "([^"]+)"/);
-    if(!m) return r;
-    delete data[m[1]];
+    const bad=_extractBadColumn(r.error.message);
+    if(!bad) return r;
+    delete data[bad];
   }
   return {error:{message:table+' insert failed (unknown columns)'}};
 }
@@ -4806,9 +4806,16 @@ function renderQaQtTncPresets(){
 async function submitQuickAddAsQuotation(){
   const cname=(document.getElementById('qa_cname')?.value||'').trim();
   if(!cname){ toast('Enter a customer name','error'); return; }
-  const items=_items.filter(it=>it.name&&it.name.trim()).map(it=>({name:it.name,qty:it.qty||1,rate:it.rate||0,gst:it.gst||0}));
+  // Real bug: this used to keep only qty+rate, for a ₹/gram item rate is price PER
+  // GRAM, not per piece, so qty×rate alone silently threw away the weight entirely
+  // (e.g. ₹2/g × 500g × qty 1 stored as ₹2 instead of ₹1000). Carry pricingMode +
+  // total grams through so the amount, and any later edit, stays correct.
+  const items=_items.filter(it=>it.name&&it.name.trim()).map(it=>({
+    name:it.name, qty:it.qty||1, rate:it.rate||0, gst:it.gst||0,
+    pricingMode:it.pricingMode||'piece', grams:itemTotalGrams(it)||0,
+  }));
   if(!items.length){ toast('Add at least one item','error'); return; }
-  let sub=0,gstAmt=0; items.forEach(it=>{ const amt=(it.qty||0)*(it.rate||0); sub+=amt; gstAmt+=amt*((it.gst||0)/100); });
+  let sub=0,gstAmt=0; items.forEach(it=>{ const amt=it.pricingMode==='gram'?(it.qty||0)*(it.grams||0)*(it.rate||0):(it.qty||0)*(it.rate||0); sub+=amt; gstAmt+=amt*((it.gst||0)/100); });
   const g=id=>document.getElementById(id)?.value?.trim()||null;
   const manualNumber=g('qa_qt_number')||genQuotationNumber();
   const now=new Date(), fyStart=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
@@ -4818,7 +4825,7 @@ async function submitQuickAddAsQuotation(){
     customer_city:g('qa_city'), customer_state:g('qa_state'), customer_pincode:g('qa_pin'), customer_gstin:g('qa_gstin'),
     items, subtotal:sub, gst_amount:gstAmt, total:sub+gstAmt,
     validity_date:g('qa_qt_validity'), terms_notes:g('qa_qt_terms'),
-    quotation_number:manualNumber,
+    quotation_number:manualNumber, quotation_date:g('qa_date')||today(),
   };
   if(_qaEditQuotationId){
     const {error}=await sb.from('biz_quotations').update(payload).eq('id',_qaEditQuotationId);
@@ -4914,7 +4921,8 @@ async function openAddOrderFromQuotation(quotationId){
   const qItems=Array.isArray(data.items)?data.items:[];
   _items=qItems.length ? qItems.map(it=>({
     rowId:null, productId:null, name:it.name||'', variant:'', qty:it.qty||1, rate:it.rate||0, disc:0,
-    gst:it.gst||0, cost:0, grams:0, waste:0, hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926', sku:'', spool:'', extraSpools:[],
+    gst:it.gst||0, cost:0, pricingMode:it.pricingMode||'piece', grams:it.pricingMode==='gram'?(it.grams||0):0,
+    waste:0, hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926', sku:'', spool:'', extraSpools:[],
   })) : [blankItem()];
   renderItems();
   updateAddOrderModeUI();
@@ -5063,14 +5071,24 @@ async function resolveCustomerId(name, phone){
     return created.id;
   }catch(_){ return null; }
 }
+// Matches both raw-Postgres (`column "x" of relation...`) and PostgREST's own
+// schema-cache error (`Could not find the 'x' column of...`, single quotes), a
+// real bug found while adding biz_sales.remarks: the old double-quote-only regex
+// silently failed to match PostgREST's format, so `if(!m) return r` bailed out
+// with the raw error instead of stripping the column and retrying, an unrecognised
+// optional column could break the WHOLE insert instead of just being dropped.
+function _extractBadColumn(msg){
+  const m=(msg||'').match(/column ["']([^"']+)["']|["']([^"']+)["'] column/i);
+  return m?(m[1]||m[2]):null;
+}
 async function insertRowsResilient(table, rows){
   let data=rows;
   for(let i=0;i<6;i++){
     const r=await sb.from(table).insert(data);
     if(!r.error) return r;
-    const m=(r.error.message||'').match(/column "([^"]+)"/);
-    if(!m) return r;
-    const bad=m[1]; data=data.map(row=>{ const c={...row}; delete c[bad]; return c; });
+    const bad=_extractBadColumn(r.error.message);
+    if(!bad) return r;
+    data=data.map(row=>{ const c={...row}; delete c[bad]; return c; });
   }
   return { error:{ message:table+' insert failed (unknown columns)' } };
 }
@@ -5458,7 +5476,7 @@ function editQuotation(id){
     set('qa_city',q.customer_city); set('qa_state',q.customer_state); set('qa_pin',q.customer_pincode);
     set('qa_gstin',q.customer_gstin); set('qa_qt_validity',q.validity_date); set('qa_qt_terms',q.terms_notes);
     set('qa_qt_number',q.quotation_number); set('qa_date',q.quotation_date);
-    _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0})) : [blankItem()];
+    _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0})) : [blankItem()];
     renderItems();
     renderQaQtTncPresets();
     const saveBtn=document.getElementById('qaSaveBtn'); if(saveBtn) saveBtn.innerHTML='💾 Update Quotation';
@@ -5478,7 +5496,7 @@ function duplicateQuotation(id){
     set('qa_city',q.customer_city); set('qa_state',q.customer_state); set('qa_pin',q.customer_pincode);
     set('qa_gstin',q.customer_gstin); set('qa_qt_validity',q.validity_date); set('qa_qt_terms',q.terms_notes);
     set('qa_qt_number',genQuotationNumber()); set('qa_date',today());
-    _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0})) : [blankItem()];
+    _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0})) : [blankItem()];
     renderItems();
     renderQaQtTncPresets();
     const saveBtn=document.getElementById('qaSaveBtn'); if(saveBtn) saveBtn.innerHTML='💾 Save Quotation';
@@ -5528,98 +5546,30 @@ async function acceptQuotation(id){
   await openAddOrderFromQuotation(id);
 }
 
-// Phase 10 (B): the actual customer-facing document. The Document Settings
-// toggles built for Quotation (docQuo()) had no consumer until now, this is it.
-// Mirrors printInvoice()'s window.open + document.write mechanism and general
-// look, but built fresh for a quotation's own shape rather than threading it
-// through printInvoice()'s sale/order-specific logic (cost, margin, production
-// status, etc, none of which apply to a quotation).
+// Quotation now shares the exact same document template as Invoice/Order Record
+// (printInvoice), same header, fonts, layout, PDF-share mechanics, instead of its
+// own separate lighter-weight design. Items carry pricingMode/grams (₹/gram
+// quotation lines used to silently drop the weight and show a wrong amount),
+// converted here into the pre-computed selling_price the shared template expects.
 async function printQuotation(id){
   const {data:q,error}=await sb.from('biz_quotations').select('*').eq('id',id).single();
   if(error||!q){ toast('Could not load quotation','error'); return; }
-  const cfg=getBizSettings();
-  const SELLER_NAME=cfg.name||'TriAkar';
-  const SELLER_ADDR=cfg.addr||'';
-  const SELLER_GSTIN=cfg.gstin||'';
-  const SELLER_BANK={holder:cfg.bankHolder||'',name:cfg.bankName||'',branch:cfg.bankBranch||'',acc:cfg.bankAcc||'',ifsc:cfg.bankIfsc||''};
-  const DUE_DAYS=parseInt(cfg.dueDays,10)||7;
-  const qCreated=q.created_at?q.created_at.slice(0,10):today();
-  const qDueObj=new Date(qCreated+'T00:00:00'); qDueObj.setDate(qDueObj.getDate()+DUE_DAYS);
-  const qDueStr=qDueObj.toISOString().slice(0,10);
-  const items=Array.isArray(q.items)?q.items:[];
-  const rowsHtml=items.map(it=>{
+  const items=(Array.isArray(q.items)?q.items:[]).map(it=>{
     const qty=parseInt(it.qty)||1, rate=parseFloat(it.rate)||0, gst=parseFloat(it.gst)||0;
-    const amt=qty*rate;
-    return `<tr>
-      <td style="padding:8px;border-bottom:1px solid #eee">${esc(it.name||'—')}</td>
-      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${qty}</td>
-      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">₹${rate.toFixed(2)}</td>
-      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${gst}%</td>
-      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">₹${amt.toFixed(2)}</td>
-    </tr>`;
-  }).join('');
-  const addr=[q.customer_address,[q.customer_city,q.customer_state].filter(Boolean).join(', ')+(q.customer_pincode?', '+q.customer_pincode:'')].map(x=>(x||'').trim()).filter(Boolean).join('<br>');
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quotation ${esc(q.quotation_number||'')}</title>
-  <style>
-    body{font-family:'Segoe UI',Arial,sans-serif;color:#1a1916;max-width:800px;margin:0 auto;padding:32px}
-    .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #C4622A;padding-bottom:16px;margin-bottom:20px}
-    .brand{font-size:22px;font-weight:800;color:#C4622A}
-    .doc-title{font-size:16px;font-weight:700;text-align:right}
-    .doc-no{font-family:monospace;font-size:12px;color:#666;text-align:right;margin-top:4px}
-    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
-    .info-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#999;margin-bottom:2px}
-    table{width:100%;border-collapse:collapse;margin-bottom:20px}
-    th{background:#f7f5f2;padding:8px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#666;text-align:left}
-    th.r,td.r{text-align:right}
-    .totals{margin-left:auto;width:260px}
-    .totals div{display:flex;justify-content:space-between;padding:4px 0}
-    .totals .grand{font-weight:700;font-size:15px;border-top:2px solid #C4622A;padding-top:8px;margin-top:4px}
-    .terms{margin-top:20px;font-size:12px;color:#555;white-space:pre-wrap}
-    .sig{margin-top:40px;text-align:right;font-size:11px;color:#777}
-    @media print{.no-print{display:none}}
-  </style></head><body>
-  <div class="head">
-    <div>
-      ${docQuo('business_identity')?`<div class="brand">${esc(SELLER_NAME)}</div><div style="font-size:11px;color:#666;margin-top:4px">${esc(SELLER_ADDR)}</div>`:''}
-      ${docQuo('gstin')&&SELLER_GSTIN?`<div style="font-size:11px;color:#666">GSTIN: ${esc(SELLER_GSTIN)}</div>`:''}
-    </div>
-    <div>
-      <div class="doc-title">QUOTATION</div>
-      <div class="doc-no">${esc(q.quotation_number||'')}</div>
-      <div class="doc-no">${fmtDay(q.created_at?q.created_at.slice(0,10):today())}</div>
-    </div>
-  </div>
-  <div class="info-grid">
-    ${docQuo('customer_name')?`<div><div class="info-lbl">Quoted To</div><div>${esc(q.customer_name||'—')}${q.customer_phone?'<br>'+esc(q.customer_phone):''}${addr?'<br>'+addr:''}${q.customer_gstin?'<br>GSTIN: '+esc(q.customer_gstin):''}</div></div>`:''}
-    ${docQuo('validity_period')&&q.validity_date?`<div><div class="info-lbl">Valid Until</div><div>${fmtDay(q.validity_date)}</div></div>`:''}
-    ${docQuo('due_date')?`<div><div class="info-lbl">Payment Due</div><div>${fmtDay(qDueStr)}</div></div>`:''}
-  </div>
-  ${docQuo('items_table')?`<table>
-    <thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">GST</th><th class="r">Amount</th></tr></thead>
-    <tbody>${rowsHtml}</tbody>
-  </table>`:''}
-  ${docQuo('subtotal')?`<div class="totals">
-    <div><span>Subtotal</span><span>₹${(parseFloat(q.subtotal)||0).toFixed(2)}</span></div>
-    <div><span>GST</span><span>₹${(parseFloat(q.gst_amount)||0).toFixed(2)}</span></div>
-    <div class="grand"><span>Total</span><span>₹${(parseFloat(q.total)||0).toFixed(2)}</span></div>
-  </div>`:''}
-  ${docQuo('bank_details')&&(SELLER_BANK.acc||SELLER_BANK.ifsc)?`<div class="terms"><strong>Bank Account Details</strong><br>${[
-    SELLER_BANK.holder?esc(SELLER_BANK.holder):'',
-    SELLER_BANK.name?esc(SELLER_BANK.name)+(SELLER_BANK.branch?', '+esc(SELLER_BANK.branch):''):'',
-    SELLER_BANK.acc?'A/c No: '+esc(SELLER_BANK.acc):'',
-    SELLER_BANK.ifsc?'IFSC: '+esc(SELLER_BANK.ifsc):''
-  ].filter(Boolean).join('<br>')}</div>`:''}
-  ${docQuo('terms_notes')&&q.terms_notes?`<div class="terms"><strong>Terms &amp; Notes</strong><br>${esc(q.terms_notes)}</div>`:''}
-  ${(docQuo('upi_qr')&&q.show_qr)?`<div style="margin-top:16px;font-size:11px;color:#777">Payment via UPI / bank transfer available on request.</div>`:''}
-  ${docQuo('signature')?`<div class="sig">For ${esc(SELLER_NAME)}<div style="margin-top:30px;border-top:1px solid #ccc;width:170px;margin-left:auto;padding-top:4px">Authorised Signatory</div></div>`:''}
-  <div class="no-print" style="margin-top:24px;text-align:right">
-    <button onclick="window.print()" style="padding:10px 24px;background:#C4622A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700">Print / PDF</button>
-  </div>
-  </body></html>`;
-  const win=window.open('','_blank');
-  if(!win){ toast('Allow popups to open document','error'); return; }
-  win.document.write(html);
-  win.document.close();
+    const base=it.pricingMode==='gram' ? qty*(parseFloat(it.grams)||0)*rate : qty*rate;
+    return {
+      product_name:it.name||'—', qty, gst_rate:gst,
+      selling_price:Math.round(base*(1+gst/100)*100)/100,
+      variant:it.pricingMode==='gram'&&it.grams?`${it.grams}g`:'',
+    };
+  });
+  const d={
+    ...q,
+    items,
+    order_date:q.quotation_date||(q.created_at?q.created_at.slice(0,10):today()),
+    delivery_date:q.promised_date||null,
+  };
+  await printInvoice(d, (items.some(it=>it.gst_rate>0))?'gst':'nongst', 'quotation');
 }
 
 // ── Rack / Shelf inventory (Phase 10 Group 3, H) ─────────────
@@ -7656,9 +7606,9 @@ async function upsertSalesResilient(rows){
     ]);
     const failed=results.find(r=>r.error);
     if(!failed) return {error:null};
-    const m=(failed.error.message||'').match(/column "([^"]+)"/);
-    if(!m) return failed;
-    const bad=m[1]; data=data.map(row=>{ const c={...row}; delete c[bad]; return c; });
+    const bad=_extractBadColumn(failed.error.message);
+    if(!bad) return failed;
+    data=data.map(row=>{ const c={...row}; delete c[bad]; return c; });
   }
   return { error:{ message:'sale restore failed (unknown columns)' } };
 }
@@ -10507,6 +10457,10 @@ async function allocateInvoiceNumber(saleId, orderId, docKind, manualNumber){
 }
 async function printInvoice(d, type, docKind){
   const isRecord=docKind==='record';
+  const isQuote=docKind==='quotation';
+  // Quotation reuses every doc field's OWN toggle group (docQuo, set in Settings ->
+  // Document Settings -> Quotation) instead of Invoice's, same shared template though.
+  const docField=k=>isQuote?docQuo(k):docInv(k);
   const cfg=getBizSettings();
   const SELLER_NAME=cfg.name||'TriAkar';
   const SELLER_ADDR=cfg.addr||'';
@@ -10549,13 +10503,13 @@ async function printInvoice(d, type, docKind){
   const taxable=subtotal;
   const gstRate=(hasGst&&taxable>0)?Math.round(gstAmt/taxable*100):(parseFloat(d.gst_rate)||0);
   const isIntraState=!d.customer_state||d.customer_state.trim().toLowerCase()===MY_STATE.toLowerCase();
-  const docNo=isRecord?(d.order_id||nextDocNumber()):await allocateInvoiceNumber(d.id||d.sale_id||null, d.order_id||null, docKind||'invoice', (d.invoice_no||'').trim()||null);
+  const docNo=isRecord?(d.order_id||nextDocNumber()):isQuote?(d.quotation_number||genQuotationNumber()):await allocateInvoiceNumber(d.id||d.sale_id||null, d.order_id||null, docKind||'invoice', (d.invoice_no||'').trim()||null);
   const docDate=d.order_date||today();
   const dueDateObj=new Date(docDate+'T00:00:00'); dueDateObj.setDate(dueDateObj.getDate()+DUE_DAYS);
   const dueDateStr=dueDateObj.toISOString().slice(0,10);
   const grandTotal=subtotal+gstAmt;
   const amtWords=amountInWords(grandTotal);
-  const docTitle=isRecord?'Order Record':(hasGst?'Tax Invoice':'Invoice');
+  const docTitle=isRecord?'Order Record':isQuote?'Quotation':(hasGst?'Tax Invoice':'Invoice');
 
   // §Internal Details (Order Record only), cost/margin/production data that a customer
   // invoice must never show. Falls back gracefully where a field has no data source yet.
@@ -10674,7 +10628,7 @@ tbody tr:last-child td{border-bottom:none}
   <div class="hdr-doc">
     <div class="doc-type">${docTitle}</div>
     <div class="doc-no">${esc(docNo)}</div>
-    <div class="doc-meta">Order Date: ${esc(docDate)}<br>Complete Date: ${d.delivery_date?esc(d.delivery_date):'—'}${(!isRecord&&docInv('due_date'))?`<br>Due Date: ${esc(dueDateStr)}`:''}</div>
+    <div class="doc-meta">Order Date: ${esc(docDate)}<br>Complete Date: ${d.delivery_date?esc(d.delivery_date):'—'}${(isQuote&&d.validity_date)?`<br>Valid Until: ${esc(d.validity_date)}`:''}${(!isRecord&&docField('due_date'))?`<br>Due Date: ${esc(dueDateStr)}`:''}</div>
     <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;margin-top:5px">
       ${d.channel_id?`<div class="doc-badge">${esc(CH_NAMES?.[d.channel_id]||d.channel_id)}</div>`:''}
     </div>
@@ -10727,7 +10681,7 @@ ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
 <div class="words-row">${esc(amtWords)}</div>
 </div>
 
-${(!isRecord&&docInv('bank_details')&&(SELLER_BANK.acc||SELLER_BANK.ifsc))?`
+${(!isRecord&&docField('bank_details')&&(SELLER_BANK.acc||SELLER_BANK.ifsc))?`
 <div class="info-strip">
   <div class="info-card">
     <div class="info-lbl">Bank Account Details</div>
@@ -10737,6 +10691,14 @@ ${(!isRecord&&docInv('bank_details')&&(SELLER_BANK.acc||SELLER_BANK.ifsc))?`
       SELLER_BANK.acc?'A/c No: '+esc(SELLER_BANK.acc):'',
       SELLER_BANK.ifsc?'IFSC: '+esc(SELLER_BANK.ifsc):''
     ].filter(Boolean).join('<br>')}</div>
+  </div>
+</div>`:''}
+
+${(isQuote&&docQuo('terms_notes')&&d.terms_notes)?`
+<div class="info-strip">
+  <div class="info-card" style="flex:1 1 100%">
+    <div class="info-lbl">Terms &amp; Conditions</div>
+    <div class="info-val" style="white-space:pre-wrap">${esc(d.terms_notes)}</div>
   </div>
 </div>`:''}
 
@@ -10779,7 +10741,7 @@ ${(!isRecord&&docInv('signature'))?`<div style="padding:26px 32px 4px;text-align
 async function shareDoc(){
   var actions=document.getElementById('docActions');
   var status=document.getElementById('shareStatus');
-  var safeName=${JSON.stringify('Order-'+String(docNo).replace(/[^\w\-]+/g,'_'))};
+  var safeName=${JSON.stringify(docTitle.replace(/\s+/g,'')+'-'+String(docNo).replace(/[^\w\-]+/g,'_'))};
   if(!window.html2canvas||!window.jspdf){ alert('Still loading the PDF tools, try again in a moment, or use Print / PDF.'); return; }
   try{
     status.textContent='Preparing PDF…';
