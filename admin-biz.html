@@ -4812,7 +4812,7 @@ async function submitQuickAddAsQuotation(){
   // total grams through so the amount, and any later edit, stays correct.
   const items=_items.filter(it=>it.name&&it.name.trim()).map(it=>({
     name:it.name, qty:it.qty||1, rate:it.rate||0, gst:it.gst||0,
-    pricingMode:it.pricingMode||'piece', grams:itemTotalGrams(it)||0,
+    pricingMode:it.pricingMode||'piece', grams:itemTotalGrams(it)||0, hsn:it.hsn||'',
   }));
   if(!items.length){ toast('Add at least one item','error'); return; }
   let sub=0,gstAmt=0; items.forEach(it=>{ const amt=it.pricingMode==='gram'?(it.qty||0)*(it.grams||0)*(it.rate||0):(it.qty||0)*(it.rate||0); sub+=amt; gstAmt+=amt*((it.gst||0)/100); });
@@ -5558,7 +5558,7 @@ async function printQuotation(id){
     const qty=parseInt(it.qty)||1, rate=parseFloat(it.rate)||0, gst=parseFloat(it.gst)||0;
     const base=it.pricingMode==='gram' ? qty*(parseFloat(it.grams)||0)*rate : qty*rate;
     return {
-      product_name:it.name||'—', qty, gst_rate:gst,
+      product_name:it.name||'—', qty, gst_rate:gst, hsn_code:it.hsn||'',
       selling_price:Math.round(base*(1+gst/100)*100)/100,
       variant:it.pricingMode==='gram'&&it.grams?`${it.grams}g`:'',
     };
@@ -10476,6 +10476,7 @@ async function printInvoice(d, type, docKind){
   // Support multi-item orders (d.items) and legacy single rows (d)
   const items=(d.items&&d.items.length)?d.items:[d];
   let subtotal=0, gstAmt=0;
+  const hsnSummary={};
   const rowsHtml=items.map(it=>{
     const iqty=parseInt(it.qty)||1;
     const idisc=parseFloat(it.discount_amount)||0;
@@ -10490,6 +10491,11 @@ async function printInvoice(d, type, docKind){
     const iamt=iamt_incl-igst;
     const iunit_show=iqty>0 ? ((type==='gst'&&irate>0)?iamt/iqty:iamt_incl/iqty) : ((type==='gst'&&irate>0)?iamt:iamt_incl);
     subtotal+=iamt; gstAmt+=igst;
+    if(isQuote){
+      const hk=it.hsn_code||'—';
+      const hrow=hsnSummary[hk]||(hsnSummary[hk]={taxable:0,gst:0,rate:irate});
+      hrow.taxable+=iamt; hrow.gst+=igst;
+    }
     const vline=[it.size,it.color,it.variant].filter(Boolean).join(' · ');
     const metaBits=[it.sku?'SKU: '+it.sku:'', (!isQuote&&it.hsn_code)?'HSN: '+it.hsn_code:''].filter(Boolean).join('  ·  ');
     const nameCell=`<strong>${esc(it.product_name||'—')}</strong>${vline?`<div class="item-sub">${esc(vline)}</div>`:''}${it.remarks?`<div class="item-sub" style="font-style:italic">${esc(it.remarks)}</div>`:''}${metaBits?`<div class="item-sub" style="color:#999">${esc(metaBits)}</div>`:''}${idisc>0?`<div class="item-sub" style="color:#c0392b">Discount −₹${idisc.toFixed(2)}</div>`:''}`;
@@ -10564,6 +10570,30 @@ async function printInvoice(d, type, docKind){
       :`<tr><td colspan="3" style="text-align:right;color:#999;font-size:12px;padding:4px 14px;border:none">IGST @ ${gstRate}%</td><td style="text-align:right;padding:4px 14px;border:none">₹${gstAmt.toFixed(2)}</td></tr>`
     }`:'';
 
+  const hsnKeys=Object.keys(hsnSummary);
+  const hsnSummaryHtml=(isQuote&&hsnKeys.length)?`
+<div class="info-strip" style="grid-template-columns:1fr">
+  <div class="info-card">
+    <div class="info-lbl">HSN Summary</div>
+    <table style="width:100%">
+      <thead><tr>
+        <th style="text-align:left;font-size:9px;color:#999;padding:2px 6px;border-bottom:1px solid #eee">HSN</th>
+        <th style="text-align:right;font-size:9px;color:#999;padding:2px 6px;border-bottom:1px solid #eee">Taxable Value</th>
+        <th style="text-align:right;font-size:9px;color:#999;padding:2px 6px;border-bottom:1px solid #eee">GST Rate</th>
+        <th style="text-align:right;font-size:9px;color:#999;padding:2px 6px;border-bottom:1px solid #eee">GST Amount</th>
+      </tr></thead>
+      <tbody>
+        ${hsnKeys.map(hk=>{const r=hsnSummary[hk];return `<tr>
+          <td style="padding:5px 6px;font-size:12px;border:none">${esc(hk)}</td>
+          <td class="td-r" style="padding:5px 6px;font-size:12px;border:none">₹${r.taxable.toFixed(2)}</td>
+          <td class="td-r" style="padding:5px 6px;font-size:12px;border:none">${r.rate?r.rate+'%':'—'}</td>
+          <td class="td-r" style="padding:5px 6px;font-size:12px;border:none">₹${r.gst.toFixed(2)}</td>
+        </tr>`;}).join('')}
+      </tbody>
+    </table>
+  </div>
+</div>`:'';
+
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${docTitle}: ${esc(docNo)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Devanagari:wght@400;600&display=swap" rel="stylesheet">
@@ -10635,25 +10665,26 @@ tbody tr:last-child td{border-bottom:none}
     ${isQuote?'':'<svg class="mark-svg" xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 54 54"><defs><clipPath id="mc"><rect width="54" height="54" rx="10"/></clipPath></defs><rect width="54" height="27" fill="#C4622A" clip-path="url(#mc)"/><rect y="27" width="54" height="27" fill="#252320" clip-path="url(#mc)"/><circle cx="27" cy="27" r="17" fill="#F4F2EC"/><text x="27" y="27" text-anchor="middle" dominant-baseline="central" font-family="Noto Sans Devanagari,Mangal,Arial Unicode MS,sans-serif" font-size="14" font-weight="700" fill="#C4622A">त्रि</text></svg>'}
     <div>
       <div class="brand-en"><span class="b-tri">TRI</span><span class="b-akar">AKAR</span></div>
-      <div class="brand-hi"${isQuote?' style="font-size:14.85px"':''}>त्रिआकार</div>
+      <div class="brand-hi"${isQuote?' style="font-size:14.85px"':''}><span style="color:#C4622A">त्रि</span><span style="color:#111">आकार</span></div>
     </div>
   </div>
   <div class="hdr-doc">
     <div class="doc-type">${docTitle}</div>
-    <div class="doc-no">${esc(docNo)}</div>
-    <div class="doc-meta">Order Date: ${esc(docDate)}<br>Complete Date: ${d.delivery_date?esc(d.delivery_date):'—'}${(isQuote&&d.validity_date)?`<br>Valid Until: ${esc(d.validity_date)}`:''}${(!isRecord&&docField('due_date'))?`<br>Due Date: ${esc(dueDateStr)}`:''}</div>
+    ${isQuote?'':`<div class="doc-no">${esc(docNo)}</div>`}
+    <div class="doc-meta">${isQuote?`Date: ${esc(docDate)}`:`Order Date: ${esc(docDate)}<br>Complete Date: ${d.delivery_date?esc(d.delivery_date):'—'}`}${(isQuote&&d.validity_date)?`<br>Valid Until: ${esc(d.validity_date)}`:''}${(!isRecord&&docField('due_date'))?`<br>Due Date: ${esc(dueDateStr)}`:''}</div>
     <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;margin-top:5px">
       ${d.channel_id?`<div class="doc-badge">${esc(CH_NAMES?.[d.channel_id]||d.channel_id)}</div>`:''}
     </div>
   </div>
   </div>
   ${isQuote?`<div class="seller-strip" style="margin-bottom:0">
-    <div class="seller-name">TriAkar Form${SELLER_ADDR&&docInv('business_address')?' &nbsp;·&nbsp; <span style="font-weight:400;color:#666">'+esc(SELLER_ADDR)+'</span>':''}</div>
+    <div class="seller-name">TriAkar Form${docNo?' &nbsp;·&nbsp; <span style="font-weight:400;color:#666;font-family:\'Courier New\',monospace">'+esc(docNo)+'</span>':''}</div>
     <div class="seller-detail">${[
+      SELLER_WEB,
       (docInv('gstin')&&SELLER_GSTIN)?'GSTIN: '+SELLER_GSTIN:'',
-      SELLER_PAN?'PAN: '+SELLER_PAN:'',
-      SELLER_PHONE,SELLER_EMAIL,SELLER_WEB
+      SELLER_PHONE,SELLER_EMAIL
     ].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ')}</div>
+    ${(SELLER_ADDR&&docInv('business_address'))?`<div class="seller-detail" style="margin-top:2px">${esc(SELLER_ADDR)}</div>`:''}
   </div>`:''}
 </div>
 
@@ -10710,6 +10741,7 @@ ${(!isQuote&&(SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE))?`
 </tbody></table>
 <div class="words-row">${esc(amtWords)}</div>
 </div>
+${hsnSummaryHtml}
 ${isQuote?'<div class="divider"></div>':''}
 
 ${(!isRecord&&docField('bank_details')&&(SELLER_BANK.acc||SELLER_BANK.ifsc))?`
