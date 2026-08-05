@@ -10491,9 +10491,21 @@ async function printInvoice(d, type, docKind){
     const iunit_show=iqty>0 ? ((type==='gst'&&irate>0)?iamt/iqty:iamt_incl/iqty) : ((type==='gst'&&irate>0)?iamt:iamt_incl);
     subtotal+=iamt; gstAmt+=igst;
     const vline=[it.size,it.color,it.variant].filter(Boolean).join(' · ');
-    const metaBits=[it.sku?'SKU: '+it.sku:'', it.hsn_code?'HSN: '+it.hsn_code:''].filter(Boolean).join('  ·  ');
+    const metaBits=[it.sku?'SKU: '+it.sku:'', (!isQuote&&it.hsn_code)?'HSN: '+it.hsn_code:''].filter(Boolean).join('  ·  ');
+    const nameCell=`<strong>${esc(it.product_name||'—')}</strong>${vline?`<div class="item-sub">${esc(vline)}</div>`:''}${it.remarks?`<div class="item-sub" style="font-style:italic">${esc(it.remarks)}</div>`:''}${metaBits?`<div class="item-sub" style="color:#999">${esc(metaBits)}</div>`:''}${idisc>0?`<div class="item-sub" style="color:#c0392b">Discount −₹${idisc.toFixed(2)}</div>`:''}`;
+    if(isQuote){
+      return `<tr>
+      <td>${nameCell}</td>
+      <td>${esc(it.hsn_code||'—')}</td>
+      <td class="td-r">${iqty}</td>
+      <td class="td-r">₹${iunit_show.toFixed(2)}</td>
+      <td class="td-r">${irate?irate+'%':'—'}</td>
+      <td class="td-r">₹${igst.toFixed(2)}</td>
+      <td class="td-r">₹${iamt_incl.toFixed(2)}</td>
+    </tr>`;
+    }
     return `<tr>
-      <td><strong>${esc(it.product_name||'—')}</strong>${vline?`<div class="item-sub">${esc(vline)}</div>`:''}${it.remarks?`<div class="item-sub" style="font-style:italic">${esc(it.remarks)}</div>`:''}${metaBits?`<div class="item-sub" style="color:#999">${esc(metaBits)}</div>`:''}${idisc>0?`<div class="item-sub" style="color:#c0392b">Discount −₹${idisc.toFixed(2)}</div>`:''}</td>
+      <td>${nameCell}</td>
       <td class="td-r">${iqty}</td>
       <td class="td-r">₹${iunit_show.toFixed(2)}</td>
       <td class="td-r">₹${iamt.toFixed(2)}</td>
@@ -10617,12 +10629,13 @@ tbody tr:last-child td{border-bottom:none}
 @media print{.print-btn{display:none!important}body{max-width:100%}}
 </style></head><body>
 
-<div class="hdr">
+<div class="hdr"${isQuote?' style="flex-direction:column;align-items:stretch;gap:14px"':''}>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px">
   <div class="hdr-logo">
-    <svg class="mark-svg" xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 54 54"><defs><clipPath id="mc"><rect width="54" height="54" rx="10"/></clipPath></defs><rect width="54" height="27" fill="#C4622A" clip-path="url(#mc)"/><rect y="27" width="54" height="27" fill="#252320" clip-path="url(#mc)"/><circle cx="27" cy="27" r="17" fill="#F4F2EC"/><text x="27" y="27" text-anchor="middle" dominant-baseline="central" font-family="Noto Sans Devanagari,Mangal,Arial Unicode MS,sans-serif" font-size="14" font-weight="700" fill="#C4622A">त्रि</text></svg>
+    ${isQuote?'':'<svg class="mark-svg" xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 54 54"><defs><clipPath id="mc"><rect width="54" height="54" rx="10"/></clipPath></defs><rect width="54" height="27" fill="#C4622A" clip-path="url(#mc)"/><rect y="27" width="54" height="27" fill="#252320" clip-path="url(#mc)"/><circle cx="27" cy="27" r="17" fill="#F4F2EC"/><text x="27" y="27" text-anchor="middle" dominant-baseline="central" font-family="Noto Sans Devanagari,Mangal,Arial Unicode MS,sans-serif" font-size="14" font-weight="700" fill="#C4622A">त्रि</text></svg>'}
     <div>
       <div class="brand-en"><span class="b-tri">TRI</span><span class="b-akar">AKAR</span></div>
-      <div class="brand-hi">त्रिआकार</div>
+      <div class="brand-hi"${isQuote?' style="font-size:14.85px"':''}>त्रिआकार</div>
     </div>
   </div>
   <div class="hdr-doc">
@@ -10633,11 +10646,20 @@ tbody tr:last-child td{border-bottom:none}
       ${d.channel_id?`<div class="doc-badge">${esc(CH_NAMES?.[d.channel_id]||d.channel_id)}</div>`:''}
     </div>
   </div>
+  </div>
+  ${isQuote?`<div class="seller-strip" style="margin-bottom:0">
+    <div class="seller-name">TriAkar Form${SELLER_ADDR&&docInv('business_address')?' &nbsp;·&nbsp; <span style="font-weight:400;color:#666">'+esc(SELLER_ADDR)+'</span>':''}</div>
+    <div class="seller-detail">${[
+      (docInv('gstin')&&SELLER_GSTIN)?'GSTIN: '+SELLER_GSTIN:'',
+      SELLER_PAN?'PAN: '+SELLER_PAN:'',
+      SELLER_PHONE,SELLER_EMAIL,SELLER_WEB
+    ].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ')}</div>
+  </div>`:''}
 </div>
 
 <div class="body">
 
-${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
+${(!isQuote&&(SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE))?`
 <div class="seller-strip">
   <div class="seller-name">${esc(SELLER_NAME)}${SELLER_ADDR&&docInv('business_address')?' &nbsp;·&nbsp; <span style="font-weight:400;color:#666">'+esc(SELLER_ADDR)+'</span>':''}</div>
   <div class="seller-detail">${[
@@ -10661,14 +10683,22 @@ ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
 <div class="tbl-wrap">
 <table>
   <thead><tr>
+    ${isQuote?`
+    <th style="width:26%">Item</th>
+    <th>HSN</th>
+    <th style="text-align:right">Qty</th>
+    <th style="text-align:right">Rate</th>
+    <th style="text-align:right">GST%</th>
+    <th style="text-align:right">GST Amt</th>
+    <th style="text-align:right">Total</th>`:`
     <th style="width:52%">Item</th>
     <th style="text-align:right">Qty</th>
     <th style="text-align:right">Rate</th>
-    <th style="text-align:right">Amount</th>
+    <th style="text-align:right">Amount</th>`}
   </tr></thead>
   <tbody>
     ${rowsHtml}
-    ${d.notes?`<tr><td colspan="4" class="item-sub" style="color:#999;padding:8px 16px">Note: ${esc(d.notes)}</td></tr>`:''}
+    ${d.notes?`<tr><td colspan="${isQuote?7:4}" class="item-sub" style="color:#999;padding:8px 16px">Note: ${esc(d.notes)}</td></tr>`:''}
   </tbody>
 </table>
 <table><tbody>
@@ -10680,6 +10710,7 @@ ${SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE?`
 </tbody></table>
 <div class="words-row">${esc(amtWords)}</div>
 </div>
+${isQuote?'<div class="divider"></div>':''}
 
 ${(!isRecord&&docField('bank_details')&&(SELLER_BANK.acc||SELLER_BANK.ifsc))?`
 <div class="info-strip">
@@ -10692,17 +10723,25 @@ ${(!isRecord&&docField('bank_details')&&(SELLER_BANK.acc||SELLER_BANK.ifsc))?`
       SELLER_BANK.ifsc?'IFSC: '+esc(SELLER_BANK.ifsc):''
     ].filter(Boolean).join('<br>')}</div>
   </div>
+  ${isQuote?`<div class="info-card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
+    <div class="info-lbl" style="margin-bottom:0">Scan to Pay</div>
+    <div style="width:70px;height:70px;border:1.5px dashed #ddd;border-radius:6px"></div>
+  </div>`:''}
 </div>`:''}
 
 ${(isQuote&&docQuo('terms_notes')&&d.terms_notes)?`
-<div class="info-strip">
-  <div class="info-card" style="flex:1 1 100%">
+<div class="info-strip" style="display:flex;align-items:flex-end;gap:16px">
+  <div class="info-card" style="flex:1 1 auto">
     <div class="info-lbl">Terms &amp; Conditions</div>
-    <div class="info-val" style="white-space:pre-wrap">${esc(d.terms_notes)}</div>
+    <div class="info-val" style="white-space:pre-wrap;font-size:10px">${esc(d.terms_notes)}</div>
+  </div>
+  <div style="text-align:right;font-size:11px;color:#777;white-space:nowrap;padding-bottom:2px">
+    For ${esc(SELLER_NAME)}
+    <div style="margin-top:30px;border-top:1px solid #ccc;width:150px;padding-top:4px">Authorised Signatory</div>
   </div>
 </div>`:''}
 
-${(!isRecord&&(d.payment_mode||d.package_size||d.weight_grams))||((!isRecord||docRec('courier_tracking'))&&(d.tracking_number||d.courier_partner))?`
+${(!isQuote&&((!isRecord&&(d.payment_mode||d.package_size||d.weight_grams))||((!isRecord||docRec('courier_tracking'))&&(d.tracking_number||d.courier_partner))))?`
 <div class="info-strip">
   ${(!isRecord&&docInv('payment_mode'))?`<div class="info-card">
     <div class="info-lbl">Payment</div>
@@ -10721,12 +10760,12 @@ ${internalDetailsHtml}
 
 </div>
 
-${(!isRecord&&docInv('reprint_note'))?`<div style="padding:12px 32px 0;font-size:11px;color:#777">★ 7-Day Reprint Guarantee, any print defect reprinted free within 7 days.</div>`:''}
-${(!isRecord&&docInv('signature'))?`<div style="padding:26px 32px 4px;text-align:right;font-size:11px;color:#777">For ${esc(SELLER_NAME)}<div style="margin-top:30px;border-top:1px solid #ccc;width:170px;margin-left:auto;padding-top:4px">Authorised Signatory</div></div>`:''}
+${(!isQuote&&!isRecord&&docInv('reprint_note'))?`<div style="padding:12px 32px 0;font-size:11px;color:#777">★ 7-Day Reprint Guarantee, any print defect reprinted free within 7 days.</div>`:''}
+${(!isQuote&&!isRecord&&docInv('signature'))?`<div style="padding:26px 32px 4px;text-align:right;font-size:11px;color:#777">For ${esc(SELLER_NAME)}<div style="margin-top:30px;border-top:1px solid #ccc;width:170px;margin-left:auto;padding-top:4px">Authorised Signatory</div></div>`:''}
 <div class="footer-band">
   <div class="footer-left">
-    <div class="footer-brand">TriAkar &nbsp;·&nbsp; त्रिआकार</div>
-    ${(!isRecord&&docInv('terms'))?`<div class="footer-tagline">${esc(SELLER_FOOTER||'This is not an invoice')}</div>`:''}
+    ${isQuote?'':`<div class="footer-brand">TriAkar &nbsp;·&nbsp; त्रिआकार</div>
+    ${(!isRecord&&docInv('terms'))?`<div class="footer-tagline">${esc(SELLER_FOOTER||'This is not an invoice')}</div>`:''}`}
   </div>
   <div class="print-btn doc-actions" id="docActions">
     <span id="shareStatus" style="font-size:11px;color:#999;margin-right:8px"></span>
@@ -10736,7 +10775,7 @@ ${(!isRecord&&docInv('signature'))?`<div style="padding:26px 32px 4px;text-align
   </div>
 </div>
 
-<div class="brand-line">Creation of Three Dimensions</div>
+<div class="brand-line"${isQuote?' style="font-size:10.5px;font-weight:400;letter-spacing:0;text-transform:none;color:#999;padding:14px 16px 22px"':''}>${isQuote?'This is a computer generated document and does not require a physical signature.':'Creation of Three Dimensions'}</div>
 
 <script>
 var _safeDocName=${JSON.stringify(docTitle.replace(/\s+/g,'')+'-'+String(docNo).replace(/[^\w\-]+/g,'_'))};
