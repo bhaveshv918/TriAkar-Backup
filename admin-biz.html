@@ -3298,11 +3298,14 @@ html[data-theme="dark"] .biz-login{
           <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">What shows on generated invoices &amp; internal order records. Untick to hide, applies to both the Business OS and Admin invoice generators (shared).</div>
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin:8px 0 6px">Invoice</div>
           <div id="bizDocInvoiceFields" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:4px 12px"></div>
+          <div id="bizDocInvoiceQr"></div>
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin:14px 0 6px">Internal Order Record</div>
           <div id="bizDocRecordFields" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:4px 12px"></div>
+          <div id="bizDocRecordQr"></div>
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin:14px 0 6px">Quotation</div>
           <div id="bizDocQuotationFields" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:4px 12px"></div>
-          <div style="margin-top:14px"><button class="btn btn-primary" onclick="saveDocCustomization()">Save document settings</button> <span id="bizDocStatus" style="font-size:12px;color:var(--green)"></span></div>
+          <div id="bizDocQuotationQr"></div>
+          <div style="margin-top:14px"><button class="btn btn-primary" onclick="saveDocCustomization()">💾 Save Template</button> <span id="bizDocStatus" style="font-size:12px;color:var(--green)"></span></div>
         </div>
 
         <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
@@ -3397,21 +3400,56 @@ async function getBizToken(){
   return null;
 }
 
-// ── Business Settings (localStorage) ──────────────────────
+// ── Business Settings ──────────────────────────────────────
+// Used to live in localStorage only, meaning bank details / business identity
+// silently didn't follow you to another browser or device (or survived a cache
+// clear) even though document-field toggles right next to it were already
+// server-stored. Supabase (site_settings, key 'biz_business_settings') is now
+// the source of truth; localStorage is kept only as an instant-paint cache so
+// the settings form and printInvoice() don't flash empty while the fetch runs.
 const BIZ_SETTINGS_KEY='triakar_biz_settings';
+let _bizSettingsCache=null;
 function getBizSettings(){
+  if(_bizSettingsCache) return _bizSettingsCache;
   try{ return JSON.parse(localStorage.getItem(BIZ_SETTINGS_KEY)||'{}'); }
   catch(e){ return {}; }
 }
-function loadBizSettings(){
-  const cfg=getBizSettings();
-  const map={cfg_name:'name',cfg_addr:'addr',cfg_gstin:'gstin',cfg_pan:'pan',cfg_phone:'phone',cfg_email:'email',cfg_web:'web',cfg_footer:'footer',
-    cfg_bank_holder:'bankHolder',cfg_bank_name:'bankName',cfg_bank_branch:'bankBranch',cfg_bank_acc:'bankAcc',cfg_bank_ifsc:'bankIfsc',cfg_due_days:'dueDays'};
-  Object.entries(map).forEach(([elId,key])=>{
-    const el=document.getElementById(elId); if(el&&cfg[key]) el.value=cfg[key];
+const BIZ_SETTINGS_FIELD_MAP={cfg_name:'name',cfg_addr:'addr',cfg_gstin:'gstin',cfg_pan:'pan',cfg_phone:'phone',cfg_email:'email',cfg_web:'web',cfg_footer:'footer',
+  cfg_bank_holder:'bankHolder',cfg_bank_name:'bankName',cfg_bank_branch:'bankBranch',cfg_bank_acc:'bankAcc',cfg_bank_ifsc:'bankIfsc',cfg_due_days:'dueDays'};
+function _populateBizSettingsForm(cfg){
+  Object.entries(BIZ_SETTINGS_FIELD_MAP).forEach(([elId,key])=>{
+    const el=document.getElementById(elId); if(el&&cfg[key]!=null&&cfg[key]!=='') el.value=cfg[key];
   });
+}
+async function loadBizSettings(){
+  _populateBizSettingsForm(getBizSettings());   // instant paint from local cache
+  try{
+    const {data,error}=await sb.from('site_settings').select('value').eq('key','biz_business_settings').maybeSingle();
+    if(!error&&data&&data.value){
+      const remote=JSON.parse(data.value);
+      _bizSettingsCache=remote;
+      localStorage.setItem(BIZ_SETTINGS_KEY,JSON.stringify(remote));
+      _populateBizSettingsForm(remote);
+    }
+  }catch(_){}
   loadBizDefaults();
   loadTncPresets();
+}
+async function saveBizSettings(){
+  const g=id=>(document.getElementById(id)?.value.trim()||'');
+  const cfg={name:g('cfg_name'),addr:g('cfg_addr'),gstin:g('cfg_gstin'),pan:g('cfg_pan'),phone:g('cfg_phone'),email:g('cfg_email'),web:g('cfg_web'),footer:g('cfg_footer'),
+    bankHolder:g('cfg_bank_holder'),bankName:g('cfg_bank_name'),bankBranch:g('cfg_bank_branch'),bankAcc:g('cfg_bank_acc'),bankIfsc:g('cfg_bank_ifsc'),dueDays:g('cfg_due_days')};
+  _bizSettingsCache=cfg;
+  localStorage.setItem(BIZ_SETTINGS_KEY,JSON.stringify(cfg));
+  const msg=document.getElementById('settingsSavedMsg');
+  try{
+    const {error}=await sb.from('site_settings').upsert({key:'biz_business_settings',value:JSON.stringify(cfg),updated_at:new Date().toISOString()},{onConflict:'key'});
+    if(error) throw error;
+    if(msg){ msg.textContent='✓ Saved'; msg.style.display='inline'; setTimeout(()=>msg.style.display='none',2500); }
+    toast('Invoice details saved');
+  }catch(e){
+    toast('Saved locally, but failed to sync: '+e.message,'error');
+  }
 }
 // ── B14: operational defaults (synced via site_settings) ──
 let _bizDefaults={hsn:'3926',gst:0,cogs:0};
@@ -3421,25 +3459,86 @@ let _bizDefaults={hsn:'3926',gst:0,cogs:0};
 // code, and any future doc kind just pushes one more entry here. docInv()/docRec()
 // keep their exact old names/signatures (printInvoice() calls them throughout) but
 // now read from the shared _docCfg store via the generic docCfg() lookup.
-let _docCfg={};   // { invoice:{...}, record:{...}, quotation:{...} }
+let _docCfg={};   // { invoice:{...toggles, qr:{url,position,size}}, record:{...}, quotation:{...} }
+// Audit (2026-08): every field below used to be listed but roughly half were never
+// actually read anywhere in printInvoice(), so unticking them did nothing (logo,
+// invoice_no_date, billing_address, customer_gstin, items_table, subtotal,
+// shipping_charge, total, paid_amount, balance_due, order_id, date, product_details,
+// dispatch_date, business_identity, customer_name, validity_period on quotation,
+// signature on quotation). Structural fields with no real "hide this" feature behind
+// them (invoice/order numbers, dates, the items table, the total) were removed
+// instead of faked; the rest were wired up for real in printInvoice() to match.
 const DOC_FIELD_GROUPS=[
-  { key:'invoice', label:'Invoice', containerId:'bizDocInvoiceFields', settingsKey:'doc_invoice_fields', fields:[['logo','Logo'],['business_address','Business address'],['gstin','Your GSTIN'],['invoice_no_date','Invoice no & date'],['due_date','Due date'],['billing_address','Billing address'],['shipping_address','Shipping address'],['customer_gstin','Customer GSTIN'],['items_table','Itemized table'],['subtotal','Subtotal'],['gst_breakup','CGST/SGST/IGST breakup'],['shipping_charge','Shipping charge'],['total','Total'],['paid_amount','Paid amount'],['balance_due','Balance due'],['payment_mode','Payment mode'],['bank_details','Bank account details'],['signature','Signature / stamp'],['upi_qr','UPI / bank QR'],['terms','Terms'],['reprint_note','Reprint guarantee note']] },
-  { key:'record', label:'Internal Order Record', containerId:'bizDocRecordFields', settingsKey:'doc_record_fields', fields:[['order_id','Order ID'],['date','Date'],['customer','Customer info'],['product_details','Product details'],['cost_price','Cost price'],['margin','Margin'],['designer_maker','Designer / maker'],['production_status','Production status'],['material','Material'],['printer','Printer used'],['dispatch_date','Dispatch date'],['courier_tracking','Courier + tracking'],['special_instructions','Special instructions'],['internal_notes','Internal notes'],['priority_flag','Priority flag'],['hsn','HSN']] },
-  { key:'quotation', label:'Quotation', containerId:'bizDocQuotationFields', settingsKey:'doc_quotation_fields', fields:[['business_identity','Business name / address / logo'],['gstin','Your GSTIN'],['customer_name','Customer name'],['items_table','Item / qty / rate / amount'],['subtotal','Subtotal'],['validity_period','Validity period'],['due_date','Due date'],['bank_details','Bank account details'],['terms_notes','Terms / notes'],['signature','Signature'],['upi_qr','UPI / bank QR']] },
+  { key:'invoice', label:'Invoice', containerId:'bizDocInvoiceFields', qrContainerId:'bizDocInvoiceQr', settingsKey:'doc_invoice_fields', fields:[['logo','Logo'],['business_address','Business address'],['gstin','Your GSTIN'],['customer_gstin','Customer GSTIN'],['due_date','Due date'],['shipping_address','Customer contact block'],['gst_breakup','CGST/SGST/IGST breakup'],['payment_mode','Payment mode'],['bank_details','Bank account details'],['signature','Signature / stamp'],['upi_qr','UPI / bank QR'],['terms','Terms'],['reprint_note','Reprint guarantee note']] },
+  { key:'record', label:'Internal Order Record', containerId:'bizDocRecordFields', qrContainerId:'bizDocRecordQr', settingsKey:'doc_record_fields', fields:[['customer','Customer info'],['cost_price','Cost price'],['margin','Margin'],['designer_maker','Designer / maker'],['production_status','Production status'],['material','Material'],['printer','Printer used'],['courier_tracking','Courier + tracking'],['special_instructions','Special instructions'],['internal_notes','Internal notes'],['priority_flag','Priority flag'],['hsn','HSN'],['upi_qr','UPI / bank QR']] },
+  { key:'quotation', label:'Quotation', containerId:'bizDocQuotationFields', qrContainerId:'bizDocQuotationQr', settingsKey:'doc_quotation_fields', fields:[['business_identity','Business name / address'],['gstin','Your GSTIN'],['customer_name','Customer name'],['validity_period','Validity period'],['due_date','Due date'],['bank_details','Bank account details'],['terms_notes','Terms / notes'],['signature','Signature'],['upi_qr','UPI / bank QR']] },
 ];
+const QR_POSITIONS=[['bank','Next to bank details'],['header','Top-right of header'],['footer','Above closing line']];
+const QR_SIZES=[['small','Small'],['medium','Medium'],['large','Large']];
+function _qrBlockHtml(containerId){
+  return `<div style="margin:8px 0;padding:10px;border:1px dashed var(--border);border-radius:8px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:6px">Payment QR Code</div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div id="${containerId}_preview" style="width:48px;height:48px;border:1px solid var(--border);border-radius:6px;background-color:var(--bg-2);background-size:contain;background-position:center;background-repeat:no-repeat;flex-shrink:0"></div>
+      <input type="file" accept="image/*" id="${containerId}_file" style="max-width:170px;font-size:11px" onchange="uploadQrImage('${containerId}')">
+      <select id="${containerId}_position" style="font-size:12px">${QR_POSITIONS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>
+      <select id="${containerId}_size" style="font-size:12px">${QR_SIZES.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="clearQrImage('${containerId}')">Remove</button>
+    </div>
+  </div>`;
+}
+function _qrRender(containerId,qrCfg){
+  qrCfg=qrCfg||{};
+  const prev=document.getElementById(containerId+'_preview');
+  if(prev){ prev.dataset.url=qrCfg.url||''; prev.style.backgroundImage=qrCfg.url?`url('${qrCfg.url}')`:'none'; }
+  const posEl=document.getElementById(containerId+'_position'); if(posEl) posEl.value=qrCfg.position||'bank';
+  const sizeEl=document.getElementById(containerId+'_size'); if(sizeEl) sizeEl.value=qrCfg.size||'small';
+}
+function _qrCollect(containerId){
+  const prev=document.getElementById(containerId+'_preview');
+  const posEl=document.getElementById(containerId+'_position');
+  const sizeEl=document.getElementById(containerId+'_size');
+  return { url:(prev&&prev.dataset.url)||'', position:posEl?posEl.value:'bank', size:sizeEl?sizeEl.value:'small' };
+}
+async function uploadQrImage(containerId){
+  const inp=document.getElementById(containerId+'_file');
+  const file=inp&&inp.files&&inp.files[0];
+  if(!file) return;
+  try{
+    const token=await getBizToken();
+    const fd=new FormData(); fd.append('image',file);
+    const r=await fetch(API+'/api/admin/upload-image?folder=triakar/business',{method:'POST',headers:token?{'Authorization':'Bearer '+token}:{},body:fd});
+    if(!r.ok) throw new Error((await r.json()).error||'Upload failed');
+    const {url}=await r.json();
+    const prev=document.getElementById(containerId+'_preview');
+    if(prev){ prev.dataset.url=url; prev.style.backgroundImage=`url('${url}')`; }
+    toast('QR image uploaded, click Save Template to apply');
+  }catch(e){ toast('Upload failed: '+e.message,'error'); }
+}
+function clearQrImage(containerId){
+  const prev=document.getElementById(containerId+'_preview');
+  if(prev){ prev.dataset.url=''; prev.style.backgroundImage='none'; }
+  const inp=document.getElementById(containerId+'_file'); if(inp) inp.value='';
+}
 function docCfg(groupKey,fieldKey){ return (_docCfg[groupKey]||{})[fieldKey]!==false; }
 function docInv(k){ return docCfg('invoice',k); }
 function docRec(k){ return docCfg('record',k); }
 function docQuo(k){ return docCfg('quotation',k); }
 function _docRender(containerId,fields,cfg){ const el=document.getElementById(containerId); if(!el)return; el.innerHTML=fields.map(function(f){return '<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" data-k="'+f[0]+'" '+(cfg[f[0]]===false?'':'checked')+'> '+esc(f[1])+'</label>';}).join(''); }
-function renderDocSettings(){ DOC_FIELD_GROUPS.forEach(g=>_docRender(g.containerId,g.fields,_docCfg[g.key]||{})); }
+function renderDocSettings(){
+  DOC_FIELD_GROUPS.forEach(g=>{
+    _docRender(g.containerId,g.fields,_docCfg[g.key]||{});
+    const qrEl=document.getElementById(g.qrContainerId);
+    if(qrEl){ qrEl.innerHTML=_qrBlockHtml(g.qrContainerId); _qrRender(g.qrContainerId,(_docCfg[g.key]||{}).qr); }
+  });
+}
 async function saveDocCustomization(){
   const collect=function(id){var o={};document.querySelectorAll('#'+id+' input[data-k]').forEach(function(c){o[c.dataset.k]=c.checked;});return o;};
   const now=new Date().toISOString();
-  const rows=DOC_FIELD_GROUPS.map(g=>({key:g.settingsKey,value:JSON.stringify(collect(g.containerId)),updated_at:now}));
+  const rows=DOC_FIELD_GROUPS.map(g=>({key:g.settingsKey,value:JSON.stringify({...collect(g.containerId),qr:_qrCollect(g.qrContainerId)}),updated_at:now}));
   try{ const {error}=await sb.from('site_settings').upsert(rows,{onConflict:'key'}); if(error)throw error;
     await loadBizDefaults();
-    const st=document.getElementById('bizDocStatus'); if(st){st.textContent='Saved ✓';setTimeout(function(){st.textContent='';},2500);} toast('Document settings saved');
+    const st=document.getElementById('bizDocStatus'); if(st){st.textContent='Saved ✓';setTimeout(function(){st.textContent='';},2500);} toast('Template saved');
   }catch(e){ toast('Error: '+e.message,'error'); }
 }
 async function loadBizDefaults(){
@@ -3468,15 +3567,6 @@ async function saveBizDefaults(){
   await loadBizDefaults();
   const msg=document.getElementById('defaultsSavedMsg'); if(msg){ msg.style.display='inline'; setTimeout(()=>msg.style.display='none',2500); }
   toast('Defaults saved');
-}
-function saveBizSettings(){
-  const g=id=>(document.getElementById(id)?.value.trim()||'');
-  const cfg={name:g('cfg_name'),addr:g('cfg_addr'),gstin:g('cfg_gstin'),pan:g('cfg_pan'),phone:g('cfg_phone'),email:g('cfg_email'),web:g('cfg_web'),footer:g('cfg_footer'),
-    bankHolder:g('cfg_bank_holder'),bankName:g('cfg_bank_name'),bankBranch:g('cfg_bank_branch'),bankAcc:g('cfg_bank_acc'),bankIfsc:g('cfg_bank_ifsc'),dueDays:g('cfg_due_days')};
-  localStorage.setItem(BIZ_SETTINGS_KEY,JSON.stringify(cfg));
-  const msg=document.getElementById('settingsSavedMsg');
-  msg.style.display='inline';
-  setTimeout(()=>msg.style.display='none',2500);
 }
 
 // ── Helpers ────────────────────────────────────────────────
@@ -10461,6 +10551,16 @@ async function printInvoice(d, type, docKind){
   // Quotation reuses every doc field's OWN toggle group (docQuo, set in Settings ->
   // Document Settings -> Quotation) instead of Invoice's, same shared template though.
   const docField=k=>isQuote?docQuo(k):docInv(k);
+  const qrGroup=isQuote?'quotation':isRecord?'record':'invoice';
+  const QR_PX={small:60,medium:90,large:130};
+  function qrImgFor(position){
+    const qr=(_docCfg[qrGroup]||{}).qr||{};
+    const qrOn=isQuote?docQuo('upi_qr'):isRecord?docRec('upi_qr'):docInv('upi_qr');
+    if(!qrOn||!qr.url) return '';
+    if((qr.position||'bank')!==position) return '';
+    const px=QR_PX[qr.size]||QR_PX.small;
+    return `<img src="${esc(qr.url)}" alt="Payment QR" style="width:${px}px;height:${px}px;object-fit:contain;border-radius:6px;border:1px solid #eee">`;
+  }
   const cfg=getBizSettings();
   const SELLER_NAME=cfg.name||'TriAkar';
   const SELLER_ADDR=cfg.addr||'';
@@ -10497,7 +10597,8 @@ async function printInvoice(d, type, docKind){
       hrow.taxable+=iamt; hrow.gst+=igst;
     }
     const vline=[it.size,it.color,it.variant].filter(Boolean).join(' · ');
-    const metaBits=[it.sku?'SKU: '+it.sku:'', (!isQuote&&it.hsn_code)?'HSN: '+it.hsn_code:''].filter(Boolean).join('  ·  ');
+    const showHsnMeta=!isQuote&&it.hsn_code&&(!isRecord||docRec('hsn'));
+    const metaBits=[it.sku?'SKU: '+it.sku:'', showHsnMeta?'HSN: '+it.hsn_code:''].filter(Boolean).join('  ·  ');
     const nameCell=`<strong>${esc(it.product_name||'—')}</strong>${vline?`<div class="item-sub">${esc(vline)}</div>`:''}${it.remarks?`<div class="item-sub" style="font-style:italic">${esc(it.remarks)}</div>`:''}${metaBits?`<div class="item-sub" style="color:#999">${esc(metaBits)}</div>`:''}${idisc>0?`<div class="item-sub" style="color:#c0392b">Discount −₹${idisc.toFixed(2)}</div>`:''}`;
     if(isQuote){
       return `<tr>
@@ -10521,6 +10622,9 @@ async function printInvoice(d, type, docKind){
   const taxable=subtotal;
   const gstRate=(hasGst&&taxable>0)?Math.round(gstAmt/taxable*100):(parseFloat(d.gst_rate)||0);
   const isIntraState=!d.customer_state||d.customer_state.trim().toLowerCase()===MY_STATE.toLowerCase();
+  const showCustName=isQuote?docQuo('customer_name'):isRecord?docRec('customer'):true;
+  const showCustContact=isQuote?docQuo('customer_name'):isRecord?docRec('customer'):docInv('shipping_address');
+  const showCustGstin=isQuote?showCustContact:isRecord?showCustContact:docInv('customer_gstin');
   const docNo=isRecord?(d.order_id||nextDocNumber()):isQuote?(d.quotation_number||genQuotationNumber()):await allocateInvoiceNumber(d.id||d.sale_id||null, d.order_id||null, docKind||'invoice', (d.invoice_no||'').trim()||null);
   const docDate=d.order_date||today();
   const dueDateObj=new Date(docDate+'T00:00:00'); dueDateObj.setDate(dueDateObj.getDate()+DUE_DAYS);
@@ -10562,7 +10666,7 @@ async function printInvoice(d, type, docKind){
     }
   }
 
-  const gstBlock=(!isRecord&&hasGst&&docInv('gst_breakup'))?`
+  const gstBlock=(!isRecord&&hasGst&&(isQuote||docInv('gst_breakup')))?`
     <tr><td colspan="3" style="text-align:right;color:#999;font-size:12px;padding:5px 14px;border:none">Taxable Amount</td><td style="text-align:right;padding:5px 14px;border:none">₹${taxable.toFixed(2)}</td></tr>
     ${isIntraState
       ?`<tr><td colspan="3" style="text-align:right;color:#999;font-size:12px;padding:4px 14px;border:none">CGST @ ${gstRate/2}%</td><td style="text-align:right;padding:4px 14px;border:none">₹${(gstAmt/2).toFixed(2)}</td></tr>
@@ -10662,7 +10766,7 @@ tbody tr:last-child td{border-bottom:none}
 <div class="hdr"${isQuote?' style="flex-direction:column;align-items:stretch;gap:14px"':''}>
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px">
   <div class="hdr-logo">
-    ${isQuote?'':'<svg class="mark-svg" xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 54 54"><defs><clipPath id="mc"><rect width="54" height="54" rx="10"/></clipPath></defs><rect width="54" height="27" fill="#C4622A" clip-path="url(#mc)"/><rect y="27" width="54" height="27" fill="#252320" clip-path="url(#mc)"/><circle cx="27" cy="27" r="17" fill="#F4F2EC"/><text x="27" y="27" text-anchor="middle" dominant-baseline="central" font-family="Noto Sans Devanagari,Mangal,Arial Unicode MS,sans-serif" font-size="14" font-weight="700" fill="#C4622A">त्रि</text></svg>'}
+    ${(isQuote||(!isRecord&&!docInv('logo')))?'':'<svg class="mark-svg" xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 54 54"><defs><clipPath id="mc"><rect width="54" height="54" rx="10"/></clipPath></defs><rect width="54" height="27" fill="#C4622A" clip-path="url(#mc)"/><rect y="27" width="54" height="27" fill="#252320" clip-path="url(#mc)"/><circle cx="27" cy="27" r="17" fill="#F4F2EC"/><text x="27" y="27" text-anchor="middle" dominant-baseline="central" font-family="Noto Sans Devanagari,Mangal,Arial Unicode MS,sans-serif" font-size="14" font-weight="700" fill="#C4622A">त्रि</text></svg>'}
     <div>
       <div class="brand-en"><span class="b-tri">TRI</span><span class="b-akar">AKAR</span></div>
       <div class="brand-hi"${isQuote?' style="font-size:14.85px"':''}><span style="color:#C4622A">त्रि</span><span style="color:#111">आकार</span></div>
@@ -10670,31 +10774,32 @@ tbody tr:last-child td{border-bottom:none}
   </div>
   <div class="hdr-doc">
     <div class="doc-type">${docTitle}</div>
-    ${isQuote?'':`<div class="doc-no">${esc(docNo)}</div>`}
-    <div class="doc-meta">${isQuote?`Date: ${esc(docDate)}`:`Order Date: ${esc(docDate)}<br>Complete Date: ${d.delivery_date?esc(d.delivery_date):'—'}`}${(isQuote&&d.validity_date)?`<br>Valid Until: ${esc(d.validity_date)}`:''}${(!isRecord&&docField('due_date'))?`<br>Due Date: ${esc(dueDateStr)}`:''}</div>
+    ${(isQuote&&docQuo('business_identity'))?'':`<div class="doc-no">${esc(docNo)}</div>`}
+    <div class="doc-meta">${isQuote?`Date: ${esc(docDate)}`:`Order Date: ${esc(docDate)}<br>Complete Date: ${d.delivery_date?esc(d.delivery_date):'—'}`}${(isQuote&&docQuo('validity_period')&&d.validity_date)?`<br>Valid Until: ${esc(d.validity_date)}`:''}${(!isRecord&&docField('due_date'))?`<br>Due Date: ${esc(dueDateStr)}`:''}</div>
     <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;margin-top:5px">
       ${d.channel_id?`<div class="doc-badge">${esc(CH_NAMES?.[d.channel_id]||d.channel_id)}</div>`:''}
     </div>
+    ${qrImgFor('header')?`<div style="margin-top:8px">${qrImgFor('header')}</div>`:''}
   </div>
   </div>
-  ${isQuote?`<div class="seller-strip" style="margin-bottom:0">
+  ${(isQuote&&docQuo('business_identity'))?`<div class="seller-strip" style="margin-bottom:0">
     <div class="seller-name">TriAkar Form${docNo?' &nbsp;·&nbsp; <span style="font-weight:400;color:#666;font-family:\'Courier New\',monospace">'+esc(docNo)+'</span>':''}</div>
     <div class="seller-detail">${[
       SELLER_WEB,
-      (docInv('gstin')&&SELLER_GSTIN)?'GSTIN: '+SELLER_GSTIN:'',
+      (docQuo('gstin')&&SELLER_GSTIN)?'GSTIN: '+SELLER_GSTIN:'',
       SELLER_PHONE,SELLER_EMAIL
     ].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ')}</div>
-    ${(SELLER_ADDR&&docInv('business_address'))?`<div class="seller-detail" style="margin-top:2px">${esc(SELLER_ADDR)}</div>`:''}
+    ${SELLER_ADDR?`<div class="seller-detail" style="margin-top:2px">${esc(SELLER_ADDR)}</div>`:''}
   </div>`:''}
 </div>
 
 <div class="body">
 
-${(!isQuote&&(SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE))?`
+${(!isQuote&&(isRecord||docInv('business_address')||docInv('gstin'))&&(SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE))?`
 <div class="seller-strip">
-  <div class="seller-name">${esc(SELLER_NAME)}${SELLER_ADDR&&docInv('business_address')?' &nbsp;·&nbsp; <span style="font-weight:400;color:#666">'+esc(SELLER_ADDR)+'</span>':''}</div>
+  <div class="seller-name">${esc(SELLER_NAME)}${SELLER_ADDR&&(isRecord||docInv('business_address'))?' &nbsp;·&nbsp; <span style="font-weight:400;color:#666">'+esc(SELLER_ADDR)+'</span>':''}</div>
   <div class="seller-detail">${[
-    (docInv('gstin')&&SELLER_GSTIN)?'GSTIN: '+SELLER_GSTIN:'',
+    ((isRecord||docInv('gstin'))&&SELLER_GSTIN)?'GSTIN: '+SELLER_GSTIN:'',
     SELLER_PAN?'PAN: '+SELLER_PAN:'',
     SELLER_PHONE,SELLER_EMAIL,SELLER_WEB
   ].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ')}</div>
@@ -10703,10 +10808,10 @@ ${(!isQuote&&(SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE))?`
 <div class="customer-box">
   <div class="cust-left">
     <div class="section-lbl">Prepared for</div>
-    ${d.customer_name?`<div class="cust-name">${esc(d.customer_name)}</div>`:''}
+    ${(showCustName)&&d.customer_name?`<div class="cust-name">${esc(d.customer_name)}</div>`:''}
     <div class="cust-detail">
-      ${docInv('shipping_address')?`${d.customer_phone?esc(d.customer_phone)+'<br>':''}${d.customer_address?esc(d.customer_address)+'<br>':''}${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' &mdash; '+esc(d.customer_pincode):''}`:''}
-      ${d.customer_gstin?`<br>GSTIN: ${esc(d.customer_gstin)}`:''}
+      ${showCustContact?`${d.customer_phone?esc(d.customer_phone)+'<br>':''}${d.customer_address?esc(d.customer_address)+'<br>':''}${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' &mdash; '+esc(d.customer_pincode):''}`:''}
+      ${showCustGstin&&d.customer_gstin?`<br>GSTIN: ${esc(d.customer_gstin)}`:''}
     </div>
   </div>
 </div>
@@ -10744,9 +10849,12 @@ ${(!isQuote&&(SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE))?`
 ${hsnSummaryHtml}
 ${isQuote?'<div class="divider"></div>':''}
 
-${(!isRecord&&docField('bank_details')&&(SELLER_BANK.acc||SELLER_BANK.ifsc))?`
-<div class="info-strip">
-  <div class="info-card">
+${(()=>{
+  const hasBankBlock=(!isRecord&&docField('bank_details')&&(SELLER_BANK.acc||SELLER_BANK.ifsc));
+  const bankQr=qrImgFor('bank');
+  if(!hasBankBlock&&!bankQr) return '';
+  return `<div class="info-strip">
+  ${hasBankBlock?`<div class="info-card">
     <div class="info-lbl">Bank Account Details</div>
     <div class="info-val">${[
       SELLER_BANK.holder?esc(SELLER_BANK.holder):'',
@@ -10754,24 +10862,29 @@ ${(!isRecord&&docField('bank_details')&&(SELLER_BANK.acc||SELLER_BANK.ifsc))?`
       SELLER_BANK.acc?'A/c No: '+esc(SELLER_BANK.acc):'',
       SELLER_BANK.ifsc?'IFSC: '+esc(SELLER_BANK.ifsc):''
     ].filter(Boolean).join('<br>')}</div>
-  </div>
-  ${isQuote?`<div class="info-card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
-    <div class="info-lbl" style="margin-bottom:0">Scan to Pay</div>
-    <div style="width:70px;height:70px;border:1.5px dashed #ddd;border-radius:6px"></div>
   </div>`:''}
-</div>`:''}
+  ${bankQr?`<div class="info-card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
+    <div class="info-lbl" style="margin-bottom:0">Scan to Pay</div>
+    ${bankQr}
+  </div>`:''}
+</div>`;
+})()}
 
-${(isQuote&&docQuo('terms_notes')&&d.terms_notes)?`
-<div class="info-strip" style="display:flex;align-items:flex-end;gap:16px">
-  <div class="info-card" style="flex:1 1 auto">
+${(()=>{
+  const showTerms=isQuote&&docQuo('terms_notes')&&d.terms_notes;
+  const showSig=isQuote&&docQuo('signature');
+  if(!showTerms&&!showSig) return '';
+  return `<div class="info-strip" style="display:flex;align-items:flex-end;gap:16px">
+  ${showTerms?`<div class="info-card" style="flex:1 1 auto">
     <div class="info-lbl">Terms &amp; Conditions</div>
     <div class="info-val" style="white-space:pre-wrap;font-size:10px">${esc(d.terms_notes)}</div>
-  </div>
-  <div style="text-align:right;font-size:11px;color:#777;white-space:nowrap;padding-bottom:2px">
+  </div>`:'<div style="flex:1 1 auto"></div>'}
+  ${showSig?`<div style="text-align:right;font-size:11px;color:#777;white-space:nowrap;padding-bottom:2px">
     For ${esc(SELLER_NAME)}
     <div style="margin-top:30px;border-top:1px solid #ccc;width:150px;padding-top:4px">Authorised Signatory</div>
-  </div>
-</div>`:''}
+  </div>`:''}
+</div>`;
+})()}
 
 ${(!isQuote&&((!isRecord&&(d.payment_mode||d.package_size||d.weight_grams))||((!isRecord||docRec('courier_tracking'))&&(d.tracking_number||d.courier_partner))))?`
 <div class="info-strip">
@@ -10792,6 +10905,7 @@ ${internalDetailsHtml}
 
 </div>
 
+${qrImgFor('footer')?`<div style="padding:12px 32px 0;text-align:center">${qrImgFor('footer')}</div>`:''}
 ${(!isQuote&&!isRecord&&docInv('reprint_note'))?`<div style="padding:12px 32px 0;font-size:11px;color:#777">★ 7-Day Reprint Guarantee, any print defect reprinted free within 7 days.</div>`:''}
 ${(!isQuote&&!isRecord&&docInv('signature'))?`<div style="padding:26px 32px 4px;text-align:right;font-size:11px;color:#777">For ${esc(SELLER_NAME)}<div style="margin-top:30px;border-top:1px solid #ccc;width:170px;margin-left:auto;padding-top:4px">Authorised Signatory</div></div>`:''}
 <div class="footer-band">

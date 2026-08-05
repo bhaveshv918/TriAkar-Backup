@@ -52,7 +52,7 @@ router.get('/products/:id/prompt-history',     getProductPromptHistory);
 // Optional ?folder= lets callers (e.g. the Stories editor) route into their own
 // Cloudinary folder instead of the default product one; only a small fixed allowlist
 // is accepted so this can't be used to write arbitrary paths into the Cloudinary account.
-const UPLOAD_FOLDERS = ['triakar/products', 'triakar/stories'];
+const UPLOAD_FOLDERS = ['triakar/products', 'triakar/stories', 'triakar/business'];
 router.post('/upload-image', upload.single('image'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No image file provided' });
