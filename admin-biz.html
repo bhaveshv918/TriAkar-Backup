@@ -3790,7 +3790,7 @@ const NAV_CONFIG = [
     items: [
       { id: 'products',     label: 'Products',      icon: '▦', shortcut: 'w', badge: 'prodCount' },
       { id: 'stock',        label: 'Stock',          icon: '◫', shortcut: 'k' },
-      { id: 'spooltracker', label: 'Spool Tracker',  icon: '🧵', shortcut: 'u' },
+      { id: 'spooltracker', label: 'Spool Tracker',  icon: '🧵', shortcut: 'f' },
       { id: 'machinery',    label: 'Machinery',      icon: '🖨', shortcut: 'n' },
       { id: 'rack',         label: 'Rack / Shelf',   icon: '🗄' }, // no shortcut assigned
     ]
@@ -3808,12 +3808,12 @@ const NAV_CONFIG = [
       { id: 'gstportal', label: 'GST Portal',        icon: '⏷', group: 'Tax & Filing' },
       { id: 'gstauto',   label: 'GSTR-1 Auto-File',  icon: '⚙', shortcut: 'g', group: 'Tax & Filing' },
       { id: 'invoicing', label: 'Invoicing',         icon: '▤', shortcut: 'i', group: 'Tax & Filing' },
-      { id: 'fees',      label: 'Fees & Costs',      icon: '₹', shortcut: 'f', group: 'Money' },
+      { id: 'fees',      label: 'Fees & Costs',      icon: '₹', shortcut: 'u', group: 'Money' },
       { id: 'expenses',  label: 'Expenses',          icon: '▤', shortcut: 'e', group: 'Money' },
       { id: 'ledger',    label: 'Money In/Out',      icon: '⇄', shortcut: 'm', group: 'Money' },
       { id: 'purchases', label: 'Purchases',         icon: '▣', shortcut: 'p', group: 'Money' },
       { id: 'balance',   label: 'Balance Sheet',     icon: '⚖', shortcut: 'b', group: 'Money' },
-      { id: 'returns',   label: 'Returns & Claims',  icon: '↩', shortcut: 'r', badge: 'returnCount', group: 'Operations' },
+      { id: 'returns',   label: 'Returns & Claims',  icon: '↩', shortcut: 'v', badge: 'returnCount', group: 'Operations' },
       { id: 'reports',   label: 'Reports & Export',  icon: '↗', shortcut: 'x', group: 'Operations' },
       { id: 'shoplog',   label: 'Studio Hours',      icon: '🕒', shortcut: 'h', group: 'Operations' },
     ]
@@ -11688,7 +11688,7 @@ document.addEventListener('keydown',function(ev){
   if(fn){ ev.preventDefault(); fn(); }
 });
 
-// One-letter tab jump, S=Spool, P=Products, C=Customers, etc. Skipped while typing in a
+// One-letter tab jump (letters shown in the header dropdowns/Ctrl+K palette). Skipped while typing in a
 // field, while a modal/form is open (so the letter isn't hijacked mid-task), or combined
 // with Ctrl/Cmd/Alt. Respects staff tab restrictions (won't jump to a tab they don't have).
 // Derived from NAV_CONFIG (the single source of truth), not hardcoded, so a
@@ -11724,20 +11724,28 @@ document.addEventListener('keydown',function(ev){
   ev.preventDefault(); switchTab(tab);
 });
 
-// Space, focus the global search. Unlike the letter keys above, space has a
-// native action on lots of focused elements (activates a button, ticks a
-// checkbox, scrolls the page), so this also skips buttons/links/custom
-// tabindex controls, not just typing fields. No-op below 768px: the top-bar
-// search is hidden there (.biz-tb-search{display:none}) and the sidebar's
-// own copy lives in .sb-header, which is ALSO hidden on mobile (title moved
-// to the top bar), so there's nowhere real to send focus, plain space keeps
-// scrolling instead.
+// R, refresh the current tab (same as clicking the header ⟳ button). Freed from
+// NAV_CONFIG (Returns & Claims moved to 'v') so plain R always means refresh,
+// never a tab jump.
+document.addEventListener('keydown',function(ev){
+  if(ev.key!=='r'&&ev.key!=='R') return;
+  if(ev.ctrlKey||ev.metaKey||ev.altKey) return;
+  const tag=(document.activeElement&&document.activeElement.tagName||'').toLowerCase();
+  if(tag==='input'||tag==='textarea'||tag==='select'||(document.activeElement&&document.activeElement.isContentEditable)) return;
+  if(bizAnyModalOpen()) return;
+  ev.preventDefault(); refreshCurrentBizTab();
+});
+
+// Ctrl/Cmd+Space, focus the global search. Used to be plain Space, but that
+// collided with space's native action on lots of focused elements (activates a
+// button, ticks a checkbox, scrolls the page); requiring the modifier makes it an
+// unambiguous shortcut instead. No-op below 768px: the top-bar search is hidden
+// there (.biz-tb-search{display:none}) and the sidebar's own copy lives in
+// .sb-header, which is ALSO hidden on mobile (title moved to the top bar), so
+// there's nowhere real to send focus.
 document.addEventListener('keydown',function(ev){
   if(ev.code!=='Space'||ev.repeat) return;
-  if(ev.ctrlKey||ev.metaKey||ev.altKey) return;
-  const el=document.activeElement, tag=(el&&el.tagName||'').toLowerCase();
-  if(tag==='input'||tag==='textarea'||tag==='select'||tag==='button'||tag==='a'||(el&&el.isContentEditable)) return;
-  if(el&&typeof el.closest==='function'&&el.closest('[role="button"],[role="link"],[tabindex]')) return;
+  if(!(ev.ctrlKey||ev.metaKey)||ev.altKey) return;
   if(bizAnyModalOpen()) return;
   const top=document.getElementById('bizSearchTop');
   if(!top||top.offsetParent===null) return;
