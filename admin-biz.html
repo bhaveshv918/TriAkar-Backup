@@ -172,7 +172,7 @@ body.privacy-mode .chart-box canvas{filter:blur(7px);pointer-events:none}
 .tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-1);box-shadow:var(--shadow)}
 table{width:100%;border-collapse:collapse}
 th{background:var(--bg-2);padding:8px 12px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);white-space:nowrap;border-bottom:1px solid var(--border)}
-td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-2);vertical-align:middle}
+td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:var(--bg-2)}
 /* Shared "this row needs attention" convention, red-tinted row background, used
@@ -2163,13 +2163,17 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>Reviewed?</label><select id="cm_reviewed"><option value="0">No</option><option value="1">Yes</option></select></div>
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="cm_notes"></div>
         </div>
-        <!-- All of this customer's orders/sales, matched by name (same matching this
-             panel already uses to roll up spent/orders/dates from biz_sales). -->
+        <!-- This customer's full account history, matched by name (same matching this
+             panel already uses to roll up spent/orders/dates from biz_sales): every
+             order placed AND every payment received, merged into one chronological
+             timeline, "kab order aya, kab paisa aya" in one place instead of having
+             to cross-reference two separate tabs. -->
         <div id="cmOrdersSection" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:8px">All Orders <span id="cmOrdersCount" style="font-weight:400;color:var(--text-3)"></span></div>
-          <div class="tbl-wrap" style="max-height:260px;overflow-y:auto">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:8px">Account History <span id="cmOrdersCount" style="font-weight:400;color:var(--text-3)"></span></div>
+          <div id="cmAcctSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:10px"></div>
+          <div class="tbl-wrap" style="max-height:300px;overflow-y:auto">
             <table>
-              <thead><tr><th>Date</th><th>Channel</th><th>Item</th><th class="td-num">Amount</th><th>Status</th></tr></thead>
+              <thead><tr><th>Date</th><th>Event</th><th>Detail</th><th class="td-num">Amount</th><th></th></tr></thead>
               <tbody id="cmOrdersBody"><tr><td colspan="5" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
             </table>
           </div>
@@ -3572,6 +3576,31 @@ async function saveBizDefaults(){
 
 // ── Helpers ────────────────────────────────────────────────
 function esc(s){ return (s==null)?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// Copy-to-clipboard, one-click Order ID copy wherever an order is listed (Today's
+// Tasks, All Sales, Order Detail, Returns & Claims, Invoicing). Falls back to the
+// old execCommand trick if the async Clipboard API isn't available (non-HTTPS/older
+// browser), so the button still works either way.
+function copyOrderId(oid,ev){
+  if(ev){ ev.stopPropagation(); ev.preventDefault(); }
+  if(!oid) return;
+  const done=()=>toast('Order ID copied');
+  const fallback=()=>{
+    const ta=document.createElement('textarea'); ta.value=oid; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); done(); }catch(_){ toast('Copy failed','error'); }
+    document.body.removeChild(ta);
+  };
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(oid).then(done).catch(fallback);
+  else fallback();
+}
+// Renders "#<order id>" with a small inline copy button, same shape everywhere it's used.
+function orderIdTag(oid,opts){
+  if(!oid) return '';
+  opts=opts||{};
+  const safe=esc(oid), jsSafe=safe.replace(/'/g,"\\'");
+  const size=opts.size||'9px';
+  return `<span style="display:inline-flex;align-items:center;gap:4px;color:${opts.color||'var(--text-3)'};font-size:${size};font-family:var(--mono)">#${safe}<button type="button" class="btn-copy-oid" onclick="copyOrderId('${jsSafe}',event)" title="Copy Order ID" style="background:none;border:none;cursor:pointer;color:inherit;padding:0;line-height:1;font-size:1.1em;opacity:.7">⧉</button></span>`;
+}
 function fmt(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function fmtD(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 // GST periods are stored/keyed as "YYYY-MM" everywhere (comparisons, API calls, filenames),
@@ -5995,30 +6024,60 @@ function fillCustomerModal(c){
   document.getElementById('customerModal').style.display='block';
   const ordSec=document.getElementById('cmOrdersSection');
   if(ordSec){
-    if(c&&c.name){ ordSec.style.display='block'; loadCustomerOrders(c.name); }
+    if(c&&c.name){ ordSec.style.display='block'; loadCustomerHistory(c); }
     else ordSec.style.display='none';
   }
 }
-async function loadCustomerOrders(name){
+// Merges every order this customer placed with every payment logged against those
+// orders into one date-sorted timeline ("kab order aya, kab paisa aya" in one view),
+// plus a Spent/Received/Due summary strip using the same totals the Customers list
+// already computes (loadCustomers' c.spent/received/due/advance).
+async function loadCustomerHistory(c){
+  const name=c.name;
   const body=document.getElementById('cmOrdersBody'), countEl=document.getElementById('cmOrdersCount');
+  const sumEl=document.getElementById('cmAcctSummary');
   if(!body) return;
+  if(sumEl){
+    const tiles=[
+      {label:'Total Spent',val:fmt(c.spent||0),color:'var(--text)'},
+      {label:'Received',val:fmt(c.received||0),color:'var(--green)'},
+    ];
+    if(c.due>0) tiles.push({label:'Due',val:fmt(c.due),color:'var(--red)'});
+    if(c.advance>0) tiles.push({label:'Advance',val:fmt(c.advance),color:'var(--blue)'});
+    sumEl.innerHTML=tiles.map(t=>`<div style="background:var(--bg-2);border-radius:var(--radius);padding:8px 10px"><div style="font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">${t.label}</div><div style="font-family:var(--mono);font-weight:700;font-size:13px;color:${t.color}">${t.val}</div></div>`).join('');
+  }
   const {data,error}=await sb.from('biz_sales').select('id,order_id,order_date,channel_id,product_name,sku,selling_price,status,qty')
     .eq('is_deleted',false).ilike('customer_name',name).order('order_date',{ascending:false}).limit(200);
   if(error||!data||!data.length){ body.innerHTML='<tr><td colspan="5" class="empty"><div class="em-text">No orders found</div></td></tr>'; if(countEl) countEl.textContent=''; return; }
   const gmap={},groups=[];
   data.forEach(s=>{ const k=s.order_id?('o:'+s.order_id):('r:'+s.id); if(!gmap[k]){gmap[k]={items:[]};groups.push(gmap[k]);} gmap[k].items.push(s); });
   if(countEl) countEl.textContent='('+groups.length+' order'+(groups.length===1?'':'s')+')';
-  body.innerHTML=groups.map(g=>{
+  const orderIds=[...new Set(data.map(s=>s.order_id).filter(Boolean))];
+  let payRows=[];
+  if(orderIds.length){ const {data:pd}=await sb.from('biz_sale_payments').select('order_id,amount,payment_date,source,notes').in('order_id',orderIds); payRows=pd||[]; }
+  const events=[];
+  groups.forEach(g=>{
     const f=g.items[0], total=g.items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
     const more=g.items.length>1?` +${g.items.length-1} more`:'';
-    return `<tr style="cursor:pointer" onclick="closeCustomerModal();switchTab('sales');setTimeout(()=>openOrderDetail('${f.id}'),150)">
+    events.push({date:f.order_date,type:'order',sortKey:f.order_date+' 0',row:`<tr style="cursor:pointer" onclick="closeCustomerModal();switchTab('sales');setTimeout(()=>openOrderDetail('${f.id}'),150)">
       <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(f.order_date)}</td>
-      <td>${chHtml(f.channel_id)}</td>
-      <td>${esc(f.sku||f.product_name||'—')}${more}</td>
+      <td><span class="badge" style="background:var(--accent-bg);color:var(--accent)">Order</span></td>
+      <td>${chHtml(f.channel_id)} ${esc(f.sku||f.product_name||'—')}${more}${f.order_id?orderIdTag(f.order_id,{size:'10px'}):''}</td>
       <td class="td-num">${fmt(total)}</td>
       <td><span class="badge badge-${f.status}">${STATUS_LABEL?.[f.status]||f.status}</span></td>
-    </tr>`;
-  }).join('');
+    </tr>`});
+  });
+  payRows.forEach(p=>{
+    events.push({date:p.payment_date,type:'payment',sortKey:p.payment_date+' 1',row:`<tr>
+      <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(p.payment_date)}</td>
+      <td><span class="badge" style="background:var(--green-bg);color:var(--green)">Payment</span></td>
+      <td>${esc(p.source||'—')}${p.notes?' · '+esc(p.notes):''}${orderIdTag(p.order_id,{size:'10px'})}</td>
+      <td class="td-num" style="color:var(--green)">+${fmt(p.amount)}</td>
+      <td></td>
+    </tr>`});
+  });
+  events.sort((a,b)=>b.sortKey.localeCompare(a.sortKey));
+  body.innerHTML=events.length?events.map(e=>e.row).join(''):'<tr><td colspan="5" class="empty"><div class="em-text">No orders found</div></td></tr>';
 }
 function closeCustomerModal(){ const m=document.getElementById('customerModal'); if(m) m.style.display='none'; }
 async function saveCustomer(){
@@ -6396,7 +6455,7 @@ async function loadOpenOrders(){
 
   const skuItemCol=(f,more)=>{
     const line=f.sku?`<div style="font-family:var(--mono);font-weight:600">${esc(f.sku)}</div><div style="color:var(--text-3);font-size:10px">${esc(f.product_name||'—')}</div>`:esc(f.product_name||'—');
-    const orderIdLine=f.order_id?`<div style="color:var(--text-3);font-size:9px;font-family:var(--mono)">#${esc(f.order_id)}</div>`:'';
+    const orderIdLine=orderIdTag(f.order_id);
     return line+orderIdLine+(more?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">${more}</span>`:'');
   };
 
@@ -7306,7 +7365,7 @@ async function loadSales(){
       :esc(f.product_name||'—');
     // Round 3, Order ID visible but minimal (doesn't take extra space, needed for
     // find-in-page / matching against platform dashboards).
-    const orderIdLine=f.order_id?`<div style="color:var(--text-3);font-size:9px;font-family:var(--mono)">#${esc(f.order_id)}</div>`:'';
+    const orderIdLine=orderIdTag(f.order_id);
     const giftBadge=f.is_gift?` <span title="Gift, ₹0 revenue, cost logged as a Marketing expense">🎁</span>`:'';
     const itemCol=thumb+`<span style="display:inline-block;vertical-align:middle">${skuLine}${giftBadge}${orderIdLine}${items.length>1?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">+${items.length-1} more</span>`:''}${orderAlertBadge(f)}</span>`;
     const breached=daysPastPromiseNotCompleted(f)!=null;
@@ -7410,7 +7469,7 @@ function renderOrderDetail(items){
     </tr>`; }).join('');
   return `<div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;border-top:2px solid var(--accent)">
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:11px">
-      ${F('Order ID',esc(f.order_id||'—'))}
+      ${F('Order ID',f.order_id?orderIdTag(f.order_id,{size:'12px',color:'var(--text)'}):'—')}
       ${F('Record ID <span style="text-transform:none;font-weight:400">(internal tracking)</span>',f.record_id?`<span style="font-family:var(--mono);color:var(--text-3)">${esc(f.record_id)}</span>`:'')}
       ${F('Invoice No <span style="text-transform:none;font-weight:400">(platform, not GST series)</span>',f.invoice_no?esc(f.invoice_no):'')}
       ${F('Date',fmtDay(f.order_date)+(f.order_time?' · '+esc(f.order_time):''))}
@@ -8445,7 +8504,7 @@ function renderAttempts(){
     const printer=_printers.find(p=>p.id===a.printer_id);
     return `<tr>
       <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(a.created_at)}</td>
-      <td style="font-family:var(--mono);font-size:11px">${esc(a.order_id||'—')}</td>
+      <td style="font-family:var(--mono);font-size:11px">${a.order_id?orderIdTag(a.order_id,{size:'11px'}):'—'}</td>
       <td>${esc(printer?printer.name:'—')}</td>
       <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(ATTEMPT_REASON_LABEL[a.reason]||a.reason||'—')}</span></td>
       <td style="font-size:12px">${esc(a.note||'—')}</td>
@@ -8594,8 +8653,8 @@ async function loadReturns(){
     // from the matching sale by order_id (biz_returns itself has no product column).
     const sale=r.order_id&&Array.isArray(_salesCache)?_salesCache.find(s=>s.order_id===r.order_id):null;
     const prodCol=sale
-      ?`${sale.sku?`<div style="font-family:var(--mono);font-weight:600">${esc(sale.sku)}</div>`:''}<div style="color:${sale.sku?'var(--text-3)':'var(--text)'};font-size:${sale.sku?'10px':'12px'}">${esc(sale.product_name||'—')}</div><div style="color:var(--text-3);font-size:9px;font-family:var(--mono)">#${esc(r.order_id||'')}</div>`
-      :`<span style="color:var(--text-3);font-family:var(--mono);font-size:11px">${esc(r.order_id||'—')}</span>`;
+      ?`${sale.sku?`<div style="font-family:var(--mono);font-weight:600">${esc(sale.sku)}</div>`:''}<div style="color:${sale.sku?'var(--text-3)':'var(--text)'};font-size:${sale.sku?'10px':'12px'}">${esc(sale.product_name||'—')}</div>${orderIdTag(r.order_id)}`
+      :(r.order_id?orderIdTag(r.order_id,{size:'11px'}):`<span style="color:var(--text-3)">—</span>`);
     return `<tr>
     <td style="font-family:var(--mono);font-size:11px">${esc(r.date||'')}</td>
     <td>${chHtml(r.channel_id)}</td>
@@ -9353,7 +9412,7 @@ async function loadInvoicing(){
   const rows=data||[];
   tbody.innerHTML=rows.length?rows.map(r=>`<tr>
     <td style="font-family:var(--mono);font-weight:600">${esc(r.invoice_number)}</td>
-    <td style="font-family:var(--mono);font-size:11px">${esc(r.order_id||'—')}</td>
+    <td style="font-family:var(--mono);font-size:11px">${r.order_id?orderIdTag(r.order_id,{size:'11px'}):'—'}</td>
     <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${r.doc_kind==='record'?'Record':'Invoice'}</span></td>
     <td style="font-family:var(--mono);font-size:11px">${fmtDay(r.generated_at)}</td>
     <td class="td-actions" style="white-space:nowrap">${r.order_id?`<button class="btn btn-ghost btn-sm" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${esc(r.order_id)}';loadSales();}},300)">↗ Order</button>`:''} <button class="btn btn-ghost btn-sm" onclick="editInvoiceLog('${r.id}','${esc(r.invoice_number)}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteInvoiceLog('${r.id}','${esc(r.invoice_number)}')">✕</button></td>
@@ -9840,7 +9899,7 @@ function openDashDrilldown(key){
   const titleEl=document.getElementById('dashDrilldownTitle'), bodyEl=document.getElementById('dashDrilldownBody');
   const modal=document.getElementById('dashDrilldown');
   const saleRow=s=>`<tr>
-    <td style="font-family:var(--mono);font-size:11px">${esc(s.order_id||'—')}</td>
+    <td style="font-family:var(--mono);font-size:11px">${s.order_id?orderIdTag(s.order_id,{size:'11px'}):'—'}</td>
     <td>${esc(s.customer_name||'—')}</td>
     <td>${esc(s.product_name||'—')}</td>
     <td>${chHtml(s.channel_id)}</td>
@@ -9857,7 +9916,7 @@ function openDashDrilldown(key){
   } else if(key==='returns'){
     titleEl.textContent='Returns / Claims, '+c.label;
     bodyEl.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>Order</th><th>Channel</th><th>Type</th><th>Reason</th><th class="td-num">Loss</th></tr></thead><tbody>${
-      c.rets.length?c.rets.map(r=>`<tr><td style="font-family:var(--mono);font-size:11px">${esc(r.order_id||'—')}</td><td>${chHtml(r.channel_id)}</td><td>${esc(r.type||'')}</td><td style="font-size:12px">${esc(r.reason||'')}</td><td class="td-num">${fmt(r.amount_lost)}</td></tr>`).join(''):'<tr><td colspan="5" class="empty"><div class="em-text">No returns this period</div></div></td></tr>'
+      c.rets.length?c.rets.map(r=>`<tr><td style="font-family:var(--mono);font-size:11px">${r.order_id?orderIdTag(r.order_id,{size:'11px'}):'—'}</td><td>${chHtml(r.channel_id)}</td><td>${esc(r.type||'')}</td><td style="font-size:12px">${esc(r.reason||'')}</td><td class="td-num">${fmt(r.amount_lost)}</td></tr>`).join(''):'<tr><td colspan="5" class="empty"><div class="em-text">No returns this period</div></div></td></tr>'
     }</tbody></table></div>`;
   } else if(key==='filament'){
     titleEl.textContent='Filament Used, '+c.label+' ('+(c.totalGrams/1000).toFixed(3)+' kg)';
@@ -9910,7 +9969,7 @@ function renderDashReturnsRows(){
   const keyOf=row=>({prod:(row.prod||row.r.order_id||'').toLowerCase(),channel:row.r.channel_id||'',type:row.typeLabel.toLowerCase(),reason:(row.r.reason||'').toLowerCase(),loss:row.loss}[key]);
   const rows=_dashReturnsRows.slice().sort((a,b)=>{ const av=keyOf(a),bv=keyOf(b); return av<bv?-1*dir:av>bv?1*dir:0; });
   el.innerHTML=rows.length?rows.map(({r,prod,typeLabel})=>`<tr>
-    <td>${prod?esc(prod):'<span style="color:var(--text-3);font-family:var(--mono);font-size:11px">'+esc(r.order_id||'—')+'</span>'}</td>
+    <td>${prod?esc(prod):(r.order_id?orderIdTag(r.order_id,{size:'11px'}):'<span style="color:var(--text-3)">—</span>')}</td>
     <td>${chHtml(r.channel_id||'shop')}</td>
     <td><span class="badge ${badge(r.status)}">${esc(typeLabel)}</span></td>
     <td>${esc(r.reason||'—')}</td>
