@@ -166,8 +166,12 @@ export async function exportGstCsv(req, res, next) {
 export async function markGstFiled(req, res, next) {
   try {
     const { periodId } = req.params;
+    // IST date, not server-UTC — the Render backend runs in UTC, so a plain
+    // toISOString().slice(0,10) records the previous calendar day for any filing
+    // done between midnight and ~5:30 AM IST.
+    const filed_date = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
     const { error } = await supabase.from('biz_gst_calc_periods')
-      .update({ status: 'filed', filed_date: new Date().toISOString().slice(0, 10) })
+      .update({ status: 'filed', filed_date })
       .eq('id', periodId);
     if (error) throw error;
     logActivity(req.user?.email, 'gst.calc.mark_filed', 'gst_calc_period', periodId, '');

@@ -1464,6 +1464,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-grid">
             <div class="form-group"><label>Quotation No <span style="font-weight:400;color:var(--text-3);font-size:10px">auto, editable</span></label><input type="text" id="qa_qt_number" style="font-family:var(--mono)"></div>
             <div class="form-group"><label>Valid Until</label><input type="date" id="qa_qt_validity"></div>
+            <div class="form-group"><label>Promised Date</label><input type="date" id="qa_qt_promised"></div>
           </div>
           <div class="form-group" style="margin-top:6px">
             <label>Terms &amp; Conditions</label>
@@ -4230,7 +4231,7 @@ async function saveProduct(){
     image_url:document.getElementById('pf_image').value.trim()||null,
   };
   const {error} = id
-    ? await sb.from('biz_products').update(payload).eq('id',id)
+    ? await updateRowResilient('biz_products', id, payload)
     : await sb.from('biz_products').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
   logBizActivity(id?'edit':'create','product',id||sku,name);
@@ -4315,8 +4316,8 @@ async function applySpoolDelta(spoolId, deltaGrams, deltaWaste){
     const nextWaste=Math.max(0,(parseFloat(sp.waste_grams)||0)+(deltaWaste||0));
     const remaining=tot-nextUsed-nextWaste;
     const patch={grams_used:nextUsed, waste_grams:nextWaste};
-    if(!sp.opened_date && (deltaGrams>0||deltaWaste>0)) patch.opened_date=new Date().toISOString().slice(0,10);
-    if(remaining<=0 && sp.status!=='Finsh'){ patch.status='Finsh'; patch.finished_date=new Date().toISOString().slice(0,10); }
+    if(!sp.opened_date && (deltaGrams>0||deltaWaste>0)) patch.opened_date=today();
+    if(remaining<=0 && sp.status!=='Finsh'){ patch.status='Finsh'; patch.finished_date=today(); }
     else if(remaining>0 && sp.status==='Finsh'){ patch.status='Opened'; patch.finished_date=null; }
     await sb.from('filament_inventory').update(patch).eq('id',spoolId);
   }catch(_){}
@@ -4914,11 +4915,11 @@ async function submitQuickAddAsQuotation(){
     customer_name:cname, customer_phone:g('qa_phone'), customer_address:g('qa_address'),
     customer_city:g('qa_city'), customer_state:g('qa_state'), customer_pincode:g('qa_pin'), customer_gstin:g('qa_gstin'),
     items, subtotal:sub, gst_amount:gstAmt, total:sub+gstAmt,
-    validity_date:g('qa_qt_validity'), terms_notes:g('qa_qt_terms'),
+    validity_date:g('qa_qt_validity'), terms_notes:g('qa_qt_terms'), promised_date:g('qa_qt_promised'),
     quotation_number:manualNumber, quotation_date:g('qa_date')||today(),
   };
   if(_qaEditQuotationId){
-    const {error}=await sb.from('biz_quotations').update(payload).eq('id',_qaEditQuotationId);
+    const {error}=await updateRowResilient('biz_quotations', _qaEditQuotationId, payload);
     if(error){ toast('Error: '+error.message,'error'); return; }
     toast('Quotation updated');
   } else {
@@ -5032,15 +5033,22 @@ async function saveEditedOrder(){
     await restoreSpoolsForIds(removedIds);
     await sb.from('biz_sales').update({is_deleted:true}).in('id',removedIds);
   }
+  // Kept rows may have had grams/waste/spool changed in this edit. Restore each row's
+  // OLD filament usage (reading the still-live DB values before they're overwritten
+  // below) so Spool Tracker reflects the NEW values only, not old+new stacked.
+  if(keptIds.length) await restoreSpoolsForIds(keptIds);
   const newRows=[];
+  const editedRows=[];
   for(const x of withIds){
     if(x.rowId){
-      const {error}=await sb.from('biz_sales').update(x.row).eq('id',x.rowId);
+      const {error}=await updateRowResilient('biz_sales', x.rowId, x.row);
       if(error){ toast('Error updating item: '+error.message,'error'); return; }
+      editedRows.push(x.row);
     } else {
       newRows.push(x.row);
     }
   }
+  if(editedRows.length) await deductSpoolsForRows(editedRows);
   if(newRows.length){
     const {error}=await insertSalesResilient(newRows);
     if(error){ toast('Error: '+error.message,'error'); return; }
@@ -5181,6 +5189,22 @@ async function insertRowsResilient(table, rows){
     data=data.map(row=>{ const c={...row}; delete c[bad]; return c; });
   }
   return { error:{ message:table+' insert failed (unknown columns)' } };
+}
+// Same strip-unknown-column-and-retry safety net as insertRowsResilient, but for a
+// single-row UPDATE. Editing an existing order (saveEditedOrder) used a plain .update()
+// with no such retry, so any column the JS writes that the live DB schema hasn't caught
+// up to (e.g. biz_sales.remarks, added in code before its migration existed) hard-failed
+// every edit instead of just dropping that one field like a new order already did.
+async function updateRowResilient(table, id, patch){
+  let data={...patch};
+  for(let i=0;i<6;i++){
+    const r=await sb.from(table).update(data).eq('id',id);
+    if(!r.error) return r;
+    const bad=_extractBadColumn(r.error.message);
+    if(!bad) return r;
+    const c={...data}; delete c[bad]; data=c;
+  }
+  return { error:{ message:table+' update failed (unknown columns)' } };
 }
 async function insertSalesResilient(rows){
   if(rows.length&&rows[0].customer_name){
@@ -5565,7 +5589,7 @@ function editQuotation(id){
     set('qa_cname',q.customer_name); set('qa_phone',q.customer_phone); set('qa_address',q.customer_address);
     set('qa_city',q.customer_city); set('qa_state',q.customer_state); set('qa_pin',q.customer_pincode);
     set('qa_gstin',q.customer_gstin); set('qa_qt_validity',q.validity_date); set('qa_qt_terms',q.terms_notes);
-    set('qa_qt_number',q.quotation_number); set('qa_date',q.quotation_date);
+    set('qa_qt_promised',q.promised_date); set('qa_qt_number',q.quotation_number); set('qa_date',q.quotation_date);
     _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0})) : [blankItem()];
     renderItems();
     renderQaQtTncPresets();
@@ -5585,7 +5609,7 @@ function duplicateQuotation(id){
     set('qa_cname',q.customer_name); set('qa_phone',q.customer_phone); set('qa_address',q.customer_address);
     set('qa_city',q.customer_city); set('qa_state',q.customer_state); set('qa_pin',q.customer_pincode);
     set('qa_gstin',q.customer_gstin); set('qa_qt_validity',q.validity_date); set('qa_qt_terms',q.terms_notes);
-    set('qa_qt_number',genQuotationNumber()); set('qa_date',today());
+    set('qa_qt_promised',q.promised_date); set('qa_qt_number',genQuotationNumber()); set('qa_date',today());
     _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0})) : [blankItem()];
     renderItems();
     renderQaQtTncPresets();
@@ -5611,7 +5635,7 @@ async function saveQuotation(){
   const manualNumber=g('qt_number')||genQuotationNumber();
   if(id){
     payload.quotation_number=manualNumber;
-    const {error}=await sb.from('biz_quotations').update(payload).eq('id',id);
+    const {error}=await updateRowResilient('biz_quotations', id, payload);
     if(error){ toast('Error: '+error.message,'error'); return; }
   } else {
     const now=new Date(), fyStart=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
@@ -5725,7 +5749,7 @@ async function saveRackItem(){
   const prod=_catalogByName&&_catalogByName[name.toLowerCase()];
   if(prod) payload.product_id=prod.id;
   const id=document.getElementById('rk_id').value;
-  const {error}=id ? await sb.from('biz_rack_items').update(payload).eq('id',id) : await sb.from('biz_rack_items').insert(payload);
+  const {error}=id ? await updateRowResilient('biz_rack_items', id, payload) : await sb.from('biz_rack_items').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
   toast('Saved'); closeRackForm(); loadRackItems();
 }
@@ -5923,8 +5947,28 @@ async function customersBulkUpload(e){
       reviewed:/^y/i.test(String(get(r,['reviewed'])||'')),
     })).filter(r=>r.name);
     if(!batch.length){ toast('No valid rows (need a Name column)','error'); e.target.value=''; return; }
-    const {error}=await sb.from('biz_customers').insert(batch);
-    if(error){ toast('Error: '+error.message,'error'); } else { toast('Added '+batch.length+' customer(s)'); loadCustomers(); }
+    // Match against existing customers before inserting, so re-uploading a previously
+    // exported+edited file (bulkExportCustomers -> edit -> customersBulkUpload) updates
+    // in place instead of duplicating every row. Exact match only: normalized phone
+    // (last 10 digits) first, then exact case-insensitive name, same convention as
+    // backfill-customer-id.sql — no fuzzy matching.
+    const norm=p=>(p||'').replace(/\D/g,'').slice(-10);
+    const {data:existing,error:exErr}=await sb.from('biz_customers').select('id,name,phone');
+    if(exErr){ toast('Error: '+exErr.message,'error'); e.target.value=''; return; }
+    const byPhone={}, byName={};
+    (existing||[]).forEach(c=>{ const p=norm(c.phone); if(p) byPhone[p]=c.id; const n=(c.name||'').trim().toLowerCase(); if(n&&!byName[n]) byName[n]=c.id; });
+    const toInsert=[], toUpdate=[];
+    batch.forEach(r=>{
+      const p=norm(r.phone), n=r.name.trim().toLowerCase();
+      const matchId=(p&&byPhone[p])||byName[n];
+      if(matchId) toUpdate.push({id:matchId,row:r}); else toInsert.push(r);
+    });
+    const ops=[];
+    if(toInsert.length) ops.push(sb.from('biz_customers').insert(toInsert));
+    toUpdate.forEach(u=>ops.push(sb.from('biz_customers').update(u.row).eq('id',u.id)));
+    const results=await Promise.all(ops);
+    const err=results.find(r=>r.error);
+    if(err){ toast('Error: '+err.error.message,'error'); } else { toast('Added '+toInsert.length+', updated '+toUpdate.length+' customer(s)'); loadCustomers(); }
   }catch(err){ toast('Upload failed: '+err.message,'error'); }
   e.target.value='';
 }
@@ -5984,7 +6028,7 @@ async function saveCustomer(){
   const payload={ name, country_code:g('cm_cc')||'+91', phone:g('cm_phone')||null, gstin:g('cm_gstin')||null,
     address:g('cm_address')||null, city:g('cm_city')||null, state:g('cm_state')||null, pincode:g('cm_pin')||null,
     reviewed:document.getElementById('cm_reviewed').value==='1', notes:g('cm_notes')||null };
-  const {error}= id ? await sb.from('biz_customers').update(payload).eq('id',id) : await sb.from('biz_customers').insert(payload);
+  const {error}= id ? await updateRowResilient('biz_customers', id, payload) : await sb.from('biz_customers').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
   logBizActivity(id?'edit':'create','customer',id,name); toast(id?'Customer updated':'Customer saved'); closeCustomerModal(); loadCustomers();
 }
@@ -6050,20 +6094,35 @@ async function ingestSettlement(e){
       const dt=get(r,['settlementdate','paymentdate','date','settlementdatetime']);
       if(!agg[oid]) agg[oid]={amount:0,fees:0,date:null};
       agg[oid].amount+=amt; agg[oid].fees+=fee;
-      if(dt){ const d=new Date(dt); if(!isNaN(d)) agg[oid].date=d.toISOString().slice(0,10); }
+      // Keep the LATEST settlement date seen for this order, not just whichever row
+      // happens to be processed last (a report can list correction/adjustment rows
+      // out of chronological order).
+      if(dt){ const d=new Date(dt); if(!isNaN(d)){ const ds=d.toISOString().slice(0,10); if(!agg[oid].date||ds>agg[oid].date) agg[oid].date=ds; } }
     });
     const oids=Object.keys(agg);
     if(!oids.length){ toast('No order IDs found, check the file/columns','error'); e.target.value=''; return; }
-    const {data:existing}=await sb.from('biz_sales').select('order_id').in('order_id',oids);
+    const {data:existing}=await sb.from('biz_sales').select('id,order_id,selling_price').in('order_id',oids);
     const have=new Set((existing||[]).map(r=>r.order_id));
     const matched=oids.filter(o=>have.has(o)); const unmatched=oids.length-matched.length;
     if(!matched.length){ toast('No matching orders ('+oids.length+' rows in file)','error'); e.target.value=''; return; }
     if(!confirm(`Settlement: ${matched.length} order(s) matched, ${unmatched} not found.\nApply payout + fees to the matched orders?`)){ e.target.value=''; return; }
     const src=/amazon/i.test(file.name)?'amazon':/flipkart/i.test(file.name)?'flipkart':'marketplace';
     let ok=0;
-    for(const oid of matched){ const a=agg[oid];
-      const {error}=await sb.from('biz_sales').update({settlement_amount:a.amount,settlement_fees:a.fees,settlement_date:a.date,settlement_source:src}).eq('order_id',oid);
-      if(!error) ok++;
+    for(const oid of matched){
+      const a=agg[oid];
+      // An order can have multiple biz_sales line items; the settlement report reports
+      // ONE payout for the whole order, so split it across items proportional to each
+      // item's own selling_price, not the same full amount stamped onto every row
+      // (that used to double/triple-count the payout in the order-detail view).
+      const items=(existing||[]).filter(r=>r.order_id===oid);
+      const orderTotal=items.reduce((s,r)=>s+(parseFloat(r.selling_price)||0),0);
+      let anyOk=false;
+      for(const it of items){
+        const share=orderTotal>0?(parseFloat(it.selling_price)||0)/orderTotal:1/items.length;
+        const {error}=await sb.from('biz_sales').update({settlement_amount:a.amount*share,settlement_fees:a.fees*share,settlement_date:a.date,settlement_source:src}).eq('id',it.id);
+        if(!error) anyOk=true;
+      }
+      if(anyOk) ok++;
     }
     toast(`Settlement applied to ${ok} order(s)${unmatched?' · '+unmatched+' unmatched':''}`);
     if(typeof loadSales==='function') loadSales();
@@ -6424,7 +6483,7 @@ async function bulkMarkStatusOpen(status){
   const ids=getSelectedOpenIds(); if(!ids.length) return;
   const label=STATUS_LABEL[status]||status;
   if(!confirm('Mark '+ids.length+' order(s) as '+label+'?')) return;
-  const payload={status}; if(status==='completed') payload.completed_at=new Date().toISOString();
+  const payload={status}; if(status==='completed') payload.completed_at=today();
   if(status==='delivered') payload.delivered_at=today();
   const {error}=await sb.from('biz_sales').update(payload).in('id',ids);
   if(error){ toast('Error: '+error.message,'error'); return; }
@@ -6442,6 +6501,8 @@ async function bulkDeleteOpen(){
   if(!confirm('Move '+ids.length+' order(s) to Recycle Bin?')) return;
   const {error}=await sb.from('biz_sales').update({is_deleted:true,deleted_at:new Date().toISOString()}).in('id',ids);
   if(error){ toast('Error: '+error.message,'error'); return; }
+  await restoreSpoolsForIds(ids);
+  logBizActivity('delete','sale',null,'bulk moved to Recycle Bin ('+ids.length+' item(s))');
   toast(ids.length+' orders moved to Recycle Bin'); loadOpenOrders(); if(typeof loadSalesBadge==='function') loadSalesBadge();
 }
 async function toggleReviewReceived(id,current){
@@ -6680,7 +6741,7 @@ async function saveExpense(){
     source:g('ex_source').trim()||null, recurring:!!document.getElementById('ex_recurring')?.checked,
     invoice_url, notes:g('ex_notes').trim()||null };
   if(!id) payload=await attachRecordId(payload,true,'expense',payload.vendor);
-  const {error}=id?(await sb.from('biz_expenses').update(payload).eq('id',id)):(await insertResilient('biz_expenses',payload));
+  const {error}=id?(await updateRowResilient('biz_expenses', id, payload)):(await insertResilient('biz_expenses',payload));
   if(error){ toast('Error: '+error.message,'error'); return; }
   if(!id) await applyExpenseToSpoolStock();  // only on create, editing an old expense shouldn't re-apply stock
   logBizActivity(id?'edit':'create','expense',id,(payload.vendor||'')+' ₹'+payload.amount); toast(id?'Expense updated':'Expense added'); document.getElementById('expenseForm').style.display='none'; loadExpenses();
@@ -6870,7 +6931,7 @@ async function saveIncome(){
   if(!(parseFloat(g('in_amount'))>0)){ toast('Enter an amount','error'); return; }
   const payload={ date:g('in_date')||today(), category:g('in_category'), amount:parseFloat(g('in_amount'))||0,
     payment_mode:g('in_payment')||null, bank_reference:g('in_bankref').trim()||null, notes:g('in_notes').trim()||null };
-  const {error}=id?await sb.from('biz_income').update(payload).eq('id',id):await sb.from('biz_income').insert(payload);
+  const {error}=id?await updateRowResilient('biz_income', id, payload):await sb.from('biz_income').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
   logBizActivity(id?'edit':'create','income',id,INCOME_LABEL[payload.category]+' ₹'+payload.amount);
   toast(id?'Income updated':'Income logged'); document.getElementById('incomeForm').style.display='none'; loadLedger();
@@ -6962,7 +7023,7 @@ async function savePurchase(){
     item:g('pu_item').trim(), qty:parseFloat(g('pu_qty'))||1, unit_amount:parseFloat(g('pu_unit'))||0,
     total_amount:parseFloat(g('pu_total'))||0, invoice_url, notes:g('pu_notes').trim()||null };
   if(!id) payload=await attachRecordId(payload,true,'purchase',payload.item);
-  const {error}=id?(await sb.from('biz_purchases').update(payload).eq('id',id)):(await insertResilient('biz_purchases',payload));
+  const {error}=id?(await updateRowResilient('biz_purchases', id, payload)):(await insertResilient('biz_purchases',payload));
   if(error){ toast('Error: '+error.message,'error'); return; }
   logBizActivity(id?'edit':'create','purchase',id,(payload.vendor||'')+' '+payload.item+' ₹'+payload.total_amount);
   toast(id?'Purchase updated':(madeSpool?'Purchase logged + spool added':'Purchase logged'));
@@ -6988,24 +7049,46 @@ async function loadBalanceSheet(){
   if(view==='month'){ start=thisMonth()+'-01'; label='This Month'; }
   else if(view==='fy'){ const now=new Date(); const fyStartYear=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1; start=`${fyStartYear}-04-01`; label='This Financial Year'; }
   else label='All Time';
-  const [{data:ob},{data:studio},{data:inc},{data:exp},{data:purch},{data:spools},{data:unpaid},{data:printers},{data:rack}]=await Promise.all([
+  const [{data:ob},{data:studio},{data:inc},{data:exp},{data:purch},{data:spools},{data:unpaid},{data:printers},{data:rack},{data:payIn},{data:payAll}]=await Promise.all([
     sb.from('site_settings').select('value').eq('key','biz_opening_balance').single(),
-    sb.from('biz_sales').select('selling_price').eq('is_deleted',false).eq('channel_id','shop').eq('is_paid',true).gte('order_date',start),
+    sb.from('biz_sales').select('order_id,selling_price').eq('is_deleted',false).eq('channel_id','shop').eq('is_paid',true).gte('order_date',start),
     sb.from('biz_income').select('amount').gte('date',start),
     sb.from('biz_expenses').select('amount').gte('date',start),
     sb.from('biz_purchases').select('total_amount').gte('date',start),
     sb.from('filament_inventory').select('total_grams,grams_used,waste_grams,price').neq('status','Finsh'),
-    sb.from('biz_sales').select('selling_price').eq('is_deleted',false).eq('is_paid',false).not('status','in','(cancelled,cancelled_before_dispatch,cancelled_before_delivery,returned)'),
+    sb.from('biz_sales').select('id,order_id,selling_price').eq('is_deleted',false).eq('is_paid',false).not('status','in',`(${NON_REVENUE_STATUSES.join(',')})`),
     sb.from('biz_printers').select('purchase_value').eq('active',true),
     sb.from('biz_rack_items').select('qty,cost_price'),
+    // Order payments (biz_sale_payments — partial/full advance logged via "+ Add Payment")
+    // are real cash received even when the order was never manually Locked (is_paid), and
+    // must count toward Bank Balance the same way loadLedger's "Order Payments" line does.
+    sb.from('biz_sale_payments').select('order_id,amount').gte('payment_date',start),
+    // All-time payments (not period-scoped) against currently-unpaid orders, so a partial
+    // advance already collected isn't ALSO counted in full as a Receivable below.
+    sb.from('biz_sale_payments').select('order_id,amount'),
   ]);
   const num=v=>+v||0;
   const opening=num(ob&&ob.value);
-  const totalIn=(studio||[]).reduce((s,r)=>s+num(r.selling_price),0)+(inc||[]).reduce((s,r)=>s+num(r.amount),0);
+  // Studio-channel is_paid orders with NO logged payment row (legacy "marked paid" some
+  // other way) count in full; orders WITH a logged payment row are represented via that
+  // payment's own amount instead (not the full line-item selling_price), so a Full-Advance
+  // order (which locks is_paid AND logs a payment row) isn't double-counted. Mirrors the
+  // exact dedup loadLedger uses for the same studio/payments overlap.
+  const payOrderIdsIn=new Set((payIn||[]).map(r=>r.order_id).filter(Boolean));
+  const studioIn=(studio||[]).filter(r=>!(r.order_id&&payOrderIdsIn.has(r.order_id))).reduce((s,r)=>s+num(r.selling_price),0);
+  const orderPayIn=(payIn||[]).reduce((s,r)=>s+num(r.amount),0);
+  const totalIn=studioIn+orderPayIn+(inc||[]).reduce((s,r)=>s+num(r.amount),0);
   const totalOut=(exp||[]).reduce((s,r)=>s+num(r.amount),0)+(purch||[]).reduce((s,r)=>s+num(r.total_amount),0);
   const bankBalance=opening+totalIn-totalOut;
   const stockValue=(spools||[]).reduce((s,r)=>{ const cost=num(r.price); if(!cost) return s; const remaining=Math.max(0,num(r.total_grams)-num(r.grams_used)-num(r.waste_grams)); const pct=num(r.total_grams)?remaining/num(r.total_grams):0; return s+cost*pct; },0);
-  const receivables=(unpaid||[]).reduce((s,r)=>s+num(r.selling_price),0);
+  // Receivables: unpaid orders' selling price (grouped by order, since one order can span
+  // several line items), minus any payment already logged against that order_id (that part
+  // is already reflected in Bank Balance above, so it can't also be an outstanding amount).
+  const paidByOrder={};
+  (payAll||[]).forEach(r=>{ if(r.order_id) paidByOrder[r.order_id]=(paidByOrder[r.order_id]||0)+num(r.amount); });
+  const unpaidByOrder={};
+  (unpaid||[]).forEach(r=>{ const key=r.order_id||r.id; unpaidByOrder[key]=(unpaidByOrder[key]||0)+num(r.selling_price); });
+  const receivables=Object.entries(unpaidByOrder).reduce((s,[oid,amt])=>s+Math.max(0,amt-(paidByOrder[oid]||0)),0);
   const machineryValue=(printers||[]).reduce((s,p)=>s+num(p.purchase_value),0);
   // Phase 10 Group 3 (H): finished-product stock physically on the rack, valued at
   // cost (same convention as Filament Stock Value), a new asset category, nothing
@@ -7314,7 +7397,7 @@ function renderOrderDetail(items){
   items.forEach(s=>{ const sp=parseFloat(s.selling_price)||0; const ga=sp-(sp/(1+(parseFloat(s.gst_rate)||0)/100)); const pf=parseFloat(s.platform_fee)||0, sf=parseFloat(s.shipping_fee)||0, od=parseFloat(s.other_deductions)||0; const nr=sp-pf-sf-od; cogs+=parseFloat(s.cogs)||0; gstAmt+=ga; net+=nr; platF+=pf; shipF+=sf; othF+=od; fees+=pf+sf+od; });
   const totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
   const profit=net-cogs-gstAmt, margin=net>0?(profit/net*100):0;
-  const addr=[f.customer_address,[f.customer_city,f.customer_state].filter(Boolean).join(', ')+(f.customer_pincode?', '+f.customer_pincode:'')].map(x=>(x||'').trim()).filter(Boolean).join('<br>');
+  const addr=[f.customer_address,[f.customer_city,f.customer_state].filter(Boolean).join(', ')+(f.customer_pincode?', '+f.customer_pincode:'')].map(x=>(x||'').trim()).filter(Boolean).map(esc).join('<br>');
   const F=(l,val)=>val?`<div><div style="color:var(--text-3);font-size:9px;text-transform:uppercase;letter-spacing:.6px">${l}</div><div style="font-size:12px;margin-top:1px">${val}</div></div>`:'';
   const itemRows=items.map(s=>{ const vl=[s.size,s.color,s.variant].filter(Boolean).join(' · ');
     const extraColorNote=Array.isArray(s.extra_spool_usage)&&s.extra_spool_usage.length
@@ -7576,7 +7659,11 @@ async function syncReturnRowForStatus(status,items,f){
   const {data:ex}=await sb.from('biz_returns').select('id,stage').eq('order_id',f.order_id||'').limit(1);
   const stage=status==='returned'?'received':'initiated';
   if(ex&&ex.length){
-    await sb.from('biz_returns').update({stage,...(stage==='received'?{received:today()}:{})}).eq('id',ex[0].id);
+    // Real column is received_date (biz_returns.received doesn't exist and never has —
+    // 'received' is only a valid `stage` enum value), this used to hard-fail with a
+    // PostgREST "column not found" error every time an already-logged return got
+    // re-marked returned.
+    await updateRowResilient('biz_returns', ex[0].id, {stage,...(stage==='received'?{received_date:today()}:{})});
     return;
   }
   const total=items.reduce((a,s)=>a+(+s.selling_price||0),0);
@@ -7592,7 +7679,7 @@ async function syncReturnRowForStatus(status,items,f){
 async function updateOrderStatus(firstId,status){
   const items=_orderGroup(firstId), ids=items.map(s=>s.id), f=items[0];
   const payload={status};
-  if(status==='completed') payload.completed_at=new Date().toISOString();
+  if(status==='completed') payload.completed_at=today();
   // Round 3 fix, the return window was counting from delivery_date, which is actually the
   // PROMISED delivery date set at Add Sale time, not when the order truly arrived. Stamp the
   // real arrival date here, same pattern as completed_at, and use THIS for the return window.
@@ -7639,7 +7726,7 @@ async function bulkMarkStatus(status){
   const label=STATUS_LABEL[status]||status;
   if(!confirm('Mark '+ids.length+' order(s) as '+label+'?')) return;
   const payload={status};
-  if(status==='completed') payload.completed_at=new Date().toISOString();
+  if(status==='completed') payload.completed_at=today();
   if(status==='delivered') payload.delivered_at=today();
   const {error}=await sb.from('biz_sales').update(payload).in('id',ids);
   if(error){toast('Error: '+error.message,'error');return;}
@@ -7657,6 +7744,8 @@ async function bulkDelete(){
   if(!confirm('Move '+ids.length+' order(s) to Recycle Bin?')) return;
   const {error}=await sb.from('biz_sales').update({is_deleted:true,deleted_at:new Date().toISOString()}).in('id',ids);
   if(error){toast('Error: '+error.message,'error');return;}
+  await restoreSpoolsForIds(ids);
+  logBizActivity('delete','sale',null,'bulk moved to Recycle Bin ('+ids.length+' item(s))');
   toast(ids.length+' orders moved to Recycle Bin'); loadSales(); loadSalesBadge();
 }
 function bulkExport(){
@@ -7885,18 +7974,22 @@ async function openRecycleBin(){
 async function restoreSale(id){
   const {error}=await sb.from('biz_sales').update({is_deleted:false,deleted_at:null}).eq('id',id);
   if(error){toast('Error: '+error.message,'error');return;}
+  logBizActivity('restore','sale',id,'restored from Recycle Bin');
   toast('Restored'); openRecycleBin(); loadSales(); loadSalesBadge();
 }
 async function permDeleteSale(id){
   if(!confirm('Permanently delete? Cannot be undone.')) return;
   const {error}=await sb.from('biz_sales').delete().eq('id',id);
   if(error){toast('Error: '+error.message,'error');return;}
+  logBizActivity('purge','sale',id,'permanently deleted from Recycle Bin');
   toast('Permanently deleted'); openRecycleBin(); loadSalesBadge();
 }
 async function emptyRecycleBin(){
   if(!confirm('Permanently delete ALL items in Recycle Bin? Cannot be undone.')) return;
+  const {data:toPurge}=await sb.from('biz_sales').select('id').eq('is_deleted',true);
   const {error}=await sb.from('biz_sales').delete().eq('is_deleted',true);
   if(error){toast('Error: '+error.message,'error');return;}
+  logBizActivity('purge','sale',null,'Recycle Bin emptied ('+((toPurge||[]).length)+' item(s))');
   toast('Recycle Bin emptied'); openRecycleBin(); loadSalesBadge();
 }
 
@@ -7904,6 +7997,8 @@ async function deleteSale(id){
   if(!confirm('Move to Recycle Bin?')) return;
   const {error}=await sb.from('biz_sales').update({is_deleted:true,deleted_at:new Date().toISOString()}).eq('id',id);
   if(error){ toast('Error: '+error.message,'error'); return; }
+  await restoreSpoolsForIds([id]);
+  logBizActivity('delete','sale',id,'moved to Recycle Bin');
   toast('Moved to Recycle Bin'); loadSales(); loadSalesBadge();
 }
 
@@ -8291,7 +8386,7 @@ async function saveSpool(){
     finished_date:document.getElementById('sp_finished').value||null,
     notes:document.getElementById('sp_notes').value.trim()||null
   };
-  const {error}=await sb.from('filament_inventory').update(payload).eq('id',id);
+  const {error}=await updateRowResilient('filament_inventory', id, payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
   logBizActivity('edit','spool',id,payload.status+' · used '+payload.grams_used+'g');
   toast('Spool updated');
@@ -8392,7 +8487,7 @@ async function savePrinter(){
     purchase_value:parseFloat(g('pr_purchase_value'))||null, purchase_date:g('pr_purchase_date')||null,
     active:g('pr_active')==='true',
   };
-  const {error}=id?await sb.from('biz_printers').update(payload).eq('id',id):await sb.from('biz_printers').insert(payload);
+  const {error}=id?await updateRowResilient('biz_printers', id, payload):await sb.from('biz_printers').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
   if(typeof logBizActivity==='function') logBizActivity(id?'edit':'create','printer',id||name,name);
   toast('Saved'); document.getElementById('printerForm').style.display='none'; loadMachinery();
@@ -8629,7 +8724,7 @@ async function saveReturn(){
   };
   if(!payload.channel_id||!payload.type){ toast('Channel and type required','error'); return; }
   if(!id) payload=await attachRecordId(payload,true,'return',payload.order_id);
-  const {error}=id?(await sb.from('biz_returns').update(payload).eq('id',id)):(await insertResilient('biz_returns',payload));
+  const {error}=id?(await updateRowResilient('biz_returns', id, payload)):(await insertResilient('biz_returns',payload));
   if(error){ toast('Error: '+error.message,'error'); return; }
   logBizActivity(id?'edit':'create','return',id||payload.order_id,payload.type+' '+payload.stage);
   // Claims land in the bank as part of a later payout, offer to log it straight into
@@ -8664,7 +8759,7 @@ async function loadGST(){
   const yr=parseInt(document.getElementById('gstYear').value);
   // Financial year: April yr to March yr+1
   const from=`${yr}-04-01`, to=`${yr+1}-03-31`;
-  const {data,error}=await sb.from('biz_sales').select('order_date,selling_price,gst_rate,customer_state').eq('status','completed').gte('order_date',from).lte('order_date',to);
+  const {data,error}=await sb.from('biz_sales').select('order_date,selling_price,gst_rate,customer_state').not('status','in',`(${NON_REVENUE_STATUSES.join(',')})`).gte('order_date',from).lte('order_date',to);
   if(error){ toast('Error: '+error.message,'error'); return; }
   const rows=data||[];
   // Group by month
@@ -8823,7 +8918,8 @@ function renderFilamentLowStockPopupBody(material){
 }
 function closeFilamentLowStockPopup(){ document.getElementById('filamentLowStockModal').style.display='none'; }
 async function markSpoolFinishedFromAlert(id,material){
-  const {error}=await sb.from('filament_inventory').update({status:'Finsh',finished_date:today()}).eq('id',id);
+  if(!confirm('Mark this spool as finished? This cannot be undone from here.')) return;
+  const {error}=await sb.from('filament_inventory').update({status:'Finsh',finish_reason:'used',finished_date:today()}).eq('id',id);
   if(error){ toast('Error: '+error.message,'error'); return; }
   toast('Marked finished');
   // drop it from the in-memory popup list immediately, then refresh the alert box + Spool Tracker if open
@@ -8887,7 +8983,7 @@ async function loadGstStateBreakdown(){
     else if(view==='custom') smn.textContent=`${start} to ${next}`;
     else { const fyY=Number(start.slice(0,4)); smn.textContent=`FY ${fyY}-${String((fyY+1)%100).padStart(2,'0')}`; }
   }
-  const {data,error}=await sb.from('biz_sales').select('channel_id,customer_state,selling_price,gst_rate').eq('is_deleted',false).eq('status','completed').gte('order_date',start).lt('order_date',next);
+  const {data,error}=await sb.from('biz_sales').select('channel_id,customer_state,selling_price,gst_rate').eq('is_deleted',false).not('status','in',`(${NON_REVENUE_STATUSES.join(',')})`).gte('order_date',start).lt('order_date',next);
   const el=document.getElementById('gstStateBody'); if(!el) return;
   if(error){ el.innerHTML=`<tr><td colspan="5" class="empty"><div class="em-text">Error loading</div></td></tr>`; return; }
   const rows=data||[];
@@ -10189,7 +10285,8 @@ async function runImport(){
       platform_fee:0,
       cogs:defaultCogs,
       grams_used:defaultGrams||null,
-      gst_rate:0,
+      gst_rate:(_bizDefaults&&_bizDefaults.gst)||0,
+      hsn_code:(_bizDefaults&&_bizDefaults.hsn)||null,
       customer_name:g('customer_name')||null,
       customer_city:g('customer_city')||null,
       customer_state:g('customer_state')||null,
@@ -10272,7 +10369,7 @@ async function exportPLReport(){
   const {data:pnl}=await q;
   const {data:exp}=await sb.from('biz_expenses').select('*').gte('date',fromD).lte('date',toD);
   const {data:sales}=await sb.from('biz_sales').select('customer_name,product_name,selling_price,qty,cogs,gst_rate,platform_fee,shipping_fee,other_deductions,status,order_id,channel_id,delivery_date,dispatch_date,completed_at').eq('is_deleted',false).gte('order_date',fromD).lte('order_date',toD);
-  const completed=(sales||[]).filter(s=>s.status==='completed');
+  const completed=(sales||[]).filter(s=>!NON_REVENUE_STATUSES.includes(s.status));
   const num=v=>+v||0;
   const revenue=completed.reduce((s,r)=>s+num(r.selling_price),0);
   const cogs=completed.reduce((s,r)=>s+num(r.cogs),0);
@@ -10282,7 +10379,11 @@ async function exportPLReport(){
   const totalExpenses=(exp||[]).reduce((s,r)=>s+num(r.amount),0);
   const netProfit=grossProfit-totalExpenses;
   // repeat-customer rate
-  const byCust={}; completed.forEach(s=>{ const n=(s.customer_name||'').trim().toLowerCase(); if(!n)return; (byCust[n]=byCust[n]||new Set()).add(s.order_id||s.product_name); });
+  // Group by order_id when present; falling back to product_name (the old behaviour)
+  // wrongly counted a single multi-item order with no order_id as a "repeat" customer.
+  // Fall back to this row's own id instead, so an order-id-less order only ever
+  // contributes ONE distinct-order key, not one per item.
+  const byCust={}; completed.forEach(s=>{ const n=(s.customer_name||'').trim().toLowerCase(); if(!n)return; (byCust[n]=byCust[n]||new Set()).add(s.order_id||s.id); });
   const custs=Object.keys(byCust), repeat=custs.filter(n=>byCust[n].size>1).length;
   const repeatRate=custs.length?Math.round(repeat/custs.length*1000)/10:0;
   // top products
@@ -10334,7 +10435,7 @@ async function exportReturnsReport(){
 
 async function exportGSTReport(){
   const yr=document.getElementById('gstExportYear').value;
-  const {data}=await sb.from('biz_sales').select('*').eq('status','completed').gte('order_date',`${yr}-04-01`).lte('order_date',`${parseInt(yr)+1}-03-31`);
+  const {data}=await sb.from('biz_sales').select('*').not('status','in',`(${NON_REVENUE_STATUSES.join(',')})`).gte('order_date',`${yr}-04-01`).lte('order_date',`${parseInt(yr)+1}-03-31`);
   if(!data||!data.length){ toast('No data','error'); return; }
   const rows=data.map(s=>{
     const gst=s.selling_price-(s.selling_price/(1+s.gst_rate/100));
@@ -10388,7 +10489,7 @@ function resolveReportRange(viewId,fromId,toId){
 async function _fetchStateReportRows(){
   const [start,endExcl]=resolveReportRange('stView','stFrom','stTo');
   const {data,error}=await sb.from('biz_sales').select('customer_state,product_name,channel_id,order_date,selling_price,qty')
-    .eq('is_deleted',false).eq('status','completed').gte('order_date',start).lt('order_date',endExcl);
+    .eq('is_deleted',false).not('status','in',`(${NON_REVENUE_STATUSES.join(',')})`).gte('order_date',start).lt('order_date',endExcl);
   if(error){ toast('Error: '+error.message,'error'); return null; }
   return (data||[]).map(r=>({...r,customer_state:(r.customer_state||'').trim()||'Unknown'}));
 }
@@ -10577,6 +10678,10 @@ async function printInvoice(d, type, docKind){
   const items=(d.items&&d.items.length)?d.items:[d];
   let subtotal=0, gstAmt=0;
   const hsnSummary={};
+  // Quotation always shows the itemized GST breakdown; a plain Invoice does too once
+  // GST actually applies (a non-GST invoice keeps the simple 4-column table). Order
+  // Record stays internal-only and never shows this customer-facing breakdown.
+  const showGstCols=isQuote||(!isRecord&&type==='gst');
   const rowsHtml=items.map(it=>{
     const iqty=parseInt(it.qty)||1;
     const idisc=parseFloat(it.discount_amount)||0;
@@ -10591,16 +10696,16 @@ async function printInvoice(d, type, docKind){
     const iamt=iamt_incl-igst;
     const iunit_show=iqty>0 ? ((type==='gst'&&irate>0)?iamt/iqty:iamt_incl/iqty) : ((type==='gst'&&irate>0)?iamt:iamt_incl);
     subtotal+=iamt; gstAmt+=igst;
-    if(isQuote){
+    if(showGstCols){
       const hk=it.hsn_code||'—';
       const hrow=hsnSummary[hk]||(hsnSummary[hk]={taxable:0,gst:0,rate:irate});
       hrow.taxable+=iamt; hrow.gst+=igst;
     }
     const vline=[it.size,it.color,it.variant].filter(Boolean).join(' · ');
-    const showHsnMeta=!isQuote&&it.hsn_code&&(!isRecord||docRec('hsn'));
+    const showHsnMeta=!showGstCols&&it.hsn_code&&(!isRecord||docRec('hsn'));
     const metaBits=[it.sku?'SKU: '+it.sku:'', showHsnMeta?'HSN: '+it.hsn_code:''].filter(Boolean).join('  ·  ');
     const nameCell=`<strong>${esc(it.product_name||'—')}</strong>${vline?`<div class="item-sub">${esc(vline)}</div>`:''}${it.remarks?`<div class="item-sub" style="font-style:italic">${esc(it.remarks)}</div>`:''}${metaBits?`<div class="item-sub" style="color:#999">${esc(metaBits)}</div>`:''}${idisc>0?`<div class="item-sub" style="color:#c0392b">Discount −₹${idisc.toFixed(2)}</div>`:''}`;
-    if(isQuote){
+    if(showGstCols){
       return `<tr>
       <td>${nameCell}</td>
       <td>${esc(it.hsn_code||'—')}</td>
@@ -10675,7 +10780,7 @@ async function printInvoice(d, type, docKind){
     }`:'';
 
   const hsnKeys=Object.keys(hsnSummary);
-  const hsnSummaryHtml=(isQuote&&hsnKeys.length)?`
+  const hsnSummaryHtml=(showGstCols&&hsnKeys.length)?`
 <div class="info-strip" style="grid-template-columns:1fr">
   <div class="info-card">
     <div class="info-lbl">HSN Summary</div>
@@ -10720,6 +10825,12 @@ body{font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:13px;color:#1
 .doc-type{font-size:9px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#C4622A;margin-bottom:4px}
 .doc-no{font-size:20px;font-weight:800;color:#111;letter-spacing:.03em;font-family:'Courier New',monospace}
 .doc-meta{font-size:11px;color:#999;margin-top:5px;line-height:1.7}
+.doc-meta-box{border:1px solid #f0d0bb;border-radius:8px;overflow:hidden;margin-top:6px;display:inline-block}
+.doc-meta-box table{width:100%;border-collapse:collapse}
+.doc-meta-box td{padding:5px 12px;border-bottom:1px solid #f4f4f4;font-size:11px}
+.doc-meta-box tr:last-child td{border-bottom:none}
+.doc-meta-box .dmb-k{color:#9a4010;font-weight:700;background:#fdf0e8;white-space:nowrap;text-align:left}
+.doc-meta-box .dmb-v{color:#333;text-align:right;font-family:'Courier New',monospace}
 .doc-badge{display:inline-block;background:#fdf0e8;color:#9a4010;font-size:9px;padding:2px 9px;border-radius:20px;margin-top:5px;font-weight:700;letter-spacing:.07em;border:1px solid #f0d0bb;text-transform:uppercase}
 /* ── BODY ── */
 .body{padding:24px 32px}
@@ -10775,7 +10886,8 @@ tbody tr:last-child td{border-bottom:none}
   <div class="hdr-doc">
     <div class="doc-type">${docTitle}</div>
     ${(isQuote&&docQuo('business_identity'))?'':`<div class="doc-no">${esc(docNo)}</div>`}
-    <div class="doc-meta">${isQuote?`Date: ${esc(docDate)}`:`Order Date: ${esc(docDate)}<br>Complete Date: ${d.delivery_date?esc(d.delivery_date):'—'}`}${(isQuote&&docQuo('validity_period')&&d.validity_date)?`<br>Valid Until: ${esc(d.validity_date)}`:''}${(!isRecord&&docField('due_date'))?`<br>Due Date: ${esc(dueDateStr)}`:''}</div>
+    ${isQuote?`<div class="doc-meta">Date: ${esc(docDate)}${(docQuo('validity_period')&&d.validity_date)?`<br>Valid Until: ${esc(d.validity_date)}`:''}${docField('due_date')?`<br>Due Date: ${esc(dueDateStr)}`:''}</div>`:`
+    <div class="doc-meta-box"><table>${(isRecord?[['Order Date',docDate],['Complete Date',d.delivery_date?esc(d.delivery_date):'—']]:[['Invoice Date',docDate],...(docField('due_date')?[['Due Date',dueDateStr]]:[])]).map(([k,v])=>`<tr><td class="dmb-k">${k}</td><td class="dmb-v">${esc(v)}</td></tr>`).join('')}</table></div>`}
     <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;margin-top:5px">
       ${d.channel_id?`<div class="doc-badge">${esc(CH_NAMES?.[d.channel_id]||d.channel_id)}</div>`:''}
     </div>
@@ -10807,11 +10919,12 @@ ${(!isQuote&&(isRecord||docInv('business_address')||docInv('gstin'))&&(SELLER_AD
 
 <div class="customer-box">
   <div class="cust-left">
-    <div class="section-lbl">Prepared for</div>
+    <div class="section-lbl">${isQuote?'Prepared for':'Billed To'}</div>
     ${(showCustName)&&d.customer_name?`<div class="cust-name">${esc(d.customer_name)}</div>`:''}
     <div class="cust-detail">
       ${showCustContact?`${d.customer_phone?esc(d.customer_phone)+'<br>':''}${d.customer_address?esc(d.customer_address)+'<br>':''}${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' &mdash; '+esc(d.customer_pincode):''}`:''}
       ${showCustGstin&&d.customer_gstin?`<br>GSTIN: ${esc(d.customer_gstin)}`:''}
+      ${(showGstCols&&d.customer_state)?`<br><span style="color:#bbb">Place of Supply: ${esc(d.customer_state)}</span>`:''}
     </div>
   </div>
 </div>
@@ -10819,7 +10932,7 @@ ${(!isQuote&&(isRecord||docInv('business_address')||docInv('gstin'))&&(SELLER_AD
 <div class="tbl-wrap">
 <table>
   <thead><tr>
-    ${isQuote?`
+    ${showGstCols?`
     <th style="width:26%">Item</th>
     <th>HSN</th>
     <th style="text-align:right">Qty</th>
@@ -10834,7 +10947,7 @@ ${(!isQuote&&(isRecord||docInv('business_address')||docInv('gstin'))&&(SELLER_AD
   </tr></thead>
   <tbody>
     ${rowsHtml}
-    ${d.notes?`<tr><td colspan="${isQuote?7:4}" class="item-sub" style="color:#999;padding:8px 16px">Note: ${esc(d.notes)}</td></tr>`:''}
+    ${d.notes?`<tr><td colspan="${showGstCols?7:4}" class="item-sub" style="color:#999;padding:8px 16px">Note: ${esc(d.notes)}</td></tr>`:''}
   </tbody>
 </table>
 <table><tbody>
@@ -10847,7 +10960,7 @@ ${(!isQuote&&(isRecord||docInv('business_address')||docInv('gstin'))&&(SELLER_AD
 <div class="words-row">${esc(amtWords)}</div>
 </div>
 ${hsnSummaryHtml}
-${isQuote?'<div class="divider"></div>':''}
+${showGstCols?'<div class="divider"></div>':''}
 
 ${(()=>{
   const hasBankBlock=(!isRecord&&docField('bank_details')&&(SELLER_BANK.acc||SELLER_BANK.ifsc));
@@ -11512,7 +11625,7 @@ function renderExtractedLabels(pages){
       <td><input type="number" value="${esc(r.grams)}" id="lr_grams_${i}" step="1" style="width:60px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;text-align:right;font-family:var(--mono)"></td>
       <td style="font-size:11px">
         <div style="color:var(--text)">${esc(r.customerName||'—')}</div>
-        <div style="color:var(--text-3);margin-top:2px">${esc([r.city,r.state].filter(Boolean).join(', '))}${r.pincode?', '+r.pincode:''}</div>
+        <div style="color:var(--text-3);margin-top:2px">${esc([r.city,r.state].filter(Boolean).join(', '))}${r.pincode?', '+esc(r.pincode):''}</div>
       </td>
       <td style="font-size:11px;color:var(--text-3)">
         ${r.tracking?`<div style="font-family:var(--mono)">${esc(r.tracking)}</div>`:''}
