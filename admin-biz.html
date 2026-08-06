@@ -123,6 +123,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .btn-ghost.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .btn-danger{background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,.2)}
 .btn-sm{padding:5px 10px;font-size:11px}
+/* Save-button loading state (runSave()), spinning ring replaces the label while an
+   edit/create request is in flight, so there's always visible feedback instead of a
+   button that just silently sits there until the network call resolves. */
+@keyframes btn-spin{to{transform:rotate(360deg)}}
+.btn-spinner{display:inline-block;width:11px;height:11px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:btn-spin .6s linear infinite;flex-shrink:0}
+.btn-saving{opacity:.85;cursor:wait!important;pointer-events:none}
 
 /* ── Skeleton loading (Phase 10 Group 3, L) ──────────────────
    Admin's own token set (--bg-2/--bg-3), not the customer-site skeleton CSS,
@@ -1111,7 +1117,7 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group"><label>Amount ₹</label><input type="number" id="ql_exp_amount" step="0.01"></div>
             <div class="form-group"><label>Note</label><input type="text" id="ql_exp_note" placeholder="e.g. chai + snacks"></div>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="saveQuickExpense()" title="Shortcut: Ctrl+Enter" style="margin-top:8px">Save Expense <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
+          <button class="btn btn-primary btn-sm" onclick="runSave(this,saveQuickExpense)" title="Shortcut: Ctrl+Enter" style="margin-top:8px">Save Expense <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
         </div>
 
         <div id="qlPayment" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
@@ -1120,7 +1126,7 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group"><label>Amount ₹</label><input type="number" id="ql_pay_amount" step="0.01"></div>
             <div class="form-group"><label>Mode</label><select id="ql_pay_mode"><option value="">—</option><option value="bank_transfer">Bank Transfer</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="gpay">GPay</option><option value="paytm">Paytm</option></select></div>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="saveQuickPayment()" title="Shortcut: Ctrl+Enter" style="margin-top:8px">Save Payment <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
+          <button class="btn btn-primary btn-sm" onclick="runSave(this,saveQuickPayment)" title="Shortcut: Ctrl+Enter" style="margin-top:8px">Save Payment <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
         </div>
 
         <div id="qlFilament" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
@@ -1131,7 +1137,7 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group"><label>Total ₹</label><input type="number" id="ql_fil_total" step="0.01"></div>
           </div>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:6px;font-size:12px"><input type="checkbox" id="ql_fil_makespool" checked> Add to Spool Tracker as a new spool</label>
-          <button class="btn btn-primary btn-sm" onclick="saveQuickFilament()" title="Shortcut: Ctrl+Enter" style="margin-top:8px">Save Purchase <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
+          <button class="btn btn-primary btn-sm" onclick="runSave(this,saveQuickFilament)" title="Shortcut: Ctrl+Enter" style="margin-top:8px">Save Purchase <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
         </div>
       </div>
 
@@ -2192,7 +2198,7 @@ html[data-theme="dark"] .biz-login{
           </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="saveCustomer()">Save</button>
+          <button class="btn btn-primary" onclick="runSave(this,saveCustomer)">Save</button>
           <button class="btn btn-ghost" onclick="closeCustomerModal()">Cancel</button>
           <button class="btn btn-danger btn-sm" id="cm_delBtn" onclick="deleteCustomer()" style="margin-left:auto;display:none">Delete</button>
         </div>
@@ -2281,7 +2287,7 @@ html[data-theme="dark"] .biz-login{
         </div>
         <input type="hidden" id="pf_id">
         <div style="display:flex;gap:8px;margin-top:4px">
-          <button class="btn btn-primary btn-sm" onclick="saveProduct()" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
+          <button class="btn btn-primary btn-sm" onclick="runSave(this,saveProduct)" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('productForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -2353,7 +2359,7 @@ html[data-theme="dark"] .biz-login{
           </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:4px">
-          <button class="btn btn-primary btn-sm" onclick="saveStockMovement()" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
+          <button class="btn btn-primary btn-sm" onclick="runSave(this,saveStockMovement)" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('stockForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -2474,7 +2480,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="rf_notes"></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="saveReturn()" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
+          <button class="btn btn-primary btn-sm" onclick="runSave(this,saveReturn)" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('returnForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -2525,7 +2531,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="spa_notes"></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="saveNewSpool()" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
+          <button class="btn btn-primary btn-sm" onclick="runSave(this,saveNewSpool)" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('spoolAddForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -2546,7 +2552,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="sp_notes"></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="saveSpool()" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
+          <button class="btn btn-primary btn-sm" onclick="runSave(this,saveSpool)" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('spoolForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -2617,7 +2623,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>Status</label><select id="pr_active"><option value="true">Active</option><option value="false">Inactive</option></select></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="savePrinter()">Save</button>
+          <button class="btn btn-primary btn-sm" onclick="runSave(this,savePrinter)">Save</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('printerForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -2647,7 +2653,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group" style="grid-column:1/-1"><label>Note <span style="color:var(--text-3);font-weight:400;text-transform:none">what changed before the re-run, settings, roll, location…</span></label><input type="text" id="pa_note" placeholder="e.g. switched to a fresh roll, moved away from the door"></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="saveAttempt()">Save</button>
+          <button class="btn btn-primary btn-sm" onclick="runSave(this,saveAttempt)">Save</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('attemptForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -3083,7 +3089,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="ex_notes"></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="saveExpense()" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
+          <button class="btn btn-primary btn-sm" onclick="runSave(this,saveExpense)" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('expenseForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -3138,7 +3144,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="in_notes"></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="saveIncome()" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
+          <button class="btn btn-primary btn-sm" onclick="runSave(this,saveIncome)" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('incomeForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -3200,7 +3206,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="pu_notes"></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="savePurchase()" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
+          <button class="btn btn-primary btn-sm" onclick="runSave(this,savePurchase)" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('purchaseForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -3249,7 +3255,7 @@ html[data-theme="dark"] .biz-login{
           </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="saveShopLog()" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
+          <button class="btn btn-primary btn-sm" onclick="runSave(this,saveShopLog)" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('shopLogForm').style.display='none'">Cancel</button>
         </div>
       </div>
@@ -3726,6 +3732,28 @@ function toast(msg, type='success'){
   const el=document.getElementById('toast');
   el.textContent=msg; el.className='show '+(type||'');
   clearTimeout(_toastTimer); _toastTimer=setTimeout(()=>el.className='',3000);
+}
+
+// Wraps a Save button's onclick (runSave(this, saveProduct) etc.) so every
+// create/edit action shows a spinning "Saving…" state instead of the button just
+// sitting there while the request is in flight. Restores the button's original
+// label whether the save succeeds, fails, or throws, unless the button itself got
+// removed from the DOM in the meantime (form closed on success).
+async function runSave(btn, fn){
+  if(!btn || btn.disabled) return;
+  const orig=btn.innerHTML;
+  btn.disabled=true;
+  btn.classList.add('btn-saving');
+  btn.innerHTML='<span class="btn-spinner"></span> Saving…';
+  try{
+    await fn();
+  } finally {
+    if(document.body.contains(btn)){
+      btn.disabled=false;
+      btn.classList.remove('btn-saving');
+      btn.innerHTML=orig;
+    }
+  }
 }
 
 const CH_NAMES = {shop:'Studio',amazon:'Amazon',flipkart:'Flipkart',website:'Website'};
@@ -11070,7 +11098,7 @@ ${(!isQuote&&(isRecord||docInv('business_address')||docInv('gstin'))&&(SELLER_AD
     <div class="section-lbl">${isQuote?'Prepared for':'Billed To'}</div>
     ${(showCustName)&&d.customer_name?`<div class="cust-name">${esc(d.customer_name)}</div>`:''}
     <div class="cust-detail">
-      ${showCustContact?`${d.customer_phone?'Mobile: '+esc(d.customer_phone)+'<br>':''}${d.customer_address?esc(d.customer_address)+'<br>':''}${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' &mdash; '+esc(d.customer_pincode):''}`:''}
+      ${showCustContact?`${d.customer_phone?'Mobile: '+esc(d.customer_phone)+'<br>':''}${d.customer_address?esc(d.customer_address)+'<br>':''}${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' - '+esc(d.customer_pincode):''}`:''}
       ${showCustGstin&&d.customer_gstin?`<br>GSTIN: <span style="font-weight:600">${esc(d.customer_gstin)}</span>`:''}
     </div>
   </div>
