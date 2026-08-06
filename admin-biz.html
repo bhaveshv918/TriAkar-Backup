@@ -10840,8 +10840,9 @@ async function printInvoice(d, type, docKind){
   // breakdown (with its own Total row), nothing renders between items and Total.
   const hsnKeys=Object.keys(hsnSummary);
   const hsnSummaryHtml=(showGstCols&&hsnKeys.length)?(()=>{
-    const thStyle='text-align:right;font-size:9px;color:#7a3010;padding:4px 8px;border-bottom:1.5px solid #ccc;border-right:1px solid #ddd;text-transform:uppercase;letter-spacing:.06em';
-    const tdStyle='padding:5px 8px;font-size:11.5px;border:none;border-right:1px solid #eee;color:#111';
+    const thStyle='text-align:right;font-size:9px;color:#7a3010;padding:4px 8px;border-bottom:1.5px solid #333;border-right:1px solid #ddd;text-transform:uppercase;letter-spacing:.06em';
+    const tdStyle='padding:5px 8px;font-size:11.5px;border:none;border-bottom:1px solid #ccc;border-right:1px solid #eee;color:#111';
+    const totalTdStyle='padding:6px 8px;font-size:11.5px;border:none;border-top:1.5px solid #333;border-right:1px solid #eee;color:#111;font-weight:700';
     const cols=isIntraState?['CGST','SGST']:['IGST'];
     let sumTaxable=0,sumGst=0;
     const rowsHtml2=hsnKeys.map(hk=>{
@@ -10858,8 +10859,8 @@ async function printInvoice(d, type, docKind){
       </tr>`;
     }).join('');
     const totalSplit=isIntraState
-      ?`<td class="td-r" style="${tdStyle}">₹${(sumGst/2).toFixed(2)}</td><td class="td-r" style="${tdStyle}">₹${(sumGst/2).toFixed(2)}</td>`
-      :`<td class="td-r" style="${tdStyle}">₹${sumGst.toFixed(2)}</td>`;
+      ?`<td class="td-r" style="${totalTdStyle}">₹${(sumGst/2).toFixed(2)}</td><td class="td-r" style="${totalTdStyle}">₹${(sumGst/2).toFixed(2)}</td>`
+      :`<td class="td-r" style="${totalTdStyle}">₹${sumGst.toFixed(2)}</td>`;
     return `
 <div class="info-strip" style="grid-template-columns:1fr">
   <div class="info-card">
@@ -10874,11 +10875,11 @@ async function printInvoice(d, type, docKind){
       </tr></thead>
       <tbody>
         ${rowsHtml2}
-        <tr style="font-weight:700">
-          <td colspan="2" style="${tdStyle}">Total</td>
-          <td style="${tdStyle}"></td>
+        <tr>
+          <td colspan="2" style="${totalTdStyle}">Total</td>
+          <td style="${totalTdStyle}"></td>
           ${totalSplit}
-          <td class="td-r" style="${tdStyle}">₹${sumGst.toFixed(2)}</td>
+          <td class="td-r" style="${totalTdStyle}">₹${sumGst.toFixed(2)}</td>
         </tr>
       </tbody>
     </table>
@@ -10943,10 +10944,10 @@ thead th:last-child,td:last-child{border-right:none}
 tbody tr:last-child td{border-bottom:none}
 .td-r{text-align:right}
 .col-sno{width:30px;padding-left:8px;padding-right:8px;text-align:center}
-.item-sub{font-size:10.5px;color:#555;margin-top:2px}
+.item-sub{font-size:10.5px;color:#444;margin-top:2px}
 .discount-row td{font-size:11.5px;color:#c0392b;padding:3px 14px;border-bottom:none}
 .gst-row td{font-size:11px;color:#444;padding:4px 14px;border-bottom:none}
-.total-row td{font-size:17px;font-weight:900;color:#111;border-top:2px solid #C4622A;padding:10px 14px;border-bottom:none}
+.total-row td{font-size:18px;font-weight:900;color:#111;border-top:2px solid #C4622A;padding:10px 14px;border-bottom:none}
 .words-row{padding:7px 14px;font-size:10.5px;color:#C4622A;font-style:italic;border-top:1.5px solid #ccc;background:#fffcfb;font-weight:600}
 /* Info */
 .info-strip{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
@@ -10954,12 +10955,13 @@ tbody tr:last-child td{border-bottom:none}
 .info-lbl{font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#C4622A;margin-bottom:5px}
 .info-val{font-size:11.5px;color:#111;line-height:1.65;font-weight:500}
 .chip{display:inline-block;background:#eee;border:1px solid #bbb;border-radius:4px;padding:2px 8px;font-size:11px;color:#111;font-family:'Courier New',monospace;font-weight:700}
-/* Terms, plain text, no box, a thin rule instead */
-.terms-plain{border-top:1px solid #ccc;padding-top:8px;margin-top:10px}
+/* Terms, plain text, no box, no rule above (removed, was a redundant second
+   divider right after the one already closing off HSN Summary/bank details) */
+.terms-plain{margin-top:6px}
 .terms-plain .info-lbl{margin-bottom:4px}
 .terms-plain .info-val{font-size:10.5px;color:#222}
 /* Footer */
-.footer-band{border-top:1.5px solid #ccc;margin-top:16px;padding:10px 0 0;display:flex;justify-content:space-between;align-items:center}
+.footer-band{border-top:1.5px solid #999;margin-top:6px;padding:4px 0 0;display:flex;justify-content:space-between;align-items:center}
 .footer-brand{font-size:12.5px;font-weight:700;color:#C4622A;margin-bottom:2px}
 .footer-tagline{font-size:10px;color:#444;font-style:italic}
 /* Mandatory brand signature, always shown, including in print */
@@ -11012,7 +11014,7 @@ ${(!isQuote&&(isRecord||docInv('business_address')||docInv('gstin'))&&(SELLER_AD
     ${(showCustName)&&d.customer_name?`<div class="cust-name">${esc(d.customer_name)}</div>`:''}
     <div class="cust-detail">
       ${showCustContact?`${d.customer_phone?esc(d.customer_phone)+'<br>':''}${d.customer_address?esc(d.customer_address)+'<br>':''}${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' &mdash; '+esc(d.customer_pincode):''}`:''}
-      ${showCustGstin&&d.customer_gstin?`<br>GSTIN: ${esc(d.customer_gstin)}`:''}
+      ${showCustGstin&&d.customer_gstin?`<br>GSTIN: <span style="font-weight:600">${esc(d.customer_gstin)}</span>`:''}
     </div>
   </div>
   ${(showGstCols&&d.customer_state)?`<div style="text-align:right;flex-shrink:0">
@@ -11052,7 +11054,6 @@ ${(!isQuote&&(isRecord||docInv('business_address')||docInv('gstin'))&&(SELLER_AD
 <div class="words-row"><span style="color:#111;font-style:normal;font-weight:700">Amount in words:</span> ${esc(amtWords)}</div>
 </div>
 ${hsnSummaryHtml}
-${showGstCols?'<div class="divider"></div>':''}
 
 ${(()=>{
   const hasBankBlock=(!isRecord&&docField('bank_details')&&(SELLER_BANK.acc||SELLER_BANK.ifsc));
@@ -11127,7 +11128,7 @@ ${(!isQuote&&!isRecord&&docInv('signature'))?`<div style="padding:20px 26px 4px;
   </div>
 </div>
 
-<div class="brand-line"${isQuote?' style="font-size:10.5px;font-weight:400;letter-spacing:0;text-transform:none;color:#555;padding:10px 16px 16px"':''}>${isQuote?'This is a computer generated document and does not require a physical signature.':'Creation of Three Dimensions'}</div>
+<div class="brand-line"${isQuote?' style="font-size:10.5px;font-weight:400;letter-spacing:0;text-transform:none;color:#333;padding:6px 16px 10px"':''}>${isQuote?'This is a computer generated document and does not require a physical signature.':'Creation of Three Dimensions'}</div>
 
 <script>
 var _safeDocName=${JSON.stringify(docTitle.replace(/\s+/g,'')+'-'+String(docNo).replace(/[^\w\-]+/g,'_'))};
