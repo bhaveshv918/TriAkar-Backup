@@ -10752,6 +10752,9 @@ async function printInvoice(d, type, docKind){
   const SELLER_FOOTER=cfg.footer||'Crafted with care · Every piece is made to order · Thank you for supporting Indian design';
   const SELLER_BANK={holder:cfg.bankHolder||'',name:cfg.bankName||'',branch:cfg.bankBranch||'',acc:cfg.bankAcc||'',ifsc:cfg.bankIfsc||'',acType:cfg.bankAcType||'Current Account'};
   const DUE_DAYS=parseInt(cfg.dueDays,10)||7;
+  const ICON_WHATSAPP='<svg width="10" height="10" viewBox="0 0 24 24" fill="#C4622A" style="vertical-align:-1px;margin-right:3px"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12.004 2C6.486 2 2 6.486 2 12.004c0 1.996.586 3.848 1.594 5.406L2 22l4.72-1.559A9.955 9.955 0 0012.004 22C17.522 22 22 17.522 22 12.004 22 6.486 17.522 2 12.004 2zm0 18.18a8.16 8.16 0 01-4.166-1.143l-.298-.177-3.104 1.026 1.043-3.024-.194-.31A8.16 8.16 0 013.82 12c0-4.514 3.671-8.184 8.184-8.184 4.514 0 8.184 3.67 8.184 8.184 0 4.514-3.67 8.18-8.184 8.18z"/></svg>';
+  const ICON_MAIL='<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#C4622A" stroke-width="2.5" style="vertical-align:-1px;margin-right:3px"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 6l10 7 10-7"/></svg>';
+  const ICON_WEB='<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#C4622A" stroke-width="2.5" style="vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20 15 15 0 010-20z"/></svg>';
 
   // Support multi-item orders (d.items) and legacy single rows (d)
   const items=(d.items&&d.items.length)?d.items:[d];
@@ -10859,7 +10862,7 @@ async function printInvoice(d, type, docKind){
   const hsnSummaryHtml=(showGstCols&&hsnKeys.length)?(()=>{
     const thStyle='text-align:right;font-size:9px;color:#7a3010;padding:4px 8px;border-bottom:1.5px solid #333;border-right:1px solid #ddd;text-transform:uppercase;letter-spacing:.06em';
     const tdStyle='padding:5px 8px;font-size:11.5px;border:none;border-bottom:1px solid #ccc;border-right:1px solid #eee;color:#111';
-    const totalTdStyle='padding:6px 8px;font-size:11.5px;border:none;border-top:1.5px solid #333;border-right:1px solid #eee;color:#111;font-weight:700';
+    const totalTdStyle='padding:6px 8px;font-size:11.5px;border:none;border-top:1.5px solid #333;border-right:1px solid #eee;color:#111;font-weight:600';
     const cols=isIntraState?['CGST','SGST']:['IGST'];
     let sumTaxable=0,sumGst=0;
     const rowsHtml2=hsnKeys.map(hk=>{
@@ -10872,7 +10875,7 @@ async function printInvoice(d, type, docKind){
         <td class="td-r" style="${tdStyle}">₹${r.taxable.toFixed(2)}</td>
         <td class="td-r" style="${tdStyle}">${r.rate?r.rate+'%':'—'}</td>
         ${splitCells}
-        <td class="td-r" style="${tdStyle};font-weight:700">₹${r.gst.toFixed(2)}</td>
+        <td class="td-r" style="${tdStyle}">₹${r.gst.toFixed(2)}</td>
       </tr>`;
     }).join('');
     const totalSplit=isIntraState
@@ -10893,7 +10896,8 @@ async function printInvoice(d, type, docKind){
       <tbody>
         ${rowsHtml2}
         <tr>
-          <td colspan="2" style="${totalTdStyle}">Total</td>
+          <td style="${totalTdStyle}">Total</td>
+          <td class="td-r" style="${totalTdStyle}">₹${sumTaxable.toFixed(2)}</td>
           <td style="${totalTdStyle}"></td>
           ${totalSplit}
           <td class="td-r" style="${totalTdStyle}">₹${sumGst.toFixed(2)}</td>
@@ -10995,10 +10999,11 @@ tbody tr:last-child td{border-bottom:none}
       <div class="brand-en"><span class="b-tri">TRI</span><span class="b-akar">AKAR</span>${(isQuote&&docQuo('business_identity'))?' <span class="b-akar" style="font-size:80%;text-transform:none">Form</span>':''}</div>
       ${(isQuote&&docQuo('business_identity'))?'':`<div class="brand-hi"${isQuote?' style="font-size:14.85px"':''}><span style="color:#C4622A">त्रि</span><span style="color:#111">आकार</span></div>`}
       ${(isQuote&&docQuo('business_identity'))?`<div class="seller-detail" style="margin-top:4px">${[
-        SELLER_WEB,
-        (docQuo('gstin')&&SELLER_GSTIN)?'GSTIN: '+SELLER_GSTIN:'',
-        SELLER_PHONE,SELLER_EMAIL
-      ].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ')}</div>
+        SELLER_PHONE?ICON_WHATSAPP+esc(SELLER_PHONE):'',
+        SELLER_EMAIL?ICON_MAIL+esc(SELLER_EMAIL):'',
+        (docQuo('gstin')&&SELLER_GSTIN)?'GSTIN: '+esc(SELLER_GSTIN):'',
+        SELLER_WEB?ICON_WEB+esc(SELLER_WEB):''
+      ].filter(Boolean).join(' &nbsp;·&nbsp; ')}</div>
       ${SELLER_ADDR?`<div class="seller-detail" style="margin-top:2px">${esc(SELLER_ADDR)}</div>`:''}`:''}
     </div>
   </div>
