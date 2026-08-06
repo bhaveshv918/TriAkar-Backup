@@ -203,7 +203,7 @@ tr:hover td{background:var(--bg-2)}
    (All Orders, Today's Tasks, Order Detail, Returns, Invoicing). Was plain --text-3
    text with no boundary, low contrast and easy to miss in a busy row. */
 .oid-tag{background:var(--accent-bg);border:1px solid rgba(196,98,42,.35);border-radius:4px;padding:2px 9px}
-.btn-copy-oid{background:var(--accent);color:#fff!important;border-radius:3px;padding:1px 4px!important;opacity:1!important;transition:background .15s,transform .1s}
+.btn-copy-oid{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;flex-shrink:0;background:var(--accent);color:#fff!important;border:none;border-radius:3px;cursor:pointer;padding:0!important;opacity:1!important;transition:background .15s,transform .1s}
 .btn-copy-oid:hover{background:var(--accent-h);transform:scale(1.1)}
 /* Inline status dropdown styled to look like a badge until opened (bug #7, one
    dropdown, right on the order row, no need to open the full edit view) */
@@ -3603,12 +3603,18 @@ function copyOrderId(oid,ev){
 // Renders "#<order id>" in an orange-outline box with a highlighted copy button,
 // same shape everywhere it's used. Was plain low-contrast text with an almost
 // invisible copy icon, hard to spot and hard to read in a busy row.
+// display:flex (block-level, not inline-flex) makes the box always start on its
+// own line wherever it's dropped, no per-caller wrapper needed, and it never
+// stretches wider than its content (width:fit-content). The copy glyph used to be
+// the "⧉" character, which some fonts/OSes clip depending on line-height, an
+// inline SVG renders identically everywhere.
 function orderIdTag(oid,opts){
   if(!oid) return '';
   opts=opts||{};
   const safe=esc(oid), jsSafe=safe.replace(/'/g,"\\'");
   const size=opts.size||'10px';
-  return `<span class="oid-tag" style="display:inline-flex;align-items:center;gap:4px;color:${opts.color||'var(--accent-h)'};font-size:${size};font-family:var(--mono);font-weight:600">#${safe}<button type="button" class="btn-copy-oid" onclick="copyOrderId('${jsSafe}',event)" title="Copy Order ID" style="border:none;cursor:pointer;line-height:1;font-size:1.05em">⧉</button></span>`;
+  const copyIcon='<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  return `<span class="oid-tag" style="display:flex;width:fit-content;align-items:center;gap:5px;margin-top:4px;color:${opts.color||'var(--accent-h)'};font-size:${size};font-family:var(--mono);font-weight:600">#${safe}<button type="button" class="btn-copy-oid" onclick="copyOrderId('${jsSafe}',event)" title="Copy Order ID">${copyIcon}</button></span>`;
 }
 function fmt(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function fmtD(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
@@ -7387,7 +7393,7 @@ async function loadSales(){
     // find-in-page / matching against platform dashboards).
     const orderIdLine=orderIdTag(f.order_id);
     const giftBadge=f.is_gift?` <span title="Gift, ₹0 revenue, cost logged as a Marketing expense">🎁</span>`:'';
-    const itemCol=thumb+`<span style="display:inline-block;vertical-align:middle">${skuLine}${giftBadge}${orderIdLine?`<div style="margin-top:4px">${orderIdLine}</div>`:''}${items.length>1?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">+${items.length-1} more</span>`:''}${orderAlertBadge(f)}</span>`;
+    const itemCol=thumb+`<span style="display:inline-block;vertical-align:middle">${skuLine}${giftBadge}${orderIdLine}${items.length>1?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">+${items.length-1} more</span>`:''}${orderAlertBadge(f)}</span>`;
     const breached=daysPastPromiseNotCompleted(f)!=null;
     return `<tr class="sale-row${breached?' row-breached':''}" onclick="rowSelectOrAction(event,'sale-cb',()=>openOrderDetail('${key}',event))" style="cursor:pointer;${allPaid?'opacity:.78':''}">
       <td><input type="checkbox" class="sale-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateBulkBar()"></td>
