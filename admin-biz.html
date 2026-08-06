@@ -3339,6 +3339,7 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group"><label>Branch</label><input type="text" id="cfg_bank_branch" placeholder="Greater Noida West"></div>
             <div class="form-group"><label>Account Number</label><input type="text" id="cfg_bank_acc" style="font-family:var(--mono);letter-spacing:.05em"></div>
             <div class="form-group"><label>IFSC</label><input type="text" id="cfg_bank_ifsc" style="font-family:var(--mono);letter-spacing:.05em" placeholder="SBIN0000000"></div>
+            <div class="form-group"><label>Account Type</label><input type="text" id="cfg_bank_actype" placeholder="Current Account"></div>
           </div>
           <div class="form-group" style="margin-bottom:0"><label>Payment Due, days from invoice date</label><input type="number" id="cfg_due_days" step="1" min="0" placeholder="7"></div>
         </div>
@@ -3420,7 +3421,7 @@ function getBizSettings(){
   catch(e){ return {}; }
 }
 const BIZ_SETTINGS_FIELD_MAP={cfg_name:'name',cfg_addr:'addr',cfg_gstin:'gstin',cfg_pan:'pan',cfg_phone:'phone',cfg_email:'email',cfg_web:'web',cfg_footer:'footer',
-  cfg_bank_holder:'bankHolder',cfg_bank_name:'bankName',cfg_bank_branch:'bankBranch',cfg_bank_acc:'bankAcc',cfg_bank_ifsc:'bankIfsc',cfg_due_days:'dueDays'};
+  cfg_bank_holder:'bankHolder',cfg_bank_name:'bankName',cfg_bank_branch:'bankBranch',cfg_bank_acc:'bankAcc',cfg_bank_ifsc:'bankIfsc',cfg_bank_actype:'bankAcType',cfg_due_days:'dueDays'};
 function _populateBizSettingsForm(cfg){
   Object.entries(BIZ_SETTINGS_FIELD_MAP).forEach(([elId,key])=>{
     const el=document.getElementById(elId); if(el&&cfg[key]!=null&&cfg[key]!=='') el.value=cfg[key];
@@ -3443,7 +3444,7 @@ async function loadBizSettings(){
 async function saveBizSettings(){
   const g=id=>(document.getElementById(id)?.value.trim()||'');
   const cfg={name:g('cfg_name'),addr:g('cfg_addr'),gstin:g('cfg_gstin'),pan:g('cfg_pan'),phone:g('cfg_phone'),email:g('cfg_email'),web:g('cfg_web'),footer:g('cfg_footer'),
-    bankHolder:g('cfg_bank_holder'),bankName:g('cfg_bank_name'),bankBranch:g('cfg_bank_branch'),bankAcc:g('cfg_bank_acc'),bankIfsc:g('cfg_bank_ifsc'),dueDays:g('cfg_due_days')};
+    bankHolder:g('cfg_bank_holder'),bankName:g('cfg_bank_name'),bankBranch:g('cfg_bank_branch'),bankAcc:g('cfg_bank_acc'),bankIfsc:g('cfg_bank_ifsc'),bankAcType:g('cfg_bank_actype'),dueDays:g('cfg_due_days')};
   _bizSettingsCache=cfg;
   localStorage.setItem(BIZ_SETTINGS_KEY,JSON.stringify(cfg));
   const msg=document.getElementById('settingsSavedMsg');
@@ -5619,7 +5620,7 @@ function editQuotation(id){
     set('qa_city',q.customer_city); set('qa_state',q.customer_state); set('qa_pin',q.customer_pincode);
     set('qa_gstin',q.customer_gstin); set('qa_qt_validity',q.validity_date); set('qa_qt_terms',q.terms_notes);
     set('qa_qt_promised',q.promised_date); set('qa_qt_number',q.quotation_number); set('qa_date',q.quotation_date);
-    _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0})) : [blankItem()];
+    _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0,hsn:it.hsn||(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:it.sku||''})) : [blankItem()];
     renderItems();
     renderQaQtTncPresets();
     const saveBtn=document.getElementById('qaSaveBtn'); if(saveBtn) saveBtn.innerHTML='💾 Update Quotation';
@@ -5639,7 +5640,7 @@ function duplicateQuotation(id){
     set('qa_city',q.customer_city); set('qa_state',q.customer_state); set('qa_pin',q.customer_pincode);
     set('qa_gstin',q.customer_gstin); set('qa_qt_validity',q.validity_date); set('qa_qt_terms',q.terms_notes);
     set('qa_qt_promised',q.promised_date); set('qa_qt_number',genQuotationNumber()); set('qa_date',today());
-    _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0})) : [blankItem()];
+    _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0,hsn:it.hsn||(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:it.sku||''})) : [blankItem()];
     renderItems();
     renderQaQtTncPresets();
     const saveBtn=document.getElementById('qaSaveBtn'); if(saveBtn) saveBtn.innerHTML='💾 Save Quotation';
@@ -10730,7 +10731,7 @@ async function printInvoice(d, type, docKind){
   const SELLER_PHONE=cfg.phone||'';
   const SELLER_WEB=cfg.web||'triakar.com';
   const SELLER_FOOTER=cfg.footer||'Crafted with care · Every piece is made to order · Thank you for supporting Indian design';
-  const SELLER_BANK={holder:cfg.bankHolder||'',name:cfg.bankName||'',branch:cfg.bankBranch||'',acc:cfg.bankAcc||'',ifsc:cfg.bankIfsc||''};
+  const SELLER_BANK={holder:cfg.bankHolder||'',name:cfg.bankName||'',branch:cfg.bankBranch||'',acc:cfg.bankAcc||'',ifsc:cfg.bankIfsc||'',acType:cfg.bankAcType||'Current Account'};
   const DUE_DAYS=parseInt(cfg.dueDays,10)||7;
 
   // Support multi-item orders (d.items) and legacy single rows (d)
@@ -10873,67 +10874,69 @@ async function printInvoice(d, type, docKind){
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:13px;color:#111;background:#fff;max-width:760px;margin:0 auto}
 /* ── HEADER, all white, no dark bg ── */
-.hdr{background:#fff;display:flex;justify-content:space-between;align-items:center;padding:24px 32px 20px;border-bottom:2px solid #C4622A}
+.hdr{background:#fff;display:flex;flex-direction:column;gap:14px;padding:24px 32px 20px;border-bottom:2px solid #C4622A}
 .hdr-logo{display:flex;align-items:center;gap:14px}
 .mark-svg{flex-shrink:0}
 .brand-en{font-size:30px;font-weight:800;letter-spacing:.08em;line-height:1;font-family:'Glorida','Inter','Segoe UI',Arial,sans-serif;text-transform:uppercase}
 .brand-en .b-tri{color:#C4622A}
 .brand-en .b-akar{color:#111}
 .brand-hi{font-size:11px;color:#C4622A;letter-spacing:.05em;font-family:'Noto Sans Devanagari','Mangal',sans-serif;font-weight:500;margin-top:4px}
+.doc-title-big{text-align:center;font-size:22px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#C4622A;margin-bottom:14px}
 .hdr-doc{text-align:right}
 .doc-type{font-size:9px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#C4622A;margin-bottom:4px}
-.doc-no{font-size:20px;font-weight:800;color:#111;letter-spacing:.03em;font-family:'Courier New',monospace}
-.doc-meta{font-size:11px;color:#999;margin-top:5px;line-height:1.7}
-.doc-meta-box{border:1px solid #f0d0bb;border-radius:8px;overflow:hidden;margin-top:6px;display:inline-block}
+.doc-no{font-size:21px;font-weight:800;color:#111;letter-spacing:.03em;font-family:'Courier New',monospace}
+.doc-meta{font-size:11px;color:#555;margin-top:5px;line-height:1.7}
+.doc-meta-box{border:1.5px solid #C4622A;border-radius:8px;overflow:hidden;margin-top:6px;display:inline-block}
 .doc-meta-box table{width:100%;border-collapse:collapse}
-.doc-meta-box td{padding:5px 12px;border-bottom:1px solid #f4f4f4;font-size:11px}
+.doc-meta-box td{padding:5px 12px;border-bottom:1px solid #ddd;font-size:11px}
 .doc-meta-box tr:last-child td{border-bottom:none}
-.doc-meta-box .dmb-k{color:#9a4010;font-weight:700;background:#fdf0e8;white-space:nowrap;text-align:left}
-.doc-meta-box .dmb-v{color:#333;text-align:right;font-family:'Courier New',monospace}
-.doc-badge{display:inline-block;background:#fdf0e8;color:#9a4010;font-size:9px;padding:2px 9px;border-radius:20px;margin-top:5px;font-weight:700;letter-spacing:.07em;border:1px solid #f0d0bb;text-transform:uppercase}
+.doc-meta-box .dmb-k{color:#7a3010;font-weight:700;background:#fdf0e8;white-space:nowrap;text-align:left}
+.doc-meta-box .dmb-v{color:#111;text-align:right;font-family:'Courier New',monospace;font-weight:600}
+.doc-badge{display:inline-block;background:#fdf0e8;color:#7a3010;font-size:9px;padding:2px 9px;border-radius:20px;margin-top:5px;font-weight:700;letter-spacing:.07em;border:1px solid #e8b088;text-transform:uppercase}
 /* ── BODY ── */
 .body{padding:24px 32px}
 /* Seller */
 .seller-strip{padding:11px 15px;background:#fafafa;border-left:3px solid #C4622A;border-radius:0 5px 5px 0;margin-bottom:20px}
 .seller-name{font-size:13px;font-weight:700;color:#111}
-.seller-detail{font-size:11px;color:#999;margin-top:2px;line-height:1.75}
+.seller-detail{font-size:11px;color:#444;margin-top:2px;line-height:1.75}
 /* Divider */
-.divider{height:1px;background:#f0f0f0;margin:18px 0}
+.divider{height:1px;background:#ccc;margin:18px 0}
 /* Customer */
 .customer-box{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:20px}
 .section-lbl{font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#C4622A;margin-bottom:7px}
 .cust-name{font-size:16px;font-weight:700;color:#111;margin-bottom:4px}
-.cust-detail{font-size:12px;color:#777;line-height:1.85}
-.order-badge{background:#fdf0e8;border:1px solid #f0d0bb;border-radius:6px;padding:7px 13px;font-size:11px;color:#7a3010;font-family:monospace;font-weight:700;white-space:nowrap;margin-top:2px}
+.cust-detail{font-size:12px;color:#333;line-height:1.85}
+.order-badge{background:#fdf0e8;border:1px solid #e8b088;border-radius:6px;padding:7px 13px;font-size:11px;color:#7a3010;font-family:monospace;font-weight:700;white-space:nowrap;margin-top:2px}
 /* Table */
-.tbl-wrap{border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:6px}
+.tbl-wrap{border:1.5px solid #ccc;border-radius:8px;overflow:hidden;margin-bottom:6px}
 table{width:100%;border-collapse:collapse}
-thead th{background:#f7f7f7;padding:9px 16px;font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#555;text-align:left;border-bottom:1px solid #e8e8e8}
+thead th{background:#eee;padding:9px 16px;font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#333;text-align:left;border-bottom:1.5px solid #ccc}
 thead th:first-child{border-left:3px solid #C4622A}
-td{padding:13px 16px;border-bottom:1px solid #f4f4f4;font-size:13px;vertical-align:top}
+td{padding:13px 16px;border-bottom:1px solid #ddd;font-size:13px;vertical-align:top;color:#222}
 tbody tr:last-child td{border-bottom:none}
 .td-r{text-align:right}
-.item-sub{font-size:11px;color:#bbb;margin-top:3px}
+.item-sub{font-size:11px;color:#777;margin-top:3px}
 .discount-row td{font-size:12px;color:#c0392b;padding:4px 16px;border-bottom:none}
-.gst-row td{font-size:11.5px;color:#aaa;padding:5px 16px;border-bottom:none}
+.gst-row td{font-size:11.5px;color:#555;padding:5px 16px;border-bottom:none}
 .total-row td{font-size:18px;font-weight:900;color:#111;border-top:2px solid #C4622A;padding:14px 16px;border-bottom:none}
-.words-row{padding:10px 16px;font-size:11px;color:#C4622A;font-style:italic;border-top:1px solid #f4f4f4;background:#fffcfb}
+.words-row{padding:10px 16px;font-size:11px;color:#C4622A;font-style:italic;border-top:1.5px solid #ccc;background:#fffcfb;font-weight:600}
 /* Info */
 .info-strip{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
-.info-card{border:1px solid #e8e8e8;border-radius:8px;padding:13px 15px}
+.info-card{border:1.5px solid #ccc;border-radius:8px;padding:13px 15px}
 .info-lbl{font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#C4622A;margin-bottom:6px}
-.info-val{font-size:12.5px;color:#333;line-height:1.8}
-.chip{display:inline-block;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:4px;padding:2px 8px;font-size:11px;color:#444;font-family:monospace;font-weight:600}
+.info-val{font-size:12.5px;color:#111;line-height:1.8;font-weight:500}
+.chip{display:inline-block;background:#eee;border:1px solid #bbb;border-radius:4px;padding:2px 8px;font-size:11px;color:#222;font-family:monospace;font-weight:700}
 /* Footer */
-.footer-band{border-top:1px solid #e8e8e8;margin-top:28px;padding:16px 0 0;display:flex;justify-content:space-between;align-items:center}
+.footer-band{border-top:1.5px solid #ccc;margin-top:28px;padding:16px 0 0;display:flex;justify-content:space-between;align-items:center}
 .footer-brand{font-size:13px;font-weight:700;color:#C4622A;margin-bottom:2px}
-.footer-tagline{font-size:10.5px;color:#bbb;font-style:italic}
+.footer-tagline{font-size:10.5px;color:#555;font-style:italic}
 /* Mandatory brand signature, always shown, including in print */
 .brand-line{text-align:center;font-family:'Glorida','Inter',sans-serif;font-size:15px;font-weight:700;letter-spacing:.16em;color:#C4622A;text-transform:uppercase;padding:18px 16px 26px}
 @media print{.print-btn{display:none!important}body{max-width:100%}}
 </style></head><body>
 
-<div class="hdr"${isQuote?' style="flex-direction:column;align-items:stretch;gap:14px"':''}>
+<div class="hdr">
+  <div class="doc-title-big">${docTitle}</div>
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px">
   <div class="hdr-logo">
     ${(isQuote||(!isRecord&&!docInv('logo')))?'':'<svg class="mark-svg" xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 54 54"><defs><clipPath id="mc"><rect width="54" height="54" rx="10"/></clipPath></defs><rect width="54" height="27" fill="#C4622A" clip-path="url(#mc)"/><rect y="27" width="54" height="27" fill="#252320" clip-path="url(#mc)"/><circle cx="27" cy="27" r="17" fill="#F4F2EC"/><text x="27" y="27" text-anchor="middle" dominant-baseline="central" font-family="Noto Sans Devanagari,Mangal,Arial Unicode MS,sans-serif" font-size="14" font-weight="700" fill="#C4622A">त्रि</text></svg>'}
@@ -10943,10 +10946,8 @@ tbody tr:last-child td{border-bottom:none}
     </div>
   </div>
   <div class="hdr-doc">
-    <div class="doc-type">${docTitle}</div>
-    ${(isQuote&&docQuo('business_identity'))?'':`<div class="doc-no">${esc(docNo)}</div>`}
-    ${isQuote?`<div class="doc-meta">Date: ${esc(docDate)}${(docQuo('validity_period')&&d.validity_date)?`<br>Valid Until: ${esc(d.validity_date)}`:''}${docField('due_date')?`<br>Due Date: ${esc(dueDateStr)}`:''}</div>`:`
-    <div class="doc-meta-box"><table>${(isRecord?[['Order Date',docDate],['Complete Date',d.delivery_date?esc(d.delivery_date):'—']]:[['Invoice Date',docDate],...(docField('due_date')?[['Due Date',dueDateStr]]:[])]).map(([k,v])=>`<tr><td class="dmb-k">${k}</td><td class="dmb-v">${esc(v)}</td></tr>`).join('')}</table></div>`}
+    <div class="doc-no">${esc(docNo)}</div>
+    <div class="doc-meta-box"><table>${(isRecord?[['Date',docDate],['Complete Date',d.delivery_date?esc(d.delivery_date):'—']]:isQuote?[['Date',docDate],...((docQuo('validity_period')&&d.validity_date)?[['Valid Until',d.validity_date]]:[])]:[['Date',docDate],...(docField('due_date')?[['Due Date',dueDateStr]]:[])]).map(([k,v])=>`<tr><td class="dmb-k">${k}</td><td class="dmb-v">${esc(v)}</td></tr>`).join('')}</table></div>
     <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;margin-top:5px">
       ${d.channel_id?`<div class="doc-badge">${esc(CH_NAMES?.[d.channel_id]||d.channel_id)}</div>`:''}
     </div>
@@ -10954,7 +10955,7 @@ tbody tr:last-child td{border-bottom:none}
   </div>
   </div>
   ${(isQuote&&docQuo('business_identity'))?`<div class="seller-strip" style="margin-bottom:0">
-    <div class="seller-name">TriAkar Form${docNo?' &nbsp;·&nbsp; <span style="font-weight:400;color:#666;font-family:\'Courier New\',monospace">'+esc(docNo)+'</span>':''}</div>
+    <div class="seller-name">TriAkar Form</div>
     <div class="seller-detail">${[
       SELLER_WEB,
       (docQuo('gstin')&&SELLER_GSTIN)?'GSTIN: '+SELLER_GSTIN:'',
@@ -11029,10 +11030,11 @@ ${(()=>{
   ${hasBankBlock?`<div class="info-card">
     <div class="info-lbl">Bank Account Details</div>
     <div class="info-val">${[
-      SELLER_BANK.holder?esc(SELLER_BANK.holder):'',
-      SELLER_BANK.name?esc(SELLER_BANK.name)+(SELLER_BANK.branch?', '+esc(SELLER_BANK.branch):''):'',
-      SELLER_BANK.acc?'A/c No: '+esc(SELLER_BANK.acc):'',
-      SELLER_BANK.ifsc?'IFSC: '+esc(SELLER_BANK.ifsc):''
+      SELLER_BANK.holder?'A/c Name: '+esc(SELLER_BANK.holder):'',
+      SELLER_BANK.acc?'A/c No.: '+esc(SELLER_BANK.acc):'',
+      SELLER_BANK.ifsc?'IFSC Code: '+esc(SELLER_BANK.ifsc):'',
+      (SELLER_BANK.name||SELLER_BANK.branch)?'Bank Name &amp; Branch: '+[esc(SELLER_BANK.name),esc(SELLER_BANK.branch)].filter(Boolean).join(', '):'',
+      SELLER_BANK.acType?'A/c Type: '+esc(SELLER_BANK.acType):''
     ].filter(Boolean).join('<br>')}</div>
   </div>`:''}
   ${bankQr?`<div class="info-card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
