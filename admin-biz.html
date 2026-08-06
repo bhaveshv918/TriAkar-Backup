@@ -4915,7 +4915,7 @@ function updateAddOrderModeUI(){
 // Add Order / Quotation share one form (customer + items entry never duplicated),
 // this just shows/hides the order-only sections and swaps what Save does.
 let _qaFormMode='order';
-function setQaFormMode(mode){
+async function setQaFormMode(mode){
   _qaFormMode=mode;
   const seg=document.getElementById('qaModeSeg'); if(seg) seg.dataset.v=mode;
   document.querySelectorAll('#qaModeSeg .qa-mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.v===mode));
@@ -4926,7 +4926,7 @@ function setQaFormMode(mode){
   const saveBtn=document.getElementById('qaSaveBtn');
   if(mode==='quotation'){
     saveBtn && (saveBtn.innerHTML=_qaEditQuotationId?'💾 Update Quotation':'💾 Save Quotation');
-    const numEl=document.getElementById('qa_qt_number'); if(numEl&&!numEl.value) numEl.value=genQuotationNumber();
+    const numEl=document.getElementById('qa_qt_number'); if(numEl&&!numEl.value) numEl.value=await genQuotationNumber();
     renderQaQtTncPresets();
   } else {
     _qaEditQuotationId=null;   // leaving Quotation mode abandons any in-progress edit
@@ -4961,7 +4961,7 @@ async function submitQuickAddAsQuotation(){
   if(!items.length){ toast('Add at least one item','error'); return; }
   let sub=0,gstAmt=0; items.forEach(it=>{ const amt=it.pricingMode==='gram'?(it.qty||0)*(it.grams||0)*(it.rate||0):(it.qty||0)*(it.rate||0); sub+=amt; gstAmt+=amt*((it.gst||0)/100); });
   const g=id=>document.getElementById(id)?.value?.trim()||null;
-  const manualNumber=g('qa_qt_number')||genQuotationNumber();
+  const manualNumber=g('qa_qt_number')||await genQuotationNumber();
   const now=new Date(), fyStart=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
   const fy=`${fyStart}-${String((fyStart+1)%100).padStart(2,'0')}`;
   const payload={
@@ -5558,15 +5558,19 @@ function recalcQuoteTotals(){
   const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=fmt(v);};
   set('qt_sub',sub); set('qt_gstamt',gst); set('qt_total',sub+gst);
 }
-// Format: QT/{FY}/{MON}/{3 random letters}, shown pre-filled and editable, not
-// silently generated at save time the way it used to be.
-function genQuotationNumber(){
+// Format: QT/{FY}/{3-digit sequence}, e.g. QT/2026-27/030, shown pre-filled and
+// editable, same convention as Invoice No. (allocateInvoiceNumber). Pulls the real
+// next sequence from biz_next_quotation_number so numbers stay gapless/sequential
+// instead of the random-letter suffix this used to generate; falls back to a
+// timestamp-based placeholder only if the RPC is unreachable.
+async function genQuotationNumber(){
   const now=new Date(), fyStart=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
   const fy=`${fyStart}-${String((fyStart+1)%100).padStart(2,'0')}`;
-  const mon=now.toLocaleDateString('en-IN',{month:'short'}).toUpperCase();
-  const letters='ABCDEFGHJKLMNPQRSTUVWXYZ';
-  const rand=Array.from({length:3},()=>letters[Math.floor(Math.random()*letters.length)]).join('');
-  return `QT/${fy}/${mon}/${rand}`;
+  try{
+    const {data:seq,error}=await sb.rpc('biz_next_quotation_number',{p_fy:fy});
+    if(!error&&seq!=null) return `QT/${fy}/${String(seq).padStart(3,'0')}`;
+  }catch(_){}
+  return `QT/${fy}/${String(now.getTime()).slice(-3)}`;
 }
 function loadTncPresets(){
   let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
@@ -5617,10 +5621,10 @@ function verifyQaGstin(){
   window.open(url,'_blank');
   if(!gstin) toast('Opened GST portal, paste the GSTIN to search');
 }
-function showAddQuotation(){
+async function showAddQuotation(){
   document.getElementById('qt_id').value='';
   ['qt_cname','qt_phone','qt_address','qt_city','qt_state','qt_pin','qt_gstin','qt_validity','qt_terms','qt_date','qt_promised'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-  const numEl=document.getElementById('qt_number'); if(numEl) numEl.value=genQuotationNumber();
+  const numEl=document.getElementById('qt_number'); if(numEl) numEl.value=await genQuotationNumber();
   const dateEl=document.getElementById('qt_date'); if(dateEl) dateEl.value=today();
   _quoteItems=[blankQuoteItem()];
   renderQuoteItems();
@@ -5654,7 +5658,7 @@ function editQuotation(id){
 function duplicateQuotation(id){
   const q=_quotations.find(x=>x.id===id); if(!q) return;
   switchTab('quickadd');
-  setTimeout(()=>{
+  setTimeout(async()=>{
     resetQuickAdd();
     setQaFormMode('quotation');
     _qaEditQuotationId=null;
@@ -5662,7 +5666,7 @@ function duplicateQuotation(id){
     set('qa_cname',q.customer_name); set('qa_phone',q.customer_phone); set('qa_address',q.customer_address);
     set('qa_city',q.customer_city); set('qa_state',q.customer_state); set('qa_pin',q.customer_pincode);
     set('qa_gstin',q.customer_gstin); set('qa_qt_validity',q.validity_date); set('qa_qt_terms',q.terms_notes);
-    set('qa_qt_promised',q.promised_date); set('qa_qt_number',genQuotationNumber()); set('qa_date',today());
+    set('qa_qt_promised',q.promised_date); set('qa_qt_number',await genQuotationNumber()); set('qa_date',today());
     _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0,hsn:it.hsn||(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:it.sku||'',variant:it.variant||'',remarks:it.remarks||''})) : [blankItem()];
     renderItems();
     renderQaQtTncPresets();
@@ -5685,7 +5689,7 @@ async function saveQuotation(){
   const id=document.getElementById('qt_id').value;
   // Manually editable number now (pre-filled QT/FY/MON/XXX at form-open), whatever's
   // typed here at save time is what gets used, same convention as Invoice No.
-  const manualNumber=g('qt_number')||genQuotationNumber();
+  const manualNumber=g('qt_number')||await genQuotationNumber();
   if(id){
     payload.quotation_number=manualNumber;
     const {error}=await updateRowResilient('biz_quotations', id, payload);
@@ -10760,7 +10764,7 @@ async function printInvoice(d, type, docKind){
   const SELLER_FOOTER=cfg.footer||'Crafted with care · Every piece is made to order · Thank you for supporting Indian design';
   const SELLER_BANK={holder:cfg.bankHolder||'',name:cfg.bankName||'',branch:cfg.bankBranch||'',acc:cfg.bankAcc||'',ifsc:cfg.bankIfsc||'',acType:cfg.bankAcType||'Current Account'};
   const DUE_DAYS=parseInt(cfg.dueDays,10)||7;
-  const ICON_WHATSAPP='<svg width="10" height="10" viewBox="0 0 24 24" fill="#C4622A" style="vertical-align:-1px;margin-right:3px"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12.004 2C6.486 2 2 6.486 2 12.004c0 1.996.586 3.848 1.594 5.406L2 22l4.72-1.559A9.955 9.955 0 0012.004 22C17.522 22 22 17.522 22 12.004 22 6.486 17.522 2 12.004 2zm0 18.18a8.16 8.16 0 01-4.166-1.143l-.298-.177-3.104 1.026 1.043-3.024-.194-.31A8.16 8.16 0 013.82 12c0-4.514 3.671-8.184 8.184-8.184 4.514 0 8.184 3.67 8.184 8.184 0 4.514-3.67 8.18-8.184 8.18z"/></svg>';
+  const ICON_WHATSAPP='<svg width="10" height="10" viewBox="0 0 24 24" fill="#25D366" style="vertical-align:-1px;margin-right:3px"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12.004 2C6.486 2 2 6.486 2 12.004c0 1.996.586 3.848 1.594 5.406L2 22l4.72-1.559A9.955 9.955 0 0012.004 22C17.522 22 22 17.522 22 12.004 22 6.486 17.522 2 12.004 2zm0 18.18a8.16 8.16 0 01-4.166-1.143l-.298-.177-3.104 1.026 1.043-3.024-.194-.31A8.16 8.16 0 013.82 12c0-4.514 3.671-8.184 8.184-8.184 4.514 0 8.184 3.67 8.184 8.184 0 4.514-3.67 8.18-8.184 8.18z"/></svg>';
   const ICON_MAIL='<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#C4622A" stroke-width="2.5" style="vertical-align:-1px;margin-right:3px"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 6l10 7 10-7"/></svg>';
   const ICON_WEB='<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#C4622A" stroke-width="2.5" style="vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20 15 15 0 010-20z"/></svg>';
 
@@ -10821,7 +10825,7 @@ async function printInvoice(d, type, docKind){
   const showCustName=isQuote?docQuo('customer_name'):isRecord?docRec('customer'):true;
   const showCustContact=isQuote?docQuo('customer_name'):isRecord?docRec('customer'):docInv('shipping_address');
   const showCustGstin=isQuote?showCustContact:isRecord?showCustContact:docInv('customer_gstin');
-  const docNo=isRecord?(d.order_id||nextDocNumber()):isQuote?(d.quotation_number||genQuotationNumber()):await allocateInvoiceNumber(d.id||d.sale_id||null, d.order_id||null, docKind||'invoice', (d.invoice_no||'').trim()||null);
+  const docNo=isRecord?(d.order_id||nextDocNumber()):isQuote?(d.quotation_number||await genQuotationNumber()):await allocateInvoiceNumber(d.id||d.sale_id||null, d.order_id||null, docKind||'invoice', (d.invoice_no||'').trim()||null);
   const docDate=d.order_date||today();
   const dueDateObj=new Date(docDate+'T00:00:00'); dueDateObj.setDate(dueDateObj.getDate()+DUE_DAYS);
   const dueDateStr=dueDateObj.toISOString().slice(0,10);
@@ -10869,8 +10873,11 @@ async function printInvoice(d, type, docKind){
   const hsnKeys=Object.keys(hsnSummary);
   const hsnSummaryHtml=(showGstCols&&hsnKeys.length)?(()=>{
     const thStyle='text-align:right;font-size:9px;color:#7a3010;padding:4px 8px;border-bottom:1.5px solid #333;border-right:1px solid #ddd;text-transform:uppercase;letter-spacing:.06em';
+    const thStyleLast='text-align:right;font-size:9px;color:#7a3010;padding:4px 8px;border-bottom:1.5px solid #333;text-transform:uppercase;letter-spacing:.06em';
     const tdStyle='padding:5px 8px;font-size:11.5px;border:none;border-bottom:1px solid #ccc;border-right:1px solid #eee;color:#111';
+    const tdStyleLast='padding:5px 8px;font-size:11.5px;border:none;border-bottom:1px solid #ccc;color:#111';
     const totalTdStyle='padding:6px 8px;font-size:11.5px;border:none;border-top:1.5px solid #333;border-right:1px solid #eee;color:#111;font-weight:600';
+    const totalTdStyleLast='padding:6px 8px;font-size:11.5px;border:none;border-top:1.5px solid #333;color:#111;font-weight:600';
     const cols=isIntraState?['CGST','SGST']:['IGST'];
     let sumTaxable=0,sumGst=0;
     const rowsHtml2=hsnKeys.map(hk=>{
@@ -10883,7 +10890,7 @@ async function printInvoice(d, type, docKind){
         <td class="td-r" style="${tdStyle}">₹${r.taxable.toFixed(2)}</td>
         <td class="td-r" style="${tdStyle}">${r.rate?r.rate+'%':'—'}</td>
         ${splitCells}
-        <td class="td-r" style="${tdStyle}">₹${r.gst.toFixed(2)}</td>
+        <td class="td-r" style="${tdStyleLast}">₹${r.gst.toFixed(2)}</td>
       </tr>`;
     }).join('');
     const totalSplit=isIntraState
@@ -10899,7 +10906,7 @@ async function printInvoice(d, type, docKind){
         <th style="${thStyle}">Taxable Value</th>
         <th style="${thStyle}">GST Rate</th>
         ${cols.map(c=>`<th style="${thStyle}">${c}</th>`).join('')}
-        <th style="${thStyle}">Total Tax</th>
+        <th style="${thStyleLast}">Total Tax</th>
       </tr></thead>
       <tbody>
         ${rowsHtml2}
@@ -10908,7 +10915,7 @@ async function printInvoice(d, type, docKind){
           <td class="td-r" style="${totalTdStyle}">₹${sumTaxable.toFixed(2)}</td>
           <td style="${totalTdStyle}"></td>
           ${totalSplit}
-          <td class="td-r" style="${totalTdStyle}">₹${sumGst.toFixed(2)}</td>
+          <td class="td-r" style="${totalTdStyleLast}">₹${sumGst.toFixed(2)}</td>
         </tr>
       </tbody>
     </table>
@@ -10948,7 +10955,7 @@ body{font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:12.5px;color:
 .doc-meta-box td{padding:4px 11px;border-bottom:1px solid #ddd;font-size:10.5px}
 .doc-meta-box tr:last-child td{border-bottom:none}
 .doc-meta-box .dmb-k{color:#7a3010;font-weight:700;background:#fdf0e8;white-space:nowrap;text-align:left}
-.doc-meta-box .dmb-v{color:#111;text-align:right;font-family:'Courier New',monospace;font-weight:600}
+.doc-meta-box .dmb-v{color:#111;text-align:right;font-family:'Inter','Segoe UI',system-ui,sans-serif;font-weight:600}
 .doc-badge{display:inline-block;background:#fdf0e8;color:#7a3010;font-size:9px;padding:2px 9px;border-radius:20px;margin-top:4px;font-weight:700;letter-spacing:.07em;border:1px solid #e8b088;text-transform:uppercase}
 /* ── BODY ── */
 .body{padding:16px 26px}
@@ -10976,7 +10983,7 @@ tbody tr:last-child td{border-bottom:none}
 .item-sub{font-size:10.5px;color:#444;margin-top:2px}
 .discount-row td{font-size:11.5px;color:#c0392b;padding:3px 14px;border-bottom:none}
 .gst-row td{font-size:11px;color:#444;padding:4px 14px;border-bottom:none}
-.total-row td{font-size:18px;font-weight:900;color:#111;border-top:2px solid #C4622A;padding:10px 14px;border-bottom:none}
+.total-row td{font-size:13.5px;font-weight:700;color:#111;border-top:2px solid #C4622A;padding:10px 14px;border-bottom:none}
 .words-row{padding:7px 14px;font-size:10.5px;color:#C4622A;font-style:italic;border-top:1.5px solid #ccc;background:#fffcfb;font-weight:600}
 /* Info */
 .info-strip{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
@@ -10996,21 +11003,27 @@ tbody tr:last-child td{border-bottom:none}
 /* Mandatory brand signature, always shown, including in print */
 .brand-line{text-align:center;font-family:'Glorida','Inter',sans-serif;font-size:13px;font-weight:700;letter-spacing:.16em;color:#C4622A;text-transform:uppercase;padding:10px 16px 14px}
 @media print{.print-btn{display:none!important}body{max-width:100%}}
+/* PDF export, single-A4-page fit: squeeze the items table first (the section that
+   actually grows with order size) before the whole-page image gets scaled down. */
+.pdf-compact .tbl-wrap td{padding:5px 10px}
+.pdf-compact .tbl-wrap thead th{padding:4px 10px}
+.pdf-compact .item-sub{font-size:9px;margin-top:1px}
+.pdf-compact .col-sno{padding-left:5px;padding-right:5px}
 </style></head><body>
 
 <div class="hdr">
   <div class="doc-title-big">${docTitle}</div>
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px">
   <div class="hdr-logo" style="align-items:flex-start;flex:1 1 auto;min-width:0">
-    ${(!isRecord&&!isQuote&&!docInv('logo'))?'':'<svg class="mark-svg" xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 54 54"><defs><clipPath id="mc"><rect width="54" height="54" rx="10"/></clipPath></defs><rect width="54" height="27" fill="#C4622A" clip-path="url(#mc)"/><rect y="27" width="54" height="27" fill="#252320" clip-path="url(#mc)"/><circle cx="27" cy="27" r="17" fill="#F4F2EC"/><text x="27" y="28" text-anchor="middle" dominant-baseline="central" font-family="Noto Sans Devanagari,Mangal,Arial Unicode MS,sans-serif" font-size="19.6" font-weight="700" fill="#C4622A">त्रि</text></svg>'}
+    ${(!isRecord&&!isQuote&&!docInv('logo'))?'':'<svg class="mark-svg" xmlns="http://www.w3.org/2000/svg" width="37.8" height="37.8" viewBox="0 0 54 54"><defs><clipPath id="mc"><rect width="54" height="54" rx="10"/></clipPath></defs><rect width="54" height="27" fill="#C4622A" clip-path="url(#mc)"/><rect y="27" width="54" height="27" fill="#252320" clip-path="url(#mc)"/><circle cx="27" cy="27" r="17" fill="#F4F2EC"/><text x="27" y="28" text-anchor="middle" dominant-baseline="central" font-family="Noto Sans Devanagari,Mangal,Arial Unicode MS,sans-serif" font-size="19.6" font-weight="700" fill="#C4622A">त्रि</text></svg>'}
     <div style="min-width:0">
-      <div class="brand-en"><span class="b-tri">TRI</span><span class="b-akar">AKAR</span>${(isQuote&&docQuo('business_identity'))?' <span class="b-akar" style="font-size:80%;text-transform:none">Form</span>':''}</div>
+      <div class="brand-en"><span class="b-tri">TRI</span><span class="b-akar">AKAR</span>${(isQuote&&docQuo('business_identity'))?'<span class="b-akar" style="font-size:80%;text-transform:none;letter-spacing:0;margin-left:1px">Form</span>':''}</div>
       ${(isQuote&&docQuo('business_identity'))?'':`<div class="brand-hi"${isQuote?' style="font-size:14.85px"':''}><span style="color:#C4622A">त्रि</span><span style="color:#111">आकार</span></div>`}
       ${(isQuote&&docQuo('business_identity'))?`<div class="seller-detail" style="margin-top:4px">${[
         SELLER_PHONE?ICON_WHATSAPP+esc(SELLER_PHONE):'',
         SELLER_EMAIL?ICON_MAIL+esc(SELLER_EMAIL):'',
-        (docQuo('gstin')&&SELLER_GSTIN)?'GSTIN: '+esc(SELLER_GSTIN):'',
-        SELLER_WEB?ICON_WEB+esc(SELLER_WEB):''
+        SELLER_WEB?ICON_WEB+esc(SELLER_WEB):'',
+        (docQuo('gstin')&&SELLER_GSTIN)?'GSTIN: '+esc(SELLER_GSTIN):''
       ].filter(Boolean).join(' &nbsp;·&nbsp; ')}</div>
       ${SELLER_ADDR?`<div class="seller-detail" style="margin-top:2px">${esc(SELLER_ADDR)}</div>`:''}`:''}
     </div>
@@ -11043,7 +11056,7 @@ ${(!isQuote&&(isRecord||docInv('business_address')||docInv('gstin'))&&(SELLER_AD
     <div class="section-lbl">${isQuote?'Prepared for':'Billed To'}</div>
     ${(showCustName)&&d.customer_name?`<div class="cust-name">${esc(d.customer_name)}</div>`:''}
     <div class="cust-detail">
-      ${showCustContact?`${d.customer_phone?esc(d.customer_phone)+'<br>':''}${d.customer_address?esc(d.customer_address)+'<br>':''}${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' &mdash; '+esc(d.customer_pincode):''}`:''}
+      ${showCustContact?`${d.customer_phone?'Mobile: '+esc(d.customer_phone)+'<br>':''}${d.customer_address?esc(d.customer_address)+'<br>':''}${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' &mdash; '+esc(d.customer_pincode):''}`:''}
       ${showCustGstin&&d.customer_gstin?`<br>GSTIN: <span style="font-weight:600">${esc(d.customer_gstin)}</span>`:''}
     </div>
   </div>
@@ -11096,13 +11109,15 @@ ${(()=>{
       SELLER_BANK.holder?'A/c Name: '+esc(SELLER_BANK.holder):'',
       SELLER_BANK.acc?'A/c No.: '+esc(SELLER_BANK.acc):'',
       SELLER_BANK.ifsc?'IFSC Code: '+esc(SELLER_BANK.ifsc):'',
-      (SELLER_BANK.name||SELLER_BANK.branch)?'Bank Name &amp; Branch: '+[esc(SELLER_BANK.name),esc(SELLER_BANK.branch)].filter(Boolean).join(', '):'',
+      SELLER_BANK.name?'Bank Name: '+esc(SELLER_BANK.name):'',
+      SELLER_BANK.branch?'Branch: '+esc(SELLER_BANK.branch):'',
       SELLER_BANK.acType?'A/c Type: '+esc(SELLER_BANK.acType):''
     ].filter(Boolean).join('<br>')}</div>
   </div>`:''}
   ${bankQr?`<div class="info-card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
     <div class="info-lbl" style="margin-bottom:0">Scan to Pay</div>
     ${bankQr}
+    <div style="font-size:10px;color:#7a3010;font-weight:600">Pay using UPI</div>
   </div>`:''}
 </div>`;
 })()}
@@ -11161,7 +11176,12 @@ ${(!isQuote&&!isRecord&&docInv('signature'))?`<div style="padding:20px 26px 4px;
 <div class="brand-line"${isQuote?' style="font-size:10.5px;font-weight:400;letter-spacing:0;text-transform:none;color:#333;padding:6px 16px 10px"':''}>${isQuote?'This is a computer generated document and does not require a physical signature.':'Creation of Three Dimensions'}</div>
 
 <script>
-var _safeDocName=${JSON.stringify(docTitle.replace(/\s+/g,'')+'-'+String(docNo).replace(/[^\w\-]+/g,'_'))};
+var _safeDocName=${JSON.stringify('TriAkar_'+docTitle.replace(/\s+/g,'')+'_'+String(docNo).replace(/\//g,'-').replace(/[^\w\-]+/g,'_')+(d.customer_name?'_'+String(d.customer_name).replace(/[^a-zA-Z0-9]+/g,''):''))};
+// Every doc is forced onto a single A4 page, never paginated. A document with a
+// long item list gets a compact pass on just the items table first (font-size/
+// padding squeezed via .pdf-compact), so a 6-8 item order doesn't shrink the whole
+// page (header, branding) just to fit; only if that alone isn't enough does the
+// final image get scaled down as a whole to guarantee it still fits one page.
 async function _buildDocPdfBlob(){
   var actions=document.getElementById('docActions');
   var status=document.getElementById('shareStatus');
@@ -11169,16 +11189,23 @@ async function _buildDocPdfBlob(){
   status.textContent='Preparing PDF…';
   if(document.fonts&&document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
   actions.style.display='none';
-  var canvas=await html2canvas(document.body,{scale:2,backgroundColor:'#ffffff',useCORS:true,windowWidth:document.body.scrollWidth});
-  actions.style.display='';
   var jsPDF=window.jspdf.jsPDF;
   var pdf=new jsPDF('p','mm','a4');
   var pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight();
+  var pageAspect=ph/pw;
+  var compactApplied=false;
+  if((document.body.scrollHeight/document.body.scrollWidth)>pageAspect){
+    document.body.classList.add('pdf-compact');
+    compactApplied=true;
+  }
+  var canvas=await html2canvas(document.body,{scale:2,backgroundColor:'#ffffff',useCORS:true,windowWidth:document.body.scrollWidth});
+  if(compactApplied) document.body.classList.remove('pdf-compact');
+  actions.style.display='';
   var imgH=canvas.height*pw/canvas.width;
   var img=canvas.toDataURL('image/jpeg',0.95);
-  var heightLeft=imgH, position=0;
-  pdf.addImage(img,'JPEG',0,position,pw,imgH); heightLeft-=ph;
-  while(heightLeft>0){ position=heightLeft-imgH; pdf.addPage(); pdf.addImage(img,'JPEG',0,position,pw,imgH); heightLeft-=ph; }
+  var drawW=pw, drawH=imgH;
+  if(drawH>ph){ var s=ph/drawH; drawH=ph; drawW=pw*s; }
+  pdf.addImage(img,'JPEG',(pw-drawW)/2,0,drawW,drawH);
   return pdf.output('blob');
 }
 // Always a straight file download, regardless of device share capability, for
