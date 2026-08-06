@@ -10766,7 +10766,7 @@ async function printInvoice(d, type, docKind){
     const vline=[it.size,it.color,it.variant].filter(Boolean).join(' · ');
     const showHsnMeta=!showGstCols&&it.hsn_code&&(!isRecord||docRec('hsn'));
     const metaBits=[it.sku?'SKU: '+it.sku:'', showHsnMeta?'HSN: '+it.hsn_code:''].filter(Boolean).join('  ·  ');
-    const nameCell=`<strong>${esc(it.product_name||'—')}</strong>${vline?`<div class="item-sub">${esc(vline)}</div>`:''}${it.remarks?`<div class="item-sub" style="font-style:italic">${esc(it.remarks)}</div>`:''}${metaBits?`<div class="item-sub" style="color:#999">${esc(metaBits)}</div>`:''}${idisc>0?`<div class="item-sub" style="color:#c0392b">Discount −₹${idisc.toFixed(2)}</div>`:''}`;
+    const nameCell=`<strong>${esc(it.product_name||'—')}</strong>${vline?`<div class="item-sub">${esc(vline)}</div>`:''}${it.remarks?`<div class="item-sub" style="font-style:italic">${esc(it.remarks)}</div>`:''}${metaBits?`<div class="item-sub" style="color:#555">${esc(metaBits)}</div>`:''}${idisc>0?`<div class="item-sub" style="color:#c0392b">Discount −₹${idisc.toFixed(2)}</div>`:''}`;
     if(showGstCols){
       return `<tr>
       <td>${nameCell}</td>
@@ -10826,44 +10826,64 @@ async function printInvoice(d, type, docKind){
         <div class="info-card" style="flex:1 1 100%">
           <div class="info-lbl">Internal Details, not for customer</div>
           <div class="info-val" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px 16px">
-            ${rows.map(([l,v])=>`<div><span style="color:#999;font-size:10px;text-transform:uppercase;letter-spacing:.5px">${l}</span><br>${v}</div>`).join('')}
+            ${rows.map(([l,v])=>`<div><span style="color:#555;font-size:10px;text-transform:uppercase;letter-spacing:.5px">${l}</span><br>${v}</div>`).join('')}
           </div>
         </div>
       </div>`;
     }
   }
 
-  const gstBlock=(!isRecord&&hasGst&&(isQuote||docInv('gst_breakup')))?`
-    <tr><td colspan="3" style="text-align:right;color:#999;font-size:12px;padding:5px 14px;border:none">Taxable Amount</td><td style="text-align:right;padding:5px 14px;border:none">₹${taxable.toFixed(2)}</td></tr>
-    ${isIntraState
-      ?`<tr><td colspan="3" style="text-align:right;color:#999;font-size:12px;padding:4px 14px;border:none">CGST @ ${gstRate/2}%</td><td style="text-align:right;padding:4px 14px;border:none">₹${(gstAmt/2).toFixed(2)}</td></tr>
-        <tr><td colspan="3" style="text-align:right;color:#999;font-size:12px;padding:4px 14px;border:none">SGST @ ${gstRate/2}%</td><td style="text-align:right;padding:4px 14px;border:none">₹${(gstAmt/2).toFixed(2)}</td></tr>`
-      :`<tr><td colspan="3" style="text-align:right;color:#999;font-size:12px;padding:4px 14px;border:none">IGST @ ${gstRate}%</td><td style="text-align:right;padding:4px 14px;border:none">₹${gstAmt.toFixed(2)}</td></tr>`
-    }`:'';
-
+  // Taxable Amount / CGST / SGST / IGST used to repeat directly under the items
+  // table AND inside HSN Summary, the two disagreed the moment there was more
+  // than one HSN code on the doc. HSN Summary is now the single source for that
+  // breakdown (with its own Total row), nothing renders between items and Total.
   const hsnKeys=Object.keys(hsnSummary);
-  const hsnSummaryHtml=(showGstCols&&hsnKeys.length)?`
+  const hsnSummaryHtml=(showGstCols&&hsnKeys.length)?(()=>{
+    const thStyle='text-align:right;font-size:9px;color:#7a3010;padding:4px 6px;border-bottom:1.5px solid #ccc;text-transform:uppercase;letter-spacing:.06em';
+    const tdStyle='padding:5px 6px;font-size:11.5px;border:none;color:#111';
+    const cols=isIntraState?['CGST','SGST']:['IGST'];
+    let sumTaxable=0,sumGst=0;
+    const rowsHtml2=hsnKeys.map(hk=>{
+      const r=hsnSummary[hk]; sumTaxable+=r.taxable; sumGst+=r.gst;
+      const splitCells=isIntraState
+        ?`<td class="td-r" style="${tdStyle}">₹${(r.gst/2).toFixed(2)}</td><td class="td-r" style="${tdStyle}">₹${(r.gst/2).toFixed(2)}</td>`
+        :`<td class="td-r" style="${tdStyle}">₹${r.gst.toFixed(2)}</td>`;
+      return `<tr>
+        <td style="${tdStyle}">${esc(hk)}</td>
+        <td class="td-r" style="${tdStyle}">₹${r.taxable.toFixed(2)}</td>
+        <td class="td-r" style="${tdStyle}">${r.rate?r.rate+'%':'—'}</td>
+        ${splitCells}
+        <td class="td-r" style="${tdStyle};font-weight:700">₹${r.gst.toFixed(2)}</td>
+      </tr>`;
+    }).join('');
+    const totalSplit=isIntraState
+      ?`<td class="td-r" style="${tdStyle}">₹${(sumGst/2).toFixed(2)}</td><td class="td-r" style="${tdStyle}">₹${(sumGst/2).toFixed(2)}</td>`
+      :`<td class="td-r" style="${tdStyle}">₹${sumGst.toFixed(2)}</td>`;
+    return `
 <div class="info-strip" style="grid-template-columns:1fr">
   <div class="info-card">
     <div class="info-lbl">HSN Summary</div>
     <table style="width:100%">
       <thead><tr>
-        <th style="text-align:left;font-size:9px;color:#999;padding:2px 6px;border-bottom:1px solid #eee">HSN</th>
-        <th style="text-align:right;font-size:9px;color:#999;padding:2px 6px;border-bottom:1px solid #eee">Taxable Value</th>
-        <th style="text-align:right;font-size:9px;color:#999;padding:2px 6px;border-bottom:1px solid #eee">GST Rate</th>
-        <th style="text-align:right;font-size:9px;color:#999;padding:2px 6px;border-bottom:1px solid #eee">GST Amount</th>
+        <th style="${thStyle};text-align:left">HSN</th>
+        <th style="${thStyle}">Taxable Value</th>
+        <th style="${thStyle}">GST Rate</th>
+        ${cols.map(c=>`<th style="${thStyle}">${c}</th>`).join('')}
+        <th style="${thStyle}">Total Tax</th>
       </tr></thead>
       <tbody>
-        ${hsnKeys.map(hk=>{const r=hsnSummary[hk];return `<tr>
-          <td style="padding:5px 6px;font-size:12px;border:none">${esc(hk)}</td>
-          <td class="td-r" style="padding:5px 6px;font-size:12px;border:none">₹${r.taxable.toFixed(2)}</td>
-          <td class="td-r" style="padding:5px 6px;font-size:12px;border:none">${r.rate?r.rate+'%':'—'}</td>
-          <td class="td-r" style="padding:5px 6px;font-size:12px;border:none">₹${r.gst.toFixed(2)}</td>
-        </tr>`;}).join('')}
+        ${rowsHtml2}
+        <tr style="font-weight:700">
+          <td colspan="2" style="${tdStyle}">Total</td>
+          <td style="${tdStyle}"></td>
+          ${totalSplit}
+          <td class="td-r" style="${tdStyle}">₹${sumGst.toFixed(2)}</td>
+        </tr>
       </tbody>
     </table>
   </div>
-</div>`:'';
+</div>`;
+  })():'';
 
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${docTitle}: ${esc(docNo)}</title>
@@ -10874,66 +10894,74 @@ async function printInvoice(d, type, docKind){
 /* TriAkar wordmark font, same as the website (Glorida) */
 @font-face{font-family:'Glorida';src:url('${location.origin}/assets/fonts/Glorida.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:13px;color:#111;background:#fff;max-width:760px;margin:0 auto}
+/* Exactly 3 fonts by design: Inter (body/UI), Glorida (brand wordmark), Courier
+   New (numbers/codes). Noto Sans Devanagari is a script requirement for the two
+   Hindi characters in the wordmark, not a 4th stylistic choice, Inter has no
+   Devanagari glyphs to fall back on. */
+body{font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:12.5px;color:#111;background:#fff;max-width:760px;margin:0 auto}
 /* ── HEADER, all white, no dark bg ── */
-.hdr{background:#fff;display:flex;flex-direction:column;gap:14px;padding:24px 32px 20px;border-bottom:2px solid #C4622A}
-.hdr-logo{display:flex;align-items:center;gap:14px}
+.hdr{background:#fff;display:flex;flex-direction:column;gap:10px;padding:16px 26px 12px;border-bottom:2px solid #C4622A}
+.hdr-logo{display:flex;align-items:center;gap:12px;flex-shrink:0}
 .mark-svg{flex-shrink:0}
-.brand-en{font-size:30px;font-weight:800;letter-spacing:.08em;line-height:1;font-family:'Glorida','Inter','Segoe UI',Arial,sans-serif;text-transform:uppercase}
+.brand-en{font-size:27px;font-weight:800;letter-spacing:.08em;line-height:1;font-family:'Glorida','Inter','Segoe UI',Arial,sans-serif;text-transform:uppercase}
 .brand-en .b-tri{color:#C4622A}
 .brand-en .b-akar{color:#111}
-.brand-hi{font-size:11px;color:#C4622A;letter-spacing:.05em;font-family:'Noto Sans Devanagari','Mangal',sans-serif;font-weight:500;margin-top:4px}
-.doc-title-big{text-align:center;font-size:22px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#C4622A;margin-bottom:14px}
-.hdr-doc{text-align:right}
-.doc-type{font-size:9px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#C4622A;margin-bottom:4px}
-.doc-no{font-size:21px;font-weight:800;color:#111;letter-spacing:.03em;font-family:'Courier New',monospace}
-.doc-meta{font-size:11px;color:#555;margin-top:5px;line-height:1.7}
-.doc-meta-box{border:1.5px solid #C4622A;border-radius:8px;overflow:hidden;margin-top:6px;display:inline-block}
+.brand-hi{font-size:11px;color:#C4622A;letter-spacing:.05em;font-family:'Noto Sans Devanagari','Mangal',sans-serif;font-weight:500;margin-top:3px}
+.doc-title-big{text-align:center;font-size:19px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#C4622A;margin-bottom:2px}
+.hdr-doc{text-align:right;flex-shrink:0}
+.doc-type{font-size:9px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#C4622A;margin-bottom:3px}
+.doc-no{font-size:18px;font-weight:800;color:#111;letter-spacing:.03em;font-family:'Courier New',monospace}
+.doc-meta{font-size:11px;color:#444;margin-top:4px;line-height:1.6}
+.doc-meta-box{border:1.5px solid #C4622A;border-radius:8px;overflow:hidden;margin-top:5px;display:inline-block}
 .doc-meta-box table{width:100%;border-collapse:collapse}
-.doc-meta-box td{padding:5px 12px;border-bottom:1px solid #ddd;font-size:11px}
+.doc-meta-box td{padding:4px 11px;border-bottom:1px solid #ddd;font-size:10.5px}
 .doc-meta-box tr:last-child td{border-bottom:none}
 .doc-meta-box .dmb-k{color:#7a3010;font-weight:700;background:#fdf0e8;white-space:nowrap;text-align:left}
 .doc-meta-box .dmb-v{color:#111;text-align:right;font-family:'Courier New',monospace;font-weight:600}
-.doc-badge{display:inline-block;background:#fdf0e8;color:#7a3010;font-size:9px;padding:2px 9px;border-radius:20px;margin-top:5px;font-weight:700;letter-spacing:.07em;border:1px solid #e8b088;text-transform:uppercase}
+.doc-badge{display:inline-block;background:#fdf0e8;color:#7a3010;font-size:9px;padding:2px 9px;border-radius:20px;margin-top:4px;font-weight:700;letter-spacing:.07em;border:1px solid #e8b088;text-transform:uppercase}
 /* ── BODY ── */
-.body{padding:24px 32px}
+.body{padding:16px 26px}
 /* Seller */
-.seller-strip{padding:11px 15px;background:#fafafa;border-left:3px solid #C4622A;border-radius:0 5px 5px 0;margin-bottom:20px}
-.seller-name{font-size:13px;font-weight:700;color:#111}
-.seller-detail{font-size:11px;color:#444;margin-top:2px;line-height:1.75}
+.seller-strip{padding:8px 13px;background:#fafafa;border-left:3px solid #C4622A;border-radius:0 5px 5px 0;margin-bottom:12px}
+.seller-name{font-size:12.5px;font-weight:700;color:#111}
+.seller-detail{font-size:10.5px;color:#333;margin-top:2px;line-height:1.6}
 /* Divider */
-.divider{height:1px;background:#ccc;margin:18px 0}
+.divider{height:1px;background:#ccc;margin:12px 0}
 /* Customer */
-.customer-box{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:20px}
-.section-lbl{font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#C4622A;margin-bottom:7px}
-.cust-name{font-size:16px;font-weight:700;color:#111;margin-bottom:4px}
-.cust-detail{font-size:12px;color:#333;line-height:1.85}
-.order-badge{background:#fdf0e8;border:1px solid #e8b088;border-radius:6px;padding:7px 13px;font-size:11px;color:#7a3010;font-family:monospace;font-weight:700;white-space:nowrap;margin-top:2px}
+.customer-box{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:12px}
+.section-lbl{font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#C4622A;margin-bottom:5px}
+.cust-name{font-size:15px;font-weight:700;color:#111;margin-bottom:3px}
+.cust-detail{font-size:11.5px;color:#222;line-height:1.65}
+.order-badge{background:#fdf0e8;border:1px solid #e8b088;border-radius:6px;padding:6px 12px;font-size:11px;color:#7a3010;font-family:'Courier New',monospace;font-weight:700;white-space:nowrap;margin-top:2px}
 /* Table */
-.tbl-wrap{border:1.5px solid #ccc;border-radius:8px;overflow:hidden;margin-bottom:6px}
+.tbl-wrap{border:1.5px solid #ccc;border-radius:8px;overflow:hidden;margin-bottom:5px}
 table{width:100%;border-collapse:collapse}
-thead th{background:#eee;padding:9px 16px;font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#333;text-align:left;border-bottom:1.5px solid #ccc}
+thead th{background:#eee;padding:7px 14px;font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#222;text-align:left;border-bottom:1.5px solid #ccc}
 thead th:first-child{border-left:3px solid #C4622A}
-td{padding:13px 16px;border-bottom:1px solid #ddd;font-size:13px;vertical-align:top;color:#222}
+td{padding:9px 14px;border-bottom:1px solid #ddd;font-size:12.5px;vertical-align:top;color:#111}
 tbody tr:last-child td{border-bottom:none}
 .td-r{text-align:right}
-.item-sub{font-size:11px;color:#777;margin-top:3px}
-.discount-row td{font-size:12px;color:#c0392b;padding:4px 16px;border-bottom:none}
-.gst-row td{font-size:11.5px;color:#555;padding:5px 16px;border-bottom:none}
-.total-row td{font-size:18px;font-weight:900;color:#111;border-top:2px solid #C4622A;padding:14px 16px;border-bottom:none}
-.words-row{padding:10px 16px;font-size:11px;color:#C4622A;font-style:italic;border-top:1.5px solid #ccc;background:#fffcfb;font-weight:600}
+.item-sub{font-size:10.5px;color:#555;margin-top:2px}
+.discount-row td{font-size:11.5px;color:#c0392b;padding:3px 14px;border-bottom:none}
+.gst-row td{font-size:11px;color:#444;padding:4px 14px;border-bottom:none}
+.total-row td{font-size:17px;font-weight:900;color:#111;border-top:2px solid #C4622A;padding:10px 14px;border-bottom:none}
+.words-row{padding:7px 14px;font-size:10.5px;color:#C4622A;font-style:italic;border-top:1.5px solid #ccc;background:#fffcfb;font-weight:600}
 /* Info */
-.info-strip{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
-.info-card{border:1.5px solid #ccc;border-radius:8px;padding:13px 15px}
-.info-lbl{font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#C4622A;margin-bottom:6px}
-.info-val{font-size:12.5px;color:#111;line-height:1.8;font-weight:500}
-.chip{display:inline-block;background:#eee;border:1px solid #bbb;border-radius:4px;padding:2px 8px;font-size:11px;color:#222;font-family:monospace;font-weight:700}
+.info-strip{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.info-card{border:1.5px solid #ccc;border-radius:8px;padding:10px 13px}
+.info-lbl{font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#C4622A;margin-bottom:5px}
+.info-val{font-size:11.5px;color:#111;line-height:1.65;font-weight:500}
+.chip{display:inline-block;background:#eee;border:1px solid #bbb;border-radius:4px;padding:2px 8px;font-size:11px;color:#111;font-family:'Courier New',monospace;font-weight:700}
+/* Terms, plain text, no box, a thin rule instead */
+.terms-plain{border-top:1px solid #ccc;padding-top:8px;margin-top:10px}
+.terms-plain .info-lbl{margin-bottom:4px}
+.terms-plain .info-val{font-size:10.5px;color:#222}
 /* Footer */
-.footer-band{border-top:1.5px solid #ccc;margin-top:28px;padding:16px 0 0;display:flex;justify-content:space-between;align-items:center}
-.footer-brand{font-size:13px;font-weight:700;color:#C4622A;margin-bottom:2px}
-.footer-tagline{font-size:10.5px;color:#555;font-style:italic}
+.footer-band{border-top:1.5px solid #ccc;margin-top:16px;padding:10px 0 0;display:flex;justify-content:space-between;align-items:center}
+.footer-brand{font-size:12.5px;font-weight:700;color:#C4622A;margin-bottom:2px}
+.footer-tagline{font-size:10px;color:#444;font-style:italic}
 /* Mandatory brand signature, always shown, including in print */
-.brand-line{text-align:center;font-family:'Glorida','Inter',sans-serif;font-size:15px;font-weight:700;letter-spacing:.16em;color:#C4622A;text-transform:uppercase;padding:18px 16px 26px}
+.brand-line{text-align:center;font-family:'Glorida','Inter',sans-serif;font-size:13px;font-weight:700;letter-spacing:.16em;color:#C4622A;text-transform:uppercase;padding:10px 16px 14px}
 @media print{.print-btn{display:none!important}body{max-width:100%}}
 </style></head><body>
 
@@ -10947,6 +10975,15 @@ tbody tr:last-child td{border-bottom:none}
       <div class="brand-hi"${isQuote?' style="font-size:14.85px"':''}><span style="color:#C4622A">त्रि</span><span style="color:#111">आकार</span></div>
     </div>
   </div>
+  ${(isQuote&&docQuo('business_identity'))?`<div style="flex:1 1 auto;min-width:0;padding-top:2px">
+    <div class="seller-name">TriAkar Form</div>
+    <div class="seller-detail">${[
+      SELLER_WEB,
+      (docQuo('gstin')&&SELLER_GSTIN)?'GSTIN: '+SELLER_GSTIN:'',
+      SELLER_PHONE,SELLER_EMAIL
+    ].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ')}</div>
+    ${SELLER_ADDR?`<div class="seller-detail" style="margin-top:2px">${esc(SELLER_ADDR)}</div>`:''}
+  </div>`:''}
   <div class="hdr-doc">
     <div class="doc-no">${esc(docNo)}</div>
     <div class="doc-meta-box"><table>${(isRecord?[['Date',docDate],['Complete Date',d.delivery_date?esc(d.delivery_date):'—']]:isQuote?[['Date',docDate],...((docQuo('validity_period')&&d.validity_date)?[['Valid Until',d.validity_date]]:[])]:[['Date',docDate],...(docField('due_date')?[['Due Date',dueDateStr]]:[])]).map(([k,v])=>`<tr><td class="dmb-k">${k}</td><td class="dmb-v">${esc(v)}</td></tr>`).join('')}</table></div>
@@ -10956,15 +10993,6 @@ tbody tr:last-child td{border-bottom:none}
     ${qrImgFor('header')?`<div style="margin-top:8px">${qrImgFor('header')}</div>`:''}
   </div>
   </div>
-  ${(isQuote&&docQuo('business_identity'))?`<div class="seller-strip" style="margin-bottom:0">
-    <div class="seller-name">TriAkar Form</div>
-    <div class="seller-detail">${[
-      SELLER_WEB,
-      (docQuo('gstin')&&SELLER_GSTIN)?'GSTIN: '+SELLER_GSTIN:'',
-      SELLER_PHONE,SELLER_EMAIL
-    ].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ')}</div>
-    ${SELLER_ADDR?`<div class="seller-detail" style="margin-top:2px">${esc(SELLER_ADDR)}</div>`:''}
-  </div>`:''}
 </div>
 
 <div class="body">
@@ -10986,7 +11014,7 @@ ${(!isQuote&&(isRecord||docInv('business_address')||docInv('gstin'))&&(SELLER_AD
     <div class="cust-detail">
       ${showCustContact?`${d.customer_phone?esc(d.customer_phone)+'<br>':''}${d.customer_address?esc(d.customer_address)+'<br>':''}${[d.customer_city,d.customer_state].filter(Boolean).map(esc).join(', ')}${d.customer_pincode?' &mdash; '+esc(d.customer_pincode):''}`:''}
       ${showCustGstin&&d.customer_gstin?`<br>GSTIN: ${esc(d.customer_gstin)}`:''}
-      ${(showGstCols&&d.customer_state)?`<br><span style="color:#bbb">Place of Supply: ${esc(d.customer_state)}</span>`:''}
+      ${(showGstCols&&d.customer_state)?`<br><span style="color:#555">Place of Supply: ${esc(d.customer_state)}</span>`:''}
     </div>
   </div>
 </div>
@@ -11009,11 +11037,10 @@ ${(!isQuote&&(isRecord||docInv('business_address')||docInv('gstin'))&&(SELLER_AD
   </tr></thead>
   <tbody>
     ${rowsHtml}
-    ${d.notes?`<tr><td colspan="${showGstCols?7:4}" class="item-sub" style="color:#999;padding:8px 16px">Note: ${esc(d.notes)}</td></tr>`:''}
+    ${d.notes?`<tr><td colspan="${showGstCols?7:4}" class="item-sub" style="color:#555;padding:8px 16px">Note: ${esc(d.notes)}</td></tr>`:''}
   </tbody>
 </table>
 <table><tbody>
-  ${gstBlock}
   <tr class="total-row">
     <td colspan="3" style="text-align:right">Total</td>
     <td style="text-align:right">₹${grandTotal.toFixed(2)}</td>
@@ -11050,14 +11077,14 @@ ${(()=>{
   const showTerms=isQuote&&docQuo('terms_notes')&&d.terms_notes;
   const showSig=isQuote&&docQuo('signature');
   if(!showTerms&&!showSig) return '';
-  return `<div class="info-strip" style="display:flex;align-items:flex-end;gap:16px">
-  ${showTerms?`<div class="info-card" style="flex:1 1 auto">
+  return `<div class="terms-plain" style="display:flex;align-items:flex-end;gap:16px">
+  ${showTerms?`<div style="flex:1 1 auto">
     <div class="info-lbl">Terms &amp; Conditions</div>
-    <div class="info-val" style="white-space:pre-wrap;font-size:10px">${esc(d.terms_notes)}</div>
+    <div class="info-val" style="white-space:pre-wrap">${esc(d.terms_notes)}</div>
   </div>`:'<div style="flex:1 1 auto"></div>'}
-  ${showSig?`<div style="text-align:right;font-size:11px;color:#777;white-space:nowrap;padding-bottom:2px">
+  ${showSig?`<div style="text-align:right;font-size:11px;color:#333;white-space:nowrap;padding-bottom:2px">
     For ${esc(SELLER_NAME)}
-    <div style="margin-top:30px;border-top:1px solid #ccc;width:150px;padding-top:4px">Authorised Signatory</div>
+    <div style="margin-top:26px;border-top:1px solid #999;width:150px;padding-top:4px">Authorised Signatory</div>
   </div>`:''}
 </div>`;
 })()}
@@ -11066,14 +11093,14 @@ ${(!isQuote&&((!isRecord&&(d.payment_mode||d.package_size||d.weight_grams))||((!
 <div class="info-strip">
   ${(!isRecord&&docInv('payment_mode'))?`<div class="info-card">
     <div class="info-lbl">Payment</div>
-    <div class="info-val">${esc((d.payment_mode||'—')+'')}${(d.package_size||d.weight_grams)?`<br><span style="font-size:11px;color:#aaa">Packet: ${[d.package_size?esc(d.package_size):'',d.weight_grams?esc(d.weight_grams)+' g':''].filter(Boolean).join(' · ')}</span>`:''}</div>
+    <div class="info-val">${esc((d.payment_mode||'—')+'')}${(d.package_size||d.weight_grams)?`<br><span style="font-size:11px;color:#555">Packet: ${[d.package_size?esc(d.package_size):'',d.weight_grams?esc(d.weight_grams)+' g':''].filter(Boolean).join(' · ')}</span>`:''}</div>
   </div>`:''}
   ${(!isRecord||docRec('courier_tracking'))?`<div class="info-card">
     <div class="info-lbl">Shipping</div>
     <div class="info-val">
       ${d.courier_partner?esc(({ekart:'Ekart (Flipkart)'}[d.courier_partner])||d.courier_partner)+'<br>':''}
       ${d.tracking_number?`<span class="chip">${esc(d.tracking_number)}</span>`:''}
-      ${d.dispatch_date?`<br><span style="font-size:11px;color:#aaa">Dispatched: ${esc(d.dispatch_date)}</span>`:''}
+      ${d.dispatch_date?`<br><span style="font-size:11px;color:#555">Dispatched: ${esc(d.dispatch_date)}</span>`:''}
     </div>
   </div>`:''}
 </div>`:''}
@@ -11082,8 +11109,8 @@ ${internalDetailsHtml}
 </div>
 
 ${qrImgFor('footer')?`<div style="padding:12px 32px 0;text-align:center">${qrImgFor('footer')}</div>`:''}
-${(!isQuote&&!isRecord&&docInv('reprint_note'))?`<div style="padding:12px 32px 0;font-size:11px;color:#777">★ 7-Day Reprint Guarantee, any print defect reprinted free within 7 days.</div>`:''}
-${(!isQuote&&!isRecord&&docInv('signature'))?`<div style="padding:26px 32px 4px;text-align:right;font-size:11px;color:#777">For ${esc(SELLER_NAME)}<div style="margin-top:30px;border-top:1px solid #ccc;width:170px;margin-left:auto;padding-top:4px">Authorised Signatory</div></div>`:''}
+${(!isQuote&&!isRecord&&docInv('reprint_note'))?`<div style="padding:10px 26px 0;font-size:11px;color:#333">★ 7-Day Reprint Guarantee, any print defect reprinted free within 7 days.</div>`:''}
+${(!isQuote&&!isRecord&&docInv('signature'))?`<div style="padding:20px 26px 4px;text-align:right;font-size:11px;color:#333">For ${esc(SELLER_NAME)}<div style="margin-top:22px;border-top:1px solid #999;width:170px;margin-left:auto;padding-top:4px">Authorised Signatory</div></div>`:''}
 <div class="footer-band">
   <div class="footer-left">
     ${isQuote?'':`<div class="footer-brand">TriAkar &nbsp;·&nbsp; त्रिआकार</div>
@@ -11097,7 +11124,7 @@ ${(!isQuote&&!isRecord&&docInv('signature'))?`<div style="padding:26px 32px 4px;
   </div>
 </div>
 
-<div class="brand-line"${isQuote?' style="font-size:10.5px;font-weight:400;letter-spacing:0;text-transform:none;color:#999;padding:14px 16px 22px"':''}>${isQuote?'This is a computer generated document and does not require a physical signature.':'Creation of Three Dimensions'}</div>
+<div class="brand-line"${isQuote?' style="font-size:10.5px;font-weight:400;letter-spacing:0;text-transform:none;color:#555;padding:10px 16px 16px"':''}>${isQuote?'This is a computer generated document and does not require a physical signature.':'Creation of Three Dimensions'}</div>
 
 <script>
 var _safeDocName=${JSON.stringify(docTitle.replace(/\s+/g,'')+'-'+String(docNo).replace(/[^\w\-]+/g,'_'))};
