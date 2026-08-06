@@ -4286,7 +4286,7 @@ let _catalogByName={}, _catalogBySku={};
 // ── Spool deduction ──────────────────────────────────────────
 // An Add-Sale line can target a specific spool; logging grams+waste there
 // reduces that spool's remaining material. Finished spools are excluded.
-let _addSaleSpools=[], _spoolsTried=false;
+let _addSaleSpools=[], _spoolsTried=false, _spoolsPromise=null;
 async function loadAddSaleSpools(rerender){
   try{
     const {data}=await sb.from('filament_inventory')
@@ -4297,7 +4297,16 @@ async function loadAddSaleSpools(rerender){
   if(rerender && typeof renderItems==='function') renderItems();
   if(typeof renderImportSpoolRows==='function'){ renderImportSpoolRows('import'); renderImportSpoolRows('lbl'); }
 }
-function ensureSpools(){ if(_spoolsTried) return Promise.resolve(); _spoolsTried=true; return loadAddSaleSpools(true); }
+// Callers that don't await this (e.g. renderItems()) used to still flip _spoolsTried
+// synchronously, so a later `await ensureSpools()` (Import tab) resolved instantly
+// against the stale, still-empty _addSaleSpools instead of waiting for the real fetch.
+// Caching the in-flight promise lets every caller await the same actual completion.
+function ensureSpools(){
+  if(_spoolsTried) return _spoolsPromise||Promise.resolve();
+  _spoolsTried=true;
+  _spoolsPromise=loadAddSaleSpools(true);
+  return _spoolsPromise;
+}
 // Phase 10 Group 3 (J): already-opened/partial spools matching the current row's
 // material (the material of whatever spool is already picked on this row, if any)
 // surface first, in their own group above the normal brand-grouped list, so the
