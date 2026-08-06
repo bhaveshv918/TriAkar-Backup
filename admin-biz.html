@@ -20,7 +20,7 @@
 :root{
   --bg:#F4F6F5;--bg-1:#FFFFFF;--bg-2:#EEF2F0;--bg-3:#E2E9E4;
   --border:rgba(20,42,30,.10);--border-h:rgba(20,42,30,.22);
-  --text:#16201A;--text-2:#52685A;--text-3:#869488;
+  --text:#16201A;--text-2:#52685A;--text-3:#63715F;
   --accent:#C4622A;--accent-h:#A8521F;--accent-bg:rgba(196,98,42,.12);
   --green:#16A34A;--green-bg:rgba(22,163,74,.11);
   --red:#DC2626;--red-bg:rgba(220,38,38,.10);
@@ -43,7 +43,7 @@ html[data-theme="dark"]{
   color-scheme:dark;
   --bg:#070C08;--bg-1:#0C1410;--bg-2:#111C13;--bg-3:#172418;
   --border:rgba(255,255,255,.06);--border-h:rgba(255,255,255,.12);
-  --text:#E2EAE4;--text-2:#879E8C;--text-3:#4E6655;
+  --text:#E2EAE4;--text-2:#879E8C;--text-3:#7C9483;
   --accent:#E0814C;--accent-h:#EA9A6B;--accent-bg:rgba(196,98,42,.16);
   --green:#4ADE80;--green-bg:rgba(74,222,128,.08);
   --red:#F87171;--red-bg:rgba(248,113,113,.08);
@@ -199,6 +199,12 @@ tr:hover td{background:var(--bg-2)}
 .badge-dispatched{background:var(--blue-bg);color:var(--blue)}
 .badge-delivered{background:var(--green-bg);color:var(--green)}
 .badge-delayed{background:var(--red-bg);color:var(--red)}
+/* Order ID tag (orderIdTag()), orange-outline box wherever an order ID is listed
+   (All Orders, Today's Tasks, Order Detail, Returns, Invoicing). Was plain --text-3
+   text with no boundary, low contrast and easy to miss in a busy row. */
+.oid-tag{background:var(--accent-bg);border:1px solid rgba(196,98,42,.35);border-radius:4px;padding:1px 5px 1px 7px}
+.btn-copy-oid{background:var(--accent);color:#fff!important;border-radius:3px;padding:1px 4px!important;opacity:1!important;transition:background .15s,transform .1s}
+.btn-copy-oid:hover{background:var(--accent-h);transform:scale(1.1)}
 /* Inline status dropdown styled to look like a badge until opened (bug #7, one
    dropdown, right on the order row, no need to open the full edit view) */
 .badge-select{appearance:none;-webkit-appearance:none;border:none;border-radius:3px;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;padding:2px 18px 2px 7px;cursor:pointer;font-family:var(--sans);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='6'%3E%3Cpath d='M0 0l4 6 4-6z' fill='%23999'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 5px center}
@@ -3594,13 +3600,15 @@ function copyOrderId(oid,ev){
   if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(oid).then(done).catch(fallback);
   else fallback();
 }
-// Renders "#<order id>" with a small inline copy button, same shape everywhere it's used.
+// Renders "#<order id>" in an orange-outline box with a highlighted copy button,
+// same shape everywhere it's used. Was plain low-contrast text with an almost
+// invisible copy icon, hard to spot and hard to read in a busy row.
 function orderIdTag(oid,opts){
   if(!oid) return '';
   opts=opts||{};
   const safe=esc(oid), jsSafe=safe.replace(/'/g,"\\'");
-  const size=opts.size||'9px';
-  return `<span style="display:inline-flex;align-items:center;gap:4px;color:${opts.color||'var(--text-3)'};font-size:${size};font-family:var(--mono)">#${safe}<button type="button" class="btn-copy-oid" onclick="copyOrderId('${jsSafe}',event)" title="Copy Order ID" style="background:none;border:none;cursor:pointer;color:inherit;padding:0;line-height:1;font-size:1.1em;opacity:.7">⧉</button></span>`;
+  const size=opts.size||'10px';
+  return `<span class="oid-tag" style="display:inline-flex;align-items:center;gap:4px;color:${opts.color||'var(--accent-h)'};font-size:${size};font-family:var(--mono);font-weight:600">#${safe}<button type="button" class="btn-copy-oid" onclick="copyOrderId('${jsSafe}',event)" title="Copy Order ID" style="border:none;cursor:pointer;line-height:1;font-size:1.05em">⧉</button></span>`;
 }
 function fmt(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function fmtD(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
@@ -7369,7 +7377,7 @@ async function loadSales(){
     const prodImg=f.product_id?(_products.find(p=>p.id===f.product_id)||{}).image_url:null;
     const thumb=prodImg
       ? `<img src="${esc(prodImg)}" alt="" style="width:28px;height:28px;border-radius:5px;object-fit:cover;flex-shrink:0;vertical-align:middle;margin-right:7px" onerror="this.style.display='none'">`
-      : `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:5px;background:var(--bg-3);color:var(--text-3);font-size:10px;flex-shrink:0;vertical-align:middle;margin-right:7px">—</span>`;
+      : `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:5px;background:var(--bg-3);flex-shrink:0;vertical-align:middle;margin-right:7px"></span>`;
     // Show SKU as the primary label (products are recognised by SKU day-to-day) with the
     // full description underneath in muted text; falls back to the name if no SKU is set.
     const skuLine=f.sku
