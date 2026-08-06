@@ -4934,6 +4934,7 @@ async function submitQuickAddAsQuotation(){
   const items=_items.filter(it=>it.name&&it.name.trim()).map(it=>({
     name:it.name, qty:it.qty||1, rate:it.rate||0, gst:it.gst||0,
     pricingMode:it.pricingMode||'piece', grams:itemTotalGrams(it)||0, hsn:it.hsn||'',
+    variant:it.variant||'', remarks:it.remarks||'',
   }));
   if(!items.length){ toast('Add at least one item','error'); return; }
   let sub=0,gstAmt=0; items.forEach(it=>{ const amt=it.pricingMode==='gram'?(it.qty||0)*(it.grams||0)*(it.rate||0):(it.qty||0)*(it.rate||0); sub+=amt; gstAmt+=amt*((it.gst||0)/100); });
@@ -5620,7 +5621,7 @@ function editQuotation(id){
     set('qa_city',q.customer_city); set('qa_state',q.customer_state); set('qa_pin',q.customer_pincode);
     set('qa_gstin',q.customer_gstin); set('qa_qt_validity',q.validity_date); set('qa_qt_terms',q.terms_notes);
     set('qa_qt_promised',q.promised_date); set('qa_qt_number',q.quotation_number); set('qa_date',q.quotation_date);
-    _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0,hsn:it.hsn||(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:it.sku||''})) : [blankItem()];
+    _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0,hsn:it.hsn||(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:it.sku||'',variant:it.variant||'',remarks:it.remarks||''})) : [blankItem()];
     renderItems();
     renderQaQtTncPresets();
     const saveBtn=document.getElementById('qaSaveBtn'); if(saveBtn) saveBtn.innerHTML='💾 Update Quotation';
@@ -5640,7 +5641,7 @@ function duplicateQuotation(id){
     set('qa_city',q.customer_city); set('qa_state',q.customer_state); set('qa_pin',q.customer_pincode);
     set('qa_gstin',q.customer_gstin); set('qa_qt_validity',q.validity_date); set('qa_qt_terms',q.terms_notes);
     set('qa_qt_promised',q.promised_date); set('qa_qt_number',genQuotationNumber()); set('qa_date',today());
-    _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0,hsn:it.hsn||(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:it.sku||''})) : [blankItem()];
+    _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0,hsn:it.hsn||(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:it.sku||'',variant:it.variant||'',remarks:it.remarks||''})) : [blankItem()];
     renderItems();
     renderQaQtTncPresets();
     const saveBtn=document.getElementById('qaSaveBtn'); if(saveBtn) saveBtn.innerHTML='💾 Save Quotation';
@@ -5704,7 +5705,8 @@ async function printQuotation(id){
     return {
       product_name:it.name||'—', qty, gst_rate:gst, hsn_code:it.hsn||'',
       selling_price:Math.round(base*(1+gst/100)*100)/100,
-      variant:it.pricingMode==='gram'&&it.grams?`${it.grams}g`:'',
+      variant:[it.variant||'', (it.pricingMode==='gram'&&it.grams)?`${it.grams}g`:''].filter(Boolean).join(' · '),
+      remarks:it.remarks||'',
     };
   });
   const d={
