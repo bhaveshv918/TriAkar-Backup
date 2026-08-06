@@ -10744,7 +10744,7 @@ async function printInvoice(d, type, docKind){
   // GST actually applies (a non-GST invoice keeps the simple 4-column table). Order
   // Record stays internal-only and never shows this customer-facing breakdown.
   const showGstCols=isQuote||(!isRecord&&type==='gst');
-  const rowsHtml=items.map(it=>{
+  const rowsHtml=items.map((it,idx)=>{
     const iqty=parseInt(it.qty)||1;
     const idisc=parseFloat(it.discount_amount)||0;
     // selling_price is already the full GST-inclusive line total (qty × rate − discount,
@@ -10769,6 +10769,7 @@ async function printInvoice(d, type, docKind){
     const nameCell=`<strong>${esc(it.product_name||'—')}</strong>${vline?`<div class="item-sub">${esc(vline)}</div>`:''}${it.remarks?`<div class="item-sub" style="font-style:italic">${esc(it.remarks)}</div>`:''}${metaBits?`<div class="item-sub" style="color:#555">${esc(metaBits)}</div>`:''}${idisc>0?`<div class="item-sub" style="color:#c0392b">Discount −₹${idisc.toFixed(2)}</div>`:''}`;
     if(showGstCols){
       return `<tr>
+      <td class="td-r">${idx+1}</td>
       <td>${nameCell}</td>
       <td>${esc(it.hsn_code||'—')}</td>
       <td class="td-r">${iqty}</td>
@@ -10934,10 +10935,9 @@ body{font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:12.5px;color:
 .cust-detail{font-size:11.5px;color:#222;line-height:1.65}
 .order-badge{background:#fdf0e8;border:1px solid #e8b088;border-radius:6px;padding:6px 12px;font-size:11px;color:#7a3010;font-family:'Courier New',monospace;font-weight:700;white-space:nowrap;margin-top:2px}
 /* Table */
-.tbl-wrap{border:1.5px solid #ccc;border-radius:8px;overflow:hidden;margin-bottom:5px}
+.tbl-wrap{border:1.5px solid #ccc;border-left:3px solid #C4622A;border-radius:8px;overflow:hidden;margin-bottom:5px}
 table{width:100%;border-collapse:collapse}
 thead th{background:#eee;padding:7px 14px;font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#222;text-align:left;border-bottom:1.5px solid #ccc}
-thead th:first-child{border-left:3px solid #C4622A}
 td{padding:9px 14px;border-bottom:1px solid #ddd;font-size:12.5px;vertical-align:top;color:#111}
 tbody tr:last-child td{border-bottom:none}
 .td-r{text-align:right}
@@ -10971,12 +10971,11 @@ tbody tr:last-child td{border-bottom:none}
   <div class="hdr-logo">
     ${(isQuote||(!isRecord&&!docInv('logo')))?'':'<svg class="mark-svg" xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 54 54"><defs><clipPath id="mc"><rect width="54" height="54" rx="10"/></clipPath></defs><rect width="54" height="27" fill="#C4622A" clip-path="url(#mc)"/><rect y="27" width="54" height="27" fill="#252320" clip-path="url(#mc)"/><circle cx="27" cy="27" r="17" fill="#F4F2EC"/><text x="27" y="27" text-anchor="middle" dominant-baseline="central" font-family="Noto Sans Devanagari,Mangal,Arial Unicode MS,sans-serif" font-size="14" font-weight="700" fill="#C4622A">त्रि</text></svg>'}
     <div>
-      <div class="brand-en"><span class="b-tri">TRI</span><span class="b-akar">AKAR</span></div>
-      <div class="brand-hi"${isQuote?' style="font-size:14.85px"':''}><span style="color:#C4622A">त्रि</span><span style="color:#111">आकार</span></div>
+      <div class="brand-en"><span class="b-tri">TRI</span><span class="b-akar">AKAR</span>${(isQuote&&docQuo('business_identity'))?' <span class="b-akar">Form</span>':''}</div>
+      ${(isQuote&&docQuo('business_identity'))?'':`<div class="brand-hi"${isQuote?' style="font-size:14.85px"':''}><span style="color:#C4622A">त्रि</span><span style="color:#111">आकार</span></div>`}
     </div>
   </div>
   ${(isQuote&&docQuo('business_identity'))?`<div style="flex:1 1 auto;min-width:0;padding-top:2px">
-    <div class="seller-name">TriAkar Form</div>
     <div class="seller-detail">${[
       SELLER_WEB,
       (docQuo('gstin')&&SELLER_GSTIN)?'GSTIN: '+SELLER_GSTIN:'',
@@ -11023,7 +11022,8 @@ ${(!isQuote&&(isRecord||docInv('business_address')||docInv('gstin'))&&(SELLER_AD
 <table>
   <thead><tr>
     ${showGstCols?`
-    <th style="width:26%">Item</th>
+    <th style="text-align:right;width:26px">S.No.</th>
+    <th style="width:24%">Item</th>
     <th>HSN</th>
     <th style="text-align:right">Qty</th>
     <th style="text-align:right">Rate</th>
@@ -11037,7 +11037,7 @@ ${(!isQuote&&(isRecord||docInv('business_address')||docInv('gstin'))&&(SELLER_AD
   </tr></thead>
   <tbody>
     ${rowsHtml}
-    ${d.notes?`<tr><td colspan="${showGstCols?7:4}" class="item-sub" style="color:#555;padding:8px 16px">Note: ${esc(d.notes)}</td></tr>`:''}
+    ${d.notes?`<tr><td colspan="${showGstCols?8:4}" class="item-sub" style="color:#555;padding:8px 16px">Note: ${esc(d.notes)}</td></tr>`:''}
   </tbody>
 </table>
 <table><tbody>
