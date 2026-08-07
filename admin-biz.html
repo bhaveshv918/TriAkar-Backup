@@ -671,6 +671,14 @@ html[data-theme="dark"] .badge-completed,html[data-theme="dark"] .badge-won{box-
   background:var(--accent);color:#fff;border-color:var(--accent);
   box-shadow:0 2px 8px var(--glow-a);
 }
+/* Lead source chips, one color per channel instead of every source looking
+   identical once picked, matches the app's own channel-color convention
+   (see .ch-flipkart's split-color dot) rather than the generic accent orange. */
+.qchip.active[data-v="studio_walkin"]{background:#16A34A;border-color:#16A34A}
+.qchip.active[data-v="whatsapp"]{background:#075E54;border-color:#075E54}
+.qchip.active[data-v="google"]{background:linear-gradient(135deg,#EA4335 0 50%,#4285F4 50% 100%);border-color:#4285F4}
+.qchip.active[data-v="instagram"]{background:linear-gradient(135deg,#E1306C 0 50%,#833AB4 50% 100%);border-color:#833AB4}
+.qchip.active[data-v="referral"]{background:linear-gradient(135deg,#FBBF24 0 50%,#EA580C 50% 100%);border-color:#EA580C}
 .seg-btn{border-radius:7px;transition:all .18s ease}
 .seg-btn.active{box-shadow:0 2px 8px var(--glow-a)}
 
@@ -1283,19 +1291,7 @@ html[data-theme="dark"] .biz-login{
           </div>
           <div class="form-group">
             <label>State</label>
-            <input type="text" id="qa_state" placeholder="Type state…" list="stateList" required>
-            <datalist id="stateList">
-              <option value="Andhra Pradesh"><option value="Arunachal Pradesh"><option value="Assam">
-              <option value="Bihar"><option value="Chhattisgarh"><option value="Goa"><option value="Gujarat">
-              <option value="Haryana"><option value="Himachal Pradesh"><option value="Jharkhand">
-              <option value="Karnataka"><option value="Kerala"><option value="Madhya Pradesh">
-              <option value="Maharashtra"><option value="Manipur"><option value="Meghalaya">
-              <option value="Mizoram"><option value="Nagaland"><option value="Odisha"><option value="Punjab">
-              <option value="Rajasthan"><option value="Sikkim"><option value="Tamil Nadu">
-              <option value="Telangana"><option value="Tripura"><option value="Uttar Pradesh">
-              <option value="Uttarakhand"><option value="West Bengal"><option value="Delhi">
-              <option value="Jammu and Kashmir"><option value="Ladakh"><option value="Other">
-            </datalist>
+            <select id="qa_state" required></select>
           </div>
           <div class="form-group">
             <label>Pincode</label>
@@ -1318,6 +1314,7 @@ html[data-theme="dark"] .biz-login{
         <input type="hidden" id="qa_lead_source" value="">
         </div>
         <div id="custSuggestBox" style="display:none;position:fixed;z-index:2000;max-height:50vh;overflow:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-h)"></div>
+        <div id="itemSuggestBox" style="display:none;position:fixed;z-index:2000;max-height:50vh;overflow:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-h)"></div>
 
         <!-- ── Items ────────────────────────────── -->
         <div class="qa-card">
@@ -1886,7 +1883,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>Phone</label><input type="tel" id="qt_phone"></div>
           <div class="form-group" style="grid-column:span 2"><label>Address</label><input type="text" id="qt_address"></div>
           <div class="form-group"><label>City</label><input type="text" id="qt_city"></div>
-          <div class="form-group"><label>State</label><input type="text" id="qt_state" list="stateList"></div>
+          <div class="form-group"><label>State</label><select id="qt_state"></select></div>
           <div class="form-group"><label>Pincode</label><input type="text" id="qt_pin" maxlength="6" inputmode="numeric"></div>
           <div class="form-group"><label>GSTIN <a href="#" onclick="event.preventDefault();verifyQtGstin()" style="font-size:10px;font-weight:400">check</a></label><input type="text" id="qt_gstin"></div>
           <div class="form-group"><label>Quotation Date</label><input type="date" id="qt_date"></div>
@@ -2177,7 +2174,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group" style="grid-column:span 2"><label>GSTIN</label><input type="text" id="cm_gstin" placeholder="e.g. 09AAAAA0000A1Z5"></div>
           <div class="form-group" style="grid-column:1/-1"><label>Address</label><input type="text" id="cm_address"></div>
           <div class="form-group"><label>City</label><input type="text" id="cm_city"></div>
-          <div class="form-group"><label>State</label><input type="text" id="cm_state" list="stateList"></div>
+          <div class="form-group"><label>State</label><select id="cm_state"></select></div>
           <div class="form-group"><label>Pincode</label><input type="text" id="cm_pin" maxlength="6" inputmode="numeric"></div>
           <div class="form-group"><label>Reviewed?</label><select id="cm_reviewed"><option value="0">No</option><option value="1">Yes</option></select></div>
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="cm_notes"></div>
@@ -4073,6 +4070,7 @@ async function startApp(){
   applyStaffTabRestrictions();
   applyDashWidgets();
   loadBizSettings();
+  populateStateSelects();
   await Promise.all([loadProducts(), initDashMonths()]);
   loadDashboard();
   loadOpenOrders();
@@ -4476,6 +4474,16 @@ async function restoreSpoolsForIds(ids){
   }catch(_){}
 }
 
+// State fields (qa_state/qt_state/cm_state) used to be a plain <input list="stateList">;
+// native <datalist> popups turned out to not reliably open in the browser this runs in
+// (reported repeatedly), so they're real <select> elements now, which always show a
+// dropdown on every browser regardless of that quirk. Populated once here instead of
+// three separate hand-typed <option> lists, so it's one place to keep them correct.
+const INDIA_STATES=['Andaman and Nicobar Islands','Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chandigarh','Chhattisgarh','Dadra and Nagar Haveli and Daman and Diu','Delhi','Goa','Gujarat','Haryana','Himachal Pradesh','Jammu and Kashmir','Jharkhand','Karnataka','Kerala','Ladakh','Lakshadweep','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Puducherry','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Other'];
+function populateStateSelects(){
+  const opts='<option value="">Select state</option>'+INDIA_STATES.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  ['qa_state','qt_state','cm_state'].forEach(id=>{ const el=document.getElementById(id); if(el&&!el.dataset.filled){ el.innerHTML=opts; el.dataset.filled='1'; } });
+}
 function buildCatalog(){
   _catalogByName={}; _catalogBySku={};
   (_products||[]).forEach(p=>{
@@ -4516,7 +4524,7 @@ function renderItems(){
       <div class="srl" draggable="true" title="Drag to reorder"
            ondragstart="itemDragStart(event,${i})" ondragend="itemDragEnd(event)">${i+1}</div>
       <div class="item-cell">
-        <input list="catalogList" value="${esc(it.name)}" placeholder="Item name / type to search" oninput="onItemName(${i},this.value)">
+        <input list="catalogList" value="${esc(it.name)}" placeholder="Item name / type to search" oninput="onItemName(${i},this.value);itemSuggest(${i},this.value)" autocomplete="off">
         <input class="variant" value="${esc(it.variant)}" placeholder="size / colour / customisation (optional)" oninput="_items[${i}].variant=this.value">
         <input class="variant" style="font-style:italic" value="${esc(it.remarks||'')}" placeholder="remarks (shown italic on invoice)" oninput="_items[${i}].remarks=this.value">
         <select class="variant" style="cursor:pointer" title="Spool, logging grams+waste deducts from this spool's stock" onchange="onItemSpool(${i},this.value)">${spoolOptions(it.spool)}</select>
@@ -4604,12 +4612,41 @@ function itemDragOver(e,i){ if(_dragIdx===null) return; e.preventDefault(); e.da
 function itemDragLeave(e){ e.currentTarget.classList.remove('drag-over'); }
 function itemDrop(e,i){ e.preventDefault(); if(_dragIdx===null||_dragIdx===i){ itemDragEnd(e); return; } const [m]=_items.splice(_dragIdx,1); _items.splice(i,0,m); _dragIdx=null; renderItems(); }
 function removeItem(i){ if(_items.length<=1) return; _items.splice(i,1); renderItems(); }
+function applyProductToItem(i,p){
+  _items[i].productId=p.id; if(!_items[i].cost) _items[i].cost=parseFloat(p.base_cost)||0; _items[i].gst=parseFloat(p.gst_rate)||0; _items[i].hsn=p.hsn_code||(_bizDefaults&&_bizDefaults.hsn)||'3926'; _items[i].sku=p.sku||''; if(!_items[i].grams&&p.grams_per_unit) _items[i].grams=parseFloat(p.grams_per_unit)||0; renderItems();
+}
 function onItemName(i,val){
   _items[i].name=val;
   const p=_catalogByName[(val||'').trim().toLowerCase()];
-  if(p){ _items[i].productId=p.id; if(!_items[i].cost) _items[i].cost=parseFloat(p.base_cost)||0; _items[i].gst=parseFloat(p.gst_rate)||0; _items[i].hsn=p.hsn_code||(_bizDefaults&&_bizDefaults.hsn)||'3926'; _items[i].sku=p.sku||''; if(!_items[i].grams&&p.grams_per_unit) _items[i].grams=parseFloat(p.grams_per_unit)||0; renderItems(); }
+  if(p){ applyProductToItem(i,p); }
   else { _items[i].productId=null; recalcTotals(); }
 }
+// Item-name catalog search, same floating-dropdown pattern as custSuggest() for
+// customers (native <datalist> popups don't reliably open in the browser this
+// runs in, list="catalogList" on the input is left in place as a harmless
+// fallback but this is what actually shows suggestions as you type).
+let _itemSugg=[];
+function itemSuggest(i,val){
+  const box=document.getElementById('itemSuggestBox'); if(!box) return;
+  const q=(val||'').trim().toLowerCase();
+  if(q.length<2){ box.style.display='none'; return; }
+  const list=(_products||[]).filter(function(p){ return (p.name||'').toLowerCase().includes(q); }).slice(0,8);
+  _itemSugg=list;
+  if(!list.length){ box.style.display='none'; return; }
+  box.innerHTML=list.map(function(p,idx){ return '<div onclick="itemPick('+i+','+idx+')" style="padding:7px 11px;cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background=\'var(--bg-2)\'" onmouseout="this.style.background=\'\'"><div style="font-weight:600;font-size:12px">'+esc(p.name)+'</div><div style="font-size:11px;color:var(--text-3);font-family:var(--mono)">'+(p.sku?esc(p.sku):'—')+(p.gst_rate?' · '+p.gst_rate+'% GST':'')+'</div></div>'; }).join('');
+  const inp=document.querySelector('.item-row[data-idx="'+i+'"] .item-cell input');
+  if(!inp){ box.style.display='none'; return; }
+  const r=inp.getBoundingClientRect();
+  box.style.left=r.left+'px'; box.style.top=(r.bottom+3)+'px'; box.style.width=Math.max(220,r.width)+'px';
+  box.style.display='block';
+}
+function itemPick(i,idx){
+  const p=_itemSugg[idx]; if(!p) return;
+  _items[i].name=p.name;
+  applyProductToItem(i,p);
+  const box=document.getElementById('itemSuggestBox'); if(box) box.style.display='none';
+}
+document.addEventListener('click',function(e){ if(!e.target.closest('.item-cell input,#itemSuggestBox')){ const b=document.getElementById('itemSuggestBox'); if(b) b.style.display='none'; } });
 function onItemNum(i,f,v){
   _items[i][f]= f==='qty' ? (parseInt(v)||1) : (parseFloat(v)||0);
   const el=document.getElementById('amt_'+i);
@@ -4999,7 +5036,14 @@ async function submitQuickAddAsQuotation(){
   const manualNumber=g('qa_qt_number')||await genQuotationNumber();
   const now=new Date(), fyStart=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
   const fy=`${fyStart}-${String((fyStart+1)%100).padStart(2,'0')}`;
+  // Orders resolve-or-create a real biz_customers row on save (resolveCustomerId,
+  // via insertSalesResilient); quotations never did, so a customer who only ever
+  // got a quotation never showed up in Customers or in the name/phone autofill
+  // suggestions. Same call here, quotations don't have a customer_id column so the
+  // resilient insert just drops it, but the biz_customers row still gets created.
+  const custId=await resolveCustomerId(cname, g('qa_phone'));
   const payload={
+    customer_id:custId||null,
     customer_name:cname, customer_phone:g('qa_phone'), customer_address:g('qa_address'),
     customer_city:g('qa_city'), customer_state:g('qa_state'), customer_pincode:g('qa_pin'), customer_gstin:g('qa_gstin'),
     items, subtotal:sub, gst_amount:gstAmt, total:sub+gstAmt,
@@ -5714,7 +5758,9 @@ async function saveQuotation(){
   const items=_quoteItems.filter(it=>it.name&&it.name.trim());
   if(!items.length){ toast('Add at least one item','error'); return; }
   let sub=0,gstAmt=0; items.forEach(it=>{ const amt=(it.qty||0)*(it.rate||0); sub+=amt; gstAmt+=amt*((it.gst||0)/100); });
+  const custId=g('qt_cname')?await resolveCustomerId(g('qt_cname'),g('qt_phone')):null;
   const payload={
+    customer_id:custId||null,
     customer_name:g('qt_cname'), customer_phone:g('qt_phone'), customer_address:g('qt_address'),
     customer_city:g('qt_city'), customer_state:g('qt_state'), customer_pincode:g('qt_pin'), customer_gstin:g('qt_gstin'),
     items, subtotal:sub, gst_amount:gstAmt, total:sub+gstAmt,
