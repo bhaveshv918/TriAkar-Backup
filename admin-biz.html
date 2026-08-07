@@ -1863,7 +1863,7 @@ html[data-theme="dark"] .biz-login{
           <div class="p-sub" id="quotationsSubtitle">—</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-primary btn-sm" onclick="showAddQuotation()">+ New Quotation</button>
+          <button class="btn btn-primary btn-sm" onclick="newQuotation()">+ New Quotation</button>
         </div>
       </div>
       <div class="tbl-wrap">
@@ -5714,6 +5714,18 @@ function closeQuotationForm(){ document.getElementById('quotationForm').style.di
 // Editing goes to the same unified Add Order form (Quotation mode), same pattern as
 // editing an order, instead of the old separate small popup.
 let _qaEditQuotationId=null;
+// "+ New Quotation" on the Quotations list used to open the old inline
+// #quotationForm on that same page, a separate, lower-featured form (no HSN/
+// remarks/variant fields, no item catalog search) from the one every other
+// quotation action (edit, duplicate) already routes to. Send it through the
+// same Add Order/Quotation quickadd flow instead, so there's only one form.
+function newQuotation(){
+  switchTab('quickadd');
+  setTimeout(()=>{
+    resetQuickAdd();
+    setQaFormMode('quotation');
+  },150);
+}
 function editQuotation(id){
   const q=_quotations.find(x=>x.id===id); if(!q) return;
   switchTab('quickadd');
@@ -11049,8 +11061,8 @@ body{font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:12.5px;color:
    (between the icon+wordmark and the date box) than the full-width seller-strip
    card invoice/record use, so they need their own smaller size to stay on one
    line each instead of wrapping mid-word. */
-.hdr-contact{font-size:9.3px;color:#333;margin-top:3px;line-height:1.5;white-space:nowrap}
-.hdr-contact-addr{font-size:9.3px;color:#333;margin-top:1px;line-height:1.5;white-space:nowrap}
+.hdr-contact{font-size:10px;color:#333;margin-top:3px;line-height:1.5;white-space:nowrap}
+.hdr-contact-addr{font-size:10px;color:#333;margin-top:1px;line-height:1.5;white-space:nowrap}
 /* Divider */
 .divider{height:1px;background:#ccc;margin:12px 0}
 /* Customer */
