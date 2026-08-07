@@ -1585,6 +1585,7 @@ html[data-theme="dark"] .biz-login{
       <!-- One search box + a single Filters toggle (B4) -->
       <div class="filter-bar" style="align-items:center">
         <input type="text" id="sfSearch" placeholder="Search order / product / customer…" oninput="loadSales()" style="min-width:200px;flex:1">
+        <button class="btn btn-ghost btn-sm" id="sfFyBtn" onclick="showSalesFy()" title="Jump to This Financial Year, same as picking it in Filters > Period">📅 This FY</button>
         <button class="btn btn-ghost btn-sm" id="sfToggleBtn" onclick="toggleSalesFilters()">⚙ Filters<span id="sfActiveCount" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:6px">0</span></button>
         <button class="btn btn-ghost btn-sm" onclick="clearSalesFilters()">Clear</button>
       </div>
@@ -7477,6 +7478,15 @@ function onSfViewChange(){
   // 'custom' leaves From/To exactly as typed, just clears Month so they aren't both applied.
   if(view==='custom') set('sfMonth','');
   loadSales();
+}
+// One-click "This FY" (top-level button, next to Search), same result as opening
+// Filters and picking "This Financial Year" from Period, just without the extra
+// click. Opens the Filters panel too so the applied From/To dates are visible.
+function showSalesFy(){
+  const sv=document.getElementById('sfView'); if(sv) sv.value='fy';
+  const panel=document.getElementById('salesFilters');
+  if(panel && panel.style.display==='none') toggleSalesFilters();
+  onSfViewChange();
 }
 async function loadSales(){
   loadAllOrdersKpi();
