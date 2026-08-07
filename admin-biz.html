@@ -1568,12 +1568,17 @@ html[data-theme="dark"] .biz-login{
           <button class="btn btn-ghost btn-sm" onclick="exportSalesExcel()">↓ Excel</button>
           <button class="btn btn-ghost btn-sm" onclick="openRecycleBin()" title="Recycle Bin">🗑️</button>
           <button class="btn btn-ghost btn-sm" onclick="toggleStatsView('allOrdersKpi')">📊 View Stats</button>
+          <button class="btn btn-ghost btn-sm" id="allOrdersFinBtn" onclick="toggleAllOrdersFinancials()" title="Cost, fees, profit &amp; margin across every order, same as the per-order Show cost &amp; profit, just totalled up">🔒 Financial Data</button>
         </div>
       </div>
       <!-- Phase 10 Group 1: All Orders gets its own stat cards (it had none before,
            just a text subtitle), unfiltered, every status including cancelled/returned.
            Hidden by default (view toggle above), only Today's Tasks keeps stats always on. -->
       <div id="allOrdersKpi" style="display:none;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
+      <!-- Cost/profit is customer-unsafe data, so this stays hidden behind an explicit
+           click (same convention as the per-row "Show cost & profit"), never shown by
+           default even though the numbers are ready as soon as the tab loads. -->
+      <div id="allOrdersFinancials" style="display:none;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
       <!-- Round 3, one-click colored channel buttons, quicker than opening Filters for the
            single most common sort ("kis channel ka dekhna hai"). -->
       <div id="sfChannelBtns" class="filter-bar" style="align-items:center;margin-bottom:8px"></div>
@@ -7417,6 +7422,42 @@ async function loadAllOrdersKpi(){
     <div class="kpi"><div class="kpi-label">Avg Order Value</div><div class="kpi-val">${fmt(aov)}</div></div>
     <div class="kpi red" style="cursor:pointer" onclick="openOpenOrdersDrawer('notCompleted')"><div class="kpi-label">Not Completed</div><div class="kpi-val">${nc}</div></div>
     <div class="kpi yellow" style="cursor:pointer" onclick="openOpenOrdersDrawer('notLocked')"><div class="kpi-label">Not Locked</div><div class="kpi-val">${nl}</div></div>`;
+}
+// Cost/profit is customer-unsafe (same reasoning as the per-row "Show cost & profit"
+// in renderOrderDetail, whose math this mirrors), so it's an explicit click, never
+// shown by default, and only fetched the first time it's opened.
+let _allOrdersFinLoaded=false;
+function toggleAllOrdersFinancials(){
+  const el=document.getElementById('allOrdersFinancials'), btn=document.getElementById('allOrdersFinBtn');
+  if(!el) return;
+  const shown=el.style.display!=='none';
+  el.style.display=shown?'none':'';
+  if(btn) btn.textContent=shown?'🔒 Financial Data':'🙈 Hide Financial Data';
+  if(!shown&&!_allOrdersFinLoaded){ _allOrdersFinLoaded=true; loadAllOrdersFinancials(); }
+}
+// Same unfiltered "whole picture" convention as loadAllOrdersKpi, and the same
+// per-line profit math as renderOrderDetail's cost/profit reveal, just summed
+// across every order instead of one.
+async function loadAllOrdersFinancials(){
+  const el=document.getElementById('allOrdersFinancials'); if(!el) return;
+  el.innerHTML='<div class="kpi"><div class="kpi-label">Financial Data</div><div class="kpi-val" style="font-size:13px">Loading…</div></div>';
+  const {data}=await sb.from('biz_sales').select('selling_price,cogs,gst_rate,platform_fee,shipping_fee,other_deductions,is_gift').eq('is_deleted',false).limit(5000);
+  const rows=data||[];
+  let cogs=0,gstAmt=0,net=0,fees=0;
+  rows.forEach(s=>{
+    const sp=parseFloat(s.selling_price)||0;
+    const ga=sp-(sp/(1+(parseFloat(s.gst_rate)||0)/100));
+    const pf=parseFloat(s.platform_fee)||0, sf=parseFloat(s.shipping_fee)||0, od=parseFloat(s.other_deductions)||0;
+    cogs+=parseFloat(s.cogs)||0; gstAmt+=ga; net+=sp-pf-sf-od; fees+=pf+sf+od;
+  });
+  const profit=net-cogs-gstAmt, margin=net>0?(profit/net*100):0;
+  el.innerHTML=`
+    <div class="kpi"><div class="kpi-label">Net Revenue</div><div class="kpi-val">${fmt(net)}</div></div>
+    <div class="kpi"><div class="kpi-label">Total COGS</div><div class="kpi-val">${fmt(cogs)}</div></div>
+    <div class="kpi"><div class="kpi-label">Fees &amp; Shipping</div><div class="kpi-val">${fmt(fees)}</div></div>
+    <div class="kpi"><div class="kpi-label">GST Collected</div><div class="kpi-val">${fmt(gstAmt)}</div></div>
+    <div class="kpi ${profit>=0?'green':'red'}"><div class="kpi-label">Profit</div><div class="kpi-val">${fmt(profit)}</div></div>
+    <div class="kpi ${profit>=0?'green':'red'}"><div class="kpi-label">Margin</div><div class="kpi-val">${margin.toFixed(1)}%</div></div>`;
 }
 // One-click period presets (matches Ledger/Dashboard/Expenses/Purchases' pattern),
 // layered on top of the existing precise Month/From/To fields rather than replacing
