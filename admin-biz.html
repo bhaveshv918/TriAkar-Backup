@@ -5990,18 +5990,32 @@ async function loadCustomers(){
     if(s.order_date<c.first) c.first=s.order_date;
   });
   let list=Object.values(map).map(c=>({...c,orders:c.orders.size,channels:[...c.channels]}));
-  // 3. Merge in the editable record (by phone, then name)
+  // 3. Merge in the editable record (by phone, then name). The editable record wins
+  // on every field it has a value for, edits made in the Customer modal (name/phone/
+  // city/state/pincode) used to only take effect on gstin/reviewed/notes/country_code
+  // (and address, conditionally); the rest silently kept showing the raw value from
+  // sales history no matter what was saved, looking exactly like the edit never saved.
   const matched=new Set();
   list.forEach(c=>{
-    const rec=recByPhone[norm(c.phone)]||recByName[c.name.toLowerCase()]||null;
-    if(rec){ matched.add(rec.id); c.recordId=rec.id; c.gstin=rec.gstin||''; c.reviewed=!!rec.reviewed; c.country_code=rec.country_code||'+91'; c.notes=rec.notes||''; if(rec.address) c.address=rec.address; }
-    else { c.recordId=null; c.gstin=''; c.reviewed=false; c.country_code='+91'; c.notes=''; }
+    const receivedKey=c.name.toLowerCase();   // biz_sales.customer_name never gets renamed, so
+    const rec=recByPhone[norm(c.phone)]||recByName[receivedKey]||null;                    // received/due must still match against the original, not an edited display name.
+    if(rec){
+      matched.add(rec.id); c.recordId=rec.id;
+      if(rec.name) c.name=rec.name;
+      if(rec.phone) c.phone=rec.phone;
+      if(rec.address) c.address=rec.address;
+      if(rec.city) c.city=rec.city;
+      if(rec.state) c.state=rec.state;
+      if(rec.pincode) c.pincode=rec.pincode;
+      c.gstin=rec.gstin||''; c.reviewed=!!rec.reviewed; c.country_code=rec.country_code||'+91'; c.notes=rec.notes||'';
+    } else { c.recordId=null; c.gstin=''; c.reviewed=false; c.country_code='+91'; c.notes=''; }
+    c._receivedKey=receivedKey;
   });
   // 4. Record-only customers (added by hand, no sales yet)
   _customerRecords.forEach(r=>{ if(matched.has(r.id)) return;
     list.push({name:r.name||'(unnamed)',phone:r.phone||'',address:r.address||'',city:r.city||'',state:r.state||'',pincode:r.pincode||'',orders:0,items:0,spent:0,first:null,last:null,channels:[],recordId:r.id,gstin:r.gstin||'',reviewed:!!r.reviewed,country_code:r.country_code||'+91',notes:r.notes||''});
   });
-  list.forEach(c=>{ c.received=receivedByCustomer[c.name.toLowerCase()]||0; c.due=Math.max(0,c.spent-c.received); c.advance=Math.max(0,c.received-c.spent); });
+  list.forEach(c=>{ const k=c._receivedKey||c.name.toLowerCase(); delete c._receivedKey; c.received=receivedByCustomer[k]||0; c.due=Math.max(0,c.spent-c.received); c.advance=Math.max(0,c.received-c.spent); });
   _customersList=list.sort((a,b)=>b.spent-a.spent);
   _customersByName={}; _customersList.forEach(c=>{ _customersByName[c.name.toLowerCase()]=c; });
   const badge=document.getElementById('custCount_hdr'); if(badge) badge.textContent=_customersList.length;
