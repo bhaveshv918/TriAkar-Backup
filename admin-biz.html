@@ -1160,8 +1160,14 @@ html[data-theme="dark"] .biz-login{
         </div>
       </div>
 
+      <!-- Every reminder (GST filing, filament running low, not completed, not locked) used
+           to be its own always-visible box, stacked one under another, each just a couple of
+           lines, most of the time completely empty. One row of tiles instead, greyed "all
+           clear" when there's nothing to flag, colored with a count when there is; click a
+           tile for the full detail (drawer for Not Completed/Not Locked, an expanding panel
+           for GST/Filament). -->
+      <div id="openRemindersRow" style="display:none;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px"></div>
       <div id="openGstReminder" style="display:none;margin-bottom:16px"></div>
-      <div id="openOrderAlerts" style="display:none;margin-bottom:16px"></div>
       <div id="openFilamentAlert" style="display:none;margin-bottom:16px"></div>
       <div id="openKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
 
@@ -1307,12 +1313,17 @@ html[data-theme="dark"] .biz-login{
             <input type="text" id="qa_city" placeholder="City">
           </div>
           <div class="form-group">
-            <label>State</label>
-            <select id="qa_state" required></select>
+            <label>State <span style="font-weight:400;color:var(--text-3);font-size:10px">(optional, leave blank outside India)</span></label>
+            <select id="qa_state"></select>
           </div>
           <div class="form-group">
             <label>Pincode</label>
             <input type="text" id="qa_pin" placeholder="6-digit pincode" maxlength="6" inputmode="numeric">
+          </div>
+          <div class="form-group">
+            <label>Country</label>
+            <input type="text" id="qa_country" list="qa_countryList" placeholder="Country" value="India">
+            <datalist id="qa_countryList"></datalist>
           </div>
           <div class="form-group">
             <label>GSTIN <span style="font-weight:400;color:var(--text-3);font-size:10px">(optional)</span> <a href="#" onclick="event.preventDefault();verifyQaGstin()" style="font-size:10px;font-weight:400">check</a></label>
@@ -4108,6 +4119,7 @@ async function startApp(){
   applyDashWidgets();
   loadBizSettings();
   populateStateSelects();
+  populateCountryLists();
   await Promise.all([loadProducts(), initDashMonths()]);
   loadDashboard();
   loadOpenOrders();
@@ -4201,7 +4213,15 @@ function toggleNav(force){
 // ── Products (cached for forms) ─────────────────────────────
 let _products = [];
 async function loadProducts(){
-  const {data,error} = await sb.from('biz_products').select('*').eq('is_active',true).order('name');
+  let {data,error} = await sb.from('biz_products').select('*').eq('is_active',true).order('name');
+  // A bare "TypeError: Failed to fetch" means the network request itself never
+  // completed (flaky connection, browser extension blocking it, tab was briefly
+  // backgrounded), not a real API/DB error, one silent retry after a beat clears
+  // most of these without surfacing an error toast for something that self-heals.
+  if(error && String(error.message||'').includes('Failed to fetch')){
+    await new Promise(r=>setTimeout(r,1200));
+    ({data,error} = await sb.from('biz_products').select('*').eq('is_active',true).order('name'));
+  }
   if(error){ toast('Error loading products: '+error.message,'error'); return; }
   _products = data||[];
   // Phase 5 removed the sidebar, which is where this badge id used to live; the
@@ -4522,8 +4542,19 @@ async function restoreSpoolsForIds(ids){
 // three separate hand-typed <option> lists, so it's one place to keep them correct.
 const INDIA_STATES=['Andaman and Nicobar Islands','Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chandigarh','Chhattisgarh','Dadra and Nagar Haveli and Daman and Diu','Delhi','Goa','Gujarat','Haryana','Himachal Pradesh','Jammu and Kashmir','Jharkhand','Karnataka','Kerala','Ladakh','Lakshadweep','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Puducherry','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Other'];
 function populateStateSelects(){
+  // Not required any more (customer_country lets a non-India address skip it
+  // entirely), "Select state" stays the default so leaving it blank is one click.
   const opts='<option value="">Select state</option>'+INDIA_STATES.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
   ['qa_state','qt_state','cm_state'].forEach(id=>{ const el=document.getElementById(id); if(el&&!el.dataset.filled){ el.innerHTML=opts; el.dataset.filled='1'; } });
+}
+// Order/quotation/customer forms used to assume every customer is in India (a required
+// State dropdown, no country field at all). Country is a free-text input with this as
+// suggestions, not a locked list, since a customer's country shouldn't ever be
+// un-enterable just because it's missing from a hardcoded list.
+const COMMON_COUNTRIES=['India','United States','United Kingdom','United Arab Emirates','Canada','Australia','Singapore','Germany','France','Netherlands','Saudi Arabia','Qatar','Kuwait','Bahrain','Oman','Nepal','Bangladesh','Sri Lanka','Malaysia','Japan','South Korea','China','New Zealand','South Africa','Italy','Spain','Switzerland','Sweden','Ireland','Other'];
+function populateCountryLists(){
+  const opts=COMMON_COUNTRIES.map(c=>`<option value="${esc(c)}">`).join('');
+  ['qa_countryList','qt_countryList','cm_countryList'].forEach(id=>{ const el=document.getElementById(id); if(el&&!el.dataset.filled){ el.innerHTML=opts; el.dataset.filled='1'; } });
 }
 function buildCatalog(){
   _catalogByName={}; _catalogBySku={};
@@ -4849,6 +4880,7 @@ async function getOrderFields(){
     customer_city:g('qa_city'),
     customer_state:g('qa_state'),
     customer_pincode:g('qa_pin'),
+    customer_country:g('qa_country')||'India',
     customer_gstin:g('qa_gstin'),
     notes:g('qa_notes'),
     import_source:'manual',
@@ -5086,7 +5118,7 @@ async function submitQuickAddAsQuotation(){
   const payload={
     customer_id:custId||null,
     customer_name:cname, customer_phone:g('qa_phone'), customer_address:g('qa_address'),
-    customer_city:g('qa_city'), customer_state:g('qa_state'), customer_pincode:g('qa_pin'), customer_gstin:g('qa_gstin'),
+    customer_city:g('qa_city'), customer_state:g('qa_state'), customer_pincode:g('qa_pin'), customer_country:g('qa_country')||'India', customer_gstin:g('qa_gstin'),
     items, subtotal:sub, gst_amount:gstAmt, total:sub+gstAmt,
     validity_date:g('qa_qt_validity'), terms_notes:g('qa_qt_terms'), promised_date:g('qa_qt_promised'),
     quotation_number:manualNumber, quotation_date:g('qa_date')||today(),
@@ -5140,7 +5172,7 @@ function openAddOrderEdit(firstId){
   set('qa_tracking',f.tracking_number); set('qa_courier',f.courier_partner); set('qa_invoiceno',f.invoice_no);
   set('qa_packet',f.package_size); set('qa_cname',f.customer_name); set('qa_phone',f.customer_phone);
   set('qa_address',f.customer_address); set('qa_city',f.customer_city); set('qa_state',f.customer_state);
-  set('qa_pin',f.customer_pincode); set('qa_gstin',f.customer_gstin); set('qa_notes',f.notes);
+  set('qa_pin',f.customer_pincode); set('qa_country',f.customer_country||'India'); set('qa_gstin',f.customer_gstin); set('qa_notes',f.notes);
   set('qa_platformfee', f.platform_fee||0); set('qa_shipping', f.shipping_fee||0); set('qa_porter', f.other_deductions||0);
   _items=items.map(s=>{
     const mode=s.pricing_mode==='gram'?'gram':'piece';
@@ -5181,7 +5213,7 @@ async function openAddOrderFromQuotation(quotationId){
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
   set('qa_cname',data.customer_name); set('qa_phone',data.customer_phone); set('qa_address',data.customer_address);
   set('qa_city',data.customer_city); set('qa_state',data.customer_state); set('qa_pin',data.customer_pincode);
-  set('qa_gstin',data.customer_gstin);
+  set('qa_country',data.customer_country||'India'); set('qa_gstin',data.customer_gstin);
   const qItems=Array.isArray(data.items)?data.items:[];
   _items=qItems.length ? qItems.map(it=>({
     rowId:null, productId:null, name:it.name||'', variant:'', qty:it.qty||1, rate:it.rate||0, disc:0,
@@ -5777,6 +5809,7 @@ function editQuotation(id){
     const set=(id2,v)=>{const e=document.getElementById(id2);if(e)e.value=(v==null?'':v);};
     set('qa_cname',q.customer_name); set('qa_phone',q.customer_phone); set('qa_address',q.customer_address);
     set('qa_city',q.customer_city); set('qa_state',q.customer_state); set('qa_pin',q.customer_pincode);
+    set('qa_country',q.customer_country||'India');
     set('qa_gstin',q.customer_gstin); set('qa_qt_validity',q.validity_date); set('qa_qt_terms',q.terms_notes);
     set('qa_qt_promised',q.promised_date); set('qa_qt_number',q.quotation_number); set('qa_date',q.quotation_date);
     _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0,hsn:it.hsn||(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:it.sku||'',variant:it.variant||'',remarks:it.remarks||''})) : [blankItem()];
@@ -5797,6 +5830,7 @@ function duplicateQuotation(id){
     const set=(id2,v)=>{const e=document.getElementById(id2);if(e)e.value=(v==null?'':v);};
     set('qa_cname',q.customer_name); set('qa_phone',q.customer_phone); set('qa_address',q.customer_address);
     set('qa_city',q.customer_city); set('qa_state',q.customer_state); set('qa_pin',q.customer_pincode);
+    set('qa_country',q.customer_country||'India');
     set('qa_gstin',q.customer_gstin); set('qa_qt_validity',q.validity_date); set('qa_qt_terms',q.terms_notes);
     set('qa_qt_promised',q.promised_date); set('qa_qt_number',await genQuotationNumber()); set('qa_date',today());
     _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0,hsn:it.hsn||(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:it.sku||'',variant:it.variant||'',remarks:it.remarks||''})) : [blankItem()];
@@ -6562,13 +6596,63 @@ function setOoChannel(c){ _ooChannel=c; loadOpenOrders(); }
 // tables, so any failure or exception anywhere earlier in that function (a flaky
 // fetch, a bad row) silently skipped this block too, with no error shown, "GST
 // reminders just don't show up." Now it can't be taken down by anything else on the page.
+let _openReminders={gst:0,gstColor:null,filament:0,notCompleted:0,notLocked:0};
 async function loadOpenGstReminder(){
   const gstRem=document.getElementById('openGstReminder'); if(!gstRem) return;
   try{
     await refreshGstFilingsCache();
     const card=gstFilingReminderCard();
-    gstRem.innerHTML=card; gstRem.style.display=card?'block':'none';
+    gstRem.innerHTML=card;
+    if(!card) gstRem.style.display='none';   // nothing to show, force-collapse; otherwise leave it open/closed however the tile toggle last left it
+    const s=gstReminderSummary();
+    _openReminders.gst=s.count; _openReminders.gstColor=s.color;
+    renderOpenRemindersRow();
   }catch(_){}
+}
+// Mirrors gstFilingReminderCard()'s date math to get just a count + worst-severity
+// color for the summary tile in #openRemindersRow, without re-parsing the HTML string
+// that function builds.
+function gstReminderSummary(){
+  const d=new Date().getDate(), period=prevMonth();
+  let count=0, rank=0, color=null;
+  const bump=(r,c)=>{ count++; if(r>rank){ rank=r; color=c; } };
+  GST_RETURN_TYPES.forEach(rt=>{
+    const marked=_gstFilingsCache.some(f=>f.return_type===rt.key&&f.period===period);
+    if(marked) return;
+    if(rt.kind==='filing'){
+      if(d>rt.dueDay) bump(3,'var(--red)');
+      else if(d>=rt.dueDay-2) bump(2,'var(--yellow)');
+      else if(d>=rt.dueDay-5) bump(1,'var(--green)');
+    } else if(d>=rt.dueDay+1&&d<=rt.dueDay+10){
+      bump(d>=rt.dueDay+4?3:1, d>=rt.dueDay+4?'var(--red)':'var(--blue)');
+    }
+  });
+  return {count,color};
+}
+// One row, up to 4 tiles (GST/Filament/Not Completed/Not Locked), each fed by a
+// different loader (loadOpenGstReminder, loadFilamentLowStockAlert, loadOpenOrders),
+// re-rendered from the shared _openReminders state whenever any of them updates.
+function renderOpenRemindersRow(){
+  const row=document.getElementById('openRemindersRow'); if(!row) return;
+  const r=_openReminders;
+  const tiles=[
+    {count:r.gst, color:r.gstColor||'var(--red)', label:'GST Filing', action:"toggleOpenReminderDetail('openGstReminder')"},
+    {count:r.filament, color:'var(--red)', label:'Filament Low', action:"toggleOpenReminderDetail('openFilamentAlert')"},
+    {count:r.notCompleted, color:'var(--red)', label:'Not Completed', action:"openOpenOrdersDrawer('notCompleted')"},
+    {count:r.notLocked, color:'var(--yellow)', label:'Not Locked', action:"openOpenOrdersDrawer('notLocked')"},
+  ];
+  row.style.display=tiles.some(t=>t.count>0)?'grid':'none';
+  row.innerHTML=tiles.map(t=>{
+    const active=t.count>0;
+    return `<div class="kpi" style="cursor:${active?'pointer':'default'};${active?`border-top:2px solid ${t.color};background:linear-gradient(${t.color.replace(')','-bg)')},var(--bg-1) 65%)`:'opacity:.5'}" ${active?`onclick="${t.action}"`:''}>
+      <div class="kpi-label">${t.label}</div>
+      <div class="kpi-val" style="${active?`color:${t.color}`:''}">${active?t.count:'✓ Clear'}</div>
+    </div>`;
+  }).join('');
+}
+function toggleOpenReminderDetail(id){
+  const el=document.getElementById(id); if(!el) return;
+  el.style.display=(el.style.display==='block')?'none':'block';
 }
 async function loadOpenOrders(){
   loadOpenGstReminder();
@@ -6619,14 +6703,10 @@ async function loadOpenOrders(){
   // Phase 10 Group 3 (G): kept for the four drawer-opening KPIs (SLA Breached, Due
   // Today, Not Completed, Not Locked), which have no dedicated table on this panel to scroll to.
   _openOrderKpiGroups={breached:breachedGroups,dueToday:dueTodayGroups,notCompleted:notCompletedGroups,notLocked:notLockedGroups,production:prodGroups,dispatched:trackGroups};
-  const alertsEl=document.getElementById('openOrderAlerts');
-  if(alertsEl){
-    const cards=[];
-    if(notCompletedGroups.length) cards.push(`<div class="gst-card" style="border-color:var(--red);cursor:pointer" onclick="openOpenOrdersDrawer('notCompleted')"><label>Not completed</label><div class="val" style="color:var(--red)">${notCompletedGroups.length} order${notCompletedGroups.length===1?'':'s'}</div><div class="sub">Promised ${NOT_COMPLETED_ALERT_DAYS}+ days ago</div></div>`);
-    if(notLockedGroups.length) cards.push(`<div class="gst-card" style="border-color:var(--yellow);cursor:pointer" onclick="openOpenOrdersDrawer('notLocked')"><label>Not locked</label><div class="val" style="color:var(--yellow)">${notLockedGroups.length} order${notLockedGroups.length===1?'':'s'}</div><div class="sub">Completed ${NOT_LOCKED_ALERT_DAYS}+ days ago</div></div>`);
-    alertsEl.innerHTML=cards.length?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">${cards.join('')}</div>`:'';
-    alertsEl.style.display=cards.length?'block':'none';
-  }
+  // Not Completed / Not Locked are now tiles in #openRemindersRow (with GST/Filament),
+  // not their own always-visible box; clicking either opens the same drawer as before.
+  _openReminders.notCompleted=notCompletedGroups.length; _openReminders.notLocked=notLockedGroups.length;
+  renderOpenRemindersRow();
   const badge=document.getElementById('openCount_hdr'); if(badge) badge.textContent=groups.length;
   const kpi=document.getElementById('openKpi');
   if(kpi) kpi.innerHTML=`
@@ -7690,7 +7770,8 @@ function renderOrderDetail(items){
   items.forEach(s=>{ const sp=parseFloat(s.selling_price)||0; const ga=sp-(sp/(1+(parseFloat(s.gst_rate)||0)/100)); const pf=parseFloat(s.platform_fee)||0, sf=parseFloat(s.shipping_fee)||0, od=parseFloat(s.other_deductions)||0; const nr=sp-pf-sf-od; cogs+=parseFloat(s.cogs)||0; gstAmt+=ga; net+=nr; platF+=pf; shipF+=sf; othF+=od; fees+=pf+sf+od; });
   const totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
   const profit=net-cogs-gstAmt, margin=net>0?(profit/net*100):0;
-  const addr=[f.customer_address,[f.customer_city,f.customer_state].filter(Boolean).join(', ')+(f.customer_pincode?', '+f.customer_pincode:'')].map(x=>(x||'').trim()).filter(Boolean).map(esc).join('<br>');
+  const cntry=(f.customer_country&&f.customer_country.trim()&&f.customer_country.trim().toLowerCase()!=='india')?f.customer_country.trim():'';
+  const addr=[f.customer_address,[f.customer_city,f.customer_state].filter(Boolean).join(', ')+(f.customer_pincode?', '+f.customer_pincode:'')+(cntry?', '+cntry:'')].map(x=>(x||'').trim()).filter(Boolean).map(esc).join('<br>');
   const F=(l,val)=>val?`<div><div style="color:var(--text-3);font-size:9px;text-transform:uppercase;letter-spacing:.6px">${l}</div><div style="font-size:12px;margin-top:1px">${val}</div></div>`:'';
   const itemRows=items.map(s=>{ const vl=[s.size,s.color,s.variant].filter(Boolean).join(' · ');
     const extraColorNote=Array.isArray(s.extra_spool_usage)&&s.extra_spool_usage.length
@@ -9203,11 +9284,14 @@ async function loadFilamentLowStockAlert(){
     const pct=total>0?remaining/total*100:100;
     return {...r,remaining,pct};
   }).filter(r=>r.pct<30).sort((a,b)=>a.pct-b.pct);
+  _openReminders.filament=rows.length; renderOpenRemindersRow();
   if(!rows.length){ box.style.display='none'; _filamentLowStockByMaterial={}; return; }
   const byMaterial={};
   rows.forEach(r=>{ const mat=(r.filament_type||'Other').trim()||'Other'; (byMaterial[mat]=byMaterial[mat]||[]).push(r); });
   _filamentLowStockByMaterial=byMaterial;
-  box.style.display='block';
+  // Deliberately doesn't touch box.style.display here: stays collapsed unless the
+  // operator opens it via the "Filament Low" tile in #openRemindersRow, and stays
+  // open across refreshes if they already had it open.
   const materials=Object.keys(byMaterial).sort();
   box.innerHTML=`<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:var(--radius);padding:12px 14px">
     <div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:8px">⚠ Filament Running Out, ${rows.length} colour${rows.length===1?'':'s'} below 30%</div>
