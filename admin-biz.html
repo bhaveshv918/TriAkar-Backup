@@ -129,6 +129,18 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 @keyframes btn-spin{to{transform:rotate(360deg)}}
 .btn-spinner{display:inline-block;width:11px;height:11px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:btn-spin .6s linear infinite;flex-shrink:0}
 .btn-saving{opacity:.85;cursor:wait!important;pointer-events:none}
+/* Tinted icon-only action buttons (edit/duplicate/document), used on row actions
+   across Quotations, Rack, Customers, Expenses, Income, Purchases, Shop Log, Spool
+   Tracker, Machinery. Every row used to mix a plain grey "btn-ghost" for edit,
+   duplicate AND delete side by side, same color for three different meanings, only
+   delete stood out (it already had btn-danger). Now edit/duplicate/document each
+   get their own recognisable tint, same visual language the status chips and
+   reminder tiles already use (color = meaning, not just decoration). */
+.btn-icon-tint{background:var(--tint-bg);color:var(--tint);border:1px solid transparent}
+.btn-icon-tint:hover{filter:brightness(1.08)}
+.btn-icon-edit{--tint:var(--blue);--tint-bg:var(--blue-bg)}
+.btn-icon-duplicate{--tint:var(--purple);--tint-bg:var(--purple-bg)}
+.btn-icon-doc{--tint:var(--accent);--tint-bg:var(--accent-bg)}
 
 /* ── Skeleton loading (Phase 10 Group 3, L) ──────────────────
    Admin's own token set (--bg-2/--bg-3), not the customer-site skeleton CSS,
@@ -440,6 +452,13 @@ html[data-theme="dark"] #panelQuickadd.qa-bg-quotation{background:linear-gradien
 .toast-item.info .toast-bar{background:var(--blue)}
 @keyframes toast-shrink{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 
+/* ── Toolbar "More" overflow menu (All Orders' utility actions) ──
+   display:contents makes the wrapper invisible to layout on desktop, its buttons
+   flow inline in the parent row exactly as if there were no wrapper at all, only
+   the mobile media query below turns it into an actual dropdown. */
+.sales-more-toggle{display:none}
+.sales-more-menu{display:contents}
+
 /* ── Reminders row (#openRemindersRow) ────────────────────────
    One icon-led card per category, a green checkmark card when there's nothing to
    flag (not just a faded placeholder), a pulsing dot on whichever tile is at
@@ -585,6 +604,13 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
   .btn{padding:11px 14px;min-height:42px}
   .qchip{padding:10px 14px!important;font-size:13px!important}
   .qchip[data-s]{padding-left:29px!important}
+
+  /* All Orders' utility buttons (sync/settlement/restore/export/bin) collapse into
+     this dropdown instead of stacking into a long column of identical grey pills. */
+  .sales-more-toggle{display:inline-flex!important}
+  .sales-more-menu{display:none;position:absolute;top:calc(100% + 6px);right:0;flex-direction:column;align-items:stretch;gap:8px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-h);padding:12px;z-index:200;min-width:230px}
+  .sales-more-menu.show{display:flex}
+  .sales-more-menu .btn{width:100%;justify-content:flex-start}
 
   /* Modals, tighten the 20px wrapper padding on narrow screens */
   #orderDetailModal,#editSaleModal,#recycleBinModal,#customerModal{padding:10px!important}
@@ -1156,7 +1182,6 @@ html[data-theme="dark"] .biz-login{
     <div class="panel active" id="panelOpenorders">
       <div class="p-head">
         <div><div class="p-title">Task</div><div class="p-sub">Not just orders, everything due today: production, dispatch tracking, GST filing &amp; low-stock alerts</div></div>
-        <button class="btn btn-ghost btn-sm" onclick="loadOpenOrders()" title="Refresh">⟳</button>
       </div>
 
       <!-- Daily quick-log strip, the landing tab doubles as a punch-clock / daily log,
@@ -1635,17 +1660,24 @@ html[data-theme="dark"] .biz-login{
           <div class="p-title">All Orders</div>
           <div class="p-sub" id="salesSubtitle">—</div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <input type="month" id="sfExportMonth" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:5px 8px;font-size:12px;outline:none">
-          <button class="btn btn-ghost btn-sm" onclick="syncWebsiteOrders({manual:true})" title="Pull new website orders">⟳ Sync website</button>
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('settlementInput').click()" title="Ingest a Flipkart/Amazon settlement report">↧ Settlement</button>
-          <input type="file" id="settlementInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="ingestSettlement(event)">
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('restoreSalesInput').click()" title="Re-add orders from a file made with 'Download Selected (Full)'">⬆ Add Selected Data</button>
-          <input type="file" id="restoreSalesInput" accept=".json" style="display:none" onchange="restoreSalesFromFile(event)">
-          <button class="btn btn-ghost btn-sm" onclick="exportSalesExcel()">↓ Excel</button>
-          <button class="btn btn-ghost btn-sm" onclick="openRecycleBin()" title="Recycle Bin">🗑️</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:relative">
           <button class="btn btn-ghost btn-sm" onclick="toggleStatsView('allOrdersKpi')">📊 View Stats</button>
           <button class="btn btn-ghost btn-sm" id="allOrdersFinBtn" onclick="toggleAllOrdersFinancials()" title="Cost, fees, profit &amp; margin across every order, same as the per-order Show cost &amp; profit, just totalled up">🔒 Financial Data</button>
+          <!-- Less-frequent utility actions (sync/settlement/restore/export/bin) collapse
+               behind a single "More" button on phones instead of stacking into a long
+               column of same-looking grey pills; display:contents on desktop means this
+               wrapper has zero layout effect there, same flat row as before. -->
+          <button type="button" class="btn btn-ghost btn-sm sales-more-toggle" onclick="toggleSalesMoreMenu()" title="More actions">⋯ More</button>
+          <div id="salesMoreMenu" class="sales-more-menu">
+            <input type="month" id="sfExportMonth" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:5px 8px;font-size:12px;outline:none">
+            <button class="btn btn-ghost btn-sm" onclick="syncWebsiteOrders({manual:true})" title="Pull new website orders">⟳ Sync website</button>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('settlementInput').click()" title="Ingest a Flipkart/Amazon settlement report">↧ Settlement</button>
+            <input type="file" id="settlementInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="ingestSettlement(event)">
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('restoreSalesInput').click()" title="Re-add orders from a file made with 'Download Selected (Full)'">⬆ Add Selected Data</button>
+            <input type="file" id="restoreSalesInput" accept=".json" style="display:none" onchange="restoreSalesFromFile(event)">
+            <button class="btn btn-ghost btn-sm" onclick="exportSalesExcel()">↓ Excel</button>
+            <button class="btn btn-ghost btn-sm" onclick="openRecycleBin()" title="Recycle Bin">🗑️ Recycle Bin</button>
+          </div>
         </div>
       </div>
       <!-- Phase 10 Group 1: All Orders gets its own stat cards (it had none before,
@@ -5778,9 +5810,9 @@ async function loadQuotations(){
       <td><span class="badge badge-${q.status==='accepted'?'completed':q.status==='declined'?'cancelled':'pending'}">${esc(q.status)}</span></td>
       <td>${q.validity_date?fmtDay(q.validity_date):'—'}</td>
       <td class="td-actions" style="white-space:nowrap;text-align:right">
-        ${!['accepted','declined','expired'].includes(q.status)?`<button class="btn btn-primary btn-sm" onclick="acceptQuotation('${q.id}')">✓ Accept</button> <button class="btn btn-ghost btn-sm" onclick="editQuotation('${q.id}')">✎</button>`:''}
-        <button class="btn btn-ghost btn-sm" onclick="duplicateQuotation('${q.id}')" title="Duplicate, opens as a new quotation you can edit before saving">⧉</button>
-        <button class="btn btn-ghost btn-sm" onclick="printQuotation('${q.id}')" title="Print / PDF">🧾</button>
+        ${!['accepted','declined','expired'].includes(q.status)?`<button class="btn btn-primary btn-sm" onclick="acceptQuotation('${q.id}')">✓ Accept</button> <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editQuotation('${q.id}')" title="Edit">✎</button>`:''}
+        <button class="btn btn-icon-tint btn-icon-duplicate btn-sm" onclick="duplicateQuotation('${q.id}')" title="Duplicate, opens as a new quotation you can edit before saving">⧉</button>
+        <button class="btn btn-icon-tint btn-icon-doc btn-sm" onclick="printQuotation('${q.id}')" title="Print / PDF">🧾</button>
         <button class="btn btn-danger btn-sm" onclick="deleteQuotation('${q.id}')">✕</button>
       </td>
     </tr>`).join('');
@@ -6033,7 +6065,7 @@ async function loadRackItems(){
       <td class="td-num" style="font-weight:700">${fmt((parseInt(r.qty)||0)*(parseFloat(r.cost_price)||0))}</td>
       <td class="td-actions" style="white-space:nowrap;text-align:right">
         <button class="btn btn-primary btn-sm" onclick="markRackItemSold('${r.id}')" title="Mark one unit sold, opens Add Order pre-filled">💰 Sold</button>
-        <button class="btn btn-ghost btn-sm" onclick="showAddRackItem('${r.id}')">✎</button>
+        <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="showAddRackItem('${r.id}')" title="Edit">✎</button>
         <button class="btn btn-danger btn-sm" onclick="deleteRackItem('${r.id}')">✕</button>
       </td>
     </tr>`).join('');
@@ -6235,7 +6267,7 @@ function renderCustomers(){
     <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${c.first?fmtDay(c.first):'—'}</td>
     <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${c.last?fmtDay(c.last):'—'}</td>
     <td>${c.reviewed?'<span class="badge" style="background:var(--green-bg);color:var(--green)">✓</span>':''}</td>
-    <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openCustomerByIdx(${i})">✎</button></td>
+    <td class="td-actions"><button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="event.stopPropagation();openCustomerByIdx(${i})" title="Edit">✎</button></td>
   </tr>`).join(''):`<tr><td colspan="11" class="empty"><div class="em-text">No customers found</div></td></tr>`;
   updateCustBulkBar();
 }
@@ -7090,7 +7122,7 @@ async function loadExpenses(){
     <td class="td-num" style="font-weight:700">${fmt(r.amount)}</td>
     <td class="td-num" style="color:var(--text-3)">${fmt(r.gst_amount)}</td>
     <td>${r.invoice_url?`<a href="#" data-u="${esc(r.invoice_url)}" onclick="event.preventDefault();openInvoice(this.dataset.u)" style="color:var(--accent)">view</a>`:'—'}</td>
-    <td class="td-actions"><button class="btn btn-ghost btn-sm" title="Duplicate to next month" onclick="duplicateExpenseNextMonth('${r.id}')">↻</button> <button class="btn btn-ghost btn-sm" onclick="editExpense('${r.id}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteExpense('${r.id}')">✕</button></td>
+    <td class="td-actions"><button class="btn btn-icon-tint btn-icon-duplicate btn-sm" title="Duplicate to next month" onclick="duplicateExpenseNextMonth('${r.id}')">↻</button> <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editExpense('${r.id}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteExpense('${r.id}')">✕</button></td>
   </tr>`).join('');
 }
 function onExpenseCategoryChange(){
@@ -7328,7 +7360,7 @@ async function loadLedger(){
     <td>${esc(r.label||'—')}</td>
     <td class="td-num" style="font-weight:700;color:${r.type==='in'?'var(--green)':'var(--red)'}">${r.type==='in'?'+':'-'}${fmt(r.amount)}</td>
     <td style="font-size:11px;color:var(--text-3)">${esc(r.mode||'—')}${r.ref?' · '+esc(r.ref):''}</td>
-    <td class="td-actions">${r.id?`<button class="btn btn-ghost btn-sm" onclick="editIncome('${r.id}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteIncome('${r.id}')">✕</button>`
+    <td class="td-actions">${r.id?`<button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editIncome('${r.id}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteIncome('${r.id}')">✕</button>`
       :r.payId?`<button class="btn btn-danger btn-sm" onclick="deleteLedgerPayment('${r.payId}')" title="Remove this payment, an accidentally-duplicated entry">✕</button>`
       :r.expId?`<button class="btn btn-danger btn-sm" onclick="deleteLedgerExpense('${r.expId}')" title="Remove this expense">✕</button>`
       :(r.isSale&&r.saleId?`<a href="#" onclick="jumpToOrderDetail('${r.saleId}',event)" style="color:var(--accent);font-size:10px;font-family:var(--mono)" title="Open order details">${esc(r.recordId||r.orderId||'view order')}</a>`:'')}</td>
@@ -7398,7 +7430,7 @@ async function loadPurchases(){
     <td class="td-num">${r.qty||1}</td>
     <td class="td-num" style="font-weight:700">${fmt(r.total_amount)}</td>
     <td>${r.invoice_url?`<a href="#" data-u="${esc(r.invoice_url)}" onclick="event.preventDefault();openInvoice(this.dataset.u)" style="color:var(--accent)">view</a>`:'—'}</td>
-    <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="editPurchase('${r.id}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deletePurchase('${r.id}')">✕</button></td>
+    <td class="td-actions"><button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editPurchase('${r.id}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deletePurchase('${r.id}')">✕</button></td>
   </tr>`).join('');
 }
 function recalcPurchase(){
@@ -7587,7 +7619,7 @@ async function loadShopLog(){
     <td style="font-family:var(--mono);font-size:11px">${esc(r.close_time||'—')}</td>
     <td style="font-family:var(--mono);font-size:11px">${r.break_start?esc(r.break_start)+'–'+esc(r.break_end||''):'—'}</td>
     <td style="font-size:11px;color:var(--text-3)">${esc(r.reason||'')}</td>
-    <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="editShopLog('${r.date}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteShopLog('${r.date}')">✕</button></td>
+    <td class="td-actions"><button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editShopLog('${r.date}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteShopLog('${r.date}')">✕</button></td>
   </tr>`).join('');
 }
 function showAddShopLog(){
@@ -7807,7 +7839,7 @@ async function loadSales(){
       <td onclick="event.stopPropagation()"><select onchange="updateOrderStatus('${key}',this.value)" ${allPaid?'disabled title="Paid, unlock to change status"':''} class="badge-select badge-${status==='mixed'?'pending':status}">${status==='mixed'?'<option value="" selected disabled>Mixed</option>':''}${UNIFIED_STATUSES.map(x=>`<option value="${x}"${status===x?' selected':''}>${STATUS_LABEL[x]}</option>`).join('')}</select></td>
       <td style="text-align:center" onclick="event.stopPropagation()">
         <button class="btn btn-sm" title="${allPaid?'Paid & locked, click to unlock for editing':'Unlocked, click to lock (mark paid)'}" onclick="togglePaidOrder('${key}',${allPaid})" style="font-size:16px;padding:2px 6px;background:${allPaid?'var(--green-bg)':'var(--bg-2)'};color:${allPaid?'var(--green)':'var(--text-3)'};border:1px solid ${allPaid?'var(--green)':'var(--border)'};border-radius:3px">${allPaid?'✓':'◯'}</button>
-        ${!allPaid?`<button class="btn btn-ghost btn-sm" title="Edit order" onclick="openAddOrderEdit('${items[0].id}')" style="padding:2px 6px;margin-left:3px">✎</button>`:''}
+        ${!allPaid?`<button class="btn btn-icon-tint btn-icon-edit btn-sm" title="Edit order" onclick="openAddOrderEdit('${items[0].id}')" style="padding:2px 6px;margin-left:3px">✎</button>`:''}
       </td>
     </tr>`;
   }).join('');
@@ -8387,6 +8419,17 @@ function toggleSalesFilters(){
   p.style.display=show?'block':'none';
   const btn=document.getElementById('sfToggleBtn'); if(btn) btn.classList.toggle('active',show);
 }
+// Mobile-only "⋯ More" dropdown for All Orders' utility actions (sync/settlement/
+// restore/export/bin); on desktop .sales-more-menu is display:contents so this
+// toggle has no visible target to act on, harmless no-op there.
+function toggleSalesMoreMenu(){
+  const m=document.getElementById('salesMoreMenu'); if(!m) return;
+  m.classList.toggle('show');
+}
+document.addEventListener('click',e=>{
+  const m=document.getElementById('salesMoreMenu');
+  if(m && m.classList.contains('show') && !e.target.closest('#salesMoreMenu') && !e.target.closest('.sales-more-toggle')) m.classList.remove('show');
+});
 function updateSalesFilterBadge(){
   const b=document.getElementById('sfActiveCount'); if(!b) return;
   let n=0; ['sfChannel','sfStatus','sfPayment','sfPaid','sfMonth','sfFrom','sfTo'].forEach(id=>{ const e=document.getElementById(id); if(e&&e.value) n++; });
@@ -8679,7 +8722,7 @@ function renderSpoolTracker(){
       <td style="font-size:11px;color:var(--text-3)">${esc(r.opened_date||'—')}</td>
       <td style="font-size:11px;color:var(--text-3)">${esc(r.finished_date||'—')}</td>
       <td class="td-actions">
-        <button class="btn btn-ghost btn-sm" onclick="showSpoolEdit('${r.id}')">✎</button>
+        <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="showSpoolEdit('${r.id}')" title="Edit">✎</button>
         ${r.status!=='Finsh'?`<button class="btn btn-ghost btn-sm" title="Mark resold" onclick="showResellSpool('${r.id}')">♻</button>`:''}
       </td>
     </tr>`;
@@ -8945,7 +8988,7 @@ function renderPrinters(){
       <td style="font-size:11px;color:var(--text-3)">${esc(specs||'—')}</td>
       <td class="td-num">${p.purchase_value?fmt(p.purchase_value):'—'}</td>
       <td><span class="badge ${p.active?'badge-won':'badge-lost'}">${p.active?'Active':'Inactive'}</span></td>
-      <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="editPrinter('${p.id}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deletePrinter('${p.id}')">✕</button></td>
+      <td class="td-actions"><button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editPrinter('${p.id}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deletePrinter('${p.id}')">✕</button></td>
     </tr>`;
   }).join(''):`<tr><td colspan="6" class="empty"><div class="em-text">No machines added yet</div></td></tr>`;
 }
@@ -9876,7 +9919,7 @@ async function loadInvoicing(){
     <td style="font-family:var(--mono);font-size:11px">${r.order_id?orderIdTag(r.order_id,{size:'11px'}):'—'}</td>
     <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${r.doc_kind==='record'?'Record':'Invoice'}</span></td>
     <td style="font-family:var(--mono);font-size:11px">${fmtDay(r.generated_at)}</td>
-    <td class="td-actions" style="white-space:nowrap">${r.order_id?`<button class="btn btn-ghost btn-sm" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${esc(r.order_id)}';loadSales();}},300)">↗ Order</button>`:''} <button class="btn btn-ghost btn-sm" onclick="editInvoiceLog('${r.id}','${esc(r.invoice_number)}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteInvoiceLog('${r.id}','${esc(r.invoice_number)}')">✕</button></td>
+    <td class="td-actions" style="white-space:nowrap">${r.order_id?`<button class="btn btn-ghost btn-sm" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${esc(r.order_id)}';loadSales();}},300)">↗ Order</button>`:''} <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editInvoiceLog('${r.id}','${esc(r.invoice_number)}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteInvoiceLog('${r.id}','${esc(r.invoice_number)}')">✕</button></td>
   </tr>`).join(''):`<tr><td colspan="5" class="empty"><div class="em-text">No invoices generated yet</div></td></tr>`;
 }
 // Renumber a logged invoice directly, e.g. to fix a typo or align with a paper series.
