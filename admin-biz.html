@@ -396,10 +396,21 @@ html[data-theme="dark"] #panelQuickadd.qa-bg-quotation{background:linear-gradien
 .empty .em-text{font-size:13px}
 
 /* ── Notification toast ───────────────────────────────────── */
-#toast{position:fixed;bottom:20px;right:20px;background:var(--bg-3);border:1px solid var(--border-h);border-radius:var(--radius);padding:10px 16px;font-size:12px;z-index:1000;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;max-width:280px}
-#toast.show{opacity:1;transform:translateY(0)}
-#toast.success{border-color:rgba(74,222,128,.3);color:var(--green)}
-#toast.error{border-color:rgba(248,113,113,.3);color:var(--red)}
+/* Stacked cards, top-right, each auto-dismisses after 15s (shown by the shrinking
+   bar along the bottom edge) or on the close button. Replaces the old single
+   bottom-right div that silently overwrote itself if a second toast fired before
+   the first finished. */
+#toastContainer{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:360px;pointer-events:none}
+.toast-item{position:relative;overflow:hidden;background:var(--bg-1);border:1px solid var(--border-h);border-left:4px solid var(--text-3);border-radius:var(--radius);padding:13px 34px 15px 15px;font-size:13px;font-weight:600;color:var(--text);box-shadow:var(--shadow-h);pointer-events:auto;opacity:0;transform:translateX(24px);transition:opacity .25s,transform .25s}
+.toast-item.show{opacity:1;transform:translateX(0)}
+.toast-item.success{border-left-color:var(--green);background:linear-gradient(var(--green-bg),var(--bg-1) 65%)}
+.toast-item.error{border-left-color:var(--red);background:linear-gradient(var(--red-bg),var(--bg-1) 65%)}
+.toast-item .toast-close{position:absolute;top:8px;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;font-size:15px;line-height:1;padding:3px}
+.toast-item .toast-close:hover{color:var(--text)}
+.toast-item .toast-bar{position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--text-3);transform-origin:left;animation:toast-shrink 15s linear forwards}
+.toast-item.success .toast-bar{background:var(--green)}
+.toast-item.error .toast-bar{background:var(--red)}
+@keyframes toast-shrink{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 
 /* ── Top header, ONE responsive element at every width ───────
    (Round-2 #4.1 desktop header, later unified with what used to be a
@@ -435,6 +446,9 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
    more than one flat grey row at rest, not only on interaction. */
 .biz-tb-icon-blue{background:rgba(37,99,235,.10);border-color:rgba(37,99,235,.28);color:#2563EB}
 .biz-tb-icon-blue:hover{background:rgba(37,99,235,.18);border-color:#2563EB}
+/* Refresh button (⟳, header + R shortcut) spins while the tab reloads, otherwise a
+   click gave zero feedback that anything was actually happening. */
+.biz-tb-icon.spinning{animation:btn-spin .6s linear}
 .biz-tb-icon-purple{background:rgba(124,58,237,.10);border-color:rgba(124,58,237,.28);color:#7C3AED}
 .biz-tb-icon-purple:hover{background:rgba(124,58,237,.18);border-color:#7C3AED}
 .biz-tb-icon-amber{background:rgba(217,119,6,.10);border-color:rgba(217,119,6,.28);color:#D97706}
@@ -798,7 +812,7 @@ html[data-theme="dark"] .biz-login{
 .chart-box h3{border-bottom:1px solid var(--border);padding-bottom:10px}
 
 /* ── Toast, glass blur ─── */
-.toast{backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%)}
+.toast-item{backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%)}
 </style>
 <link rel="stylesheet" href="/admin-theme.css">
 </head>
@@ -820,7 +834,7 @@ html[data-theme="dark"] .biz-login{
 </div>
 
 <!-- ── Toast ────────────────────────────────────────────── -->
-<div id="toast"></div>
+<div id="toastContainer"></div>
 
 <!-- Global search results (body-level, fixed, escapes sidebar overflow) -->
 <div id="bizSearchResults" style="display:none;position:fixed;max-height:60vh;overflow:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-h);z-index:2000"></div>
@@ -862,7 +876,7 @@ html[data-theme="dark"] .biz-login{
       <input type="text" id="bizSearchTop" placeholder="Search sales, products, customers…" oninput="bizGlobalSearch(this.value)" onkeydown="if(event.key==='Escape')closeBizSearch()" autocomplete="off">
     </div>
     <div class="biz-tb-time" id="bizTopTime"></div>
-    <button class="biz-tb-icon biz-tb-icon-blue" onclick="refreshCurrentBizTab()" title="Refresh current tab">⟳</button>
+    <button class="biz-tb-icon biz-tb-icon-blue" id="bizRefreshBtn" onclick="refreshCurrentBizTab()" title="Refresh current tab (R)">⟳</button>
     <button class="biz-tb-icon biz-tb-icon-purple" id="privacyBtn" onclick="togglePrivacyMode()" title="Hide sensitive values">👁</button>
     <button class="biz-tb-icon biz-tb-icon-amber" onclick="toggleTheme()" title="Toggle dark / light">🌙</button>
     <a href="/admin.html" class="biz-tb-icon biz-tb-admin-link" title="Open Admin Panel">◳</a>
@@ -1098,9 +1112,6 @@ html[data-theme="dark"] .biz-login{
         <button class="btn btn-ghost btn-sm" onclick="loadOpenOrders()" title="Refresh">⟳</button>
       </div>
 
-      <!-- One-click channel filter, applies to every KPI/table on this page -->
-      <div id="ooChannelBtns" class="filter-bar" style="align-items:center;margin-bottom:12px"></div>
-
       <!-- Daily quick-log strip, the landing tab doubles as a punch-clock / daily log,
            so the things you'd otherwise open 3 other tabs for are one click away here. -->
       <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px">
@@ -1179,7 +1190,13 @@ html[data-theme="dark"] .biz-login{
       <!-- Production stays open/closed however you last left it (remembered), Dispatched
            always starts collapsed, it's checked far less often. -->
       <details id="prodDetails" style="margin-bottom:20px" ontoggle="onProdDetailsToggle()">
-        <summary style="cursor:pointer;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">In Production, needs studio action</summary>
+        <summary style="cursor:pointer;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <span>In Production, needs studio action</span>
+          <!-- One-click channel filter, applies to every KPI/table on this page. Sits next
+               to the section heading now (was its own row above everything); stopPropagation
+               so clicking a channel chip filters instead of collapsing the details. -->
+          <div id="ooChannelBtns" class="filter-bar" style="align-items:center;margin:0;text-transform:none;letter-spacing:normal;font-weight:400" onclick="event.stopPropagation()"></div>
+        </summary>
         <div class="tbl-wrap" style="margin-top:8px">
           <table>
             <thead><tr><th style="width:32px"><input type="checkbox" id="selectAllOpenProd" onchange="toggleSelectAllOpen(this,'prod')"></th><th>Promised</th><th>SLA</th><th>Customer</th><th>Item</th><th>Channel</th><th>Status</th><th class="td-actions"></th></tr></thead>
@@ -3730,11 +3747,25 @@ function applyTableLabels(root){
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
 })();
 
-let _toastTimer;
+// Stacked, top-right, each card auto-dismisses after 15s (the shrinking bar along
+// the bottom edge shows exactly how much time is left) or immediately via ✕.
+// Multiple toasts firing in quick succession used to silently overwrite the same
+// single div, now each gets its own card and they stack.
 function toast(msg, type='success'){
-  const el=document.getElementById('toast');
-  el.textContent=msg; el.className='show '+(type||'');
-  clearTimeout(_toastTimer); _toastTimer=setTimeout(()=>el.className='',3000);
+  const container=document.getElementById('toastContainer'); if(!container) return;
+  const el=document.createElement('div');
+  el.className='toast-item '+(type||'');
+  el.innerHTML=`<span class="toast-msg">${esc(msg)}</span><button type="button" class="toast-close" title="Dismiss">✕</button><div class="toast-bar"></div>`;
+  el.querySelector('.toast-close').onclick=()=>dismissToast(el);
+  container.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  el._toastTimer=setTimeout(()=>dismissToast(el),15000);
+}
+function dismissToast(el){
+  if(!el||!el.parentElement) return;
+  clearTimeout(el._toastTimer);
+  el.classList.remove('show');
+  setTimeout(()=>el.remove(),250);
 }
 
 // Wraps a Save button's onclick (runSave(this, saveProduct) etc.) so every
@@ -4089,7 +4120,11 @@ async function startApp(){
 
 // ── Tab switching ───────────────────────────────────────────
 let _curBizTab='openorders';
-function refreshCurrentBizTab(){ switchTab(_curBizTab); toast('Refreshed'); }
+function refreshCurrentBizTab(){
+  const btn=document.getElementById('bizRefreshBtn');
+  if(btn){ btn.classList.remove('spinning'); void btn.offsetWidth; btn.classList.add('spinning'); }
+  switchTab(_curBizTab); toast('Refreshed');
+}
 // §2e, immutable activity log (fire-and-forget; never blocks the save)
 function logBizActivity(action, entity, entityId, detail){
   try{
@@ -5587,7 +5622,7 @@ async function loadSalesview(){
   body.innerHTML=groups.map((items,idx)=>{
     const f=items[0], totalQty=items.reduce((a,s)=>a+(parseInt(s.qty)||0),0), totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
     const excluded=NON_REVENUE_STATUSES.includes(f.status);
-    return `<tr class="sale-row${excluded?' row-breached':''}" onclick="switchTab('sales');setTimeout(()=>openOrderDetail('${f.id}'),150)" style="cursor:pointer${excluded?';opacity:.7':''}">
+    return `<tr class="sale-row${excluded?' row-breached':''}" onclick="jumpToOrderDetail('${f.id}')" style="cursor:pointer${excluded?';opacity:.7':''}">
       <td>${idx+1}</td><td>${fmtDay(f.order_date)}</td><td>${chHtml(f.channel_id)}</td>
       <td>${esc(f.customer_name||'—')}</td><td>${esc(f.product_name||'—')}${f.is_gift?' <span title="Gift, ₹0 revenue">🎁</span>':''}${items.length>1?` <span style="color:var(--text-3);font-size:10px">+${items.length-1} more</span>`:''}${excluded?' <span style="color:var(--red);font-size:10px">(excluded from Sales)</span>':''}</td>
       <td class="td-num">${totalQty}</td><td class="td-num">${fmt(totalPrice)}</td>
@@ -6201,7 +6236,7 @@ async function loadCustomerHistory(c){
   groups.forEach(g=>{
     const f=g.items[0], total=g.items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
     const more=g.items.length>1?` +${g.items.length-1} more`:'';
-    events.push({date:f.order_date,type:'order',sortKey:f.order_date+' 0',row:`<tr style="cursor:pointer" onclick="closeCustomerModal();switchTab('sales');setTimeout(()=>openOrderDetail('${f.id}'),150)">
+    events.push({date:f.order_date,type:'order',sortKey:f.order_date+' 0',row:`<tr style="cursor:pointer" onclick="closeCustomerModal();jumpToOrderDetail('${f.id}')">
       <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(f.order_date)}</td>
       <td><span class="badge" style="background:var(--accent-bg);color:var(--accent)">Order</span></td>
       <td>${chHtml(f.channel_id)} ${esc(f.sku||f.product_name||'—')}${more}${f.order_id?orderIdTag(f.order_id,{size:'10px'}):''}</td>
@@ -6475,7 +6510,7 @@ function openOpenOrdersDrawer(kind){
       <table><thead><tr><th>Order</th><th>Customer</th><th>Promised</th><th class="td-num">Value</th><th></th></tr></thead>
       <tbody>${groups.length?groups.map(g=>{
         const f=g.items[0], total=g.items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
-        return `<tr style="cursor:pointer" onclick="closeOpenOrdersDrawer();switchTab('sales');setTimeout(()=>openOrderDetail('${f.id}'),150)">
+        return `<tr style="cursor:pointer" onclick="closeOpenOrdersDrawer();jumpToOrderDetail('${f.id}')">
           <td>${chHtml(f.channel_id)} ${esc(f.order_id||f.product_name||'—')}</td>
           <td>${esc(f.customer_name||'—')}</td>
           <td>${f.delivery_date?fmtDay(f.delivery_date):'—'}</td>
@@ -6520,7 +6555,23 @@ function renderOoChannelBtns(){
   }).join('');
 }
 function setOoChannel(c){ _ooChannel=c; loadOpenOrders(); }
+// Round 3, GST filing reminders surfaced right on the Open Orders landing tab, 2 days
+// ahead of each return type's due day, so they're seen without a separate visit.
+// Split out of loadOpenOrders() and wrapped in try/catch: it used to run inline, gated
+// behind the same biz_sales query loadOpenOrders() needs for the production/dispatch
+// tables, so any failure or exception anywhere earlier in that function (a flaky
+// fetch, a bad row) silently skipped this block too, with no error shown, "GST
+// reminders just don't show up." Now it can't be taken down by anything else on the page.
+async function loadOpenGstReminder(){
+  const gstRem=document.getElementById('openGstReminder'); if(!gstRem) return;
+  try{
+    await refreshGstFilingsCache();
+    const card=gstFilingReminderCard();
+    gstRem.innerHTML=card; gstRem.style.display=card?'block':'none';
+  }catch(_){}
+}
 async function loadOpenOrders(){
+  loadOpenGstReminder();
   // "Open" = anything not yet in a terminal state, rather than an explicit include-list —
   // the old include-list named values ('pending','processing','dispatched','delivered')
   // that used to be outside the DB CHECK constraint entirely, so this query could never
@@ -6584,14 +6635,6 @@ async function loadOpenOrders(){
     <div class="kpi" style="cursor:pointer" title="Show all dispatched orders" onclick="openOpenOrdersDrawer('dispatched')"><div class="kpi-label">Dispatched</div><div class="kpi-val">${trackGroups.length}</div></div>
     <div class="kpi red" style="cursor:pointer" title="Show breached orders" onclick="openOpenOrdersDrawer('breached')"><div class="kpi-label">SLA Breached</div><div class="kpi-val">${breached}</div></div>
     <div class="kpi yellow" style="cursor:pointer" title="Show orders due today" onclick="openOpenOrdersDrawer('dueToday')"><div class="kpi-label">Due Today</div><div class="kpi-val">${dueToday}</div></div>`;
-  // Round 3, GST filing reminders surfaced right on the Open Orders landing tab, 2 days
-  // ahead of each return type's due day, so they're seen without a separate visit.
-  const gstRem=document.getElementById('openGstReminder');
-  if(gstRem&&typeof gstFilingReminderCard==='function'){
-    if(typeof refreshGstFilingsCache==='function') await refreshGstFilingsCache();
-    const card=gstFilingReminderCard();
-    gstRem.innerHTML=card; gstRem.style.display=card?'block':'none';
-  }
   loadFilamentLowStockAlert();
   loadShopPunchStatus();
 
@@ -6608,7 +6651,7 @@ async function loadOpenOrders(){
       const more=g.items.length>1?`+${g.items.length-1} more`:'';
       const breached=f.delivery_date&&f.delivery_date<td;
       const rowCls=breached?' row-breached':(f.delivery_date===td?' row-due-today':(f.delivery_date?' row-upcoming':''));
-      return `<tr class="sale-row${rowCls}" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>{switchTab('sales');setTimeout(()=>openOrderDetail('${f.id}'),150)})">
+      return `<tr class="sale-row${rowCls}" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>jumpToOrderDetail('${f.id}'))">
         <td onclick="event.stopPropagation()"><input type="checkbox" class="open-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateOpenBulkBar()"></td>
         <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.delivery_date?fmtDay(f.delivery_date):'—'}</td>
         <td style="white-space:nowrap">${slaText(f.delivery_date)}</td>
@@ -6629,7 +6672,7 @@ async function loadOpenOrders(){
       const dispatchInfo=dispatchSlaText(f);
       const rw=returnWindowInfo(f)||'<span style="color:var(--text-3)">—</span>';
       const breached=f.delivery_date&&f.delivery_date<td;
-      return `<tr class="sale-row${breached?' row-breached':''}" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>{switchTab('sales');setTimeout(()=>openOrderDetail('${f.id}'),150)})">
+      return `<tr class="sale-row${breached?' row-breached':''}" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>jumpToOrderDetail('${f.id}'))">
         <td onclick="event.stopPropagation()"><input type="checkbox" class="open-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateOpenBulkBar()"></td>
         <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.dispatch_date?fmtDay(f.dispatch_date):'—'}${dispatchInfo?'<br>'+dispatchInfo:''}</td>
         <td style="white-space:nowrap">${esc(f.customer_name||'—')}</td>
@@ -7096,7 +7139,7 @@ async function loadLedger(){
     <td class="td-actions">${r.id?`<button class="btn btn-ghost btn-sm" onclick="editIncome('${r.id}')">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteIncome('${r.id}')">✕</button>`
       :r.payId?`<button class="btn btn-danger btn-sm" onclick="deleteLedgerPayment('${r.payId}')" title="Remove this payment, an accidentally-duplicated entry">✕</button>`
       :r.expId?`<button class="btn btn-danger btn-sm" onclick="deleteLedgerExpense('${r.expId}')" title="Remove this expense">✕</button>`
-      :(r.isSale&&r.saleId?`<a href="#" onclick="event.preventDefault();switchTab('sales');setTimeout(()=>openOrderDetail('${r.saleId}'),150)" style="color:var(--accent);font-size:10px;font-family:var(--mono)" title="Open order details">${esc(r.recordId||r.orderId||'view order')}</a>`:'')}</td>
+      :(r.isSale&&r.saleId?`<a href="#" onclick="jumpToOrderDetail('${r.saleId}',event)" style="color:var(--accent);font-size:10px;font-family:var(--mono)" title="Open order details">${esc(r.recordId||r.orderId||'view order')}</a>`:'')}</td>
   </tr>`).join('');
 }
 async function deleteLedgerPayment(id){
@@ -8071,6 +8114,30 @@ function openOrderDetail(key,event){
   document.getElementById('orderDetailModal').style.display='block';
 }
 function closeOrderDetail(){ _odKey=null; const m=document.getElementById('orderDetailModal'); if(m) m.style.display='none'; }
+// Every "jump to this order's detail from somewhere else" link (Today's Tasks,
+// Customer history, Open Orders drawer, Recent Activity, Sales) used to do
+// switchTab('sales')+setTimeout(openOrderDetail,150), guessing 150ms was long enough
+// for loadSales() to finish. It wasn't always, and worse, the order being jumped to
+// might not even be in the All Orders tab's currently-applied filters (a different
+// month, an excluded status, etc.) — the popup would open, then once the filtered
+// loadSales() actually finished, refreshOrderDetailModal() wouldn't find this order
+// in the freshly-filtered list and would silently close the modal again, looking
+// like it "flashed and disappeared, needs a full page refresh to see it". This
+// clears the filters and awaits the real reload before opening, so the order is
+// always in the list the modal is about to show.
+async function jumpToOrderDetail(key,event){
+  // Never forward event into openOrderDetail: openOrderDetail's own event.target.closest('a')
+  // guard exists to ignore row-clicks that land on a nested interactive element, but here the
+  // event's target IS the triggering <a>/button itself, so forwarding it would make the guard
+  // always match and silently no-op the open.
+  if(event) event.preventDefault && event.preventDefault();
+  switchTab('sales');
+  ['sfChannel','sfStatus','sfPayment','sfPaid','sfMonth','sfFrom','sfTo','sfSearch'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const so=document.getElementById('sfSort'); if(so) so.value='date_desc';
+  const sv=document.getElementById('sfView'); if(sv) sv.value='all';
+  await loadSales();
+  openOrderDetail(key);
+}
 function orderDetailNav(dir){
   const i=_orderKeys.indexOf(_odKey); if(i<0) return;
   const ni=i+dir; if(ni<0||ni>=_orderKeys.length) return;
@@ -10984,6 +11051,12 @@ async function printInvoice(d, type, docKind){
   const showCustName=isQuote?docQuo('customer_name'):isRecord?docRec('customer'):true;
   const showCustContact=isQuote?docQuo('customer_name'):isRecord?docRec('customer'):docInv('shipping_address');
   const showCustGstin=isQuote?showCustContact:isRecord?showCustContact:docInv('customer_gstin');
+  // Same merged wordmark-plus-contact header block now used on all three doc kinds
+  // (used to be quotation-only, with Invoice/Record stuck on an older separate
+  // full-width seller-strip card below the header instead).
+  const showHdrIdentity=isQuote?docQuo('business_identity'):(SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE||SELLER_WEB);
+  const hdrShowGstin=isQuote?docQuo('gstin'):(isRecord||docInv('gstin'));
+  const hdrShowAddr=isQuote?true:(isRecord||docInv('business_address'));
   const docNo=isRecord?(d.order_id||nextDocNumber()):isQuote?(d.quotation_number||await genQuotationNumber()):await allocateInvoiceNumber(d.id||d.sale_id||null, d.order_id||null, docKind||'invoice', (d.invoice_no||'').trim()||null);
   const docDate=d.order_date||today();
   const dueDateObj=new Date(docDate+'T00:00:00'); dueDateObj.setDate(dueDateObj.getDate()+DUE_DAYS);
@@ -11095,7 +11168,14 @@ async function printInvoice(d, type, docKind){
    New (numbers/codes). Noto Sans Devanagari is a script requirement for the two
    Hindi characters in the wordmark, not a 4th stylistic choice, Inter has no
    Devanagari glyphs to fall back on. */
-body{font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:12.5px;color:#111;background:#fff;max-width:760px;margin:0 auto}
+/* Fixed width, not max-width: on a phone's narrow viewport (meta viewport is
+   width=device-width) a max-width alone would let the whole layout shrink to
+   ~390px and reflow/wrap differently there than on desktop, so the PDF captured
+   from a phone (html2canvas renders at this same width) would come out wrong.
+   Fixed width keeps this document's layout identical on every device, same as
+   opening a print-formatted page always does; a phone just gets a horizontal
+   scroll/pinch-zoom to view it, same as any PDF viewer would show a full page. */
+body{font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:12.5px;color:#111;background:#fff;width:760px;margin:0 auto}
 /* ── HEADER, all white, no dark bg ── */
 .hdr{background:#fff;display:flex;flex-direction:column;gap:10px;padding:16px 26px 12px;border-bottom:2px solid #C4622A}
 .hdr-logo{display:flex;align-items:center;gap:12px;flex-shrink:0}
@@ -11126,8 +11206,8 @@ body{font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:12.5px;color:
    (between the icon+wordmark and the date box) than the full-width seller-strip
    card invoice/record use, so they need their own smaller size to stay on one
    line each instead of wrapping mid-word. */
-.hdr-contact{font-size:10px;color:#333;margin-top:3px;line-height:1.5;white-space:nowrap}
-.hdr-contact-addr{font-size:10px;color:#333;margin-top:1px;line-height:1.5;white-space:nowrap}
+.hdr-contact{font-size:10.5px;color:#333;margin-top:3px;line-height:1.5;white-space:nowrap}
+.hdr-contact-addr{font-size:10.5px;color:#333;margin-top:1px;line-height:1.5;white-space:nowrap}
 /* Divider */
 .divider{height:1px;background:#ccc;margin:12px 0}
 /* Customer */
@@ -11184,13 +11264,13 @@ tbody tr:last-child td{border-bottom:none}
     <div style="min-width:0">
       <div class="brand-en"><span class="b-tri">TRI</span><span class="b-akar">AKAR</span>${(isQuote&&docQuo('business_identity'))?'<span class="b-akar" style="font-size:80%;text-transform:none;letter-spacing:0;margin-left:4px">Form</span>':''}</div>
       ${(isQuote&&docQuo('business_identity'))?'':`<div class="brand-hi"${isQuote?' style="font-size:14.85px"':''}><span style="color:#C4622A">त्रि</span><span style="color:#111">आकार</span></div>`}
-      ${(isQuote&&docQuo('business_identity'))?`<div class="hdr-contact">${[
+      ${showHdrIdentity?`<div class="hdr-contact">${[
         SELLER_PHONE?ICON_WHATSAPP+esc(SELLER_PHONE):'',
         SELLER_EMAIL?ICON_MAIL+esc(SELLER_EMAIL):'',
         SELLER_WEB?ICON_WEB+esc(SELLER_WEB):'',
-        (docQuo('gstin')&&SELLER_GSTIN)?'GSTIN: '+esc(SELLER_GSTIN):''
+        (hdrShowGstin&&SELLER_GSTIN)?'GSTIN: '+esc(SELLER_GSTIN):''
       ].filter(Boolean).join(' · ')}</div>
-      ${SELLER_ADDR?`<div class="hdr-contact-addr">${esc(SELLER_ADDR)}</div>`:''}`:''}
+      ${(SELLER_ADDR&&hdrShowAddr)?`<div class="hdr-contact-addr">${esc(SELLER_ADDR)}</div>`:''}`:''}
     </div>
   </div>
   <div class="hdr-doc">
@@ -11206,15 +11286,6 @@ tbody tr:last-child td{border-bottom:none}
 
 <div class="body">
 
-${(!isQuote&&(isRecord||docInv('business_address')||docInv('gstin'))&&(SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE))?`
-<div class="seller-strip">
-  <div class="seller-name">${esc(SELLER_NAME)}${SELLER_ADDR&&(isRecord||docInv('business_address'))?' &nbsp;·&nbsp; <span style="font-weight:400;color:#666">'+esc(SELLER_ADDR)+'</span>':''}</div>
-  <div class="seller-detail">${[
-    ((isRecord||docInv('gstin'))&&SELLER_GSTIN)?'GSTIN: '+SELLER_GSTIN:'',
-    SELLER_PAN?'PAN: '+SELLER_PAN:'',
-    SELLER_PHONE,SELLER_EMAIL,SELLER_WEB
-  ].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ')}</div>
-</div>`:''}
 
 <div class="customer-box">
   <div class="cust-left">
@@ -11362,7 +11433,11 @@ async function _buildDocPdfBlob(){
     document.body.classList.add('pdf-compact');
     compactApplied=true;
   }
-  var canvas=await html2canvas(document.body,{scale:2,backgroundColor:'#ffffff',useCORS:true,windowWidth:document.body.scrollWidth});
+  // Fixed 760 (the body's own fixed width), not document.body.scrollWidth: on a
+  // phone that measurement used to come back as the narrow device viewport width
+  // if anything upstream ever left the body unconstrained, capturing the page at
+  // that width instead of its real print-layout width.
+  var canvas=await html2canvas(document.body,{scale:2,backgroundColor:'#ffffff',useCORS:true,windowWidth:760});
   if(compactApplied) document.body.classList.remove('pdf-compact');
   actions.style.display='';
   var imgH=canvas.height*pw/canvas.width;
