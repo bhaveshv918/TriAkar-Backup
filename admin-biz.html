@@ -11361,7 +11361,17 @@ async function printInvoice(d, type, docKind){
    width (not max-width) so a phone's narrower viewport can't shrink and
    reflow it into a different-shaped page than desktop, a phone just gets a
    pinch-zoom/scroll view of the same fixed A4 sheet, same as any PDF viewer. */
-body{font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:12.5px;color:#111;background:#fff;width:794px;margin:0 auto}
+/* min-height plus the footer's margin-top:auto below: confirmed by actually
+   running html2canvas against a short (1-item) quotation that the width was
+   never the problem (it measured exactly 210mm, full page, every time) — a
+   short document's content just naturally ends partway down the page,
+   leaving the rest of the 297mm blank, which reads as "small/incomplete" PDF.
+   Stretching the image to fill that gap would distort text and icons
+   (non-uniform scaling); instead the signature/footer gets pinned to the
+   bottom of the page like any real one-page letter, so a short quotation
+   still visually fills the sheet without warping anything. Has no effect
+   once content is already taller than one page. */
+body{font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:12.5px;color:#111;background:#fff;width:794px;min-height:1123px;margin:0 auto;display:flex;flex-direction:column}
 /* ── HEADER, all white, no dark bg ── */
 .hdr{background:#fff;display:flex;flex-direction:column;gap:10px;padding:16px 26px 12px;border-bottom:2px solid #C4622A}
 .hdr-logo{display:flex;align-items:center;gap:12px;flex-shrink:0}
@@ -11428,7 +11438,7 @@ tbody tr:last-child td{border-bottom:none}
 .terms-plain .info-lbl{margin-bottom:4px}
 .terms-plain .info-val{font-size:10.5px;color:#222}
 /* Footer */
-.footer-band{border-top:1.5px solid #999;margin-top:6px;padding:4px 0 0;display:flex;justify-content:space-between;align-items:center}
+.footer-band{border-top:1.5px solid #999;margin-top:auto;padding-top:4px;padding-bottom:4px;display:flex;justify-content:space-between;align-items:center}
 .footer-brand{font-size:12.5px;font-weight:700;color:#C4622A;margin-bottom:2px}
 .footer-tagline{font-size:10px;color:#444;font-style:italic}
 /* Mandatory brand signature, always shown, including in print */
