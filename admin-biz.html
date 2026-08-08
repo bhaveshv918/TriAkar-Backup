@@ -400,8 +400,11 @@ html[data-theme="dark"] #panelQuickadd.qa-bg-quotation{background:linear-gradien
    bar along the bottom edge) or on the close button. Replaces the old single
    bottom-right div that silently overwrote itself if a second toast fired before
    the first finished. */
-#toastContainer{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:360px;pointer-events:none}
-.toast-item{position:relative;overflow:hidden;background:var(--bg-1);border:1px solid var(--border-h);border-left:4px solid var(--text-3);border-radius:var(--radius);padding:13px 34px 15px 15px;font-size:13px;font-weight:600;color:var(--text);box-shadow:var(--shadow-h);pointer-events:auto;opacity:0;transform:translateX(24px);transition:opacity .25s,transform .25s}
+/* top:76px clears the topbar (~58px tall on desktop, sticky but z-index:60, well
+   under this container's 9999) with room to spare, was 20px, which sat half inside
+   the header. */
+#toastContainer{position:fixed;top:76px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:360px;pointer-events:none}
+.toast-item{position:relative;overflow:hidden;background:var(--bg-1);border:1px solid var(--border-h);border-left:4px solid var(--text-3);border-radius:var(--radius);padding:14px 40px 16px 20px;font-size:13px;font-weight:600;color:var(--text);box-shadow:var(--shadow-h);pointer-events:auto;opacity:0;transform:translateX(24px);transition:opacity .25s,transform .25s}
 .toast-item.show{opacity:1;transform:translateX(0)}
 .toast-item.success{border-left-color:var(--green);background:linear-gradient(var(--green-bg),var(--bg-1) 65%)}
 .toast-item.error{border-left-color:var(--red);background:linear-gradient(var(--red-bg),var(--bg-1) 65%)}
@@ -478,6 +481,9 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
   .biz-tb-brand span{display:none}
   .biz-tb-search{display:none}
   #privacyBtn{display:none}
+  /* Mobile header is fixed at exactly 52px (unlike desktop's sticky, auto-height
+     one), so the toast container's clearance is a precise match, not a guess. */
+  #toastContainer{top:64px;left:12px;right:12px;max-width:none}
 
   /* Sidebar → slide-in drawer below the top bar */
   .sidebar{
@@ -11259,14 +11265,16 @@ async function printInvoice(d, type, docKind){
    New (numbers/codes). Noto Sans Devanagari is a script requirement for the two
    Hindi characters in the wordmark, not a 4th stylistic choice, Inter has no
    Devanagari glyphs to fall back on. */
-/* Fixed width, not max-width: on a phone's narrow viewport (meta viewport is
-   width=device-width) a max-width alone would let the whole layout shrink to
-   ~390px and reflow/wrap differently there than on desktop, so the PDF captured
-   from a phone (html2canvas renders at this same width) would come out wrong.
-   Fixed width keeps this document's layout identical on every device, same as
-   opening a print-formatted page always does; a phone just gets a horizontal
-   scroll/pinch-zoom to view it, same as any PDF viewer would show a full page. */
-body{font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:12.5px;color:#111;background:#fff;width:760px;margin:0 auto}
+/* The page canvas is the actual A4 sheet, decided first, in the same pixel
+   space the PDF export measures against, not an arbitrary web-page width that
+   then gets squeezed into an A4 shape as an afterthought at export time. 794 x
+   1123 is A4 (210mm x 297mm) at 96dpi, the standard CSS px-per-inch, so this
+   div's proportions ARE an A4 page; _buildDocPdfBlob() maps it onto the PDF's
+   210mm width 1:1, no separate "does this fit" scale-guess involved. Fixed
+   width (not max-width) so a phone's narrower viewport can't shrink and
+   reflow it into a different-shaped page than desktop, a phone just gets a
+   pinch-zoom/scroll view of the same fixed A4 sheet, same as any PDF viewer. */
+body{font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:12.5px;color:#111;background:#fff;width:794px;margin:0 auto}
 /* ── HEADER, all white, no dark bg ── */
 .hdr{background:#fff;display:flex;flex-direction:column;gap:10px;padding:16px 26px 12px;border-bottom:2px solid #C4622A}
 .hdr-logo{display:flex;align-items:center;gap:12px;flex-shrink:0}
@@ -11503,11 +11511,18 @@ ${(!isQuote&&!isRecord&&docInv('signature'))?`<div style="padding:20px 26px 4px;
 
 <script>
 var _safeDocName=${JSON.stringify('TriAkar_'+docTitle.replace(/\s+/g,'')+'_'+String(docNo).replace(/\//g,'-').replace(/[^\w\-]+/g,'_')+(d.customer_name?'_'+String(d.customer_name).replace(/[^a-zA-Z0-9]+/g,''):''))};
-// Every doc is forced onto a single A4 page, never paginated. A document with a
-// long item list gets a compact pass on just the items table first (font-size/
-// padding squeezed via .pdf-compact), so a 6-8 item order doesn't shrink the whole
-// page (header, branding) just to fit; only if that alone isn't enough does the
-// final image get scaled down as a whole to guarantee it still fits one page.
+// A4 is decided FIRST, the document is built to fit it, not the reverse. The
+// page <body> is a fixed 794x1123 CSS px (A4's 210mm x 297mm at 96dpi, the
+// standard px-per-inch), so it already IS an A4 page's proportions before a
+// single line of content renders, unlike measuring an arbitrary-width page
+// after the fact and guessing whether it happens to fit. A4_PX_W/H below are
+// that same fixed canvas, used to check overflow against and to map the
+// captured image onto the PDF's real 210mm width with a plain ratio, no
+// separate "does this fit" scale-guess needed. A document with a long item
+// list gets a compact pass on just the items table first (.pdf-compact), so a
+// 6-8 item order doesn't shrink the whole page just to fit; the final
+// width-preserving scale-down only fires if that alone still isn't enough.
+var A4_PX_W=794, A4_PX_H=1123;
 async function _buildDocPdfBlob(){
   var actions=document.getElementById('docActions');
   var status=document.getElementById('shareStatus');
@@ -11515,22 +11530,20 @@ async function _buildDocPdfBlob(){
   status.textContent='Preparing PDF…';
   if(document.fonts&&document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
   actions.style.display='none';
-  var jsPDF=window.jspdf.jsPDF;
-  var pdf=new jsPDF('p','mm','a4');
-  var pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight();
-  var pageAspect=ph/pw;
   var compactApplied=false;
-  if((document.body.scrollHeight/document.body.scrollWidth)>pageAspect){
+  if(document.body.scrollHeight>A4_PX_H){
     document.body.classList.add('pdf-compact');
     compactApplied=true;
   }
-  // Fixed 760 (the body's own fixed width), not document.body.scrollWidth: on a
-  // phone that measurement used to come back as the narrow device viewport width
-  // if anything upstream ever left the body unconstrained, capturing the page at
-  // that width instead of its real print-layout width.
-  var canvas=await html2canvas(document.body,{scale:2,backgroundColor:'#ffffff',useCORS:true,windowWidth:760});
+  var canvas=await html2canvas(document.body,{scale:2,backgroundColor:'#ffffff',useCORS:true,windowWidth:A4_PX_W});
   if(compactApplied) document.body.classList.remove('pdf-compact');
   actions.style.display='';
+  var jsPDF=window.jspdf.jsPDF;
+  var pdf=new jsPDF('p','mm','a4');
+  var pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight();
+  // canvas.width is always A4_PX_W*scale by construction, so this ratio maps
+  // 1:1 onto the real A4 page width; imgH only exceeds ph if content still
+  // overflowed A4_PX_H even after the compact pass above.
   var imgH=canvas.height*pw/canvas.width;
   var img=canvas.toDataURL('image/jpeg',0.95);
   var drawW=pw, drawH=imgH;
