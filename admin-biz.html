@@ -6607,7 +6607,7 @@ async function loadOpenGstReminder(){
     const s=gstReminderSummary();
     _openReminders.gst=s.count; _openReminders.gstColor=s.color;
     renderOpenRemindersRow();
-  }catch(_){}
+  }catch(e){ console.warn('loadOpenGstReminder failed:',e); }
 }
 // Mirrors gstFilingReminderCard()'s date math to get just a count + worst-severity
 // color for the summary tile in #openRemindersRow, without re-parsing the HTML string
@@ -9224,7 +9224,14 @@ const GST_RETURN_TYPES=[
 const GST_RETURN_LABEL=Object.fromEntries(GST_RETURN_TYPES.map(t=>[t.key,t.label]));
 let _gstFilingsCache=[];
 async function refreshGstFilingsCache(){
-  const {data}=await sb.from('biz_gst_filings').select('*').order('period',{ascending:false});
+  let {data,error}=await sb.from('biz_gst_filings').select('*').order('period',{ascending:false});
+  // Same transient-network retry as loadProducts(): a bare "Failed to fetch" means the
+  // request itself never completed, not a real API error, one retry after a beat.
+  if(error && String(error.message||'').includes('Failed to fetch')){
+    await new Promise(r=>setTimeout(r,1200));
+    ({data,error}=await sb.from('biz_gst_filings').select('*').order('period',{ascending:false}));
+  }
+  if(error) console.warn('refreshGstFilingsCache failed, GST reminders may be stale/missing:',error.message);
   _gstFilingsCache=data||[];
   return _gstFilingsCache;
 }
