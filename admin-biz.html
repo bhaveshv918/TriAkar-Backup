@@ -308,7 +308,7 @@ tr:hover td{background:var(--bg-2)}
 /* Interactive quick-select chips (status / lead source / fulfillment) */
 .chip-label{display:block;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:6px}
 .qchips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.qchip{padding:7px 12px;border:1px solid var(--border);border-radius:20px;background:var(--bg-2);color:var(--text-2);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.qchip{padding:7px 12px;border:1px solid var(--border);border-radius:20px;background:var(--bg-2);color:var(--text);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
 .qchip:hover{border-color:var(--border-h)}
 .qchip.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 1px 2px rgba(16,32,24,.18)}
 /* Add Order's 3 document actions (Order Record / Invoice / Quotation), one consistent
@@ -343,25 +343,35 @@ tr:hover td{background:var(--bg-2)}
 #panelQuickadd.qa-bg-quotation{background:linear-gradient(180deg,rgba(124,58,237,.06),transparent 220px)}
 html[data-theme="dark"] #panelQuickadd.qa-bg-order{background:linear-gradient(180deg,rgba(196,98,42,.10),transparent 220px)}
 html[data-theme="dark"] #panelQuickadd.qa-bg-quotation{background:linear-gradient(180deg,rgba(124,58,237,.14),transparent 220px)}
-/* Status chips get their own colour so the stage is recognisable at a glance */
-.qchip[data-s="pending"].active{background:#6b7280;border-color:#6b7280}
-.qchip[data-s="order_received"].active{background:#0284c7;border-color:#0284c7}
-.qchip[data-s="processing"].active{background:#2563eb;border-color:#2563eb}
-.qchip[data-s="printing"].active{background:#9333ea;border-color:#9333ea}
-.qchip[data-s="packed"].active{background:#ea580c;border-color:#ea580c}
-.qchip[data-s="dispatched"].active{background:#7c3aed;border-color:#7c3aed}
-.qchip[data-s="delivered"].active{background:#0891b2;border-color:#0891b2}
-.qchip[data-s="completed"].active{background:#16a34a;border-color:#16a34a}
-.qchip[data-s="delayed"].active{background:#dc2626;border-color:#dc2626}
-.qchip[data-s="returned"].active{background:#d97706;border-color:#d97706}
-.qchip[data-s="cancelled"].active{background:#dc2626;border-color:#dc2626}
-.qchip[data-s="delaying"].active{background:#f59e0b;border-color:#f59e0b}
-.qchip[data-s="return_initiated"].active{background:#a855f7;border-color:#a855f7}
-.qchip[data-s="return_picked_up"].active{background:#c026d3;border-color:#c026d3}
-.qchip[data-s="claim_filed"].active{background:#db2777;border-color:#db2777}
-.qchip[data-s="claimed"].active{background:#be185d;border-color:#be185d}
-.qchip[data-s="cancelled_before_dispatch"].active{background:#b91c1c;border-color:#b91c1c}
-.qchip[data-s="cancelled_before_delivery"].active{background:#991b1b;border-color:#991b1b}
+/* Status chips get their own colour so the stage is recognisable at a glance.
+   v2: every chip now carries its color as a --dot variable (one source of truth
+   for both the active fill and the always-visible dot below), unselected chips
+   used to be visually identical grey regardless of status, indistinguishable
+   from each other until clicked, in a list of 18 that's not "recognisable at a
+   glance" at all, it's a wall of sameness. The dot previews the status color
+   before you commit to it. */
+.qchip[data-s="pending"]{--dot:#6b7280}
+.qchip[data-s="order_received"]{--dot:#0284c7}
+.qchip[data-s="processing"]{--dot:#2563eb}
+.qchip[data-s="printing"]{--dot:#9333ea}
+.qchip[data-s="packed"]{--dot:#ea580c}
+.qchip[data-s="dispatched"]{--dot:#7c3aed}
+.qchip[data-s="delivered"]{--dot:#0891b2}
+.qchip[data-s="completed"]{--dot:#16a34a}
+.qchip[data-s="delayed"]{--dot:#dc2626}
+.qchip[data-s="returned"]{--dot:#d97706}
+.qchip[data-s="cancelled"]{--dot:#dc2626}
+.qchip[data-s="delaying"]{--dot:#f59e0b}
+.qchip[data-s="return_initiated"]{--dot:#a855f7}
+.qchip[data-s="return_picked_up"]{--dot:#c026d3}
+.qchip[data-s="claim_filed"]{--dot:#db2777}
+.qchip[data-s="claimed"]{--dot:#be185d}
+.qchip[data-s="cancelled_before_dispatch"]{--dot:#b91c1c}
+.qchip[data-s="cancelled_before_delivery"]{--dot:#991b1b}
+.qchip[data-s]{position:relative;padding-left:27px}
+.qchip[data-s]::before{content:'';position:absolute;left:12px;top:50%;transform:translateY(-50%);width:7px;height:7px;border-radius:50%;background:var(--dot,var(--text-3))}
+.qchip[data-s].active{background:var(--dot);border-color:var(--dot);color:#fff}
+.qchip[data-s].active::before{background:#fff}
 /* Drag handle / serial cell on item rows */
 .item-row .srl{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--text-3);cursor:grab;user-select:none}
 .item-row .srl:active{cursor:grabbing}
@@ -574,13 +584,14 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
   input,select,textarea{font-size:16px!important}
   .btn{padding:11px 14px;min-height:42px}
   .qchip{padding:10px 14px!important;font-size:13px!important}
+  .qchip[data-s]{padding-left:29px!important}
 
   /* Modals, tighten the 20px wrapper padding on narrow screens */
   #orderDetailModal,#editSaleModal,#recycleBinModal,#customerModal{padding:10px!important}
   #orderDetailModal>div,#editSaleModal>div,#recycleBinModal>div,#customerModal>div{margin:0;max-width:100%!important}
 
   /* Sticky Save → floating action button bottom-right (no bottom nav to clash) */
-  #stickySave{top:auto!important;bottom:calc(18px + env(safe-area-inset-bottom,0px))!important;right:16px!important;z-index:180;border-radius:24px;padding:12px 20px!important;box-shadow:0 6px 18px rgba(16,32,24,.30)}
+  #qaSaveBtn{top:auto!important;bottom:calc(18px + env(safe-area-inset-bottom,0px))!important;right:16px!important;z-index:180;border-radius:24px;padding:12px 20px!important;box-shadow:0 6px 18px rgba(16,32,24,.30)}
 }
 /* Round-2 Batch 5, interaction polish (premium TRI/AKAR feel) */
 .btn,button,.tab,input,select,textarea,.badge,.qchip{transition:background .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease,transform .1s ease}
@@ -1268,11 +1279,6 @@ html[data-theme="dark"] .biz-login{
          QUICK ADD SALE
     ═══════════════════════════════════════════════════════ -->
     <div class="panel qa-bg-order" id="panelQuickadd">
-      <!-- Sticky quick-save, stays put while scrolling the long form -->
-      <button type="button" id="stickySave" class="btn btn-primary"
-        title="Save Sale"
-        onclick="document.getElementById('quickAddForm').requestSubmit()"
-        style="position:fixed;top:14px;right:16px;z-index:150;padding:8px 14px;box-shadow:0 4px 14px rgba(16,32,24,.20)">↓ Save</button>
       <button type="button" id="qaCancelEditBtn" class="btn btn-ghost btn-sm" onclick="exitAddOrderEditMode()"
         style="display:none;position:fixed;top:14px;right:96px;z-index:150">✕ Cancel edit</button>
       <div class="p-head">
@@ -1607,7 +1613,14 @@ html[data-theme="dark"] .biz-login{
           <div style="display:flex;gap:8px;align-items:center">
             <button type="button" class="btn btn-ghost btn-sm" onclick="confirmClearQuickAdd()" title="Wipes the whole form">Clear</button>
             <button type="button" class="btn btn-ghost btn-sm" onclick="exitAddOrderEditMode()">Cancel</button>
-            <button type="submit" class="btn" id="qaSaveBtn" style="background:#16a34a;color:#fff;font-weight:700;padding:10px 20px" title="Ctrl/Cmd+Enter also saves">💾 Save</button>
+            <!-- Was two Save buttons (this one plus a separate fixed "stickySave" pill),
+                 confusing on mobile where both were visible at once. Merged into one:
+                 this button itself is now the sticky one (position:fixed, so it stays
+                 reachable while scrolling the long form), same id so the existing
+                 mode-based label swap (Save/Update Order/Quotation) keeps working. -->
+            <button type="submit" class="btn btn-primary" id="qaSaveBtn"
+              style="position:fixed;top:14px;right:16px;z-index:150;font-weight:700;padding:10px 20px;box-shadow:0 4px 14px rgba(16,32,24,.20)"
+              title="Ctrl/Cmd+Enter also saves">💾 Save</button>
           </div>
         </div>
       </form>
@@ -3694,7 +3707,13 @@ function orderIdTag(oid,opts){
   const safe=esc(oid), jsSafe=safe.replace(/'/g,"\\'");
   const size=opts.size||'10px';
   const copyIcon='<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-  return `<span class="oid-tag" style="display:flex;width:fit-content;align-items:center;gap:5px;margin-top:4px;color:${opts.color||'var(--accent-h)'};font-size:${size};font-family:var(--mono);font-weight:600">#${safe}<button type="button" class="btn-copy-oid" onclick="copyOrderId('${jsSafe}',event)" title="Copy Order ID">${copyIcon}</button></span>`;
+  // Long platform order IDs (Flipkart runs 20+ chars) were wrapping mid-string on
+  // narrow phone screens, with the copy button squeezed onto its own line below,
+  // since the id text had no width limit of its own inside the flex box. Now the
+  // id text truncates with an ellipsis instead (min-width:0 lets it shrink; the
+  // full id is still what actually gets copied, this is display-only), and the
+  // button is flex-shrink:0 so it can never get pushed out of the row.
+  return `<span class="oid-tag" style="display:flex;max-width:100%;width:fit-content;align-items:center;gap:5px;margin-top:4px;color:${opts.color||'var(--accent-h)'};font-size:${size};font-family:var(--mono);font-weight:600"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">#${safe}</span><button type="button" class="btn-copy-oid" onclick="copyOrderId('${jsSafe}',event)" title="Copy Order ID" style="flex-shrink:0">${copyIcon}</button></span>`;
 }
 function fmt(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function fmtD(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
