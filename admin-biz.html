@@ -572,14 +572,23 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
   .form-grid .form-group,.form-grid-2 .form-group{grid-column:auto!important}
   .calc-row{grid-template-columns:1fr 1fr}
   .calc-item span{font-size:13px;word-break:break-all}
-  /* Tables, reflow into stacked, labelled cards (no horizontal scroll). */
+  /* Tables, reflow into stacked, labelled cards (no horizontal scroll).
+     v2: td{display:flex} used to put the label BESIDE the value in a horizontal
+     row. That's fine for a short plain value (a date, a price) but every "rich"
+     cell (Item: SKU + product name + order-ID box, each its own block-level div)
+     got its stacked children forced into that SAME horizontal row instead of
+     their intended vertical stack, squeezed into a sliver of leftover width and
+     word-broken letter-by-letter, with the order-ID box overflowing off-screen.
+     Label now sits ABOVE the value (both full width, normal block flow), so any
+     value content, simple or rich/multi-line, lays out exactly as it would
+     anywhere else in the app, nothing forced into a row it wasn't designed for. */
   .tbl-wrap{overflow-x:visible;border:none;border-radius:0;background:transparent;box-shadow:none}
   .tbl-wrap table{min-width:0;width:100%}
   .tbl-wrap thead{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);border:0}
-  .tbl-wrap tbody tr{display:block;margin:0 0 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-1);padding:4px 12px}
-  .tbl-wrap tbody td{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:7px 0!important;border:none;border-bottom:1px solid var(--border);font-size:12px;text-align:right;white-space:normal;word-break:break-word}
+  .tbl-wrap tbody tr{display:block;margin:0 0 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-1);padding:10px 13px}
+  .tbl-wrap tbody td{display:block;max-width:100%;padding:7px 0!important;border:none;border-bottom:1px solid var(--border);font-size:12.5px;text-align:left;white-space:normal;word-break:normal;overflow-wrap:break-word}
   .tbl-wrap tbody tr td:last-child{border-bottom:none}
-  .tbl-wrap tbody td::before{content:attr(data-label);font-weight:700;color:var(--text-3);text-transform:uppercase;font-size:9px;letter-spacing:.4px;text-align:left;flex:0 0 36%;white-space:nowrap}
+  .tbl-wrap tbody td::before{content:attr(data-label);display:block;font-weight:700;color:var(--text-3);text-transform:uppercase;font-size:9px;letter-spacing:.4px;margin-bottom:4px}
   .tbl-wrap tbody td[data-label='']::before,.tbl-wrap tbody td:not([data-label])::before{display:none}
   .tbl-wrap tbody td[colspan]{display:block;text-align:center}
   .tbl-wrap tbody td[colspan]::before{display:none}
