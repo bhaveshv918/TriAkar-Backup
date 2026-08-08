@@ -403,17 +403,47 @@ html[data-theme="dark"] #panelQuickadd.qa-bg-quotation{background:linear-gradien
 /* top:76px clears the topbar (~58px tall on desktop, sticky but z-index:60, well
    under this container's 9999) with room to spare, was 20px, which sat half inside
    the header. */
-#toastContainer{position:fixed;top:76px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:360px;pointer-events:none}
-.toast-item{position:relative;overflow:hidden;background:var(--bg-1);border:1px solid var(--border-h);border-left:4px solid var(--text-3);border-radius:var(--radius);padding:14px 40px 16px 20px;font-size:13px;font-weight:600;color:var(--text);box-shadow:var(--shadow-h);pointer-events:auto;opacity:0;transform:translateX(24px);transition:opacity .25s,transform .25s}
-.toast-item.show{opacity:1;transform:translateX(0)}
-.toast-item.success{border-left-color:var(--green);background:linear-gradient(var(--green-bg),var(--bg-1) 65%)}
-.toast-item.error{border-left-color:var(--red);background:linear-gradient(var(--red-bg),var(--bg-1) 65%)}
-.toast-item .toast-close{position:absolute;top:8px;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;font-size:15px;line-height:1;padding:3px}
-.toast-item .toast-close:hover{color:var(--text)}
+#toastContainer{position:fixed;top:76px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:380px;pointer-events:none}
+.toast-item{position:relative;overflow:hidden;display:flex;align-items:flex-start;gap:11px;background:var(--bg-1);border:1px solid var(--border-h);border-radius:12px;padding:14px 38px 16px 16px;font-size:13px;font-weight:600;color:var(--text);line-height:1.4;box-shadow:0 8px 24px rgba(16,32,24,.14),0 2px 6px rgba(16,32,24,.08);pointer-events:auto;opacity:0;max-height:120px;transform:translateX(28px) scale(.97);transition:opacity .3s cubic-bezier(.34,1.4,.64,1),transform .3s cubic-bezier(.34,1.4,.64,1),max-height .25s ease .05s,margin-top .25s ease .05s,padding .25s ease .05s}
+.toast-item.show{opacity:1;transform:translateX(0) scale(1)}
+.toast-item.leaving{opacity:0!important;transform:translateX(28px) scale(.97)!important;max-height:0!important;padding-top:0!important;padding-bottom:0!important;margin-top:-10px!important;border-width:0!important}
+.toast-item.paused .toast-bar{animation-play-state:paused}
+/* Icon badge, one glyph per severity so the message reads before the text does,
+   color isn't the only signal (also helps colorblind users tell success from error). */
+.toast-icon{flex-shrink:0;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;margin-top:1px}
+.toast-msg{flex:1;padding-right:2px;word-break:break-word}
+.toast-count{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:rgba(0,0,0,.14);color:inherit;font-size:10px;font-weight:800;margin-left:7px;vertical-align:middle}
+.toast-item.success{border-color:rgba(74,222,128,.3);background:linear-gradient(var(--green-bg),var(--bg-1) 60%)}
+.toast-item.success .toast-icon{background:var(--green);color:#fff}
+.toast-item.error{border-color:rgba(248,113,113,.35);background:linear-gradient(var(--red-bg),var(--bg-1) 60%)}
+.toast-item.error .toast-icon{background:var(--red);color:#fff}
+.toast-item.warning{border-color:rgba(217,119,6,.35);background:linear-gradient(var(--yellow-bg),var(--bg-1) 60%)}
+.toast-item.warning .toast-icon{background:var(--yellow);color:#fff}
+.toast-item.info{border-color:rgba(37,99,235,.3);background:linear-gradient(var(--blue-bg),var(--bg-1) 60%)}
+.toast-item.info .toast-icon{background:var(--blue);color:#fff}
+.toast-item .toast-close{position:absolute;top:9px;right:9px;background:none;border:none;color:var(--text-3);cursor:pointer;font-size:14px;line-height:1;padding:4px;border-radius:5px;transition:background .15s,color .15s}
+.toast-item .toast-close:hover{color:var(--text);background:rgba(0,0,0,.06)}
 .toast-item .toast-bar{position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--text-3);transform-origin:left;animation:toast-shrink 15s linear forwards}
 .toast-item.success .toast-bar{background:var(--green)}
 .toast-item.error .toast-bar{background:var(--red)}
+.toast-item.warning .toast-bar{background:var(--yellow)}
+.toast-item.info .toast-bar{background:var(--blue)}
 @keyframes toast-shrink{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+
+/* ── Reminders row (#openRemindersRow) ────────────────────────
+   One icon-led card per category, a green checkmark card when there's nothing to
+   flag (not just a faded placeholder), a pulsing dot on whichever tile is at
+   red-severity so the most urgent one draws the eye first. */
+.reminder-tile{position:relative;display:flex;align-items:center;gap:11px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow);transition:box-shadow .15s ease,transform .15s ease}
+.reminder-tile-active{cursor:pointer;border-width:1.5px}
+.reminder-tile-active:hover{transform:translateY(-2px);box-shadow:var(--shadow-h)}
+.reminder-tile-icon{flex-shrink:0;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px}
+.reminder-tile-body{min-width:0}
+.reminder-tile-label{font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-3);white-space:nowrap}
+.reminder-tile-val{font-size:15px;font-weight:800;margin-top:1px}
+.reminder-tile-clear{opacity:.9}
+.reminder-pulse-dot{position:absolute;top:9px;right:10px;width:8px;height:8px;border-radius:50%;animation:reminder-pulse 1.6s ease-in-out infinite}
+@keyframes reminder-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.7)}}
 
 /* ── Top header, ONE responsive element at every width ───────
    (Round-2 #4.1 desktop header, later unified with what used to be a
@@ -3766,23 +3796,65 @@ function applyTableLabels(root){
 
 // Stacked, top-right, each card auto-dismisses after 15s (the shrinking bar along
 // the bottom edge shows exactly how much time is left) or immediately via ✕.
-// Multiple toasts firing in quick succession used to silently overwrite the same
-// single div, now each gets its own card and they stack.
+// v2: an icon per severity (success/error/warning/info, not just two colors), the
+// exact same message firing again bumps a "×N" counter on the existing card and
+// restarts its timer instead of stacking a duplicate underneath it, hovering pauses
+// the countdown so reading a message doesn't race its own dismissal, and the exit
+// smoothly collapses its height so the stack above it doesn't just jump.
+const TOAST_ICONS={success:'✓',error:'!',warning:'!',info:'i'};
+const TOAST_DURATION_MS=15000;
 function toast(msg, type='success'){
+  type=TOAST_ICONS[type]?type:'success';
   const container=document.getElementById('toastContainer'); if(!container) return;
+  const existing=[...container.children].find(el=>el.dataset.msg===msg && el.dataset.type===type && !el.classList.contains('leaving'));
+  if(existing){
+    const n=(parseInt(existing.dataset.count,10)||1)+1;
+    existing.dataset.count=n;
+    let countEl=existing.querySelector('.toast-count');
+    if(!countEl){ countEl=document.createElement('span'); countEl.className='toast-count'; existing.querySelector('.toast-msg').after(countEl); }
+    countEl.textContent='×'+n;
+    _restartToastTimer(existing);
+    return;
+  }
   const el=document.createElement('div');
-  el.className='toast-item '+(type||'');
-  el.innerHTML=`<span class="toast-msg">${esc(msg)}</span><button type="button" class="toast-close" title="Dismiss">✕</button><div class="toast-bar"></div>`;
+  el.className='toast-item '+type;
+  el.dataset.msg=msg; el.dataset.type=type; el.dataset.count='1';
+  el.innerHTML=`<span class="toast-icon">${TOAST_ICONS[type]}</span><span class="toast-msg">${esc(msg)}</span><button type="button" class="toast-close" title="Dismiss">✕</button><div class="toast-bar"></div>`;
   el.querySelector('.toast-close').onclick=()=>dismissToast(el);
+  el.addEventListener('mouseenter',()=>_pauseToast(el));
+  el.addEventListener('mouseleave',()=>_resumeToast(el));
   container.appendChild(el);
   requestAnimationFrame(()=>el.classList.add('show'));
-  el._toastTimer=setTimeout(()=>dismissToast(el),15000);
+  _startToastTimer(el);
+}
+function _startToastTimer(el){
+  el._toastStart=Date.now(); el._toastRemaining=TOAST_DURATION_MS;
+  el._toastTimer=setTimeout(()=>dismissToast(el),TOAST_DURATION_MS);
+}
+function _restartToastTimer(el){
+  clearTimeout(el._toastTimer);
+  const bar=el.querySelector('.toast-bar');
+  if(bar){ bar.style.animation='none'; void bar.offsetWidth; bar.style.animation=''; }   // restart the shrinking-bar animation from full width
+  el.classList.remove('paused');
+  _startToastTimer(el);
+}
+function _pauseToast(el){
+  if(!el._toastTimer) return;
+  clearTimeout(el._toastTimer);
+  el._toastRemaining=Math.max(300,el._toastRemaining-(Date.now()-el._toastStart));
+  el.classList.add('paused');
+}
+function _resumeToast(el){
+  if(!el.classList.contains('paused')) return;
+  el.classList.remove('paused');
+  el._toastStart=Date.now();
+  el._toastTimer=setTimeout(()=>dismissToast(el),el._toastRemaining);
 }
 function dismissToast(el){
   if(!el||!el.parentElement) return;
   clearTimeout(el._toastTimer);
-  el.classList.remove('show');
-  setTimeout(()=>el.remove(),250);
+  el.classList.remove('show'); el.classList.add('leaving');
+  setTimeout(()=>el.remove(),300);
 }
 
 // Wraps a Save button's onclick (runSave(this, saveProduct) etc.) so every
@@ -6638,21 +6710,36 @@ function gstReminderSummary(){
 // One row, up to 4 tiles (GST/Filament/Not Completed/Not Locked), each fed by a
 // different loader (loadOpenGstReminder, loadFilamentLowStockAlert, loadOpenOrders),
 // re-rendered from the shared _openReminders state whenever any of them updates.
+const REMINDER_TILE_META={
+  gst:{icon:'📄',label:'GST Filing'},
+  filament:{icon:'🧵',label:'Filament Low'},
+  notCompleted:{icon:'⏰',label:'Not Completed'},
+  notLocked:{icon:'🔒',label:'Not Locked'},
+};
 function renderOpenRemindersRow(){
   const row=document.getElementById('openRemindersRow'); if(!row) return;
   const r=_openReminders;
   const tiles=[
-    {count:r.gst, color:r.gstColor||'var(--red)', label:'GST Filing', action:"toggleOpenReminderDetail('openGstReminder')"},
-    {count:r.filament, color:'var(--red)', label:'Filament Low', action:"toggleOpenReminderDetail('openFilamentAlert')"},
-    {count:r.notCompleted, color:'var(--red)', label:'Not Completed', action:"openOpenOrdersDrawer('notCompleted')"},
-    {count:r.notLocked, color:'var(--yellow)', label:'Not Locked', action:"openOpenOrdersDrawer('notLocked')"},
+    {key:'gst', count:r.gst, color:r.gstColor||'var(--red)', action:"toggleOpenReminderDetail('openGstReminder')"},
+    {key:'filament', count:r.filament, color:'var(--red)', action:"toggleOpenReminderDetail('openFilamentAlert')"},
+    {key:'notCompleted', count:r.notCompleted, color:'var(--red)', action:"openOpenOrdersDrawer('notCompleted')"},
+    {key:'notLocked', count:r.notLocked, color:'var(--yellow)', action:"openOpenOrdersDrawer('notLocked')"},
   ];
   row.style.display=tiles.some(t=>t.count>0)?'grid':'none';
   row.innerHTML=tiles.map(t=>{
+    const meta=REMINDER_TILE_META[t.key];
     const active=t.count>0;
-    return `<div class="kpi" style="cursor:${active?'pointer':'default'};${active?`border-top:2px solid ${t.color};background:linear-gradient(${t.color.replace(')','-bg)')},var(--bg-1) 65%)`:'opacity:.5'}" ${active?`onclick="${t.action}"`:''}>
-      <div class="kpi-label">${t.label}</div>
-      <div class="kpi-val" style="${active?`color:${t.color}`:''}">${active?t.count:'✓ Clear'}</div>
+    if(!active){
+      return `<div class="reminder-tile reminder-tile-clear">
+        <div class="reminder-tile-icon" style="background:var(--green-bg);color:var(--green)">✓</div>
+        <div class="reminder-tile-body"><div class="reminder-tile-label">${meta.label}</div><div class="reminder-tile-val" style="color:var(--green)">All clear</div></div>
+      </div>`;
+    }
+    const urgent=t.color==='var(--red)';
+    return `<div class="reminder-tile reminder-tile-active" style="border-color:${t.color}" onclick="${t.action}">
+      ${urgent?`<span class="reminder-pulse-dot" style="background:${t.color}"></span>`:''}
+      <div class="reminder-tile-icon" style="background:${t.color.replace(')','-bg)')};color:${t.color}">${meta.icon}</div>
+      <div class="reminder-tile-body"><div class="reminder-tile-label">${meta.label}</div><div class="reminder-tile-val" style="color:${t.color}">${t.count}</div></div>
     </div>`;
   }).join('');
 }
