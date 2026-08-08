@@ -593,14 +593,23 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
   .tbl-wrap tbody td[colspan]{display:block;text-align:center}
   .tbl-wrap tbody td[colspan]::before{display:none}
   th{padding:8px 10px;font-size:11px}
-  /* Add-Sale item rows → wrap into a stacked card on mobile (no 760px right-scroll) */
-  #itemRows .items-head{display:none}
+  /* Add-Sale item rows → wrap into a stacked card on mobile (no 760px right-scroll).
+     The header hide rule targeted "#itemRows .items-head", but .items-head actually
+     lives in the static .items-wrap template, a SIBLING of #itemRows (which only
+     holds the dynamically-rendered .item-row cards) not an ancestor-descendant match,
+     so the rule never fired: the full 9-column desktop header grid rendered at
+     375px width, overflowing the screen. Fixed to the real container. Since the
+     header (and its column meaning) is now hidden, each numeric field gets its own
+     data-label so "12", "0", "3926" etc. don't show up as unlabeled mystery boxes. */
+  .items-wrap .items-head{display:none}
   #itemRows .items-grid{min-width:0;grid-template-columns:repeat(6,1fr);gap:6px 8px;padding:10px 12px}
   #itemRows .item-row{border:1px solid var(--border);border-radius:8px;margin-bottom:8px}
   #itemRows .item-row .srl{grid-column:1/-1;justify-content:flex-start;font-size:10px}
   #itemRows .item-row .item-cell{grid-column:1/-1}
-  #itemRows .item-row>.r{grid-column:span 2}
+  #itemRows .item-row>.r{grid-column:span 2;position:relative}
+  #itemRows .item-row>.r[data-label]::before{content:attr(data-label);display:block;font-size:9px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
   #itemRows .item-row .amt{grid-column:1/-1;text-align:right;padding-top:2px}
+  #itemRows .item-row .amt[data-label]::before{content:attr(data-label);display:block;font-size:9px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px;text-align:right;margin-bottom:3px}
   #itemRows .item-row .del{grid-column:1/-1;width:auto;text-align:right}
   .gst-summary{grid-template-columns:1fr 1fr;gap:8px}
   .gst-card{padding:10px 11px}
@@ -4743,15 +4752,15 @@ function renderItems(){
           <button type="button" class="${it.pricingMode==='gram'?'active':''}" onclick="setPricingMode(${i},'gram')">₹/gram</button>
         </div>
       </div>
-      <div class="r"><input type="number" min="1" value="${it.qty}" oninput="onItemNum(${i},'qty',this.value)"></div>
-      <div class="r"><input type="number" step="0.01" value="${it.rate||''}" placeholder="12" title="${it.pricingMode==='gram'?'Price per gram, excluding GST':'Price per piece, excluding GST'}" oninput="onItemNum(${i},'rate',this.value)"></div>
-      <div class="r"><input type="number" step="0.01" value="${it.disc||''}" placeholder="0" oninput="onItemNum(${i},'disc',this.value)"></div>
-      <div class="r"><select onchange="onItemNum(${i},'gst',this.value)">${[0,5,12,18,28].map(v=>`<option value="${v}"${v==it.gst?' selected':''}>${v}%</option>`).join('')}</select></div>
-      <div class="r"><input type="text" value="${esc(it.hsn||'')}" placeholder="${esc((_bizDefaults&&_bizDefaults.hsn)||'3926')}" title="HSN/SAC code, prefilled from your default, edit per item as needed" oninput="_items[${i}].hsn=this.value"></div>
-      <div class="r"><input type="number" step="0.01" value="${it.cost||''}" placeholder="0" data-cost-input title="Cost to make ONE piece, auto-fills from spool grams × waste × ₹/g. Multiplied by qty for the total below." oninput="onItemNum(${i},'cost',this.value)"><div id="costHint_${i}" style="font-size:9px;color:var(--text-3);font-weight:400;white-space:nowrap">${it.cost?`= ${fmt(it.qty*it.cost)} total`:''}</div></div>
-      <div class="r"><input type="number" step="1" min="0" value="${it.grams||''}" placeholder="0" title="filament grams used in the product" oninput="onItemGramsOrWaste(${i},'grams',this.value)"></div>
-      <div class="r"><input type="number" step="1" min="0" value="${it.waste||''}" placeholder="0" title="filament grams wasted (failed prints, purge)" oninput="onItemGramsOrWaste(${i},'waste',this.value)"></div>
-      <div class="amt" id="amt_${i}">${fmt(itemAmount(it))}${it.pricingMode==='gram'?`<div style="font-size:9px;color:var(--text-3);font-weight:400">${itemTotalGrams(it)}g total</div>`:''}</div>
+      <div class="r" data-label="Qty"><input type="number" min="1" value="${it.qty}" oninput="onItemNum(${i},'qty',this.value)"></div>
+      <div class="r" data-label="Rate ₹"><input type="number" step="0.01" value="${it.rate||''}" placeholder="12" title="${it.pricingMode==='gram'?'Price per gram, excluding GST':'Price per piece, excluding GST'}" oninput="onItemNum(${i},'rate',this.value)"></div>
+      <div class="r" data-label="Disc ₹"><input type="number" step="0.01" value="${it.disc||''}" placeholder="0" oninput="onItemNum(${i},'disc',this.value)"></div>
+      <div class="r" data-label="GST %"><select onchange="onItemNum(${i},'gst',this.value)">${[0,5,12,18,28].map(v=>`<option value="${v}"${v==it.gst?' selected':''}>${v}%</option>`).join('')}</select></div>
+      <div class="r" data-label="HSN"><input type="text" value="${esc(it.hsn||'')}" placeholder="${esc((_bizDefaults&&_bizDefaults.hsn)||'3926')}" title="HSN/SAC code, prefilled from your default, edit per item as needed" oninput="_items[${i}].hsn=this.value"></div>
+      <div class="r" data-label="Cost ₹"><input type="number" step="0.01" value="${it.cost||''}" placeholder="0" data-cost-input title="Cost to make ONE piece, auto-fills from spool grams × waste × ₹/g. Multiplied by qty for the total below." oninput="onItemNum(${i},'cost',this.value)"><div id="costHint_${i}" style="font-size:9px;color:var(--text-3);font-weight:400;white-space:nowrap">${it.cost?`= ${fmt(it.qty*it.cost)} total`:''}</div></div>
+      <div class="r" data-label="Grams"><input type="number" step="1" min="0" value="${it.grams||''}" placeholder="0" title="filament grams used in the product" oninput="onItemGramsOrWaste(${i},'grams',this.value)"></div>
+      <div class="r" data-label="Waste"><input type="number" step="1" min="0" value="${it.waste||''}" placeholder="0" title="filament grams wasted (failed prints, purge)" oninput="onItemGramsOrWaste(${i},'waste',this.value)"></div>
+      <div class="amt" id="amt_${i}" data-label="Amount">${fmt(itemAmount(it))}${it.pricingMode==='gram'?`<div style="font-size:9px;color:var(--text-3);font-weight:400">${itemTotalGrams(it)}g total</div>`:''}</div>
       <div><button type="button" class="del" onclick="removeItem(${i})"${_items.length<=1?' disabled':''}>✕</button></div>
     </div>
     ${(it.extraSpools||[]).map((es,j)=>`
