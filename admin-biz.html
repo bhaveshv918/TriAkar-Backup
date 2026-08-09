@@ -1639,6 +1639,18 @@ html[data-theme="dark"] .biz-login{
           <textarea id="qa_notes" rows="2" placeholder="Pick a preset above, or type your own" style="resize:vertical"></textarea>
         </div>
 
+        <!-- ── Invoice's own Terms & Conditions, same field/preset/print pattern as
+             Quotation's Terms & Conditions above, just scoped to Invoice instead of
+             Quotation. Kept separate from Notes so Invoice T&C content never has to
+             live inside the internal Order Notes field. -->
+        <div class="form-group qa-order-only" style="margin-bottom:16px">
+          <label>Terms &amp; Conditions <span style="font-weight:400;color:var(--text-3);font-size:10px">prints on Invoice (Document Settings)</span></label>
+          <div style="display:flex;gap:8px;margin-bottom:6px">
+            <select id="qa_inv_tnc_preset" onchange="applyQaInvTncPreset()" style="max-width:220px"><option value="">— insert a preset —</option></select>
+          </div>
+          <textarea id="qa_inv_terms" rows="3" style="resize:vertical" placeholder="Pick a preset above, or type your own"></textarea>
+        </div>
+
         <!-- ── Order Status, very bottom, grouped by outcome ── -->
 <div class="qa-card qa-order-only">
           <div class="qa-sec-title">Order Status</div>
@@ -3543,7 +3555,7 @@ html[data-theme="dark"] .biz-login{
 
         <details class="settings-card" open style="grid-column:1/-1">
           <summary>Terms &amp; Notes Presets</summary>
-          <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">Named reusable text blocks, insert one from a dropdown instead of retyping, manual override always still available. Same list feeds Quotation's Terms &amp; Conditions and Add Order's Notes field (which prints on the Order Record, and on the Invoice too if that's turned on above).</div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">Named reusable text blocks, insert one from a dropdown instead of retyping, manual override always still available. Same list feeds Quotation's Terms &amp; Conditions, the Invoice's own Terms &amp; Conditions, and Add Order's Notes field (which prints on the Order Record, and on the Invoice too if that's turned on above).</div>
           <div style="display:grid;grid-template-columns:180px 1fr auto;gap:8px;margin-bottom:10px">
             <input type="text" id="tnc_name" placeholder="Preset name">
             <textarea id="tnc_text" rows="2" placeholder="Preset text" style="resize:vertical"></textarea>
@@ -3666,7 +3678,7 @@ let _docCfg={};   // { invoice:{...toggles, qr:{url,position,size}}, record:{...
 // them (invoice/order numbers, dates, the items table, the total) were removed
 // instead of faked; the rest were wired up for real in printInvoice() to match.
 const DOC_FIELD_GROUPS=[
-  { key:'invoice', label:'Invoice', containerId:'bizDocInvoiceFields', qrContainerId:'bizDocInvoiceQr', settingsKey:'doc_invoice_fields', fields:[['logo','Logo'],['business_address','Business address'],['gstin','Your GSTIN'],['customer_gstin','Customer GSTIN'],['due_date','Due date'],['shipping_address','Customer contact block'],['gst_breakup','CGST/SGST/IGST breakup'],['payment_mode','Payment mode'],['bank_details','Bank account details'],['signature','Signature / stamp'],['upi_qr','UPI / bank QR'],['terms','Terms'],['reprint_note','Reprint guarantee note'],['order_notes','Order notes']] },
+  { key:'invoice', label:'Invoice', containerId:'bizDocInvoiceFields', qrContainerId:'bizDocInvoiceQr', settingsKey:'doc_invoice_fields', fields:[['logo','Logo'],['business_address','Business address'],['gstin','Your GSTIN'],['customer_gstin','Customer GSTIN'],['due_date','Due date'],['shipping_address','Customer contact block'],['gst_breakup','CGST/SGST/IGST breakup'],['payment_mode','Payment mode'],['bank_details','Bank account details'],['signature','Signature / stamp'],['upi_qr','UPI / bank QR'],['terms','Terms'],['terms_notes','Terms & Conditions'],['reprint_note','Reprint guarantee note'],['order_notes','Order notes']] },
   { key:'record', label:'Internal Order Record', containerId:'bizDocRecordFields', qrContainerId:'bizDocRecordQr', settingsKey:'doc_record_fields', fields:[['customer','Customer info'],['cost_price','Cost price'],['margin','Margin'],['designer_maker','Designer / maker'],['production_status','Production status'],['material','Material'],['printer','Printer used'],['courier_tracking','Courier + tracking'],['special_instructions','Special instructions'],['internal_notes','Internal notes'],['priority_flag','Priority flag'],['hsn','HSN'],['upi_qr','UPI / bank QR']] },
   { key:'quotation', label:'Quotation', containerId:'bizDocQuotationFields', qrContainerId:'bizDocQuotationQr', settingsKey:'doc_quotation_fields', fields:[['business_identity','Business name / address'],['gstin','Your GSTIN'],['customer_name','Customer name'],['validity_period','Validity period'],['due_date','Due date'],['bank_details','Bank account details'],['terms_notes','Terms / notes'],['signature','Signature'],['upi_qr','UPI / bank QR']] },
 ];
@@ -5072,6 +5084,7 @@ async function getOrderFields(){
     customer_country:g('qa_country')||'India',
     customer_gstin:g('qa_gstin'),
     notes:g('qa_notes'),
+    terms_notes:g('qa_inv_terms'),
     import_source:'manual',
     // §2.1, stamp the exact time of entry (not just the order date) automatically;
     // studio walk-ins log the sale as it happens, so "now" is the meaningful timestamp.
@@ -5259,6 +5272,7 @@ async function setQaFormMode(mode){
   document.querySelectorAll('.qa-quote-only').forEach(el=>el.style.display=mode==='quotation'?'':'none');
   const saveBtn=document.getElementById('qaSaveBtn');
   renderQaNotesPresets();   // Notes field is visible in both Order and Quotation mode
+  renderQaInvTncPresets();
   if(mode==='quotation'){
     saveBtn && (saveBtn.innerHTML=_qaEditQuotationId?'💾 Update Quotation':'💾 Save Quotation');
     const numEl=document.getElementById('qa_qt_number'); if(numEl&&!numEl.value) numEl.value=await genQuotationNumber();
@@ -5267,6 +5281,17 @@ async function setQaFormMode(mode){
     _qaEditQuotationId=null;   // leaving Quotation mode abandons any in-progress edit
     if(saveBtn) saveBtn.innerHTML='💾 Save';
   }
+}
+function applyQaInvTncPreset(){
+  const sel=document.getElementById('qa_inv_tnc_preset'); if(!sel||sel.value==='') return;
+  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
+  const p=presets[parseInt(sel.value,10)]; if(!p) return;
+  const ta=document.getElementById('qa_inv_terms'); if(ta) ta.value=p.text||'';
+}
+function renderQaInvTncPresets(){
+  const sel=document.getElementById('qa_inv_tnc_preset'); if(!sel) return;
+  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
+  sel.innerHTML='<option value="">— insert a preset —</option>'+presets.map((p,i)=>`<option value="${i}">${esc(p.name)}</option>`).join('');
 }
 function applyQaQtTncPreset(){
   const sel=document.getElementById('qa_qt_tnc_preset'); if(!sel||sel.value==='') return;
@@ -5378,6 +5403,7 @@ function openAddOrderEdit(firstId){
   set('qa_packet',f.package_size); set('qa_cname',f.customer_name); set('qa_phone',f.customer_phone);
   set('qa_address',f.customer_address); set('qa_city',f.customer_city); set('qa_state',f.customer_state);
   set('qa_pin',f.customer_pincode); set('qa_country',f.customer_country||'India'); set('qa_gstin',f.customer_gstin); set('qa_notes',f.notes);
+  set('qa_inv_terms',f.terms_notes);
   set('qa_platformfee', f.platform_fee||0); set('qa_shipping', f.shipping_fee||0); set('qa_porter', f.other_deductions||0);
   _items=items.map(s=>{
     const mode=s.pricing_mode==='gram'?'gram':'piece';
@@ -11663,7 +11689,7 @@ tbody tr:last-child td{border-bottom:none}
   </tr></thead>
   <tbody>
     ${rowsHtml}
-    ${d.notes?`<tr><td colspan="${showGstCols?8:4}" class="item-sub" style="color:#555;padding:8px 16px">Note: ${esc(d.notes)}</td></tr>`:''}
+    ${isRecord&&d.notes?`<tr><td colspan="${showGstCols?8:4}" class="item-sub" style="color:#555;padding:8px 16px">Note: ${esc(d.notes)}</td></tr>`:''}
   </tbody>
 </table>
 <table><tbody>
@@ -11700,7 +11726,7 @@ ${(()=>{
 })()}
 
 ${(()=>{
-  const showTerms=isQuote&&docQuo('terms_notes')&&d.terms_notes;
+  const showTerms=((isQuote&&docQuo('terms_notes'))||(!isQuote&&!isRecord&&docInv('terms_notes')))&&d.terms_notes;
   const showSig=isQuote&&docQuo('signature');
   if(!showTerms&&!showSig) return '';
   return `<div class="terms-plain" style="display:flex;align-items:flex-end;gap:16px">
