@@ -336,6 +336,21 @@ tr:hover td{background:var(--bg-2)}
 .qchip{padding:7px 12px;border:1px solid var(--border);border-radius:20px;background:var(--bg-2);color:var(--text);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
 .qchip:hover{border-color:var(--border-h)}
 .qchip.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 1px 2px rgba(16,32,24,.18)}
+/* Document field on/off switch, adapted from .qchip's toggle-button pattern into a real
+   iOS-style pill switch, replaces the raw checkboxes Document Settings used to render. */
+.field-switch{display:flex;align-items:center;gap:8px;padding:5px 4px;border-radius:8px;cursor:pointer;font-size:12px;color:var(--text-2);user-select:none}
+.field-switch:hover{background:var(--bg-2)}
+.field-switch-track{position:relative;flex-shrink:0;width:30px;height:17px;border-radius:999px;background:var(--bg-3);border:1px solid var(--border);transition:background .15s ease,border-color .15s ease}
+.field-switch-track::after{content:'';position:absolute;top:1px;left:1px;width:13px;height:13px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s ease}
+.field-switch.on .field-switch-track{background:var(--accent);border-color:var(--accent)}
+.field-switch.on .field-switch-track::after{transform:translateX(13px)}
+.field-switch.on .field-switch-lbl{color:var(--text)}
+/* Documents settings tab pill row, plain N-way segmented control (no sliding thumb math
+   like .qa-mode-toggle's 2-way version, this needs to support 4 options). */
+.doc-tab-row{display:inline-flex;flex-wrap:wrap;background:var(--bg-2);border:1px solid var(--border);border-radius:999px;padding:4px;gap:2px}
+.doc-tab-btn{padding:8px 18px;border:none;background:transparent;border-radius:999px;font-family:var(--sans);font-size:12.5px;font-weight:700;color:var(--text-3);cursor:pointer;transition:background .15s ease,color .15s ease;white-space:nowrap}
+.doc-tab-btn.active{background:var(--accent);color:#fff}
+.doc-tab-btn:not(.active):hover{color:var(--text)}
 /* Add Order's 3 document actions (Order Record / Invoice / Quotation), one consistent
    pill style instead of 3 differently-sized solid-fill buttons in random colours. */
 .qa-doc-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:20px;
@@ -3460,10 +3475,19 @@ html[data-theme="dark"] .biz-login{
 
     <div class="panel" id="panelSettings">
       <div class="p-head">
-        <div><div class="p-title">Business Settings</div><div class="p-sub">Invoice details, saved locally on this device</div></div>
+        <div><div class="p-title">Documents</div><div class="p-sub">Business settings, per document type. Bank details are shared; whatever's added here later just needs a spot in this same layout.</div></div>
       </div>
 
-      <div style="max-width:1100px;display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;align-items:start">
+      <div style="margin-bottom:16px">
+        <div class="doc-tab-row" id="docSettingsTabs">
+          <button type="button" class="doc-tab-btn" data-t="common" onclick="setDocSettingsTab('common')">Common Settings</button>
+          <button type="button" class="doc-tab-btn" data-t="invoice" onclick="setDocSettingsTab('invoice')">Invoice</button>
+          <button type="button" class="doc-tab-btn" data-t="quotation" onclick="setDocSettingsTab('quotation')">Quotation</button>
+          <button type="button" class="doc-tab-btn" data-t="record" onclick="setDocSettingsTab('record')">Order Record</button>
+        </div>
+      </div>
+
+      <div data-doc-tab="common" style="max-width:1100px;display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;align-items:start">
 
         <details class="settings-card" open>
           <summary>Business Identity</summary>
@@ -3487,21 +3511,6 @@ html[data-theme="dark"] .biz-login{
           </div>
         </details>
 
-        <details class="settings-card" open data-mobile-collapse style="grid-column:1/-1">
-          <summary>Document Settings</summary>
-          <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">What shows on generated invoices &amp; internal order records. Untick to hide, applies to both the Business OS and Admin invoice generators (shared).</div>
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin:8px 0 6px">Invoice</div>
-          <div id="bizDocInvoiceFields" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:4px 12px"></div>
-          <div id="bizDocInvoiceQr"></div>
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin:14px 0 6px">Internal Order Record</div>
-          <div id="bizDocRecordFields" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:4px 12px"></div>
-          <div id="bizDocRecordQr"></div>
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin:14px 0 6px">Quotation</div>
-          <div id="bizDocQuotationFields" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:4px 12px"></div>
-          <div id="bizDocQuotationQr"></div>
-          <div style="margin-top:14px"><button class="btn btn-primary" onclick="saveDocCustomization()">💾 Save Template</button> <span id="bizDocStatus" style="font-size:12px;color:var(--green)"></span></div>
-        </details>
-
         <details class="settings-card" open data-mobile-collapse>
           <summary>Contact Details</summary>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -3521,7 +3530,7 @@ html[data-theme="dark"] .biz-login{
         </details>
 
         <details class="settings-card" open data-mobile-collapse>
-          <summary>Bank Account Details <span style="font-weight:400;text-transform:none;letter-spacing:0">(for invoice &amp; quotation payment info)</span></summary>
+          <summary>Bank Details <span style="font-weight:400;text-transform:none;letter-spacing:0">(payment info + QR + stamp, shared by Invoice, Quotation &amp; Order Record)</span></summary>
           <div class="form-group"><label>Account Holder Name</label><input type="text" id="cfg_bank_holder" placeholder="TriAkar / your name"></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div class="form-group"><label>Bank Name</label><input type="text" id="cfg_bank_name" placeholder="State Bank of India"></div>
@@ -3530,15 +3539,9 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group"><label>IFSC</label><input type="text" id="cfg_bank_ifsc" style="font-family:var(--mono);letter-spacing:.05em" placeholder="SBIN0000000"></div>
             <div class="form-group"><label>Account Type</label><input type="text" id="cfg_bank_actype" placeholder="Current Account"></div>
           </div>
-          <div class="form-group" style="margin-bottom:0"><label>Payment Due, days from invoice date</label><input type="number" id="cfg_due_days" step="1" min="0" placeholder="7"></div>
-        </details>
-
-        <details class="settings-card" open data-mobile-collapse>
-          <summary>Invoice Footer Note <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></summary>
-          <div class="form-group" style="margin-bottom:0">
-            <label>Custom note shown at bottom of every invoice</label>
-            <textarea id="cfg_footer" rows="2" style="resize:vertical" placeholder="e.g. For queries contact us at hello@triakar.com · Returns within 7 days"></textarea>
-          </div>
+          <div class="form-group"><label>Payment Due, days from invoice date</label><input type="number" id="cfg_due_days" step="1" min="0" placeholder="7"></div>
+          <div id="bizCommonQr"></div>
+          <div id="bizCommonStamp"></div>
         </details>
 
         <details class="settings-card" open data-mobile-collapse>
@@ -3548,7 +3551,7 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group"><label>Default GST %</label><select id="def_gst"><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select></div>
             <div class="form-group"><label>Default Making Cost ₹</label><input type="number" id="def_cogs" step="0.01" placeholder="0"></div>
           </div>
-          <div style="font-size:11px;color:var(--text-3);margin-top:10px">SKU category codes: HOM · WAL · FIG · PER · GFT · UTL · TEC · CUS &nbsp;·&nbsp; document fields live in the invoice cards above.</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:10px">SKU category codes: HOM · WAL · FIG · PER · GFT · UTL · TEC · CUS &nbsp;·&nbsp; per-document-type field toggles live under the Invoice / Quotation / Order Record tabs above.</div>
           <div style="margin-top:10px"><button class="btn btn-primary btn-sm" onclick="saveBizDefaults()">Save Defaults</button> <span id="defaultsSavedMsg" style="font-size:12px;color:var(--green);display:none">✓ Saved</span></div>
         </details>
 
@@ -3569,6 +3572,31 @@ html[data-theme="dark"] .biz-login{
         </div>
 
       </div>
+
+      <div data-doc-tab="invoice" style="max-width:640px;display:none">
+        <div class="settings-card">
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">What shows on a generated Invoice. Off = hidden. Bank details, QR and stamp are configured once under Common Settings and shared by all three document types.</div>
+          <div id="bizDocInvoiceFields"></div>
+          <div style="margin-top:14px"><button class="btn btn-primary" onclick="saveDocCustomization()">💾 Save Template</button> <span id="bizDocStatus" style="font-size:12px;color:var(--green)"></span></div>
+        </div>
+      </div>
+
+      <div data-doc-tab="quotation" style="max-width:640px;display:none">
+        <div class="settings-card">
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">What shows on a generated Quotation. Off = hidden. Bank details, QR and stamp are configured once under Common Settings and shared by all three document types.</div>
+          <div id="bizDocQuotationFields"></div>
+          <div style="margin-top:14px"><button class="btn btn-primary" onclick="saveDocCustomization()">💾 Save Template</button> <span id="bizDocStatus2" style="font-size:12px;color:var(--green)"></span></div>
+        </div>
+      </div>
+
+      <div data-doc-tab="record" style="max-width:640px;display:none">
+        <div class="settings-card">
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">What shows on the internal Order Record. Off = hidden. Bank details, QR and stamp are configured once under Common Settings and shared by all three document types.</div>
+          <div id="bizDocRecordFields"></div>
+          <div style="margin-top:14px"><button class="btn btn-primary" onclick="saveDocCustomization()">💾 Save Template</button> <span id="bizDocStatus3" style="font-size:12px;color:var(--green)"></span></div>
+        </div>
+      </div>
+
     </div><!-- /settings -->
 
   </div><!-- /main-area -->
@@ -3609,7 +3637,7 @@ function getBizSettings(){
   try{ return JSON.parse(localStorage.getItem(BIZ_SETTINGS_KEY)||'{}'); }
   catch(e){ return {}; }
 }
-const BIZ_SETTINGS_FIELD_MAP={cfg_name:'name',cfg_addr:'addr',cfg_gstin:'gstin',cfg_pan:'pan',cfg_phone:'phone',cfg_email:'email',cfg_web:'web',cfg_footer:'footer',
+const BIZ_SETTINGS_FIELD_MAP={cfg_name:'name',cfg_addr:'addr',cfg_gstin:'gstin',cfg_pan:'pan',cfg_phone:'phone',cfg_email:'email',cfg_web:'web',
   cfg_bank_holder:'bankHolder',cfg_bank_name:'bankName',cfg_bank_branch:'bankBranch',cfg_bank_acc:'bankAcc',cfg_bank_ifsc:'bankIfsc',cfg_bank_actype:'bankAcType',cfg_due_days:'dueDays'};
 function _populateBizSettingsForm(cfg){
   Object.entries(BIZ_SETTINGS_FIELD_MAP).forEach(([elId,key])=>{
@@ -3617,7 +3645,11 @@ function _populateBizSettingsForm(cfg){
   });
 }
 async function loadBizSettings(){
+  const qrEl=document.getElementById('bizCommonQr'); if(qrEl&&!qrEl.innerHTML) qrEl.innerHTML=_qrBlockHtml('bizCommonQr');
+  const stEl=document.getElementById('bizCommonStamp'); if(stEl&&!stEl.innerHTML) stEl.innerHTML=_stampBlockHtml();
   _populateBizSettingsForm(getBizSettings());   // instant paint from local cache
+  _qrRender('bizCommonQr',getBizSettings().qr);
+  _stampRender(getBizSettings().stamp);
   try{
     const {data,error}=await sb.from('site_settings').select('value').eq('key','biz_business_settings').maybeSingle();
     if(!error&&data&&data.value){
@@ -3625,11 +3657,22 @@ async function loadBizSettings(){
       _bizSettingsCache=remote;
       localStorage.setItem(BIZ_SETTINGS_KEY,JSON.stringify(remote));
       _populateBizSettingsForm(remote);
+      _qrRender('bizCommonQr',remote.qr);
+      _stampRender(remote.stamp);
     }
   }catch(_){}
-  loadBizDefaults();
+  await loadBizDefaults();
+  // One-time compatibility: QR used to be uploaded separately per doc kind. If the new
+  // shared QR is still empty but Invoice's old per-category QR has an image, show that as
+  // the starting point instead of silently losing it in the move to one shared QR (persists
+  // for real once "Save Invoice Details" is clicked).
+  const cur=getBizSettings();
+  if((!cur.qr||!cur.qr.url)&&_docCfg.invoice&&_docCfg.invoice.qr&&_docCfg.invoice.qr.url){
+    _qrRender('bizCommonQr',_docCfg.invoice.qr);
+  }
   loadTncPresets();
   collapseSecondarySettingsCards();
+  if(typeof setDocSettingsTab==='function') setDocSettingsTab('common');
 }
 // First visit only (not every tab-switch, that would re-collapse a card the
 // operator just opened back up), and mobile only: the less-frequently-touched
@@ -3645,8 +3688,9 @@ function collapseSecondarySettingsCards(){
 }
 async function saveBizSettings(){
   const g=id=>(document.getElementById(id)?.value.trim()||'');
-  const cfg={name:g('cfg_name'),addr:g('cfg_addr'),gstin:g('cfg_gstin'),pan:g('cfg_pan'),phone:g('cfg_phone'),email:g('cfg_email'),web:g('cfg_web'),footer:g('cfg_footer'),
-    bankHolder:g('cfg_bank_holder'),bankName:g('cfg_bank_name'),bankBranch:g('cfg_bank_branch'),bankAcc:g('cfg_bank_acc'),bankIfsc:g('cfg_bank_ifsc'),bankAcType:g('cfg_bank_actype'),dueDays:g('cfg_due_days')};
+  const cfg={name:g('cfg_name'),addr:g('cfg_addr'),gstin:g('cfg_gstin'),pan:g('cfg_pan'),phone:g('cfg_phone'),email:g('cfg_email'),web:g('cfg_web'),
+    bankHolder:g('cfg_bank_holder'),bankName:g('cfg_bank_name'),bankBranch:g('cfg_bank_branch'),bankAcc:g('cfg_bank_acc'),bankIfsc:g('cfg_bank_ifsc'),bankAcType:g('cfg_bank_actype'),dueDays:g('cfg_due_days'),
+    qr:_qrCollect('bizCommonQr'),stamp:_stampCollect()};
   _bizSettingsCache=cfg;
   localStorage.setItem(BIZ_SETTINGS_KEY,JSON.stringify(cfg));
   const msg=document.getElementById('settingsSavedMsg');
@@ -3677,12 +3721,34 @@ let _docCfg={};   // { invoice:{...toggles, qr:{url,position,size}}, record:{...
 // them (invoice/order numbers, dates, the items table, the total) were removed
 // instead of faked; the rest were wired up for real in printInvoice() to match.
 const DOC_FIELD_GROUPS=[
-  { key:'invoice', label:'Invoice', containerId:'bizDocInvoiceFields', qrContainerId:'bizDocInvoiceQr', settingsKey:'doc_invoice_fields', fields:[['logo','Logo'],['business_address','Business address'],['gstin','Your GSTIN'],['customer_gstin','Customer GSTIN'],['due_date','Due date'],['shipping_address','Customer contact block'],['gst_breakup','CGST/SGST/IGST breakup'],['payment_mode','Payment mode'],['bank_details','Bank account details'],['signature','Signature / stamp'],['upi_qr','UPI / bank QR'],['terms','Terms'],['terms_notes','Terms & Conditions'],['reprint_note','Reprint guarantee note'],['order_notes','Order notes']] },
-  { key:'record', label:'Internal Order Record', containerId:'bizDocRecordFields', qrContainerId:'bizDocRecordQr', settingsKey:'doc_record_fields', fields:[['customer','Customer info'],['cost_price','Cost price'],['margin','Margin'],['designer_maker','Designer / maker'],['production_status','Production status'],['material','Material'],['printer','Printer used'],['courier_tracking','Courier + tracking'],['special_instructions','Special instructions'],['internal_notes','Internal notes'],['priority_flag','Priority flag'],['hsn','HSN'],['upi_qr','UPI / bank QR']] },
-  { key:'quotation', label:'Quotation', containerId:'bizDocQuotationFields', qrContainerId:'bizDocQuotationQr', settingsKey:'doc_quotation_fields', fields:[['business_identity','Business name / address'],['gstin','Your GSTIN'],['customer_name','Customer name'],['validity_period','Validity period'],['due_date','Due date'],['bank_details','Bank account details'],['terms_notes','Terms / notes'],['signature','Signature'],['upi_qr','UPI / bank QR']] },
+  { key:'invoice', label:'Invoice', containerId:'bizDocInvoiceFields', settingsKey:'doc_invoice_fields', groups:[
+      ['Header & Identity',[['logo','Logo'],['business_address','Business address'],['gstin','Your GSTIN']]],
+      ['Customer',[['customer_gstin','Customer GSTIN'],['shipping_address','Customer contact block']]],
+      ['Tax',[['gst_breakup','CGST/SGST/IGST breakup'],['due_date','Due date']]],
+      ['Payment & Bank',[['payment_mode','Payment mode'],['bank_details','Bank account details'],['upi_qr','UPI / bank QR']]],
+      ['Signature & Footer',[['signature','Signature / stamp'],['terms_notes','Terms & Conditions'],['reprint_note','Reprint guarantee note'],['order_notes','Order notes']]],
+    ] },
+  { key:'record', label:'Order Record', containerId:'bizDocRecordFields', settingsKey:'doc_record_fields', groups:[
+      ['Customer & Product',[['customer','Customer info'],['hsn','HSN'],['material','Material']]],
+      ['Cost & Production',[['cost_price','Cost price'],['margin','Margin'],['designer_maker','Designer / maker'],['production_status','Production status'],['printer','Printer used'],['priority_flag','Priority flag']]],
+      ['Shipping & Notes',[['courier_tracking','Courier + tracking'],['special_instructions','Special instructions'],['internal_notes','Internal notes']]],
+      ['Signature & Payment',[['signature','Signature / stamp'],['upi_qr','UPI / bank QR']]],
+    ] },
+  { key:'quotation', label:'Quotation', containerId:'bizDocQuotationFields', settingsKey:'doc_quotation_fields', groups:[
+      ['Header & Identity',[['business_identity','Business name / address'],['gstin','Your GSTIN']]],
+      ['Customer & Validity',[['customer_name','Customer name'],['validity_period','Validity period'],['due_date','Due date']]],
+      ['Payment & Bank',[['bank_details','Bank account details'],['upi_qr','UPI / bank QR']]],
+      ['Signature & Terms',[['terms_notes','Terms / notes'],['signature','Signature / stamp']]],
+    ] },
 ];
+// QR and Stamp used to be uploaded separately per doc-kind (three separate images to
+// manage for what's visually the same QR/stamp on every document type). Now one shared
+// config lives in the biz_business_settings blob (see _qrBlockHtml/_stampBlockHtml
+// below), reused by all three doc kinds in printInvoice(). Size is plain px, not a
+// small/medium/large dropdown, since the fixed 794px A4 canvas makes an exact px value
+// meaningful (and printInvoice()'s stampImgFor() offset math needs a number anyway).
 const QR_POSITIONS=[['bank','Next to bank details'],['header','Top-right of header'],['footer','Above closing line']];
-const QR_SIZES=[['small','Small'],['medium','Medium'],['large','Large']];
+const QR_LEGACY_PX={small:60,medium:90,large:130};   // pre-px dropdown values, for reading old saved data
 function _qrBlockHtml(containerId){
   return `<div style="margin:8px 0;padding:10px;border:1px dashed var(--border);border-radius:8px">
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:6px">Payment QR Code</div>
@@ -3690,9 +3756,10 @@ function _qrBlockHtml(containerId){
       <div id="${containerId}_preview" style="width:48px;height:48px;border:1px solid var(--border);border-radius:6px;background-color:var(--bg-2);background-size:contain;background-position:center;background-repeat:no-repeat;flex-shrink:0"></div>
       <input type="file" accept="image/*" id="${containerId}_file" style="max-width:170px;font-size:11px" onchange="uploadQrImage('${containerId}')">
       <select id="${containerId}_position" style="font-size:12px">${QR_POSITIONS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>
-      <select id="${containerId}_size" style="font-size:12px">${QR_SIZES.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>
+      <label style="font-size:11px;color:var(--text-3)">Size <input type="number" id="${containerId}_size" min="20" max="300" step="1" placeholder="90" style="width:60px;font-size:12px"> px</label>
       <button type="button" class="btn btn-ghost btn-sm" onclick="clearQrImage('${containerId}')">Remove</button>
     </div>
+    <div style="font-size:10px;color:var(--text-3);margin-top:6px">Size in px (compact ~60 · standard ~90 · large ~130)</div>
   </div>`;
 }
 function _qrRender(containerId,qrCfg){
@@ -3700,13 +3767,13 @@ function _qrRender(containerId,qrCfg){
   const prev=document.getElementById(containerId+'_preview');
   if(prev){ prev.dataset.url=qrCfg.url||''; prev.style.backgroundImage=qrCfg.url?`url('${qrCfg.url}')`:'none'; }
   const posEl=document.getElementById(containerId+'_position'); if(posEl) posEl.value=qrCfg.position||'bank';
-  const sizeEl=document.getElementById(containerId+'_size'); if(sizeEl) sizeEl.value=qrCfg.size||'small';
+  const sizeEl=document.getElementById(containerId+'_size'); if(sizeEl) sizeEl.value=QR_LEGACY_PX[qrCfg.size]||qrCfg.size||90;
 }
 function _qrCollect(containerId){
   const prev=document.getElementById(containerId+'_preview');
   const posEl=document.getElementById(containerId+'_position');
   const sizeEl=document.getElementById(containerId+'_size');
-  return { url:(prev&&prev.dataset.url)||'', position:posEl?posEl.value:'bank', size:sizeEl?sizeEl.value:'small' };
+  return { url:(prev&&prev.dataset.url)||'', position:posEl?posEl.value:'bank', size:parseInt(sizeEl&&sizeEl.value,10)||90 };
 }
 async function uploadQrImage(containerId){
   const inp=document.getElementById(containerId+'_file');
@@ -3720,7 +3787,7 @@ async function uploadQrImage(containerId){
     const {url}=await r.json();
     const prev=document.getElementById(containerId+'_preview');
     if(prev){ prev.dataset.url=url; prev.style.backgroundImage=`url('${url}')`; }
-    toast('QR image uploaded, click Save Template to apply');
+    toast('QR image uploaded, click Save Invoice Details to apply');
   }catch(e){ toast('Upload failed: '+e.message,'error'); }
 }
 function clearQrImage(containerId){
@@ -3728,26 +3795,97 @@ function clearQrImage(containerId){
   if(prev){ prev.dataset.url=''; prev.style.backgroundImage='none'; }
   const inp=document.getElementById(containerId+'_file'); if(inp) inp.value='';
 }
+function _stampBlockHtml(){
+  return `<div style="margin:8px 0;padding:10px;border:1px dashed var(--border);border-radius:8px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:6px">Stamp</div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div id="bizStamp_preview" style="width:48px;height:48px;border:1px solid var(--border);border-radius:6px;background-color:var(--bg-2);background-size:contain;background-position:center;background-repeat:no-repeat;flex-shrink:0"></div>
+      <input type="file" accept="image/*" id="bizStamp_file" style="max-width:170px;font-size:11px" onchange="uploadStampImage()">
+      <label style="font-size:11px;color:var(--text-3)">Size <input type="number" id="bizStamp_size" min="20" max="300" step="1" placeholder="70" style="width:55px;font-size:12px"> px</label>
+      <select id="bizStamp_align" style="font-size:12px"><option value="left">Left of signature</option><option value="center">Centered</option><option value="right">Right of signature</option></select>
+      <label style="font-size:11px;color:var(--text-3)">Vertical offset <input type="number" id="bizStamp_offsety" step="1" placeholder="0" style="width:50px;font-size:12px"> px</label>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="clearStampImage()">Remove</button>
+    </div>
+    <div style="font-size:10px;color:var(--text-3);margin-top:6px">Prints over the Authorised Signatory area wherever Signature / stamp is turned on. Positive vertical offset nudges it down toward the signature line, negative moves it up.</div>
+  </div>`;
+}
+function _stampRender(cfg){
+  cfg=cfg||{};
+  const prev=document.getElementById('bizStamp_preview');
+  if(prev){ prev.dataset.url=cfg.url||''; prev.style.backgroundImage=cfg.url?`url('${cfg.url}')`:'none'; }
+  const sizeEl=document.getElementById('bizStamp_size'); if(sizeEl) sizeEl.value=cfg.size||70;
+  const alignEl=document.getElementById('bizStamp_align'); if(alignEl) alignEl.value=cfg.align||'center';
+  const offEl=document.getElementById('bizStamp_offsety'); if(offEl) offEl.value=cfg.offsetY||0;
+}
+function _stampCollect(){
+  const prev=document.getElementById('bizStamp_preview');
+  const sizeEl=document.getElementById('bizStamp_size');
+  const alignEl=document.getElementById('bizStamp_align');
+  const offEl=document.getElementById('bizStamp_offsety');
+  return { url:(prev&&prev.dataset.url)||'', size:parseInt(sizeEl&&sizeEl.value,10)||70, align:alignEl?alignEl.value:'center', offsetY:parseInt(offEl&&offEl.value,10)||0 };
+}
+async function uploadStampImage(){
+  const inp=document.getElementById('bizStamp_file');
+  const file=inp&&inp.files&&inp.files[0];
+  if(!file) return;
+  try{
+    const token=await getBizToken();
+    const fd=new FormData(); fd.append('image',file);
+    const r=await fetch(API+'/api/admin/upload-image?folder=triakar/business',{method:'POST',headers:token?{'Authorization':'Bearer '+token}:{},body:fd});
+    if(!r.ok) throw new Error((await r.json()).error||'Upload failed');
+    const {url}=await r.json();
+    const prev=document.getElementById('bizStamp_preview');
+    if(prev){ prev.dataset.url=url; prev.style.backgroundImage=`url('${url}')`; }
+    toast('Stamp image uploaded, click Save Invoice Details to apply');
+  }catch(e){ toast('Upload failed: '+e.message,'error'); }
+}
+function clearStampImage(){
+  const prev=document.getElementById('bizStamp_preview');
+  if(prev){ prev.dataset.url=''; prev.style.backgroundImage='none'; }
+  const inp=document.getElementById('bizStamp_file'); if(inp) inp.value='';
+}
 function docCfg(groupKey,fieldKey){ return (_docCfg[groupKey]||{})[fieldKey]!==false; }
 function docInv(k){ return docCfg('invoice',k); }
 function docRec(k){ return docCfg('record',k); }
 function docQuo(k){ return docCfg('quotation',k); }
-function _docRender(containerId,fields,cfg){ const el=document.getElementById(containerId); if(!el)return; el.innerHTML=fields.map(function(f){return '<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" data-k="'+f[0]+'" '+(cfg[f[0]]===false?'':'checked')+'> '+esc(f[1])+'</label>';}).join(''); }
+// Field toggle rows, restyled from raw checkboxes to an on/off pill switch (adapted from
+// the existing .qchip single-toggle-button pattern, no iOS-style switch existed before),
+// grouped into labeled subsections instead of one flat list.
+function _docRender(containerId,groups,cfg){
+  const el=document.getElementById(containerId); if(!el)return;
+  el.innerHTML=groups.map(function(grp){
+    const label=grp[0], fields=grp[1];
+    const rows=fields.map(function(f){
+      const on=cfg[f[0]]!==false;
+      return '<label class="field-switch'+(on?' on':'')+'" data-k="'+f[0]+'"><span class="field-switch-track"></span><span class="field-switch-lbl">'+esc(f[1])+'</span></label>';
+    }).join('');
+    return '<div style="margin-bottom:10px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:5px">'+esc(label)+'</div><div style="display:flex;flex-direction:column;gap:2px">'+rows+'</div></div>';
+  }).join('');
+  el.querySelectorAll('.field-switch').forEach(function(lab){
+    lab.addEventListener('click',function(){ lab.classList.toggle('on'); });
+  });
+}
 function renderDocSettings(){
   DOC_FIELD_GROUPS.forEach(g=>{
-    _docRender(g.containerId,g.fields,_docCfg[g.key]||{});
-    const qrEl=document.getElementById(g.qrContainerId);
-    if(qrEl){ qrEl.innerHTML=_qrBlockHtml(g.qrContainerId); _qrRender(g.qrContainerId,(_docCfg[g.key]||{}).qr); }
+    _docRender(g.containerId,g.groups,_docCfg[g.key]||{});
   });
 }
 async function saveDocCustomization(){
-  const collect=function(id){var o={};document.querySelectorAll('#'+id+' input[data-k]').forEach(function(c){o[c.dataset.k]=c.checked;});return o;};
+  const collect=function(id){var o={};document.querySelectorAll('#'+id+' .field-switch[data-k]').forEach(function(c){o[c.dataset.k]=c.classList.contains('on');});return o;};
   const now=new Date().toISOString();
-  const rows=DOC_FIELD_GROUPS.map(g=>({key:g.settingsKey,value:JSON.stringify({...collect(g.containerId),qr:_qrCollect(g.qrContainerId)}),updated_at:now}));
+  const rows=DOC_FIELD_GROUPS.map(g=>({key:g.settingsKey,value:JSON.stringify(collect(g.containerId)),updated_at:now}));
   try{ const {error}=await sb.from('site_settings').upsert(rows,{onConflict:'key'}); if(error)throw error;
     await loadBizDefaults();
-    const st=document.getElementById('bizDocStatus'); if(st){st.textContent='Saved ✓';setTimeout(function(){st.textContent='';},2500);} toast('Template saved');
+    ['bizDocStatus','bizDocStatus2','bizDocStatus3'].forEach(id=>{ const st=document.getElementById(id); if(st){st.textContent='Saved ✓';setTimeout(function(){st.textContent='';},2500);} });
+    toast('Template saved');
   }catch(e){ toast('Error: '+e.message,'error'); }
+}
+// Documents settings pill tabs, plain show/hide (segmented-control pattern reused from
+// Order/Quotation mode) instead of a page navigation, since these 4 sub-views all belong
+// to the one Business Settings page.
+function setDocSettingsTab(tab){
+  document.querySelectorAll('#panelSettings [data-doc-tab]').forEach(el=>{ el.style.display=(el.dataset.docTab===tab)?'':'none'; });
+  document.querySelectorAll('#docSettingsTabs .doc-tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.t===tab));
 }
 async function loadBizDefaults(){
   try{
@@ -5765,8 +5903,9 @@ async function submitQuickAdd(e){
 async function saveOrderRecord(){
   const invalid=flagInvalidFields('quickAddForm');
   if(invalid.length){ reportInvalid(invalid); return; }
+  const win=window.open('','_blank');   // opened synchronously, before any await, so mobile browsers still count it as user-initiated
   const rows=await buildSaleRows();
-  if(!rows.length){ toast('Add at least one item','error'); return; }
+  if(!rows.length){ if(win) win.close(); toast('Add at least one item','error'); return; }
   applyNewOrderIsPaid(rows);
   const {error}=await insertSalesResilient(rows);
   if(error){ toast('Error: '+error.message,'error'); return; }
@@ -5780,7 +5919,7 @@ async function saveOrderRecord(){
   // production doc, separate from the customer-facing invoice).
   const anyGst=rows.some(r=>parseFloat(r.gst_rate)>0);
   const order={...rows[0], items:rows};
-  printInvoice(order, anyGst?'gst':'nongst', 'record');
+  printInvoice(order, anyGst?'gst':'nongst', 'record', win);
   resetQuickAdd();
   loadSalesBadge();
 }
@@ -6121,8 +6260,9 @@ async function acceptQuotation(id){
 // quotation lines used to silently drop the weight and show a wrong amount),
 // converted here into the pre-computed selling_price the shared template expects.
 async function printQuotation(id){
+  const win=window.open('','_blank');   // opened synchronously, before any await, so mobile browsers still count it as user-initiated
   const {data:q,error}=await sb.from('biz_quotations').select('*').eq('id',id).single();
-  if(error||!q){ toast('Could not load quotation','error'); return; }
+  if(error||!q){ if(win) win.close(); toast('Could not load quotation','error'); return; }
   const items=(Array.isArray(q.items)?q.items:[]).map(it=>{
     const qty=parseInt(it.qty)||1, rate=parseFloat(it.rate)||0, gst=parseFloat(it.gst)||0;
     const base=it.pricingMode==='gram' ? qty*(parseFloat(it.grams)||0)*rate : qty*rate;
@@ -6139,7 +6279,7 @@ async function printQuotation(id){
     order_date:q.quotation_date||(q.created_at?q.created_at.slice(0,10):today()),
     delivery_date:q.promised_date||null,
   };
-  await printInvoice(d, (items.some(it=>it.gst_rate>0))?'gst':'nongst', 'quotation');
+  await printInvoice(d, (items.some(it=>it.gst_rate>0))?'gst':'nongst', 'quotation', win);
 }
 
 // ── Rack / Shelf inventory (Phase 10 Group 3, H) ─────────────
@@ -8093,9 +8233,10 @@ function renderOrderDetail(items){
 }
 
 function printOrderInvoice(firstId,docKind){
-  const items=_orderGroup(firstId); if(!items.length){ toast('Could not load order','error'); return; }
+  const win=window.open('','_blank');
+  const items=_orderGroup(firstId); if(!items.length){ if(win) win.close(); toast('Could not load order','error'); return; }
   const anyGst=items.some(s=>parseFloat(s.gst_rate)>0);
-  printInvoice({...items[0], items}, anyGst?'gst':'nongst', docKind);
+  printInvoice({...items[0], items}, anyGst?'gst':'nongst', docKind, win);
 }
 // Copy an existing order's customer, items, HSN, pricing etc. into Quick Add Sale as the
 // starting point for a new order. Order ID / date / status are left at resetQuickAdd()'s
@@ -11205,14 +11346,15 @@ async function exportStateReport(){
 
 // ── Print Invoice ───────────────────────────────────────────
 async function saveAndPrint(){
+  const win=window.open('','_blank');   // opened synchronously, before any await, so mobile browsers still count it as user-initiated
   const rows=await buildSaleRows();
-  if(!rows.length){ toast('Add at least one item','error'); return; }
+  if(!rows.length){ if(win) win.close(); toast('Add at least one item','error'); return; }
   const {error}=await sb.from('biz_sales').insert(rows);
-  if(error){toast('Error: '+error.message,'error');return;}
+  if(error){ if(win) win.close(); toast('Error: '+error.message,'error');return;}
   toast(rows.length===1?'Sale saved!':rows.length+' items saved!');
   const anyGst=rows.some(r=>parseFloat(r.gst_rate)>0);
   const order={...rows[0], items:rows};   // order-level fields + all line items
-  printInvoice(order, anyGst?'gst':'nongst');
+  printInvoice(order, anyGst?'gst':'nongst', undefined, win);
   resetQuickAdd();
   loadSalesBadge();
 }
@@ -11310,23 +11452,36 @@ async function allocateInvoiceNumber(saleId, orderId, docKind, manualNumber){
     return manualNumber||nextDocNumber();
   }
 }
-async function printInvoice(d, type, docKind){
+async function printInvoice(d, type, docKind, win){
+  // win, if passed, must already be open (window.open() called synchronously by the
+  // caller's click handler, before any await). Mobile browsers only treat window.open()
+  // as user-initiated within the same task as the tap; every await between the tap and
+  // window.open() (invoice-number allocation, Supabase fetches/inserts) used to lose that
+  // association and get the new tab silently blocked or left blank. Opening the tab first
+  // and writing into it later, once all the async work here is done, fixes that.
+  if(!win){ win=window.open('','_blank'); }
   const isRecord=docKind==='record';
   const isQuote=docKind==='quotation';
   // Quotation reuses every doc field's OWN toggle group (docQuo, set in Settings ->
   // Document Settings -> Quotation) instead of Invoice's, same shared template though.
   const docField=k=>isQuote?docQuo(k):docInv(k);
-  const qrGroup=isQuote?'quotation':isRecord?'record':'invoice';
-  const QR_PX={small:60,medium:90,large:130};
+  const docFieldAny=k=>isQuote?docQuo(k):isRecord?docRec(k):docInv(k);
+  const cfg=getBizSettings();
   function qrImgFor(position){
-    const qr=(_docCfg[qrGroup]||{}).qr||{};
-    const qrOn=isQuote?docQuo('upi_qr'):isRecord?docRec('upi_qr'):docInv('upi_qr');
+    const qr=cfg.qr||{};
+    const qrOn=docFieldAny('upi_qr');
     if(!qrOn||!qr.url) return '';
     if((qr.position||'bank')!==position) return '';
-    const px=QR_PX[qr.size]||QR_PX.small;
+    const px=parseInt(qr.size,10)||90;
     return `<img src="${esc(qr.url)}" alt="Payment QR" style="width:${px}px;height:${px}px;object-fit:contain;border-radius:6px;border:1px solid #eee">`;
   }
-  const cfg=getBizSettings();
+  function stampImgFor(){
+    const st=cfg.stamp||{};
+    if(!st.url) return '';
+    const px=parseInt(st.size,10)||70;
+    const offsetY=parseInt(st.offsetY,10)||0;
+    return `<img src="${esc(st.url)}" alt="Stamp" style="width:${px}px;height:${px}px;object-fit:contain;position:relative;top:${offsetY}px">`;
+  }
   const SELLER_NAME=cfg.name||'TriAkar';
   const SELLER_ADDR=cfg.addr||'';
   const SELLER_GSTIN=cfg.gstin||'';
@@ -11334,7 +11489,6 @@ async function printInvoice(d, type, docKind){
   const SELLER_EMAIL=cfg.email||'';
   const SELLER_PHONE=cfg.phone||'';
   const SELLER_WEB=cfg.web||'triakar.com';
-  const SELLER_FOOTER=cfg.footer||'Crafted with care · Every piece is made to order · Thank you for supporting Indian design';
   const SELLER_BANK={holder:cfg.bankHolder||'',name:cfg.bankName||'',branch:cfg.bankBranch||'',acc:cfg.bankAcc||'',ifsc:cfg.bankIfsc||'',acType:cfg.bankAcType||'Current Account'};
   const DUE_DAYS=parseInt(cfg.dueDays,10)||7;
   const ICON_WHATSAPP='<svg width="9" height="9" viewBox="0 0 24 24" fill="#25D366" style="vertical-align:-1px;margin-right:2px"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12.004 2C6.486 2 2 6.486 2 12.004c0 1.996.586 3.848 1.594 5.406L2 22l4.72-1.559A9.955 9.955 0 0012.004 22C17.522 22 22 17.522 22 12.004 22 6.486 17.522 2 12.004 2zm0 18.18a8.16 8.16 0 01-4.166-1.143l-.298-.177-3.104 1.026 1.043-3.024-.194-.31A8.16 8.16 0 013.82 12c0-4.514 3.671-8.184 8.184-8.184 4.514 0 8.184 3.67 8.184 8.184 0 4.514-3.67 8.18-8.184 8.18z"/></svg>';
@@ -11513,8 +11667,8 @@ async function printInvoice(d, type, docKind){
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${docTitle}: ${esc(docNo)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Devanagari:wght@400;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer><\/script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer><\/script>
 <style>
 /* TriAkar wordmark font, same as the website (Glorida) */
 @font-face{font-family:'Glorida';src:url('${location.origin}/assets/fonts/Glorida.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
@@ -11614,6 +11768,7 @@ tbody tr:last-child td{border-bottom:none}
 .footer-tagline{font-size:10px;color:#444;font-style:italic}
 /* Mandatory brand signature, always shown, including in print */
 .brand-line{text-align:center;font-family:'Glorida','Inter',sans-serif;font-size:13px;font-weight:700;letter-spacing:.16em;color:#C4622A;text-transform:uppercase;padding:10px 16px 14px}
+@page{size:A4;margin:12mm}
 @media print{.print-btn{display:none!important}body{max-width:100%}}
 /* PDF export, single-A4-page fit: squeeze the items table first (the section that
    actually grows with order size) before the whole-page image gets scaled down. */
@@ -11725,9 +11880,15 @@ ${(()=>{
 })()}
 
 ${(()=>{
+  // Signature/stamp is now ONE shared block for all three doc kinds (used to be a
+  // separate hand-coded block per kind, and Order Record had none at all), gated by
+  // docFieldAny('signature') instead of a hardcoded isQuote/isRecord check.
   const showTerms=((isQuote&&docQuo('terms_notes'))||(!isQuote&&!isRecord&&docInv('terms_notes')))&&d.terms_notes;
-  const showSig=isQuote&&docQuo('signature');
+  const showSig=docFieldAny('signature');
   if(!showTerms&&!showSig) return '';
+  const stampImg=stampImgFor();
+  const align=(cfg.stamp&&cfg.stamp.align)||'center';
+  const justify=align==='left'?'flex-start':align==='right'?'flex-end':'center';
   return `<div class="terms-plain" style="display:flex;align-items:flex-end;gap:16px">
   ${showTerms?`<div style="flex:1 1 auto">
     <div class="info-lbl">Terms &amp; Conditions</div>
@@ -11735,7 +11896,8 @@ ${(()=>{
   </div>`:'<div style="flex:1 1 auto"></div>'}
   ${showSig?`<div style="text-align:right;font-size:11px;color:#333;white-space:nowrap;padding-bottom:2px">
     For ${esc(SELLER_NAME)}
-    <div style="margin-top:26px;border-top:1px solid #999;width:150px;padding-top:4px">Authorised Signatory</div>
+    ${stampImg?`<div style="display:flex;justify-content:${justify};margin-top:2px">${stampImg}</div>`:''}
+    <div style="margin-top:${stampImg?'2px':'26px'};border-top:1px solid #999;width:150px;padding-top:4px;margin-left:auto">Authorised Signatory</div>
   </div>`:''}
 </div>`;
 })()}
@@ -11762,21 +11924,19 @@ ${invoiceNotesHtml}
 
 ${qrImgFor('footer')?`<div style="padding:12px 32px 0;text-align:center">${qrImgFor('footer')}</div>`:''}
 ${(!isQuote&&!isRecord&&docInv('reprint_note'))?`<div style="padding:10px 26px 0;font-size:11px;color:#333">★ 7-Day Reprint Guarantee, any print defect reprinted free within 7 days.</div>`:''}
-${(!isQuote&&!isRecord&&docInv('signature'))?`<div style="padding:20px 26px 4px;text-align:right;font-size:11px;color:#333">For ${esc(SELLER_NAME)}<div style="margin-top:22px;border-top:1px solid #999;width:170px;margin-left:auto;padding-top:4px">Authorised Signatory</div></div>`:''}
 <div class="footer-band">
   <div class="footer-left">
-    ${isQuote?'':`<div class="footer-brand">TriAkar &nbsp;·&nbsp; त्रिआकार</div>
-    ${(!isRecord&&docInv('terms'))?`<div class="footer-tagline">${esc(SELLER_FOOTER||'This is not an invoice')}</div>`:''}`}
+    ${isQuote?'':`<div class="footer-brand">TriAkar &nbsp;·&nbsp; त्रिआकार</div>`}
   </div>
   <div class="print-btn doc-actions" id="docActions">
     <span id="shareStatus" style="font-size:11px;color:#999;margin-right:8px"></span>
-    <button onclick="downloadDoc()" style="padding:10px 18px;background:#fff;color:#C4622A;border:1.5px solid #C4622A;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.04em;font-family:inherit;margin-right:8px">⬇ Download PDF</button>
-    <button onclick="shareDoc()" style="padding:10px 18px;background:#fff;color:#C4622A;border:1.5px solid #C4622A;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.04em;font-family:inherit;margin-right:8px">⤴ Share PDF</button>
+    <button id="btnDownloadPdf" onclick="downloadDoc()" disabled style="padding:10px 18px;background:#fff;color:#C4622A;border:1.5px solid #C4622A;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.04em;font-family:inherit;margin-right:8px;opacity:.5">⬇ Download PDF</button>
+    <button id="btnSharePdf" onclick="shareDoc()" disabled style="padding:10px 18px;background:#fff;color:#C4622A;border:1.5px solid #C4622A;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.04em;font-family:inherit;margin-right:8px;opacity:.5">⤴ Share PDF</button>
     <button onclick="window.print()" style="padding:10px 24px;background:#C4622A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.04em;font-family:inherit">Print / PDF</button>
   </div>
 </div>
 
-<div class="brand-line"${isQuote?' style="font-size:10.5px;font-weight:400;letter-spacing:0;text-transform:none;color:#333;padding:6px 16px 10px"':''}>${isQuote?'This is a computer generated document and does not require a physical signature.':'Creation of Three Dimensions'}</div>
+<div class="brand-line" style="font-size:10.5px;font-weight:400;letter-spacing:0;text-transform:none;color:#333;padding:6px 16px 10px">${isRecord?'This is a computer generated internal order record.':'This is a computer generated '+(isQuote?'quotation':'invoice')+' and does not require a physical signature.'}</div>
 
 <script>
 var _safeDocName=${JSON.stringify('TriAkar_'+docTitle.replace(/\s+/g,'')+'_'+String(docNo).replace(/\//g,'-').replace(/[^\w\-]+/g,'_')+(d.customer_name?'_'+String(d.customer_name).replace(/[^a-zA-Z0-9]+/g,''):''))};
@@ -11792,6 +11952,20 @@ var _safeDocName=${JSON.stringify('TriAkar_'+docTitle.replace(/\s+/g,'')+'_'+Str
 // 6-8 item order doesn't shrink the whole page just to fit; the final
 // width-preserving scale-down only fires if that alone still isn't enough.
 var A4_PX_W=794, A4_PX_H=1123;
+// html2canvas/jsPDF load fresh (deferred) into this popup every time, no caching across
+// tabs, so Download/Share used to be clickable before they'd actually arrived, especially
+// on slow mobile connections, only to alert() and force a second manual attempt. Poll
+// instead, and keep the buttons visibly disabled until both are ready.
+(function _pollPdfLibsReady(){
+  var dl=document.getElementById('btnDownloadPdf'), sh=document.getElementById('btnSharePdf');
+  var t=setInterval(function(){
+    if(window.html2canvas&&window.jspdf){
+      clearInterval(t);
+      if(dl){ dl.disabled=false; dl.style.opacity='1'; }
+      if(sh){ sh.disabled=false; sh.style.opacity='1'; }
+    }
+  },150);
+})();
 async function _buildDocPdfBlob(){
   var actions=document.getElementById('docActions');
   var status=document.getElementById('shareStatus');
@@ -11859,7 +12033,6 @@ async function shareDoc(){
 <\/script>
 </body></html>`;
 
-  const win=window.open('','_blank');
   if(!win){toast('Allow popups to open document','error');return;}
   win.document.write(html);
   win.document.close();
@@ -11898,10 +12071,11 @@ async function updateSaleStatus(id, status){
 }
 
 async function fetchAndPrintInvoice(id,docKind){
+  const win=window.open('','_blank');   // opened synchronously, before any await, so mobile browsers still count it as user-initiated
   const {data,error}=await sb.from('biz_sales').select('*').eq('id',id).single();
-  if(error||!data){ toast('Could not load sale','error'); return; }
+  if(error||!data){ if(win) win.close(); toast('Could not load sale','error'); return; }
   const gstRate=parseFloat(data.gst_rate)||0;
-  printInvoice(data, gstRate>0?'gst':'nongst', docKind);
+  printInvoice(data, gstRate>0?'gst':'nongst', docKind, win);
 }
 
 // ── Label Import ────────────────────────────────────────────
