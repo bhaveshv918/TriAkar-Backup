@@ -11715,13 +11715,13 @@ ${(()=>{
 </div>`;
 })()}
 
-${(!isQuote&&((!isRecord&&(d.payment_mode||d.package_size||d.weight_grams))||((!isRecord||docRec('courier_tracking'))&&(d.tracking_number||d.courier_partner))))?`
+${(!isQuote&&((!isRecord&&(d.payment_mode||d.package_size||d.weight_grams))||(isRecord&&docRec('courier_tracking')&&(d.tracking_number||d.courier_partner))))?`
 <div class="info-strip">
   ${(!isRecord&&docInv('payment_mode'))?`<div class="info-card">
     <div class="info-lbl">Payment</div>
     <div class="info-val">${esc((d.payment_mode||'—')+'')}${(d.package_size||d.weight_grams)?`<br><span style="font-size:11px;color:#555">Packet: ${[d.package_size?esc(d.package_size):'',d.weight_grams?esc(d.weight_grams)+' g':''].filter(Boolean).join(' · ')}</span>`:''}</div>
   </div>`:''}
-  ${(!isRecord||docRec('courier_tracking'))?`<div class="info-card">
+  ${(isRecord&&docRec('courier_tracking'))?`<div class="info-card">
     <div class="info-lbl">Shipping</div>
     <div class="info-val">
       ${d.courier_partner?esc(({ekart:'Ekart (Flipkart)'}[d.courier_partner])||d.courier_partner)+'<br>':''}
