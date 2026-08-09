@@ -3732,7 +3732,7 @@ const DOC_FIELD_GROUPS=[
       ['Customer & Product',[['customer','Customer info'],['hsn','HSN'],['material','Material']]],
       ['Cost & Production',[['cost_price','Cost price'],['margin','Margin'],['designer_maker','Designer / maker'],['production_status','Production status'],['printer','Printer used'],['priority_flag','Priority flag']]],
       ['Shipping & Notes',[['courier_tracking','Courier + tracking'],['special_instructions','Special instructions'],['internal_notes','Internal notes']]],
-      ['Signature & Payment',[['signature','Signature / stamp'],['upi_qr','UPI / bank QR']]],
+      ['Signature & Payment',[['signature','Signature / stamp'],['bank_details','Bank account details'],['upi_qr','UPI / bank QR']]],
     ] },
   { key:'quotation', label:'Quotation', containerId:'bizDocQuotationFields', settingsKey:'doc_quotation_fields', groups:[
       ['Header & Identity',[['business_identity','Business name / address'],['gstin','Your GSTIN']]],
@@ -11495,6 +11495,36 @@ async function printInvoice(d, type, docKind, win){
   const ICON_MAIL='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#C4622A" stroke-width="2.5" style="vertical-align:-1px;margin-right:2px"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 6l10 7 10-7"/></svg>';
   const ICON_WEB='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#C4622A" stroke-width="2.5" style="vertical-align:-1px;margin-right:2px"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20 15 15 0 010-20z"/></svg>';
 
+  // §Payment History (Order Record only), so anyone reviewing/forwarding the internal
+  // record can see exactly which dates money actually came in, not just a single
+  // paid/unpaid flag, reads the same biz_sale_payments log the Add Order "+ Add Payment"
+  // history and the Ledger/Balance Sheet already use.
+  let paymentHistoryHtml='';
+  if(isRecord&&d.order_id){
+    try{
+      const {data:payRows}=await sb.from('biz_sale_payments').select('amount,payment_date,source').eq('order_id',d.order_id).order('payment_date',{ascending:true});
+      if(payRows&&payRows.length){
+        const totalPaid=payRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+        paymentHistoryHtml=`<div class="info-strip" style="margin-top:14px">
+        <div class="info-card" style="flex:1 1 100%">
+          <div class="info-lbl">Payment History</div>
+          <table style="width:100%;border-collapse:collapse;margin-top:2px">
+            <thead><tr>
+              <th style="text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#777;padding:3px 6px;border-bottom:1px solid #ddd">Date</th>
+              <th style="text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#777;padding:3px 6px;border-bottom:1px solid #ddd">Mode</th>
+              <th style="text-align:right;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#777;padding:3px 6px;border-bottom:1px solid #ddd">Amount</th>
+            </tr></thead>
+            <tbody>
+              ${payRows.map(r=>`<tr><td style="padding:3px 6px;font-size:11px">${esc(fmtDocDate(r.payment_date))}</td><td style="padding:3px 6px;font-size:11px">${esc(r.source||'—')}</td><td style="padding:3px 6px;font-size:11px;text-align:right">₹${(parseFloat(r.amount)||0).toFixed(2)}</td></tr>`).join('')}
+              <tr><td colspan="2" style="padding:5px 6px;font-size:11px;font-weight:700;border-top:1.5px solid #999">Total Received</td><td style="padding:5px 6px;font-size:11px;font-weight:700;text-align:right;border-top:1.5px solid #999">₹${totalPaid.toFixed(2)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+      }
+    }catch(_){}
+  }
+
   // Support multi-item orders (d.items) and legacy single rows (d)
   const items=(d.items&&d.items.length)?d.items:[d];
   let subtotal=0, gstAmt=0;
@@ -11539,6 +11569,7 @@ async function printInvoice(d, type, docKind, win){
     </tr>`;
     }
     return `<tr>
+      <td class="col-sno">${idx+1}</td>
       <td>${nameCell}</td>
       <td class="td-r">${iqty}</td>
       <td class="td-r">₹${iunit_show.toFixed(2)}</td>
@@ -11776,7 +11807,19 @@ tbody tr:last-child td{border-bottom:none}
 .pdf-compact .tbl-wrap thead th{padding:4px 10px}
 .pdf-compact .item-sub{font-size:9px;margin-top:1px}
 .pdf-compact .col-sno{padding-left:5px;padding-right:5px}
+.doc-actions-top{position:fixed;top:12px;right:12px;z-index:50;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);padding:6px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+.doc-actions-top button{padding:6px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.02em;font-family:inherit;white-space:nowrap}
+.doc-actions-top .da-outline{background:#fff;color:#C4622A;border:1.5px solid #C4622A}
+.doc-actions-top .da-solid{background:#C4622A;color:#fff;border:none}
+@media print{.doc-actions-top{display:none!important}}
 </style></head><body>
+
+<div class="print-btn doc-actions-top" id="docActions">
+  <span id="shareStatus" style="font-size:10px;color:#999"></span>
+  <button id="btnDownloadPdf" class="da-outline" onclick="downloadDoc()" disabled style="opacity:.5">⬇</button>
+  <button id="btnSharePdf" class="da-outline" onclick="shareDoc()" disabled style="opacity:.5">⤴</button>
+  <button class="da-solid" onclick="window.print()">🖶 Print</button>
+</div>
 
 <div class="hdr">
   <div class="doc-title-big">${docTitle}</div>
@@ -11799,7 +11842,7 @@ tbody tr:last-child td{border-bottom:none}
     <div class="doc-no">${esc(docNo)}</div>
     <div class="doc-meta-box"><table>${(isRecord?[['Date',docDate],['Complete Date',d.delivery_date||'—']]:isQuote?[['Date',docDate],...((docQuo('validity_period')&&d.validity_date)?[['Valid Until',d.validity_date]]:[])]:[['Date',docDate],...(docField('due_date')?[['Due Date',dueDateStr]]:[])]).map(([k,v])=>`<tr><td class="dmb-k">${k}</td><td class="dmb-v">${esc(v==='—'?v:fmtDocDate(v))}</td></tr>`).join('')}</table></div>
     <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;margin-top:5px">
-      ${d.channel_id?`<div class="doc-badge">${esc(CH_NAMES?.[d.channel_id]||d.channel_id)}</div>`:''}
+      ${(d.channel_id&&(isQuote||isRecord))?`<div class="doc-badge">${esc(CH_NAMES?.[d.channel_id]||d.channel_id)}</div>`:''}
     </div>
     ${qrImgFor('header')?`<div style="margin-top:8px">${qrImgFor('header')}</div>`:''}
   </div>
@@ -11836,14 +11879,15 @@ tbody tr:last-child td{border-bottom:none}
     <th style="text-align:right">GST%</th>
     <th style="text-align:right">GST Amt</th>
     <th style="text-align:right">Total</th>`:`
-    <th style="width:52%">Item</th>
+    <th class="col-sno">S.No.</th>
+    <th style="width:48%">Item</th>
     <th style="text-align:right">Qty</th>
     <th style="text-align:right">Rate</th>
     <th style="text-align:right">Amount</th>`}
   </tr></thead>
   <tbody>
     ${rowsHtml}
-    ${isRecord&&d.notes?`<tr><td colspan="${showGstCols?8:4}" class="item-sub" style="color:#555;padding:8px 16px">Note: ${esc(d.notes)}</td></tr>`:''}
+    ${isRecord&&d.notes?`<tr><td colspan="${showGstCols?8:5}" class="item-sub" style="color:#555;padding:8px 16px">Note: ${esc(d.notes)}</td></tr>`:''}
   </tbody>
 </table>
 <table><tbody>
@@ -11857,7 +11901,7 @@ tbody tr:last-child td{border-bottom:none}
 ${hsnSummaryHtml}
 
 ${(()=>{
-  const hasBankBlock=(!isRecord&&docField('bank_details')&&(SELLER_BANK.acc||SELLER_BANK.ifsc));
+  const hasBankBlock=(docFieldAny('bank_details')&&(SELLER_BANK.acc||SELLER_BANK.ifsc));
   const bankQr=qrImgFor('bank');
   if(!hasBankBlock&&!bankQr) return '';
   return `<div class="info-strip">
@@ -11880,26 +11924,12 @@ ${(()=>{
 })()}
 
 ${(()=>{
-  // Signature/stamp is now ONE shared block for all three doc kinds (used to be a
-  // separate hand-coded block per kind, and Order Record had none at all), gated by
-  // docFieldAny('signature') instead of a hardcoded isQuote/isRecord check.
   const showTerms=((isQuote&&docQuo('terms_notes'))||(!isQuote&&!isRecord&&docInv('terms_notes')))&&d.terms_notes;
-  const showSig=docFieldAny('signature');
-  if(!showTerms&&!showSig) return '';
-  const stampImg=stampImgFor();
-  const align=(cfg.stamp&&cfg.stamp.align)||'center';
-  const justify=align==='left'?'flex-start':align==='right'?'flex-end':'center';
-  return `<div class="terms-plain" style="display:flex;align-items:flex-end;gap:16px">
-  ${showTerms?`<div style="flex:1 1 auto">
+  if(!showTerms) return '';
+  return `<div class="terms-plain">
     <div class="info-lbl">Terms &amp; Conditions</div>
     <div class="info-val" style="white-space:pre-wrap">${esc(d.terms_notes)}</div>
-  </div>`:'<div style="flex:1 1 auto"></div>'}
-  ${showSig?`<div style="text-align:right;font-size:11px;color:#333;white-space:nowrap;padding-bottom:2px">
-    For ${esc(SELLER_NAME)}
-    ${stampImg?`<div style="display:flex;justify-content:${justify};margin-top:2px">${stampImg}</div>`:''}
-    <div style="margin-top:${stampImg?'2px':'26px'};border-top:1px solid #999;width:150px;padding-top:4px;margin-left:auto">Authorised Signatory</div>
-  </div>`:''}
-</div>`;
+  </div>`;
 })()}
 
 ${(!isQuote&&((!isRecord&&(d.payment_mode||d.package_size||d.weight_grams))||(isRecord&&docRec('courier_tracking')&&(d.tracking_number||d.courier_partner))))?`
@@ -11918,25 +11948,34 @@ ${(!isQuote&&((!isRecord&&(d.payment_mode||d.package_size||d.weight_grams))||(is
   </div>`:''}
 </div>`:''}
 ${internalDetailsHtml}
+${paymentHistoryHtml}
 ${invoiceNotesHtml}
 
 </div>
 
 ${qrImgFor('footer')?`<div style="padding:12px 32px 0;text-align:center">${qrImgFor('footer')}</div>`:''}
 ${(!isQuote&&!isRecord&&docInv('reprint_note'))?`<div style="padding:10px 26px 0;font-size:11px;color:#333">★ 7-Day Reprint Guarantee, any print defect reprinted free within 7 days.</div>`:''}
-<div class="footer-band">
+${(()=>{
+  // Signature/stamp sits just above the footer line, one shared block for all three doc
+  // kinds (used to be a separate hand-coded block per kind, and Order Record had none at
+  // all), gated by docFieldAny('signature') instead of a hardcoded isQuote/isRecord check.
+  if(!docFieldAny('signature')) return '';
+  const stampImg=stampImgFor();
+  const align=(cfg.stamp&&cfg.stamp.align)||'center';
+  const justify=align==='left'?'flex-start':align==='right'?'flex-end':'center';
+  return `<div style="padding:14px 26px 0;text-align:right;font-size:11px;color:#333">
+    For ${esc(SELLER_NAME)}
+    ${stampImg?`<div style="display:flex;justify-content:${justify};margin-top:2px">${stampImg}</div>`:''}
+    <div style="margin-top:${stampImg?'2px':'22px'};border-top:1px solid #999;width:170px;margin-left:auto;padding-top:4px">Authorised Signatory</div>
+  </div>`;
+})()}
+<div class="footer-band" style="justify-content:center">
   <div class="footer-left">
-    ${isQuote?'':`<div class="footer-brand">TriAkar &nbsp;·&nbsp; त्रिआकार</div>`}
-  </div>
-  <div class="print-btn doc-actions" id="docActions">
-    <span id="shareStatus" style="font-size:11px;color:#999;margin-right:8px"></span>
-    <button id="btnDownloadPdf" onclick="downloadDoc()" disabled style="padding:10px 18px;background:#fff;color:#C4622A;border:1.5px solid #C4622A;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.04em;font-family:inherit;margin-right:8px;opacity:.5">⬇ Download PDF</button>
-    <button id="btnSharePdf" onclick="shareDoc()" disabled style="padding:10px 18px;background:#fff;color:#C4622A;border:1.5px solid #C4622A;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.04em;font-family:inherit;margin-right:8px;opacity:.5">⤴ Share PDF</button>
-    <button onclick="window.print()" style="padding:10px 24px;background:#C4622A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.04em;font-family:inherit">Print / PDF</button>
+    <div style="font-family:'Glorida','Inter',sans-serif;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase"><span style="color:#666">Crafting the </span><span style="color:#C4622A">third</span><span style="color:#666"> dimension</span></div>
   </div>
 </div>
 
-<div class="brand-line" style="font-size:10.5px;font-weight:400;letter-spacing:0;text-transform:none;color:#333;padding:6px 16px 10px">${isRecord?'This is a computer generated internal order record.':'This is a computer generated '+(isQuote?'quotation':'invoice')+' and does not require a physical signature.'}</div>
+<div class="brand-line" style="font-size:10.5px;font-weight:400;letter-spacing:0;text-transform:none;color:#333;padding:6px 16px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${isRecord?'This is a computer generated internal order record.':'This is a computer generated '+(isQuote?'quotation':'invoice')+' and does not require a physical signature.'}</div>
 
 <script>
 var _safeDocName=${JSON.stringify('TriAkar_'+docTitle.replace(/\s+/g,'')+'_'+String(docNo).replace(/\//g,'-').replace(/[^\w\-]+/g,'_')+(d.customer_name?'_'+String(d.customer_name).replace(/[^a-zA-Z0-9]+/g,''):''))};
