@@ -4501,6 +4501,15 @@ function switchTab(name){
     ledger:loadLedger, purchases:loadPurchases, balance:loadBalanceSheet, shoplog:loadShopLog, machinery:loadMachinery,
     gstportal:loadGstPortal, invoicing:loadInvoicing, gstauto:loadGstAuto,
     salesview:loadSalesview, quotations:loadQuotations, rack:loadRackItems,
+    // Notes/T&C preset dropdowns only ever got populated inside setQaFormMode(),
+    // which only runs on an explicit Order/Quotation toggle click, opening the tab
+    // via "+ Add Order" (or edit/duplicate, none of which call setQaFormMode) left
+    // them empty until the operator happened to flip to Quotation mode first.
+    quickadd:()=>{
+      if(typeof renderQaNotesPresets==='function') renderQaNotesPresets();
+      if(typeof renderQaInvTncPresets==='function') renderQaInvTncPresets();
+      if(typeof _qaFormMode!=='undefined'&&_qaFormMode==='quotation'&&typeof renderQaQtTncPresets==='function') renderQaQtTncPresets();
+    },
   };
   if(loaders[name]) loaders[name]();
   toggleNav(false);   // close mobile drawer after choosing a tab
