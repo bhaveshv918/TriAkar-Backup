@@ -10288,11 +10288,11 @@ async function editInvoiceLog(id,cur){
   if(val==null) return;
   const num=val.trim();
   if(!num||num===cur) return;
-  const {data:row}=await sb.from('biz_invoices').select('financial_year').eq('id',id).single();
-  const fy=row?row.financial_year:null;
-  if(fy){
-    const {isDup,gapMsg}=await checkInvoiceNumberIssues(num,fy,id);
-    if(isDup&&!confirm(`"${num}" is already used by another invoice this FY. Use it anyway?`)) return;
+  const {data:row}=await sb.from('biz_invoices').select('financial_year,period').eq('id',id).single();
+  const period=row?(row.period||row.financial_year):null;   // older rows predate the 'period' column, fall back to FY-wide check
+  if(period){
+    const {isDup,gapMsg}=await checkInvoiceNumberIssues(num,period,id);
+    if(isDup&&!confirm(`"${num}" is already used by another invoice this month. Use it anyway?`)) return;
     if(gapMsg&&!isDup&&!confirm('Invoice number: '+gapMsg+' Continue anyway?')) return;
   }
   const {error}=await sb.from('biz_invoices').update({invoice_number:num}).eq('id',id);
@@ -11519,9 +11519,11 @@ function nextDocNumber(){
 // the insert/update will still fail with a clear error at that point). Gap =
 // informational only, sequence gaps in an invoice series are normal and legal,
 // this is a heads-up, not a block.
-async function checkInvoiceNumberIssues(candidateNumber, fy, excludeId){
-  const {data:fyRows}=await sb.from('biz_invoices').select('id,invoice_number').eq('financial_year',fy);
-  const rows=(fyRows||[]).filter(r=>r.id!==excludeId);
+// period, e.g. '2026-27-AUG', scopes the dup/gap check to the current month instead of
+// the whole FY now that the sequence itself resets every month (see allocateInvoiceNumber).
+async function checkInvoiceNumberIssues(candidateNumber, period, excludeId){
+  const {data:periodRows}=await sb.from('biz_invoices').select('id,invoice_number').eq('period',period);
+  const rows=(periodRows||[]).filter(r=>r.id!==excludeId);
   const isDup=rows.some(r=>r.invoice_number===candidateNumber);
   let gapMsg=null;
   const m=String(candidateNumber||'').match(/(\d+)\s*$/);
@@ -11529,7 +11531,7 @@ async function checkInvoiceNumberIssues(candidateNumber, fy, excludeId){
     const candidateSeq=parseInt(m[1],10);
     let maxSeq=0;
     rows.forEach(r=>{ const mm=(r.invoice_number||'').match(/(\d+)\s*$/); if(mm){ const s=parseInt(mm[1],10); if(s>maxSeq) maxSeq=s; } });
-    if(candidateSeq>maxSeq+1) gapMsg=`Skips ahead: last issued this FY is #${maxSeq}, this would be #${candidateSeq}.`;
+    if(candidateSeq>maxSeq+1) gapMsg=`Skips ahead: last issued this month is #${maxSeq}, this would be #${candidateSeq}.`;
   }
   return {isDup, gapMsg};
 }
@@ -11537,6 +11539,11 @@ async function allocateInvoiceNumber(saleId, orderId, docKind, manualNumber){
   try{
     const now=new Date(), fyStartYear=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
     const fy=`${fyStartYear}-${String((fyStartYear+1)%100).padStart(2,'0')}`;
+    // Monthly reset: the counter/dup-check key includes the month, so a fresh month
+    // gets a fresh row in biz_invoice_counters (UPSERT creates it starting at 1)
+    // instead of continuing the FY-wide sequence.
+    const mmm=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][now.getMonth()];
+    const period=`${fy}-${mmm}`;
     let existing=null;
     if(saleId){
       const {data:ex}=await sb.from('biz_invoices').select('id,invoice_number').eq('sale_id',saleId).eq('doc_kind',docKind).limit(1);
@@ -11548,21 +11555,20 @@ async function allocateInvoiceNumber(saleId, orderId, docKind, manualNumber){
     if(existing) return existing.invoice_number;
     let useManual=!!manualNumber;
     if(manualNumber){
-      const {isDup,gapMsg}=await checkInvoiceNumberIssues(manualNumber,fy,null);
-      if(isDup&&!confirm(`"${manualNumber}" is already used by another invoice this FY. Use it anyway?`)) useManual=false;   // fall through to the sequential number instead
+      const {isDup,gapMsg}=await checkInvoiceNumberIssues(manualNumber,period,null);
+      if(isDup&&!confirm(`"${manualNumber}" is already used by another invoice this month. Use it anyway?`)) useManual=false;   // fall through to the sequential number instead
       else if(gapMsg) toast('Invoice number: '+gapMsg,'error');
     }
     if(useManual){
-      await sb.from('biz_invoices').insert({invoice_number:manualNumber,financial_year:fy,sale_id:saleId||null,order_id:orderId||null,doc_kind:docKind});
+      await sb.from('biz_invoices').insert({invoice_number:manualNumber,financial_year:fy,period,sale_id:saleId||null,order_id:orderId||null,doc_kind:docKind});
       return manualNumber;
     }
-    const {data:seq,error}=await sb.rpc('biz_next_invoice_number',{p_fy:fy});
+    const {data:seq,error}=await sb.rpc('biz_next_invoice_number',{p_fy:period});
     if(error||seq==null) throw error||new Error('no seq');
-    // Phase 10 Group 1: 3-digit padding instead of 6 (TRK/2026-27/001). padStart is a
-    // no-op once seq reaches 1000+, so it naturally extends to 4+ digits past 999
-    // without any special-casing needed.
-    const num=`TRK/${fy}/${String(seq).padStart(3,'0')}`;
-    await sb.from('biz_invoices').insert({invoice_number:num,financial_year:fy,sale_id:saleId||null,order_id:orderId||null,doc_kind:docKind});
+    // TRK/2026-27/AUG/01, 2-digit padding. padStart is a no-op once seq reaches
+    // 100+, so it naturally extends past 99 without any special-casing needed.
+    const num=`TRK/${fy}/${mmm}/${String(seq).padStart(2,'0')}`;
+    await sb.from('biz_invoices').insert({invoice_number:num,financial_year:fy,period,sale_id:saleId||null,order_id:orderId||null,doc_kind:docKind});
     return num;
   }catch(_){
     return manualNumber||nextDocNumber();
