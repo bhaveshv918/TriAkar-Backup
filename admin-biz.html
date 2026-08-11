@@ -11592,12 +11592,19 @@ async function allocateInvoiceNumber(saleId, orderId, docKind, manualNumber){
     // instead of continuing the FY-wide sequence.
     const mmm=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][now.getMonth()];
     const period=`${fy}-${mmm}`;
+    // order_id checked FIRST and is the one that sticks: it's stable across every
+    // reprint of a multi-item order, whereas saleId is just whichever line item's
+    // row happens to be items[0] this time (shifts if items were added/removed/
+    // reordered since the last print), which used to make the same order mint a
+    // second invoice number the moment its "first" item id changed. sale_id is only
+    // a fallback for legacy single-row sales printed before order_id existed.
     let existing=null;
-    if(saleId){
-      const {data:ex}=await sb.from('biz_invoices').select('id,invoice_number').eq('sale_id',saleId).eq('doc_kind',docKind).limit(1);
-      existing=(ex&&ex[0])||null;
-    } else if(orderId){
+    if(orderId){
       const {data:ex}=await sb.from('biz_invoices').select('id,invoice_number').eq('order_id',orderId).eq('doc_kind',docKind).limit(1);
+      existing=(ex&&ex[0])||null;
+    }
+    if(!existing&&saleId){
+      const {data:ex}=await sb.from('biz_invoices').select('id,invoice_number').eq('sale_id',saleId).eq('doc_kind',docKind).limit(1);
       existing=(ex&&ex[0])||null;
     }
     if(existing) return existing.invoice_number;
@@ -11611,12 +11618,19 @@ async function allocateInvoiceNumber(saleId, orderId, docKind, manualNumber){
       await sb.from('biz_invoices').insert({invoice_number:manualNumber,financial_year:fy,period,sale_id:saleId||null,order_id:orderId||null,doc_kind:docKind});
       return manualNumber;
     }
-    const {data:seq,error}=await sb.rpc('biz_next_invoice_number',{p_fy:period});
-    if(error||seq==null) throw error||new Error('no seq');
+    // Next number comes from the highest sequence actually still present in the log
+    // this period, not an independent counter (the old biz_next_invoice_number RPC
+    // kept incrementing forever regardless of deletions). Deleting the latest logged
+    // invoice (deleteInvoiceLog) now genuinely frees that number back up instead of
+    // leaving a permanent gap the counter goes on remembering.
+    const {data:periodRows}=await sb.from('biz_invoices').select('invoice_number').eq('period',period);
+    let maxSeq=0;
+    (periodRows||[]).forEach(r=>{ const m=(r.invoice_number||'').match(/(\d+)\s*$/); if(m){ const s=parseInt(m[1],10); if(s>maxSeq) maxSeq=s; } });
     // TRK/2026-27/AUG/01, 2-digit padding. padStart is a no-op once seq reaches
     // 100+, so it naturally extends past 99 without any special-casing needed.
-    const num=`TRK/${fy}/${mmm}/${String(seq).padStart(2,'0')}`;
-    await sb.from('biz_invoices').insert({invoice_number:num,financial_year:fy,period,sale_id:saleId||null,order_id:orderId||null,doc_kind:docKind});
+    const num=`TRK/${fy}/${mmm}/${String(maxSeq+1).padStart(2,'0')}`;
+    const {error:insErr}=await sb.from('biz_invoices').insert({invoice_number:num,financial_year:fy,period,sale_id:saleId||null,order_id:orderId||null,doc_kind:docKind});
+    if(insErr) throw insErr;
     return num;
   }catch(_){
     return manualNumber||nextDocNumber();
