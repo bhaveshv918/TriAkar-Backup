@@ -1575,7 +1575,7 @@ html[data-theme="dark"] .biz-login{
           </div>
           <div class="form-group">
             <label>Round Off (₹)</label>
-            <input type="number" id="qa_roundoff" step="0.01" value="0" onchange="recalcTotals()">
+            <input type="number" id="qa_roundoff" step="0.01" value="0" title="Auto-fills to round the grand total to the nearest rupee. Edit it yourself (e.g. to 0) to override, your value sticks until you start a new order." oninput="_qaRoundoffManual=true" onchange="recalcTotals()">
           </div>
         </div>
         </div>
@@ -4717,6 +4717,9 @@ async function saveProduct(){
 
 // ── Quick Add Sale (multi-item) ─────────────────────────────
 let _items=[];
+// Round Off auto-calculates every recalcTotals() unless the operator has typed into
+// qa_roundoff themselves this order, see recalcTotals().
+let _qaRoundoffManual=false;
 function blankItem(){ return {rowId:null,productId:null,name:'',variant:'',pricingMode:'piece',qty:1,rate:12,disc:0,gst:0,cost:0,grams:0,waste:0,hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:'',spool:'',extraSpools:[],remarks:'',itemType:'product',spoolSaleId:null}; }
 // Amount for one line: per-piece is qty × rate (unchanged); per-gram is
 // qty × totalGrams × rate, where totalGrams is this piece's own grams plus
@@ -5153,13 +5156,16 @@ function recalcTotals(){
   const fee=parseFloat(document.getElementById('qa_platformfee')?.value)||0;
   const ship=parseFloat(document.getElementById('qa_shipping')?.value)||0;
   const porter=parseFloat(document.getElementById('qa_porter')?.value)||0;
-  // Round-off auto-calculates when GST applies (rounds grand total, taxable + GST,
-  // to the nearest rupee); without GST it stays a manual field.
+  // Round-off auto-calculates (rounds grand total, taxable + GST, to the nearest
+  // rupee) every time the items/GST change, UNLESS the operator has typed into the
+  // field themselves this order (_qaRoundoffManual, set by its oninput), in which
+  // case their value, including a deliberate 0, sticks until a new order is started.
   const preRound=sub+gst;
   const roundEl=document.getElementById('qa_roundoff');
+  const autoRound=Math.round((Math.round(preRound)-preRound)*100)/100;
   let round;
-  if(anyGst){ round=Math.round((Math.round(preRound)-preRound)*100)/100; if(roundEl){ roundEl.value=round.toFixed(2); roundEl.readOnly=true; roundEl.title='Auto (GST round-off)'; } }
-  else { if(roundEl){ roundEl.readOnly=false; roundEl.title=''; } round=parseFloat(roundEl?.value)||0; }
+  if(!_qaRoundoffManual){ round=autoRound; if(roundEl) roundEl.value=round.toFixed(2); }
+  else { round=parseFloat(roundEl?.value)||0; }
   const netRev=sub-fee-ship-porter;
   const profit=netRev-cost;
   const margin=netRev>0?(profit/netRev*100):0;
@@ -5307,6 +5313,7 @@ async function buildSaleRowsWithIds(){
   const fee=parseFloat(document.getElementById('qa_platformfee')?.value)||0;
   const ship=parseFloat(document.getElementById('qa_shipping')?.value)||0;
   const porter=parseFloat(document.getElementById('qa_porter')?.value)||0;
+  const roundOff=parseFloat(document.getElementById('qa_roundoff')?.value)||0;
   const valid=_items.filter(it=>(it.name&&it.name.trim())||it.rate>0);
   return valid.map((it,idx)=>({
     rowId: it.rowId||null,
@@ -5344,6 +5351,7 @@ async function buildSaleRowsWithIds(){
       platform_fee: idx===0?fee:0,
       shipping_fee: idx===0?ship:0,
       other_deductions: idx===0?porter:0,
+      round_off: idx===0?roundOff:0,
       remarks: it.remarks||null,
     }
   }));
@@ -5358,6 +5366,7 @@ function resetQuickAdd(){
   document.getElementById('qa_channel').value='shop';
   const z=id=>{const e=document.getElementById(id);if(e)e.value='0';};
   z('qa_platformfee'); z('qa_shipping'); z('qa_porter'); z('qa_roundoff');
+  _qaRoundoffManual=false;
   if(typeof setQaStatus==='function') setQaStatus('order_received');
   const fo=document.getElementById('qa_fulfil_other'); if(fo){ fo.value=''; fo.style.display='none'; }
   // Studio (the default channel) walks in and picks up in person far more often than it
@@ -5615,6 +5624,10 @@ function openAddOrderEdit(firstId){
   set('qa_pin',f.customer_pincode); set('qa_country',f.customer_country||'India'); set('qa_gstin',f.customer_gstin); set('qa_notes',f.notes);
   set('qa_inv_terms',f.terms_notes);
   set('qa_platformfee', f.platform_fee||0); set('qa_shipping', f.shipping_fee||0); set('qa_porter', f.other_deductions||0);
+  // Show exactly what was saved, not a freshly auto-calculated figure, an operator
+  // who deliberately zeroed this out (or the order predates round-off entirely, an
+  // untouched 0) shouldn't have it silently recomputed the moment the edit opens.
+  set('qa_roundoff', f.round_off||0); _qaRoundoffManual=true;
   _items=items.map(s=>{
     const mode=s.pricing_mode==='gram'?'gram':'piece';
     const qty=s.qty||1;
@@ -11669,7 +11682,11 @@ async function printInvoice(d, type, docKind, win){
   const docDate=d.order_date||today();
   const dueDateObj=new Date(docDate+'T00:00:00'); dueDateObj.setDate(dueDateObj.getDate()+DUE_DAYS);
   const dueDateStr=dueDateObj.toISOString().slice(0,10);
-  const grandTotal=subtotal+gstAmt;
+  // Only the first line of a multi-item order carries round_off (buildSaleRowsWithIds
+  // stores it once, like platform_fee/shipping_fee), so read it off d directly rather
+  // than summing across items.
+  const roundOff=parseFloat(d.round_off)||0;
+  const grandTotal=subtotal+gstAmt+roundOff;
   const amtWords=amountInWords(grandTotal);
   const docTitle=isRecord?'Order Record':isQuote?'Quotation':(hasGst?'Tax Invoice':'Invoice');
 
@@ -11967,6 +11984,10 @@ tbody tr:last-child td{border-bottom:none}
   </tbody>
 </table>
 <table><tbody>
+  ${Math.abs(roundOff)>=0.005?`<tr>
+    <td colspan="3" style="text-align:right;color:#555;font-size:11px">Round Off</td>
+    <td style="text-align:right;color:#555;font-size:11px">${roundOff<0?'−':'+'}₹${Math.abs(roundOff).toFixed(2)}</td>
+  </tr>`:''}
   <tr class="total-row">
     <td colspan="3" style="text-align:right">Total</td>
     <td style="text-align:right">₹${grandTotal.toFixed(2)}</td>
