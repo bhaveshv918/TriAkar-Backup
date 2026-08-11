@@ -10300,7 +10300,7 @@ async function loadInvoicing(){
     <td style="font-family:var(--mono);font-size:11px">${r.order_id?orderIdTag(r.order_id,{size:'11px'}):'—'}</td>
     <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${r.doc_kind==='record'?'Record':'Invoice'}</span></td>
     <td style="font-family:var(--mono);font-size:11px">${fmtDay(r.generated_at)}</td>
-    <td class="td-actions" style="white-space:nowrap">${r.order_id?`<button class="btn btn-ghost btn-sm" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${esc(r.order_id)}';loadSales();}},300)">↗ Order</button>`:''} <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editInvoiceLog('${r.id}','${esc(r.invoice_number)}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteInvoiceLog('${r.id}','${esc(r.invoice_number)}')">✕</button></td>
+    <td class="td-actions" style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="viewLoggedInvoice('${r.order_id||''}','${r.sale_id||''}','${r.doc_kind||'invoice'}')" title="Open the actual invoice/record document">👁 View</button> ${r.order_id?`<button class="btn btn-ghost btn-sm" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${esc(r.order_id)}';loadSales();}},300)">↗ Order</button>`:''} <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editInvoiceLog('${r.id}','${esc(r.invoice_number)}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteInvoiceLog('${r.id}','${esc(r.invoice_number)}')">✕</button></td>
   </tr>`).join(''):`<tr><td colspan="5" class="empty"><div class="em-text">No invoices generated yet</div></td></tr>`;
 }
 // Renumber a logged invoice directly, e.g. to fix a typo or align with a paper series.
@@ -10332,6 +10332,27 @@ async function deleteInvoiceLog(id,num){
   if(error){ toast('Delete failed: '+error.message,'error'); return; }
   toast('Invoice log entry deleted','success');
   loadInvoicing();
+}
+// Replays the original document through the same printInvoice() every other print
+// button already uses. Reads straight from biz_sales (sale_id if this doc was tied
+// to one specific line item, otherwise every row sharing order_id) instead of
+// _salesCache, which may be empty if the Invoicing tab is opened before Sales ever
+// loads.
+async function viewLoggedInvoice(orderId, saleId, docKind){
+  const win=window.open('','_blank');   // opened synchronously so mobile still treats it as user-initiated
+  let items=[];
+  try{
+    if(saleId){
+      const {data}=await sb.from('biz_sales').select('*').eq('id',saleId).limit(1);
+      items=data||[];
+    } else if(orderId){
+      const {data}=await sb.from('biz_sales').select('*').eq('order_id',orderId).eq('is_deleted',false).order('created_at');
+      items=data||[];
+    }
+  }catch(_){}
+  if(!items.length){ if(win) win.close(); toast('Could not find the original order/sale','error'); return; }
+  const anyGst=items.some(s=>parseFloat(s.gst_rate)>0);
+  printInvoice({...items[0], items}, anyGst?'gst':'nongst', docKind==='record'?'record':undefined, win);
 }
 
 // ── Dashboard ───────────────────────────────────────────────
