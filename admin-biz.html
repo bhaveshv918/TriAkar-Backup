@@ -5430,7 +5430,7 @@ function onQaPayAmountInput(){
 // editSaleModal, loads every biz_sales row sharing one order_id back into _items so
 // the whole multi-item order can be edited at once, not just one line), and
 // 'fromQuotation' (a new order, pre-filled from an accepted quotation).
-let _qaMode='new', _qaEditOrderId=null, _qaEditRowIds=[], _qaSourceQuotationId=null, _qaSourceRackItemId=null;
+let _qaMode='new', _qaEditOrderId=null, _qaEditRowIds=[], _qaSourceQuotationId=null, _qaSourceRackItemId=null, _qaEditOrigStatus=null;
 
 function updateAddOrderModeUI(){
   const title=document.querySelector('#panelQuickadd .p-title');
@@ -5617,6 +5617,7 @@ function openAddOrderEdit(firstId){
   const f=items[0];
   _qaMode='edit'; _qaEditOrderId=f.order_id||null; _qaEditRowIds=items.map(s=>s.id);
   _qaSourceQuotationId=null; _qaSourceRackItemId=null;
+  _qaEditOrigStatus=f.status||null;   // so saveEditedOrder only logs a status change, not every save
   switchTab('quickadd');
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
   set('qa_channel',f.channel_id||'shop'); set('qa_date',f.order_date); set('qa_delivery_date',f.delivery_date);
@@ -5725,6 +5726,8 @@ async function saveEditedOrder(){
     await sellSpoolsForRows(newRows);
   }
   await loadAddSaleSpools();
+  const newStatus=withIds[0]&&withIds[0].row.status;
+  if(newStatus && newStatus!==_qaEditOrigStatus) await logOrderStatusChange(_qaEditOrderId,newStatus);
   logBizActivity('edit','sale',_qaEditOrderId,'order updated ('+withIds.length+' item(s))');
   toast('Order updated');
   loadSalesBadge();
@@ -5798,6 +5801,15 @@ async function deletePaymentInstallment(id){
 }
 
 // ── Quick-select chip handlers (status / lead source / fulfillment) ──
+// Order Status History — one row per (order, status) transition, so a later KPI
+// pass can measure time actually spent in each stage (e.g. Production, Post-
+// Processing) instead of only ever seeing an order's current status with no record
+// of when it got there. Best-effort: a logging failure must never block the status
+// change itself, this is instrumentation, not the thing being saved.
+async function logOrderStatusChange(orderId, status){
+  if(!orderId || !status) return;
+  try{ await sb.from('biz_order_status_log').insert({order_id:orderId, status}); }catch(_){}
+}
 function setQaStatus(v){
   const h=document.getElementById('qa_status'); if(h) h.value=v;
   document.querySelectorAll('#qaStatusChips .qchip,#qaStatusChipsReturn .qchip,#qaStatusChipsCancel .qchip').forEach(b=>b.classList.toggle('active',b.dataset.s===v));
@@ -5973,6 +5985,7 @@ async function submitQuickAdd(e){
   }catch(_){}
   const {error}=await insertSalesResilient(rows);
   if(error){ toast('Error: '+error.message,'error'); return; }
+  await logOrderStatusChange(rows[0].order_id, rows[0].status);
   await applyNewOrderPaymentIfAny(rows[0].order_id);
   await applyGiftExpenseIfAny(rows);
   await applyPorterExpenseIfAny(rows);
@@ -6007,6 +6020,7 @@ async function saveOrderRecord(){
   applyNewOrderIsPaid(rows);
   const {error}=await insertSalesResilient(rows);
   if(error){ toast('Error: '+error.message,'error'); return; }
+  await logOrderStatusChange(rows[0].order_id, rows[0].status);
   await applyNewOrderPaymentIfAny(rows[0].order_id);
   await applyGiftExpenseIfAny(rows);
   await deductSpoolsForRows(rows);
@@ -8536,6 +8550,7 @@ async function syncReturnRowForStatus(status,items,f){
 }
 async function updateOrderStatus(firstId,status){
   const items=_orderGroup(firstId), ids=items.map(s=>s.id), f=items[0];
+  const prevStatus=f.status;
   const payload={status};
   if(status==='completed') payload.completed_at=today();
   // Round 3 fix, the return window was counting from delivery_date, which is actually the
@@ -8544,6 +8559,7 @@ async function updateOrderStatus(firstId,status){
   if(status==='delivered') payload.delivered_at=today();
   const {error}=await sb.from('biz_sales').update(payload).in('id',ids);
   if(error){ toast('Error: '+error.message,'error'); return; }
+  if(status!==prevStatus) await logOrderStatusChange(f.order_id||firstId,status);
   await syncReturnRowForStatus(status,items,f);
   toast('Order updated'); loadSales(); if(typeof loadReturnsBadge==='function') loadReturnsBadge();
 }
@@ -8588,8 +8604,10 @@ async function bulkMarkStatus(status){
   if(status==='delivered') payload.delivered_at=today();
   const {error}=await sb.from('biz_sales').update(payload).in('id',ids);
   if(error){toast('Error: '+error.message,'error');return;}
+  const sales=_salesCache.filter(s=>ids.includes(s.id));
+  const changedOrderIds=new Set(sales.filter(s=>s.status!==status).map(s=>s.order_id||s.id));
+  for(const oid of changedOrderIds){ await logOrderStatusChange(oid,status); }
   if(['return_initiated','returned'].includes(status)){
-    const sales=_salesCache.filter(s=>ids.includes(s.id));
     const byOrder={}; sales.forEach(s=>{ const k=s.order_id||s.id; (byOrder[k]=byOrder[k]||[]).push(s); });
     for(const grp of Object.values(byOrder)){ await syncReturnRowForStatus(status,grp,grp[0]); }
   }
@@ -11623,6 +11641,33 @@ async function printInvoice(d, type, docKind, win){
     }catch(_){}
   }
 
+  // §Status Timeline (Order Record only), every (status, timestamp) logged by
+  // logOrderStatusChange() as the order moved through Production, Post-Processing
+  // etc., so this shows exactly when each stage was entered instead of only the
+  // current status. Feeds future KPIs (time-in-stage), see biz_order_status_log.
+  let statusTimelineHtml='';
+  if(isRecord&&d.order_id){
+    try{
+      const {data:statusRows}=await sb.from('biz_order_status_log').select('status,changed_at').eq('order_id',d.order_id).order('changed_at',{ascending:true});
+      if(statusRows&&statusRows.length){
+        statusTimelineHtml=`<div class="info-strip" style="margin-top:14px">
+        <div class="info-card" style="flex:1 1 100%">
+          <div class="info-lbl">Status Timeline</div>
+          <table style="width:100%;border-collapse:collapse;margin-top:2px">
+            <thead><tr>
+              <th style="text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#777;padding:3px 6px;border-bottom:1px solid #ddd">Status</th>
+              <th style="text-align:right;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#777;padding:3px 6px;border-bottom:1px solid #ddd">Date &amp; Time</th>
+            </tr></thead>
+            <tbody>
+              ${statusRows.map(r=>`<tr><td style="padding:3px 6px;font-size:11px">${esc(STATUS_LABEL?.[r.status]||r.status)}</td><td style="padding:3px 6px;font-size:11px;text-align:right">${esc(fmtDocDate(r.changed_at))} ${esc(new Date(r.changed_at).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}))}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+      }
+    }catch(_){}
+  }
+
   // Support multi-item orders (d.items) and legacy single rows (d)
   const items=(d.items&&d.items.length)?d.items:[d];
   let subtotal=0, gstAmt=0;
@@ -12054,6 +12099,7 @@ ${(!isQuote&&((!isRecord&&(d.payment_mode||d.package_size||d.weight_grams))||(is
   </div>`:''}
 </div>`:''}
 ${internalDetailsHtml}
+${statusTimelineHtml}
 ${paymentHistoryHtml}
 ${invoiceNotesHtml}
 
