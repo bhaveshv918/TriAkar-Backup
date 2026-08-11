@@ -6008,10 +6008,14 @@ async function submitQuickAdd(e){
   }
 }
 
-// "Save Order Record", persists the sale like Save Sale; the internal
-// order-record document layout is controlled in Settings (A7). printOrderRecord()
-// is invoked here once that template ships.
+// The "Order Record" / "Invoice" print buttons sit in the same qa-order-only row
+// used for both a brand-new order AND an order already open in edit mode, but this
+// function always INSERTed fresh rows, so clicking either button while editing an
+// existing order duplicated every item under the same order_id instead of saving
+// the edit. Editing now routes through saveAndPrintEdited(), which UPDATEs via the
+// normal saveEditedOrder() save path instead of inserting a second copy.
 async function saveOrderRecord(){
+  if(_qaMode==='edit'){ await saveAndPrintEdited('record'); return; }
   const invalid=flagInvalidFields('quickAddForm');
   if(invalid.length){ reportInvalid(invalid); return; }
   const win=window.open('','_blank');   // opened synchronously, before any await, so mobile browsers still count it as user-initiated
@@ -6034,6 +6038,25 @@ async function saveOrderRecord(){
   printInvoice(order, anyGst?'gst':'nongst', 'record', win);
   resetQuickAdd();
   loadSalesBadge();
+}
+// Saves an in-progress edit through the real update path (saveEditedOrder, which
+// UPDATEs kept rows and only INSERTs genuinely new ones) and then prints the
+// freshly-saved order, instead of the Insert-only path new orders use.
+async function saveAndPrintEdited(docKind){
+  const invalid=flagInvalidFields('quickAddForm');
+  if(invalid.length){ reportInvalid(invalid); return; }
+  const win=window.open('','_blank');
+  const orderId=_qaEditOrderId;   // captured before saveEditedOrder() clears it via exitAddOrderEditMode()
+  await saveEditedOrder();
+  // saveEditedOrder() only calls exitAddOrderEditMode() (which resets _qaMode) on a
+  // successful save, still 'edit' here means it stopped early (validation/update
+  // error, already toasted), nothing new was actually saved, so there's nothing to print.
+  if(!orderId || _qaMode==='edit'){ if(win) win.close(); return; }
+  if(typeof loadSales==='function') await loadSales();   // ensure _salesCache reflects the just-saved edit before reading it back
+  const items=_orderGroup(orderId);
+  if(!items.length){ if(win) win.close(); toast('Could not load saved order','error'); return; }
+  const anyGst=items.some(s=>parseFloat(s.gst_rate)>0);
+  printInvoice({...items[0], items}, anyGst?'gst':'nongst', docKind, win);
 }
 
 // ── Sales view (Phase 10 Group 1) ────────────────────────────
@@ -11462,6 +11485,10 @@ async function exportStateReport(){
 
 // ── Print Invoice ───────────────────────────────────────────
 async function saveAndPrint(){
+  // This button lives in the same row for both a new order and an order already
+  // open in edit mode; it used to always INSERT fresh rows regardless, duplicating
+  // every item under the same order_id when clicked mid-edit. See saveAndPrintEdited.
+  if(_qaMode==='edit'){ await saveAndPrintEdited(undefined); return; }
   const win=window.open('','_blank');   // opened synchronously, before any await, so mobile browsers still count it as user-initiated
   const rows=await buildSaleRows();
   if(!rows.length){ if(win) win.close(); toast('Add at least one item','error'); return; }
