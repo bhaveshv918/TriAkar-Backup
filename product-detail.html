@@ -837,21 +837,24 @@ function renderProduct(ap){
   document.documentElement.style.setProperty('--thumb-fit', ap.square_crop?'cover':'contain');
   window._prodId=id;
   try{ injectProductSchema(ap,p,id); }catch(_){}
+  // Out-of-stock gate: mirrors the availability check in injectProductSchema so the buy
+  // buttons match what the schema.org markup already tells search engines and customers.
+  const outOfStock=(ap.stock_qty!=null&&Number(ap.stock_qty)<=0)||ap.is_active===false;
+  window._prodOutOfStock=outOfStock;
+  const addBtn=document.querySelector('#buyButtons .btn-outline');
+  const buyBtn=document.querySelector('#buyButtons .btn-accent');
+  if(addBtn){addBtn.disabled=outOfStock;addBtn.style.opacity=outOfStock?'0.5':'';addBtn.style.cursor=outOfStock?'not-allowed':'';}
+  if(buyBtn){
+    buyBtn.disabled=outOfStock;
+    buyBtn.style.opacity=outOfStock?'0.5':'';
+    buyBtn.style.cursor=outOfStock?'not-allowed':'';
+    buyBtn.innerHTML=outOfStock?'Out of Stock':'Buy Now &rarr;';
+  }
   document.getElementById('prodName').textContent=p.name;
   window._prodName=p.name;
   document.getElementById('breadProd').textContent=p.name;
-  // Designer credit, name only (no outbound link); links to site-wide credits page
   const designerEl=document.getElementById('prodDesigner');
-  if(designerEl){
-    if(ap.designer){
-      designerEl.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><circle cx="11" cy="11" r="2"/></svg>'
-        +'<span>Designed by <strong>'+_esc(ap.designer)+'</strong> '
-        +'<a href="/credits.html" class="detail-designer-link">About design credits ›</a></span>';
-      designerEl.style.display='';
-    }else{
-      designerEl.style.display='none';
-    }
-  }
+  if(designerEl){designerEl.style.display='none';}
   document.getElementById('prodPrice').textContent='₹'+p.price.toLocaleString('en-IN');
   // INR-only brand: never show a USD price
   document.getElementById('prodUsd')&&(document.getElementById('prodUsd').textContent='');
@@ -1054,6 +1057,7 @@ function switchImgUrl(thumb,src){
   if(box){box.style.background='#fff';box.innerHTML='<img loading="lazy" src="'+src+'" alt="" draggable="false" style="width:100%;height:100%;object-fit:contain;display:block;">';}
 }
 function addToCartFromDetail(){
+  if(window._prodOutOfStock){showToast&&showToast('This item is out of stock','error');return;}
   if(!_validateCustomization()){
     const wrap=document.querySelector('.prod-opts-wrap');
     if(wrap)wrap.scrollIntoView({behavior:'smooth',block:'center'});
@@ -1064,6 +1068,7 @@ function addToCartFromDetail(){
   openCart();
 }
 function buyNow(){
+  if(window._prodOutOfStock){showToast&&showToast('This item is out of stock','error');return;}
   if(!_validateCustomization()){
     const wrap=document.querySelector('.prod-opts-wrap');
     if(wrap)wrap.scrollIntoView({behavior:'smooth',block:'center'});
