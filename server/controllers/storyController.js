@@ -60,10 +60,10 @@ export async function getPublicStories(req, res) {
 /* ─────────────────────────────────────────────────────────────────────────
    PUBLIC — GET /api/stories/public/by-slug/:slug
    Single published story, full detail, for the individual blog-post page
-   (story.html?slug=...). Also returns a few "related stories" (same tag,
-   most recent first, excluding itself) so the post page can link onward
-   instead of dead-ending, same internal-linking goal as product-detail's
-   related products.
+   (story.html?slug=...). Also returns up to 12 "related stories" (same tag,
+   most recent first, excluding itself), shown as a paged carousel, so the
+   post page can link onward instead of dead-ending, same internal-linking
+   goal as product-detail's related products.
 ───────────────────────────────────────────────────────────────────────── */
 export async function getStoryBySlug(req, res) {
   try {
@@ -85,7 +85,7 @@ export async function getStoryBySlug(req, res) {
       .neq('id', story.id)
       .order('year', { ascending: false })
       .order('month', { ascending: false })
-      .limit(3);
+      .limit(12);
 
     res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
     res.json({ story, related: related || [] });

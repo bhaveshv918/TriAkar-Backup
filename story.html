@@ -64,6 +64,16 @@
 .story-post-customer .story-customer-loc{font-size:12px}
 .story-post-related{margin-top:48px;padding-top:32px;border-top:1px solid var(--stone-p)}
 .story-post-related h2{font-size:13px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--stone);margin-bottom:16px}
+.story-related-row{display:flex;align-items:center;gap:10px}
+.story-related-scroll{display:flex;gap:20px;flex:1;min-width:0;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.story-related-scroll::-webkit-scrollbar{display:none}
+.story-related-scroll .story-card{flex:0 0 calc((100% - 80px)/5);scroll-snap-align:start}
+@media(max-width:1100px){.story-related-scroll .story-card{flex:0 0 calc((100% - 60px)/3)}}
+@media(max-width:700px){.story-related-scroll .story-card{flex:0 0 calc((100% - 20px)/2)}}
+@media(max-width:480px){.story-related-scroll .story-card{flex:0 0 82%}}
+.story-related-nav{width:36px;height:36px;border-radius:50%;border:none;background:var(--charcoal);color:var(--ivory);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .2s}
+.story-related-nav:hover{background:var(--accent)}
+.story-related-nav:disabled{opacity:.3;cursor:default;background:var(--charcoal)}
 </style>
 <script defer src="/_vercel/insights/script.js"></script>
 <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -192,17 +202,46 @@
   function renderRelated(related){
     const wrap=document.getElementById('postRelated');
     if(!related || !related.length){ wrap.innerHTML=''; return; }
-    wrap.innerHTML=`<div class="story-post-related"><h2>More Stories Like This</h2><div class="story-grid">${
-      related.map(r=>{
-        const monthLabel=(MONTH_NAMES[r.month]||'')+(r.year?' '+r.year:'');
-        const photo=r.image_url?`<img src="${esc(r.image_url)}" alt="${esc(r.title)}" loading="lazy">`:`<div class="story-photo-fallback">${TAG_ICON[r.tag]||'✨'}</div>`;
-        return `<a class="story-card" href="stories/${esc(r.slug||'')}">
-          <div class="story-photo">${photo}</div>
-          <div class="story-head"><span class="story-month">${esc(monthLabel)}</span><span class="story-tag">${esc(r.tag)}</span></div>
-          <div class="story-body"><div class="story-title">${esc(r.title)}</div><div class="story-excerpt">${esc(r.excerpt)}</div></div>
-        </a>`;
-      }).join('')
-    }</div></div>`;
+    const cards=related.slice(0,12).map(r=>{
+      const monthLabel=(MONTH_NAMES[r.month]||'')+(r.year?' '+r.year:'');
+      const photo=r.image_url?`<img src="${esc(r.image_url)}" alt="${esc(r.title)}" loading="lazy">`:`<div class="story-photo-fallback">${TAG_ICON[r.tag]||'✨'}</div>`;
+      return `<a class="story-card" href="stories/${esc(r.slug||'')}">
+        <div class="story-photo">${photo}</div>
+        <div class="story-head"><span class="story-month">${esc(monthLabel)}</span><span class="story-tag">${esc(r.tag)}</span></div>
+        <div class="story-body"><div class="story-title">${esc(r.title)}</div><div class="story-excerpt">${esc(r.excerpt)}</div></div>
+      </a>`;
+    }).join('');
+    wrap.innerHTML=`<div class="story-post-related">
+      <h2>More Stories Like This</h2>
+      <div class="story-related-row">
+        <button class="story-related-nav" id="relatedPrev" aria-label="Previous stories" onclick="storyRelatedScroll(-1)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="story-related-scroll" id="relatedScroll">${cards}</div>
+        <button class="story-related-nav" id="relatedNext" aria-label="Next stories" onclick="storyRelatedScroll(1)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+    </div>`;
+    _updateRelatedNav();
+    const scroller=document.getElementById('relatedScroll');
+    if(scroller)scroller.addEventListener('scroll',_updateRelatedNav,{passive:true});
+  }
+
+  function storyRelatedScroll(dir){
+    const el=document.getElementById('relatedScroll');
+    if(!el)return;
+    el.scrollBy({left:dir*el.clientWidth,behavior:'smooth'});
+  }
+  window.storyRelatedScroll=storyRelatedScroll;
+
+  function _updateRelatedNav(){
+    const el=document.getElementById('relatedScroll');
+    const prev=document.getElementById('relatedPrev'), next=document.getElementById('relatedNext');
+    if(!el||!prev||!next)return;
+    const max=el.scrollWidth-el.clientWidth;
+    prev.disabled=el.scrollLeft<=4;
+    next.disabled=el.scrollLeft>=max-4;
   }
 
   function render(s, related){
