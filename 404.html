@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- Vercel's /stories/:slug -> /story.html?slug=:slug rewrite (vercel.json) isn't being
+     honored in production for reasons that couldn't be diagnosed without dashboard access
+     to the deployment's routing manifest, even though /story.html?slug=... itself works
+     fine when hit directly. Every /stories/<slug> request lands here instead, so rescue it
+     client-side before anything paints: if the path matches, hand off to the real story
+     page immediately rather than showing "page not found" for a story that exists. -->
+<script>(function(){
+  var m = location.pathname.match(/^\/stories\/([^\/]+)\/?$/);
+  if (m && m[1]) { location.replace('/story?slug=' + encodeURIComponent(m[1]) + location.search); }
+})();</script>
 <!-- Google tag (gtag.js), customer traffic (G-Z6MSF7F44G) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-Z6MSF7F44G"></script>
 <script>
@@ -39,7 +49,7 @@
   .nf-code span{color:var(--accent)}
   .nf-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:30px}
   .nf-links{margin-top:26px;font-size:13px;color:var(--stone)}
-  .nf-links a{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+  .nf-links a{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
 </style>
 </head>
 <body>

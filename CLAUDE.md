@@ -15,7 +15,7 @@ It is not a generic marketplace. It is a **design-first company** that creates p
 actually want to keep, combining modern global aesthetics with responsible Indian manufacturing.
 
 **Name meaning:**
-TriAkar (त्रिआकार) means "Creation of Three Dimensions," from त्रि (three) and आकार (form, shape).
+TriAkar (त्रिआकार) means "Crafting the Third Dimension," from त्रि (three) and आकार (form, shape).
 This meaning should inform brand storytelling wherever the "About" or "Our Story" context appears,
 alongside the tagline below.
 
@@ -28,7 +28,11 @@ Below the main wordmark, a smaller Hindi rendering "त्रिआकार" ap
 full wordmark is used. Do not render the name as plain single-color text.
 
 **Brand tagline:**
-> "Designed globally. Made responsibly in India. Because good design should not cost the earth."
+> "Crafting the Third Dimension"
+
+In UI, the word "Third" is always TRI orange (`#C4622A`), the rest of the tagline is the
+surrounding ink color, and the whole phrase is set in the Glorida wordmark font. Hindi
+rendering: "तीसरे आयाम का निर्माण" ("तीसरे", meaning "third", in TRI orange).
 
 **Positioning line** (used on the homepage badge, and consistent wherever brand positioning is shown):
 > "Made in India · Designed for the World"

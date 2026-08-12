@@ -175,7 +175,7 @@ window._FOOTER_HTML = `<footer>
     <div class="foot-bottom">
       <p class="foot-copy">© 2026 TriAkar. All rights reserved.</p>
       <a href="https://www.instagram.com/triakarofficial" target="_blank" rel="noopener" class="foot-insta" aria-label="TriAkar on Instagram"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/><circle cx="17.5" cy="6.5" r=".5" fill="currentColor" stroke="none"/></svg>@triakarofficial</a>
-      <p class="foot-tag">Creation of Three Dimensions</p>
+      <p class="foot-tag" style="font-family:var(--font-g);text-transform:none;letter-spacing:.02em;font-size:13px">Crafting the <span style="color:var(--accent)">Third</span> Dimension</p>
     </div>
     <div class="pay-trust-row" style="margin-top:18px">
       <span class="pay-trust-badge">UPI</span>
