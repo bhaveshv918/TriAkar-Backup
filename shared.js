@@ -462,7 +462,7 @@ const Cart=(function(){
       const ck=_custKey(scust);
       const idx=items.findIndex(i=>i.id===sid&&i.color===scolor&&_custKey(i.customization||null)===ck);
       if(idx>-1){
-        if(sq>items[idx].quantity)items[idx].quantity=sq;
+        items[idx].quantity=items[idx].quantity+sq;
         if(!items[idx].image&&(s.image||s.img))items[idx].image=s.image||s.img;
       }else{
         items.push({id:sid,name:s.name,price:s.price,quantity:sq,color:scolor,image:s.image||s.img||'',customization:scust});
@@ -685,7 +685,8 @@ function taNewsletterSignup(form){
   if(!email)return false;
   var prevLabel=btn.textContent;
   btn.disabled=true;btn.textContent='...';
-  fetch('/api/newsletter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})})
+  var _API=window.location.hostname==='localhost'?'http://localhost:3000':'https://triakar.onrender.com';
+  fetch(_API+'/api/newsletter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})})
     .then(function(r){return r.json().then(function(d){return {ok:r.ok,data:d};});})
     .then(function(res){
       if(res.ok){

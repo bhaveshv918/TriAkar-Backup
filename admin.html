@@ -1215,6 +1215,9 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
       <span class="tab-icon">◊</span><span class="tab-label">Promo Codes</span>
     <span class="tab-keyhint">W</span>
     </button>
+    <button class="tab" data-tab="subscribers" onclick="switchTab('subscribers')">
+      <span class="tab-icon">✉</span><span class="tab-label">Subscribers</span><span class="tab-count" id="subscriberCount">0</span>
+    </button>
     <button class="tab" data-tab="analytics" onclick="switchTab('analytics')">
       <span class="tab-icon">↗</span><span class="tab-label">Analytics</span>
     <span class="tab-keyhint">A</span>
@@ -1936,6 +1939,30 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
           <th>Code</th><th>Type</th><th>Value</th><th>Min Order</th><th>Uses</th><th>Product</th><th>Expires</th><th>Status</th><th>Actions</th>
         </tr></thead>
         <tbody id="promoList"><tr><td colspan="9" class="tbl-msg">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── SUBSCRIBERS PANEL ──────────────────────── -->
+  <div class="panel" id="panelSubscribers">
+    <div class="p-head">
+      <div class="p-title">Subscribers <span style="font-weight:400;color:var(--text-3);font-size:12px" id="subTotalLabel"></span></div>
+    </div>
+    <div style="margin:0 0 20px;padding:16px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius)">
+      <div style="font-weight:700;font-size:13px;margin-bottom:10px">Send instantly to all subscribers</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <input id="subBroadcastSubject" class="form-input" placeholder="Subject, e.g. New drop is live">
+        <textarea id="subBroadcastMessage" class="form-input" rows="4" placeholder="Write your message…"></textarea>
+        <div>
+          <button class="btn-primary" id="subBroadcastBtn" onclick="sendSubscriberBroadcast()">Send Now</button>
+          <span id="subBroadcastMsg" style="margin-left:10px;font-size:12px"></span>
+        </div>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Email</th><th>Subscribed</th></tr></thead>
+        <tbody id="subscribersBody"><tr><td colspan="2" class="tbl-msg">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -3005,7 +3032,7 @@ function switchTab(tab){
   _curAdminTab=tab;
   closeAdminNav();
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['Dashboard','Callbacks','Orders','Customers','Products','Makerworld','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo','Reviews','Appearance','Activity','Content','Inbox','Productstudio'].forEach(p=>{
+  ['Dashboard','Callbacks','Orders','Customers','Products','Makerworld','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo','Reviews','Appearance','Activity','Content','Inbox','Productstudio','Subscribers'].forEach(p=>{
     const el=document.getElementById('panel'+p);
     if(el)el.classList.toggle('active',p.toLowerCase()===tab);
   });
@@ -3019,6 +3046,7 @@ function switchTab(tab){
   if(tab==='inbox')loadInbox();
   if(tab==='appearance')loadMenuStyleSetting();
   if(tab==='productstudio')loadProductStudio();
+  if(tab==='subscribers')loadSubscribers();
   const dotMap={orders:'dotOrders',customers:'dotCustomers',messages:'dotMessages',enquiries:'dotEnquiries',callbacks:'dotCallbacks'};
   const countEls={orders:'orderCount',customers:'customerCount',messages:'messageCount',enquiries:'enquiryCount',callbacks:'callbackCount'};
   if(dotMap[tab]){
@@ -6191,6 +6219,54 @@ async function emptyRecycleBin(){
 // PROMO CODES
 // ═══════════════════════════════════════════════════════════
 let _editingPromoId = null;
+
+// ═══════════════════════════════════════════════════════════
+// NEWSLETTER SUBSCRIBERS, list + instant broadcast
+// ═══════════════════════════════════════════════════════════
+async function loadSubscribers(){
+  const tbody=document.getElementById('subscribersBody');
+  try{
+    const {subscribers,count}=await adminApi('/api/admin/newsletter');
+    document.getElementById('subscriberCount').textContent=count;
+    document.getElementById('subTotalLabel').textContent=count+' total';
+    if(!subscribers||!subscribers.length){
+      tbody.innerHTML='<tr><td colspan="2" class="tbl-msg">No subscribers yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML=subscribers.map(s=>
+      '<tr><td>'+esc(s.email)+'</td><td>'+fmtDateShort(s.created_at)+'</td></tr>'
+    ).join('');
+  }catch(e){
+    tbody.innerHTML='<tr><td colspan="2" class="tbl-msg" style="color:#B91C1C">Error loading subscribers: '+esc(e.message)+'</td></tr>';
+  }
+}
+
+async function sendSubscriberBroadcast(){
+  const subject=document.getElementById('subBroadcastSubject').value.trim();
+  const message=document.getElementById('subBroadcastMessage').value.trim();
+  const msgEl=document.getElementById('subBroadcastMsg');
+  const btn=document.getElementById('subBroadcastBtn');
+  const count=parseInt(document.getElementById('subscriberCount').textContent,10)||0;
+  if(!subject||!message){
+    msgEl.textContent='Subject and message are required.';msgEl.style.color='#B91C1C';
+    return;
+  }
+  if(!confirm('Send this email to all '+count+' subscriber(s) right now? This cannot be undone.'))return;
+  btn.disabled=true;btn.textContent='Sending…';
+  msgEl.textContent='';
+  try{
+    const res=await adminApi('/api/admin/newsletter/broadcast',{method:'POST',body:JSON.stringify({subject,message})});
+    msgEl.style.color='#16a34a';
+    msgEl.textContent='Sent to '+res.sent+' of '+res.total+' subscriber(s).'+(res.failed.length?' '+res.failed.length+' failed.':'');
+    toast('Broadcast sent to '+res.sent+' subscriber(s)','success');
+    document.getElementById('subBroadcastSubject').value='';
+    document.getElementById('subBroadcastMessage').value='';
+  }catch(e){
+    msgEl.style.color='#B91C1C';
+    msgEl.textContent='Failed to send: '+esc(e.message);
+  }
+  btn.disabled=false;btn.textContent='Send Now';
+}
 
 async function loadPromoCodes(){
   document.getElementById('promoList').innerHTML='<tr><td colspan="9" class="tbl-msg">Loading…</td></tr>';

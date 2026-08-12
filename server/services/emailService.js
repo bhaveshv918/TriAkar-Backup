@@ -488,6 +488,19 @@ export async function sendCorporateInquiryAlert(inq) {
   });
 }
 
+/* ── NEWSLETTER BROADCAST (to a subscriber) ───────────────── */
+export async function sendNewsletterBroadcast({ to, subject, message }) {
+  const body = `
+    <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 20px;white-space:pre-wrap;">${esc(message)}</p>
+    ${btn('Shop TriAkar', 'https://triakar.com/products.html')}
+    <p style="font-size:11px;color:#aaa;margin:32px 0 0;line-height:1.6;">
+      You are receiving this because you subscribed to TriAkar updates. Questions? Email
+      <a href="mailto:hello@triakar.com" style="color:${ACCENT};text-decoration:none;">hello@triakar.com</a>.
+    </p>
+  `;
+  return send({ to, subject, html: shell(subject, body) });
+}
+
 /* ── CORPORATE INQUIRY CONFIRMATION (to customer) ─────────── */
 export async function sendCorporateInquiryConfirmation(inq) {
   const body = `

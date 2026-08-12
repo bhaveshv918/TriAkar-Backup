@@ -24,6 +24,13 @@ import {
   calculateGst, saveGstCalc, getGstHistory, getGstPeriodDetail, exportGstCsv, markGstFiled,
   unmarkGstFiled, deleteGstPeriod, parseGstImport, commitGstImport,
 } from '../controllers/gstController.js';
+import {
+  updateBizSalesStatus, toggleBizSalesPaid, updateBizSalesPaymentMode,
+  insertBizReturn, addBizSalePayment, deleteBizSalePayment,
+} from '../controllers/bizSalesController.js';
+import {
+  listNewsletterSubscribers, broadcastToSubscribers,
+} from '../controllers/newsletterController.js';
 
 const router = Router();
 
@@ -38,6 +45,9 @@ router.delete('/products/:id',   deleteProduct);
 
 router.post('/generate-listing', generateListing);
 router.get('/ga4',               getGa4Overview);   // A14 — GA4 traffic analytics
+
+router.get('/newsletter',            listNewsletterSubscribers);
+router.post('/newsletter/broadcast', broadcastToSubscribers);
 
 // ── Product Studio: dynamic custom fields + AI image-prompt generator ──
 router.get('/custom-fields',              listCustomFields);
@@ -108,5 +118,13 @@ router.delete('/gst/:periodId',             deleteGstPeriod);
 // ── GST-sourced bulk import into Purchases/Expenses (Business OS accounting backfill) ──
 router.post('/gst/import/parse',  uploadGstFiles.single('gstr2bB2b'), parseGstImport);
 router.post('/gst/import/commit', commitGstImport);
+
+// ── Business OS money-write proxy (order status, payment lock, payment installments) ──
+router.patch('/biz/sales/status',              updateBizSalesStatus);
+router.patch('/biz/sales/paid',                toggleBizSalesPaid);
+router.patch('/biz/sales/payment-mode',        updateBizSalesPaymentMode);
+router.post('/biz/returns',                    insertBizReturn);
+router.post('/biz/sales/:orderId/payments',    addBizSalePayment);
+router.delete('/biz/sales/payments/:id',       deleteBizSalePayment);
 
 export default router;
