@@ -36,6 +36,11 @@
   --glass-blur: blur(20px) saturate(180%);
   --glass-blur-strong: blur(30px) saturate(200%);
   --glass-radius: 20px;
+  /* The fixed nav recomposites its blur every scroll frame (unlike other
+     glass surfaces, which are static once open), so it gets a lighter blur
+     than the shared --glass-blur. --glass-a-bg is already ~62% opaque, so
+     the visual difference is minimal but the per-frame cost drops a lot. */
+  --nav-blur: blur(11px) saturate(150%);
 
   --glass-a-bg: rgba(244,242,236,.62);
   --glass-a-border: rgba(255,255,255,.55);
@@ -210,17 +215,33 @@ nav.main-nav.scrolled{
   min-height:56px;
   border-radius:999px;
   background:var(--glass-a-bg);
-  -webkit-backdrop-filter:var(--glass-blur);
-  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--nav-blur);
+  backdrop-filter:var(--nav-blur);
   border-color:var(--glass-a-border);
   box-shadow:var(--glass-a-shadow);
 }
-/* iOS/Safari get the real SVG-refraction glass on the floating capsule too
-   (same filter the bottom nav uses, see partials.js); Android stays on the
-   plain blur above since feDisplacementMap renders weak there. */
+/* Safari gets the real SVG-refraction glass on the floating capsule too
+   (same filter the bottom nav uses, see partials.js, gated to
+   window.TA_GLASS_SAFARI); every other engine stays on the plain blur
+   above since it can't rasterize this filter cheaply. */
 nav.main-nav.scrolled.nav-distort{
-  backdrop-filter:var(--glass-blur) url(#liquid-glass-distortion);
-  -webkit-backdrop-filter:var(--glass-blur);
+  backdrop-filter:var(--nav-blur) url(#liquid-glass-distortion);
+  -webkit-backdrop-filter:var(--nav-blur);
+}
+/* Low-power fallback (see window.TA_LOW_POWER in partials.js): drop the
+   backdrop-filter entirely and use a near-opaque solid fill instead. Skips
+   per-frame backdrop recomposition altogether, the only way to guarantee
+   zero blur-related scroll jank on genuinely weak hardware. Also collapses
+   the morph transition to opacity-only so the capsule pop doesn't run an
+   expensive top/left/right/height animation on the same class of device. */
+html.low-power nav.main-nav{
+  transition:background .3s,box-shadow .3s,border-color .3s,opacity .3s;
+}
+html.low-power nav.main-nav.scrolled,
+html.low-power nav.main-nav.scrolled.nav-distort{
+  background:var(--ivory);
+  -webkit-backdrop-filter:none;
+  backdrop-filter:none;
 }
 @media(max-width:600px){
   nav.main-nav.scrolled{ top:8px; left:10px; right:10px; border-radius:999px; }
@@ -1302,14 +1323,18 @@ body.has-buy-bar .a11y-fab{bottom:84px}
   transform:translateX(-50%);
   width:max-content;max-width:min(560px,calc(100vw - 32px));
   gap:14px;padding:8px 8px 8px 20px;
-  background:var(--glass-a-bg);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);
+  background:var(--glass-a-bg);-webkit-backdrop-filter:var(--nav-blur);backdrop-filter:var(--nav-blur);
   border:1px solid var(--glass-a-border);border-radius:999px;
   box-shadow:var(--glass-a-shadow);
   transition:transform .38s cubic-bezier(.4,0,.2,1),opacity .3s ease;
 }
 .ta-bottomnav--pdp.tabn-distort{
-  backdrop-filter:blur(20px) saturate(180%) url(#liquid-glass-distortion);
-  -webkit-backdrop-filter:blur(20px) saturate(180%)
+  backdrop-filter:var(--nav-blur) url(#liquid-glass-distortion);
+  -webkit-backdrop-filter:var(--nav-blur)
+}
+html.low-power .ta-bottomnav--pdp,
+html.low-power .ta-bottomnav--pdp.tabn-distort{
+  background:var(--ivory);-webkit-backdrop-filter:none;backdrop-filter:none;
 }
 .ta-bottomnav--pdp.tabn-peek-hidden{
   transform:translateX(-50%) translateY(calc(100% + 32px));

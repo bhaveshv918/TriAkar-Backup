@@ -17,15 +17,34 @@
      opts.w     target width  (default 600)
      opts.h     target height (default = w, square)
      opts.crop  'fill' (default, square crop) | 'limit' (keep aspect) */
+/* Low-power device flag, set synchronously (pre-paint) so nav CSS never
+   has to flash from blurred to flat. deviceMemory/hardwareConcurrency are
+   Chromium-only signals (undefined elsewhere); an unknown value is treated
+   as capable, so this only ever demotes hardware it can actually confirm
+   is weak, never guesses on browsers that don't expose the API. Also
+   respects Save-Data, a user's own explicit low-bandwidth signal. */
+window.TA_LOW_POWER = (function(){
+  try{
+    var mem=navigator.deviceMemory;
+    var cores=navigator.hardwareConcurrency;
+    var saveData=navigator.connection&&navigator.connection.saveData;
+    var weak=(typeof mem==='number'&&mem<=4)||(typeof cores==='number'&&cores<=4);
+    if(weak||saveData) document.documentElement.classList.add('low-power');
+    return weak||!!saveData;
+  }catch(_){return false;}
+})();
+
 /* The liquid-glass SVG refraction filter (feDisplacementMap layered onto a
    backdrop-filter) is only cheap to composite on WebKit/Safari, where it's
    hardware-accelerated. Every other engine, including desktop Chrome/Edge/
    Firefox on Windows and Chrome on Android, has to re-rasterize the filter
    on the CPU/GPU every scroll frame over a full-width fixed element, which
    is exactly the "laggy navbar" jank. Gate the effect to actual Safari
-   (not just "not Android") instead of falling back to plain blur elsewhere. */
+   (not just "not Android") instead of falling back to plain blur elsewhere,
+   and never on a device already flagged low-power regardless of engine. */
 window.TA_GLASS_SAFARI = (function(){
   try{
+    if(window.TA_LOW_POWER)return false;
     var ua=navigator.userAgent;
     return /Safari/i.test(ua) && !/Chrome|Chromium|CriOS|Edg|EdgA|FxiOS|OPR|Android/i.test(ua);
   }catch(_){return false;}

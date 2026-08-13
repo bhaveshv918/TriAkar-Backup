@@ -108,7 +108,8 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
      "laggy navbar" jank on desktop Chrome/Edge/Firefox and Android, not
      just Android as previously assumed. Those engines fall back to the
      much cheaper plain blur below. */
-  var isGlassSafari=!!window.TA_GLASS_SAFARI;
+  var isGlassSafari=!!window.TA_GLASS_SAFARI; /* already excludes low-power devices, see partials.js */
+  var isLowPower=!!window.TA_LOW_POWER;
 
   var navEl=null,ticking=false,wasScrolled=false,distortTimer=null,offsetTimer=null;
   var firstRun=true,morphRafId=0,morphEndTime=0;
@@ -144,6 +145,15 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
     }
   }
   function startMorph(){
+    if(isLowPower){
+      /* Low-power devices collapse the shape morph to an instant CSS swap
+         (see html.low-power in shared.css), so there's no top/left/right/
+         height transition in flight to track and no reason to hold open
+         the will-change layer promotion for 480ms. One measurement is
+         enough, matching the firstRun path above. */
+      updateHeaderOffset();
+      return;
+    }
     navEl.classList.add('nav-morphing');
     morphEndTime=performance.now()+480; /* covers the .45s shape transition + margin */
     if(!morphRafId) morphRafId=requestAnimationFrame(runMorphUpdates);
