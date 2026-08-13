@@ -1,5 +1,6 @@
 import supabase from '../db/supabaseClient.js';
 import { sendNewsletterBroadcast } from '../services/emailService.js';
+import { logActivity } from '../services/activityLog.js';
 
 export async function subscribeNewsletter(req, res, next) {
   try {
@@ -38,21 +39,48 @@ export async function listNewsletterSubscribers(req, res, next) {
   }
 }
 
-// Admin — instantly broadcast a message to every subscriber. Sends sequentially
-// with a short delay between each to stay under Resend's rate limit; one bad
-// address does not stop the rest of the batch.
+// Admin — remove a subscriber. Hard delete: no financial/legal history hangs
+// off an email address, unlike products/users/orders in the Recycle Bin.
+export async function deleteSubscriber(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const { data: sub, error: findErr } = await supabase
+      .from('newsletter_subscribers')
+      .select('email')
+      .eq('id', id)
+      .single();
+    if (findErr) throw findErr;
+
+    const { error } = await supabase
+      .from('newsletter_subscribers')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+
+    logActivity(req.user?.email, 'newsletter.delete', 'subscriber', id, sub?.email || '');
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Admin — instantly broadcast a message to every subscriber, or to a chosen
+// subset (req.body.ids). Sends sequentially with a short delay between each
+// to stay under Resend's rate limit; one bad address does not stop the batch.
 export async function broadcastToSubscribers(req, res, next) {
   try {
     const subject = String(req.body.subject || '').trim();
     const message = String(req.body.message || '').trim();
+    const ids = Array.isArray(req.body.ids) ? req.body.ids.filter(Boolean) : null;
 
     if (!subject || !message) {
       return res.status(400).json({ error: 'Subject and message are required' });
     }
 
-    const { data, error } = await supabase
-      .from('newsletter_subscribers')
-      .select('email');
+    let query = supabase.from('newsletter_subscribers').select('email');
+    if (ids && ids.length) query = query.in('id', ids);
+    const { data, error } = await query;
 
     if (error) throw error;
 

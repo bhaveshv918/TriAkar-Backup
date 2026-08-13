@@ -1949,8 +1949,9 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
       <div class="p-title">Subscribers <span style="font-weight:400;color:var(--text-3);font-size:12px" id="subTotalLabel"></span></div>
     </div>
     <div style="margin:0 0 20px;padding:16px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius)">
-      <div style="font-weight:700;font-size:13px;margin-bottom:10px">Send instantly to all subscribers</div>
+      <div style="font-weight:700;font-size:13px;margin-bottom:10px">Send instantly</div>
       <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:12px;color:var(--text-3)" id="subRecipientLabel">Recipients: all subscribers</div>
         <input id="subBroadcastSubject" class="form-input" placeholder="Subject, e.g. New drop is live">
         <textarea id="subBroadcastMessage" class="form-input" rows="4" placeholder="Write your message…"></textarea>
         <div>
@@ -1959,10 +1960,13 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
         </div>
       </div>
     </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <button class="btn-secondary" style="color:#B91C1C" id="subDeleteSelectedBtn" onclick="deleteSelectedSubscribers()" disabled>Delete selected</button>
+    </div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Email</th><th>Subscribed</th></tr></thead>
-        <tbody id="subscribersBody"><tr><td colspan="2" class="tbl-msg">Loading…</td></tr></tbody>
+        <thead><tr><th style="width:32px"><input type="checkbox" id="subSelectAll" onchange="toggleAllSubscribers(this.checked)"></th><th>Email</th><th>Subscribed</th><th style="width:60px"></th></tr></thead>
+        <tbody id="subscribersBody"><tr><td colspan="4" class="tbl-msg">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -6223,22 +6227,77 @@ let _editingPromoId = null;
 // ═══════════════════════════════════════════════════════════
 // NEWSLETTER SUBSCRIBERS, list + instant broadcast
 // ═══════════════════════════════════════════════════════════
+let _subscribers=[];
+let _subSelected=new Set();
+
 async function loadSubscribers(){
   const tbody=document.getElementById('subscribersBody');
+  _subSelected.clear();
+  updateSubSelectionUi();
   try{
     const {subscribers,count}=await adminApi('/api/admin/newsletter');
+    _subscribers=subscribers||[];
     document.getElementById('subscriberCount').textContent=count;
     document.getElementById('subTotalLabel').textContent=count+' total';
-    if(!subscribers||!subscribers.length){
-      tbody.innerHTML='<tr><td colspan="2" class="tbl-msg">No subscribers yet.</td></tr>';
+    if(!_subscribers.length){
+      tbody.innerHTML='<tr><td colspan="4" class="tbl-msg">No subscribers yet.</td></tr>';
       return;
     }
-    tbody.innerHTML=subscribers.map(s=>
-      '<tr><td>'+esc(s.email)+'</td><td>'+fmtDateShort(s.created_at)+'</td></tr>'
+    tbody.innerHTML=_subscribers.map(s=>
+      '<tr><td><input type="checkbox" class="subRowCheck" data-id="'+s.id+'" onchange="toggleSubscriberSelected(\''+s.id+'\',this.checked)"></td>'
+      +'<td>'+esc(s.email)+'</td><td>'+fmtDateShort(s.created_at)+'</td>'
+      +'<td><button class="btn-secondary" style="color:#B91C1C" onclick="deleteSubscriber(\''+s.id+'\')">Del</button></td></tr>'
     ).join('');
   }catch(e){
-    tbody.innerHTML='<tr><td colspan="2" class="tbl-msg" style="color:#B91C1C">Error loading subscribers: '+esc(e.message)+'</td></tr>';
+    tbody.innerHTML='<tr><td colspan="4" class="tbl-msg" style="color:#B91C1C">Error loading subscribers: '+esc(e.message)+'</td></tr>';
   }
+}
+
+function toggleSubscriberSelected(id,checked){
+  if(checked)_subSelected.add(id);else _subSelected.delete(id);
+  const all=document.getElementById('subSelectAll');
+  if(all)all.checked=_subscribers.length>0&&_subSelected.size===_subscribers.length;
+  updateSubSelectionUi();
+}
+
+function toggleAllSubscribers(checked){
+  _subSelected=new Set(checked?_subscribers.map(s=>s.id):[]);
+  document.querySelectorAll('.subRowCheck').forEach(c=>c.checked=checked);
+  updateSubSelectionUi();
+}
+
+function updateSubSelectionUi(){
+  const n=_subSelected.size;
+  document.getElementById('subDeleteSelectedBtn').disabled=n===0;
+  document.getElementById('subRecipientLabel').textContent=n>0
+    ?('Recipients: '+n+' selected subscriber'+(n===1?'':'s'))
+    :'Recipients: all subscribers';
+}
+
+async function deleteSubscriber(id){
+  if(!confirm('Remove this subscriber from the list?'))return;
+  try{
+    await adminApi('/api/admin/newsletter/'+id,{method:'DELETE'});
+    toast('Subscriber removed','success');
+    loadSubscribers();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
+async function deleteSelectedSubscribers(){
+  const ids=Array.from(_subSelected);
+  if(!ids.length)return;
+  if(!confirm('Remove '+ids.length+' selected subscriber(s)?'))return;
+  const btn=document.getElementById('subDeleteSelectedBtn');
+  btn.disabled=true;btn.textContent='Removing…';
+  try{
+    for(const id of ids){ await adminApi('/api/admin/newsletter/'+id,{method:'DELETE'}); }
+    toast(ids.length+' subscriber(s) removed','success');
+    loadSubscribers();
+  }catch(e){
+    toast('Error: '+e.message,'error');
+    loadSubscribers();
+  }
+  btn.textContent='Delete selected';
 }
 
 async function sendSubscriberBroadcast(){
@@ -6246,16 +6305,20 @@ async function sendSubscriberBroadcast(){
   const message=document.getElementById('subBroadcastMessage').value.trim();
   const msgEl=document.getElementById('subBroadcastMsg');
   const btn=document.getElementById('subBroadcastBtn');
-  const count=parseInt(document.getElementById('subscriberCount').textContent,10)||0;
+  const ids=Array.from(_subSelected);
+  const targetCount=ids.length||(parseInt(document.getElementById('subscriberCount').textContent,10)||0);
   if(!subject||!message){
     msgEl.textContent='Subject and message are required.';msgEl.style.color='#B91C1C';
     return;
   }
-  if(!confirm('Send this email to all '+count+' subscriber(s) right now? This cannot be undone.'))return;
+  const who=ids.length?(ids.length+' selected subscriber(s)'):('all '+targetCount+' subscriber(s)');
+  if(!confirm('Send this email to '+who+' right now? This cannot be undone.'))return;
   btn.disabled=true;btn.textContent='Sending…';
   msgEl.textContent='';
   try{
-    const res=await adminApi('/api/admin/newsletter/broadcast',{method:'POST',body:JSON.stringify({subject,message})});
+    const body={subject,message};
+    if(ids.length)body.ids=ids;
+    const res=await adminApi('/api/admin/newsletter/broadcast',{method:'POST',body:JSON.stringify(body)});
     msgEl.style.color='#16a34a';
     msgEl.textContent='Sent to '+res.sent+' of '+res.total+' subscriber(s).'+(res.failed.length?' '+res.failed.length+' failed.':'');
     toast('Broadcast sent to '+res.sent+' subscriber(s)','success');

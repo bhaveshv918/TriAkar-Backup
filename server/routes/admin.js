@@ -29,7 +29,7 @@ import {
   insertBizReturn, addBizSalePayment, deleteBizSalePayment,
 } from '../controllers/bizSalesController.js';
 import {
-  listNewsletterSubscribers, broadcastToSubscribers,
+  listNewsletterSubscribers, broadcastToSubscribers, deleteSubscriber,
 } from '../controllers/newsletterController.js';
 
 const router = Router();
@@ -48,6 +48,7 @@ router.get('/ga4',               getGa4Overview);   // A14 — GA4 traffic analy
 
 router.get('/newsletter',            listNewsletterSubscribers);
 router.post('/newsletter/broadcast', broadcastToSubscribers);
+router.delete('/newsletter/:id',     deleteSubscriber);
 
 // ── Product Studio: dynamic custom fields + AI image-prompt generator ──
 router.get('/custom-fields',              listCustomFields);
