@@ -1809,6 +1809,48 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 })();
 
+/* ══ TRIAKAR MINUTES, launch-teaser popup, once per first-time visitor ══
+   Shows on first page load ever (localStorage, not per-session) across
+   any page that includes shared.js. Close, email capture (reuses the
+   newsletter API), and a WhatsApp "contact to know more" shortcut. */
+(function(){
+  if(localStorage.getItem('_tmPromoShown')) return;
+
+  function _show(){
+    if(localStorage.getItem('_tmPromoShown')) return;
+    localStorage.setItem('_tmPromoShown','1');
+
+    var waHref='https://wa.me/919217555833?text='+encodeURIComponent('Hi TriAkar! I\'d like to know more about Triakar Minutes.');
+
+    var ov=document.createElement('div');
+    ov.className='tm-promo-ov';
+    ov.innerHTML=
+      '<div class="tm-promo-card glass-a">'
+      + '<button type="button" class="tm-promo-close" aria-label="Close">×</button>'
+      + '<div class="tm-promo-badge">Coming Soon</div>'
+      + '<div class="tm-promo-title">Introducing <span class="tm-promo-accent">Triakar Minutes</span></div>'
+      + '<div class="tm-promo-sub">Something new is brewing at TriAkar. Be the first to know when it drops.</div>'
+      + '<form class="tm-promo-form" onsubmit="return taNewsletterSignup(this)">'
+      + '<input type="email" name="email" required placeholder="Enter your email" aria-label="Email address">'
+      + '<button type="submit">Subscribe</button>'
+      + '</form>'
+      + '<a class="tm-promo-contact" href="'+waHref+'" target="_blank" rel="noopener">Contact to know more</a>'
+      + '</div>';
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){ ov.classList.add('show'); });
+
+    function _close(){
+      ov.classList.remove('show');
+      setTimeout(function(){ ov.remove(); }, 350);
+    }
+    ov.querySelector('.tm-promo-close').addEventListener('click', _close);
+    ov.addEventListener('click', function(e){ if(e.target===ov) _close(); });
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(_show, 1500); });
+  else setTimeout(_show, 1500);
+})();
+
 /* ════════════════════════════════════════════════════════════════════
    LIQUID GLASS, micro-interactions (toast, ripple, scroll-reveal)
    ════════════════════════════════════════════════════════════════════ */
