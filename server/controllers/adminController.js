@@ -211,6 +211,8 @@ export async function getAdminOrders(req, res, next) {
   }
 }
 
+const STOCK_RESTORING_STATUSES = ['cancelled', 'returned', 'refunded'];
+
 export async function updateOrderStatus(req, res, next) {
   try {
     const { id } = req.params;
@@ -221,6 +223,11 @@ export async function updateOrderStatus(req, res, next) {
       return res.status(400).json({ error: 'Invalid status value' });
     }
 
+    // Fetch first: whether stock was ever decremented (payment_received) and whether it
+    // was already restored, both decide if this transition should restock.
+    const { data: existing } = await supabase
+      .from('orders').select('payment_received, stock_restored').eq('id', id).single();
+
     const { data, error } = await supabase
       .from('orders')
       .update({ status, order_status: status })
@@ -230,6 +237,23 @@ export async function updateOrderStatus(req, res, next) {
 
     if (error) throw error;
     logActivity(req.user?.email, 'order.status', 'order', id, '→ ' + status);
+
+    // Stock is only ever decremented once, in paymentController.verifyPayment, after
+    // payment is confirmed. Restoring it here on cancel/return/refund closes the gap
+    // where a returned order permanently lost that unit from sellable stock. Guarded by
+    // payment_received (an unpaid order was never decremented, restoring it would add
+    // phantom stock) and stock_restored (so flipping between these statuses more than
+    // once, e.g. returned -> refunded, doesn't restore the same units twice).
+    if (STOCK_RESTORING_STATUSES.includes(status) && existing?.payment_received && !existing?.stock_restored) {
+      const { data: items } = await supabase
+        .from('order_items').select('product_id, quantity').eq('order_id', id);
+      for (const item of items ?? []) {
+        await supabase.rpc('restock_product', { p_product_id: item.product_id, p_qty: item.quantity });
+      }
+      await supabase.from('orders').update({ stock_restored: true }).eq('id', id);
+      logActivity(req.user?.email, 'order.stock_restored', 'order', id, `${(items ?? []).length} line item(s) restocked on → ${status}`);
+    }
+
     res.json({ order: data });
   } catch (err) {
     next(err);

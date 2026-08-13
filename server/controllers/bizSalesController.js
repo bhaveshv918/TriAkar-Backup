@@ -92,6 +92,28 @@ export async function addBizSalePayment(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// ── PATCH /api/admin/biz/sales/payments/:id — correct an installment ──
+// Before this, fixing a mistyped payment meant delete + re-add, losing the original
+// created_at/audit ordering. Field list whitelisted same as the rest of this file.
+const PAYMENT_UPDATE_KEYS = ['amount', 'payment_date', 'source', 'notes'];
+export async function updateBizSalePayment(req, res, next) {
+  try {
+    const { id } = req.params;
+    const body = req.body || {};
+    const clean = {};
+    for (const k of PAYMENT_UPDATE_KEYS) if (body[k] !== undefined) clean[k] = body[k];
+    if (clean.amount !== undefined && !(Number(clean.amount) > 0)) {
+      return res.status(400).json({ error: 'amount must be greater than 0' });
+    }
+    if (!Object.keys(clean).length) return res.status(400).json({ error: 'No recognized fields in payload' });
+
+    const { error } = await supabase.from('biz_sale_payments').update(clean).eq('id', id);
+    if (error) throw error;
+    logActivity(req.user?.email, 'biz_sale_payments.update', 'biz_sale_payments', id, JSON.stringify(clean));
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+}
+
 // ── DELETE /api/admin/biz/sales/payments/:id — remove an installment ──
 export async function deleteBizSalePayment(req, res, next) {
   try {

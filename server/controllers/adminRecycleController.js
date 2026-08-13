@@ -82,6 +82,33 @@ export async function purgeItem(req, res, next) {
       if (error) throw error;
 
     } else if (type === 'order') {
+      // If the order was ever paid, log a Money Out reversal BEFORE deleting it, so the
+      // cash that was counted as "in" doesn't just vanish from the books with no trace.
+      // Guarded so re-purging an already-reversed order (or purging an unpaid one) never
+      // double-logs — see the biz_expenses.order_id lookup below.
+      const { data: ord } = await supabase.from('orders')
+        .select('order_id, payment_received, total_amount, customer_name, customer_email')
+        .eq('id', id).single();
+
+      if (ord?.payment_received) {
+        const orderRef = ord.order_id || id;
+        const { data: existingReversal } = await supabase.from('biz_expenses')
+          .select('id').eq('order_id', orderRef).eq('category', 'refund').limit(1);
+        if (!existingReversal || !existingReversal.length) {
+          const { error: revErr } = await supabase.from('biz_expenses').insert({
+            date: new Date().toISOString().slice(0, 10),
+            category: 'refund',
+            vendor: ord.customer_name || ord.customer_email || 'Customer',
+            amount: ord.total_amount || 0,
+            payment_mode: 'system_reversal',
+            order_id: orderRef,
+            notes: `Auto-logged: paid order ${orderRef} permanently deleted from Recycle Bin`,
+          });
+          if (revErr) throw revErr;
+          logActivity(req.user?.email, 'ledger.refund_reversal', 'order', id, `₹${ord.total_amount} logged as Money Out`);
+        }
+      }
+
       // True hard delete (admin-confirmed, atomic). order_items has
       // ON DELETE CASCADE, so its line items are removed automatically. Once the
       // row is gone it can no longer appear in the customer's account history —

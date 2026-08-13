@@ -458,6 +458,13 @@ function processFlipkart(buffer, flags) {
   // the one section that's actually part of GSTR-8 rather than GSTR-1. findSheet's prefix match
   // already handles this suffix, but the confirmed exact strings are listed first regardless.
   const sec7b2 = findSheet(wb, ['Section 7(B)(2) in GSTR-1', 'Section 7(B)(2)', 'Section 7B2', '7(B)(2)', 'Section 7 B 2', '7B2']);
+  // Section 7(A)(2): intra-state B2C (CGST+SGST), the seller's own state. Unlike Section 7(B)(2)
+  // this sheet has no per-row state column, since every row is implicitly the seller's state.
+  // Confirmed missing from stateRows entirely: Section 12 (HSN) and Section 3 (GSTR-8/TCS) both
+  // tie out against Section 7(B)(2) + Section 7(A)(2) COMBINED, not 7(B)(2) alone, so ignoring
+  // this sheet both threw false 'does not tie' blockers AND silently dropped real intra-state
+  // sales out of Table 7 (B2CS) in the actual GSTR-1 output.
+  const sec7a2 = findSheet(wb, ['Section 7(A)(2) in GSTR-1', 'Section 7(A)(2)', 'Section 7A2', '7(A)(2)', 'Section 7 A 2', '7A2']);
   const sec12 = findSheet(wb, ['Section 12 in GSTR-1', 'Section 12']);
   const sec13 = findSheet(wb, ['Section 13 in GSTR-1', 'Section 13']);
   const sec3 = findSheet(wb, ['Section 3 in GSTR-8', 'Section 3 in GSTR-1', 'Section 3']);
@@ -493,7 +500,7 @@ function processFlipkart(buffer, flags) {
     if (state && Math.abs((gross - ret) - net) > 1) {
       flags.push(blocker('flipkart_state_net_mismatch', `Flipkart Section 7(B)(2), ${state}: Gross (₹${gross}) − Return (₹${ret}) ≠ reported Net (₹${net}). Bad data, stop and check the source file before filing.`, { state, gross, ret, net }));
     }
-    return { state, rate, taxable: net, igst };
+    return { state, rate, taxable: net, cgst: 0, sgst: 0, igst };
   }).filter((r) => r.state);
 
   // Same loud-failure principle: the sheet was found and has rows, but not one of them yielded a
@@ -502,6 +509,27 @@ function processFlipkart(buffer, flags) {
   if (sec7b2 && sec7b2.length && !stateRows.length) {
     flags.push(blocker('flipkart_state_col_unmatched', `Flipkart Section 7(B)(2) has ${sec7b2.length} row(s) but none had a resolvable state column ("Place of Supply", "State", etc.), so 0 rows were counted. Check the actual column headers and update gst-reconciliation.js. See context.rawSampleRow for the actual first row as read from the sheet.`, { rawSampleRow: sec7b2[0] }));
   }
+
+  // Section 7(A)(2) rows carry no state column (implicitly the seller's own state), derived here
+  // from the sheet's own GSTIN column rather than threading sellerState through from the caller,
+  // so this function stays self-contained on just the buffer it's given.
+  const sec7a2SellerGstin = (sec7a2 && sec7a2[0]) ? rowPicker(sec7a2[0])('GSTIN') : '';
+  const sec7a2SellerState = STATE_CODES[sec7a2SellerGstin.slice(0, 2)] || '';
+  const intraStateRows = (sec7a2 || []).map((raw) => {
+    const p = rowPicker(raw);
+    const gross = parseNumber(p('Gross Taxable Value', 'Gross Taxable', 'Gross Taxable Amount'));
+    const ret = parseNumber(p('Taxable Sales Return Value', 'Taxable Sales Return', 'Sales Return', 'Taxable Value Return', 'Return Taxable Value'));
+    const net = parseNumber(p('Net (Aggregate) Taxable Value', 'Net Aggregate Taxable Value', 'Net Taxable Value', 'Net Taxable Amount', 'Aggregate Taxable Value'));
+    const cgst = parseNumber(p('CGST', 'CGST Amount'));
+    const sgst = parseNumber(p('SGST', 'SGST Amount', 'SGST/UT Amount', 'SGST /UT Amount'));
+    const cgstRate = parseNumber(p('CGST %', 'CGST Rate'));
+    const rate = snapRate(cgstRate * 2 || (net ? (cgst * 2 / net) * 100 : 0));
+    if (Math.abs((gross - ret) - net) > 1) {
+      flags.push(blocker('flipkart_intrastate_net_mismatch', `Flipkart Section 7(A)(2): Gross (₹${gross}) − Return (₹${ret}) ≠ reported Net (₹${net}). Bad data, stop and check the source file before filing.`, { gross, ret, net }));
+    }
+    return { state: sec7a2SellerState, rate, taxable: net, cgst, sgst, igst: 0 };
+  }).filter((r) => r.state && (r.taxable || r.cgst || r.sgst));
+  stateRows.push(...intraStateRows);
 
   // Section 12 (HSN) and Section 13 (Documents Issued) are both part of GSTR-1 itself, so a
   // missing sheet is worth a warning when the workbook otherwise has real sales data (stateRows).
@@ -556,6 +584,13 @@ function processFlipkart(buffer, flags) {
       hsn: p('HSN', 'HSN Code', 'Hsn', 'HSN/SAC', 'HSN/SAC Code', 'HSN Number'),
       qty: parseNumber(p('Total Quantity', 'Qty', 'Quantity', 'Total Qty', 'Net Quantity', 'Total Quantity in Nos.')),
       taxable: parseNumber(p('Total Taxable Value', 'Taxable Value')),
+      // Previously dropped entirely: the merge step in reconcileGstPeriod only ever pulled qty and
+      // taxable off this row, so Flipkart's tax contribution to Table 12 (HSN) silently vanished
+      // even though Section 12 itself carries these columns (confirmed live: 'IGST Amount Rs.',
+      // 'CGST Amount Rs.', 'SGST Amount Rs.').
+      cgst: parseNumber(p('CGST Amount', 'CGST')),
+      sgst: parseNumber(p('SGST Amount', 'SGST')),
+      igst: parseNumber(p('IGST Amount', 'IGST', 'Integrated Tax Amount')),
     };
   }).filter((r) => r.hsn);
 
@@ -689,7 +724,9 @@ export function reconcileGstPeriod({ gstin, period, amazonB2bBuffer, amazonB2cBu
     const key = stateKey(r.state, r.rate, inter);
     const row = merged.get(key) || { state: r.state, rate: r.rate, inter, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
     row.taxable += r.taxable;
-    if (inter) row.igst += r.igst; else { row.cgst += r.igst / 2; row.sgst += r.igst / 2; }
+    row.igst += r.igst || 0;
+    row.cgst += r.cgst || 0;
+    row.sgst += r.sgst || 0;
     merged.set(key, row);
   }
   const b2cs = [...merged.values()].map((r) => ({
@@ -713,6 +750,7 @@ export function reconcileGstPeriod({ gstin, period, amazonB2bBuffer, amazonB2cBu
   for (const h of flipkartResult.hsnRows) {
     const row = hsnMerged.get(h.hsn) || { hsn: h.hsn, qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
     row.qty += h.qty; row.taxable += h.taxable;
+    row.cgst += h.cgst || 0; row.sgst += h.sgst || 0; row.igst += h.igst || 0;
     hsnMerged.set(h.hsn, row);
   }
   const hsn = [...hsnMerged.values()].map((h) => ({

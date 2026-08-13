@@ -26,7 +26,7 @@ import {
 } from '../controllers/gstController.js';
 import {
   updateBizSalesStatus, toggleBizSalesPaid, updateBizSalesPaymentMode,
-  insertBizReturn, addBizSalePayment, deleteBizSalePayment,
+  insertBizReturn, addBizSalePayment, updateBizSalePayment, deleteBizSalePayment,
 } from '../controllers/bizSalesController.js';
 import {
   listNewsletterSubscribers, broadcastToSubscribers, deleteSubscriber,
@@ -126,6 +126,7 @@ router.patch('/biz/sales/paid',                toggleBizSalesPaid);
 router.patch('/biz/sales/payment-mode',        updateBizSalesPaymentMode);
 router.post('/biz/returns',                    insertBizReturn);
 router.post('/biz/sales/:orderId/payments',    addBizSalePayment);
+router.patch('/biz/sales/payments/:id',        updateBizSalePayment);
 router.delete('/biz/sales/payments/:id',       deleteBizSalePayment);
 
 export default router;

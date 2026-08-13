@@ -617,6 +617,15 @@ async function submitAddress() {
 function renderReview() {
   var items    = Cart.getItems();
   var subtotal = Cart.total();
+  // A promo's discount_amount is only correct for the subtotal it was validated
+  // against. If the cart changed since then (item added/removed/qty changed via
+  // the cart sidebar, reachable from this same page), re-validate against the
+  // fresh subtotal instead of showing a stale discount, this also naturally drops
+  // the promo if the cart no longer meets its min_order_amount.
+  if (ckPromo && ckPromo._subtotalAtApply !== subtotal) {
+    revalidatePromo(subtotal);
+    return; // revalidatePromo() re-invokes renderReview() once it resolves
+  }
   var shipping = subtotal >= 999 ? 0 : 99;
   var discount = ckPromo ? ckPromo.discount_amount : 0;
   var total    = Math.max(0, subtotal + shipping - discount);
@@ -707,6 +716,7 @@ async function applyPromo() {
     var data = await res.json();
     if (data.valid) {
       ckPromo = data;
+      ckPromo._subtotalAtApply = subtotal;
       if (msg) {
         msg.style.color = '#15803D';
         var desc = data.discount_type === 'free_shipping'
@@ -726,6 +736,43 @@ async function applyPromo() {
     if (msg) { msg.style.color = '#B91C1C'; msg.textContent = '✕ Error: ' + (e.message || 'Could not validate. Try again.'); }
   }
   btn.disabled = false; btn.textContent = 'Apply';
+}
+
+/* Re-checks an already-applied promo against a subtotal that changed after applying
+   it (cart edited from the sidebar while on the review step), so the discount shown
+   never drifts from what the server would actually apply at payment time. */
+var _ckRevalidating = false;
+async function revalidatePromo(subtotal) {
+  if (_ckRevalidating || !ckPromo) return;
+  _ckRevalidating = true;
+  try {
+    var items = Cart.getItems();
+    var res = await fetch(CK_API + '/api/promo/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: ckPromo.code,
+        subtotal: subtotal,
+        items: items.map(function(i) { return { slug: i.id }; }),
+      }),
+    });
+    var data = await res.json();
+    var msg = document.getElementById('ckPromoMsg');
+    if (data.valid) {
+      ckPromo = data;
+      ckPromo._subtotalAtApply = subtotal;
+    } else {
+      ckPromo = null;
+      if (msg) { msg.style.color = '#B91C1C'; msg.textContent = '✕ Promo removed: ' + (data.error || 'no longer valid for this cart'); }
+    }
+  } catch (_e) {
+    // Network hiccup: keep the existing (now possibly stale) discount rather than
+    // dropping a valid promo over a transient fetch failure, but stop treating this
+    // subtotal as unvalidated so renderReview doesn't retry in a tight loop.
+    if (ckPromo) ckPromo._subtotalAtApply = subtotal;
+  }
+  _ckRevalidating = false;
+  renderReview();
 }
 
 /* ── Place order ────────────────────────────────────────── */
@@ -783,6 +830,9 @@ async function ckPlaceOrder() {
           shipping_charge: shipping,
           total_amount: total,
           special_instructions: chosenAddr.notes || null,
+          promo_code: ckPromo ? ckPromo.code : null,
+          is_gift: (function(){ var g = document.getElementById('ckIsGift'); return !!(g && g.checked); })(),
+          gift_message: (function(){ var g = document.getElementById('ckIsGift'); var m = document.getElementById('ckGiftMsg'); return (g && g.checked && m) ? m.value.trim() : null; })(),
         }),
       });
     } catch (_e) { console.warn('WhatsApp order save failed:', _e.message || _e); }
@@ -914,8 +964,9 @@ async function ckPlaceOrder() {
       theme:       { color: '#0F0F0D' },
       handler: async function(response) {
         btn.textContent = 'Verifying payment…';
+        var vRes;
         try {
-          var vRes = await Auth.apiFetch(CK_API + '/api/payments/verify', {
+          vRes = await Auth.apiFetch(CK_API + '/api/payments/verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -925,17 +976,27 @@ async function ckPlaceOrder() {
               order_id:            data.order_id,
             }),
           });
-          var vData = await vRes.json();
-          if (!vRes.ok) throw new Error(vData.error || 'Payment verification failed');
+        } catch (networkErr) {
+          /* Fetch itself failed (no response reached us), payment may still be valid server-side.
+             Do not claim success; send the customer to Orders where the real status will show
+             once it lands, rather than a confirmation page for an order we never confirmed. */
+          showToast('Payment sent, confirming your order… check My Orders in a moment. Contact us if it does not appear with your payment ID: ' + response.razorpay_payment_id, 'info');
           Cart.clear();
-          if (typeof gtagEvent === 'function') gtagEvent('purchase', { transaction_id: trkId, currency: 'INR', value: total });
-          window.location.href = 'order-confirmation.html?order_id=' + trkId;
-        } catch (e) {
-          /* Payment received but verification had a network issue, still treat as success */
-          showToast('Payment received! Order ID: ' + trkId,'success');
-          Cart.clear();
-          window.location.href = 'order-confirmation.html?order_id=' + trkId;
+          window.location.href = 'account.html?tab=orders';
+          return;
         }
+        var vData = await vRes.json().catch(function () { return {}; });
+        if (!vRes.ok) {
+          /* Server actively rejected verification (bad signature, mismatched order, etc).
+             This is a real failure, never tell the customer the payment succeeded. */
+          showToast((vData.error || 'Payment verification failed') + '. Contact support with payment ID: ' + response.razorpay_payment_id, 'error');
+          btn.disabled = false;
+          btn.innerHTML = 'Pay · <span id="ckPayAmt">₹' + total.toLocaleString('en-IN') + '</span> →';
+          return;
+        }
+        Cart.clear();
+        if (typeof gtagEvent === 'function') gtagEvent('purchase', { transaction_id: trkId, currency: 'INR', value: total });
+        window.location.href = 'order-confirmation.html?order_id=' + trkId;
       },
       modal: {
         ondismiss: function() {

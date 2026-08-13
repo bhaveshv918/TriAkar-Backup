@@ -1,6 +1,7 @@
 import Razorpay from 'razorpay';
 import crypto   from 'crypto';
 import supabase from '../db/supabaseClient.js';
+import { logActivity } from '../services/activityLog.js';
 
 /* Generate invoice number: TRK-YYYYMMDD-XXXX */
 function generateInvoiceNumber() {
@@ -256,11 +257,21 @@ export async function verifyPayment(req, res, next) {
       .select('product_id, quantity')
       .eq('order_id', order_id);
 
+    // Payment is already captured at this point, so an oversold item can't be un-confirmed
+    // automatically — flag it for an admin to resolve (refund or backorder) instead of
+    // letting decrement_stock's floor-at-zero clamp make the shortfall invisible.
+    let oversold = false;
     for (const item of orderItems ?? []) {
-      await supabase.rpc('decrement_stock', {
+      const { data: hadEnough } = await supabase.rpc('decrement_stock', {
         p_product_id: item.product_id,
         p_qty:        item.quantity,
       });
+      if (hadEnough === false) oversold = true;
+    }
+    if (oversold) {
+      await supabase.from('orders').update({ stock_oversold: true }).eq('id', order_id);
+      await logActivity(null, 'stock_oversold', 'order', order_id,
+        'Payment confirmed but one or more items did not have enough stock at decrement time. Needs manual review (refund or backorder).');
     }
 
     // Increment promo usage counter ONLY now that payment is verified — doing this at

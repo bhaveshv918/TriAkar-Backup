@@ -507,10 +507,10 @@ html[data-theme="dark"] #panelQuickadd.qa-bg-quotation{background:linear-gradien
    separate, hand-maintained mobile-only .mtopbar, that split left
    search/notifications/sign-out unreachable on phones.) ───────── */
 .biz-topbar{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:60;
-  background:linear-gradient(90deg,rgba(196,98,42,.07),var(--bg-1) 45%);
+  background:linear-gradient(90deg,rgba(196,98,42,.07),var(--bg-1) 45%,var(--bg-1) 55%,rgba(196,98,42,.07));
   border-bottom:1px solid var(--border);border-top:3px solid var(--accent);
   padding:9px 18px;box-shadow:var(--shadow)}
-html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98,42,.13),var(--bg-1) 45%)}
+html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98,42,.13),var(--bg-1) 45%,var(--bg-1) 55%,rgba(196,98,42,.13))}
 .biz-tb-brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:var(--text);white-space:nowrap}
 .biz-tb-mark{flex-shrink:0;border-radius:6px}
 .biz-tb-brand span{color:var(--text-3);font-weight:500}
@@ -1257,6 +1257,7 @@ html[data-theme="dark"] .biz-login{
 
         <div id="qlExpense" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
           <div class="form-grid">
+            <div class="form-group"><label>Date</label><input type="date" id="ql_exp_date"></div>
             <div class="form-group"><label>Category</label><select id="ql_exp_category"><option value="materials">Materials</option><option value="equipment">Equipment</option><option value="packaging">Packaging</option><option value="marketing">Marketing</option><option value="rent">Rent</option><option value="utilities">Utilities</option><option value="shipping">Shipping</option><option value="other" selected>Other (chai, misc)</option></select></div>
             <div class="form-group"><label>Amount ₹</label><input type="number" id="ql_exp_amount" step="0.01"></div>
             <div class="form-group"><label>Note</label><input type="text" id="ql_exp_note" placeholder="e.g. chai + snacks"></div>
@@ -3063,6 +3064,7 @@ html[data-theme="dark"] .biz-login{
 
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
           <button class="btn btn-primary btn-sm" onclick="gstaSave()">Save to Filing History</button>
+          <button class="btn btn-ghost btn-sm" onclick="gstaDownloadAll()" id="gstaDlAll" disabled>⬇ Download All</button>
           <button class="btn btn-ghost btn-sm" onclick="gstaDownload('b2b')" id="gstaDl_b2b" disabled>↓ b2b,sez,de.csv</button>
           <button class="btn btn-ghost btn-sm" onclick="gstaDownload('b2cs')" id="gstaDl_b2cs" disabled>↓ b2cs.csv</button>
           <button class="btn btn-ghost btn-sm" onclick="gstaDownload('hsn')" id="gstaDl_hsn" disabled>↓ hsn.csv</button>
@@ -3256,7 +3258,7 @@ html[data-theme="dark"] .biz-login{
         <div style="font-size:13px;font-weight:700;margin-bottom:12px" id="expenseFormTitle">Add Expense</div>
         <div class="form-grid">
           <div class="form-group"><label>Date</label><input type="date" id="ex_date"></div>
-          <div class="form-group"><label>Category</label><select id="ex_category" onchange="onExpenseCategoryChange()"><option value="materials">Materials</option><option value="equipment">Equipment</option><option value="packaging">Packaging</option><option value="marketing">Marketing</option><option value="rent">Rent</option><option value="utilities">Utilities</option><option value="shipping">Shipping</option><option value="staff_salary">Staff Salary</option><option value="other">Other</option></select></div>
+          <div class="form-group"><label>Category</label><select id="ex_category" onchange="onExpenseCategoryChange()"><option value="materials">Materials</option><option value="equipment">Equipment</option><option value="packaging">Packaging</option><option value="marketing">Marketing</option><option value="rent">Rent</option><option value="utilities">Utilities</option><option value="shipping">Shipping</option><option value="staff_salary">Staff Salary</option><option value="refund">Refund / Reversal</option><option value="other">Other</option></select></div>
           <div class="form-group" id="ex_staff_wrap" style="display:none"><label>Employee Name</label><input type="text" id="ex_staff_name" placeholder="e.g. Rohit" oninput="onExpenseCategoryChange()"></div>
           <div class="form-group" id="ex_spool_wrap" style="display:none"><label>Add to Spool <span style="color:var(--text-3);font-weight:400;text-transform:none">optional, bumps its stock</span></label><select id="ex_spool_id"><option value="">— none —</option></select></div>
           <div class="form-group" id="ex_spool_grams_wrap" style="display:none"><label>Grams Purchased</label><input type="number" id="ex_spool_grams" step="1" min="0"></div>
@@ -3265,6 +3267,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>GST ₹ (of amount)</label><input type="number" id="ex_gst" step="0.01"></div>
           <div class="form-group"><label>Payment Mode</label><select id="ex_payment"><option value="">—</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="bank">Bank</option><option value="ca_sbi">C/A, SBI</option><option value="ca_karur">C/A, Karur Vysya</option><option value="gpay">GPay</option><option value="paytm">Paytm</option></select></div>
           <div class="form-group"><label>Debited From <span style="color:var(--text-3);font-weight:400;text-transform:none">money-out source</span></label><input type="text" id="ex_source" placeholder="e.g. HDFC Current A/c, Cash Drawer"></div>
+          <div class="form-group"><label>Order ID <span style="color:var(--text-3);font-weight:400;text-transform:none">optional, links this to an order</span></label><input type="text" id="ex_order_id" placeholder="e.g. TRI-2026-0142"></div>
           <div class="form-group"><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="ex_recurring"> Recurring monthly</label></div>
           <div class="form-group" style="grid-column:span 2"><label>Invoice file <span style="color:var(--text-3);font-weight:400;text-transform:none">(any format, uploaded to private storage)</span></label>
             <input type="file" id="ex_invoice_file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv">
@@ -3281,8 +3284,8 @@ html[data-theme="dark"] .biz-login{
 </div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Date</th><th>Category</th><th>Vendor</th><th class="td-num">Amount</th><th class="td-num">GST</th><th>Invoice</th><th class="td-actions"></th></tr></thead>
-          <tbody id="expensesBody"><tr><td colspan="7" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+          <thead><tr><th>Date</th><th>Category</th><th>Vendor</th><th>Order</th><th class="td-num">Amount</th><th class="td-num">GST</th><th>Invoice</th><th class="td-actions"></th></tr></thead>
+          <tbody id="expensesBody"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
     </div><!-- /expenses -->
@@ -3315,6 +3318,14 @@ html[data-theme="dark"] .biz-login{
           <button class="btn btn-primary btn-sm" onclick="showAddIncome()" title="Shortcut: N">+ Log Income <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">N</span></button>
         </div>
       </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <select id="ldType" onchange="loadLedger()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px">
+          <option value="">In &amp; Out</option>
+          <option value="in">Money In only</option>
+          <option value="out">Money Out only</option>
+        </select>
+        <input type="text" id="ldSearch" oninput="renderLedgerRows()" placeholder="Search order id, category, vendor/customer…" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:5px 8px;min-width:220px">
+      </div>
       <div id="ldKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
       <div id="incomeForm" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.style.display='none'">
 <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto">
@@ -3326,6 +3337,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>Amount ₹</label><input type="number" id="in_amount" step="0.01"></div>
           <div class="form-group"><label>Payment Mode</label><select id="in_payment"><option value="">—</option><option value="bank_transfer">Bank Transfer</option><option value="ca_sbi">C/A, SBI</option><option value="ca_karur">C/A, Karur Vysya</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="gpay">GPay</option><option value="paytm">Paytm</option></select></div>
           <div class="form-group"><label>Bank Reference <span style="color:var(--text-3);font-weight:400;text-transform:none">optional</span></label><input type="text" id="in_bankref"></div>
+          <div class="form-group"><label>Order ID <span style="color:var(--text-3);font-weight:400;text-transform:none">optional, links this to an order</span></label><input type="text" id="in_order_id" placeholder="e.g. TRI-2026-0142"></div>
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="in_notes"></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
@@ -3334,10 +3346,26 @@ html[data-theme="dark"] .biz-login{
         </div>
       </div>
 </div>
+      <div id="paymentEditForm" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.style.display='none'">
+<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto">
+        <input type="hidden" id="pay_id">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px">Edit Order Payment</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Date</label><input type="date" id="pay_date"></div>
+          <div class="form-group"><label>Amount ₹</label><input type="number" id="pay_amount" step="0.01"></div>
+          <div class="form-group"><label>Source <span style="color:var(--text-3);font-weight:400;text-transform:none">payment mode/ref</span></label><input type="text" id="pay_source"></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="pay_notes"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary btn-sm" onclick="runSave(this,saveLedgerPayment)" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('paymentEditForm').style.display='none'">Cancel</button>
+        </div>
+      </div>
+</div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Date</th><th>Type</th><th>Category</th><th class="td-num">Amount</th><th>Mode / Ref</th><th class="td-actions"></th></tr></thead>
-          <tbody id="ledgerBody"><tr><td colspan="6" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+          <thead><tr><th>Date</th><th>Type</th><th>Category</th><th class="td-num">Amount</th><th>Mode / Ref</th><th>Order</th><th class="td-actions"></th></tr></thead>
+          <tbody id="ledgerBody"><tr><td colspan="7" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
     </div><!-- /ledger -->
@@ -3621,6 +3649,18 @@ const API = (location.hostname === 'localhost') ? 'http://localhost:3000' : 'htt
 async function getBizToken(){
   try{ const { data:sess } = await sb.auth.getSession(); const t = sess && sess.session && sess.session.access_token; if(t) return t; }catch(_){}
   return null;
+}
+// Money-write paths (order status, payment lock, payment installments) route through the
+// service-role backend instead of the browser's anon Supabase client, same pattern the GST
+// module already uses (getBizToken + Bearer auth), so RLS isn't the only thing standing
+// between the anon key and biz_sales/biz_returns.
+async function bizApiFetch(path, opts){
+  const token=await getBizToken();
+  if(!token) throw new Error('Session expired, please re-login');
+  const res=await fetch(API+path, Object.assign({headers:Object.assign({'Authorization':'Bearer '+token,'Content-Type':'application/json'},(opts&&opts.headers)||{})}, opts||{}));
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error||'Request failed');
+  return data;
 }
 
 // ── Business Settings ──────────────────────────────────────
@@ -5691,6 +5731,15 @@ async function openAddOrderFromQuotation(quotationId){
 // UPDATEd, rows removed from the item grid get soft-deleted (and their spool grams
 // restored), and any newly added rows get INSERTed, all sharing the original order_id.
 async function saveEditedOrder(){
+  // Shares the new-order guard: Save, "Order Record", and Invoice can all reach this
+  // function, and a fast double-click (or Save followed instantly by Record/Invoice)
+  // used to run two concurrent edits, each inserting the same "new" rows a second time.
+  if(_qaSaving) return;
+  _qaSaving=true;
+  const saveBtn=document.getElementById('qaSaveBtn');
+  const saveBtnOrig=saveBtn?saveBtn.innerHTML:'';
+  if(saveBtn){ saveBtn.disabled=true; saveBtn.innerHTML='⏳ Saving…'; }
+  try{
   const invalid=flagInvalidFields('quickAddForm');
   if(invalid.length){ reportInvalid(invalid); return; }
   const withIds=await buildSaleRowsWithIds();
@@ -5733,6 +5782,10 @@ async function saveEditedOrder(){
   exitAddOrderEditMode();
   switchTab('sales');
   if(typeof loadSales==='function') loadSales();
+  }finally{
+    _qaSaving=false;
+    if(saveBtn){ saveBtn.disabled=false; saveBtn.innerHTML=saveBtnOrig; }
+  }
 }
 
 // ── Payment installments (Phase 10 Group 1) ──────────────────
@@ -5761,7 +5814,10 @@ async function loadOrderPayments(orderId){
   let modeLine=document.getElementById('qaPayModeLine');
   if(!modeLine && card){ modeLine=document.createElement('div'); modeLine.id='qaPayModeLine'; modeLine.style.cssText='font-size:11px;color:var(--text-3);margin-bottom:8px'; card.querySelector('.qa-sec-title')?.after(modeLine); }
   if(modeLine) modeLine.textContent=modes.length?('Paid via: '+modes.join(' + ')):'';
-  if(modes.length) await sb.from('biz_sales').update({payment_mode:modes.join('+')}).eq('order_id',orderId);
+  // Always sync, not just when modes.length: deleting the last payment installment
+  // must clear payment_mode too, otherwise biz_sales keeps showing a mode for an
+  // order with zero logged payments.
+  try{ await bizApiFetch('/api/admin/biz/sales/payment-mode',{method:'PATCH',body:JSON.stringify({order_id:orderId,payment_mode:modes.length?modes.join('+'):null})}); }catch(_){}
 }
 // Brand-new orders have no order_id yet, so multiple transactions logged before the
 // first Save are held here and only actually written to biz_sale_payments on save.
@@ -5787,14 +5843,15 @@ async function addPaymentInstallment(){
     toast('Payment added, will log when you Save');
     return;
   }
-  const {error}=await sb.from('biz_sale_payments').insert({order_id:_qaEditOrderId,amount,payment_date,source});
-  if(error){ toast('Error: '+error.message,'error'); return; }
+  try{ await bizApiFetch('/api/admin/biz/sales/'+encodeURIComponent(_qaEditOrderId)+'/payments',{method:'POST',body:JSON.stringify({amount,payment_date,source})}); }
+  catch(e){ toast('Error: '+e.message,'error'); return; }
   toast('Payment logged');
   await loadOrderPayments(_qaEditOrderId);
 }
 async function deletePaymentInstallment(id){
   if(!confirm('Remove this payment entry?')) return;
-  await sb.from('biz_sale_payments').delete().eq('id',id);
+  try{ await bizApiFetch('/api/admin/biz/sales/payments/'+encodeURIComponent(id),{method:'DELETE'}); }
+  catch(e){ toast('Error: '+e.message,'error'); }
   await loadOrderPayments(_qaEditOrderId);
 }
 
@@ -6920,23 +6977,45 @@ async function ingestSettlement(e){
 async function syncWebsiteOrders(opts){
   opts=opts||{};
   try{
-    const {data:existing}=await sb.from('biz_sales').select('order_id').eq('import_source','website').limit(5000);
+    const {data:existing}=await sb.from('biz_sales').select('id,order_id,status').eq('import_source','website').limit(5000);
     const seen=new Set((existing||[]).map(r=>r.order_id).filter(Boolean));
+    // order_id -> [row ids], so a terminal status change on the website side can be
+    // pushed onto every line item biz_sales holds for that order.
+    const existingRowsByOrder=new Map();
+    (existing||[]).forEach(r=>{ if(!r.order_id) return; const arr=existingRowsByOrder.get(r.order_id)||[]; arr.push(r); existingRowsByOrder.set(r.order_id,arr); });
     const {data:orders,error}=await sb.from('orders')
       .select('id,order_id,invoice_number,customer_name,customer_phone,shipping_address,total_amount,status,order_status,payment_method,created_at, order_items(quantity,unit_price,products(name))')
       .order('created_at',{ascending:false}).limit(300);
     if(error){ if(opts.manual) toast('Website sync: '+error.message,'error'); return 0; }
+    // Map the website order's own status vocabulary onto the unified biz_sales lifecycle
+    // rather than defaulting everything non-cancelled/non-returned to 'completed', that
+    // silently marked every in-flight website order as done the moment it synced.
+    const WEB_STATUS_MAP={whatsapp_pending:'pending',placed:'order_received',pending:'pending',confirmed:'order_received',processing:'processing',shipped:'dispatched',delivered:'delivered',cancelled:'cancelled',returned:'returned',refunded:'returned'};
+    // A website order only ever gets INSERTed into biz_sales once, the first time it's
+    // seen, so a later status change on the website (customer/admin cancels, returns,
+    // or a refund is issued after sync) never used to reach biz_sales, the two systems
+    // could show contradictory state for the same order indefinitely. Terminal statuses
+    // are the ones worth force-propagating on every sync: they're website-authoritative
+    // events, unlike 'processing'/'dispatched' which BOS staff often advance manually
+    // ahead of what the website knows, overwriting those on every sync would instead
+    // regress real fulfillment progress back to whatever the website last reported.
+    const TERMINAL_WEB_STATUSES=new Set(['cancelled','returned']);
+    const statusFixes=[];
     const batch=[];
     (orders||[]).forEach(o=>{
-      const oid=o.order_id||o.invoice_number||o.id; if(!oid||seen.has(oid)) return;
+      const oid=o.order_id||o.invoice_number||o.id; if(!oid) return;
+      const st=String(o.status||o.order_status||'').toLowerCase();
+      const status=WEB_STATUS_MAP[st]||'order_received';
+      if(seen.has(oid)){
+        if(TERMINAL_WEB_STATUSES.has(status)){
+          (existingRowsByOrder.get(oid)||[]).forEach(r=>{
+            if(r.status!==status && !TERMINAL_WEB_STATUSES.has(r.status)) statusFixes.push(r.id);
+          });
+        }
+        return;
+      }
       const a=o.shipping_address||{};
       const addr=[a.line1,a.line2].filter(Boolean).join(', ');
-      // Map the website order's own status vocabulary onto the unified biz_sales lifecycle
-      // rather than defaulting everything non-cancelled/non-returned to 'completed', that
-      // silently marked every in-flight website order as done the moment it synced.
-      const st=String(o.status||o.order_status||'').toLowerCase();
-      const WEB_STATUS_MAP={whatsapp_pending:'pending',placed:'order_received',pending:'pending',confirmed:'order_received',processing:'processing',shipped:'dispatched',delivered:'delivered',cancelled:'cancelled',returned:'returned',refunded:'returned'};
-      const status=WEB_STATUS_MAP[st]||'order_received';
       const items=(o.order_items&&o.order_items.length)?o.order_items:[{quantity:1,unit_price:o.total_amount,products:null}];
       items.forEach(it=>{
         batch.push({
@@ -6954,7 +7033,25 @@ async function syncWebsiteOrders(opts){
         });
       });
     });
-    if(!batch.length){ if(opts.manual) toast('Website orders already up to date'); return 0; }
+    // statusFixes only records that at least one row needs fixing; the target status
+    // varies per order, so the actual update runs per matching order below.
+    if(statusFixes.length){
+      for(const oid of existingRowsByOrder.keys()){
+        const rows=existingRowsByOrder.get(oid)||[];
+        const ord=(orders||[]).find(o=>(o.order_id||o.invoice_number||o.id)===oid);
+        if(!ord) continue;
+        const st=String(ord.status||ord.order_status||'').toLowerCase();
+        const status=WEB_STATUS_MAP[st]||'order_received';
+        if(!TERMINAL_WEB_STATUSES.has(status)) continue;
+        const ids=rows.filter(r=>r.status!==status && !TERMINAL_WEB_STATUSES.has(r.status)).map(r=>r.id);
+        if(ids.length) await sb.from('biz_sales').update({status}).in('id',ids);
+      }
+    }
+    if(!batch.length){
+      if(opts.manual) toast(statusFixes.length?('Synced '+statusFixes.length+' status update(s)'):'Website orders already up to date');
+      if(typeof loadSalesBadge==='function') loadSalesBadge();
+      return statusFixes.length;
+    }
     await autoCreateProducts(batch);
     for(let i=0;i<batch.length;i+=100){ const {error:e2}=await sb.from('biz_sales').insert(batch.slice(i,i+100)); if(e2){ if(opts.manual) toast('Sync insert: '+e2.message,'error'); break; } }
     if(opts.manual){ toast('Synced '+batch.length+' website item(s)'); if(typeof loadSales==='function') loadSales(); }
@@ -7501,11 +7598,12 @@ async function loadExpenses(){
     <div class="kpi"><div class="kpi-label">GST (input credit)</div><div class="kpi-val">${fmt(gst)}</div></div>
     <div class="kpi"><div class="kpi-label">Entries</div><div class="kpi-val">${rows.length}</div></div>`;
   const tbody=document.getElementById('expensesBody'); if(!tbody) return;
-  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="em-text">No expenses in this range</div></div></td></tr>`; return; }
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="em-text">No expenses in this range</div></div></td></tr>`; return; }
   tbody.innerHTML=rows.map(r=>`<tr>
     <td style="font-family:var(--mono);font-size:11px">${esc(r.date)}</td>
     <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(r.category||'—')}</span>${r.recurring?' <span title="Recurring monthly" style="font-size:10px">↻</span>':''}</td>
     <td>${esc(r.vendor||'—')}</td>
+    <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(r.order_id||'—')}</td>
     <td class="td-num" style="font-weight:700">${fmt(r.amount)}</td>
     <td class="td-num" style="color:var(--text-3)">${fmt(r.gst_amount)}</td>
     <td>${r.invoice_url?`<a href="#" data-u="${esc(r.invoice_url)}" onclick="event.preventDefault();openInvoice(this.dataset.u)" style="color:var(--accent)">view</a>`:'—'}</td>
@@ -7532,13 +7630,25 @@ function populateExpenseSpoolSelect(){
 }
 // Round 3, "bill dalu aur stock update hojaye": logging a Materials expense against an
 // existing spool bumps that roll's total_grams instead of needing a separate Spool Tracker edit.
-async function applyExpenseToSpoolStock(){
+async function applyExpenseToSpoolStock(expenseId){
   const spoolId=document.getElementById('ex_spool_id')?.value;
   const grams=parseFloat(document.getElementById('ex_spool_grams')?.value)||0;
   if(!spoolId||!grams) return;
   const {data:sp}=await sb.from('filament_inventory').select('total_grams').eq('id',spoolId).single();
   if(!sp) return;
   await sb.from('filament_inventory').update({total_grams:(parseFloat(sp.total_grams)||0)+grams}).eq('id',spoolId);
+  // Persisted so deleting this expense later can reverse the exact bump it made.
+  if(expenseId) await sb.from('biz_expenses').update({spool_id:spoolId,spool_grams_applied:grams}).eq('id',expenseId);
+}
+// Deleting a Materials expense that bumped a spool's stock must give those grams back,
+// mirroring restoreSpoolsForIds() for order deletion. Without this the spool's
+// total_grams stayed permanently inflated after a mis-entered expense was removed.
+async function reverseExpenseSpoolStock(expenseRow){
+  if(!expenseRow?.spool_id||!expenseRow?.spool_grams_applied) return;
+  const {data:sp}=await sb.from('filament_inventory').select('total_grams').eq('id',expenseRow.spool_id).single();
+  if(!sp) return;
+  const next=Math.max(0,(parseFloat(sp.total_grams)||0)-parseFloat(expenseRow.spool_grams_applied));
+  await sb.from('filament_inventory').update({total_grams:next}).eq('id',expenseRow.spool_id);
 }
 async function duplicateExpenseNextMonth(id){
   const r=_expensesCache.find(x=>x.id===id); if(!r) return;
@@ -7551,7 +7661,7 @@ async function duplicateExpenseNextMonth(id){
 }
 function showAddExpense(){
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};
-  ['ex_id','ex_vendor','ex_amount','ex_gst','ex_invoice','ex_notes','ex_staff_name','ex_source','ex_spool_grams'].forEach(id=>set(id,''));
+  ['ex_id','ex_vendor','ex_amount','ex_gst','ex_invoice','ex_notes','ex_staff_name','ex_source','ex_spool_grams','ex_order_id'].forEach(id=>set(id,''));
   const spSel=document.getElementById('ex_spool_id'); if(spSel) spSel.value='';
   document.getElementById('ex_invoice_file').value=''; document.getElementById('ex_invoice_current').textContent='';
   set('ex_date',today()); document.getElementById('ex_category').value='materials'; document.getElementById('ex_payment').value='';
@@ -7563,7 +7673,7 @@ function showAddExpense(){
 function editExpense(id){
   const r=_expensesCache.find(x=>x.id===id); if(!r) return;
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
-  set('ex_id',r.id); set('ex_date',r.date); set('ex_vendor',r.vendor); set('ex_amount',r.amount); set('ex_gst',r.gst_amount); set('ex_invoice',r.invoice_url); set('ex_notes',r.notes); set('ex_source',r.source);
+  set('ex_id',r.id); set('ex_date',r.date); set('ex_vendor',r.vendor); set('ex_amount',r.amount); set('ex_gst',r.gst_amount); set('ex_invoice',r.invoice_url); set('ex_notes',r.notes); set('ex_source',r.source); set('ex_order_id',r.order_id);
   document.getElementById('ex_invoice_file').value='';
   document.getElementById('ex_invoice_current').textContent=r.invoice_url?('Current: '+(/^https?:/i.test(r.invoice_url)?'link':r.invoice_url.replace(/^inv_\d+_/,''))+', choose a file to replace'):'';
   document.getElementById('ex_category').value=r.category||'other'; document.getElementById('ex_payment').value=r.payment_mode||'';
@@ -7595,11 +7705,12 @@ async function saveExpense(){
   let payload={ date:g('ex_date')||today(), category:g('ex_category'), vendor:g('ex_vendor').trim()||null,
     amount:parseFloat(g('ex_amount'))||0, gst_amount:parseFloat(g('ex_gst'))||0, payment_mode:g('ex_payment')||null,
     source:g('ex_source').trim()||null, recurring:!!document.getElementById('ex_recurring')?.checked,
-    invoice_url, notes:g('ex_notes').trim()||null };
+    order_id:g('ex_order_id').trim()||null, invoice_url, notes:g('ex_notes').trim()||null };
   if(!id) payload=await attachRecordId(payload,true,'expense',payload.vendor);
-  const {error}=id?(await updateRowResilient('biz_expenses', id, payload)):(await insertResilient('biz_expenses',payload));
+  const result=id?(await updateRowResilient('biz_expenses', id, payload)):(await insertResilient('biz_expenses',payload,'id'));
+  const {error}=result;
   if(error){ toast('Error: '+error.message,'error'); return; }
-  if(!id) await applyExpenseToSpoolStock();  // only on create, editing an old expense shouldn't re-apply stock
+  if(!id) await applyExpenseToSpoolStock(result.data?.id);  // only on create, editing an old expense shouldn't re-apply stock
   logBizActivity(id?'edit':'create','expense',id,(payload.vendor||'')+' ₹'+payload.amount); toast(id?'Expense updated':'Expense added'); document.getElementById('expenseForm').style.display='none'; loadExpenses();
   // Expenses can now also be added from Money In/Out (they show there as "money out"
   // alongside income), so refresh that table too if it's the panel in view.
@@ -7613,7 +7724,14 @@ async function openInvoice(url){
   if(error||!data){ toast('Could not open invoice','error'); return; }
   window.open(data.signedUrl,'_blank');
 }
-async function deleteExpense(id){ if(!confirm('Delete this expense?')) return; const {error}=await sb.from('biz_expenses').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} logBizActivity('delete','expense',id,''); toast('Deleted'); loadExpenses(); }
+async function deleteExpense(id){
+  if(!confirm('Delete this expense?')) return;
+  const r=_expensesCache.find(x=>x.id===id);
+  const {error}=await sb.from('biz_expenses').delete().eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return;}
+  if(r) await reverseExpenseSpoolStock(r);
+  logBizActivity('delete','expense',id,''); toast('Deleted'); loadExpenses();
+}
 
 // ══════════════ MONEY IN/OUT LEDGER (§2.3) ══════════════
 // Studio Sales are NOT stored here, they're already on biz_sales (channel='shop',
@@ -7623,6 +7741,8 @@ async function deleteExpense(id){ if(!confirm('Delete this expense?')) return; c
 const INCOME_LABEL={flipkart_payout:'Flipkart Payout',amazon_payout:'Amazon Payout',website_payout:'Website Payout',misc:'Extra / Misc'};
 const INCOME_CHANNEL={flipkart_payout:'flipkart',amazon_payout:'amazon',website_payout:'website'};
 let _incomeCache=[];
+let _ledgerRowsCache=[];
+let _paymentsCache=[];
 // Shared FY (default) / Calendar Year / Select Month / Custom Range period picker, used
 // across Money In/Out, Purchases, Expenses & GST State-wise breakdown.
 function togglePeriodInputs(viewId,monthId,customId){
@@ -7691,6 +7811,8 @@ async function loadLedger(){
   ]);
   if(e1||e2||e3||e4){ toast('Error loading ledger','error'); return; }
   _incomeCache=inc||[];
+  _expensesCache=exp||[];   // lets the ledger's own Edit button reuse editExpense() without switching tabs
+  _paymentsCache=payRows||[];
   // Channel filter: Studio Sales (always channel=shop) & Payouts (matched via category) get
   // filtered; misc income has no channel so it drops out once a specific channel is picked.
   // Expenses have no channel concept at all, so they're always shown regardless of filter.
@@ -7733,23 +7855,32 @@ async function loadLedger(){
     <div class="kpi"><div class="kpi-label">Payouts + Misc (in)</div><div class="kpi-val">${fmt(payoutTotal)}</div></div>
     <div class="kpi red"><div class="kpi-label">Expenses (out)</div><div class="kpi-val">${fmt(expTotal)}</div></div>
     <div class="kpi ${totalIn-expTotal>=0?'':'red'}"><div class="kpi-label">${netLabel}</div><div class="kpi-val">${fmt(totalIn-expTotal)}</div></div>`;
-  const rows=[
+  _ledgerRowsCache=[
     ...studioF.map(r=>({date:r.date,type:'in',label:'Studio Sale',amount:r.amount,mode:r.payment_mode||'',ref:r.customer_name||'',isSale:true,saleId:r.id,orderId:r.order_id,recordId:r.record_id})),
     ...payF.map(r=>{ const m=payMeta[r.order_id]||{}; return {date:r.payment_date,type:'in',label:(r.notes||'Order Payment'),amount:r.amount,mode:r.source||'',ref:m.customer_name||'',isSale:true,saleId:m.id,orderId:m.order_id,recordId:m.record_id,payId:r.id}; }),
-    ...incF.map(r=>({date:r.date,type:'in',label:INCOME_LABEL[r.category]||r.category,amount:r.amount,mode:r.payment_mode||'',ref:r.bank_reference||'',id:r.id})),
-    ...(exp||[]).map(r=>({date:r.date,type:'out',label:r.category,amount:r.amount,mode:r.payment_mode||'',ref:r.vendor||'',isExpense:true,expId:r.id})),
+    ...incF.map(r=>({date:r.date,type:'in',label:INCOME_LABEL[r.category]||r.category,amount:r.amount,mode:r.payment_mode||'',ref:r.bank_reference||'',id:r.id,orderId:r.order_id})),
+    ...(exp||[]).map(r=>({date:r.date,type:'out',label:r.category,amount:r.amount,mode:r.payment_mode||'',ref:r.vendor||'',isExpense:true,expId:r.id,orderId:r.order_id})),
   ].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  renderLedgerRows();
+}
+function renderLedgerRows(){
   const tbody=document.getElementById('ledgerBody'); if(!tbody) return;
-  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="6" class="empty"><div class="em-text">No entries</div></div></td></tr>`; return; }
+  const type=document.getElementById('ldType')?.value||'';
+  const q=(document.getElementById('ldSearch')?.value||'').trim().toLowerCase();
+  let rows=_ledgerRowsCache||[];
+  if(type) rows=rows.filter(r=>r.type===type);
+  if(q) rows=rows.filter(r=>[r.label,r.ref,r.mode,r.orderId,r.recordId].some(v=>(v||'').toString().toLowerCase().includes(q)));
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="7" class="empty"><div class="em-text">No entries</div></div></td></tr>`; return; }
   tbody.innerHTML=rows.map(r=>`<tr>
     <td style="font-family:var(--mono);font-size:11px">${esc(r.date||'')}</td>
     <td><span class="badge badge-${r.type==='in'?'completed':'returned'}">${r.type==='in'?'In':'Out'}</span></td>
     <td>${esc(r.label||'—')}</td>
     <td class="td-num" style="font-weight:700;color:${r.type==='in'?'var(--green)':'var(--red)'}">${r.type==='in'?'+':'-'}${fmt(r.amount)}</td>
     <td style="font-size:11px;color:var(--text-3)">${esc(r.mode||'—')}${r.ref?' · '+esc(r.ref):''}</td>
+    <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(r.recordId||r.orderId||'—')}</td>
     <td class="td-actions">${r.id?`<button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editIncome('${r.id}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteIncome('${r.id}')">✕</button>`
-      :r.payId?`<button class="btn btn-danger btn-sm" onclick="deleteLedgerPayment('${r.payId}')" title="Remove this payment, an accidentally-duplicated entry">✕</button>`
-      :r.expId?`<button class="btn btn-danger btn-sm" onclick="deleteLedgerExpense('${r.expId}')" title="Remove this expense">✕</button>`
+      :r.payId?`<button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editLedgerPayment('${r.payId}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteLedgerPayment('${r.payId}')" title="Remove this payment, an accidentally-duplicated entry">✕</button>`
+      :r.expId?`<button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editExpense('${r.expId}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteLedgerExpense('${r.expId}')" title="Remove this expense">✕</button>`
       :(r.isSale&&r.saleId?`<a href="#" onclick="jumpToOrderDetail('${r.saleId}',event)" style="color:var(--accent);font-size:10px;font-family:var(--mono)" title="Open order details">${esc(r.recordId||r.orderId||'view order')}</a>`:'')}</td>
   </tr>`).join('');
 }
@@ -7759,16 +7890,36 @@ async function deleteLedgerPayment(id){
   if(error){ toast('Error: '+error.message,'error'); return; }
   toast('Payment removed'); loadLedger();
 }
+// Order Payment rows (biz_sale_payments) used to be delete-only, correcting a mistyped
+// amount meant delete + re-add and losing the original created_at/audit ordering. Goes
+// through the backend (service-role) since there's no PATCH RLS policy for this table.
+function editLedgerPayment(id){
+  const r=_paymentsCache.find(x=>x.id===id); if(!r) return;
+  const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
+  set('pay_id',r.id); set('pay_date',r.payment_date); set('pay_amount',r.amount); set('pay_source',r.source); set('pay_notes',r.notes);
+  document.getElementById('paymentEditForm').style.display='flex';
+}
+async function saveLedgerPayment(){
+  const g=k=>{const e=document.getElementById(k);return e?e.value:'';};
+  const id=g('pay_id');
+  if(!(parseFloat(g('pay_amount'))>0)){ toast('Enter an amount','error'); return; }
+  const payload={ amount:parseFloat(g('pay_amount'))||0, payment_date:g('pay_date')||today(), source:g('pay_source').trim()||null, notes:g('pay_notes').trim()||null };
+  try{ await bizApiFetch('/api/admin/biz/sales/payments/'+id,{method:'PATCH',body:JSON.stringify(payload)}); }
+  catch(e){ toast('Error: '+e.message,'error'); return; }
+  toast('Payment updated'); document.getElementById('paymentEditForm').style.display='none'; loadLedger();
+}
 async function deleteLedgerExpense(id){
   if(!confirm('Remove this expense entry?')) return;
+  const r=_expensesCache.find(x=>x.id===id);
   const {error}=await sb.from('biz_expenses').delete().eq('id',id);
   if(error){ toast('Error: '+error.message,'error'); return; }
+  if(r) await reverseExpenseSpoolStock(r);
   logBizActivity('delete','expense',id,'');
   toast('Expense removed'); loadLedger();
 }
 function showAddIncome(){
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};
-  ['in_id','in_bankref','in_notes'].forEach(id=>set(id,''));
+  ['in_id','in_bankref','in_notes','in_order_id'].forEach(id=>set(id,''));
   set('in_amount',''); set('in_date',today()); set('in_category','flipkart_payout'); set('in_payment','');
   document.getElementById('incomeFormTitle').textContent='Log Income';
   const f=document.getElementById('incomeForm'); f.style.display='flex';
@@ -7777,7 +7928,7 @@ function editIncome(id){
   const r=_incomeCache.find(x=>x.id===id); if(!r) return;
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
   set('in_id',r.id); set('in_date',r.date); set('in_category',r.category); set('in_amount',r.amount);
-  set('in_payment',r.payment_mode); set('in_bankref',r.bank_reference); set('in_notes',r.notes);
+  set('in_payment',r.payment_mode); set('in_bankref',r.bank_reference); set('in_notes',r.notes); set('in_order_id',r.order_id);
   document.getElementById('incomeFormTitle').textContent='Edit Income';
   const f=document.getElementById('incomeForm'); f.style.display='flex';
 }
@@ -7786,7 +7937,7 @@ async function saveIncome(){
   const id=g('in_id');
   if(!(parseFloat(g('in_amount'))>0)){ toast('Enter an amount','error'); return; }
   const payload={ date:g('in_date')||today(), category:g('in_category'), amount:parseFloat(g('in_amount'))||0,
-    payment_mode:g('in_payment')||null, bank_reference:g('in_bankref').trim()||null, notes:g('in_notes').trim()||null };
+    payment_mode:g('in_payment')||null, bank_reference:g('in_bankref').trim()||null, order_id:g('in_order_id').trim()||null, notes:g('in_notes').trim()||null };
   const {error}=id?await updateRowResilient('biz_income', id, payload):await sb.from('biz_income').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
   logBizActivity(id?'edit':'create','income',id,INCOME_LABEL[payload.category]+' ₹'+payload.amount);
@@ -8473,8 +8624,8 @@ async function deleteOrder(firstId){
 async function togglePaidOrder(firstId,allPaid){
   const items=_orderGroup(firstId), ids=items.map(s=>s.id);
   if(!allPaid && !confirm('Lock this order? No further changes will be allowed until unlocked.')) return;
-  const {error}=await sb.from('biz_sales').update({is_paid:!allPaid}).in('id',ids);
-  if(error){ toast('Error: '+error.message,'error'); return; }
+  try{ await bizApiFetch('/api/admin/biz/sales/paid',{method:'PATCH',body:JSON.stringify({ids,is_paid:!allPaid})}); }
+  catch(e){ toast('Error: '+e.message,'error'); return; }
   loadSales();
 }
 // ── Round 3: unified order lifecycle (was split across status + production_status) ──
@@ -8586,7 +8737,9 @@ async function syncReturnRowForStatus(status,items,f){
   // Snapshot the sale's real cost breakdown too (not just the shipping-only quick-loss estimate
   // above), so the Edit Return form always has a COGS to work with instead of showing blank
   // fields / a ₹0 recompute for a return that was auto-created from a status change.
-  await sb.from('biz_returns').insert({sale_id:f.id,channel_id:f.channel_id,order_id:f.order_id,type:'return',stage,date:today(),orig_product_cost:cogs,orig_shipping:fwd,orig_packing:packing,amount_lost:loss,refund_given:0,status:'pending',reason:status==='returned'?'Marked returned (shipping + return + packing)':'Return initiated from order status'});
+  try{
+    await bizApiFetch('/api/admin/biz/returns',{method:'POST',body:JSON.stringify({sale_id:f.id,channel_id:f.channel_id,order_id:f.order_id,type:'return',stage,date:today(),orig_product_cost:cogs,orig_shipping:fwd,orig_packing:packing,amount_lost:loss,refund_given:0,status:'pending',reason:status==='returned'?'Marked returned (shipping + return + packing)':'Return initiated from order status'})});
+  }catch(e){ toast('Return log failed: '+e.message,'error'); }
 }
 async function updateOrderStatus(firstId,status){
   const items=_orderGroup(firstId), ids=items.map(s=>s.id), f=items[0];
@@ -8597,8 +8750,8 @@ async function updateOrderStatus(firstId,status){
   // PROMISED delivery date set at Add Sale time, not when the order truly arrived. Stamp the
   // real arrival date here, same pattern as completed_at, and use THIS for the return window.
   if(status==='delivered') payload.delivered_at=today();
-  const {error}=await sb.from('biz_sales').update(payload).in('id',ids);
-  if(error){ toast('Error: '+error.message,'error'); return; }
+  try{ await bizApiFetch('/api/admin/biz/sales/status',{method:'PATCH',body:JSON.stringify({ids,payload})}); }
+  catch(e){ toast('Error: '+e.message,'error'); return; }
   if(status!==prevStatus) await logOrderStatusChange(f.order_id||firstId,status);
   await syncReturnRowForStatus(status,items,f);
   toast('Order updated'); loadSales(); if(typeof loadReturnsBadge==='function') loadReturnsBadge();
@@ -8841,26 +8994,27 @@ async function markReturn(id){
   id=id||(_qaEditRowIds&&_qaEditRowIds[0]);
   const s=_salesCache.find(x=>x.id===id); if(!s) return;
   if(!confirm('Mark this order as Returned and log in Returns?')) return;
-  const {error:e1}=await sb.from('biz_sales').update({status:'returned'}).eq('id',id);
-  if(e1){toast('Error: '+e1.message,'error');return;}
+  try{ await bizApiFetch('/api/admin/biz/sales/status',{method:'PATCH',body:JSON.stringify({ids:[id],payload:{status:'returned'}})}); }
+  catch(e1){ toast('Error: '+e1.message,'error'); return; }
   // Insert return record. Also snapshot the sale's real cost breakdown (not just the
   // shipping-only quick-loss estimate), so the Edit Return form always has a COGS to work
   // with instead of showing blank fields / a ₹0 recompute for this auto-created return.
-  const {error:e2}=await sb.from('biz_returns').insert({
-    sale_id:id,
-    channel_id:s.channel_id,
-    order_id:s.order_id,
-    type:'return',
-    date:today(),
-    orig_product_cost:s.cogs||0,
-    orig_shipping:s.shipping_fee||0,
-    orig_packing:s.other_deductions||0,
-    amount_lost:calcReturnLoss(s.channel_id,s.selling_price,s.shipping_fee),
-    refund_given:0,
-    status:'pending',
-    reason:'Marked from All Sales',
-  });
-  if(e2){toast('Sale marked returned but return log failed: '+e2.message,'error');return;}
+  try{
+    await bizApiFetch('/api/admin/biz/returns',{method:'POST',body:JSON.stringify({
+      sale_id:id,
+      channel_id:s.channel_id,
+      order_id:s.order_id,
+      type:'return',
+      date:today(),
+      orig_product_cost:s.cogs||0,
+      orig_shipping:s.shipping_fee||0,
+      orig_packing:s.other_deductions||0,
+      amount_lost:calcReturnLoss(s.channel_id,s.selling_price,s.shipping_fee),
+      refund_given:0,
+      status:'pending',
+      reason:'Marked from All Sales',
+    })});
+  }catch(e2){ toast('Sale marked returned but return log failed: '+e2.message,'error'); return; }
   toast('Marked as returned');
   exitAddOrderEditMode();
   switchTab('sales');
@@ -10062,19 +10216,29 @@ function gstaRenderReview(){
   </tr>`).join(''):`<tr><td colspan="6" class="empty"><div class="em-text">No documents</div></td></tr>`;
 
   ['b2b','b2cs','hsn','docs'].forEach(k=>{ const b=document.getElementById('gstaDl_'+k); if(b) b.disabled=true; });
+  const dlAll0=document.getElementById('gstaDlAll'); if(dlAll0) dlAll0.disabled=true;
   const mf=document.getElementById('gstaMarkFiledBtn'); if(mf) mf.disabled=true;
 }
 
-async function gstaSave(){
+async function gstaSave(confirmRefile){
   const r=_gstaResult; if(!r){ toast('Calculate first','error'); return; }
   const token=await getBizToken(); if(!token){ toast('Session expired, please re-login','error'); return; }
   try{
     const res=await fetch(API+'/api/admin/gst/save',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-      body:JSON.stringify({period:r.period,gstin:r.gstin,summary:r.summary,tables:r.tables,flags:r.flags,sourceFiles:r.sourceFiles})});
+      body:JSON.stringify({period:r.period,gstin:r.gstin,summary:r.summary,tables:r.tables,flags:r.flags,sourceFiles:r.sourceFiles,confirmRefile:!!confirmRefile})});
     const data=await res.json();
-    if(!res.ok) throw new Error(data.error||'Save failed');
+    if(!res.ok){
+      // Period is already marked filed on the portal; re-saving would silently downgrade
+      // that status, so ask before doing it instead of just failing or just doing it.
+      if(res.status===409 && data.requiresConfirmRefile){
+        if(confirm(data.error+'\n\nProceed and reset status to "reviewed"?')){ return gstaSave(true); }
+        return;
+      }
+      throw new Error(data.error||'Save failed');
+    }
     _gstaSavedPeriodId=data.periodId;
     ['b2b','b2cs','hsn','docs'].forEach(k=>{ const b=document.getElementById('gstaDl_'+k); if(b) b.disabled=false; });
+    const dlAll1=document.getElementById('gstaDlAll'); if(dlAll1) dlAll1.disabled=false;
     const mf=document.getElementById('gstaMarkFiledBtn'); if(mf) mf.disabled=false;
     toast('Saved to filing history');
     _gstaCurrentStatusCache=undefined; // invalidate reminder-suppression cache
@@ -10094,6 +10258,17 @@ async function gstaDownload(table){
   const blob=await res.blob();
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${GSTA_EXPORT_FILENAMES[table]||table}_${_gstaResult.period}.csv`;
   document.body.appendChild(a); a.click(); a.remove();
+}
+
+// Triggers all 4 individually rather than zipping server-side: each request already goes
+// through gstaDownload's existing auth/error handling, and a small sequential delay between
+// clicks keeps browsers from silently blocking a burst of same-tick downloads.
+async function gstaDownloadAll(){
+  if(!_gstaSavedPeriodId){ toast('Save to filing history first','error'); return; }
+  for(const table of ['b2b','b2cs','hsn','docs']){
+    await gstaDownload(table);
+    await new Promise((r)=>setTimeout(r,300));
+  }
 }
 
 async function gstaMarkFiled(){
@@ -10180,6 +10355,7 @@ async function gstaReopenPeriod(periodId){
   document.getElementById('gstaGstin').value=data.period.seller_gstin;
   gstaRenderReview();
   ['b2b','b2cs','hsn','docs'].forEach(k=>{ const b=document.getElementById('gstaDl_'+k); if(b) b.disabled=false; });
+  const dlAll2=document.getElementById('gstaDlAll'); if(dlAll2) dlAll2.disabled=false;
   const mf=document.getElementById('gstaMarkFiledBtn'); if(mf) mf.disabled=(data.period.status==='filed');
   document.getElementById('gstaReview').scrollIntoView({behavior:'smooth'});
 }
@@ -11640,17 +11816,29 @@ async function allocateInvoiceNumber(saleId, orderId, docKind, manualNumber){
     // kept incrementing forever regardless of deletions). Deleting the latest logged
     // invoice (deleteInvoiceLog) now genuinely frees that number back up instead of
     // leaving a permanent gap the counter goes on remembering.
-    const {data:periodRows}=await sb.from('biz_invoices').select('invoice_number').eq('period',period);
-    let maxSeq=0;
-    (periodRows||[]).forEach(r=>{ const m=(r.invoice_number||'').match(/(\d+)\s*$/); if(m){ const s=parseInt(m[1],10); if(s>maxSeq) maxSeq=s; } });
-    // TRK/2026-27/AUG/01, 2-digit padding. padStart is a no-op once seq reaches
-    // 100+, so it naturally extends past 99 without any special-casing needed.
-    const num=`TRK/${fy}/${mmm}/${String(maxSeq+1).padStart(2,'0')}`;
-    const {error:insErr}=await sb.from('biz_invoices').insert({invoice_number:num,financial_year:fy,period,sale_id:saleId||null,order_id:orderId||null,doc_kind:docKind});
-    if(insErr) throw insErr;
-    return num;
-  }catch(_){
-    return manualNumber||nextDocNumber();
+    // Read-then-insert isn't atomic, so two concurrent allocations can both read the
+    // same maxSeq and race for the same number; biz_invoices.invoice_number is UNIQUE,
+    // so the loser's insert fails. Retry with a freshly-read maxSeq instead of falling
+    // back to a number that's never actually logged, that fallback used to make a
+    // reprint of the same order silently mint a second, different invoice number
+    // because the real one wasn't in biz_invoices for the order_id lookup to find.
+    for(let attempt=0;attempt<5;attempt++){
+      const {data:periodRows}=await sb.from('biz_invoices').select('invoice_number').eq('period',period);
+      let maxSeq=0;
+      (periodRows||[]).forEach(r=>{ const m=(r.invoice_number||'').match(/(\d+)\s*$/); if(m){ const s=parseInt(m[1],10); if(s>maxSeq) maxSeq=s; } });
+      // TRK/2026-27/AUG/01, 2-digit padding. padStart is a no-op once seq reaches
+      // 100+, so it naturally extends past 99 without any special-casing needed.
+      const num=`TRK/${fy}/${mmm}/${String(maxSeq+1).padStart(2,'0')}`;
+      const {error:insErr}=await sb.from('biz_invoices').insert({invoice_number:num,financial_year:fy,period,sale_id:saleId||null,order_id:orderId||null,doc_kind:docKind});
+      if(!insErr) return num;
+      const isCollision=insErr.code==='23505'||/duplicate|unique/i.test(insErr.message||'');
+      if(!isCollision) throw insErr;
+      // Someone else claimed this number between our read and insert, loop and re-read.
+    }
+    throw new Error('Could not allocate a unique invoice number after several attempts, please try again.');
+  }catch(e){
+    toast('Invoice numbering error: '+(e.message||'could not allocate a number')+'. Not printed, try again.','error');
+    return null;
   }
 }
 async function printInvoice(d, type, docKind, win){
@@ -11818,6 +12006,7 @@ async function printInvoice(d, type, docKind, win){
   const hdrShowGstin=isQuote?docQuo('gstin'):(isRecord||docInv('gstin'));
   const hdrShowAddr=isQuote?true:(isRecord||docInv('business_address'));
   const docNo=isRecord?(d.order_id||nextDocNumber()):isQuote?(d.quotation_number||await genQuotationNumber()):await allocateInvoiceNumber(d.id||d.sale_id||null, d.order_id||null, docKind||'invoice', (d.invoice_no||'').trim()||null);
+  if(!docNo){ if(win) win.close(); return; } // allocateInvoiceNumber already toasted the reason
   const docDate=d.order_date||today();
   const dueDateObj=new Date(docDate+'T00:00:00'); dueDateObj.setDate(dueDateObj.getDate()+DUE_DAYS);
   const dueDateStr=dueDateObj.toISOString().slice(0,10);

@@ -46,12 +46,19 @@ export async function calculateGst(req, res, next) {
 // ── POST /api/admin/gst/save, persists a reviewed calculation, upsert on period ──
 export async function saveGstCalc(req, res, next) {
   try {
-    const { period, gstin, summary, tables, flags, sourceFiles } = req.body || {};
+    const { period, gstin, summary, tables, flags, sourceFiles, confirmRefile } = req.body || {};
     if (!PERIOD_RE.test(period || '')) return res.status(400).json({ error: 'period must be YYYY-MM' });
     if (!gstin || !summary || !tables) return res.status(400).json({ error: 'gstin, summary and tables are required' });
 
     const { data: existing } = await supabase
-      .from('biz_gst_calc_periods').select('id').eq('period', period).maybeSingle();
+      .from('biz_gst_calc_periods').select('id, status').eq('period', period).maybeSingle();
+
+    // A period already marked 'filed' on the GST portal must not silently lose that status
+    // just because someone reopened it and hit Save again, e.g. to re-check a number.
+    // Require an explicit confirmation from the caller before downgrading it.
+    if (existing?.status === 'filed' && !confirmRefile) {
+      return res.status(409).json({ error: 'This period is already marked as filed. Re-saving will reset its status to "reviewed". Confirm to proceed.', requiresConfirmRefile: true });
+    }
 
     let periodId = existing?.id;
     if (periodId) {
