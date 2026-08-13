@@ -54,7 +54,41 @@
 <style>
 .about-hero{display:grid;grid-template-columns:1fr 1fr;min-height:400px;background:var(--charcoal);overflow:hidden}
 .about-left{padding:34px 40px;display:flex;flex-direction:column;justify-content:center}
-.about-right{display:flex;align-items:center;justify-content:center;padding:30px}
+.about-right{display:flex;align-items:center;justify-content:center;padding:30px;position:relative;overflow:hidden;margin:22px;border-radius:22px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.015)}
+/* Ambient dressing so the live-print card doesn't float alone in flat
+   black: a soft TRI-orange glow centered behind it, plus a thin gradient
+   "line" anchored to the bottom of the frame that reads as a continuation
+   past the card rather than dead space. Both breathe together, low
+   opacity throughout, purely decorative. */
+.about-right::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background-image:
+    radial-gradient(circle,rgba(196,98,42,.18) 0%,rgba(196,98,42,.07) 45%,transparent 72%),
+    linear-gradient(180deg,rgba(196,98,42,.55) 0%,rgba(196,98,42,.15) 60%,transparent 100%);
+  background-repeat:no-repeat,no-repeat;
+  background-position:50% 46%,50% 100%;
+  background-size:480px 480px,2px 45%;
+  animation:aboutGlowPulse 4.5s ease-in-out infinite;
+}
+/* Faint ghosted त्रि mark, purely decorative texture behind the widget */
+.about-right::after{
+  content:'त्रि';
+  position:absolute;
+  top:47%;left:50%;
+  transform:translate(-50%,-50%);
+  font-family:var(--font-h);
+  font-size:min(48vw,360px);
+  line-height:1;
+  color:rgba(255,255,255,.035);
+  white-space:nowrap;
+  pointer-events:none;
+  user-select:none;
+}
+@keyframes aboutGlowPulse{0%,100%{opacity:.7}50%{opacity:1}}
+@media(prefers-reduced-motion:reduce){.about-right::before{animation:none}}
 .about-big-text{font-family:var(--font-g);font-size:clamp(26px,5vw,68px);font-weight:400;color:var(--ivory);line-height:1.08;margin-bottom:24px;letter-spacing:-.03em}
 .about-stats{display:flex;align-items:center;gap:0;margin-top:32px;background:rgba(196,98,42,.06);border-radius:8px;overflow:hidden}
 .astat{padding:18px 22px;display:flex;flex-direction:column;gap:3px;border-right:1px solid rgba(196,98,42,.12)}
@@ -62,7 +96,7 @@
 .astat-n{font-size:20px;font-weight:700;color:var(--ivory)}
 .astat-l{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:rgba(196,98,42,.8)}
 /* Glass card wrapping the triangle */
-.tri-glass{position:relative;background:rgba(255,255,255,.05);backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:36px 40px 28px;text-align:center;overflow:hidden}
+.tri-glass{position:relative;z-index:1;background:rgba(255,255,255,.05);backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:36px 40px 28px;text-align:center;overflow:hidden}
 .tri-glass-glow{position:absolute;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(196,98,42,.22) 0%,transparent 68%);top:30%;left:50%;transform:translate(-50%,-50%);filter:blur(24px);pointer-events:none}
 #triakar-print-animation{width:270px;height:330px;margin:0 auto;transform:scale(.85)}
 .tri-hindi{font-family:var(--font-h);margin-top:8px}
