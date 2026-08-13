@@ -74,6 +74,10 @@
 .story-related-nav{width:36px;height:36px;border-radius:50%;border:none;background:var(--charcoal);color:var(--ivory);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .2s}
 .story-related-nav:hover{background:var(--accent)}
 .story-related-nav:disabled{opacity:.3;cursor:default;background:var(--charcoal)}
+.story-post-all-read{text-align:center;padding:36px 20px;background:var(--ivory);border-radius:12px}
+.story-all-read-icon{font-size:32px;margin-bottom:10px}
+.story-all-read-h{font-family:var(--font-g);font-size:clamp(20px,3vw,28px);font-weight:400;color:var(--charcoal);text-transform:none;letter-spacing:normal;margin-bottom:10px}
+.story-all-read-p{font-size:15px;line-height:1.7;color:var(--warm);max-width:480px;margin:0 auto}
 </style>
 <script defer src="/_vercel/insights/script.js"></script>
 <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -87,9 +91,6 @@
 <div id="drawer-root"></div><script>if(window._DRAWER_HTML)document.getElementById("drawer-root").outerHTML=window._DRAWER_HTML;</script>
 
 <article class="story-post" id="storyPost">
-  <nav class="story-post-breadcrumb" aria-label="Breadcrumb">
-    <a href="index.html">Home</a><span style="margin:0 6px">/</span><a href="stories.html">Stories</a><span style="margin:0 6px">/</span><span id="crumbTitle" aria-current="page">…</span>
-  </nav>
 
   <div class="story-post-photo" id="postPhoto" style="display:none"></div>
 
@@ -148,7 +149,6 @@
   function showNotFound(){
     setNoindex();
     document.getElementById('postTitle').textContent='Story not found';
-    document.getElementById('crumbTitle').textContent='Not found';
     document.getElementById('postLead').textContent='This story may have been removed or the link is out of date.';
     document.getElementById('postBody').innerHTML='<a href="stories.html" class="btn btn-outline" style="margin-top:12px;display:inline-block">← Browse All Stories</a>';
   }
@@ -201,10 +201,31 @@
     var s2=document.createElement('script');s2.type='application/ld+json';s2.id='taCrumbSchema';s2.textContent=JSON.stringify(crumbs);document.head.appendChild(s2);
   }
 
-  function renderRelated(related){
+  const READ_KEY='ta_read_stories';
+  function getReadSet(){
+    try{ return new Set(JSON.parse(localStorage.getItem(READ_KEY))||[]); }catch(e){ return new Set(); }
+  }
+  function markRead(slug){
+    if(!slug)return;
+    const set=getReadSet();
+    set.add(slug);
+    try{ localStorage.setItem(READ_KEY, JSON.stringify([...set])); }catch(e){}
+  }
+
+  function renderAllReadMessage(wrap){
+    wrap.innerHTML=`<div class="story-post-related story-post-all-read">
+      <div class="story-all-read-icon">✨</div>
+      <h2 class="story-all-read-h">You've read all our stories</h2>
+      <p class="story-all-read-p">Every story we've shared so far, all read. We're glad you stuck around, thank you. A new one lands every month, come back and see what's next.</p>
+      <a href="stories.html" class="btn btn-outline" style="margin-top:6px;display:inline-block">← Browse All Stories</a>
+    </div>`;
+  }
+
+  function renderRelated(related, allRead){
     const wrap=document.getElementById('postRelated');
+    if(allRead){ renderAllReadMessage(wrap); return; }
     if(!related || !related.length){ wrap.innerHTML=''; return; }
-    const cards=related.slice(0,12).map(r=>{
+    const cards=related.slice(0,15).map(r=>{
       const monthLabel=(MONTH_NAMES[r.month]||'')+(r.year?' '+r.year:'');
       const photo=r.image_url?`<img src="${esc(r.image_url)}" alt="${esc(r.title)}" loading="lazy">`:`<div class="story-photo-fallback">${TAG_ICON[r.tag]||'✨'}</div>`;
       return `<a class="story-card" href="stories/${esc(r.slug||'')}">
@@ -246,11 +267,22 @@
     next.disabled=el.scrollLeft>=max-4;
   }
 
-  function render(s, related){
+  function buildUnreadRelated(currentSlug, currentTag, allStories, fallbackRelated){
+    markRead(currentSlug);
+    if(!allStories || !allStories.length) return {list:fallbackRelated||[], allRead:false};
+    const readSet=getReadSet();
+    const others=allStories.filter(x=>x.slug!==currentSlug);
+    const unread=others.filter(x=>!readSet.has(x.slug));
+    if(!unread.length) return {list:[], allRead:true};
+    const sameTag=unread.filter(x=>x.tag===currentTag);
+    const otherTag=unread.filter(x=>x.tag!==currentTag);
+    return {list:sameTag.concat(otherTag).slice(0,15), allRead:false};
+  }
+
+  function render(s, related, allStories){
     const base='https://www.triakar.com';
     const url=base+'/stories/'+encodeURIComponent(s.slug);
     const monthLabel=(MONTH_NAMES[s.month]||'')+(s.year?' '+s.year:'');
-    document.getElementById('crumbTitle').textContent=s.title;
     document.getElementById('postMonth').textContent=monthLabel;
     document.getElementById('postTag').textContent=s.tag;
     document.getElementById('postTitle').textContent=s.title;
@@ -277,16 +309,23 @@
 
     updateMetaTags(url, s.title, s.excerpt, image);
     injectStorySchema(s, url, image);
-    renderRelated(related);
+    const {list, allRead}=buildUnreadRelated(s.slug, s.tag, allStories, related);
+    renderRelated(list, allRead);
   }
 
   function init(){
     const params=new URLSearchParams(window.location.search);
     const slug=params.get('slug');
     if(!slug){ setNoindex(); showNotFound(); return; }
-    fetch(TA_API+'/api/stories/public/by-slug/'+encodeURIComponent(slug))
-      .then(r=>{ if(r.status===404) throw new Error('not-found'); return r.json(); })
-      .then(data=>{ if(!data || !data.story) throw new Error('not-found'); render(data.story, data.related||[]); })
+    Promise.all([
+      fetch(TA_API+'/api/stories/public/by-slug/'+encodeURIComponent(slug))
+        .then(r=>{ if(r.status===404) throw new Error('not-found'); return r.json(); }),
+      fetch(TA_API+'/api/stories/public/all').then(r=>r.json()).catch(()=>null)
+    ])
+      .then(([data, allData])=>{
+        if(!data || !data.story) throw new Error('not-found');
+        render(data.story, data.related||[], (allData && allData.stories) || null);
+      })
       .catch(()=>showNotFound());
   }
   init();

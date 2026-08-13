@@ -60,11 +60,16 @@ export async function getPublicStories(req, res) {
 /* ─────────────────────────────────────────────────────────────────────────
    PUBLIC — GET /api/stories/public/by-slug/:slug
    Single published story, full detail, for the individual blog-post page
-   (story.html?slug=...). Also returns up to 12 "related stories" (same tag,
-   most recent first, excluding itself), shown as a paged carousel, so the
-   post page can link onward instead of dead-ending, same internal-linking
-   goal as product-detail's related products.
+   (story.html?slug=...). Also returns up to 15 "related stories" for the
+   carousel, most recent first, excluding itself, so the post page can link
+   onward instead of dead-ending, same internal-linking goal as
+   product-detail's related products. Same-tag stories are prioritized, but
+   if a tag has too few other entries to fill the carousel (e.g. only one
+   other Corporate story exists), the remainder backfills with the most
+   recent stories of any tag rather than leaving the carousel mostly empty.
 ───────────────────────────────────────────────────────────────────────── */
+const RELATED_LIMIT = 15;
+
 export async function getStoryBySlug(req, res) {
   try {
     const { slug } = req.params;
@@ -77,18 +82,32 @@ export async function getStoryBySlug(req, res) {
     if (error) throw error;
     if (!story) return res.status(404).json({ error: 'Story not found' });
 
-    const { data: related } = await supabase
+    const { data: sameTag } = await supabase
       .from('site_stories')
-      .select('slug,year,month,tag,title,excerpt,image_url')
+      .select('id,slug,year,month,tag,title,excerpt,image_url')
       .eq('published', true)
       .eq('tag', story.tag)
       .neq('id', story.id)
       .order('year', { ascending: false })
       .order('month', { ascending: false })
-      .limit(12);
+      .limit(RELATED_LIMIT);
+
+    let related = sameTag || [];
+    if (related.length < RELATED_LIMIT) {
+      const excludeIds = [story.id, ...related.map(r => r.id)];
+      const { data: fillers } = await supabase
+        .from('site_stories')
+        .select('id,slug,year,month,tag,title,excerpt,image_url')
+        .eq('published', true)
+        .not('id', 'in', `(${excludeIds.join(',')})`)
+        .order('year', { ascending: false })
+        .order('month', { ascending: false })
+        .limit(RELATED_LIMIT - related.length);
+      related = related.concat(fillers || []);
+    }
 
     res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
-    res.json({ story, related: related || [] });
+    res.json({ story, related });
   } catch (e) {
     console.error('getStoryBySlug:', e);
     res.status(500).json({ error: 'Something went wrong. Please try again.' });
