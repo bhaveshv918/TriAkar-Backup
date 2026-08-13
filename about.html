@@ -54,41 +54,56 @@
 <style>
 .about-hero{display:grid;grid-template-columns:1fr 1fr;min-height:400px;background:var(--charcoal);overflow:hidden}
 .about-left{padding:34px 40px;display:flex;flex-direction:column;justify-content:center}
-.about-right{display:flex;align-items:center;justify-content:center;padding:30px;position:relative;overflow:hidden;margin:22px;border-radius:22px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.015)}
-/* Ambient dressing so the live-print card doesn't float alone in flat
-   black: a soft TRI-orange glow centered behind it, plus a thin gradient
-   "line" anchored to the bottom of the frame that reads as a continuation
-   past the card rather than dead space. Both breathe together, low
-   opacity throughout, purely decorative. */
-.about-right::before{
-  content:'';
-  position:absolute;
-  inset:0;
-  pointer-events:none;
+.about-right{display:flex;align-items:center;justify-content:center;padding:30px;position:relative;overflow:hidden;margin:22px;border-radius:22px;border:1px solid rgba(255,255,255,.08)}
+/* Frame for the live-print widget: a soft overhead spotlight (like a lamp
+   over the print bed), a fine dot-grid at the same 20px spacing the widget
+   itself uses internally (hero-print-animation.css), and a thin measure
+   line trailing from the card toward the bottom of the frame. One
+   background stack, so all three stay in perfect registration. */
+.about-right{
   background-image:
-    radial-gradient(circle,rgba(196,98,42,.18) 0%,rgba(196,98,42,.07) 45%,transparent 72%),
-    linear-gradient(180deg,rgba(196,98,42,.55) 0%,rgba(196,98,42,.15) 60%,transparent 100%);
-  background-repeat:no-repeat,no-repeat;
-  background-position:50% 46%,50% 100%;
-  background-size:480px 480px,2px 45%;
+    radial-gradient(circle at 50% 30%,rgba(196,98,42,.16) 0%,transparent 60%),
+    radial-gradient(circle,rgba(255,255,255,.08) 1px,transparent 1px),
+    linear-gradient(180deg,transparent 0%,transparent 66%,rgba(196,98,42,.5) 78%,rgba(196,98,42,.12) 94%,transparent 100%);
+  background-position:center,center,50% 100%;
+  background-size:100% 100%,20px 20px,2px 46%;
+  background-repeat:no-repeat,repeat,no-repeat;
   animation:aboutGlowPulse 4.5s ease-in-out infinite;
 }
-/* Faint ghosted त्रि mark, purely decorative texture behind the widget */
-.about-right::after{
-  content:'त्रि';
+/* Corner brackets echo the printer cabinet's own corner marks (see
+   .tpa-cabinet::before/::after in hero-print-animation.css), tying the
+   outer frame and the widget into one visual family instead of two
+   unrelated objects. */
+.about-right::before,.about-right::after{
+  content:'';
   position:absolute;
-  top:47%;left:50%;
-  transform:translate(-50%,-50%);
-  font-family:var(--font-h);
-  font-size:min(48vw,360px);
-  line-height:1;
-  color:rgba(255,255,255,.035);
-  white-space:nowrap;
+  width:16px;height:16px;
+  border-color:rgba(196,98,42,.5);
+  border-style:solid;
   pointer-events:none;
-  user-select:none;
 }
+.about-right::before{top:16px;left:16px;border-width:1.5px 0 0 1.5px;border-radius:3px 0 0 0}
+.about-right::after{bottom:16px;right:16px;border-width:0 1.5px 1.5px 0;border-radius:0 0 3px 0}
 @keyframes aboutGlowPulse{0%,100%{opacity:.7}50%{opacity:1}}
-@media(prefers-reduced-motion:reduce){.about-right::before{animation:none}}
+@media(prefers-reduced-motion:reduce){.about-right{animation:none}}
+/* ── Dark-mode reskin of the live-print widget for this card ──────────
+   hero-print-animation.css is themed for the light ivory homepage hero
+   (light putty cabinet, near-black mechanical parts). Dropped unmodified
+   into this dark glass card, the carriage/hotend/nozzle are nearly black
+   on near-black and disappear; the cabinet reads as a mismatched grey
+   box. Scoped overrides below recolor it for legibility here without
+   touching the shared file (which still needs to serve the light hero
+   correctly) or the animation's JS/timing. */
+.about-right #triakar-print-animation{background-image:radial-gradient(circle,rgba(196,98,42,.16) 1px,transparent 1px)}
+.about-right .tpa-cabinet{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),inset 0 -1px 0 rgba(0,0,0,.3),0 2px 8px rgba(0,0,0,.3),0 0 40px rgba(196,98,42,.1)}
+.about-right .tpa-cabinet::before,.about-right .tpa-cabinet::after{border-color:rgba(255,255,255,.3)}
+.about-right .tpa-label{color:rgba(255,255,255,.5)}
+.about-right .tpa-rail-track{background:linear-gradient(90deg,transparent,rgba(255,255,255,.22) 5%,rgba(255,255,255,.4) 50%,rgba(255,255,255,.22) 95%,transparent)}
+.about-right .tpa-rail-track::before,.about-right .tpa-rail-track::after{background:rgba(255,255,255,.3)}
+.about-right .tpa-carriage{background:linear-gradient(180deg,#d8d6d2 0%,#a6a29a 100%);border-color:rgba(255,255,255,.3)}
+.about-right .tpa-carriage::before,.about-right .tpa-carriage::after{background:rgba(0,0,0,.35);border-color:rgba(255,255,255,.25)}
+.about-right .tpa-hotend{background:linear-gradient(180deg,#e8e6e2 0%,#b8b4ac 60%,#96928a 100%)}
+.about-right .tpa-nozzle{background:#3a3632;box-shadow:0 1px 4px rgba(196,98,42,.4)}
 .about-big-text{font-family:var(--font-g);font-size:clamp(26px,5vw,68px);font-weight:400;color:var(--ivory);line-height:1.08;margin-bottom:24px;letter-spacing:-.03em}
 .about-stats{display:flex;align-items:center;gap:0;margin-top:32px;background:rgba(196,98,42,.06);border-radius:8px;overflow:hidden}
 .astat{padding:18px 22px;display:flex;flex-direction:column;gap:3px;border-right:1px solid rgba(196,98,42,.12)}
