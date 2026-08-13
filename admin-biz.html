@@ -5678,6 +5678,10 @@ async function openAddOrderFromQuotation(quotationId){
     rowId:null, productId:null, name:it.name||'', variant:'', qty:it.qty||1, rate:it.rate||0, disc:0,
     gst:it.gst||0, cost:0, pricingMode:it.pricingMode||'piece', grams:it.pricingMode==='gram'?(it.grams||0):0,
     waste:0, hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926', sku:'', spool:'', extraSpools:[],
+    // Without itemType, renderItems() hides the spool picker, ₹/pc-₹/gram toggle and
+    // Grams/Waste columns (they only show for itemType==='product'), same bug fixed in
+    // duplicateOrder.
+    itemType:'product', remarks:'', spoolSaleId:null,
   })) : [blankItem()];
   renderItems();
   updateAddOrderModeUI();
@@ -8440,6 +8444,12 @@ function duplicateOrder(firstId){
         // moved on by now, but the part breakdown (labels/grams/waste) still carries over.
         spool:'',
         extraSpools:(s.extra_spool_usage||[]).map(x=>({label:x.label||'',spool:'',grams:x.grams,waste:x.waste})),
+        // Without this, renderItems() only shows the Product/Machine/Spool pricing
+        // toggle, spool picker and Grams/Waste columns when itemType==='product', so a
+        // duplicated row (itemType left undefined) silently lost all of those options.
+        itemType:s.item_type||'product',
+        remarks:s.remarks||'',
+        spoolSaleId:null,
       };
     });
     renderItems();
