@@ -17,6 +17,20 @@
      opts.w     target width  (default 600)
      opts.h     target height (default = w, square)
      opts.crop  'fill' (default, square crop) | 'limit' (keep aspect) */
+/* The liquid-glass SVG refraction filter (feDisplacementMap layered onto a
+   backdrop-filter) is only cheap to composite on WebKit/Safari, where it's
+   hardware-accelerated. Every other engine, including desktop Chrome/Edge/
+   Firefox on Windows and Chrome on Android, has to re-rasterize the filter
+   on the CPU/GPU every scroll frame over a full-width fixed element, which
+   is exactly the "laggy navbar" jank. Gate the effect to actual Safari
+   (not just "not Android") instead of falling back to plain blur elsewhere. */
+window.TA_GLASS_SAFARI = (function(){
+  try{
+    var ua=navigator.userAgent;
+    return /Safari/i.test(ua) && !/Chrome|Chromium|CriOS|Edg|EdgA|FxiOS|OPR|Android/i.test(ua);
+  }catch(_){return false;}
+})();
+
 window.TA_CLD = 'https://res.cloudinary.com/dtpibsruo';
 window.taImg = function (url, opts) {
   opts = opts || {};
@@ -348,14 +362,15 @@ window._FOOTER_HTML = `<footer>
     var isWish=(seg==='wishlist');
     var isAcct=(seg==='account');
 
-    /* Real glass refraction (feDisplacementMap) for iOS/Safari, shared by
+    /* Real glass refraction (feDisplacementMap) for actual Safari, shared by
        both the bottom tab bar and the top nav's scrolled glass capsule.
        Injected here (before the product-detail early return below) so it's
        available on every page, not just the ones with the tab bar.
-       Android's Chrome/WebView renders this filter weakly, so it's skipped
-       there and both navs fall back to their plain blur. */
+       Every other engine (desktop Chrome/Edge/Firefox, Chrome on Android)
+       has to re-rasterize this filter every scroll frame, so it's skipped
+       there and both navs fall back to their plain (cheap) blur. */
     try{
-      if(!/Android/i.test(navigator.userAgent)&&!document.getElementById('liquid-glass-distortion')){
+      if(window.TA_GLASS_SAFARI&&!document.getElementById('liquid-glass-distortion')){
         var filterSvg=document.createElementNS('http://www.w3.org/2000/svg','svg');
         filterSvg.setAttribute('width','0');filterSvg.setAttribute('height','0');
         filterSvg.style.position='absolute';
@@ -373,7 +388,7 @@ window._FOOTER_HTML = `<footer>
       var pdpNav=document.createElement('nav');
       pdpNav.id='taBottomNav';
       pdpNav.className='ta-bottomnav ta-bottomnav--pdp';
-      try{ if(!/Android/i.test(navigator.userAgent)) pdpNav.classList.add('tabn-distort'); }catch(_){}
+      try{ if(window.TA_GLASS_SAFARI) pdpNav.classList.add('tabn-distort'); }catch(_){}
       pdpNav.setAttribute('aria-label','Product actions');
       pdpNav.innerHTML=
         '<div class="tabn-pdp-info">'+
@@ -429,7 +444,7 @@ window._FOOTER_HTML = `<footer>
     var nav=document.createElement('nav');
     nav.id='taBottomNav';nav.className='ta-bottomnav';
     nav.setAttribute('aria-label','Primary');
-    try{ if(!/Android/i.test(navigator.userAgent)) nav.classList.add('tabn-distort'); }catch(_){}
+    try{ if(window.TA_GLASS_SAFARI) nav.classList.add('tabn-distort'); }catch(_){}
     nav.innerHTML=
       '<a href="/index.html" class="tabn-item'+(isHome?' active':'')+'" aria-label="Home">'+
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>'+

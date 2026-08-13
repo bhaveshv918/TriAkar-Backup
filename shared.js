@@ -102,8 +102,13 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
   const drawer=document.querySelector('.nav-drawer');
   /* Same real SVG-refraction glass as the mobile bottom nav (see
      partials.js), applied to the top nav's floating "scrolled" capsule.
-     Android skipped, its feDisplacementMap renders weak, plain blur only. */
-  var isAndroid=/Android/i.test(navigator.userAgent);
+     Gated to actual Safari (window.TA_GLASS_SAFARI, set in partials.js):
+     every other engine has to re-rasterize this filter every scroll frame
+     over a full-width fixed element, which was the main source of the
+     "laggy navbar" jank on desktop Chrome/Edge/Firefox and Android, not
+     just Android as previously assumed. Those engines fall back to the
+     much cheaper plain blur below. */
+  var isGlassSafari=!!window.TA_GLASS_SAFARI;
 
   var navEl=null,ticking=false,wasScrolled=false,distortTimer=null,offsetTimer=null;
   var firstRun=true,morphRafId=0,morphEndTime=0;
@@ -173,7 +178,7 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
            transition has settled, recomputing feDisplacementMap on the
            same frame the box is also resizing/repositioning is the
            single biggest source of the scroll-start jank. */
-        if(!isAndroid) distortTimer=setTimeout(function(){navEl.classList.add('nav-distort');},460);
+        if(isGlassSafari) distortTimer=setTimeout(function(){navEl.classList.add('nav-distort');},460);
       }else{
         navEl.classList.remove('nav-distort');
       }
