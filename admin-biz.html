@@ -572,6 +572,17 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
      one), so the toast container's clearance is a precise match, not a guess. */
   #toastContainer{top:64px;left:12px;right:12px;max-width:none}
 
+  /* Add Order's top-right icon pair sat at top:14px, which on mobile falls inside
+     the fixed 52px .biz-topbar (z-index:240, above the icons' 150), completely
+     hiding them behind it. Push below the topbar instead. !important: the
+     unconditional .qa-fixed-icons{top:14px} rule lives later in the stylesheet
+     (premium visual upgrade section), so on a tied specificity it wins over this
+     media query by source order alone without it. */
+  .qa-fixed-icons{top:64px!important}
+  /* 36px falls under the 44px thumb-target minimum this project's mobile-first
+     guidance calls for; desktop keeps 36px (mouse precision, no such minimum). */
+  .qa-icon-btn{width:44px!important;height:44px!important;font-size:17px!important}
+
   /* Sidebar → slide-in drawer below the top bar */
   .sidebar{
     position:fixed;top:52px;bottom:0;left:0;width:250px;max-width:84vw;
@@ -1740,13 +1751,11 @@ html[data-theme="dark"] .biz-login{
             <button type="button" class="btn btn-ghost btn-sm" onclick="confirmClearQuickAdd()" title="Wipes the whole form">Clear</button>
           </div>
         </div>
-        <!-- Full-width fixed bottom bar (not just a floating button pair), stays
-             reachable while scrolling the long form on every screen size. The shaded
-             backing spans edge to edge so it reads as a toolbar instead of buttons
-             floating loose over content; before this had no backing at all, so it
-             visually overlapped and hid whatever form content (Clear button included)
-             happened to land at that same bottom-right corner once scrolled down.
-             Save is rightmost/last, same left-to-right order as the top-right icons. -->
+        <!-- Closing action footer, normal document flow (not fixed/sticky, see the
+             .qa-fixed-bottom-bar comment in CSS for why). "Reachable while scrolling"
+             is the top-right icon pair's job; this one just needs to look like a
+             proper footer at the form's actual end. Save is rightmost/last, same
+             left-to-right order as the top-right icons. -->
         <div class="qa-fixed-bottom-bar" id="qaFixedBottom">
           <button type="button" class="btn btn-ghost btn-sm qa-fixed-bottom-btn" onclick="exitAddOrderEditMode()">✕ Cancel</button>
           <button type="submit" class="btn btn-primary qa-fixed-bottom-btn" id="qaSaveBtn"
