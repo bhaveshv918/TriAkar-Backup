@@ -3670,7 +3670,7 @@ async function loadBizSettings(){
   if((!cur.qr||!cur.qr.url)&&_docCfg.invoice&&_docCfg.invoice.qr&&_docCfg.invoice.qr.url){
     _qrRender('bizCommonQr',_docCfg.invoice.qr);
   }
-  loadTncPresets();
+  await loadTncPresetsCache(); loadTncPresets(); renderAllTncPresetDropdowns();
   collapseSecondarySettingsCards();
   if(typeof setDocSettingsTab==='function') setDocSettingsTab('common');
 }
@@ -4458,7 +4458,7 @@ async function startApp(){
   loadBizSettings();
   populateStateSelects();
   populateCountryLists();
-  await Promise.all([loadProducts(), initDashMonths()]);
+  await Promise.all([loadProducts(), initDashMonths(), loadTncPresetsCache()]);
   loadDashboard();
   loadOpenOrders();
   loadSalesBadge();
@@ -5512,40 +5512,34 @@ async function setQaFormMode(mode){
 }
 function applyQaInvTncPreset(){
   const sel=document.getElementById('qa_inv_tnc_preset'); if(!sel||sel.value==='') return;
-  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
-  const p=presets[parseInt(sel.value,10)]; if(!p) return;
+  const p=_tncPresets.find(x=>x.id===sel.value); if(!p) return;
   const ta=document.getElementById('qa_inv_terms'); if(ta) ta.value=p.text||'';
 }
 function renderQaInvTncPresets(){
   const sel=document.getElementById('qa_inv_tnc_preset'); if(!sel) return;
-  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
-  sel.innerHTML='<option value="">— insert a preset —</option>'+presets.map((p,i)=>`<option value="${i}">${esc(p.name)}</option>`).join('');
+  sel.innerHTML='<option value="">— insert a preset —</option>'+_tncPresets.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
 }
 function applyQaQtTncPreset(){
   const sel=document.getElementById('qa_qt_tnc_preset'); if(!sel||sel.value==='') return;
-  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
-  const p=presets[parseInt(sel.value,10)]; if(!p) return;
+  const p=_tncPresets.find(x=>x.id===sel.value); if(!p) return;
   const ta=document.getElementById('qa_qt_terms'); if(ta) ta.value=p.text||'';
 }
 function renderQaQtTncPresets(){
   const sel=document.getElementById('qa_qt_tnc_preset'); if(!sel) return;
-  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
-  sel.innerHTML='<option value="">— insert a preset —</option>'+presets.map((p,i)=>`<option value="${i}">${esc(p.name)}</option>`).join('');
+  sel.innerHTML='<option value="">— insert a preset —</option>'+_tncPresets.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
 }
 // Order Record / Invoice's Notes field, same preset-insert pattern and the same
-// shared preset list (biz_tnc_presets) as Quotation's Terms & Conditions, they're
-// both just "a reusable block of text", no reason to keep two separate lists an
-// operator has to manage independently.
+// shared preset list (biz_tnc_presets table) as Quotation's Terms & Conditions,
+// they're both just "a reusable block of text", no reason to keep two separate
+// lists an operator has to manage independently.
 function applyQaNotesPreset(){
   const sel=document.getElementById('qa_notes_preset'); if(!sel||sel.value==='') return;
-  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
-  const p=presets[parseInt(sel.value,10)]; if(!p) return;
+  const p=_tncPresets.find(x=>x.id===sel.value); if(!p) return;
   const ta=document.getElementById('qa_notes'); if(ta) ta.value=p.text||'';
 }
 function renderQaNotesPresets(){
   const sel=document.getElementById('qa_notes_preset'); if(!sel) return;
-  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
-  sel.innerHTML='<option value="">— insert a preset —</option>'+presets.map((p,i)=>`<option value="${i}">${esc(p.name)}</option>`).join('');
+  sel.innerHTML='<option value="">— insert a preset —</option>'+_tncPresets.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
 }
 // Reuses the same Customer & Items entered on the shared form, builds a real
 // biz_quotations row from them instead of duplicating the entry.
@@ -6228,37 +6222,50 @@ async function genQuotationNumber(){
   }catch(_){}
   return `QT/${fy}/${String(now.getTime()).slice(-3)}`;
 }
+// Terms & Notes presets, stored in the biz_tnc_presets Supabase table (was
+// localStorage-only, which meant presets lived in a single browser and were
+// gone for good the moment that browser's site data got cleared). _tncPresets
+// is an in-memory cache of {id,name,text}, loaded once in startApp() and
+// refreshed after every add/delete so the dropdowns stay in sync without a
+// round-trip on every render.
+let _tncPresets=[];
+async function loadTncPresetsCache(){
+  const {data,error}=await sb.from('biz_tnc_presets').select('*').order('name');
+  if(error){ _tncPresets=[]; return; }
+  _tncPresets=(data||[]).map(p=>({id:p.id,name:p.name,text:p.body}));
+}
+function renderAllTncPresetDropdowns(){
+  if(typeof renderQaNotesPresets==='function') renderQaNotesPresets();
+  if(typeof renderQaInvTncPresets==='function') renderQaInvTncPresets();
+  if(typeof renderQaQtTncPresets==='function') renderQaQtTncPresets();
+  if(typeof renderQtTncPresets==='function') renderQtTncPresets();
+}
 function loadTncPresets(){
-  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
   const box=document.getElementById('tncPresetList'); if(!box) return;
-  box.innerHTML=presets.length?presets.map((p,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)"><div><b style="font-size:12px">${esc(p.name)}</b><div style="font-size:11px;color:var(--text-3)">${esc((p.text||'').slice(0,80))}</div></div><button class="btn btn-ghost btn-sm" onclick="deleteTncPreset(${i})">✕</button></div>`).join('')
+  box.innerHTML=_tncPresets.length?_tncPresets.map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)"><div><b style="font-size:12px">${esc(p.name)}</b><div style="font-size:11px;color:var(--text-3)">${esc((p.text||'').slice(0,80))}</div></div><button class="btn btn-ghost btn-sm" onclick="deleteTncPreset('${p.id}')">✕</button></div>`).join('')
     :'<div style="font-size:12px;color:var(--text-3)">No presets yet</div>';
 }
-function addTncPreset(){
+async function addTncPreset(){
   const name=(document.getElementById('tnc_name')?.value||'').trim();
   const text=(document.getElementById('tnc_text')?.value||'').trim();
   if(!name||!text){ toast('Enter both a name and the terms text','error'); return; }
-  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
-  presets.push({name,text});
-  localStorage.setItem('biz_tnc_presets',JSON.stringify(presets));
+  const {error}=await sb.from('biz_tnc_presets').insert({name,body:text});
+  if(error){ toast('Error: '+error.message,'error'); return; }
   document.getElementById('tnc_name').value=''; document.getElementById('tnc_text').value='';
-  loadTncPresets(); toast('Preset added');
+  await loadTncPresetsCache(); loadTncPresets(); renderAllTncPresetDropdowns(); toast('Preset added');
 }
-function deleteTncPreset(i){
-  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
-  presets.splice(i,1);
-  localStorage.setItem('biz_tnc_presets',JSON.stringify(presets));
-  loadTncPresets();
+async function deleteTncPreset(id){
+  const {error}=await sb.from('biz_tnc_presets').delete().eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  await loadTncPresetsCache(); loadTncPresets(); renderAllTncPresetDropdowns();
 }
 function renderQtTncPresets(){
   const sel=document.getElementById('qt_tnc_preset'); if(!sel) return;
-  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
-  sel.innerHTML='<option value="">— insert a preset —</option>'+presets.map((p,i)=>`<option value="${i}">${esc(p.name)}</option>`).join('');
+  sel.innerHTML='<option value="">— insert a preset —</option>'+_tncPresets.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
 }
 function applyQtTncPreset(){
   const sel=document.getElementById('qt_tnc_preset'); if(!sel||sel.value==='') return;
-  let presets=[]; try{ presets=JSON.parse(localStorage.getItem('biz_tnc_presets')||'[]'); }catch(_){}
-  const p=presets[parseInt(sel.value,10)]; if(!p) return;
+  const p=_tncPresets.find(x=>x.id===sel.value); if(!p) return;
   const ta=document.getElementById('qt_terms'); if(ta) ta.value=p.text||'';
 }
 // No direct GST-portal API access, this opens the government portal's own GSTIN
