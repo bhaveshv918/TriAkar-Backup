@@ -669,9 +669,18 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
   #orderDetailModal,#editSaleModal,#recycleBinModal,#customerModal{padding:10px!important}
   #orderDetailModal>div,#editSaleModal>div,#recycleBinModal>div,#customerModal>div{margin:0;max-width:100%!important}
 
-  /* Sticky Save → floating action button bottom-right (no bottom nav to clash) */
-  #qaSaveBtn{top:auto!important;bottom:calc(18px + env(safe-area-inset-bottom,0px))!important;right:16px!important;z-index:180;border-radius:24px;padding:12px 20px!important;box-shadow:0 6px 18px rgba(16,32,24,.30)}
 }
+/* Add Order: fixed Save/Cancel pairs, top-right icons + bottom full-text, both stay
+   put across every screen size while the long form scrolls underneath them. */
+.qa-fixed-icons{position:fixed;top:14px;right:16px;z-index:150;display:flex;gap:8px}
+.qa-icon-btn{width:36px;height:36px;padding:0;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:15px;line-height:1;border:1px solid var(--border);
+  background:var(--bg-1);color:var(--text);cursor:pointer;box-shadow:0 4px 14px rgba(16,32,24,.20)}
+.qa-icon-btn-accent{background:var(--accent);border-color:var(--accent);color:#fff}
+.qa-fixed-bottom{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom,0px));right:16px;
+  z-index:150;display:flex;gap:8px}
+.qa-fixed-bottom-btn{border-radius:24px!important;padding:12px 20px!important;
+  box-shadow:0 6px 18px rgba(16,32,24,.30)}
 /* Round-2 Batch 5, interaction polish (premium TRI/AKAR feel) */
 .btn,button,.tab,input,select,textarea,.badge,.qchip{transition:background .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease,transform .1s ease}
 input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(196,98,42,.15)}
@@ -1358,8 +1367,16 @@ html[data-theme="dark"] .biz-login{
          QUICK ADD SALE
     ═══════════════════════════════════════════════════════ -->
     <div class="panel qa-bg-order" id="panelQuickadd">
-      <button type="button" id="qaCancelEditBtn" class="btn btn-ghost btn-sm" onclick="exitAddOrderEditMode()"
-        style="display:none;position:fixed;top:14px;right:96px;z-index:150">✕ Cancel edit</button>
+      <!-- Fixed icon-only pair, top-right, stays put while the long form scrolls.
+           Cancel forwards to exitAddOrderEditMode() (same action as the bottom Cancel
+           and the old edit-only "Cancel edit" button, now unified into one control
+           visible in every mode, not just while editing). Save forwards to the form's
+           real submit button via requestSubmit() so it shares the same _qaSaving guard,
+           no separate disable-state to keep in sync. -->
+      <div class="qa-fixed-icons" id="qaFixedIconsTop">
+        <button type="button" class="qa-icon-btn" onclick="exitAddOrderEditMode()" title="Cancel">✕</button>
+        <button type="button" class="qa-icon-btn qa-icon-btn-accent" onclick="document.getElementById('quickAddForm').requestSubmit()" title="Save · Ctrl/Cmd+Enter also saves">💾</button>
+      </div>
       <div class="p-head">
         <div>
           <div class="p-title">Add Order</div>
@@ -1711,16 +1728,16 @@ html[data-theme="dark"] .biz-login{
           </div>
           <div style="display:flex;gap:8px;align-items:center">
             <button type="button" class="btn btn-ghost btn-sm" onclick="confirmClearQuickAdd()" title="Wipes the whole form">Clear</button>
-            <button type="button" class="btn btn-ghost btn-sm" onclick="exitAddOrderEditMode()">Cancel</button>
-            <!-- Was two Save buttons (this one plus a separate fixed "stickySave" pill),
-                 confusing on mobile where both were visible at once. Merged into one:
-                 this button itself is now the sticky one (position:fixed, so it stays
-                 reachable while scrolling the long form), same id so the existing
-                 mode-based label swap (Save/Update Order/Quotation) keeps working. -->
-            <button type="submit" class="btn btn-primary" id="qaSaveBtn"
-              style="position:fixed;top:14px;right:16px;z-index:150;font-weight:700;padding:10px 20px;box-shadow:0 4px 14px rgba(16,32,24,.20)"
-              title="Ctrl/Cmd+Enter also saves">💾 Save</button>
           </div>
+        </div>
+        <!-- Fixed pair, bottom-right, stays reachable while scrolling the long form.
+             Cancel and Save both stay put across all screen sizes (was mobile-only
+             before); Save is rightmost/last so the two read left-to-right as a
+             cancel-then-confirm pair, same order as the top-right icon pair. -->
+        <div class="qa-fixed-bottom" id="qaFixedBottom">
+          <button type="button" class="btn btn-ghost btn-sm qa-fixed-bottom-btn" onclick="exitAddOrderEditMode()">✕ Cancel</button>
+          <button type="submit" class="btn btn-primary qa-fixed-bottom-btn" id="qaSaveBtn"
+            title="Ctrl/Cmd+Enter also saves">💾 Save</button>
         </div>
       </form>
     </div><!-- /quickadd -->
@@ -5476,7 +5493,6 @@ function updateAddOrderModeUI(){
   const title=document.querySelector('#panelQuickadd .p-title');
   const sub=document.querySelector('#panelQuickadd .p-sub');
   const payCard=document.getElementById('qaPaymentCard');
-  const cancelBtn=document.getElementById('qaCancelEditBtn');
   const returnBtn=document.getElementById('qaMarkReturnBtn');
   const rackBanner=document.getElementById('qaRackPendingBanner');
   if(rackBanner) rackBanner.style.display=_qaSourceRackItemId?'block':'none';
@@ -5494,7 +5510,6 @@ function updateAddOrderModeUI(){
     if(title) title.textContent='Edit Order';
     if(sub) sub.textContent='Editing order #'+(_qaEditOrderId||'');
     if(payCard) payCard.style.display='';
-    if(cancelBtn) cancelBtn.style.display='';
     if(returnBtn) returnBtn.style.display='';
     // Edit mode keeps the original installment workflow, payments post straight to
     // biz_sale_payments the moment "+ Add Payment" is clicked (the order already exists).
@@ -5506,7 +5521,6 @@ function updateAddOrderModeUI(){
     if(title) title.textContent='Add Order';
     if(sub) sub.textContent=_qaSourceRackItemId ? 'New order, completing a Rack sale' : _qaMode==='fromQuotation' ? 'New order, pre-filled from quotation' : 'Log an order, channel auto-fills costs';
     if(payCard) payCard.style.display='';
-    if(cancelBtn) cancelBtn.style.display='none';
     if(returnBtn) returnBtn.style.display='none';
     // New order has no order_id yet, so multiple installments logged here are held
     // client-side (_qaNewPayments) and only actually written once the order saves.
@@ -7505,12 +7519,13 @@ function toggleQuickLog(which){
     if(id===targetId) el.style.display=(el.style.display==='none'||!el.style.display)?'block':'none';
     else el.style.display='none';
   });
+  const dateEl=document.getElementById('ql_exp_date'); if(dateEl&&!dateEl.value) dateEl.value=today();
 }
 async function saveQuickExpense(){
   const g=id=>document.getElementById(id)?.value||'';
   const amount=parseFloat(g('ql_exp_amount'));
   if(!(amount>0)){ toast('Enter an amount','error'); return; }
-  const payload={date:today(),category:g('ql_exp_category')||'other',amount,notes:g('ql_exp_note').trim()||null};
+  const payload={date:g('ql_exp_date')||today(),category:g('ql_exp_category')||'other',amount,notes:g('ql_exp_note').trim()||null};
   const {error}=await sb.from('biz_expenses').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
   logBizActivity('create','expense',null,(payload.notes||payload.category)+' ₹'+amount);
