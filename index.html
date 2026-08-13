@@ -91,23 +91,29 @@
 .hero::before{
   content:'';
   position:absolute;
-  inset:0;
+  inset:-20px;
   z-index:-1;
   pointer-events:none;
-  background-image:radial-gradient(circle,rgba(196,98,42,.28) 1px,transparent 1px);
-  background-size:22px 22px;
+  background-image:radial-gradient(circle,rgba(196,98,42,.35) 1.8px,transparent 1.8px);
+  background-size:30px 30px;
   -webkit-mask-image:linear-gradient(90deg,transparent 0%,black 42%,black 58%,transparent 100%);
   mask-image:linear-gradient(90deg,transparent 0%,black 42%,black 58%,transparent 100%);
   -webkit-mask-size:280% 100%;
   mask-size:280% 100%;
   -webkit-mask-repeat:no-repeat;
   mask-repeat:no-repeat;
-  animation:heroDotsBreathe 11s ease-in-out infinite;
+  animation:heroDotsBreathe 11s ease-in-out infinite,heroDotsWave 7s ease-in-out infinite;
 }
 @keyframes heroDotsBreathe{
   0%{-webkit-mask-position:-180% 0;mask-position:-180% 0}
   50%{-webkit-mask-position:80% 0;mask-position:80% 0}
   100%{-webkit-mask-position:-180% 0;mask-position:-180% 0}
+}
+@keyframes heroDotsWave{
+  0%,100%{background-position:0 0}
+  25%{background-position:6px -8px}
+  50%{background-position:0 -14px}
+  75%{background-position:-6px -8px}
 }
 @media(prefers-reduced-motion:reduce){.hero::before{animation:none;-webkit-mask-image:none;mask-image:none;opacity:.5}}
 .hero-body{
@@ -178,7 +184,11 @@
 
 /* hero-print-animation.css handles the right panel */
 .hero-right{overflow:hidden;display:flex;align-items:center;justify-content:center}
-#triakar-print-animation{transform-origin:center;will-change:transform}
+/* Fallback fades in only once we know the photo collage won't populate,
+   instead of flashing on every load and then jump-cutting away the moment
+   the product fetch resolves. See the delayed reveal in loadHpProducts(). */
+.hero-right #triakar-print-animation{transform-origin:center;will-change:transform,opacity;opacity:0;transition:opacity .4s ease}
+.hero-right #triakar-print-animation.tpa-visible{opacity:1}
 @media(min-width:1280px){#triakar-print-animation{transform:scale(1)}}
 @media(min-width:1024px) and (max-width:1279px){#triakar-print-animation{transform:scale(.8)}}
 @media(min-width:768px) and (max-width:1023px){#triakar-print-animation{transform:scale(.6)}}
@@ -1009,6 +1019,17 @@ function _renderHeroCollage(prods){
     return '<div class="'+s[0]+'"><img src="'+_hesc(taImg(p.images[0],{w:520}))+'" alt="'+_hesc(p.name)+'" loading="eager" decoding="async"></div>';
   }).join('');
 }
+
+/* The printer-animation fallback starts rendering immediately on page load,
+   well before the product fetch above resolves, so on every hard refresh it
+   used to flash on screen and then get yanked away the instant the photo
+   collage populated. Wait a beat for the fetch to have a real chance to win
+   the race, then only fade the fallback in if the collage is still empty. */
+setTimeout(function(){
+  const hc=document.getElementById('heroCollage');
+  const pa=document.getElementById('triakar-print-animation');
+  if(pa&&(!hc||!hc.innerHTML.trim())) pa.classList.add('tpa-visible');
+},350);
 
 /* "Why Choose TriAkar" 2x2 real-photo grid, same source data */
 function _renderWhyChooseGrid(prods){
