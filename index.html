@@ -182,18 +182,7 @@
 .hstat-n{font-size:17px;font-weight:700;color:var(--charcoal);line-height:1}
 .hstat-l{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);font-weight:600;margin-top:2px}
 
-/* hero-print-animation.css handles the right panel */
 .hero-right{overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative}
-/* Fallback fades in only once we know the photo collage won't populate,
-   instead of flashing on every load and then jump-cutting away the moment
-   the product fetch resolves. See the delayed reveal in loadHpProducts().
-   Absolutely positioned over the collage's reserved footprint (rather than
-   sitting beside it in flow) so the hero never resizes when the two swap. */
-.hero-right #triakar-print-animation{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform-origin:center;will-change:transform,opacity;opacity:0;transition:opacity .4s ease}
-.hero-right #triakar-print-animation.tpa-visible{opacity:1}
-@media(min-width:1280px){#triakar-print-animation{transform:scale(1)}}
-@media(min-width:1024px) and (max-width:1279px){#triakar-print-animation{transform:scale(.8)}}
-@media(min-width:768px) and (max-width:1023px){#triakar-print-animation{transform:scale(.6)}}
 @media(max-width:767px){
   .hero-body{grid-template-columns:1fr}
   .hero-right{display:none}
@@ -498,11 +487,6 @@ html.a11y-reduce-motion .promo-item:first-child{opacity:1}
 .hc-sub1{width:46%;height:42%;bottom:0;right:0;z-index:3;box-shadow:0 24px 54px rgba(22,22,20,.22);animation-delay:.55s}
 .hc-sub2{width:34%;height:30%;top:4%;right:-2%;z-index:1;transform:rotate(3deg);animation-delay:.7s}
 @media(max-width:1100px){.hero-collage{max-width:340px}}
-/* .hero-collage's aspect-ratio box reserves its footprint even while empty
-   (no longer display:none), so the hero's height stays constant whether the
-   printer-animation fallback or the real photos end up showing, instead of
-   the hero visibly growing/shrinking as the product fetch resolves. */
-#heroCollage:not(:empty) ~ #triakar-print-animation{display:none}
 .hero-title-shop .ht-accent{color:var(--accent)}
 .hero-brand-eyebrow{display:block;font-family:var(--font-g);font-size:13px;font-weight:700;letter-spacing:.32em;text-transform:uppercase;color:var(--stone);margin-bottom:10px}
 .hero-brand-eyebrow b{color:var(--accent);font-weight:700}
@@ -538,7 +522,6 @@ html.a11y-reduce-motion .promo-item:first-child{opacity:1}
 @media(max-width:760px){.occ-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:420px){.occ-grid{grid-template-columns:1fr 1fr;gap:10px}.occ-tile{min-height:108px;padding:16px}}
 </style>
-<link rel="stylesheet" href="hero-print-animation.css">
 <script defer src="/_vercel/insights/script.js"></script>
 <script defer src="/_vercel/speed-insights/script.js"></script>
 </head>
@@ -581,8 +564,6 @@ html.a11y-reduce-motion .promo-item:first-child{opacity:1}
        back to the CSS print animation below if the product fetch is empty/fails -->
   <div class="hero-right">
     <div class="hero-collage" id="heroCollage" aria-hidden="true"></div>
-    <div id="triakar-print-animation" role="img" aria-label="3D printer in action, TriAkar workshop"></div>
-    <script defer src="hero-print-animation.js"></script>
   </div>
   </div><!-- /hero-body -->
   <!-- Black marquee strip, inside hero, visible above fold -->
@@ -1010,9 +991,8 @@ function _renderHpGrid(prods){
 
 /* Real-photo hero collage, built from the same featured-product photos as the
    grid below (no separate lifestyle photoshoot exists yet, see homepage
-   redesign plan). Leaves #heroCollage empty (and hidden via CSS :empty) if
-   there aren't at least 2 real product photos, so the CSS print animation
-   shows instead. */
+   redesign plan). Leaves #heroCollage empty if there aren't at least 2 real
+   product photos. */
 function _renderHeroCollage(prods){
   const el=document.getElementById('heroCollage');
   if(!el)return;
@@ -1025,16 +1005,6 @@ function _renderHeroCollage(prods){
   }).join('');
 }
 
-/* The printer-animation fallback starts rendering immediately on page load,
-   well before the product fetch above resolves, so on every hard refresh it
-   used to flash on screen and then get yanked away the instant the photo
-   collage populated. Wait a beat for the fetch to have a real chance to win
-   the race, then only fade the fallback in if the collage is still empty. */
-setTimeout(function(){
-  const hc=document.getElementById('heroCollage');
-  const pa=document.getElementById('triakar-print-animation');
-  if(pa&&(!hc||!hc.innerHTML.trim())) pa.classList.add('tpa-visible');
-},350);
 
 /* "Why Choose TriAkar" 2x2 real-photo grid, same source data */
 function _renderWhyChooseGrid(prods){
