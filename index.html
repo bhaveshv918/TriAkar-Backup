@@ -96,8 +96,8 @@
   pointer-events:none;
   background-image:radial-gradient(circle,rgba(196,98,42,.35) 1.8px,transparent 1.8px);
   background-size:30px 30px;
-  -webkit-mask-image:linear-gradient(90deg,transparent 0%,black 42%,black 58%,transparent 100%);
-  mask-image:linear-gradient(90deg,transparent 0%,black 42%,black 58%,transparent 100%);
+  -webkit-mask-image:linear-gradient(90deg,rgba(0,0,0,.32) 0%,black 42%,black 58%,rgba(0,0,0,.32) 100%);
+  mask-image:linear-gradient(90deg,rgba(0,0,0,.32) 0%,black 42%,black 58%,rgba(0,0,0,.32) 100%);
   -webkit-mask-size:280% 100%;
   mask-size:280% 100%;
   -webkit-mask-repeat:no-repeat;
@@ -183,11 +183,13 @@
 .hstat-l{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);font-weight:600;margin-top:2px}
 
 /* hero-print-animation.css handles the right panel */
-.hero-right{overflow:hidden;display:flex;align-items:center;justify-content:center}
+.hero-right{overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative}
 /* Fallback fades in only once we know the photo collage won't populate,
    instead of flashing on every load and then jump-cutting away the moment
-   the product fetch resolves. See the delayed reveal in loadHpProducts(). */
-.hero-right #triakar-print-animation{transform-origin:center;will-change:transform,opacity;opacity:0;transition:opacity .4s ease}
+   the product fetch resolves. See the delayed reveal in loadHpProducts().
+   Absolutely positioned over the collage's reserved footprint (rather than
+   sitting beside it in flow) so the hero never resizes when the two swap. */
+.hero-right #triakar-print-animation{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform-origin:center;will-change:transform,opacity;opacity:0;transition:opacity .4s ease}
 .hero-right #triakar-print-animation.tpa-visible{opacity:1}
 @media(min-width:1280px){#triakar-print-animation{transform:scale(1)}}
 @media(min-width:1024px) and (max-width:1279px){#triakar-print-animation{transform:scale(.8)}}
@@ -496,7 +498,10 @@ html.a11y-reduce-motion .promo-item:first-child{opacity:1}
 .hc-sub1{width:46%;height:42%;bottom:0;right:0;z-index:3;box-shadow:0 24px 54px rgba(22,22,20,.22);animation-delay:.55s}
 .hc-sub2{width:34%;height:30%;top:4%;right:-2%;z-index:1;transform:rotate(3deg);animation-delay:.7s}
 @media(max-width:1100px){.hero-collage{max-width:340px}}
-#heroCollage:empty{display:none}
+/* .hero-collage's aspect-ratio box reserves its footprint even while empty
+   (no longer display:none), so the hero's height stays constant whether the
+   printer-animation fallback or the real photos end up showing, instead of
+   the hero visibly growing/shrinking as the product fetch resolves. */
 #heroCollage:not(:empty) ~ #triakar-print-animation{display:none}
 .hero-title-shop .ht-accent{color:var(--accent)}
 .hero-brand-eyebrow{display:block;font-family:var(--font-g);font-size:13px;font-weight:700;letter-spacing:.32em;text-transform:uppercase;color:var(--stone);margin-bottom:10px}
