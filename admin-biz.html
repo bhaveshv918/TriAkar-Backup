@@ -677,10 +677,23 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
   justify-content:center;font-size:15px;line-height:1;border:1px solid var(--border);
   background:var(--bg-1);color:var(--text);cursor:pointer;box-shadow:0 4px 14px rgba(16,32,24,.20)}
 .qa-icon-btn-accent{background:var(--accent);border-color:var(--accent);color:#fff}
-.qa-fixed-bottom{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom,0px));right:16px;
-  z-index:150;display:flex;gap:8px}
+/* Edge-to-edge shaded strip (not just a floating pair) so the buttons read as a
+   toolbar and nothing in the scrolling form can end up visually stuck underneath
+   them. left offset clears the desktop sidebar; mobile/collapsed-sidebar overrides
+   below. */
+.qa-fixed-bottom-bar{position:fixed;left:var(--sidebar-w);right:0;bottom:0;z-index:150;
+  display:flex;justify-content:flex-end;gap:8px;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));
+  background:linear-gradient(0deg,var(--bg-1) 55%,transparent);
+  border-top:1px solid var(--border);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.shell.sb-collapsed .qa-fixed-bottom-bar{left:58px}
 .qa-fixed-bottom-btn{border-radius:24px!important;padding:12px 20px!important;
   box-shadow:0 6px 18px rgba(16,32,24,.30)}
+/* Clears the fixed bottom bar's own height so nothing in the form (the Clear
+   button included) ends up scrolled underneath it and hidden from view. */
+#quickAddForm{padding-bottom:76px}
+@media(max-width:768px){
+  .qa-fixed-bottom-bar{left:0}
+}
 /* Round-2 Batch 5, interaction polish (premium TRI/AKAR feel) */
 .btn,button,.tab,input,select,textarea,.badge,.qchip{transition:background .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease,transform .1s ease}
 input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(196,98,42,.15)}
@@ -1730,11 +1743,14 @@ html[data-theme="dark"] .biz-login{
             <button type="button" class="btn btn-ghost btn-sm" onclick="confirmClearQuickAdd()" title="Wipes the whole form">Clear</button>
           </div>
         </div>
-        <!-- Fixed pair, bottom-right, stays reachable while scrolling the long form.
-             Cancel and Save both stay put across all screen sizes (was mobile-only
-             before); Save is rightmost/last so the two read left-to-right as a
-             cancel-then-confirm pair, same order as the top-right icon pair. -->
-        <div class="qa-fixed-bottom" id="qaFixedBottom">
+        <!-- Full-width fixed bottom bar (not just a floating button pair), stays
+             reachable while scrolling the long form on every screen size. The shaded
+             backing spans edge to edge so it reads as a toolbar instead of buttons
+             floating loose over content; before this had no backing at all, so it
+             visually overlapped and hid whatever form content (Clear button included)
+             happened to land at that same bottom-right corner once scrolled down.
+             Save is rightmost/last, same left-to-right order as the top-right icons. -->
+        <div class="qa-fixed-bottom-bar" id="qaFixedBottom">
           <button type="button" class="btn btn-ghost btn-sm qa-fixed-bottom-btn" onclick="exitAddOrderEditMode()">✕ Cancel</button>
           <button type="submit" class="btn btn-primary qa-fixed-bottom-btn" id="qaSaveBtn"
             title="Ctrl/Cmd+Enter also saves">💾 Save</button>
