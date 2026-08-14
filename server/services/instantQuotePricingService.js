@@ -30,9 +30,17 @@ const DEFAULTS = {
 // Heuristic constants — not admin-tunable via site_settings (structural, not pricing
 // policy), but isolated here as named constants so they're easy to recalibrate as
 // real order data accumulates.
-const PRINT_SPEED_CM3_PER_HOUR = 12;   // throughput at 100% effective fill
-const SHELL_VOLUME_FRACTION    = 0.20; // walls/top/bottom add roughly this much beyond raw infill%
-const CALIBRATION_CORRECTION   = 1.35; // pulls heuristic time closer to observed real-slice totals (travel/retraction/thin-wall overhead that pure volume math misses)
+// Calibrated 2026-08-15 against one real reference part: a 53.96x96x230.95mm
+// bracket, true solid mesh volume 224.12 cm3, sliced in Bambu Studio at 15%
+// infill/2 walls/5-3 top-bottom = 72.24g actual, 3h2m actual. Back-solving from
+// that data point gave a real effective-fill-fraction of ~0.26 (vs the raw 15%
+// infill selected) and a real throughput of ~19 cm3/hr — the original guesses
+// (0.20 flat shell allowance, 12 cm3/hr, then a 1.35x correction on top of that)
+// compounded into a 3x overshoot on time. These are single-data-point estimates,
+// not a statistically fitted model — recalibrate further as real orders land.
+const PRINT_SPEED_CM3_PER_HOUR = 18;   // throughput at 100% effective fill
+const SHELL_VOLUME_FRACTION    = 0.12; // walls/top/bottom add roughly this much beyond raw infill%
+const CALIBRATION_CORRECTION   = 1.15; // small buffer for travel/retraction overhead pure volume math misses
 
 async function getSetting(key) {
   const { data } = await supabase.from('site_settings').select('value').eq('key', key).maybeSingle();
