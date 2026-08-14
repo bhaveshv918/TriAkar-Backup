@@ -110,6 +110,13 @@
   .iq-mobile-price b{font-family:var(--font-g);font-size:20px;display:block}
   .iq-mobile-price span{font-size:10px;color:var(--stone-l);text-transform:uppercase;letter-spacing:.08em}
   .iq-mobile-bar button{white-space:nowrap}
+  /* Push the site's floating scroll-to-top / accessibility buttons above our
+     fixed bottom bar so they don't visually collide with it — same pattern
+     shared.css already uses for the bottom nav (body.has-bottomnav). */
+  body.iq-has-mobile-bar{padding-bottom:calc(78px + env(safe-area-inset-bottom,0px))}
+  body.iq-has-mobile-bar .a11y-fab{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+  body.iq-has-mobile-bar .scroll-top{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+  body.iq-has-mobile-bar .a11y-panel{bottom:calc(128px + env(safe-area-inset-bottom,0px))}
 }
 </style>
 <script defer src="/_vercel/insights/script.js"></script>
@@ -369,6 +376,7 @@ const IQ = (function(){
     document.getElementById('iqPriceBox').style.display = 'none';
     document.getElementById('iqFinalizeEmpty').style.display = 'block';
     document.getElementById('iqMobileBar').classList.remove('has-price');
+    document.body.classList.remove('iq-has-mobile-bar');
     showError('');
   }
 
@@ -468,6 +476,7 @@ const IQ = (function(){
 
     const mobileBar = document.getElementById('iqMobileBar');
     mobileBar.classList.add('has-price');
+    document.body.classList.add('iq-has-mobile-bar');
     document.getElementById('iqMobilePrice').textContent = '₹' + Number(q.final_price).toLocaleString('en-IN');
   }
 
