@@ -5231,12 +5231,20 @@ function onItemNum(i,f,v){
   recalcTotals();
 }
 function recalcTotals(){
+  // Quotation mode only: GST is calculated on the pre-discount amount (matching
+  // what the customer sees written out, e.g. "3300 × 15 + 18%"), with the discount
+  // subtracted as a straight deduction afterward, instead of Order mode's discount-
+  // reduces-taxable-value math. This only affects the quotation preview/print, a
+  // real Order's actual charged amount and GST (itemAmount(), used below) is
+  // deliberately left untouched, since that's what's charged and filed for real.
+  const isQuoteMode=_qaFormMode==='quotation';
   let count=0,qty=0,sub=0,gst=0,cost=0,anyGst=false,disc=0;
   _items.forEach(it=>{
     // Rate ₹ is entered excluding GST, so the item amount is already the taxable
     // value and GST is added on top (not extracted back out of an inclusive price).
     // Per-piece: qty × rate. Per-gram: qty × totalGrams × rate (see itemAmount()).
-    const amt=itemAmount(it);
+    const gross=it.pricingMode==='gram' ? (it.qty*itemTotalGrams(it)*it.rate) : (it.qty*it.rate);
+    const amt=isQuoteMode?gross:itemAmount(it);
     if((it.name&&it.name.trim())||it.rate) count++;
     qty+=it.qty;
     sub+=amt;
@@ -5252,7 +5260,7 @@ function recalcTotals(){
   // rupee) every time the items/GST change, UNLESS the operator has typed into the
   // field themselves this order (_qaRoundoffManual, set by its oninput), in which
   // case their value, including a deliberate 0, sticks until a new order is started.
-  const preRound=sub+gst;
+  const preRound=isQuoteMode?(sub+gst-disc):(sub+gst);
   const roundEl=document.getElementById('qa_roundoff');
   const autoRound=Math.round((Math.round(preRound)-preRound)*100)/100;
   let round;
@@ -5261,7 +5269,7 @@ function recalcTotals(){
   const netRev=sub-fee-ship-porter;
   const profit=netRev-cost;
   const margin=netRev>0?(profit/netRev*100):0;
-  const grand=sub+gst+round;
+  const grand=preRound+round;
   const S=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
   S('t_count',count); S('t_qty',qty);
   S('t_sub',fmt(sub)); S('t_gst',fmt(gst)); S('t_cost',fmt(cost));
@@ -5645,7 +5653,16 @@ async function submitQuickAddAsQuotation(){
     variant:it.variant||'', remarks:it.remarks||'',
   }));
   if(!items.length){ toast('Add at least one item','error'); return; }
-  let sub=0,gstAmt=0; items.forEach(it=>{ const gross=it.pricingMode==='gram'?(it.qty||0)*(it.grams||0)*(it.rate||0):(it.qty||0)*(it.rate||0); const amt=Math.max(0,gross-(it.disc||0)); sub+=amt; gstAmt+=amt*((it.gst||0)/100); });
+  // GST is on the pre-discount amount here (matches recalcTotals' quotation-mode
+  // math above and printQuotation's print calc), discount subtracted once at the
+  // end, so the saved total matches what actually prints. Real orders keep the
+  // discount-reduces-taxable-value math (itemAmount()), untouched.
+  let sub=0,gstAmt=0,discTotal=0;
+  items.forEach(it=>{
+    const gross=it.pricingMode==='gram'?(it.qty||0)*(it.grams||0)*(it.rate||0):(it.qty||0)*(it.rate||0);
+    const disc=Math.min(it.disc||0,gross);
+    sub+=gross; gstAmt+=gross*((it.gst||0)/100); discTotal+=disc;
+  });
   const g=id=>document.getElementById(id)?.value?.trim()||null;
   const manualNumber=g('qa_qt_number')||await genQuotationNumber();
   const now=new Date(), fyStart=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
@@ -5660,7 +5677,7 @@ async function submitQuickAddAsQuotation(){
     customer_id:custId||null,
     customer_name:cname, customer_phone:g('qa_phone'), customer_address:g('qa_address'),
     customer_city:g('qa_city'), customer_state:g('qa_state'), customer_pincode:g('qa_pin'), customer_country:g('qa_country')||'India', customer_gstin:g('qa_gstin'),
-    items, subtotal:sub, gst_amount:gstAmt, total:sub+gstAmt,
+    items, subtotal:sub, gst_amount:gstAmt, total:sub+gstAmt-discTotal,
     validity_date:g('qa_qt_validity'), terms_notes:g('qa_qt_terms'), promised_date:g('qa_qt_promised'),
     quotation_number:manualNumber, quotation_date:g('qa_date')||today(),
   };
@@ -6549,12 +6566,20 @@ async function printQuotation(id){
     const unitRate=it.pricingMode==='gram' ? (parseFloat(it.grams)||0)*rate : rate;
     const gross=qty*unitRate;
     const disc=Math.min(parseFloat(it.disc)||0,gross);
-    const base=gross-disc;
+    // GST is calculated on the pre-discount amount (gross), matching what's written
+    // out on the page ("Rate × Qty + GST%"); the discount is then subtracted once,
+    // straight off the GST-inclusive total. gst_amount is passed through explicitly
+    // so printInvoice shows this GST figure directly instead of back-deriving it
+    // from a discounted total (which would silently shrink it again). This is a
+    // quotation-print-only convention, real orders keep GST-on-discounted-value
+    // (see itemAmount()/recalcTotals), since that's what's actually charged/filed.
+    const gstAmt=Math.round(gross*(gst/100)*100)/100;
     return {
       product_name:it.name||'—', qty, gst_rate:gst, hsn_code:it.hsn||'',
-      selling_price:Math.round(base*(1+gst/100)*100)/100,
+      selling_price:Math.round((gross+gstAmt-disc)*100)/100,
       discount_amount:disc,
       unit_rate:Math.round(unitRate*100)/100,
+      gst_amount:gstAmt,
       variant:[it.variant||'', (it.pricingMode==='gram'&&it.grams)?`${it.grams}g`:''].filter(Boolean).join(' · '),
       remarks:it.remarks||'',
     };
@@ -12104,22 +12129,38 @@ async function printInvoice(d, type, docKind, win){
     // informational note only, it's already netted into this total.
     const iamt_incl=parseFloat(it.selling_price)||0;
     const irate=parseFloat(it.gst_rate)||0;
-    const igst=(type==='gst'&&irate>0)?iamt_incl-(iamt_incl/(1+irate/100)):0;
-    // For GST invoices show taxable (ex-GST) amounts in the rate/amount columns
-    const iamt=iamt_incl-igst;
     // Rate column: show the actual rate entered (excl. GST, before discount), not a
     // value back-derived from the discounted line total, so a discount never makes
     // it look like the rate itself changed. Falls back to the old derivation for
     // rows that don't carry an explicit unit_rate (orders/records built pre-fix).
-    const iunit_show=it.unit_rate!=null ? parseFloat(it.unit_rate) :
-      (iqty>0 ? ((type==='gst'&&irate>0)?iamt/iqty:iamt_incl/iqty) : ((type==='gst'&&irate>0)?iamt:iamt_incl));
-    // Row Total column: same principle as the Rate fix above. iamt_incl/iamt are
-    // already net of the discount, so showing them directly made the row's own Rate
-    // × Qty + GST Amt stop adding up to the Total shown right next to them (a ₹4,500
-    // discount made the Total column look ₹4,500 short with no visible reason on that
-    // row). Add the discount back for display so Total = Rate×Qty + GST Amt again;
-    // the discount still only shows up once, as its own line before the real Total.
-    const iamt_incl_show=iamt_incl+idisc, iamt_show=iamt+idisc;
+    const hasUnitRate=it.unit_rate!=null;
+    // gst_amount, set only by printQuotation: GST calculated on the pre-discount
+    // amount (see printQuotation), discount subtracted straight off the total
+    // afterward. Back-deriving GST from selling_price the usual way (below) assumes
+    // the opposite (GST on the already-discounted amount) and would silently shrink
+    // it here, so quotations carry their real GST figure through explicitly instead.
+    const hasExplicitGst=it.gst_amount!=null;
+    let igst, iamt, iunit_show, iamt_incl_show, iamt_show;
+    if(hasExplicitGst){
+      igst=parseFloat(it.gst_amount)||0;
+      iunit_show=parseFloat(it.unit_rate)||0;
+      iamt=iunit_show*iqty;                 // taxable value, pre-discount, matches the displayed GST%
+      iamt_incl_show=iamt+igst;             // pre-discount total; discount shown as its own line, not baked in here
+      iamt_show=iamt_incl_show;
+    } else {
+      igst=(type==='gst'&&irate>0)?iamt_incl-(iamt_incl/(1+irate/100)):0;
+      // For GST invoices show taxable (ex-GST) amounts in the rate/amount columns
+      iamt=iamt_incl-igst;
+      iunit_show=hasUnitRate ? parseFloat(it.unit_rate) :
+        (iqty>0 ? ((type==='gst'&&irate>0)?iamt/iqty:iamt_incl/iqty) : ((type==='gst'&&irate>0)?iamt:iamt_incl));
+      // Row Total column: same principle as the Rate fix above. iamt_incl/iamt are
+      // already net of the discount, so showing them directly made the row's own Rate
+      // × Qty + GST Amt stop adding up to the Total shown right next to them (a ₹4,500
+      // discount made the Total column look ₹4,500 short with no visible reason on that
+      // row). Add the discount back for display so Total = Rate×Qty + GST Amt again;
+      // the discount still only shows up once, as its own line before the real Total.
+      iamt_incl_show=iamt_incl+idisc; iamt_show=iamt+idisc;
+    }
     subtotal+=iamt; gstAmt+=igst; totalDisc+=idisc;
     if(showGstCols){
       const hk=it.hsn_code||'—';
@@ -12172,7 +12213,11 @@ async function printInvoice(d, type, docKind, win){
   // stores it once, like platform_fee/shipping_fee), so read it off d directly rather
   // than summing across items.
   const roundOff=parseFloat(d.round_off)||0;
-  const grandTotal=subtotal+gstAmt+roundOff;
+  // Quotations accumulate subtotal/gstAmt pre-discount (see the hasExplicitGst branch
+  // above), so the discount still needs subtracting here to land on the real total.
+  // Every other doc kind already has it netted into subtotal via selling_price, so
+  // subtracting it again there would double-count it.
+  const grandTotal=subtotal+gstAmt+roundOff-(isQuote?totalDisc:0);
   const amtWords=amountInWords(grandTotal);
   const docTitle=isRecord?'Order Record':isQuote?'Quotation':(hasGst?'Tax Invoice':'Invoice');
 
