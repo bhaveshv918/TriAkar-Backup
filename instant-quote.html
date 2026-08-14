@@ -309,9 +309,21 @@ const IQ = (function(){
     // though every other Auth.apiFetch call on this page would have silently refreshed.
     const authHeader = await Auth.authHeaderAsync();
 
+    // A dead session (refresh token itself invalid/expired) leaves authHeaderAsync()
+    // with nothing to send — sending the request anyway just gets a confusing raw
+    // "Unauthorised" error back and every step after upload stays stuck. The nav can
+    // still show a stale cached name at this point, so isLoggedIn()/UI state alone
+    // isn't enough — catch it here before wasting the upload.
+    if (!authHeader.Authorization) {
+      wrap.style.display = 'none';
+      showError('Your session has expired — please sign in again to upload a model.');
+      if (typeof openAuthModal === 'function') openAuthModal(); else window.location.href = '/account.html';
+      return;
+    }
+
     const xhr = new XMLHttpRequest();
     xhr.open('POST', TA_API + '/api/instant-quote/analyze');
-    if (authHeader.Authorization) xhr.setRequestHeader('Authorization', authHeader.Authorization);
+    xhr.setRequestHeader('Authorization', authHeader.Authorization);
     xhr.upload.onprogress = function(e){
       if (!e.lengthComputable) return;
       fill.style.width = Math.round((e.loaded / e.total) * 100) + '%';
@@ -399,7 +411,7 @@ const IQ = (function(){
     document.getElementById('iqStats').style.display = 'none';
     document.getElementById('iqFileInput').value = '';
     document.querySelectorAll('#iqPrinterGrid .iq-option, #iqMaterialGrid .iq-option').forEach(el => el.classList.remove('selected'));
-    ['iqStepPrinter','iqStepMaterial','iqStepInfill'].forEach(id => document.getElementById(id).classList.remove('active','done'));
+    ['iqStepPrinter','iqStepMaterial','iqStepInfill','iqStepFinalize'].forEach(id => document.getElementById(id).classList.remove('active','done'));
     document.getElementById('iqPriceBox').style.display = 'none';
     document.getElementById('iqFinalizeEmpty').style.display = 'block';
     document.getElementById('iqMobileBar').classList.remove('has-price');
@@ -490,6 +502,10 @@ const IQ = (function(){
   }
 
   function renderPrice(q){
+    // .iq-step defaults to opacity:.45 + pointer-events:none until it gets .active/.done
+    // (same as steps 1-3) — this box was never getting that class, so the price/button
+    // rendered correctly but was permanently unclickable no matter what.
+    document.getElementById('iqStepFinalize').classList.add('active', 'done');
     document.getElementById('iqStatWeight').textContent = q.estimated_weight_g + 'g';
     document.getElementById('iqStatTime').textContent = q.estimated_print_time_hours + 'h';
     document.getElementById('iqFinalizeEmpty').style.display = 'none';
