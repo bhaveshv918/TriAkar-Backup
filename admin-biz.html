@@ -157,6 +157,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .btn-icon-doc{--tint:var(--accent);--tint-bg:var(--accent-bg)}
 .btn-icon-order{--tint:var(--green);--tint-bg:var(--green-bg)}
 .btn-icon-invoice{--tint:var(--orange);--tint-bg:var(--orange-bg)}
+.btn-icon-accept{--tint:var(--blue);--tint-bg:var(--blue-bg)}
+.btn-icon-muted{--tint:var(--text-3);--tint-bg:var(--bg-2)}
 
 /* ── Skeleton loading (Phase 10 Group 3, L) ──────────────────
    Admin's own token set (--bg-2/--bg-3), not the customer-site skeleton CSS,
@@ -281,7 +283,7 @@ tr:hover td{background:var(--bg-2)}
 
 /* ── Items line grid (Add Sale) ───────────────────────────── */
 .items-wrap{border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-1);overflow-x:auto;-webkit-overflow-scrolling:touch;box-shadow:var(--shadow)}
-.items-grid{display:grid;grid-template-columns:30px minmax(140px,1.6fr) 48px 84px 64px 58px 64px 74px 62px 62px 90px 30px;align-items:center;min-width:880px;gap:6px}
+.items-grid{display:grid;grid-template-columns:30px minmax(140px,1.6fr) 48px 84px 86px 58px 64px 74px 62px 62px 90px 30px;align-items:center;min-width:900px;gap:6px}
 .items-head{background:var(--bg-2);font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-3);padding:8px 10px}
 .items-head .r{text-align:right}
 .item-row{border-top:1px solid var(--border);padding:7px 10px;gap:6px}
@@ -1514,7 +1516,7 @@ html[data-theme="dark"] .biz-login{
             <div>Item</div>
             <div class="r">Qty</div>
             <div class="r" title="Rate excluding GST, tax is added on top">Rate ₹</div>
-            <div class="r">Disc ₹</div>
+            <div class="r" title="Enter as a flat ₹ amount or toggle to %">Discount</div>
             <div class="r">GST %</div>
             <div class="r" title="HSN/SAC code for this item">HSN</div>
             <div class="r">Cost ₹</div>
@@ -2097,9 +2099,63 @@ html[data-theme="dark"] .biz-login{
           <button class="btn btn-primary btn-sm" onclick="newQuotation()">+ New Quotation</button>
         </div>
       </div>
+
+      <!-- Bulk selection, replaces the old per-row delete X: select rows, then act on
+           all of them at once, same pattern as All Orders' checkbox + bulk bar. -->
+      <div id="qtBulkBar" style="display:none;background:var(--accent);color:#fff;border-radius:7px;padding:10px 16px;margin-bottom:10px;align-items:center;gap:10px;flex-wrap:wrap">
+        <span id="qtBulkCount" style="font-size:12px;font-weight:700;margin-right:4px">0 selected</span>
+        <button class="btn btn-sm" onclick="bulkDeleteQuotations()" title="Delete selected quotations" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">🗑 Delete Selected</button>
+        <button class="btn btn-sm" onclick="clearQuotationSelection()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">Clear</button>
+      </div>
+
+      <!-- Search + one-click This FY + a Filters panel, defaults to This Month so the
+           list opens already scoped to the current month instead of every quotation
+           ever made. Same idiom as All Orders' sfView/sfMonth filters. -->
+      <div class="filter-bar" style="align-items:center;margin-bottom:8px">
+        <input type="text" id="qtSearch" placeholder="Search quotation # / customer…" oninput="loadQuotations()" style="min-width:200px;flex:1">
+        <button class="btn btn-ghost btn-sm" onclick="showQuotationsFy()" title="Jump to This Financial Year">📅 This FY</button>
+        <button class="btn btn-ghost btn-sm" id="qtToggleBtn" onclick="toggleQuotationFilters()">⚙ Filters<span id="qtActiveCount" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:6px">0</span></button>
+        <button class="btn btn-ghost btn-sm" onclick="clearQuotationFilters()">Clear</button>
+      </div>
+      <div id="quotationFilters" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Status</label>
+            <select id="qtStatus" onchange="loadQuotations()">
+              <option value="">All Status</option>
+              <option value="draft">Draft</option>
+              <option value="accepted">Accepted</option>
+              <option value="declined">Declined</option>
+              <option value="expired">Expired</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Period</label>
+            <select id="qtView" onchange="onQtViewChange()">
+              <option value="all">All Time</option>
+              <option value="month" selected>Select Month</option>
+              <option value="fy">This Financial Year</option>
+              <option value="custom">Custom Range</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Month</label><input type="month" id="qtMonth" onchange="loadQuotations()"></div>
+          <div class="form-group"><label>From</label><input type="date" id="qtFrom" onchange="loadQuotations()"></div>
+          <div class="form-group"><label>To</label><input type="date" id="qtTo" onchange="loadQuotations()"></div>
+        </div>
+      </div>
+
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th style="width:30px">#</th><th>Date</th><th>Quotation #</th><th>Customer</th><th class="td-num">Total</th><th style="width:64px">Status</th><th>Validity</th><th class="td-actions"></th></tr></thead>
+          <thead><tr>
+            <th style="width:26px"><input type="checkbox" id="qtSelectAll" onclick="toggleSelectAllQuotations(this)"></th>
+            <th style="width:30px">#</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th class="td-num">Total</th>
+            <th style="width:64px">Status</th>
+            <th>Validity</th>
+            <th class="td-actions"></th>
+          </tr></thead>
           <tbody id="quotationsBody"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
@@ -4811,14 +4867,34 @@ let _items=[];
 // Round Off auto-calculates every recalcTotals() unless the operator has typed into
 // qa_roundoff themselves this order, see recalcTotals().
 let _qaRoundoffManual=false;
-function blankItem(){ return {rowId:null,productId:null,name:'',variant:'',pricingMode:'piece',qty:1,rate:12,disc:0,gst:0,cost:0,grams:0,waste:0,hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:'',spool:'',extraSpools:[],remarks:'',itemType:'product',spoolSaleId:null}; }
+function blankItem(){ return {rowId:null,productId:null,name:'',variant:'',pricingMode:'piece',qty:1,rate:12,disc:0,discType:'amount',discPct:0,gst:0,cost:0,grams:0,waste:0,hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:'',spool:'',extraSpools:[],remarks:'',itemType:'product',spoolSaleId:null}; }
 // Amount for one line: per-piece is qty × rate (unchanged); per-gram is
 // qty × totalGrams × rate, where totalGrams is this piece's own grams plus
 // every part's grams (parts live in extraSpools, each carrying its own label).
 function itemTotalGrams(it){ return (it.grams||0)+(it.extraSpools||[]).reduce((a,es)=>a+(parseFloat(es.grams)||0),0); }
+// Gross line value before any discount, shared by itemAmount() and the discount %
+// converter below.
+function itemGross(it){ return it.pricingMode==='gram' ? (it.qty*itemTotalGrams(it)*it.rate) : (it.qty*it.rate); }
 function itemAmount(it){
-  const base=it.pricingMode==='gram' ? (it.qty*itemTotalGrams(it)*it.rate) : (it.qty*it.rate);
-  return base-(it.disc||0);
+  return itemGross(it)-(it.disc||0);
+}
+// it.disc always stays the real ₹ amount (every downstream calc, order and
+// quotation alike, reads it directly), discType/discPct are entry-convenience only:
+// when discType is 'percent', discPct is the % last typed and disc is kept in sync
+// as its ₹ equivalent so nothing else needs to know a percentage was involved.
+function onItemDiscInput(i,v){
+  const it=_items[i]; const val=parseFloat(v)||0;
+  if(it.discType==='percent'){ it.discPct=val; it.disc=Math.round(itemGross(it)*(val/100)*100)/100; }
+  else { it.disc=val; it.discPct=0; }
+  const el=document.getElementById('amt_'+i);
+  if(el) el.innerHTML=`${fmt(itemAmount(it))}${it.pricingMode==='gram'?`<div style="font-size:9px;color:var(--text-3);font-weight:400">${itemTotalGrams(it)}g total</div>`:''}`;
+  recalcTotals();
+}
+function toggleItemDiscType(i){
+  const it=_items[i];
+  it.discType=it.discType==='percent'?'amount':'percent';
+  if(it.discType==='percent'){ const g=itemGross(it); it.discPct=g>0?Math.round((it.disc||0)/g*10000)/100:0; }
+  renderItems();
 }
 let _catalogByName={}, _catalogBySku={};
 
@@ -6289,31 +6365,131 @@ async function loadSalesview(){
 }
 
 // ── Quotations (Phase 10 Group 1) ────────────────────────────
-let _quotations=[], _quoteItems=[];
+let _quotations=[], _quoteItems=[], _qtSelected=new Set();
+
+// Small stroke-based SVG icon set, replacing the old emoji buttons so every action
+// reads as a deliberate icon (matches the copy-icon already used in orderIdTag)
+// instead of mixed-platform emoji glyphs. 15px, currentColor, title on the button
+// itself carries the hover tooltip.
+const ICO_VIEW='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7-10.5-7-10.5-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+const ICO_ORDER='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1.4"/><circle cx="19" cy="21" r="1.4"/><path d="M1 1h3.2l2.68 13.39a2 2 0 0 0 2 1.61h9.24a2 2 0 0 0 2-1.61L22 6H6"/></svg>';
+const ICO_ACCEPT='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+const ICO_INVOICE='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12a1 1 0 0 1 1 1v18l-3-2-2 2-2-2-2 2-2-2-3 2V3a1 1 0 0 1 1-1Z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></svg>';
+const ICO_DUPLICATE='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const ICO_EDIT='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>';
+
 function blankQuoteItem(){ return {name:'',qty:1,rate:0,gst:0}; }
+function onQtViewChange(){
+  const view=document.getElementById('qtView')?.value||'all';
+  const set=(id,v)=>{const e=document.getElementById(id); if(e) e.value=v;};
+  const now=new Date(), curY=now.getFullYear(), curM=now.getMonth()+1;
+  if(view==='all'){ set('qtMonth',''); set('qtFrom',''); set('qtTo',''); }
+  else if(view==='month'){ set('qtMonth',thisMonth()); set('qtFrom',''); set('qtTo',''); }
+  else if(view==='fy'){
+    const fyStartYear=curM>=4?curY:curY-1;
+    set('qtMonth',''); set('qtFrom',`${fyStartYear}-04-01`); set('qtTo',`${fyStartYear+1}-03-31`);
+  }
+  if(view==='custom') set('qtMonth','');
+  loadQuotations();
+}
+// One-click "This FY" next to Search, same result as opening Filters and picking
+// This Financial Year from Period, without the extra click.
+function showQuotationsFy(){
+  const sv=document.getElementById('qtView'); if(sv) sv.value='fy';
+  const panel=document.getElementById('quotationFilters');
+  if(panel && panel.style.display==='none') toggleQuotationFilters();
+  onQtViewChange();
+}
+function toggleQuotationFilters(){
+  const p=document.getElementById('quotationFilters'); if(!p) return;
+  const show=p.style.display==='none';
+  p.style.display=show?'block':'none';
+  document.getElementById('qtToggleBtn')?.classList.toggle('active',show);
+}
+function clearQuotationFilters(){
+  ['qtStatus','qtMonth','qtFrom','qtTo','qtSearch'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const sv=document.getElementById('qtView'); if(sv) sv.value='month';
+  onQtViewChange();
+}
+function updateQtFilterBadge(){
+  const b=document.getElementById('qtActiveCount'); if(!b) return;
+  let n=0; ['qtStatus','qtFrom','qtTo'].forEach(id=>{const e=document.getElementById(id); if(e&&e.value) n++;});
+  b.textContent=n; b.style.display=n?'inline-block':'none';
+}
+function toggleQtSelect(id,checked){
+  if(checked) _qtSelected.add(id); else _qtSelected.delete(id);
+  updateQtBulkBar();
+}
+function toggleSelectAllQuotations(cb){
+  document.querySelectorAll('.qt-cb').forEach(el=>{ el.checked=cb.checked; toggleQtSelect(el.dataset.id,cb.checked); });
+}
+function clearQuotationSelection(){
+  _qtSelected.clear();
+  document.querySelectorAll('.qt-cb').forEach(el=>el.checked=false);
+  const sa=document.getElementById('qtSelectAll'); if(sa) sa.checked=false;
+  updateQtBulkBar();
+}
+function updateQtBulkBar(){
+  const bar=document.getElementById('qtBulkBar'); if(!bar) return;
+  const n=_qtSelected.size;
+  bar.style.display=n?'flex':'none';
+  const c=document.getElementById('qtBulkCount'); if(c) c.textContent=n+' selected';
+}
+async function bulkDeleteQuotations(){
+  if(!_qtSelected.size) return;
+  const ids=[..._qtSelected];
+  if(!confirm(`Delete ${ids.length} selected quotation${ids.length===1?'':'s'}? This cannot be undone.`)) return;
+  const {error}=await sb.from('biz_quotations').delete().in('id',ids);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast(`${ids.length} quotation${ids.length===1?'':'s'} deleted`);
+  clearQuotationSelection();
+  loadQuotations();
+}
 async function loadQuotations(){
-  const {data,error}=await sb.from('biz_quotations').select('*').order('created_at',{ascending:false}).limit(500);
+  const v=id=>{const e=document.getElementById(id);return e?e.value:'';};
+  // Defaults to This Month (qtView starts on 'month'), same self-fill pattern as
+  // All Orders' sfMonth, so the list opens already scoped instead of showing
+  // every quotation ever made.
+  if(v('qtView')==='month'&&!v('qtMonth')){ const mEl=document.getElementById('qtMonth'); if(mEl) mEl.value=thisMonth(); }
+  const status=v('qtStatus'), mo=v('qtMonth'), from=v('qtFrom'), to=v('qtTo'), se=v('qtSearch').trim();
+  let q=sb.from('biz_quotations').select('*').order('created_at',{ascending:false}).limit(500);
+  if(status) q=q.eq('status',status);
+  if(mo){ const [yy,mm]=mo.split('-').map(Number); const nm=(mm===12)?`${yy+1}-01-01`:`${yy}-${String(mm+1).padStart(2,'0')}-01`; q=q.gte('quotation_date',mo+'-01').lt('quotation_date',nm); }
+  if(from) q=q.gte('quotation_date',from);
+  if(to) q=q.lte('quotation_date',to);
+  if(se) q=q.or(`quotation_number.ilike.%${se}%,customer_name.ilike.%${se}%`);
+  const {data,error}=await q;
   const body=document.getElementById('quotationsBody'); if(!body) return;
   if(error){ body.innerHTML=`<tr><td colspan="8" class="empty"><div class="em-text">${esc(error.message)}</div></td></tr>`; return; }
   _quotations=data||[];
+  _qtSelected.clear(); updateQtBulkBar(); updateQtFilterBadge();
+  const sa=document.getElementById('qtSelectAll'); if(sa) sa.checked=false;
   const sub=document.getElementById('quotationsSubtitle'); if(sub) sub.textContent=_quotations.length+' quotation'+(_quotations.length!==1?'s':'');
-  if(!_quotations.length){ body.innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">No quotations yet</div></td></tr>'; return; }
-  body.innerHTML=_quotations.map((q,idx)=>`
+  if(!_quotations.length){ body.innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">No quotations found for this period</div></td></tr>'; return; }
+  body.innerHTML=_quotations.map((q,idx)=>{
+    const convertible=!['accepted','declined','expired'].includes(q.status);
+    return `
     <tr>
+      <td onclick="event.stopPropagation()"><input type="checkbox" class="qt-cb" data-id="${q.id}" onchange="toggleQtSelect('${q.id}',this.checked)"></td>
       <td>${idx+1}</td>
-      <td>${q.quotation_date?fmtDay(q.quotation_date):(q.created_at?fmtDay(q.created_at.slice(0,10)):'—')}</td>
-      <td style="font-family:var(--mono);font-size:11px">${esc(q.quotation_number||'—')}</td>
-      <td>${esc(q.customer_name||'—')}</td>
+      <td style="white-space:nowrap">${q.quotation_date?fmtDay(q.quotation_date):(q.created_at?fmtDay(q.created_at.slice(0,10)):'—')}</td>
+      <td style="max-width:200px">
+        <div style="font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;line-height:1.35">${esc(q.customer_name||'—')}</div>
+        ${orderIdTag(q.quotation_number,{color:'var(--text-3)'})}
+      </td>
       <td class="td-num">${fmt(q.total)}</td>
       <td><span class="badge badge-${q.status==='accepted'?'completed':q.status==='declined'?'cancelled':'pending'}">${esc(q.status)}</span></td>
       <td>${q.validity_date?fmtDay(q.validity_date):'—'}</td>
       <td class="td-actions" style="white-space:nowrap;text-align:right">
-        ${!['accepted','declined','expired'].includes(q.status)?`<button class="btn btn-primary btn-sm" onclick="acceptQuotation('${q.id}')">✓ Accept</button> <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editQuotation('${q.id}')" title="Edit">✎</button> <button class="btn btn-icon-tint btn-icon-order btn-sm" onclick="openAddOrderFromQuotation('${q.id}')" title="Add to Order, opens the Add Order page pre-filled from this quotation">🛒 Order</button> <button class="btn btn-icon-tint btn-icon-invoice btn-sm" onclick="makeInvoiceFromQuotation('${q.id}')" title="Make Invoice, creates the order from this quotation and generates its invoice right away">🧾 Invoice</button>`:''}
-        <button class="btn btn-icon-tint btn-icon-duplicate btn-sm" onclick="duplicateQuotation('${q.id}')" title="Duplicate, opens as a new quotation you can edit before saving">⧉</button>
-        <button class="btn btn-icon-tint btn-icon-doc btn-sm" onclick="printQuotation('${q.id}')" title="Print / PDF">🖨</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteQuotation('${q.id}')">✕</button>
+        <button class="btn btn-icon-tint btn-icon-doc btn-sm" onclick="printQuotation('${q.id}')" title="View / Download PDF" style="gap:5px">${ICO_VIEW} View</button>
+        ${convertible?`<button class="btn btn-icon-tint btn-icon-order btn-sm" onclick="openAddOrderFromQuotation('${q.id}')" title="Add to Order, opens the Add Order page pre-filled from this quotation" style="gap:5px">${ICO_ORDER} Order</button>`:''}
+        ${convertible?`<button class="btn btn-icon-tint btn-icon-accept btn-sm" onclick="acceptQuotation('${q.id}')" title="Accept">${ICO_ACCEPT}</button>`:''}
+        ${convertible?`<button class="btn btn-icon-tint btn-icon-invoice btn-sm" onclick="makeInvoiceFromQuotation('${q.id}')" title="Make Invoice, creates the order from this quotation and generates its invoice right away">${ICO_INVOICE}</button>`:''}
+        <button class="btn btn-icon-tint btn-icon-duplicate btn-sm" onclick="duplicateQuotation('${q.id}')" title="Duplicate, opens as a new quotation you can edit before saving">${ICO_DUPLICATE}</button>
+        ${convertible?`<button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="editQuotation('${q.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button>`:''}
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 function renderQuoteItems(){
   const wrap=document.getElementById('quoteItemRows'); if(!wrap) return;
@@ -6537,11 +6713,6 @@ async function saveQuotation(){
   }
   toast('Quotation saved');
   closeQuotationForm();
-  loadQuotations();
-}
-async function deleteQuotation(id){
-  if(!confirm('Delete this quotation?')) return;
-  await sb.from('biz_quotations').delete().eq('id',id);
   loadQuotations();
 }
 async function acceptQuotation(id){
