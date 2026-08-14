@@ -347,6 +347,24 @@ tr:hover td{background:var(--bg-2)}
 .filter-panel-section{margin-bottom:12px}
 .filter-panel-section:last-child{margin-bottom:0}
 .filter-panel-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px}
+/* ── Custom select (csel) ─────────────────────────────────────
+   Native <select> popups are OS-rendered and can't be restyled by CSS in any
+   reliable cross-browser way, that's the "3rd class" plain white list. This
+   wraps a real <select> (kept in the DOM, driving every existing onchange/.value
+   read, just visually hidden) with a themed trigger + dropdown panel that matches
+   the tonal button language everywhere else. See enhanceSelectsIn()/syncCustomSelect(). */
+.csel{position:relative}
+.csel-native{position:absolute;inset:0;opacity:0;width:100%;pointer-events:none}
+.csel-trigger{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-2);font-family:var(--sans);font-size:12px;font-weight:600;padding:7px 10px;cursor:pointer;transition:border-color .15s,background .15s}
+.csel-trigger:hover{border-color:var(--border-h);background:var(--bg-3)}
+.csel-trigger svg{flex-shrink:0;color:var(--text-3);transition:transform .15s}
+.csel.open .csel-trigger{border-color:var(--accent);color:var(--accent-h);background:var(--accent-bg)}
+.csel.open .csel-trigger svg{transform:rotate(180deg);color:var(--accent-h)}
+.csel-panel{position:absolute;top:calc(100% + 5px);left:0;right:0;min-width:180px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-h);z-index:200;max-height:260px;overflow-y:auto;padding:4px;display:none}
+.csel.open .csel-panel{display:block}
+.csel-option{padding:7px 10px;border-radius:8px;font-size:12px;color:var(--text-2);cursor:pointer;white-space:nowrap}
+.csel-option:hover{background:var(--bg-2);color:var(--text)}
+.csel-option.selected{background:var(--accent-bg);color:var(--accent-h);font-weight:700}
 /* Standalone month / date pickers (dashboard etc.) */
 .month-select,input[type=month],input[type=date]{
   background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);
@@ -4181,6 +4199,65 @@ function renderFilterChips(containerId, chips){
   el.style.display='flex';
   el.innerHTML=chips.map((c,i)=>`<span class="filter-chip">${esc(c.label)}<button type="button" onclick="_filterChipHandlers_${containerId}[${i}].clear()" title="Remove this filter">${ICO_CLOSE}</button></span>`).join('');
 }
+// ── Custom select (theme-matched dropdown) ───────────────────
+// Wraps every real <select> inside a container with a tonal trigger + panel
+// (see .csel CSS), since a native <select>'s open popup is OS-rendered and can't
+// be restyled. The real <select> stays in the DOM (just visually hidden), so
+// every existing onchange="..."/getElementById(id).value read keeps working
+// completely untouched, this is a pure visual wrapper, not a data model change.
+// Call enhanceSelectsIn(containerId) once (e.g. on page load) to wrap the
+// selects in a panel, then call syncCustomSelects(containerId) any time the
+// underlying values might have changed programmatically (clear/preset buttons
+// etc.) so the custom trigger labels stay in sync.
+function enhanceSelectsIn(containerId){
+  const container=document.getElementById(containerId); if(!container) return;
+  container.querySelectorAll('select').forEach(sel=>{
+    if(sel.dataset.cselDone) return;
+    sel.dataset.cselDone='1';
+    const wrap=document.createElement('div'); wrap.className='csel';
+    sel.parentNode.insertBefore(wrap,sel);
+    wrap.appendChild(sel);
+    sel.classList.add('csel-native'); sel.tabIndex=-1;
+    const trigger=document.createElement('div');
+    trigger.className='csel-trigger';
+    trigger.innerHTML='<span class="csel-label"></span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+    trigger.setAttribute('role','button');
+    wrap.appendChild(trigger);
+    const panel=document.createElement('div'); panel.className='csel-panel';
+    wrap.appendChild(panel);
+    trigger.addEventListener('click',e=>{
+      e.stopPropagation();
+      const wasOpen=wrap.classList.contains('open');
+      document.querySelectorAll('.csel.open').forEach(w=>w.classList.remove('open'));
+      if(!wasOpen) wrap.classList.add('open');
+    });
+  });
+  syncCustomSelects(containerId);
+  if(!enhanceSelectsIn._closeBound){
+    enhanceSelectsIn._closeBound=true;
+    document.addEventListener('click',()=>document.querySelectorAll('.csel.open').forEach(w=>w.classList.remove('open')));
+  }
+}
+function syncCustomSelects(containerId){
+  const container=document.getElementById(containerId); if(!container) return;
+  container.querySelectorAll('select.csel-native').forEach(sel=>{
+    const wrap=sel.closest('.csel'); if(!wrap) return;
+    const label=wrap.querySelector('.csel-label');
+    const panel=wrap.querySelector('.csel-panel');
+    const opt=sel.options[sel.selectedIndex];
+    if(label) label.textContent=opt?opt.text:'';
+    if(panel){
+      panel.innerHTML=[...sel.options].map((o,i)=>`<div class="csel-option${i===sel.selectedIndex?' selected':''}" data-i="${i}">${esc(o.text)}</div>`).join('');
+      panel.querySelectorAll('.csel-option').forEach(opEl=>{
+        opEl.addEventListener('click',()=>{
+          sel.selectedIndex=parseInt(opEl.dataset.i,10);
+          sel.dispatchEvent(new Event('change',{bubbles:true}));
+          wrap.classList.remove('open');
+        });
+      });
+    }
+  });
+}
 function fmt(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function fmtD(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 // GST periods are stored/keyed as "YYYY-MM" everywhere (comparisons, API calls, filenames),
@@ -4691,6 +4768,7 @@ async function startApp(){
   loadCustomers();
   loadFeeRules();        // load fee/return-cost rules (used when marking returns)
   syncWebsiteOrders();   // auto-pull any new website orders
+  enhanceSelectsIn('salesFilters');   // theme-matched dropdowns, see renderFilterChips/enhanceSelectsIn
 }
 
 // ── Tab switching ───────────────────────────────────────────
@@ -8816,6 +8894,7 @@ async function loadSales(){
   updateBulkBar();
   updateSalesFilterBadge();
   renderSalesFilterChips({ch,st,pay,paid,mo,from,to,se,view:v('sfView')});
+  if(typeof syncCustomSelects==='function') syncCustomSelects('salesFilters');
   if(typeof refreshOrderDetailModal==='function') refreshOrderDetailModal();
 }
 // One removable pill per active All Orders filter, so what's narrowing the list is
