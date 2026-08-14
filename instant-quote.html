@@ -175,8 +175,8 @@
     <div class="iq-step" id="iqStepInfill">
       <div class="iq-step-head"><div class="iq-step-n">3</div><div class="iq-step-title">Infill</div></div>
       <div class="iq-infill-row">
-        <input type="range" id="iqInfillSlider" min="5" max="100" step="5" value="20">
-        <div class="iq-infill-val" id="iqInfillVal">20%</div>
+        <input type="range" id="iqInfillSlider" min="5" max="100" step="5" value="15">
+        <div class="iq-infill-val" id="iqInfillVal">15%</div>
       </div>
     </div>
 
@@ -231,7 +231,7 @@ const IQ = (function(){
   let scene, camera, renderer, controls, mesh;
   let options = { printers: [], materials: [] };
   let state = { file: null, format: null, quoteToken: null, geometry: null,
-                printerId: null, materialId: null, infill: 20, quote: null };
+                printerId: null, materialId: null, infill: 15, quote: null };
 
   function showError(msg){
     const el = document.getElementById('iqError');
@@ -361,17 +361,44 @@ const IQ = (function(){
     document.getElementById('iqStepPrinter').classList.add('active');
     document.getElementById('iqStepMaterial').classList.add('active');
     document.getElementById('iqStepInfill').classList.add('active');
+    autoSelectDefaults();
     maybePrice();
   }
 
+  /* Auto-pick sensible defaults once a model is analyzed and the catalog is
+     loaded, so a customer never has to manually click through every step —
+     printer defaults to the first one the model actually fits, material to
+     the first active one, infill already defaults to 15% on the slider. Only
+     fills in choices that aren't already made (won't override a manual pick). */
+  function pickFittingPrinter(){
+    if (!state.geometry || !options.printers || !options.printers.length) return null;
+    const dims = [state.geometry.dims_mm.x, state.geometry.dims_mm.y, state.geometry.dims_mm.z].sort((a, b) => b - a);
+    const fit = options.printers.find(p => {
+      const build = [p.build_x_mm, p.build_y_mm, p.build_z_mm].sort((a, b) => b - a);
+      return dims[0] <= build[0] && dims[1] <= build[1] && dims[2] <= build[2];
+    });
+    return fit || options.printers[0];
+  }
+  function autoSelectDefaults(){
+    if (!state.geometry || !state.quoteToken) return;
+    if (!state.printerId && options.printers && options.printers.length) {
+      const p = pickFittingPrinter();
+      if (p) selectPrinter(p.id);
+    }
+    if (!state.materialId && options.materials && options.materials.length) {
+      selectMaterial(options.materials[0].id);
+    }
+  }
+
   function resetModel(){
-    state = Object.assign(state, { file: null, format: null, quoteToken: null, geometry: null, quote: null });
+    state = Object.assign(state, { file: null, format: null, quoteToken: null, geometry: null, printerId: null, materialId: null, quote: null });
     document.getElementById('iqCanvas').style.display = 'none';
     document.getElementById('iqDropzone').style.display = 'flex';
     document.getElementById('iqRemoveBtn').style.display = 'none';
     document.getElementById('iqViewerHint').style.display = 'none';
     document.getElementById('iqStats').style.display = 'none';
     document.getElementById('iqFileInput').value = '';
+    document.querySelectorAll('#iqPrinterGrid .iq-option, #iqMaterialGrid .iq-option').forEach(el => el.classList.remove('selected'));
     ['iqStepPrinter','iqStepMaterial','iqStepInfill'].forEach(id => document.getElementById(id).classList.remove('active','done'));
     document.getElementById('iqPriceBox').style.display = 'none';
     document.getElementById('iqFinalizeEmpty').style.display = 'block';
@@ -396,6 +423,7 @@ const IQ = (function(){
            <div class="iq-option-name"><span class="iq-swatch" style="background:${m.color_hex || '#ccc'}"></span>${escapeHtml(m.name)}</div>
            <div class="iq-option-meta">${escapeHtml(m.filament_type || '')}</div>
          </div>`).join('');
+      autoSelectDefaults(); // covers a model uploaded before options finished loading
     } catch (_) { showError('Could not load printer/material options — please refresh the page.'); }
   }
   function escapeHtml(s){ return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
