@@ -13,8 +13,8 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-FDM00KSRD5"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-FDM00KSRD5',{page_title:document.title,page_location:window.location.href});</script>
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Triakar Instant Quote — Upload &amp; Price Your 3D Print | TriAkar</title>
-<meta name="description" content="Upload an STL or OBJ file and get an instant, automated 3D printing price estimate. Pick your printer, material and infill, then add straight to cart.">
+<title>Triakar Instant Quote: Upload &amp; Price Your 3D Print | TriAkar</title>
+<meta name="description" content="Upload an STL or OBJ file and get an instant, automated 3D printing price estimate. Pick material, color, nozzle and strength, then add straight to cart.">
 <link rel="canonical" href="https://www.triakar.com/instant-quote">
 <meta property="og:title" content="Triakar Instant Quote | TriAkar">
 <meta property="og:description" content="Upload a 3D model, get an automated instant price estimate, and order straight to production.">
@@ -32,7 +32,7 @@
 <link rel="stylesheet" href="/shared.css">
 <script>var TA_API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:3000':'https://triakar.onrender.com';</script>
 <style>
-.iq-layout{display:grid;grid-template-columns:46fr 54fr;gap:0;align-items:start;padding:20px clamp(12px,2vw,28px) 100px}
+.iq-layout{display:grid;grid-template-columns:46fr 54fr;gap:0;align-items:start;padding:16px clamp(12px,2vw,28px) 100px}
 .iq-badge-bar{max-width:1320px;margin:0 auto;padding:10px clamp(12px,2vw,28px) 0;font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--accent)}
 .iq-col-left{grid-column:1;position:sticky;top:calc(var(--total-h, 90px) + 16px)}
 .iq-col-right{grid-column:2;padding-left:28px}
@@ -42,6 +42,15 @@
   .iq-col-left{position:static}
   .iq-col-right{padding-left:0;margin-top:20px}
 }
+
+/* ── Compact "how it works" strip, sits above everything, minimal height ── */
+.iq-howsteps{max-width:1320px;margin:0 auto;padding:4px clamp(12px,2vw,28px) 14px}
+.iq-howsteps-row{display:flex;align-items:center;gap:0;background:rgba(255,255,255,.6);-webkit-backdrop-filter:blur(12px) saturate(140%);backdrop-filter:blur(12px) saturate(140%);border:1px solid rgba(255,255,255,.65);border-radius:12px;padding:10px 16px;overflow-x:auto;box-shadow:0 1px 6px rgba(22,22,20,.04)}
+.iq-howstep{display:flex;align-items:center;gap:8px;white-space:nowrap;flex-shrink:0}
+.iq-howstep-n{width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.iq-howstep-t{font-size:12px;color:var(--charcoal);font-weight:600}
+.iq-howstep-arrow{color:var(--stone);margin:0 12px;font-size:12px;flex-shrink:0}
+@media(max-width:680px){.iq-howstep-t{font-size:11px}.iq-howstep-arrow{margin:0 8px}}
 
 /* ── Viewer / dropzone ─────────────────────── */
 .iq-viewer-shell{background:var(--ivory);border-radius:16px;overflow:hidden;position:relative;aspect-ratio:1/1;border:1px solid var(--stone-p)}
@@ -66,25 +75,38 @@
 .iq-stat-l{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--stone);margin-top:2px}
 @media(max-width:520px){.iq-stats{grid-template-columns:repeat(2,1fr)}}
 
-/* ── Wizard ─────────────────────────────────── */
-.iq-step{background:rgba(255,255,255,.72);-webkit-backdrop-filter:blur(14px) saturate(145%);backdrop-filter:blur(14px) saturate(145%);border:1px solid rgba(255,255,255,.65);border-radius:14px;padding:22px 22px 24px;margin-bottom:14px;box-shadow:0 2px 8px rgba(22,22,20,.05),inset 0 1px 0 rgba(255,255,255,.75);opacity:.45;pointer-events:none;transition:opacity .3s}
+/* ── Printer / build-size, deliberately small & de-emphasized, no numbered
+   step, no printer names shown (customers just pick a size). ── */
+.iq-printer-mini{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.6);border-radius:10px}
+.iq-printer-mini-label{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--stone);font-weight:700;margin-right:2px}
+.iq-pill{border:1.5px solid rgba(22,22,20,.14);border-radius:999px;padding:6px 13px;font-size:12px;font-weight:600;color:var(--charcoal);background:#fff;cursor:pointer;transition:all .18s;white-space:nowrap}
+.iq-pill:hover{border-color:rgba(196,98,42,.4)}
+.iq-pill.selected{border-color:var(--accent);background:var(--accent);color:#fff}
+
+/* ── Wizard steps ─────────────────────────────── */
+.iq-step{background:rgba(255,255,255,.72);-webkit-backdrop-filter:blur(14px) saturate(145%);backdrop-filter:blur(14px) saturate(145%);border:1px solid rgba(255,255,255,.65);border-radius:14px;padding:20px 20px 22px;margin-bottom:12px;box-shadow:0 2px 8px rgba(22,22,20,.05),inset 0 1px 0 rgba(255,255,255,.75);opacity:.45;pointer-events:none;transition:opacity .3s}
 .iq-step.active,.iq-step.done{opacity:1;pointer-events:auto}
-.iq-step-head{display:flex;align-items:center;gap:12px;margin-bottom:16px}
-.iq-step-n{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.iq-step-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.iq-step-n{width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .iq-step.done .iq-step-n{background:var(--charcoal)}
-.iq-step-title{font-family:var(--font-g);font-size:18px;color:var(--charcoal);font-weight:400}
+.iq-step-title{font-family:var(--font-g);font-size:17px;color:var(--charcoal);font-weight:400}
+.iq-step-hint{font-size:11.5px;color:var(--stone);margin-left:auto;font-weight:400}
 
-.iq-option-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
-.iq-option{border:1.5px solid rgba(22,22,20,.14);border-radius:10px;padding:12px 14px;cursor:pointer;transition:all .2s;background:#fff}
-.iq-option:hover{border-color:rgba(196,98,42,.4)}
-.iq-option.selected{border-color:var(--accent);background:rgba(196,98,42,.06);box-shadow:0 0 0 1px var(--accent)}
-.iq-option-name{font-size:13px;font-weight:700;color:var(--charcoal)}
-.iq-option-meta{font-size:11px;color:var(--stone);margin-top:3px}
-.iq-swatch{width:16px;height:16px;border-radius:50%;display:inline-block;margin-right:6px;border:1px solid rgba(0,0,0,.15);vertical-align:-3px}
+/* Button-style option rows (material / nozzle / infill), compact, scale to
+   many options (9 materials) without turning into a huge card grid. */
+.iq-btn-row{display:flex;flex-wrap:wrap;gap:8px}
+.iq-choice{position:relative;border:1.5px solid rgba(22,22,20,.14);border-radius:10px;padding:9px 14px;font-size:12.5px;font-weight:700;color:var(--charcoal);background:#fff;cursor:pointer;transition:all .18s}
+.iq-choice:hover{border-color:rgba(196,98,42,.4)}
+.iq-choice.selected{border-color:var(--accent);background:rgba(196,98,42,.08);box-shadow:0 0 0 1px var(--accent)}
+.iq-choice-sub{display:block;font-size:10px;font-weight:400;color:var(--stone);margin-top:1px}
+.iq-popular-badge{position:absolute;top:-9px;right:8px;background:var(--accent);color:#fff;font-size:8.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:999px;box-shadow:0 2px 6px rgba(196,98,42,.4)}
 
-.iq-infill-row{display:flex;align-items:center;gap:16px}
-.iq-infill-row input[type=range]{flex:1;accent-color:var(--accent)}
-.iq-infill-val{font-size:16px;font-weight:700;color:var(--accent);min-width:48px;text-align:right}
+/* Color swatches */
+.iq-color-row{display:flex;flex-wrap:wrap;gap:12px}
+.iq-color-choice{display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer}
+.iq-color-dot{width:32px;height:32px;border-radius:50%;border:2px solid rgba(0,0,0,.1);transition:all .18s;box-shadow:inset 0 0 0 2px rgba(255,255,255,.5)}
+.iq-color-choice.selected .iq-color-dot{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),inset 0 0 0 2px rgba(255,255,255,.6)}
+.iq-color-choice span{font-size:10px;color:var(--stone);font-weight:600}
 
 .iq-price-box{background:var(--charcoal);border-radius:14px;padding:24px 22px;color:var(--ivory)}
 .iq-price-big{font-family:var(--font-g);font-size:34px;color:#fff}
@@ -99,9 +121,21 @@
 .iq-empty-note{font-size:13px;color:var(--stone);text-align:center;padding:40px 20px}
 .iq-error{background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA;border-radius:8px;padding:12px 14px;font-size:12.5px;margin-bottom:14px;display:none}
 
+/* ── Lead-capture modal ───────────────────────── */
+.iq-modal-overlay{position:fixed;inset:0;background:rgba(15,15,13,.55);backdrop-filter:blur(3px);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
+.iq-modal-overlay.show{display:flex}
+.iq-modal{background:#fff;border-radius:16px;max-width:400px;width:100%;padding:28px 26px 24px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.iq-modal-t{font-family:var(--font-g);font-size:22px;color:var(--charcoal);margin-bottom:6px}
+.iq-modal-s{font-size:12.5px;color:var(--stone);line-height:1.6;margin-bottom:18px}
+.iq-modal input{width:100%;padding:12px 14px;border:1.5px solid rgba(22,22,20,.16);border-radius:10px;font-size:14px;font-family:var(--font-b);margin-bottom:12px;box-sizing:border-box}
+.iq-modal input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(196,98,42,.1)}
+.iq-modal-actions{display:flex;gap:10px;margin-top:6px}
+.iq-modal-actions .btn{flex:1;justify-content:center}
+.iq-modal-skip{background:none;border:none;color:var(--stone);font-size:12px;text-decoration:underline;cursor:pointer;padding:11px 14px}
+
 /* ── Mobile bottom-anchored CTA ─────────────── */
 /* Shown only on narrow viewports (media query), and only once a price exists
-   (.has-price, toggled in JS via classList — NOT inline style, which would
+   (.has-price, toggled in JS via classList, not inline style, which would
    override the media query and show this floating bar on desktop too). */
 .iq-mobile-bar{display:none!important}
 @media(max-width:1000px){
@@ -111,7 +145,7 @@
   .iq-mobile-price span{font-size:10px;color:var(--stone-l);text-transform:uppercase;letter-spacing:.08em}
   .iq-mobile-bar button{white-space:nowrap}
   /* Push the site's floating scroll-to-top / accessibility buttons above our
-     fixed bottom bar so they don't visually collide with it — same pattern
+     fixed bottom bar so they don't visually collide with it, same pattern
      shared.css already uses for the bottom nav (body.has-bottomnav). */
   body.iq-has-mobile-bar{padding-bottom:calc(78px + env(safe-area-inset-bottom,0px))}
   body.iq-has-mobile-bar .a11y-fab{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
@@ -131,6 +165,20 @@
 <div id="drawer-root"></div><script>if(window._DRAWER_HTML)document.getElementById("drawer-root").outerHTML=window._DRAWER_HTML;</script>
 
 <div class="iq-badge-bar">Triakar Instant Quote</div>
+
+<div class="iq-howsteps">
+  <div class="iq-howsteps-row">
+    <div class="iq-howstep"><div class="iq-howstep-n">1</div><div class="iq-howstep-t">Upload your file</div></div>
+    <div class="iq-howstep-arrow">→</div>
+    <div class="iq-howstep"><div class="iq-howstep-n">2</div><div class="iq-howstep-t">Pick material &amp; color</div></div>
+    <div class="iq-howstep-arrow">→</div>
+    <div class="iq-howstep"><div class="iq-howstep-n">3</div><div class="iq-howstep-t">See your instant price</div></div>
+    <div class="iq-howstep-arrow">→</div>
+    <div class="iq-howstep"><div class="iq-howstep-n">4</div><div class="iq-howstep-t">Add to cart &amp; pay</div></div>
+    <div class="iq-howstep-arrow">→</div>
+    <div class="iq-howstep"><div class="iq-howstep-n">5</div><div class="iq-howstep-t">We confirm, then print</div></div>
+  </div>
+</div>
 
 <div class="iq-layout">
   <div class="iq-col-left">
@@ -162,32 +210,39 @@
   <div class="iq-col-right">
     <div class="iq-error" id="iqError"></div>
 
-    <div class="iq-step" id="iqStepPrinter">
-      <div class="iq-step-head"><div class="iq-step-n">1</div><div class="iq-step-title">Printer</div></div>
-      <div class="iq-option-grid" id="iqPrinterGrid"></div>
+    <div class="iq-printer-mini">
+      <span class="iq-printer-mini-label">Build size</span>
+      <div id="iqPrinterRow" style="display:flex;gap:8px;flex-wrap:wrap"></div>
     </div>
 
     <div class="iq-step" id="iqStepMaterial">
-      <div class="iq-step-head"><div class="iq-step-n">2</div><div class="iq-step-title">Material</div></div>
-      <div class="iq-option-grid" id="iqMaterialGrid"></div>
+      <div class="iq-step-head"><div class="iq-step-n">1</div><div class="iq-step-title">Material</div></div>
+      <div class="iq-btn-row" id="iqMaterialRow"></div>
+    </div>
+
+    <div class="iq-step" id="iqStepColor">
+      <div class="iq-step-head"><div class="iq-step-n">2</div><div class="iq-step-title">Color</div></div>
+      <div class="iq-color-row" id="iqColorRow"></div>
+    </div>
+
+    <div class="iq-step" id="iqStepNozzle">
+      <div class="iq-step-head"><div class="iq-step-n">3</div><div class="iq-step-title">Nozzle</div><div class="iq-step-hint">Larger = faster, less fine detail</div></div>
+      <div class="iq-btn-row" id="iqNozzleRow"></div>
     </div>
 
     <div class="iq-step" id="iqStepInfill">
-      <div class="iq-step-head"><div class="iq-step-n">3</div><div class="iq-step-title">Infill</div></div>
-      <div class="iq-infill-row">
-        <input type="range" id="iqInfillSlider" min="5" max="100" step="5" value="15">
-        <div class="iq-infill-val" id="iqInfillVal">15%</div>
-      </div>
+      <div class="iq-step-head"><div class="iq-step-n">4</div><div class="iq-step-title">Strength</div><div class="iq-step-hint">How solid the print is inside</div></div>
+      <div class="iq-btn-row" id="iqInfillRow"></div>
     </div>
 
     <div class="iq-step" id="iqStepFinalize">
-      <div class="iq-step-head"><div class="iq-step-n">4</div><div class="iq-step-title">Finalize</div></div>
-      <div id="iqFinalizeEmpty" class="iq-empty-note">Upload a model and choose printer, material and infill to see your price.</div>
+      <div class="iq-step-head"><div class="iq-step-n">5</div><div class="iq-step-title">Finalize</div></div>
+      <div id="iqFinalizeEmpty" class="iq-empty-note">Upload a model to see your price.</div>
       <div id="iqPriceBox" class="iq-price-box" style="display:none">
         <div class="iq-price-big" id="iqPriceBig">₹0</div>
         <div class="iq-price-sub">Automated instant estimate, GST included</div>
         <div class="iq-breakdown" id="iqBreakdown"></div>
-        <div class="iq-variance-note">This is an automated estimate. Actual price may vary <strong>15-60%</strong> after our team reviews your model. Nothing goes into production until you personally confirm the final plan — see our <a href="/terms.html#instant-quote">Instant Quote terms</a> and <a href="/refund-policy.html">refund policy</a>.</div>
+        <div class="iq-variance-note">This is an automated estimate. Actual price may vary <strong>15-60%</strong> after our team reviews your model. Nothing goes into production until you personally confirm the final plan. See our <a href="/terms.html#instant-quote">Instant Quote terms</a> and <a href="/refund-policy.html">refund policy</a>.</div>
         <button class="btn btn-accent iq-add-cart" id="iqAddCartBtn" onclick="IQ.addToCart()">Add to Cart →</button>
       </div>
     </div>
@@ -197,6 +252,21 @@
 <div class="iq-mobile-bar" id="iqMobileBar">
   <div class="iq-mobile-price"><b id="iqMobilePrice">₹0</b><span>Instant estimate</span></div>
   <button class="btn btn-accent" onclick="IQ.addToCart()">Add to Cart →</button>
+</div>
+
+<!-- Lead capture, shown once right after a model is analyzed. Skippable;
+     the wizard is fully usable either way, this is purely for follow-up. -->
+<div class="iq-modal-overlay" id="iqLeadOverlay">
+  <div class="iq-modal">
+    <div class="iq-modal-t">Almost there</div>
+    <div class="iq-modal-s">Share your name and number so our team can reach you about this order. Totally optional.</div>
+    <input type="text" id="iqLeadName" placeholder="Your name" autocomplete="name">
+    <input type="tel" id="iqLeadPhone" placeholder="Phone number" autocomplete="tel">
+    <div class="iq-modal-actions">
+      <button class="btn btn-accent" onclick="IQ.submitLead()">Continue</button>
+    </div>
+    <div style="text-align:center;margin-top:6px"><button class="iq-modal-skip" onclick="IQ.skipLead()">Skip for now</button></div>
+  </div>
 </div>
 
 <div id="footer-root"></div><script>if(window._FOOTER_HTML)document.getElementById("footer-root").outerHTML=window._FOOTER_HTML;</script>
@@ -227,11 +297,25 @@ import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
+const INFILL_TIERS = [
+  { pct: 5,  label: 'Low Strength' },
+  { pct: 10, label: 'Medium Strength' },
+  { pct: 15, label: 'High Strength', popular: true },
+  { pct: 20, label: 'Extreme Strength' },
+];
+const NOZZLE_TIERS = [
+  { mm: 0.2, label: '0.2mm', sub: 'Fine detail' },
+  { mm: 0.4, label: '0.4mm', sub: 'Standard', popular: true },
+  { mm: 0.6, label: '0.6mm', sub: 'Faster' },
+  { mm: 0.8, label: '0.8mm', sub: 'Fastest' },
+];
+
 const IQ = (function(){
   let scene, camera, renderer, controls, mesh;
-  let options = { printers: [], materials: [] };
+  let options = { printers: [], materials: [], colors: [] };
   let state = { file: null, format: null, quoteToken: null, geometry: null,
-                printerId: null, materialId: null, infill: 15, quote: null };
+                printerId: null, materialId: null, colorId: null, nozzle: 0.4, infill: 15,
+                quote: null, contactName: '', contactPhone: '', leadShown: false };
 
   function showError(msg){
     const el = document.getElementById('iqError');
@@ -305,18 +389,18 @@ const IQ = (function(){
 
     // Plain XHR (not Auth.apiFetch) so upload progress events are available, but that
     // means the automatic near-expiry token refresh Auth.apiFetch normally does for us
-    // has to be triggered explicitly first — otherwise a stale token 401s here even
+    // has to be triggered explicitly first, otherwise a stale token 401s here even
     // though every other Auth.apiFetch call on this page would have silently refreshed.
     const authHeader = await Auth.authHeaderAsync();
 
     // A dead session (refresh token itself invalid/expired) leaves authHeaderAsync()
-    // with nothing to send — sending the request anyway just gets a confusing raw
+    // with nothing to send; sending the request anyway just gets a confusing raw
     // "Unauthorised" error back and every step after upload stays stuck. The nav can
     // still show a stale cached name at this point, so isLoggedIn()/UI state alone
-    // isn't enough — catch it here before wasting the upload.
+    // isn't enough, catch it here before wasting the upload.
     if (!authHeader.Authorization) {
       wrap.style.display = 'none';
-      showError('Your session has expired — please sign in again to upload a model.');
+      showError('Your session has expired. Please sign in again to upload a model.');
       if (typeof openAuthModal === 'function') openAuthModal(); else window.location.href = '/account.html';
       return;
     }
@@ -337,7 +421,7 @@ const IQ = (function(){
       }
       onAnalyzed(json, format);
     };
-    xhr.onerror = function(){ wrap.style.display = 'none'; showError('Upload failed — check your connection and try again.'); };
+    xhr.onerror = function(){ wrap.style.display = 'none'; showError('Upload failed. Check your connection and try again.'); };
     label.textContent = 'Analyzing model…';
     xhr.send(fd);
   }
@@ -353,7 +437,7 @@ const IQ = (function(){
     document.getElementById('iqStatTime').textContent = '–';
 
     // Render the actual uploaded mesh by re-parsing it client-side too (avoids a
-    // second network round trip — we already have the File in memory).
+    // second network round trip since we already have the File in memory).
     const reader = new FileReader();
     reader.onload = function(e){
       try {
@@ -370,26 +454,38 @@ const IQ = (function(){
     };
     if (format === 'obj') reader.readAsText(state.file); else reader.readAsArrayBuffer(state.file);
 
-    document.getElementById('iqStepPrinter').classList.add('active');
-    document.getElementById('iqStepMaterial').classList.add('active');
-    document.getElementById('iqStepInfill').classList.add('active');
+    ['iqStepMaterial','iqStepColor','iqStepNozzle','iqStepInfill'].forEach(id => document.getElementById(id).classList.add('active'));
     autoSelectDefaults();
     maybePrice();
+
+    if (!state.leadShown) {
+      state.leadShown = true;
+      document.getElementById('iqLeadOverlay').classList.add('show');
+    }
+  }
+
+  function submitLead(){
+    state.contactName = document.getElementById('iqLeadName').value.trim();
+    state.contactPhone = document.getElementById('iqLeadPhone').value.trim();
+    document.getElementById('iqLeadOverlay').classList.remove('show');
+  }
+  function skipLead(){
+    document.getElementById('iqLeadOverlay').classList.remove('show');
   }
 
   /* Auto-pick sensible defaults once a model is analyzed and the catalog is
-     loaded, so a customer never has to manually click through every step —
-     printer defaults to the first one the model actually fits, material to
-     the first active one, infill already defaults to 15% on the slider. Only
-     fills in choices that aren't already made (won't override a manual pick). */
+     loaded, so a customer never has to manually click through every step;
+     even someone with zero 3D-printing knowledge can just upload and buy.
+     Only fills in choices that aren't already made (won't override a manual pick). */
   function pickFittingPrinter(){
     if (!state.geometry || !options.printers || !options.printers.length) return null;
     const dims = [state.geometry.dims_mm.x, state.geometry.dims_mm.y, state.geometry.dims_mm.z].sort((a, b) => b - a);
-    const fit = options.printers.find(p => {
+    const fitting = options.printers.filter(p => {
       const build = [p.build_x_mm, p.build_y_mm, p.build_z_mm].sort((a, b) => b - a);
       return dims[0] <= build[0] && dims[1] <= build[1] && dims[2] <= build[2];
     });
-    return fit || options.printers[0];
+    const preferred = fitting.find(p => p.is_default);
+    return preferred || fitting[0] || options.printers.find(p => p.is_default) || options.printers[0];
   }
   function autoSelectDefaults(){
     if (!state.geometry || !state.quoteToken) return;
@@ -398,20 +494,25 @@ const IQ = (function(){
       if (p) selectPrinter(p.id);
     }
     if (!state.materialId && options.materials && options.materials.length) {
-      selectMaterial(options.materials[0].id);
+      const m = options.materials.find(x => x.is_default) || options.materials[0];
+      selectMaterial(m.id);
+    }
+    if (!state.colorId && options.colors && options.colors.length) {
+      const c = options.colors.find(x => x.is_default) || options.colors[0];
+      selectColor(c.id);
     }
   }
 
   function resetModel(){
-    state = Object.assign(state, { file: null, format: null, quoteToken: null, geometry: null, printerId: null, materialId: null, quote: null });
+    state = Object.assign(state, { file: null, format: null, quoteToken: null, geometry: null, printerId: null, materialId: null, colorId: null, quote: null, leadShown: false });
     document.getElementById('iqCanvas').style.display = 'none';
     document.getElementById('iqDropzone').style.display = 'flex';
     document.getElementById('iqRemoveBtn').style.display = 'none';
     document.getElementById('iqViewerHint').style.display = 'none';
     document.getElementById('iqStats').style.display = 'none';
     document.getElementById('iqFileInput').value = '';
-    document.querySelectorAll('#iqPrinterGrid .iq-option, #iqMaterialGrid .iq-option').forEach(el => el.classList.remove('selected'));
-    ['iqStepPrinter','iqStepMaterial','iqStepInfill','iqStepFinalize'].forEach(id => document.getElementById(id).classList.remove('active','done'));
+    document.querySelectorAll('#iqPrinterRow .iq-pill, #iqMaterialRow .iq-choice, #iqColorRow .iq-color-choice').forEach(el => el.classList.remove('selected'));
+    ['iqStepMaterial','iqStepColor','iqStepNozzle','iqStepInfill','iqStepFinalize'].forEach(id => document.getElementById(id).classList.remove('active','done'));
     document.getElementById('iqPriceBox').style.display = 'none';
     document.getElementById('iqFinalizeEmpty').style.display = 'block';
     document.getElementById('iqMobileBar').classList.remove('has-price');
@@ -419,54 +520,73 @@ const IQ = (function(){
     showError('');
   }
 
-  /* ── Options (printer/material) ─────────────── */
+  /* ── Options (printer/material/color) + fixed nozzle/infill button rows ── */
   async function loadOptions(){
     try {
       const res = await fetch(TA_API + '/api/instant-quote/options');
       const json = await res.json();
       options = json;
-      document.getElementById('iqPrinterGrid').innerHTML = (json.printers || []).map(p =>
-        `<div class="iq-option" data-id="${p.id}" onclick="IQ.selectPrinter('${p.id}')">
-           <div class="iq-option-name">${escapeHtml(p.name)}</div>
-           <div class="iq-option-meta">${p.build_x_mm}×${p.build_y_mm}×${p.build_z_mm}mm</div>
+
+      document.getElementById('iqPrinterRow').innerHTML = (json.printers || []).map(p =>
+        `<button type="button" class="iq-pill" data-id="${p.id}" onclick="IQ.selectPrinter('${p.id}')">${p.build_x_mm}×${p.build_y_mm}×${p.build_z_mm}mm</button>`).join('');
+
+      document.getElementById('iqMaterialRow').innerHTML = (json.materials || []).map(m =>
+        `<button type="button" class="iq-choice" data-id="${m.id}" onclick="IQ.selectMaterial('${m.id}')">${m.is_default ? '<span class="iq-popular-badge">Most Popular</span>' : ''}${escapeHtml(m.name)}</button>`).join('');
+
+      document.getElementById('iqColorRow').innerHTML = (json.colors || []).map(c =>
+        `<div class="iq-color-choice" data-id="${c.id}" onclick="IQ.selectColor('${c.id}')">
+           <div class="iq-color-dot" style="background:${c.hex}"></div><span>${escapeHtml(c.name)}</span>
          </div>`).join('');
-      document.getElementById('iqMaterialGrid').innerHTML = (json.materials || []).map(m =>
-        `<div class="iq-option" data-id="${m.id}" onclick="IQ.selectMaterial('${m.id}')">
-           <div class="iq-option-name"><span class="iq-swatch" style="background:${m.color_hex || '#ccc'}"></span>${escapeHtml(m.name)}</div>
-           <div class="iq-option-meta">${escapeHtml(m.filament_type || '')}</div>
-         </div>`).join('');
+
       autoSelectDefaults(); // covers a model uploaded before options finished loading
-    } catch (_) { showError('Could not load printer/material options — please refresh the page.'); }
+    } catch (_) { showError('Could not load material/color options. Please refresh the page.'); }
   }
   function escapeHtml(s){ return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+  function renderNozzleRow(){
+    document.getElementById('iqNozzleRow').innerHTML = NOZZLE_TIERS.map(n =>
+      `<button type="button" class="iq-choice" data-mm="${n.mm}" onclick="IQ.selectNozzle(${n.mm})">${n.popular ? '<span class="iq-popular-badge">Most Popular</span>' : ''}${n.label}<span class="iq-choice-sub">${n.sub}</span></button>`).join('');
+  }
+  function renderInfillRow(){
+    document.getElementById('iqInfillRow').innerHTML = INFILL_TIERS.map(t =>
+      `<button type="button" class="iq-choice" data-pct="${t.pct}" onclick="IQ.selectInfill(${t.pct})">${t.popular ? '<span class="iq-popular-badge">Most Popular</span>' : ''}${t.label}<span class="iq-choice-sub">${t.pct}% infill</span></button>`).join('');
+  }
+
   function selectPrinter(id){
     state.printerId = id;
-    document.querySelectorAll('#iqPrinterGrid .iq-option').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
-    document.getElementById('iqStepPrinter').classList.add('done');
+    document.querySelectorAll('#iqPrinterRow .iq-pill').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
     maybePrice();
   }
   function selectMaterial(id){
     state.materialId = id;
-    document.querySelectorAll('#iqMaterialGrid .iq-option').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
+    document.querySelectorAll('#iqMaterialRow .iq-choice').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
     document.getElementById('iqStepMaterial').classList.add('done');
     maybePrice();
   }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    document.getElementById('iqInfillSlider').addEventListener('input', function(e){
-      state.infill = Number(e.target.value);
-      document.getElementById('iqInfillVal').textContent = state.infill + '%';
-      document.getElementById('iqStepInfill').classList.add('done');
-      maybePrice();
-    });
-  });
+  function selectColor(id){
+    state.colorId = id;
+    document.querySelectorAll('#iqColorRow .iq-color-choice').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
+    document.getElementById('iqStepColor').classList.add('done');
+    maybePrice();
+  }
+  function selectNozzle(mm){
+    state.nozzle = mm;
+    document.querySelectorAll('#iqNozzleRow .iq-choice').forEach(el => el.classList.toggle('selected', Number(el.dataset.mm) === mm));
+    document.getElementById('iqStepNozzle').classList.add('done');
+    maybePrice();
+  }
+  function selectInfill(pct){
+    state.infill = pct;
+    document.querySelectorAll('#iqInfillRow .iq-choice').forEach(el => el.classList.toggle('selected', Number(el.dataset.pct) === pct));
+    document.getElementById('iqStepInfill').classList.add('done');
+    maybePrice();
+  }
 
   /* ── Pricing ─────────────────────────────────── */
   let priceDebounce = null;
   function maybePrice(){
     if (!state.quoteToken || !state.printerId || !state.materialId) return;
-    // A new price is coming — the currently-shown quote (and Add to Cart button)
+    // A new price is coming; the currently-shown quote (and Add to Cart button)
     // must not be usable until it lands, otherwise a click during this window
     // silently no-ops (state.quote briefly not matching the on-screen config)
     // with zero feedback, which looked like "the button doesn't work".
@@ -490,7 +610,9 @@ const IQ = (function(){
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           quote_token: state.quoteToken, printer_id: state.printerId,
-          material_id: state.materialId, infill_percent: state.infill,
+          material_id: state.materialId, color_id: state.colorId,
+          nozzle_mm: state.nozzle, infill_percent: state.infill,
+          contact_name: state.contactName || null, contact_phone: state.contactPhone || null,
         }),
       });
       const json = await res.json();
@@ -498,13 +620,13 @@ const IQ = (function(){
       state.quote = json.quote;
       renderPrice(json.quote);
       setAddCartBusy(false);
-    } catch (_) { showError('Could not reach the pricing service — check your connection.'); setAddCartBusy(true, 'Price unavailable'); }
+    } catch (_) { showError('Could not reach the pricing service. Check your connection.'); setAddCartBusy(true, 'Price unavailable'); }
   }
 
   function renderPrice(q){
     // .iq-step defaults to opacity:.45 + pointer-events:none until it gets .active/.done
-    // (same as steps 1-3) — this box was never getting that class, so the price/button
-    // rendered correctly but was permanently unclickable no matter what.
+    // (same as the other steps), this box needs it too, or the price/button render
+    // correctly but the whole card stays permanently unclickable.
     document.getElementById('iqStepFinalize').classList.add('active', 'done');
     document.getElementById('iqStatWeight').textContent = q.estimated_weight_g + 'g';
     document.getElementById('iqStatTime').textContent = q.estimated_print_time_hours + 'h';
@@ -526,19 +648,22 @@ const IQ = (function(){
 
   function addToCart(){
     if (!state.quote) {
-      showError('Still calculating your price — one second, then try again.');
+      showError('Still calculating your price, one second, then try again.');
       return;
     }
     const printer = (options.printers || []).find(p => p.id === state.printerId);
     const material = (options.materials || []).find(m => m.id === state.materialId);
+    const color = (options.colors || []).find(c => c.id === state.colorId);
     try {
       Cart.addInstantQuote({
         instant_quote_id: state.quote.id,
-        name: 'Instant Quote — ' + (state.file ? state.file.name : 'model'),
+        name: 'Instant Quote: ' + (state.file ? state.file.name : 'model'),
         price: state.quote.final_price,
         quantity: 1,
-        printer: printer ? printer.name : '',
+        printer: printer ? (printer.build_x_mm + '×' + printer.build_y_mm + '×' + printer.build_z_mm + 'mm') : '',
         material: material ? material.name : '',
+        color: color ? color.name : '',
+        nozzle: state.nozzle + 'mm',
         infill: state.infill,
       });
       showError('');
@@ -556,10 +681,14 @@ const IQ = (function(){
     ['dragleave','drop'].forEach(evt => dz.addEventListener(evt, function(e){ e.preventDefault(); dz.classList.remove('dragover'); }));
     dz.addEventListener('drop', function(e){ if (e.dataTransfer.files[0]) pickFile(e.dataTransfer.files[0]); });
     initViewer();
+    renderNozzleRow();
+    renderInfillRow();
+    selectNozzle(0.4);
+    selectInfill(15);
     loadOptions();
   });
 
-  return { resetModel, selectPrinter, selectMaterial, addToCart };
+  return { resetModel, selectPrinter, selectMaterial, selectColor, selectNozzle, selectInfill, addToCart, submitLead, skipLead };
 })();
 window.IQ = IQ;
 </script>

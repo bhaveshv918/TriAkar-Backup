@@ -38,9 +38,14 @@ const DEFAULTS = {
 // (0.20 flat shell allowance, 12 cm3/hr, then a 1.35x correction on top of that)
 // compounded into a 3x overshoot on time. These are single-data-point estimates,
 // not a statistically fitted model — recalibrate further as real orders land.
-const PRINT_SPEED_CM3_PER_HOUR = 18;   // throughput at 100% effective fill
+const PRINT_SPEED_CM3_PER_HOUR = 18;   // throughput at 100% effective fill, at the 0.4mm baseline nozzle
 const SHELL_VOLUME_FRACTION    = 0.12; // walls/top/bottom add roughly this much beyond raw infill%
 const CALIBRATION_CORRECTION   = 1.15; // small buffer for travel/retraction overhead pure volume math misses
+
+// A larger nozzle lays down more plastic per pass (thicker lines/layers), so the same
+// volume prints faster; a finer nozzle is slower and used for detail work. Weight is
+// unaffected — same material either way, just deposited faster or slower.
+const NOZZLE_TIME_MULTIPLIER = { 0.2: 1.7, 0.4: 1.0, 0.6: 0.75, 0.8: 0.55 };
 
 async function getSetting(key) {
   const { data } = await supabase.from('site_settings').select('value').eq('key', key).maybeSingle();
@@ -65,7 +70,7 @@ const round2 = n => Math.round(n * 100) / 100;
  * @param {number} infill_percent  5-100
  * @param {{density_g_cm3:number, cost_per_gram_public:number}} material
  */
-export async function computeInstantQuotePrice({ volume_cm3, infill_percent, material }) {
+export async function computeInstantQuotePrice({ volume_cm3, infill_percent, material, nozzle_mm = 0.4 }) {
   if (!(volume_cm3 > 0)) throw Object.assign(new Error('Invalid model volume'), { status: 400 });
   if (!material) throw Object.assign(new Error('Material is required'), { status: 400 });
 
@@ -73,9 +78,10 @@ export async function computeInstantQuotePrice({ volume_cm3, infill_percent, mat
 
   const infillFraction = Math.max(0.05, Math.min(1, infill_percent / 100));
   const effectiveFillFraction = Math.min(1, infillFraction + SHELL_VOLUME_FRACTION);
+  const nozzleMultiplier = NOZZLE_TIME_MULTIPLIER[nozzle_mm] || 1.0;
 
   const weight_g = round2(volume_cm3 * effectiveFillFraction * material.density_g_cm3);
-  const print_time_hours = round2((volume_cm3 * effectiveFillFraction / PRINT_SPEED_CM3_PER_HOUR) * CALIBRATION_CORRECTION);
+  const print_time_hours = round2((volume_cm3 * effectiveFillFraction / PRINT_SPEED_CM3_PER_HOUR) * CALIBRATION_CORRECTION * nozzleMultiplier);
 
   const material_cost = round2(weight_g * material.cost_per_gram_public);
   const machine_cost = round2(print_time_hours * hourly_machine_rate);

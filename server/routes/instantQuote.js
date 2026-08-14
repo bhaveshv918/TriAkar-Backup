@@ -41,16 +41,21 @@ function verifyQuoteToken(token) {
 /* ── GET /api/instant-quote/options — public catalog ──────── */
 router.get('/options', async (_req, res, next) => {
   try {
-    const [{ data: materials, error: mErr }, { data: printers, error: pErr }] = await Promise.all([
-      supabase.from('instant_quote_materials').select('id,name,filament_type,color,color_hex')
+    const [{ data: materials, error: mErr }, { data: printers, error: pErr }, { data: colors, error: cErr }] = await Promise.all([
+      supabase.from('instant_quote_materials').select('id,name,filament_type,density_g_cm3,is_default')
         .eq('active', true).order('sort_order'),
-      supabase.from('instant_quote_printers').select('id,name,build_x_mm,build_y_mm,build_z_mm')
+      // build_x/y/z only — `name` deliberately excluded, customers shouldn't
+      // see printer brand/model, just the build volume they're fitting into.
+      supabase.from('instant_quote_printers').select('id,build_x_mm,build_y_mm,build_z_mm,is_default')
+        .eq('active', true).order('sort_order'),
+      supabase.from('instant_quote_colors').select('id,name,hex,is_default')
         .eq('active', true).order('sort_order'),
     ]);
     if (mErr) throw mErr;
     if (pErr) throw pErr;
+    if (cErr) throw cErr;
     res.setHeader('Cache-Control', 'public, max-age=60');
-    res.json({ materials: materials || [], printers: printers || [] });
+    res.json({ materials: materials || [], printers: printers || [], colors: colors || [] });
   } catch (err) { next(err); }
 });
 
@@ -103,9 +108,11 @@ router.post('/analyze', requireAuth, uploadModel.single('model'), async (req, re
 });
 
 /* ── POST /api/instant-quote/price — compute price + persist the quote ── */
+const VALID_NOZZLES = [0.2, 0.4, 0.6, 0.8];
+
 router.post('/price', requireAuth, async (req, res, next) => {
   try {
-    const { quote_token, printer_id, material_id, infill_percent } = req.body;
+    const { quote_token, printer_id, material_id, color_id, infill_percent, nozzle_mm, contact_name, contact_phone } = req.body;
     if (!quote_token) return res.status(400).json({ error: 'quote_token is required' });
 
     const geometry = verifyQuoteToken(quote_token);
@@ -117,13 +124,19 @@ router.post('/price', requireAuth, async (req, res, next) => {
     if (!Number.isFinite(infill) || infill < 5 || infill > 100) {
       return res.status(400).json({ error: 'infill_percent must be between 5 and 100' });
     }
+    const nozzle = Number(nozzle_mm) || 0.4;
+    if (!VALID_NOZZLES.includes(nozzle)) {
+      return res.status(400).json({ error: 'nozzle_mm must be one of 0.2, 0.4, 0.6, 0.8' });
+    }
 
-    const [{ data: printer }, { data: material }] = await Promise.all([
+    const [{ data: printer }, { data: material }, { data: color }] = await Promise.all([
       supabase.from('instant_quote_printers').select('*').eq('id', printer_id).eq('active', true).maybeSingle(),
       supabase.from('instant_quote_materials').select('*').eq('id', material_id).eq('active', true).maybeSingle(),
+      color_id ? supabase.from('instant_quote_colors').select('*').eq('id', color_id).eq('active', true).maybeSingle() : Promise.resolve({ data: null }),
     ]);
     if (!printer) return res.status(400).json({ error: 'Selected printer is not available' });
     if (!material) return res.status(400).json({ error: 'Selected material is not available' });
+    if (color_id && !color) return res.status(400).json({ error: 'Selected color is not available' });
 
     const dims = [geometry.dims_mm.x, geometry.dims_mm.y, geometry.dims_mm.z].sort((a, b) => b - a);
     const build = [printer.build_x_mm, printer.build_y_mm, printer.build_z_mm].sort((a, b) => b - a);
@@ -131,7 +144,7 @@ router.post('/price', requireAuth, async (req, res, next) => {
       return res.status(400).json({ error: `Model does not fit the selected printer's build volume` });
     }
 
-    const priced = await computeInstantQuotePrice({ volume_cm3: geometry.volume_cm3, infill_percent: infill, material });
+    const priced = await computeInstantQuotePrice({ volume_cm3: geometry.volume_cm3, infill_percent: infill, material, nozzle_mm: nozzle });
 
     const { data: quote, error } = await supabase.from('instant_quote_requests').insert({
       user_id: req.user.id,
@@ -145,12 +158,18 @@ router.post('/price', requireAuth, async (req, res, next) => {
       triangle_count: geometry.triangle_count,
       printer_id: printer.id,
       material_id: material.id,
+      color_id: color ? color.id : null,
+      nozzle_mm: nozzle,
       infill_percent: infill,
       estimated_print_time_hours: priced.print_time_hours,
       estimated_weight_g: priced.weight_g,
       price_breakdown: priced.price_breakdown,
       final_price: priced.final_price,
       status: 'quoted',
+      // Lead capture — optional, customer can skip. Trimmed + length-capped
+      // since these land straight in the admin panel with no other validation.
+      contact_name:  contact_name  ? String(contact_name).trim().slice(0, 120)  : null,
+      contact_phone: contact_phone ? String(contact_phone).trim().slice(0, 20)  : null,
     }).select().single();
     if (error) throw error;
 
