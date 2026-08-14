@@ -1682,6 +1682,15 @@ html[data-theme="dark"] .biz-login{
           <div class="calc-item cost"><label>Total Cost</label><span id="t_cost">₹0</span></div>
           <div class="calc-item profit"><label>Gross Profit</label><span id="t_profit">₹0</span></div>
           <div class="calc-item profit"><label>Margin %</label><span id="t_margin">0%</span></div>
+          <div class="calc-item">
+            <label>Round Off (₹)</label>
+            <div style="display:flex;align-items:center;gap:4px">
+              <input type="number" id="qa_roundoff" step="0.01" value="0" title="Auto-fills to round the grand total to the nearest rupee. Edit it yourself (e.g. to 0) to override, your value sticks until you start a new order." oninput="_qaRoundoffManual=true" onchange="recalcTotals()" style="width:70px;padding:2px 6px;font-size:12px">
+              <button type="button" class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="_qaRoundoffManual=false;recalcTotals()" title="Auto-calculate, rounds the grand total to the nearest rupee" style="padding:3px 5px">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/></svg>
+              </button>
+            </div>
+          </div>
           <div class="calc-item"><label>Grand Total</label><span id="t_grand" style="color:var(--text);font-size:16px">₹0</span></div>
         </div>
 
@@ -1758,10 +1767,6 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group">
             <label title="Material sourced for this order via Porter/local pickup">Porter / Pickup Expense (₹)</label>
             <input type="number" id="qa_porter" step="0.01" value="0" onchange="recalcTotals()">
-          </div>
-          <div class="form-group">
-            <label>Round Off (₹)</label>
-            <input type="number" id="qa_roundoff" step="0.01" value="0" title="Auto-fills to round the grand total to the nearest rupee. Edit it yourself (e.g. to 0) to override, your value sticks until you start a new order." oninput="_qaRoundoffManual=true" onchange="recalcTotals()">
           </div>
         </div>
         </div>
@@ -6135,11 +6140,12 @@ async function submitQuickAddAsQuotation(){
   // suggestions. Same call here, quotations don't have a customer_id column so the
   // resilient insert just drops it, but the biz_customers row still gets created.
   const custId=await resolveCustomerId(cname, g('qa_phone'));
+  const roundOff=parseFloat(document.getElementById('qa_roundoff')?.value)||0;
   const payload={
     customer_id:custId||null,
     customer_name:cname, customer_phone:g('qa_phone'), customer_address:g('qa_address'),
     customer_city:g('qa_city'), customer_state:g('qa_state'), customer_pincode:g('qa_pin'), customer_country:g('qa_country')||'India', customer_gstin:g('qa_gstin'),
-    items, subtotal:sub, gst_amount:gstAmt, total:sub+gstAmt-discTotal,
+    items, subtotal:sub, gst_amount:gstAmt, round_off:roundOff, total:sub+gstAmt+roundOff-discTotal,
     validity_date:g('qa_qt_validity'), terms_notes:g('qa_qt_terms'), promised_date:g('qa_qt_promised'),
     quotation_number:manualNumber, quotation_date:g('qa_date')||today(),
   };
@@ -7033,6 +7039,7 @@ function editQuotation(id){
     set('qa_country',q.customer_country||'India');
     set('qa_gstin',q.customer_gstin); set('qa_qt_validity',q.validity_date); set('qa_qt_terms',q.terms_notes);
     set('qa_qt_promised',q.promised_date); set('qa_date',q.quotation_date);
+    set('qa_roundoff', q.round_off||0); _qaRoundoffManual=true;
     _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,disc:it.disc||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0,hsn:it.hsn||(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:it.sku||'',variant:it.variant||'',remarks:it.remarks||''})) : [blankItem()];
     renderItems();
     renderQaQtTncPresets();
@@ -7174,7 +7181,7 @@ async function quotationSaleRows(q){
   const orderDate=q.quotation_date||(q.created_at?q.created_at.slice(0,10):today());
   const orderTime=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
   const items=(Array.isArray(q.items)?q.items:[]).filter(it=>it.name&&it.name.trim());
-  return items.map(it=>{
+  return items.map((it,idx)=>{
     const qty=it.qty||1;
     const unitRate=it.pricingMode==='gram' ? (parseFloat(it.grams)||0)*(it.rate||0) : (it.rate||0);
     const gross=qty*unitRate;
@@ -7195,7 +7202,7 @@ async function quotationSaleRows(q){
       selling_price:Math.round(taxable*(1+(it.gst||0)/100)*100)/100,
       discount_amount:disc, gst_rate:it.gst||0, cogs:0,
       grams_used:0, spool_waste_grams:0, extra_spool_usage:null,
-      platform_fee:0, shipping_fee:0, other_deductions:0, round_off:0, remarks:it.remarks||null,
+      platform_fee:0, shipping_fee:0, other_deductions:0, round_off:idx===0?(q.round_off||0):0, remarks:it.remarks||null,
     };
   });
 }
