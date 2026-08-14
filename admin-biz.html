@@ -4486,7 +4486,7 @@ function rowSelectOrAction(e,cbClass,action){
 
 // ── Privacy mode, masks ₹ / numeric values with •••••• on every tab ──
 const PRIVACY_KEY='biz_privacy_mode';
-const PRIVACY_SELECTOR='.kpi-val,.td-num,.amt';
+const PRIVACY_SELECTOR='.kpi-val,.td-num,.amt,.val,.kpi-sub,.pmask';
 function isPrivacyOn(){ try{ return localStorage.getItem(PRIVACY_KEY)==='1'; }catch(_){ return false; } }
 function maskEl(el){
   // Round 3 fix: re-renders (e.g. loadDashboard() re-setting .textContent on the same KPI
@@ -7550,7 +7550,7 @@ async function loadCustomerHistory(c){
     ];
     if(c.due>0) tiles.push({label:'Due',val:fmt(c.due),color:'var(--red)'});
     if(c.advance>0) tiles.push({label:'Advance',val:fmt(c.advance),color:'var(--blue)'});
-    sumEl.innerHTML=tiles.map(t=>`<div style="background:var(--bg-2);border-radius:var(--radius);padding:8px 10px"><div style="font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">${t.label}</div><div style="font-family:var(--mono);font-weight:700;font-size:13px;color:${t.color}">${t.val}</div></div>`).join('');
+    sumEl.innerHTML=tiles.map(t=>`<div style="background:var(--bg-2);border-radius:var(--radius);padding:8px 10px"><div style="font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">${t.label}</div><div class="pmask" style="font-family:var(--mono);font-weight:700;font-size:13px;color:${t.color}">${t.val}</div></div>`).join('');
   }
   const {data,error}=await sb.from('biz_sales').select('id,order_id,order_date,channel_id,product_name,sku,selling_price,status,qty')
     .eq('is_deleted',false).ilike('customer_name',name).order('order_date',{ascending:false}).limit(200);
@@ -8836,17 +8836,17 @@ async function loadBalanceSheet(){
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
       <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:18px">
         <div style="font-size:13px;font-weight:700;margin-bottom:12px">Assets</div>
-        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--text-2)">Bank Balance <span style="color:var(--text-3)">(opening ${fmt(opening)} + in ${fmt(totalIn)} − out ${fmt(totalOut)})</span></span><span style="font-weight:600">${fmt(bankBalance)}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--text-2)">Filament Stock Value</span><span style="font-weight:600">${fmt(stockValue)}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--text-2)">Rack Inventory <span style="color:var(--text-3)">(finished stock, at cost)</span></span><span style="font-weight:600">${fmt(rackValue)}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--text-2)">Machinery <span style="color:var(--text-3)">(active, at purchase value)</span></span><span style="font-weight:600">${fmt(machineryValue)}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="font-size:12px;color:var(--text-2)">Receivables <span style="color:var(--text-3)">(unpaid orders)</span></span><span style="font-weight:600">${fmt(receivables)}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:10px 0 0;margin-top:6px;border-top:2px solid var(--accent)"><span style="font-size:13px;font-weight:700">Total Assets</span><span style="font-size:15px;font-weight:800;color:var(--green)">${fmt(totalAssets)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span class="pmask" style="font-size:12px;color:var(--text-2)">Bank Balance <span style="color:var(--text-3)">(opening ${fmt(opening)} + in ${fmt(totalIn)} − out ${fmt(totalOut)})</span></span><span class="pmask" style="font-weight:600">${fmt(bankBalance)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--text-2)">Filament Stock Value</span><span class="pmask" style="font-weight:600">${fmt(stockValue)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--text-2)">Rack Inventory <span style="color:var(--text-3)">(finished stock, at cost)</span></span><span class="pmask" style="font-weight:600">${fmt(rackValue)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--text-2)">Machinery <span style="color:var(--text-3)">(active, at purchase value)</span></span><span class="pmask" style="font-weight:600">${fmt(machineryValue)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="font-size:12px;color:var(--text-2)">Receivables <span style="color:var(--text-3)">(unpaid orders)</span></span><span class="pmask" style="font-weight:600">${fmt(receivables)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0 0;margin-top:6px;border-top:2px solid var(--accent)"><span style="font-size:13px;font-weight:700">Total Assets</span><span class="pmask" style="font-size:15px;font-weight:800;color:var(--green)">${fmt(totalAssets)}</span></div>
       </div>
       <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:18px">
         <div style="font-size:13px;font-weight:700;margin-bottom:12px">Liabilities</div>
         <div style="font-size:12px;color:var(--text-3);padding:6px 0">No outstanding payables tracked.</div>
-        <div style="display:flex;justify-content:space-between;padding:10px 0 0;margin-top:6px;border-top:2px solid var(--border)"><span style="font-size:13px;font-weight:700">Net Worth</span><span style="font-size:15px;font-weight:800">${fmt(totalAssets)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0 0;margin-top:6px;border-top:2px solid var(--border)"><span style="font-size:13px;font-weight:700">Net Worth</span><span class="pmask" style="font-size:15px;font-weight:800">${fmt(totalAssets)}</span></div>
       </div>
     </div>
     ${(spools||[]).some(r=>!r.price)?'<div style="margin-top:14px;font-size:11px;color:var(--text-3)">Note: some active filament rolls have no purchase cost on file (logged before Purchases existed, or added directly in Filament), their stock value is excluded until a cost is set.</div>':''}
@@ -9477,7 +9477,7 @@ function renderFeeEditor(){
           <button class="btn btn-danger btn-sm" onclick="removeFeeExtra('${plat}',${i},${j})">✕</button></div>`).join('')}
         <div style="display:flex;gap:8px;margin-top:8px;justify-content:space-between;flex-wrap:wrap">
           <button class="btn btn-ghost btn-sm" onclick="addFeeExtra('${plat}',${i})">+ Add expense</button>
-          <span style="font-size:11px;color:var(--text-3)">Return loss for this range: <b style="color:var(--red)">${fmt((parseFloat(r.shipping)||0)+(parseFloat(r.returnShip)||0)+(parseFloat(r.packing)||0)+(parseFloat(r.other)||0)+_feeExtra(r))}</b></span>
+          <span class="pmask" style="font-size:11px;color:var(--text-3)">Return loss for this range: <b style="color:var(--red)">${fmt((parseFloat(r.shipping)||0)+(parseFloat(r.returnShip)||0)+(parseFloat(r.packing)||0)+(parseFloat(r.other)||0)+_feeExtra(r))}</b></span>
           <button class="btn btn-danger btn-sm" onclick="removeFeeRange('${plat}',${i})">Delete range</button>
         </div>
       </div>
@@ -11884,7 +11884,7 @@ function renderTopItemsByChannel(){
     const top=Object.values(c.prodMapByChannel[ch]||{}).sort((a,b)=>b.rev-a.rev).slice(0,10);
     return `<div>
       <div style="font-size:11px;font-weight:700;margin-bottom:6px">${chHtml(ch)}</div>
-      ${top.length?`<ol style="margin:0;padding-left:18px;font-size:12px">${top.map(d=>`<li style="margin-bottom:3px">${esc(d.name)} <span style="color:var(--text-3)">— ${fmt(d.rev)}</span></li>`).join('')}</ol>`:'<div class="em-text" style="font-size:11px">No sales this month</div>'}
+      ${top.length?`<ol style="margin:0;padding-left:18px;font-size:12px">${top.map(d=>`<li style="margin-bottom:3px">${esc(d.name)} <span class="pmask" style="color:var(--text-3)">— ${fmt(d.rev)}</span></li>`).join('')}</ol>`:'<div class="em-text" style="font-size:11px">No sales this month</div>'}
     </div>`;
   }).join('');
 }
