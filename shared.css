@@ -70,6 +70,11 @@
 
   --pad: 52px;
   --max-w: 1320px;
+  /* Nav's own content width, wider than --max-w (which caps page sections
+     like .mw/hero/product grids) so the header doesn't strand its links and
+     icons in a narrow island with huge dead margins on ultra-wide monitors,
+     while still stopping short of true edge-to-edge on 4K screens. */
+  --nav-w: clamp(1320px, 86vw, 1680px);
   --font-g: "Glorida", "Manrope", sans-serif; /* woff2 in assets/fonts/ */
   --font-b: "Manrope", sans-serif;
   --font-h: "Noto Sans Devanagari", sans-serif;
@@ -206,12 +211,14 @@ nav.main-nav.nav-morphing{
    1400px wide and never going below the original 16px on narrow screens. */
 nav.main-nav.scrolled{
   top:14px;
-  /* Cap must stay wider than .nav-inner's max width (--max-w 1320 including
-     its 2x52px padding): with the old 1200px cap the capsule was narrower
-     than the pre-scroll bar, so a header row that fit fine unscrolled could
-     stop fitting the moment it morphed into the capsule. */
-  left:max(16px, calc((100vw - 1400px) / 2));
-  right:max(16px, calc((100vw - 1400px) / 2));
+  /* Cap must stay wider than .nav-inner's max width (--nav-w including its
+     2x52px padding): with a narrower cap the capsule was narrower than the
+     pre-scroll bar, so a header row that fit fine unscrolled could stop
+     fitting the moment it morphed into the capsule. Deriving the cap from
+     --nav-w keeps the two in lockstep instead of two numbers to keep synced
+     by hand. */
+  left:max(16px, calc((100vw - (var(--nav-w) + 104px)) / 2));
+  right:max(16px, calc((100vw - (var(--nav-w) + 104px)) / 2));
   min-height:56px;
   border-radius:999px;
   background:var(--glass-a-bg);
@@ -256,7 +263,7 @@ html.low-power nav.main-nav.scrolled.nav-distort{
      guard in shared.js flips the header into the compact hamburger layout
      (html.nav-compact) instead of ever letting it grow taller. */
   flex-wrap:nowrap;
-  width:100%; max-width:var(--max-w);
+  width:100%; max-width:var(--nav-w);
   margin:0 auto; padding:10px var(--pad);
 }
 .logo{flex:0 0 auto}
