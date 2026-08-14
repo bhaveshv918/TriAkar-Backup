@@ -627,6 +627,12 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
    .biz-tb-icon grey), same tonal treatment as every other icon in this row now. */
 .biz-tb-icon-muted{background:var(--bg-3);border-color:var(--border-h);color:var(--text-2)}
 .biz-tb-icon-muted:hover{background:var(--bg-2);border-color:var(--text-3)}
+/* System (Settings, now the only thing left in that category, Activity Log moved
+   into Settings itself) is a single direct icon button at the very right of the
+   header instead of a dropdown category with just one item in it. */
+.biz-tb-icon-system{background:rgba(107,114,128,.10);border-color:rgba(107,114,128,.28);color:#6B7280}
+.biz-tb-icon-system:hover{background:rgba(107,114,128,.18);border-color:#6B7280}
+.biz-tb-icon-system.tab-active{background:#6B7280;border-color:#6B7280;color:#fff}
 .biz-tb-time{font-weight:700;font-size:12px;color:var(--text);white-space:nowrap;letter-spacing:.02em}
 /* ADMIN / SIGN OUT are icon-only .biz-tb-icon buttons at every width now, not just
    below 768px, so no separate .biz-tb-btn class is needed for them any more. */
@@ -1118,6 +1124,11 @@ html[data-theme="dark"] .biz-login{
     </a>
     <button class="biz-tb-icon biz-tb-signout" onclick="bizLogout()" title="Sign out">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+    <!-- System, far right corner: Settings (Activity Log lives inside it now, see
+         panelSettings), a direct icon button, not a dropdown with one item. -->
+    <button class="biz-tb-icon biz-tb-icon-system" id="bizTbSystemBtn" onclick="switchTab('settings')" title="Settings">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
     </button>
   </div>
 
@@ -3722,24 +3733,6 @@ html[data-theme="dark"] .biz-login{
     </div><!-- /shoplog -->
 
     <!-- ══════ ACTIVITY LOG (§2e) ══════ -->
-    <div class="panel" id="panelActivity">
-      <div class="p-head">
-        <div><div class="p-title">Activity Log</div><div class="p-sub">Immutable record of every create / edit / delete</div></div>
-        <button class="btn btn-ghost btn-sm" onclick="loadBizActivity()">⟳ Refresh</button>
-      </div>
-      <div class="filter-bar">
-        <select id="alEntity" onchange="loadBizActivity()"><option value="">All entities</option><option value="sale">Sale</option><option value="product">Product</option><option value="customer">Customer</option><option value="return">Return</option><option value="expense">Expense</option><option value="roll">Filament</option></select>
-        <select id="alAction" onchange="loadBizActivity()"><option value="">All actions</option><option value="create">Create</option><option value="edit">Edit</option><option value="delete">Delete</option></select>
-        <input type="text" id="alSearch" placeholder="Search detail / id…" oninput="loadBizActivity()" style="min-width:170px">
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>When</th><th>Action</th><th>Entity</th><th>Detail</th><th>By</th></tr></thead>
-          <tbody id="activityBody"><tr><td colspan="5" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
-        </table>
-      </div>
-    </div><!-- /activity -->
-
     <div class="panel" id="panelSettings">
       <div class="p-head">
         <div><div class="p-title">Documents</div><div class="p-sub">Business settings, per document type. Bank details are shared; whatever's added here later just needs a spot in this same layout.</div></div>
@@ -3751,6 +3744,30 @@ html[data-theme="dark"] .biz-login{
           <button type="button" class="doc-tab-btn" data-t="invoice" onclick="setDocSettingsTab('invoice')">Invoice</button>
           <button type="button" class="doc-tab-btn" data-t="quotation" onclick="setDocSettingsTab('quotation')">Quotation</button>
           <button type="button" class="doc-tab-btn" data-t="record" onclick="setDocSettingsTab('record')">Order Record</button>
+          <button type="button" class="doc-tab-btn" data-t="activity" onclick="setDocSettingsTab('activity')">Activity Log</button>
+        </div>
+      </div>
+
+      <!-- Activity Log, was its own top-level "System" tab, folded in here since it's
+           just another piece of business/system settings & records, not a separate
+           destination someone needs a whole extra nav entry to reach. -->
+      <div data-doc-tab="activity" style="max-width:1100px;display:none">
+        <div class="settings-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px">
+            <div style="font-size:11px;color:var(--text-3)">Immutable record of every create / edit / delete</div>
+            <button class="btn btn-ghost btn-sm" onclick="loadBizActivity()">⟳ Refresh</button>
+          </div>
+          <div class="filter-bar">
+            <select id="alEntity" onchange="loadBizActivity()"><option value="">All entities</option><option value="sale">Sale</option><option value="product">Product</option><option value="customer">Customer</option><option value="return">Return</option><option value="expense">Expense</option><option value="roll">Filament</option></select>
+            <select id="alAction" onchange="loadBizActivity()"><option value="">All actions</option><option value="create">Create</option><option value="edit">Edit</option><option value="delete">Delete</option></select>
+            <input type="text" id="alSearch" placeholder="Search detail / id…" oninput="loadBizActivity()" style="min-width:170px">
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>When</th><th>Action</th><th>Entity</th><th>Detail</th><th>By</th></tr></thead>
+              <tbody id="activityBody"><tr><td colspan="5" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -4181,6 +4198,9 @@ async function saveDocCustomization(){
 function setDocSettingsTab(tab){
   document.querySelectorAll('#panelSettings [data-doc-tab]').forEach(el=>{ el.style.display=(el.dataset.docTab===tab)?'':'none'; });
   document.querySelectorAll('#docSettingsTabs .doc-tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.t===tab));
+  // Activity Log moved in here from its own top-level tab, needs a fresh load
+  // every time it's actually opened, not just once when Settings itself loads.
+  if(tab==='activity'&&typeof loadBizActivity==='function') loadBizActivity();
 }
 async function loadBizDefaults(){
   try{
@@ -4635,10 +4655,13 @@ const NAV_CONFIG = [
     ]
   },
   {
+    // Activity Log folded into Settings itself (a tab there now, see panelSettings),
+    // so System is down to one destination. Rendered as its own direct icon button
+    // at the far right of the header instead of a dropdown category, see
+    // renderBizHeaderNav()/visibleNavConfig() below.
     id: 'system', label: 'System', color: '#6B7280',
     items: [
-      { id: 'activity', label: 'Activity Log', icon: '≣', shortcut: 'y' },
-      { id: 'settings', label: 'Settings',      icon: '⚙', shortcut: 'j' },
+      { id: 'settings', label: 'Settings', icon: '⚙', shortcut: 'j' },
     ]
   },
 ];
@@ -4677,7 +4700,12 @@ function renderBizHeaderNav(){
   const host=document.getElementById('bizTbNav'); if(!host) return;
   const todayBtn=document.getElementById('bizTbTodayBtn');
   if(todayBtn) todayBtn.style.display=(_isStaffUser&&_staffTabs&&!_staffTabs.includes('openorders'))?'none':'';
-  host.innerHTML=visibleNavConfig().map(sec=>`
+  // System (now just Settings, Activity Log moved inside it) renders as its own
+  // direct icon button at the far right of the header instead, see bizTbSystemBtn
+  // in the header markup, not part of this dropdown-category row.
+  const sysBtn=document.getElementById('bizTbSystemBtn');
+  if(sysBtn) sysBtn.style.display=(_isStaffUser&&_staffTabs&&!_staffTabs.includes('settings'))?'none':'';
+  host.innerHTML=visibleNavConfig().filter(sec=>sec.id!=='system').map(sec=>`
     <div class="biz-tb-cat" data-cat="${sec.id}" style="--cat-color:${sec.color}"
          onmouseenter="_bizCatOpen('${sec.id}')" onmouseleave="_bizCatCloseSoon('${sec.id}')">
       <span>${esc(sec.label)}</span><span class="cat-chev">▾</span>
@@ -4704,6 +4732,7 @@ function updateBizHeaderNavActive(tabId){
   document.querySelectorAll('.biz-tb-cat').forEach(el=>el.classList.toggle('cat-active',sec&&el.dataset.cat===sec.id));
   document.querySelectorAll('.biz-tb-dd-item').forEach(el=>el.classList.toggle('dd-active',el.dataset.tab===tabId));
   document.getElementById('bizTbTodayBtn')?.classList.toggle('tab-active',tabId==='openorders');
+  document.getElementById('bizTbSystemBtn')?.classList.toggle('tab-active',tabId==='settings');
 }
 // Live-tested bug fix: header dropdown badges (prodCount_hdr, salesCount_hdr,
 // custCount_hdr, openCount_hdr, returnCount_hdr, salesviewCount_hdr) used to be
@@ -4931,7 +4960,7 @@ function switchTab(name){
     sales:loadSales, products:loadProducts, stock:loadStock,
     gst:loadGST, dashboard:loadDashboard,
     import:initImportPanel, settings:loadBizSettings,
-    customers:loadCustomers, fees:loadFeesTab, returns:loadReturns, spooltracker:loadSpoolTracker, openorders:loadOpenOrders, expenses:loadExpenses, activity:loadBizActivity,
+    customers:loadCustomers, fees:loadFeesTab, returns:loadReturns, spooltracker:loadSpoolTracker, openorders:loadOpenOrders, expenses:loadExpenses,
     ledger:loadLedger, purchases:loadPurchases, balance:loadBalanceSheet, shoplog:loadShopLog, machinery:loadMachinery,
     gstportal:loadGstPortal, invoicing:loadInvoicing, gstauto:loadGstAuto,
     salesview:loadSalesview, quotations:loadQuotations, rack:loadRackItems,
