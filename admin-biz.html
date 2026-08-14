@@ -1553,6 +1553,10 @@ html[data-theme="dark"] .biz-login{
             <label>Order ID</label>
             <input type="text" id="qa_orderid" placeholder="Platform order number">
           </div>
+          <div class="form-group">
+            <label>Document Reference <span style="font-weight:400;color:var(--text-3);font-size:10px">auto-fills with the quotation # when made from one, editable</span></label>
+            <input type="text" id="qa_refdoc" placeholder="PO number, or any other reference">
+          </div>
         </div>
         </div>
 
@@ -5736,10 +5740,12 @@ async function getOrderFields(){
     notes:g('qa_notes'),
     terms_notes:g('qa_inv_terms'),
     import_source:'manual',
-    // Auto-fills with the source quotation's number when this order was opened via
-    // "Add to Order" from a quotation (openAddOrderFromQuotation), stays empty for an
-    // order started from scratch. Printed near the Date on the invoice (printInvoice).
-    reference_document:_qaSourceQuotationNumber||null,
+    // Visible, editable field (qa_refdoc): auto-fills with the source quotation's
+    // number when this order was opened via "Add to Order" from a quotation
+    // (openAddOrderFromQuotation), stays empty for an order started from scratch,
+    // and the operator can overwrite it with a PO number or any other reference.
+    // Printed near the Date on the invoice (printInvoice).
+    reference_document:g('qa_refdoc')||null,
     // §2.1, stamp the exact time of entry (not just the order date) automatically;
     // studio walk-ins log the sale as it happens, so "now" is the meaningful timestamp.
     order_time:new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}),
@@ -6060,6 +6066,7 @@ function openAddOrderEdit(firstId){
   if(typeof setFulfillment==='function') setFulfillment(fulfilChip);
   if(fulfilChip==='pickup_other'){ const fo=document.getElementById('qa_fulfil_other'); if(fo) fo.value=f.fulfillment_detail||''; }
   set('qa_tracking',f.tracking_number); set('qa_courier',f.courier_partner); set('qa_invoiceno',f.invoice_no);
+  set('qa_refdoc',f.reference_document);
   set('qa_packet',f.package_size); set('qa_cname',f.customer_name); set('qa_phone',f.customer_phone);
   set('qa_address',f.customer_address); set('qa_city',f.customer_city); set('qa_state',f.customer_state);
   set('qa_pin',f.customer_pincode); set('qa_country',f.customer_country||'India'); set('qa_gstin',f.customer_gstin); set('qa_notes',f.notes);
@@ -6110,6 +6117,7 @@ async function openAddOrderFromQuotation(quotationId){
   set('qa_cname',data.customer_name); set('qa_phone',data.customer_phone); set('qa_address',data.customer_address);
   set('qa_city',data.customer_city); set('qa_state',data.customer_state); set('qa_pin',data.customer_pincode);
   set('qa_country',data.customer_country||'India'); set('qa_gstin',data.customer_gstin);
+  set('qa_refdoc',data.quotation_number);
   const qItems=Array.isArray(data.items)?data.items:[];
   _items=qItems.length ? qItems.map(it=>({
     rowId:null, productId:null, name:it.name||'', variant:'', qty:it.qty||1, rate:it.rate||0, disc:0,
@@ -6724,7 +6732,14 @@ async function loadQuotations(){
         ${orderIdTag(q.quotation_number)}
       </td>
       <td class="td-num" style="font-weight:700;font-size:12.5px;color:var(--text)">${fmt(q.total)}</td>
-      <td><span class="badge badge-${q.status==='accepted'?'completed':q.status==='declined'?'cancelled':'pending'}">${esc(q.status)}</span></td>
+      <td onclick="event.stopPropagation()">
+        <select onchange="changeQuotationStatus('${q.id}',this.value)" class="badge-select badge-${q.status==='accepted'?'completed':(q.status==='declined'||q.status==='expired')?'cancelled':'pending'}" title="Change status directly, doesn't require going through Accept">
+          <option value="draft"${q.status==='draft'?' selected':''}>Draft</option>
+          <option value="accepted"${q.status==='accepted'?' selected':''}>Accepted</option>
+          <option value="declined"${q.status==='declined'?' selected':''}>Declined</option>
+          <option value="expired"${q.status==='expired'?' selected':''}>Expired</option>
+        </select>
+      </td>
       <td>${q.validity_date?fmtDay(q.validity_date):'—'}</td>
       <td class="td-actions" style="white-space:nowrap;text-align:right">
         <button class="btn btn-icon-tint btn-icon-doc btn-sm" onclick="printQuotation('${q.id}')" title="View / Download PDF" style="gap:5px">${ICO_VIEW} View</button>
@@ -6732,7 +6747,7 @@ async function loadQuotations(){
         ${convertible?`<button class="btn btn-icon-tint btn-icon-accept btn-sm" onclick="acceptQuotation('${q.id}')" title="Accept">${ICO_ACCEPT}</button>`:''}
         ${convertible?`<button class="btn btn-icon-tint btn-icon-invoice btn-sm" onclick="makeInvoiceFromQuotation('${q.id}')" title="Make Invoice, creates the order from this quotation and generates its invoice right away">${ICO_INVOICE}</button>`:''}
         <button class="btn btn-icon-tint btn-icon-duplicate btn-sm" onclick="duplicateQuotation('${q.id}')" title="Duplicate, opens as a new quotation you can edit before saving">${ICO_DUPLICATE}</button>
-        ${convertible?`<button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="editQuotation('${q.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button>`:''}
+        <button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="editQuotation('${q.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button>
       </td>
     </tr>`;
   }).join('');
@@ -6964,6 +6979,19 @@ async function saveQuotation(){
 async function acceptQuotation(id){
   if(!confirm('Accept this quotation and start a new order from it?')) return;
   await openAddOrderFromQuotation(id);
+}
+// Direct status change, independent of the Accept/Order/Invoice flow. Status used
+// to only ever move to 'accepted' as a side effect of actually saving a new order
+// from a quotation (submitQuickAdd), which also hid Edit/Order/Invoice/Accept the
+// moment that happened, an accepted quotation had no way back. This lets the
+// status itself be corrected any time (e.g. mis-clicked Accept, or a customer who
+// verbally accepted then backed out), the row's other buttons already re-show
+// automatically once status moves off accepted/declined/expired.
+async function changeQuotationStatus(id,newStatus){
+  const {error}=await sb.from('biz_quotations').update({status:newStatus}).eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  toast('Status updated');
+  loadQuotations();
 }
 
 // Quotation now shares the exact same document template as Invoice/Order Record
