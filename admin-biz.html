@@ -4113,6 +4113,8 @@ const ICO_RESTORE='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" s
 const ICO_ADD='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
 const ICO_RETURN='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M4 9h11a5 5 0 0 1 5 5v1"/></svg>';
 const ICO_EYE_OFF='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-6.5 0-10.5-7-10.5-7a19.77 19.77 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c6.5 0 10.5 7 10.5 7a19.77 19.77 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+const ICO_SELL='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24L3 3v6.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.59-4.59a2 2 0 0 0 0-2.83Z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>';
+const ICO_RECYCLE='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 19H4.8a2 2 0 0 1-1.7-3l2.5-4.4"/><path d="m9 5 3-3 3 3"/><path d="M12 2v9"/><path d="m14.8 12 3.5 6a2 2 0 0 1-1.7 3H12"/><path d="m8 17-3 3 3 3"/></svg>';
 function fmt(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function fmtD(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 // GST periods are stored/keyed as "YYYY-MM" everywhere (comparisons, API calls, filenames),
@@ -6859,9 +6861,9 @@ async function loadRackItems(){
       <td class="td-num">${fmt(r.cost_price)}</td>
       <td class="td-num" style="font-weight:700">${fmt((parseInt(r.qty)||0)*(parseFloat(r.cost_price)||0))}</td>
       <td class="td-actions" style="white-space:nowrap;text-align:right">
-        <button class="btn btn-primary btn-sm" onclick="markRackItemSold('${r.id}')" title="Mark one unit sold, opens Add Order pre-filled">💰 Sold</button>
-        <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="showAddRackItem('${r.id}')" title="Edit">✎</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteRackItem('${r.id}')">✕</button>
+        <button class="btn btn-icon-tint btn-icon-order btn-sm" onclick="markRackItemSold('${r.id}')" title="Mark one unit sold, opens Add Order pre-filled" style="gap:5px">${ICO_SELL} Sold</button>
+        <button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="showAddRackItem('${r.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteRackItem('${r.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button>
       </td>
     </tr>`).join('');
 }
@@ -7062,7 +7064,7 @@ function renderCustomers(){
     <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${c.first?fmtDay(c.first):'—'}</td>
     <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${c.last?fmtDay(c.last):'—'}</td>
     <td>${c.reviewed?'<span class="badge" style="background:var(--green-bg);color:var(--green)">✓</span>':''}</td>
-    <td class="td-actions"><button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="event.stopPropagation();openCustomerByIdx(${i})" title="Edit">✎</button></td>
+    <td class="td-actions"><button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="event.stopPropagation();openCustomerByIdx(${i})" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button></td>
   </tr>`).join(''):`<tr><td colspan="11" class="empty"><div class="em-text">No customers found</div></td></tr>`;
   updateCustBulkBar();
 }
@@ -7959,7 +7961,7 @@ async function loadExpenses(){
     <td class="td-num" style="font-weight:700">${fmt(r.amount)}</td>
     <td class="td-num" style="color:var(--text-3)">${fmt(r.gst_amount)}</td>
     <td>${r.invoice_url?`<a href="#" data-u="${esc(r.invoice_url)}" onclick="event.preventDefault();openInvoice(this.dataset.u)" style="color:var(--accent)">view</a>`:'—'}</td>
-    <td class="td-actions"><button class="btn btn-icon-tint btn-icon-duplicate btn-sm" title="Duplicate to next month" onclick="duplicateExpenseNextMonth('${r.id}')">↻</button> <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editExpense('${r.id}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteExpense('${r.id}')">✕</button></td>
+    <td class="td-actions"><button class="btn btn-icon-tint btn-icon-duplicate btn-sm" title="Duplicate to next month" onclick="duplicateExpenseNextMonth('${r.id}')" style="padding:3px 6px">${ICO_DUPLICATE}</button> <button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="editExpense('${r.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deleteExpense('${r.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
   </tr>`).join('');
 }
 function onExpenseCategoryChange(){
@@ -8320,7 +8322,7 @@ async function loadPurchases(){
     <td class="td-num">${r.qty||1}</td>
     <td class="td-num" style="font-weight:700">${fmt(r.total_amount)}</td>
     <td>${r.invoice_url?`<a href="#" data-u="${esc(r.invoice_url)}" onclick="event.preventDefault();openInvoice(this.dataset.u)" style="color:var(--accent)">view</a>`:'—'}</td>
-    <td class="td-actions"><button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editPurchase('${r.id}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deletePurchase('${r.id}')">✕</button></td>
+    <td class="td-actions"><button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="editPurchase('${r.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deletePurchase('${r.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
   </tr>`).join('');
 }
 function recalcPurchase(){
@@ -9626,8 +9628,8 @@ function renderSpoolTracker(){
       <td style="font-size:11px;color:var(--text-3)">${esc(r.opened_date||'—')}</td>
       <td style="font-size:11px;color:var(--text-3)">${esc(r.finished_date||'—')}</td>
       <td class="td-actions">
-        <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="showSpoolEdit('${r.id}')" title="Edit">✎</button>
-        ${r.status!=='Finsh'?`<button class="btn btn-ghost btn-sm" title="Mark resold" onclick="showResellSpool('${r.id}')">♻</button>`:''}
+        <button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="showSpoolEdit('${r.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button>
+        ${r.status!=='Finsh'?`<button class="btn btn-icon-tint btn-icon-order btn-sm" title="Mark resold" onclick="showResellSpool('${r.id}')" style="padding:3px 6px">${ICO_RECYCLE}</button>`:''}
       </td>
     </tr>`;
   };
@@ -10060,7 +10062,7 @@ async function loadReturns(){
     <td>${prodCol}</td>
     <td onclick="event.stopPropagation()">${(()=>{const k=returnRowStateKey(r);return `<select onchange="updateReturnState('${r.id}',this.value)" class="badge-select badge-${(RETURN_ROW_STATES.find(s=>s.k===k)||{}).cls||'pending'}">${RETURN_ROW_STATES.map(s=>`<option value="${s.k}"${k===s.k?' selected':''}>${s.label}</option>`).join('')}</select>`;})()}</td>
     <td class="td-num" style="color:var(--red);font-weight:700">${fmt(r.amount_lost)}</td>
-    <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="editReturn('${r.id}')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteReturn('${r.id}')">✕</button></td>
+    <td class="td-actions"><button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="editReturn('${r.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deleteReturn('${r.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
   </tr>`;
   }).join('');
 }
