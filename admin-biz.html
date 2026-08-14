@@ -6714,7 +6714,7 @@ async function loadSalesview(){
   if(_svPending) statsQ=statsQ.not('status','in','(completed,delivered)');
   statsQ=applyFilters(statsQ);
   const queries=[
-    sb.from('biz_sales').select('order_id,selling_price').eq('is_deleted',false).limit(5000),
+    sb.from('biz_sales').select('order_id,selling_price,round_off').eq('is_deleted',false).limit(5000),
     statsQ,
   ];
   if(peek) queries.push(applyFilters(sb.from('biz_sales').select('*').eq('is_deleted',false).limit(2000)));
@@ -6723,9 +6723,9 @@ async function loadSalesview(){
   updateSvFilterBadge();
   const allRows=allData||[], rows=salesData||[];
   const orderGroups={}; allRows.forEach(r=>{ const k=r.order_id||('r:'+Math.random()); (orderGroups[k]=orderGroups[k]||[]).push(r); });
-  const ordersTotal=allRows.reduce((a,r)=>a+(parseFloat(r.selling_price)||0),0), ordersCount=Object.keys(orderGroups).length;
+  const ordersTotal=allRows.reduce((a,r)=>a+(parseFloat(r.selling_price)||0)+(parseFloat(r.round_off)||0),0), ordersCount=Object.keys(orderGroups).length;
   const salesGroups={}; rows.forEach(r=>{ const k=r.order_id||('r:'+Math.random()); (salesGroups[k]=salesGroups[k]||[]).push(r); });
-  const salesTotal=rows.reduce((a,r)=>a+(parseFloat(r.selling_price)||0),0), salesCount=Object.keys(salesGroups).length;
+  const salesTotal=rows.reduce((a,r)=>a+(parseFloat(r.selling_price)||0)+(parseFloat(r.round_off)||0),0), salesCount=Object.keys(salesGroups).length;
   const aov=salesCount?salesTotal/salesCount:0;
   const kpi=document.getElementById('salesviewKpi');
   if(kpi) kpi.innerHTML=`
@@ -6747,7 +6747,7 @@ async function loadSalesview(){
   if(!body) return;
   if(!groups.length){ body.innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">No sales found</div></td></tr>'; return; }
   body.innerHTML=groups.map((items,idx)=>{
-    const f=items[0], totalQty=items.reduce((a,s)=>a+(parseInt(s.qty)||0),0), totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
+    const f=items[0], totalQty=items.reduce((a,s)=>a+(parseInt(s.qty)||0),0), totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0)+(parseFloat(f.round_off)||0);
     const excluded=NON_REVENUE_STATUSES.includes(f.status);
     return `<tr class="sale-row${excluded?' row-breached':''}" onclick="jumpToOrderDetail('${f.id}')" style="cursor:pointer${excluded?';opacity:.7':''}">
       <td>${idx+1}</td><td>${fmtDay(f.order_date)}</td><td>${chHtml(f.channel_id)}</td>
@@ -7348,7 +7348,7 @@ async function loadCustomers(){
   // 2. Derived stats from sales (first + last order dates)
   const [{data,error},{data:payRows}]=await Promise.all([
     sb.from('biz_sales')
-      .select('customer_name,customer_phone,customer_address,customer_city,customer_state,customer_pincode,order_id,order_date,selling_price,channel_id,is_paid')
+      .select('customer_name,customer_phone,customer_address,customer_city,customer_state,customer_pincode,order_id,order_date,selling_price,round_off,channel_id,is_paid')
       .eq('is_deleted',false).not('customer_name','is',null)
       .order('order_date',{ascending:false}).limit(5000),
     sb.from('biz_sale_payments').select('order_id,amount').limit(5000),
@@ -7360,7 +7360,7 @@ async function loadCustomers(){
   const receivedByCustomer={};
   (payRows||[]).forEach(p=>{ const k=orderIdToCustomer[p.order_id]; if(k) receivedByCustomer[k]=(receivedByCustomer[k]||0)+(parseFloat(p.amount)||0); });
   const paidOrderIdsForReceived=new Set((payRows||[]).map(p=>p.order_id));
-  (data||[]).forEach(s=>{ const k=(s.customer_name||'').trim().toLowerCase(); if(s.is_paid&&s.order_id&&!paidOrderIdsForReceived.has(s.order_id)) receivedByCustomer[k]=(receivedByCustomer[k]||0)+(parseFloat(s.selling_price)||0); });
+  (data||[]).forEach(s=>{ const k=(s.customer_name||'').trim().toLowerCase(); if(s.is_paid&&s.order_id&&!paidOrderIdsForReceived.has(s.order_id)) receivedByCustomer[k]=(receivedByCustomer[k]||0)+(parseFloat(s.selling_price)||0)+(parseFloat(s.round_off)||0); });
   const map={};
   (data||[]).forEach(s=>{
     const name=(s.customer_name||'').trim(); if(!name) return;
@@ -7374,7 +7374,7 @@ async function loadCustomers(){
     if(!c.pincode&&s.customer_pincode) c.pincode=s.customer_pincode;
     c.orders.add(s.order_id||(s.order_date+'|'+name));
     if(s.channel_id) c.channels.add(s.channel_id);
-    c.items+=1; c.spent+=parseFloat(s.selling_price)||0;
+    c.items+=1; c.spent+=(parseFloat(s.selling_price)||0)+(parseFloat(s.round_off)||0);
     if(s.order_date>c.last) c.last=s.order_date;
     if(s.order_date<c.first) c.first=s.order_date;
   });
@@ -7577,7 +7577,7 @@ async function loadCustomerHistory(c){
     if(c.advance>0) tiles.push({label:'Advance',val:fmt(c.advance),color:'var(--blue)'});
     sumEl.innerHTML=tiles.map(t=>`<div style="background:var(--bg-2);border-radius:var(--radius);padding:8px 10px"><div style="font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">${t.label}</div><div class="pmask" style="font-family:var(--mono);font-weight:700;font-size:13px;color:${t.color}">${t.val}</div></div>`).join('');
   }
-  const {data,error}=await sb.from('biz_sales').select('id,order_id,order_date,channel_id,product_name,sku,selling_price,status,qty')
+  const {data,error}=await sb.from('biz_sales').select('id,order_id,order_date,channel_id,product_name,sku,selling_price,round_off,status,qty')
     .eq('is_deleted',false).ilike('customer_name',name).order('order_date',{ascending:false}).limit(200);
   if(error||!data||!data.length){ body.innerHTML='<tr><td colspan="5" class="empty"><div class="em-text">No orders found</div></td></tr>'; if(countEl) countEl.textContent=''; return; }
   const gmap={},groups=[];
@@ -7588,7 +7588,7 @@ async function loadCustomerHistory(c){
   if(orderIds.length){ const {data:pd}=await sb.from('biz_sale_payments').select('order_id,amount,payment_date,source,notes').in('order_id',orderIds); payRows=pd||[]; }
   const events=[];
   groups.forEach(g=>{
-    const f=g.items[0], total=g.items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
+    const f=g.items[0], total=g.items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0)+(parseFloat(f.round_off)||0);
     const more=g.items.length>1?` +${g.items.length-1} more`:'';
     events.push({date:f.order_date,type:'order',sortKey:f.order_date+' 0',row:`<tr style="cursor:pointer" onclick="closeCustomerModal();jumpToOrderDetail('${f.id}')">
       <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(f.order_date)}</td>
@@ -7903,7 +7903,7 @@ function openOpenOrdersDrawer(kind){
     <div class="tbl-wrap">
       <table><thead><tr><th>Order</th><th>Customer</th><th>Promised</th><th class="td-num">Value</th><th></th></tr></thead>
       <tbody>${groups.length?groups.map(g=>{
-        const f=g.items[0], total=g.items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
+        const f=g.items[0], total=g.items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0)+(parseFloat(f.round_off)||0);
         return `<tr style="cursor:pointer" onclick="closeOpenOrdersDrawer();jumpToOrderDetail('${f.id}')">
           <td>${chHtml(f.channel_id)} ${esc(f.order_id||f.product_name||'—')}</td>
           <td>${esc(f.customer_name||'—')}</td>
@@ -8554,7 +8554,7 @@ async function loadLedger(){
   const netLabel=periodLabel(view,'Net');
   const [{data:inc,error:e1},{data:studio,error:e2},{data:exp,error:e3},{data:payRows,error:e4}]=await Promise.all([
     sb.from('biz_income').select('*').gte('date',start).lt('date',next).order('date',{ascending:false}),
-    sb.from('biz_sales').select('id,order_id,record_id,order_date,selling_price,customer_name,payment_mode').eq('is_deleted',false).eq('channel_id','shop').eq('is_paid',true).gte('order_date',start).lt('order_date',next),
+    sb.from('biz_sales').select('id,order_id,record_id,order_date,selling_price,round_off,customer_name,payment_mode').eq('is_deleted',false).eq('channel_id','shop').eq('is_paid',true).gte('order_date',start).lt('order_date',next),
     sb.from('biz_expenses').select('*').gte('date',start).lt('date',next),
     // Payments logged directly on an order (new-order Payment Status, or an edit-mode
     // installment) show up here too, "preset" from what was entered on the order itself,
@@ -8593,7 +8593,7 @@ async function loadLedger(){
     const key=r.order_id||r.id;
     if(r.order_id && paidOrderIds.has(r.order_id)) return;   // already represented via Order Payments above
     if(!studioByOrder[key]) studioByOrder[key]={date:r.order_date,amount:0,customer_name:r.customer_name,payment_mode:r.payment_mode,id:r.id,order_id:r.order_id,record_id:r.record_id};
-    studioByOrder[key].amount+=parseFloat(r.selling_price)||0;
+    studioByOrder[key].amount+=(parseFloat(r.selling_price)||0)+(parseFloat(r.round_off)||0);
   });
   const studioF=(!ch||ch==='shop')?Object.values(studioByOrder):[];
   const studioTotal=studioF.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
@@ -8811,12 +8811,12 @@ async function loadBalanceSheet(){
   else label='All Time';
   const [{data:ob},{data:studio},{data:inc},{data:exp},{data:purch},{data:spools},{data:unpaid},{data:printers},{data:rack},{data:payIn},{data:payAll}]=await Promise.all([
     sb.from('site_settings').select('value').eq('key','biz_opening_balance').single(),
-    sb.from('biz_sales').select('order_id,selling_price').eq('is_deleted',false).eq('channel_id','shop').eq('is_paid',true).gte('order_date',start),
+    sb.from('biz_sales').select('order_id,selling_price,round_off').eq('is_deleted',false).eq('channel_id','shop').eq('is_paid',true).gte('order_date',start),
     sb.from('biz_income').select('amount').gte('date',start),
     sb.from('biz_expenses').select('amount').gte('date',start),
     sb.from('biz_purchases').select('total_amount').gte('date',start),
     sb.from('filament_inventory').select('total_grams,grams_used,waste_grams,price').neq('status','Finsh'),
-    sb.from('biz_sales').select('id,order_id,selling_price').eq('is_deleted',false).eq('is_paid',false).not('status','in',`(${NON_REVENUE_STATUSES.join(',')})`),
+    sb.from('biz_sales').select('id,order_id,selling_price,round_off').eq('is_deleted',false).eq('is_paid',false).not('status','in',`(${NON_REVENUE_STATUSES.join(',')})`),
     sb.from('biz_printers').select('purchase_value').eq('active',true),
     sb.from('biz_rack_items').select('qty,cost_price'),
     // Order payments (biz_sale_payments — partial/full advance logged via "+ Add Payment")
@@ -8835,7 +8835,7 @@ async function loadBalanceSheet(){
   // order (which locks is_paid AND logs a payment row) isn't double-counted. Mirrors the
   // exact dedup loadLedger uses for the same studio/payments overlap.
   const payOrderIdsIn=new Set((payIn||[]).map(r=>r.order_id).filter(Boolean));
-  const studioIn=(studio||[]).filter(r=>!(r.order_id&&payOrderIdsIn.has(r.order_id))).reduce((s,r)=>s+num(r.selling_price),0);
+  const studioIn=(studio||[]).filter(r=>!(r.order_id&&payOrderIdsIn.has(r.order_id))).reduce((s,r)=>s+num(r.selling_price)+num(r.round_off),0);
   const orderPayIn=(payIn||[]).reduce((s,r)=>s+num(r.amount),0);
   const totalIn=studioIn+orderPayIn+(inc||[]).reduce((s,r)=>s+num(r.amount),0);
   const totalOut=(exp||[]).reduce((s,r)=>s+num(r.amount),0)+(purch||[]).reduce((s,r)=>s+num(r.total_amount),0);
@@ -8847,7 +8847,7 @@ async function loadBalanceSheet(){
   const paidByOrder={};
   (payAll||[]).forEach(r=>{ if(r.order_id) paidByOrder[r.order_id]=(paidByOrder[r.order_id]||0)+num(r.amount); });
   const unpaidByOrder={};
-  (unpaid||[]).forEach(r=>{ const key=r.order_id||r.id; unpaidByOrder[key]=(unpaidByOrder[key]||0)+num(r.selling_price); });
+  (unpaid||[]).forEach(r=>{ const key=r.order_id||r.id; unpaidByOrder[key]=(unpaidByOrder[key]||0)+num(r.selling_price)+num(r.round_off); });
   const receivables=Object.entries(unpaidByOrder).reduce((s,[oid,amt])=>s+Math.max(0,amt-(paidByOrder[oid]||0)),0);
   const machineryValue=(printers||[]).reduce((s,p)=>s+num(p.purchase_value),0);
   // Phase 10 Group 3 (H): finished-product stock physically on the rack, valued at
@@ -8996,7 +8996,7 @@ async function loadAllOrdersKpi(){
   const rows=data||[];
   const groups={}; rows.forEach(r=>{ const k=r.order_id||('r:'+Math.random()); (groups[k]=groups[k]||[]).push(r); });
   const orderCount=Object.keys(groups).length;
-  const revenue=rows.reduce((a,r)=>a+(parseFloat(r.selling_price)||0),0);
+  const revenue=rows.reduce((a,r)=>a+(parseFloat(r.selling_price)||0)+(parseFloat(r.round_off)||0),0);
   const aov=orderCount?revenue/orderCount:0;
   // Reuses the same Not Completed / Not Locked groups Today's Tasks already computes
   // (_openOrderKpiGroups), same buttons, same drawer, now reachable from All Orders too.
@@ -9119,7 +9119,7 @@ async function loadSales(){
     const items=g.items, f=items[0];
     const key=f.id;                                   // DOM-safe handle (first item id)
     const totalQty=items.reduce((a,s)=>a+(parseInt(s.qty)||0),0);
-    const totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
+    const totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0)+(parseFloat(f.round_off)||0);
     const allPaid=items.every(s=>s.is_paid);
     const sts=[...new Set(items.map(s=>s.status))];
     const status=sts.length===1?sts[0]:'mixed';
@@ -9238,7 +9238,7 @@ function renderOrderDetail(items){
   const f=items[0], key=f.id, locked=items.every(s=>s.is_paid);
   let fees=0,platF=0,shipF=0,othF=0;
   items.forEach(s=>{ const pf=parseFloat(s.platform_fee)||0, sf=parseFloat(s.shipping_fee)||0, od=parseFloat(s.other_deductions)||0; platF+=pf; shipF+=sf; othF+=od; fees+=pf+sf+od; });
-  const totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
+  const totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0)+(parseFloat(f.round_off)||0);
   const cntry=(f.customer_country&&f.customer_country.trim()&&f.customer_country.trim().toLowerCase()!=='india')?f.customer_country.trim():'';
   const addr=[f.customer_address,[f.customer_city,f.customer_state].filter(Boolean).join(', ')+(f.customer_pincode?', '+f.customer_pincode:'')+(cntry?', '+cntry:'')].map(x=>(x||'').trim()).filter(Boolean).map(esc).join('<br>');
   const F=(l,val)=>val?`<div><div style="color:var(--text-3);font-size:9px;text-transform:uppercase;letter-spacing:.6px">${l}</div><div style="font-size:12px;margin-top:1px">${val}</div></div>`:'';
@@ -9276,6 +9276,7 @@ function renderOrderDetail(items){
       <table>
         <thead><tr><th>Item</th><th class="td-num">Qty</th><th class="td-num">Price</th><th class="td-actions"></th></tr></thead>
         <tbody>${itemRows}
+          ${Math.abs(parseFloat(f.round_off)||0)>=0.005?`<tr><td colspan="2" style="text-align:right;color:var(--text-3);font-size:11px">Round Off</td><td class="td-num" style="color:var(--text-3);font-size:11px">${f.round_off<0?'−':'+'}${fmt(Math.abs(f.round_off))}</td><td></td></tr>`:''}
           <tr><td style="font-weight:700">Total (${items.length} item${items.length>1?'s':''})</td><td class="td-num" style="font-weight:700">${items.reduce((a,s)=>a+(parseInt(s.qty)||0),0)}</td><td class="td-num" style="font-weight:700">${fmt(totalPrice)}</td><td></td></tr>
         </tbody>
       </table>
@@ -9725,7 +9726,7 @@ function renderODModal(){
   if(prev) prev.disabled=(i<=0);
   if(next) next.disabled=(i>=_orderKeys.length-1);
   if(f.order_id){
-    const totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0);
+    const totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0)+(parseFloat(f.round_off)||0);
     loadOrderDetailPayments(f.order_id, f.id, f.payment_mode, totalPrice);
   }
 }
