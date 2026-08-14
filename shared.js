@@ -544,8 +544,14 @@ const Cart=(function(){
         :'';
       /* data-* stores id/color/ck safely, no JS quoting inside HTML attributes */
       const da=`data-id="${_esc(item.id)}" data-color="${_esc(item.color||'')}" data-ck="${_esc(ckRaw)}"`;
+      const iqIcon=`<div style="width:56px;height:56px;border-radius:8px;background:linear-gradient(145deg,#1a1a17,#0F0F0D);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#C4622A" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2.5 21 7.5v9L12 21.5 3 16.5v-9z"/><path d="M12 2.5v9M12 11.5 3 7.5M12 11.5l9-4"/>
+          </svg></div>`;
       return`<div class="cart-item">
-        <div class="ci-img">${item.image
+        <div class="ci-img">${item.type==='instant_quote'
+          ? iqIcon
+          : item.image
           ?`<img src="${_esc(taImg(item.image,{w:120}))}" alt="${_esc(item.name)}" width="56" height="56" loading="eager" decoding="sync" style="width:56px;height:56px;object-fit:cover;border-radius:3px;display:block">`
           :`<svg viewBox="0 0 56 56" fill="none" style="width:32px"><rect x="6" y="6" width="44" height="44" rx="3" fill="#E8E4DC"/></svg>`}</div>
         <div style="flex:1;min-width:0"><div class="ci-name">${_esc(item.name)}</div><div class="ci-var">${_esc(item.color||'')}</div>
