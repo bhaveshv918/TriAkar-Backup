@@ -20,7 +20,7 @@
 :root{
   --bg:#F4F6F5;--bg-1:#FFFFFF;--bg-2:#EEF2F0;--bg-3:#E2E9E4;
   --border:rgba(20,42,30,.10);--border-h:rgba(20,42,30,.22);
-  --text:#16201A;--text-2:#52685A;--text-3:#495647;
+  --text:#16201A;--text-2:#52685A;--text-3:#333F30;
   --accent:#C4622A;--accent-h:#A8521F;--accent-bg:rgba(196,98,42,.12);
   --green:#16A34A;--green-bg:rgba(22,163,74,.11);
   --red:#DC2626;--red-bg:rgba(220,38,38,.10);
@@ -43,7 +43,7 @@ html[data-theme="dark"]{
   color-scheme:dark;
   --bg:#070C08;--bg-1:#0C1410;--bg-2:#111C13;--bg-3:#172418;
   --border:rgba(255,255,255,.06);--border-h:rgba(255,255,255,.12);
-  --text:#E2EAE4;--text-2:#879E8C;--text-3:#93AC98;
+  --text:#E2EAE4;--text-2:#879E8C;--text-3:#A0B8A4;
   --accent:#E0814C;--accent-h:#EA9A6B;--accent-bg:rgba(196,98,42,.16);
   --green:#4ADE80;--green-bg:rgba(74,222,128,.08);
   --red:#F87171;--red-bg:rgba(248,113,113,.08);
@@ -343,10 +343,12 @@ tr:hover td{background:var(--bg-2)}
    Month/From/To all shown even though only one applies to the current Period).
    Grouped into labelled sections instead, and per-field visibility is toggled by
    the page's onXxViewChange() so only the one date control that matters shows. */
-.filter-panel{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow)}
-.filter-panel-section{margin-bottom:12px}
+.filter-panel{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:11px 14px;margin-bottom:10px;box-shadow:var(--shadow)}
+.filter-panel-section{margin-bottom:8px}
 .filter-panel-section:last-child{margin-bottom:0}
-.filter-panel-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px}
+.filter-panel-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:6px}
+.filter-panel-section .form-grid{gap:8px;margin-bottom:0}
+.filter-panel-section .form-group{gap:2px}
 /* ── Custom select (csel) ─────────────────────────────────────
    Native <select> popups are OS-rendered and can't be restyled by CSS in any
    reliable cross-browser way, that's the "3rd class" plain white list. This
@@ -541,19 +543,22 @@ html[data-theme="dark"] #panelQuickadd.qa-bg-quotation{background:linear-gradien
 .sales-more-toggle{display:none}
 .sales-more-menu{display:contents}
 
-/* ── Reminders row (#openRemindersRow) ────────────────────────
-   One icon-led card per category, a green checkmark card when there's nothing to
-   flag (not just a faded placeholder), a pulsing dot on whichever tile is at
-   red-severity so the most urgent one draws the eye first. */
-.reminder-tile{position:relative;display:flex;align-items:center;gap:11px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow);transition:box-shadow .15s ease,transform .15s ease}
-.reminder-tile-active{cursor:pointer;border-width:1.5px}
-.reminder-tile-active:hover{transform:translateY(-2px);box-shadow:var(--shadow-h)}
-.reminder-tile-icon{flex-shrink:0;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px}
-.reminder-tile-body{min-width:0}
-.reminder-tile-label{font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-3);white-space:nowrap}
-.reminder-tile-val{font-size:15px;font-weight:800;margin-top:1px}
-.reminder-tile-clear{opacity:.9}
-.reminder-pulse-dot{position:absolute;top:9px;right:10px;width:8px;height:8px;border-radius:50%;animation:reminder-pulse 1.6s ease-in-out infinite}
+/* ── Task page stat strip (#openRemindersRow + #openKpi) ───────
+   Used to be two full rows of tall cards (reminder tiles + KPI cards), taking up
+   a lot of vertical space on the tab you land on every single time, for numbers
+   that are really just "how many of X" at a glance. Now one compact row of small
+   colored pills: a colored left edge + icon carries the urgency, the number does
+   the talking, click still opens the same drawer/detail as before. */
+.stat-strip{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.stat-pill{position:relative;display:flex;align-items:center;gap:9px;background:var(--bg-1);border:1px solid var(--border);border-left:3px solid var(--pill-color,var(--border-h));border-radius:9px;padding:7px 13px 7px 11px;box-shadow:var(--shadow);transition:box-shadow .15s ease,transform .15s ease}
+.stat-pill-active{cursor:pointer}
+.stat-pill-active:hover{transform:translateY(-2px);box-shadow:var(--shadow-h)}
+.stat-pill-icon{flex-shrink:0;width:22px;height:22px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;background:var(--pill-color-bg,var(--bg-2));color:var(--pill-color,var(--text-3))}
+.stat-pill-body{min-width:0;display:flex;align-items:baseline;gap:6px}
+.stat-pill-val{font-size:15px;font-weight:800;color:var(--pill-color,var(--text))}
+.stat-pill-label{font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-3);white-space:nowrap}
+.stat-pill-clear{opacity:.75}
+.stat-pill-pulse-dot{position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;box-shadow:0 0 0 2px var(--bg-1);animation:reminder-pulse 1.6s ease-in-out infinite}
 @keyframes reminder-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.7)}}
 
 /* ── Top header, ONE responsive element at every width ───────
@@ -1403,10 +1408,13 @@ html[data-theme="dark"] .biz-login{
            clear" when there's nothing to flag, colored with a count when there is; click a
            tile for the full detail (drawer for Not Completed/Not Locked, an expanding panel
            for GST/Filament). -->
-      <div id="openRemindersRow" style="display:none;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px"></div>
-      <div id="openGstReminder" style="display:none;margin-bottom:16px"></div>
-      <div id="openFilamentAlert" style="display:none;margin-bottom:16px"></div>
-      <div id="openKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
+      <div class="stat-strip" style="margin-bottom:0">
+        <div id="openRemindersRow" class="stat-strip" style="margin:0"></div>
+        <div id="openKpi" class="stat-strip" style="margin:0"></div>
+      </div>
+      <div id="openGstReminder" style="display:none;margin:10px 0 0"></div>
+      <div id="openFilamentAlert" style="display:none;margin:10px 0 0"></div>
+      <div style="margin-bottom:16px"></div>
 
       <!-- Bulk action bar, shared across both Open-Orders tables (In Production + Dispatched) -->
       <div id="openBulkBar" style="display:none;background:var(--accent);color:#fff;border-radius:7px;padding:10px 16px;margin-bottom:10px;align-items:center;gap:10px;flex-wrap:wrap">
@@ -1912,7 +1920,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-grid">
             <div class="form-group">
               <label>Channel</label>
-              <select id="sfChannel" onchange="loadSales()">
+              <select id="sfChannel" onchange="loadSales()" data-colorize="channel">
                 <option value="">All Channels</option>
                 <option value="shop">Studio</option>
                 <option value="amazon">Amazon</option>
@@ -1975,7 +1983,6 @@ html[data-theme="dark"] .biz-login{
           <div class="filter-panel-section-title">Period</div>
           <div class="form-grid">
             <div class="form-group">
-              <label>Period</label>
               <select id="sfView" onchange="onSfViewChange()">
                 <option value="all">All Time</option>
                 <option value="month" selected>Select Month</option>
@@ -4277,12 +4284,20 @@ function enhanceSelectsIn(containerId){
     document.addEventListener('click',()=>document.querySelectorAll('.csel.open').forEach(w=>w.classList.remove('open')));
   }
 }
-// Selects can opt in to per-option colors via data-colorize="status" (matches
-// data-colorize to a *_COLOR map below, e.g. STATUS_COLOR), reusing the exact
-// same colors each value already renders with elsewhere (badge-* classes) rather
-// than inventing a second color language just for the dropdown. Real <option>s
-// can't be colored individually in any browser, custom .csel-option divs can.
-function _cselColorMap(name){ return name==='status'?STATUS_COLOR:null; }
+// Selects can opt in to per-option colors via data-colorize="status"/"channel"
+// (matches to a color map below), reusing the exact same colors each value
+// already renders with elsewhere (badge-* classes for status, CH_COLORS/the
+// channel pill buttons for channel) rather than inventing a second color
+// language just for the dropdown. Real <option>s can't be colored individually
+// in any browser, custom .csel-option divs can.
+function _cselColorMap(name){ return name==='status'?STATUS_COLOR:name==='channel'?CH_COLORS:null; }
+// Map values are either a bare CSS-var token ('yellow' -> var(--yellow)/var(--yellow-bg),
+// STATUS_COLOR's convention) or a literal hex color (CH_COLORS' convention, gets a
+// translucent tint appended for the background), so either map "just works" here.
+function _cselResolveColor(v){
+  if(!v) return null;
+  return /^[a-z]+$/.test(v) ? {c:`var(--${v})`,bg:`var(--${v}-bg)`} : {c:v,bg:v+'1f'};
+}
 function syncCustomSelects(containerId){
   const container=document.getElementById(containerId); if(!container) return;
   container.querySelectorAll('select.csel-native').forEach(sel=>{
@@ -4293,16 +4308,16 @@ function syncCustomSelects(containerId){
     const opt=sel.options[sel.selectedIndex];
     if(label) label.textContent=opt?opt.text:'';
     const colorMap=_cselColorMap(sel.dataset.colorize);
-    const selColor=colorMap&&opt?colorMap[opt.value]:null;
+    const selColor=_cselResolveColor(colorMap&&opt?colorMap[opt.value]:null);
     if(trigger){
       trigger.classList.toggle('csel-trigger-colored',!!selColor);
-      trigger.style.setProperty('--csel-color', selColor?`var(--${selColor})`:'');
-      trigger.style.setProperty('--csel-color-bg', selColor?`var(--${selColor}-bg)`:'');
+      trigger.style.setProperty('--csel-color', selColor?selColor.c:'');
+      trigger.style.setProperty('--csel-color-bg', selColor?selColor.bg:'');
     }
     if(panel){
       panel.innerHTML=[...sel.options].map((o,i)=>{
-        const c=colorMap?colorMap[o.value]:null;
-        const dot=c?`<span class="csel-dot" style="background:var(--${c})"></span>`:'';
+        const rc=_cselResolveColor(colorMap?colorMap[o.value]:null);
+        const dot=rc?`<span class="csel-dot" style="background:${rc.c}"></span>`:'';
         return `<div class="csel-option${i===sel.selectedIndex?' selected':''}" data-i="${i}">${dot}${esc(o.text)}</div>`;
       }).join('');
       panel.querySelectorAll('.csel-option').forEach(opEl=>{
@@ -7814,21 +7829,21 @@ function renderOpenRemindersRow(){
     {key:'notCompleted', count:r.notCompleted, color:'var(--red)', action:"openOpenOrdersDrawer('notCompleted')"},
     {key:'notLocked', count:r.notLocked, color:'var(--yellow)', action:"openOpenOrdersDrawer('notLocked')"},
   ];
-  row.style.display=tiles.some(t=>t.count>0)?'grid':'none';
+  row.style.display='flex';
   row.innerHTML=tiles.map(t=>{
     const meta=REMINDER_TILE_META[t.key];
     const active=t.count>0;
     if(!active){
-      return `<div class="reminder-tile reminder-tile-clear">
-        <div class="reminder-tile-icon" style="background:var(--green-bg);color:var(--green)">✓</div>
-        <div class="reminder-tile-body"><div class="reminder-tile-label">${meta.label}</div><div class="reminder-tile-val" style="color:var(--green)">All clear</div></div>
+      return `<div class="stat-pill stat-pill-clear" style="--pill-color:var(--green);--pill-color-bg:var(--green-bg)">
+        <div class="stat-pill-icon">✓</div>
+        <div class="stat-pill-body"><span class="stat-pill-val">clear</span><span class="stat-pill-label">${meta.label}</span></div>
       </div>`;
     }
     const urgent=t.color==='var(--red)';
-    return `<div class="reminder-tile reminder-tile-active" style="border-color:${t.color}" onclick="${t.action}">
-      ${urgent?`<span class="reminder-pulse-dot" style="background:${t.color}"></span>`:''}
-      <div class="reminder-tile-icon" style="background:${t.color.replace(')','-bg)')};color:${t.color}">${meta.icon}</div>
-      <div class="reminder-tile-body"><div class="reminder-tile-label">${meta.label}</div><div class="reminder-tile-val" style="color:${t.color}">${t.count}</div></div>
+    return `<div class="stat-pill stat-pill-active" style="--pill-color:${t.color};--pill-color-bg:${t.color.replace(')','-bg)')}" onclick="${t.action}">
+      ${urgent?`<span class="stat-pill-pulse-dot" style="background:${t.color}"></span>`:''}
+      <div class="stat-pill-icon">${meta.icon}</div>
+      <div class="stat-pill-body"><span class="stat-pill-val">${t.count}</span><span class="stat-pill-label">${meta.label}</span></div>
     </div>`;
   }).join('');
 }
@@ -7891,12 +7906,15 @@ async function loadOpenOrders(){
   renderOpenRemindersRow();
   const badge=document.getElementById('openCount_hdr'); if(badge) badge.textContent=groups.length;
   const kpi=document.getElementById('openKpi');
-  if(kpi) kpi.innerHTML=`
-    <div class="kpi" style="cursor:pointer" title="Manual entry, click to edit. Not counted in any total" onclick="editUpcomingOrders()"><div class="kpi-label">Upcoming Orders</div><div class="kpi-val">${esc(upcomingOrders)}</div></div>
-    <div class="kpi" style="cursor:pointer" title="Show all in-production orders" onclick="openOpenOrdersDrawer('production')"><div class="kpi-label">In Production</div><div class="kpi-val">${prodGroups.length}</div></div>
-    <div class="kpi" style="cursor:pointer" title="Show all dispatched orders" onclick="openOpenOrdersDrawer('dispatched')"><div class="kpi-label">Dispatched</div><div class="kpi-val">${trackGroups.length}</div></div>
-    <div class="kpi red" style="cursor:pointer" title="Show breached orders" onclick="openOpenOrdersDrawer('breached')"><div class="kpi-label">SLA Breached</div><div class="kpi-val">${breached}</div></div>
-    <div class="kpi yellow" style="cursor:pointer" title="Show orders due today" onclick="openOpenOrdersDrawer('dueToday')"><div class="kpi-label">Due Today</div><div class="kpi-val">${dueToday}</div></div>`;
+  // bg explicit rather than derived from color (var(--text-3) has no matching
+  // -bg counterpart the way the semantic colors do).
+  const kpiPill=(color,bg,icon,label,val,title,action)=>`<div class="stat-pill stat-pill-active" style="--pill-color:${color};--pill-color-bg:${bg}" title="${esc(title)}" onclick="${action}"><div class="stat-pill-icon">${icon}</div><div class="stat-pill-body"><span class="stat-pill-val">${val}</span><span class="stat-pill-label">${label}</span></div></div>`;
+  if(kpi) kpi.innerHTML=
+    kpiPill('var(--text-3)','var(--bg-3)','◷','Upcoming Orders',esc(upcomingOrders),'Manual entry, click to edit. Not counted in any total','editUpcomingOrders()')
+    +kpiPill('var(--blue)','var(--blue-bg)','⚙','In Production',prodGroups.length,'Show all in-production orders',"openOpenOrdersDrawer('production')")
+    +kpiPill('var(--purple)','var(--purple-bg)','➤','Dispatched',trackGroups.length,'Show all dispatched orders',"openOpenOrdersDrawer('dispatched')")
+    +kpiPill('var(--red)','var(--red-bg)','⚠','SLA Breached',breached,'Show breached orders',"openOpenOrdersDrawer('breached')")
+    +kpiPill('var(--yellow)','var(--yellow-bg)','◷','Due Today',dueToday,'Show orders due today',"openOpenOrdersDrawer('dueToday')");
   loadFilamentLowStockAlert();
   loadShopPunchStatus();
 
