@@ -135,16 +135,19 @@
    *
    * (All values from scene top.)
    */
-  /* Scene height: 280px (CSS .tpa-scene).
-   * Info panel is now OUTSIDE the scene (below cabinet),
-   * so bed surface = scene height - bed height.           */
-  const SCENE_HEIGHT   = 280;
+  /* Scene height changes at the 1100px / 600px CSS breakpoints
+   * (280 / 250), so it's read live instead of hardcoded, otherwise
+   * the gantry math drifts and the nozzle floats off the object on
+   * every tablet/mobile viewport.
+   * Bed surface = scene height - bed height.           */
   const BED_HEIGHT     = 28;
-  const BED_SURFACE_Y  = SCENE_HEIGHT - BED_HEIGHT;   // 252
   const GANTRY_HEIGHT  = 37;                           // carriage+hotend+nozzle
 
+  function sceneH() { return scene.offsetHeight || 280; }
+
   function gantryTopForLayer(idx) {
-    const stackTop = BED_SURFACE_Y - idx * CFG.LAYER_HEIGHT_PX;
+    const bedSurfaceY = sceneH() - BED_HEIGHT;
+    const stackTop = bedSurfaceY - idx * CFG.LAYER_HEIGHT_PX;
     return stackTop - GANTRY_HEIGHT;
   }
 
@@ -235,7 +238,10 @@
   }
 
   /* ── Reset ──────────────────────────────────────────────── */
+  let isResetting = false;
   function reset() {
+    if (isResetting) return;
+    isResetting = true;
     isRunning = false;
     glow.classList.remove('on');
     objWrap.classList.add('resetting');
@@ -245,7 +251,10 @@
       objWrap.classList.remove('resetting');
       layerIndex = 0;
       if (layerCountEl) layerCountEl.textContent = '0';
-      setTimeout(start, 300);
+      setTimeout(() => {
+        isResetting = false;
+        start();
+      }, 300);
     }, CFG.RESET_MS);
   }
 
@@ -261,7 +270,7 @@
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       isRunning = false;
-    } else {
+    } else if (!isResetting) {
       layerIndex > 0 && layerIndex < totalLayers ? reset() : start();
     }
   });
