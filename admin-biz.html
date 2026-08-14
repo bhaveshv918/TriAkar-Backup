@@ -155,6 +155,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .btn-icon-edit{--tint:var(--blue);--tint-bg:var(--blue-bg)}
 .btn-icon-duplicate{--tint:var(--purple);--tint-bg:var(--purple-bg)}
 .btn-icon-doc{--tint:var(--accent);--tint-bg:var(--accent-bg)}
+.btn-icon-order{--tint:var(--green);--tint-bg:var(--green-bg)}
+.btn-icon-invoice{--tint:var(--orange);--tint-bg:var(--orange-bg)}
 
 /* ── Skeleton loading (Phase 10 Group 3, L) ──────────────────
    Admin's own token set (--bg-2/--bg-3), not the customer-site skeleton CSS,
@@ -2097,8 +2099,8 @@ html[data-theme="dark"] .biz-login{
       </div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Quotation #</th><th>Customer</th><th class="td-num">Total</th><th>Status</th><th>Validity</th><th class="td-actions"></th></tr></thead>
-          <tbody id="quotationsBody"><tr><td colspan="6" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+          <thead><tr><th style="width:30px">#</th><th>Date</th><th>Quotation #</th><th>Customer</th><th class="td-num">Total</th><th style="width:64px">Status</th><th>Validity</th><th class="td-actions"></th></tr></thead>
+          <tbody id="quotationsBody"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
 
@@ -5395,6 +5397,10 @@ async function getOrderFields(){
     notes:g('qa_notes'),
     terms_notes:g('qa_inv_terms'),
     import_source:'manual',
+    // Auto-fills with the source quotation's number when this order was opened via
+    // "Add to Order" from a quotation (openAddOrderFromQuotation), stays empty for an
+    // order started from scratch. Printed near the Date on the invoice (printInvoice).
+    reference_document:_qaSourceQuotationNumber||null,
     // §2.1, stamp the exact time of entry (not just the order date) automatically;
     // studio walk-ins log the sale as it happens, so "now" is the meaningful timestamp.
     order_time:new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}),
@@ -5516,7 +5522,7 @@ function onQaPayAmountInput(){
 // editSaleModal, loads every biz_sales row sharing one order_id back into _items so
 // the whole multi-item order can be edited at once, not just one line), and
 // 'fromQuotation' (a new order, pre-filled from an accepted quotation).
-let _qaMode='new', _qaEditOrderId=null, _qaEditRowIds=[], _qaSourceQuotationId=null, _qaSourceRackItemId=null, _qaEditOrigStatus=null;
+let _qaMode='new', _qaEditOrderId=null, _qaEditRowIds=[], _qaSourceQuotationId=null, _qaSourceQuotationNumber=null, _qaSourceRackItemId=null, _qaEditOrigStatus=null;
 
 function updateAddOrderModeUI(){
   const title=document.querySelector('#panelQuickadd .p-title');
@@ -5680,7 +5686,7 @@ function confirmClearQuickAdd(){
   toast('Form cleared');
 }
 function exitAddOrderEditMode(){
-  _qaMode='new'; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceQuotationId=null; _qaSourceRackItemId=null;
+  _qaMode='new'; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceQuotationId=null; _qaSourceQuotationNumber=null; _qaSourceRackItemId=null;
   resetQuickAdd();
   updateAddOrderModeUI();
 }
@@ -5693,7 +5699,7 @@ function openAddOrderEdit(firstId){
   if(!items.length) return;
   const f=items[0];
   _qaMode='edit'; _qaEditOrderId=f.order_id||null; _qaEditRowIds=items.map(s=>s.id);
-  _qaSourceQuotationId=null; _qaSourceRackItemId=null;
+  _qaSourceQuotationId=null; _qaSourceQuotationNumber=null; _qaSourceRackItemId=null;
   _qaEditOrigStatus=f.status||null;   // so saveEditedOrder only logs a status change, not every save
   switchTab('quickadd');
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
@@ -5749,7 +5755,7 @@ function openAddOrderEdit(firstId){
 async function openAddOrderFromQuotation(quotationId){
   const {data,error}=await sb.from('biz_quotations').select('*').eq('id',quotationId).single();
   if(error||!data){ toast('Could not load quotation','error'); return; }
-  _qaMode='fromQuotation'; _qaSourceQuotationId=quotationId; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceRackItemId=null;
+  _qaMode='fromQuotation'; _qaSourceQuotationId=quotationId; _qaSourceQuotationNumber=data.quotation_number||null; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceRackItemId=null;
   switchTab('quickadd');
   resetQuickAdd();
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
@@ -6271,21 +6277,23 @@ function blankQuoteItem(){ return {name:'',qty:1,rate:0,gst:0}; }
 async function loadQuotations(){
   const {data,error}=await sb.from('biz_quotations').select('*').order('created_at',{ascending:false}).limit(500);
   const body=document.getElementById('quotationsBody'); if(!body) return;
-  if(error){ body.innerHTML=`<tr><td colspan="6" class="empty"><div class="em-text">${esc(error.message)}</div></td></tr>`; return; }
+  if(error){ body.innerHTML=`<tr><td colspan="8" class="empty"><div class="em-text">${esc(error.message)}</div></td></tr>`; return; }
   _quotations=data||[];
   const sub=document.getElementById('quotationsSubtitle'); if(sub) sub.textContent=_quotations.length+' quotation'+(_quotations.length!==1?'s':'');
-  if(!_quotations.length){ body.innerHTML='<tr><td colspan="6" class="empty"><div class="em-text">No quotations yet</div></td></tr>'; return; }
-  body.innerHTML=_quotations.map(q=>`
+  if(!_quotations.length){ body.innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">No quotations yet</div></td></tr>'; return; }
+  body.innerHTML=_quotations.map((q,idx)=>`
     <tr>
+      <td>${idx+1}</td>
+      <td>${q.quotation_date?fmtDay(q.quotation_date):(q.created_at?fmtDay(q.created_at.slice(0,10)):'—')}</td>
       <td style="font-family:var(--mono);font-size:11px">${esc(q.quotation_number||'—')}</td>
       <td>${esc(q.customer_name||'—')}</td>
       <td class="td-num">${fmt(q.total)}</td>
       <td><span class="badge badge-${q.status==='accepted'?'completed':q.status==='declined'?'cancelled':'pending'}">${esc(q.status)}</span></td>
       <td>${q.validity_date?fmtDay(q.validity_date):'—'}</td>
       <td class="td-actions" style="white-space:nowrap;text-align:right">
-        ${!['accepted','declined','expired'].includes(q.status)?`<button class="btn btn-primary btn-sm" onclick="acceptQuotation('${q.id}')">✓ Accept</button> <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editQuotation('${q.id}')" title="Edit">✎</button>`:''}
+        ${!['accepted','declined','expired'].includes(q.status)?`<button class="btn btn-primary btn-sm" onclick="acceptQuotation('${q.id}')">✓ Accept</button> <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editQuotation('${q.id}')" title="Edit">✎</button> <button class="btn btn-icon-tint btn-icon-order btn-sm" onclick="openAddOrderFromQuotation('${q.id}')" title="Add to Order, opens the Add Order page pre-filled from this quotation">🛒 Order</button> <button class="btn btn-icon-tint btn-icon-invoice btn-sm" onclick="makeInvoiceFromQuotation('${q.id}')" title="Make Invoice, creates the order from this quotation and generates its invoice right away">🧾 Invoice</button>`:''}
         <button class="btn btn-icon-tint btn-icon-duplicate btn-sm" onclick="duplicateQuotation('${q.id}')" title="Duplicate, opens as a new quotation you can edit before saving">⧉</button>
-        <button class="btn btn-icon-tint btn-icon-doc btn-sm" onclick="printQuotation('${q.id}')" title="Print / PDF">🧾</button>
+        <button class="btn btn-icon-tint btn-icon-doc btn-sm" onclick="printQuotation('${q.id}')" title="Print / PDF">🖨</button>
         <button class="btn btn-danger btn-sm" onclick="deleteQuotation('${q.id}')">✕</button>
       </td>
     </tr>`).join('');
@@ -6560,6 +6568,68 @@ async function printQuotation(id){
   await printInvoice(d, (items.some(it=>it.gst_rate>0))?'gst':'nongst', 'quotation', win);
 }
 
+// Builds real biz_sales rows straight from a quotation's saved data, independent of
+// the Add Order form's live DOM/_items state, so "Make Invoice" can create the order
+// headlessly (no navigation, no flash of the form) instead of reusing the interactive
+// form's buildSaleRowsWithIds(), which only ever reads from whatever's currently on
+// screen. reference_document carries the quotation number through onto the order so
+// the printed invoice can show which quotation it came from (see printInvoice).
+async function quotationSaleRows(q){
+  const orderId=await ensureUniqueOrderId();
+  const orderDate=q.quotation_date||(q.created_at?q.created_at.slice(0,10):today());
+  const orderTime=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
+  const items=(Array.isArray(q.items)?q.items:[]).filter(it=>it.name&&it.name.trim());
+  return items.map(it=>{
+    const qty=it.qty||1;
+    const unitRate=it.pricingMode==='gram' ? (parseFloat(it.grams)||0)*(it.rate||0) : (it.rate||0);
+    const gross=qty*unitRate;
+    const disc=Math.min(parseFloat(it.disc)||0,gross);
+    const taxable=gross-disc;
+    return {
+      order_id:orderId, is_gift:false, channel_id:null, order_date:orderDate, delivery_date:q.promised_date||null,
+      dispatch_date:null, payment_mode:'upi', status:'pending', lead_source:null, fulfillment_type:null,
+      fulfillment_detail:null, tracking_number:null, courier_partner:null, invoice_no:null, package_size:null,
+      customer_name:q.customer_name||null, customer_phone:q.customer_phone||null, customer_address:q.customer_address||null,
+      customer_city:q.customer_city||null, customer_state:q.customer_state||null, customer_pincode:q.customer_pincode||null,
+      customer_country:q.customer_country||'India', customer_gstin:q.customer_gstin||null,
+      notes:null, terms_notes:q.terms_notes||null, import_source:'manual', order_time:orderTime,
+      reference_document:q.quotation_number||null,
+      product_id:null, spool_id:null, item_type:'product', spool_sale_id:null,
+      product_name:it.name||'—', variant:it.variant||null, sku:null, hsn_code:it.hsn||null,
+      qty, pricing_mode:it.pricingMode||'piece',
+      selling_price:Math.round(taxable*(1+(it.gst||0)/100)*100)/100,
+      discount_amount:disc, gst_rate:it.gst||0, cogs:0,
+      grams_used:0, spool_waste_grams:0, extra_spool_usage:null,
+      platform_fee:0, shipping_fee:0, other_deductions:0, round_off:0, remarks:it.remarks||null,
+    };
+  });
+}
+// "isme direct invoice banjayega": one click creates the real order behind this
+// quotation (same as Accept) AND opens its invoice immediately, instead of making
+// the operator go through the Add Order form and then a separate Invoice click.
+async function makeInvoiceFromQuotation(id){
+  if(!confirm('Create an order from this quotation and generate its invoice now?')) return;
+  const win=window.open('','_blank');   // opened synchronously so mobile browsers still count it as user-initiated
+  const {data:q,error}=await sb.from('biz_quotations').select('*').eq('id',id).single();
+  if(error||!q){ if(win) win.close(); toast('Could not load quotation','error'); return; }
+  const rows=await quotationSaleRows(q);
+  if(!rows.length){ if(win) win.close(); toast('Quotation has no items','error'); return; }
+  try{
+    const {data:rid}=await sb.rpc('gen_record_id',{p_entity_type:'order',p_entity_ref:rows[0].order_id});
+    if(rid) rows.forEach(r=>r.record_id=rid);
+  }catch(_){}
+  const {error:insErr}=await insertSalesResilient(rows);
+  if(insErr){ if(win) win.close(); toast('Error: '+insErr.message,'error'); return; }
+  await logOrderStatusChange(rows[0].order_id, rows[0].status);
+  await sb.from('biz_quotations').update({status:'accepted',converted_order_id:rows[0].order_id}).eq('id',id);
+  logBizActivity('create','sale',rows[0].order_id,'order created from quotation '+(q.quotation_number||id));
+  const anyGst=rows.some(r=>parseFloat(r.gst_rate)>0);
+  await printInvoice({...rows[0], items:rows}, anyGst?'gst':'nongst', 'invoice', win);
+  toast('Order created, invoice generated');
+  loadSalesBadge();
+  loadQuotations();
+}
+
 // ── Rack / Shelf inventory (Phase 10 Group 3, H) ─────────────
 let _rackItems=[];
 async function loadRackItems(){
@@ -6640,7 +6710,7 @@ async function deleteRackItem(id){
 // submitQuickAdd() actually confirms the insert succeeded.
 function markRackItemSold(id){
   const r=_rackItems.find(x=>x.id===id); if(!r) return;
-  _qaMode='new'; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceQuotationId=null;
+  _qaMode='new'; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceQuotationId=null; _qaSourceQuotationNumber=null;
   _qaSourceRackItemId=id;
   switchTab('quickadd');
   setTimeout(()=>{
@@ -8618,7 +8688,7 @@ function printOrderInvoice(firstId,docKind){
 function duplicateOrder(firstId){
   const items=_orderGroup(firstId); if(!items.length){ toast('Could not load order','error'); return; }
   const f=items[0];
-  _qaMode='new'; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceQuotationId=null; _qaSourceRackItemId=null;
+  _qaMode='new'; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceQuotationId=null; _qaSourceQuotationNumber=null; _qaSourceRackItemId=null;
   switchTab('quickadd');
   setTimeout(()=>{
     resetQuickAdd();
@@ -12342,7 +12412,14 @@ tbody tr:last-child td{border-bottom:none}
   </div>
   <div class="hdr-doc">
     <div class="doc-no">${esc(docNo)}</div>
-    <div class="doc-meta-box"><table>${(isRecord?[['Date',docDate],['Complete Date',d.delivery_date||'—']]:isQuote?[['Date',docDate],...((docQuo('validity_period')&&d.validity_date)?[['Valid Until',d.validity_date]]:[])]:[['Date',docDate],...(docField('due_date')?[['Due Date',dueDateStr]]:[])]).map(([k,v])=>`<tr><td class="dmb-k">${k}</td><td class="dmb-v">${esc(v==='—'?v:fmtDocDate(v))}</td></tr>`).join('')}</table></div>
+    <div class="doc-meta-box"><table>${(isRecord?[['Date',docDate],['Complete Date',d.delivery_date||'—']]:isQuote?[['Date',docDate],...((docQuo('validity_period')&&d.validity_date)?[['Valid Until',d.validity_date]]:[])]:[['Date',docDate],...(docField('due_date')?[['Due Date',dueDateStr]]:[])]).concat(
+      // Reference Document: the quotation number an order was created from (see
+      // reference_document in getOrderFields/quotationSaleRows), stays absent when the
+      // order was started fresh. Never shown on a quotation itself, only downstream on
+      // its order record / invoice, and rendered as plain text, not run through
+      // fmtDocDate below.
+      (!isQuote&&d.reference_document)?[['Ref. Quotation',d.reference_document,true]]:[]
+    ).map(([k,v,plain])=>`<tr><td class="dmb-k">${k}</td><td class="dmb-v">${plain?esc(v):esc(v==='—'?v:fmtDocDate(v))}</td></tr>`).join('')}</table></div>
     <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;margin-top:5px">
       ${(d.channel_id&&(isQuote||isRecord))?`<div class="doc-badge">${esc(CH_NAMES?.[d.channel_id]||d.channel_id)}</div>`:''}
     </div>
