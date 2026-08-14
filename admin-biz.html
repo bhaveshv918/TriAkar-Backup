@@ -6313,16 +6313,27 @@ function recalcQuoteTotals(){
   set('qt_sub',sub); set('qt_gstamt',gst); set('qt_total',sub+gst);
 }
 // Format: QT/{FY}/{3-digit sequence}, e.g. QT/2026-27/030, shown pre-filled and
-// editable, same convention as Invoice No. (allocateInvoiceNumber). Pulls the real
-// next sequence from biz_next_quotation_number so numbers stay gapless/sequential
-// instead of the random-letter suffix this used to generate; falls back to a
-// timestamp-based placeholder only if the RPC is unreachable.
+// editable, same convention as Invoice No. (allocateInvoiceNumber). Reads the
+// actual highest saved quotation number for this FY and returns max+1, so the
+// next number always follows straight on from whatever the last saved quotation
+// really is, regardless of any earlier gaps (deleted/renumbered quotations) or
+// of a separately-tracked sequence drifting out of sync with the real data. Used
+// to pull from biz_next_quotation_number(), a counter table incremented on every
+// call, which could disagree with the real max (e.g. after manual number edits
+// or a deleted quotation) and hand out a number lower than, or colliding with,
+// one already in use. Falls back to a timestamp-based placeholder only if the
+// query itself fails (offline/network error).
 async function genQuotationNumber(){
   const now=new Date(), fyStart=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
   const fy=`${fyStart}-${String((fyStart+1)%100).padStart(2,'0')}`;
   try{
-    const {data:seq,error}=await sb.rpc('biz_next_quotation_number',{p_fy:fy});
-    if(!error&&seq!=null) return `QT/${fy}/${String(seq).padStart(3,'0')}`;
+    const {data,error}=await sb.from('biz_quotations').select('quotation_number').ilike('quotation_number',`QT/${fy}/%`);
+    if(!error&&data){
+      const re=new RegExp(`^QT/${fy}/(\\d+)$`);
+      let maxSeq=0;
+      data.forEach(r=>{ const m=re.exec(r.quotation_number||''); if(m){ const n=parseInt(m[1],10); if(n>maxSeq) maxSeq=n; } });
+      return `QT/${fy}/${String(maxSeq+1).padStart(3,'0')}`;
+    }
   }catch(_){}
   return `QT/${fy}/${String(now.getTime()).slice(-3)}`;
 }
