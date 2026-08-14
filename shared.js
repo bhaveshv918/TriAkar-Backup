@@ -1910,6 +1910,42 @@ document.addEventListener('DOMContentLoaded', function(){
   else setTimeout(_show, 1500);
 })();
 
+/* ══ Themed confirm dialog, replaces the native browser confirm() ══
+   Usage: const ok = await taConfirm('Delete this address?', {danger:true});
+   Resolves true on confirm, false on cancel/backdrop click/Escape. */
+window.taConfirm = function(message, opts){
+  opts = opts || {};
+  return new Promise(function(resolve){
+    var ov=document.createElement('div');
+    ov.className='ta-confirm-ov';
+    ov.innerHTML=
+      '<div class="ta-confirm-card glass-a">'
+      + '<div class="ta-confirm-title">'+(opts.title || 'Are you sure?')+'</div>'
+      + '<div class="ta-confirm-msg"></div>'
+      + '<div class="ta-confirm-actions">'
+      + '<button type="button" class="ta-confirm-cancel">'+(opts.cancelText || 'Cancel')+'</button>'
+      + '<button type="button" class="ta-confirm-ok'+(opts.danger ? ' danger' : '')+'">'+(opts.okText || 'OK')+'</button>'
+      + '</div>'
+      + '</div>';
+    ov.querySelector('.ta-confirm-msg').textContent=message;
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){ ov.classList.add('show'); });
+
+    function _close(result){
+      document.removeEventListener('keydown', _onKey);
+      ov.classList.remove('show');
+      setTimeout(function(){ ov.remove(); }, 300);
+      resolve(result);
+    }
+    function _onKey(e){ if(e.key==='Escape') _close(false); }
+    document.addEventListener('keydown', _onKey);
+
+    ov.querySelector('.ta-confirm-cancel').addEventListener('click', function(){ _close(false); });
+    ov.querySelector('.ta-confirm-ok').addEventListener('click', function(){ _close(true); });
+    ov.addEventListener('click', function(e){ if(e.target===ov) _close(false); });
+  });
+};
+
 /* ════════════════════════════════════════════════════════════════════
    LIQUID GLASS, micro-interactions (toast, ripple, scroll-reveal)
    ════════════════════════════════════════════════════════════════════ */

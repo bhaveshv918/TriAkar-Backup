@@ -1646,7 +1646,7 @@ async function editAddress(id){
 }
 
 async function deleteAddress(id){
-  if(!confirm('Delete this address?'))return;
+  if(!(await taConfirm('Delete this address?',{danger:true,okText:'Delete'})))return;
   try{
     const r=await Auth.apiFetch(_API+'/api/addresses/'+id,{method:'DELETE'});
     if(!r.ok)throw new Error('Delete failed');
@@ -1776,8 +1776,8 @@ async function saveMobile(){
   }
 }
 
-function requestDeleteAccount(){
-  if(!confirm('Are you sure? This will permanently delete your account and all data. This cannot be undone.'))return;
+async function requestDeleteAccount(){
+  if(!(await taConfirm('This will permanently delete your account and all data. This cannot be undone.',{title:'Delete your account?',danger:true,okText:'Delete'})))return;
   showToast('To delete your account, call +91 9217-555-833 or email hello@triakar.com','info');
 }
 
