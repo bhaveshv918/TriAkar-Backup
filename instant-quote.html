@@ -418,8 +418,21 @@ const IQ = (function(){
   let priceDebounce = null;
   function maybePrice(){
     if (!state.quoteToken || !state.printerId || !state.materialId) return;
+    // A new price is coming — the currently-shown quote (and Add to Cart button)
+    // must not be usable until it lands, otherwise a click during this window
+    // silently no-ops (state.quote briefly not matching the on-screen config)
+    // with zero feedback, which looked like "the button doesn't work".
+    state.quote = null;
+    setAddCartBusy(true, 'Calculating price…');
     clearTimeout(priceDebounce);
     priceDebounce = setTimeout(fetchPrice, 350);
+  }
+
+  function setAddCartBusy(busy, label){
+    const btn = document.getElementById('iqAddCartBtn');
+    if (!btn) return;
+    btn.disabled = busy;
+    btn.textContent = label || (busy ? 'Calculating price…' : 'Add to Cart →');
   }
 
   async function fetchPrice(){
@@ -433,10 +446,11 @@ const IQ = (function(){
         }),
       });
       const json = await res.json();
-      if (!res.ok) { showError(json.error || 'Could not compute a price for this configuration.'); return; }
+      if (!res.ok) { showError(json.error || 'Could not compute a price for this configuration.'); setAddCartBusy(true, 'Price unavailable'); return; }
       state.quote = json.quote;
       renderPrice(json.quote);
-    } catch (_) { showError('Could not reach the pricing service — check your connection.'); }
+      setAddCartBusy(false);
+    } catch (_) { showError('Could not reach the pricing service — check your connection.'); setAddCartBusy(true, 'Price unavailable'); }
   }
 
   function renderPrice(q){
@@ -458,18 +472,26 @@ const IQ = (function(){
   }
 
   function addToCart(){
-    if (!state.quote) return;
+    if (!state.quote) {
+      showError('Still calculating your price — one second, then try again.');
+      return;
+    }
     const printer = (options.printers || []).find(p => p.id === state.printerId);
     const material = (options.materials || []).find(m => m.id === state.materialId);
-    Cart.addInstantQuote({
-      instant_quote_id: state.quote.id,
-      name: 'Instant Quote — ' + (state.file ? state.file.name : 'model'),
-      price: state.quote.final_price,
-      quantity: 1,
-      printer: printer ? printer.name : '',
-      material: material ? material.name : '',
-      infill: state.infill,
-    });
+    try {
+      Cart.addInstantQuote({
+        instant_quote_id: state.quote.id,
+        name: 'Instant Quote — ' + (state.file ? state.file.name : 'model'),
+        price: state.quote.final_price,
+        quantity: 1,
+        printer: printer ? printer.name : '',
+        material: material ? material.name : '',
+        infill: state.infill,
+      });
+      showError('');
+    } catch (e) {
+      showError('Could not add to cart: ' + (e && e.message ? e.message : 'unknown error'));
+    }
   }
 
   /* ── Dropzone wiring ─────────────────────────── */

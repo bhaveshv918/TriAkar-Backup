@@ -75,7 +75,11 @@ router.post('/analyze', requireAuth, uploadModel.single('model'), async (req, re
       return res.status(400).json({ error: 'This model is larger than any of our available printer build volumes.' });
     }
 
-    const randomId = crypto.randomBytes(16).toString('hex');
+    // Raw (non-image) Cloudinary resources use the public_id's own extension for
+    // delivery/content-type — a bare id with no extension produced a URL with no
+    // .stl/.obj suffix, so browsers/OS couldn't tell what kind of file it was and
+    // the download looked like a broken/temp file.
+    const randomId = crypto.randomBytes(16).toString('hex') + '.' + format;
     const result = await uploadRawBufferToCloudinary(req.file.buffer, {
       folder: 'triakar/instant-quote-models',
       public_id: randomId,
