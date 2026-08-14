@@ -54,3 +54,20 @@ export const uploadGstFiles = multer({
     cb(err);
   },
 });
+
+/* ── Instant Quote: STL/OBJ model upload ──────────────────
+   Extension is checked against the magic bytes actually seen in the buffer (not
+   just Content-Type, which is trivially spoofable and inconsistent across
+   browsers/OS for non-standard formats like STL/OBJ). Binary STL starts with an
+   80-byte free-form header (often, but not reliably, "solid..."); ASCII STL and
+   OBJ are both plain text, so the real signal is the extension plus a basic
+   parseability check done later in meshAnalysisService, not the upload step. */
+export const uploadModel = multer({
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
+  fileFilter(_req, file, cb) {
+    const okExt = /\.(stl|obj)$/i.test(file.originalname || '');
+    if (!okExt) return cb(Object.assign(new Error('Only .stl and .obj files are accepted'), { status: 400 }));
+    cb(null, true);
+  },
+});

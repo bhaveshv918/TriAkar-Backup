@@ -404,7 +404,7 @@ const Cart=(function(){
   let items=[];
   try{
     const raw=JSON.parse(localStorage.getItem(CART_KEY)||localStorage.getItem('ta_cart')||'[]');
-    items=raw.map(i=>({id:i.id,name:i.name,price:i.price,quantity:i.quantity||i.qty||1,color:i.color||i.variant||'',image:i.image||i.img||'',customization:i.customization||null}));
+    items=raw.map(i=>({id:i.id,name:i.name,price:i.price,quantity:i.quantity||i.qty||1,color:i.color||i.variant||'',image:i.image||i.img||'',customization:i.customization||null,type:i.type||null,instant_quote_id:i.instant_quote_id||null}));
     /* Dedup on load, cleans any dupes that accumulated from the color
        normalisation bug (undefined vs '' mismatch in add()).  Later entries
        are dropped; quantities are preserved on the first entry. */
@@ -435,6 +435,22 @@ const Cart=(function(){
     }
     save();render();openCart();
   }
+  // Instant Quote cart items carry the server-computed price + quote id (never a
+  // client-editable price) and use the existing customization-block UI to show the
+  // chosen printer/material/infill, so no new cart-rendering markup is needed.
+  function addInstantQuote(q){
+    const iid='iq-'+q.instant_quote_id;
+    const idx=items.findIndex(i=>i.id===iid);
+    if(idx>-1){ items[idx].quantity+=(q.quantity||1); }
+    else{
+      items.push({
+        id:iid, type:'instant_quote', instant_quote_id:q.instant_quote_id,
+        name:q.name, price:q.price, quantity:q.quantity||1, color:'', image:q.image||'',
+        customization:{Printer:q.printer||'', Material:q.material||'', Infill:(q.infill!=null?q.infill+'%':'')},
+      });
+    }
+    save();render();openCart();
+  }
   function changeQty(id,color,d,custKey){
     const nc=color||'';
     const idx=items.findIndex(i=>i.id===id&&i.color===nc&&(custKey===undefined||_custKey(i.customization||null)===custKey));
@@ -456,7 +472,7 @@ const Cart=(function(){
       const res=await fetch(_API+'/api/cart',{headers:{'Authorization':'Bearer '+tok}});
       if(!res.ok)return;
       const {items:srv}=await res.json();
-      if(srv&&srv.length){items=srv.map(i=>({id:i.id,name:i.name,price:i.price,quantity:i.quantity||i.qty||1,color:i.color||i.variant||'',image:i.image||i.img||'',customization:i.customization||null}));try{localStorage.setItem(CART_KEY,JSON.stringify(items))}catch(e){}}
+      if(srv&&srv.length){items=srv.map(i=>({id:i.id,name:i.name,price:i.price,quantity:i.quantity||i.qty||1,color:i.color||i.variant||'',image:i.image||i.img||'',customization:i.customization||null,type:i.type||null,instant_quote_id:i.instant_quote_id||null}));try{localStorage.setItem(CART_KEY,JSON.stringify(items))}catch(e){}}
       badge();render();
     }catch(_){}
   }
@@ -480,7 +496,7 @@ const Cart=(function(){
         items[idx].quantity=items[idx].quantity+sq;
         if(!items[idx].image&&(s.image||s.img))items[idx].image=s.image||s.img;
       }else{
-        items.push({id:sid,name:s.name,price:s.price,quantity:sq,color:scolor,image:s.image||s.img||'',customization:scust});
+        items.push({id:sid,name:s.name,price:s.price,quantity:sq,color:scolor,image:s.image||s.img||'',customization:scust,type:s.type||null,instant_quote_id:s.instant_quote_id||null});
       }
     });
     save(); // persists locally + pushes merged cart to server
@@ -598,7 +614,7 @@ const Cart=(function(){
       _enrichImages().then(changed=>{if(changed)_renderCartItems(el);});
     }
   }
-  return{add,changeQty,remove,total,getItems,clear,render,badge,loadFromServer,mergeOnLogin,_enrichImages};
+  return{add,addInstantQuote,changeQty,remove,total,getItems,clear,render,badge,loadFromServer,mergeOnLogin,_enrichImages};
 })();
 
 /* ══ WISHLIST ════════════════════════════════════════════════

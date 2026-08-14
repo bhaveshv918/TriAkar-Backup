@@ -1209,6 +1209,9 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
       <span class="tab-icon">✎</span><span class="tab-label">Enquiries</span><span class="tab-count" id="enquiryCount">0</span><span class="tab-dot" id="dotEnquiries"></span>
     <span class="tab-keyhint">Q</span>
     </button>
+    <button class="tab" data-tab="instantquotes" onclick="switchTab('instantquotes')">
+      <span class="tab-icon">⬢</span><span class="tab-label">Instant Quotes</span><span class="tab-count" id="iqCount">0</span><span class="tab-dot" id="dotIQ"></span>
+    </button>
 
     <div class="sidebar-section">Marketing</div>
     <button class="tab" data-tab="promo" onclick="switchTab('promo')">
@@ -1824,6 +1827,41 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
       <table>
         <thead><tr><th style="width:34px"><input type="checkbox" onclick="toggleAllChecks('enquiriesBody',this.checked)"></th><th>Source</th><th>Reference ID</th><th>Name</th><th>Phone</th><th>Need</th><th>Budget</th><th>Material</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody id="enquiriesBody"><tr><td colspan="11" class="tbl-msg">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── INSTANT QUOTES PANEL ─────────────────── -->
+  <div class="panel" id="panelInstantquotes">
+    <div class="p-head">
+      <div class="p-title">Instant Quotes <span style="font-weight:400;color:var(--text-3);font-size:12px">— orders awaiting customization confirmation before production</span></div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Order</th><th>Model</th><th>Printer</th><th>Material</th><th>Infill</th><th>Est. weight/time</th><th>Price</th><th>Customer</th><th>Date</th><th>Action</th></tr></thead>
+        <tbody id="iqOrdersBody"><tr><td colspan="10" class="tbl-msg">Loading...</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="p-head" style="margin-top:36px">
+      <div class="p-title">Materials Catalog</div>
+      <div class="p-actions"><button class="btn-secondary" onclick="addIqMaterial()">+ Add material</button></div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Type</th><th>Color</th><th>Density (g/cm³)</th><th>₹/gram</th><th>Active</th></tr></thead>
+        <tbody id="iqMaterialsBody"><tr><td colspan="6" class="tbl-msg">Loading...</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="p-head" style="margin-top:36px">
+      <div class="p-title">Printers Catalog</div>
+      <div class="p-actions"><button class="btn-secondary" onclick="addIqPrinter()">+ Add printer</button></div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Build volume (mm)</th><th>Active</th></tr></thead>
+        <tbody id="iqPrintersBody"><tr><td colspan="3" class="tbl-msg">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2680,7 +2718,7 @@ function showDashboard(user){
   document.getElementById('adminDash').classList.add('show');
   updateClock();setInterval(updateClock,30000);
   initTheme();
-  loadCategories().then(()=>{loadProducts();loadOrders();loadDashboard();loadLogs();loadCustomers();loadMessages();loadCustomEnquiries();loadCallbacks();loadRecycleBin();loadReviewsAdmin();loadGoogleSettings();loadActivity();setTimeout(refreshNotifBadge,2500);});
+  loadCategories().then(()=>{loadProducts();loadOrders();loadDashboard();loadLogs();loadCustomers();loadMessages();loadCustomEnquiries();loadCallbacks();loadRecycleBin();loadReviewsAdmin();loadGoogleSettings();loadActivity();loadInstantQuotes();setTimeout(refreshNotifBadge,2500);});
 }
 
 // Check existing session on load, must re-check the admin whitelist here too:
@@ -3007,7 +3045,7 @@ function closeAdminNav(){
 
 let _curAdminTab='dashboard';
 function refreshCurrentAdminTab(){
-  const m={dashboard:loadDashboard,orders:loadOrders,customers:loadCustomers,products:loadProducts,messages:loadMessages,enquiries:loadCustomEnquiries,callbacks:loadCallbacks,inbox:loadInbox,reviews:()=>{loadReviewsAdmin();if(typeof loadGoogleSettings==='function')loadGoogleSettings();},recyclebin:loadRecycleBin,analytics:()=>{loadAnalytics();if(typeof loadGa4==='function')loadGa4();},promo:loadPromoCodes,activity:loadActivity,content:()=>{loadContentSettings();loadStoriesAdmin();},appearance:(typeof loadMenuStyleSetting==='function'?loadMenuStyleSetting:function(){}),categories:loadCategories,logs:loadLogs};
+  const m={dashboard:loadDashboard,orders:loadOrders,customers:loadCustomers,products:loadProducts,messages:loadMessages,enquiries:loadCustomEnquiries,callbacks:loadCallbacks,inbox:loadInbox,reviews:()=>{loadReviewsAdmin();if(typeof loadGoogleSettings==='function')loadGoogleSettings();},recyclebin:loadRecycleBin,analytics:()=>{loadAnalytics();if(typeof loadGa4==='function')loadGa4();},promo:loadPromoCodes,activity:loadActivity,content:()=>{loadContentSettings();loadStoriesAdmin();},appearance:(typeof loadMenuStyleSetting==='function'?loadMenuStyleSetting:function(){}),categories:loadCategories,logs:loadLogs,instantquotes:loadInstantQuotes};
   if(typeof m[_curAdminTab]==='function'){ try{ m[_curAdminTab](); toast('Refreshed','success'); }catch(e){} }
 }
 
@@ -3036,7 +3074,7 @@ function switchTab(tab){
   _curAdminTab=tab;
   closeAdminNav();
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['Dashboard','Callbacks','Orders','Customers','Products','Makerworld','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo','Reviews','Appearance','Activity','Content','Inbox','Productstudio','Subscribers'].forEach(p=>{
+  ['Dashboard','Callbacks','Orders','Customers','Products','Makerworld','Messages','Enquiries','Instantquotes','Analytics','Categories','Logs','Recyclebin','Promo','Reviews','Appearance','Activity','Content','Inbox','Productstudio','Subscribers'].forEach(p=>{
     const el=document.getElementById('panel'+p);
     if(el)el.classList.toggle('active',p.toLowerCase()===tab);
   });
@@ -3051,8 +3089,9 @@ function switchTab(tab){
   if(tab==='appearance')loadMenuStyleSetting();
   if(tab==='productstudio')loadProductStudio();
   if(tab==='subscribers')loadSubscribers();
-  const dotMap={orders:'dotOrders',customers:'dotCustomers',messages:'dotMessages',enquiries:'dotEnquiries',callbacks:'dotCallbacks'};
-  const countEls={orders:'orderCount',customers:'customerCount',messages:'messageCount',enquiries:'enquiryCount',callbacks:'callbackCount'};
+  if(tab==='instantquotes')loadInstantQuotes();
+  const dotMap={orders:'dotOrders',customers:'dotCustomers',messages:'dotMessages',enquiries:'dotEnquiries',callbacks:'dotCallbacks',instantquotes:'dotIQ'};
+  const countEls={orders:'orderCount',customers:'customerCount',messages:'messageCount',enquiries:'enquiryCount',callbacks:'callbackCount',instantquotes:'iqCount'};
   if(dotMap[tab]){
     const dot=document.getElementById(dotMap[tab]);
     if(dot)dot.classList.remove('visible');
@@ -5986,6 +6025,130 @@ async function markEnquiryRead(id){
   if(error){toast('Error: '+error.message,'error');return}
   toast('Enquiry marked as read','success');
   loadCustomEnquiries();
+}
+
+/* ═══ INSTANT QUOTE — orders pending confirmation + catalog CRUD ═══
+   Rule 10 (mandatory human confirmation before production) applies doubly to an
+   automated STL/OBJ price estimate: an order stays order_status='quote_pending_confirmation'
+   even after payment clears (see paymentController.verifyPayment) until an admin
+   reviews it here and confirms — which just reuses the existing order-status endpoint
+   with status:'confirmed' (paymentController already wrote both status+order_status
+   the same way for a normal order, so this is the identical target state). */
+let _iqOrders=[],_iqMaterials=[],_iqPrinters=[];
+
+async function loadInstantQuotes(){
+  await Promise.all([loadIqOrders(),loadIqMaterials(),loadIqPrinters()]);
+}
+
+async function loadIqOrders(){
+  const{data,error}=await sb.from('orders')
+    .select('*, order_items(*, instant_quote_requests(*))')
+    .eq('order_status','quote_pending_confirmation')
+    .is('deleted_at',null)
+    .order('created_at',{ascending:false});
+  if(error){document.getElementById('iqOrdersBody').innerHTML='<tr><td colspan="10" class="tbl-msg">Error loading Instant Quote orders</td></tr>';return}
+  _iqOrders=data||[];
+  const cEl=document.getElementById('iqCount'); if(cEl)cEl.textContent=_iqOrders.length;
+  checkNewItems('instantquotes','dotIQ',_iqOrders.length);
+  renderIqOrders();
+}
+
+function _iqPrinterName(id){const p=(_iqPrinters||[]).find(x=>x.id===id);return p?p.name:'—';}
+function _iqMaterialName(id){const m=(_iqMaterials||[]).find(x=>x.id===id);return m?m.name:'—';}
+
+function renderIqOrders(){
+  const tbody=document.getElementById('iqOrdersBody');
+  if(!_iqOrders.length){tbody.innerHTML='<tr><td colspan="10" class="tbl-msg">No Instant Quote orders awaiting confirmation.</td></tr>';return}
+  tbody.innerHTML=_iqOrders.map(o=>{
+    const rows=(o.order_items||[]).filter(it=>it.instant_quote_requests);
+    if(!rows.length)return '';
+    return rows.map(it=>{
+      const q=it.instant_quote_requests;
+      return '<tr>'
+        +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+esc(o.invoice_number||o.order_id||o.id)+'</td>'
+        +'<td>'+(q.model_file_url?'<a href="'+esc(q.model_file_url)+'" target="_blank" rel="noopener">'+esc(q.file_name||'model')+'</a>':esc(q.file_name||'—'))+'</td>'
+        +'<td>'+esc(_iqPrinterName(q.printer_id))+'</td>'
+        +'<td>'+esc(_iqMaterialName(q.material_id))+'</td>'
+        +'<td>'+esc(String(q.infill_percent||''))+'%</td>'
+        +'<td style="font-size:11px">'+esc(String(q.estimated_weight_g||'—'))+'g / '+esc(String(q.estimated_print_time_hours||'—'))+'h</td>'
+        +'<td>₹'+Number(it.unit_price||0).toLocaleString('en-IN')+'</td>'
+        +'<td style="font-size:11px">'+esc(o.customer_name||o.shipping_address?.full_name||'—')+'<br>'+esc(o.customer_phone||'')+'</td>'
+        +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(o.created_at)+'</td>'
+        +'<td><button class="btn-save" onclick="confirmIqOrder(\''+o.id+'\')">Confirm →</button></td>'
+        +'</tr>';
+    }).join('');
+  }).join('');
+}
+
+async function confirmIqOrder(orderId){
+  if(!confirm('Confirm this Instant Quote order for production? Only do this after verifying the customization details with the customer.'))return;
+  try{
+    await adminApi('/api/admin/orders/'+orderId+'/status',{method:'PUT',body:JSON.stringify({status:'confirmed'})});
+    toast('Order confirmed for production','success');
+    loadIqOrders();
+  }catch(e){toast('Error: '+(e.message||e),'error');}
+}
+
+async function loadIqMaterials(){
+  const{data,error}=await sb.from('instant_quote_materials').select('*').order('sort_order');
+  if(error){document.getElementById('iqMaterialsBody').innerHTML='<tr><td colspan="6" class="tbl-msg">Error loading materials</td></tr>';return}
+  _iqMaterials=data||[];
+  document.getElementById('iqMaterialsBody').innerHTML=(_iqMaterials.length?_iqMaterials:[]).map(m=>
+    '<tr>'
+    +'<td>'+esc(m.name)+'</td>'
+    +'<td>'+esc(m.filament_type||'')+'</td>'
+    +'<td><span class="iq-swatch" style="display:inline-block;width:14px;height:14px;border-radius:50%;background:'+esc(m.color_hex||'#ccc')+';vertical-align:-2px;margin-right:6px"></span>'+esc(m.color||'')+'</td>'
+    +'<td>'+Number(m.density_g_cm3).toFixed(2)+'</td>'
+    +'<td>₹'+Number(m.cost_per_gram_public).toFixed(2)+'</td>'
+    +'<td><button class="btn-secondary" onclick="toggleIqActive(\'instant_quote_materials\',\''+m.id+'\','+(!m.active)+',\'loadIqMaterials\')">'+(m.active?'Active':'Inactive')+'</button></td>'
+    +'</tr>'
+  ).join('')||'<tr><td colspan="6" class="tbl-msg">No materials yet.</td></tr>';
+}
+
+async function loadIqPrinters(){
+  const{data,error}=await sb.from('instant_quote_printers').select('*').order('sort_order');
+  if(error){document.getElementById('iqPrintersBody').innerHTML='<tr><td colspan="3" class="tbl-msg">Error loading printers</td></tr>';return}
+  _iqPrinters=data||[];
+  document.getElementById('iqPrintersBody').innerHTML=(_iqPrinters.length?_iqPrinters:[]).map(p=>
+    '<tr>'
+    +'<td>'+esc(p.name)+'</td>'
+    +'<td>'+p.build_x_mm+' × '+p.build_y_mm+' × '+p.build_z_mm+'</td>'
+    +'<td><button class="btn-secondary" onclick="toggleIqActive(\'instant_quote_printers\',\''+p.id+'\','+(!p.active)+',\'loadIqPrinters\')">'+(p.active?'Active':'Inactive')+'</button></td>'
+    +'</tr>'
+  ).join('')||'<tr><td colspan="3" class="tbl-msg">No printers yet.</td></tr>';
+}
+
+async function toggleIqActive(table,id,newVal,reload){
+  const{error}=await sb.from(table).update({active:newVal}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return}
+  toast(newVal?'Marked active':'Marked inactive','success');
+  (window[reload]||function(){})();
+}
+
+async function addIqMaterial(){
+  const name=prompt('Material name (e.g. "PLA — Sunset Orange"):'); if(!name)return;
+  const filament_type=prompt('Filament type (PLA/PETG/TPU/ABS):','PLA')||'PLA';
+  const color=prompt('Color name:','')||'';
+  const color_hex=prompt('Color hex (e.g. #C4622A):','#0F0F0D')||'#0F0F0D';
+  const density_g_cm3=parseFloat(prompt('Density g/cm³:','1.24'))||1.24;
+  const cost_per_gram_public=parseFloat(prompt('Public price per gram (₹):','1.80'));
+  if(!cost_per_gram_public){toast('Price per gram is required','error');return}
+  const{error}=await sb.from('instant_quote_materials').insert({name,filament_type,color,color_hex,density_g_cm3,cost_per_gram_public});
+  if(error){toast('Error: '+error.message,'error');return}
+  toast('Material added','success');
+  loadIqMaterials();
+}
+
+async function addIqPrinter(){
+  const name=prompt('Printer name:'); if(!name)return;
+  const build_x_mm=parseFloat(prompt('Build X (mm):','220'));
+  const build_y_mm=parseFloat(prompt('Build Y (mm):','220'));
+  const build_z_mm=parseFloat(prompt('Build Z (mm):','250'));
+  if(!build_x_mm||!build_y_mm||!build_z_mm){toast('All build dimensions are required','error');return}
+  const{error}=await sb.from('instant_quote_printers').insert({name,build_x_mm,build_y_mm,build_z_mm});
+  if(error){toast('Error: '+error.message,'error');return}
+  toast('Printer added','success');
+  loadIqPrinters();
 }
 
 /* ═══ CALLBACK REQUESTS (callback_requests) ═══════ */

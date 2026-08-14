@@ -824,6 +824,9 @@ async function ckPlaceOrder() {
             if(i.customization&&Object.keys(i.customization).length){
               cn=Object.entries(i.customization).filter(function(e){return e[1]&&String(e[1]).trim();}).map(function(e){return e[0]+': '+e[1];}).join(' | ');
             }else if(i.customization_notes){cn=i.customization_notes;}
+            if (i.type === 'instant_quote') {
+              return { type: 'instant_quote', instant_quote_id: i.instant_quote_id, name: i.name, quantity: i.quantity, unit_price: i.price, customization_notes: cn };
+            }
             return { slug: i.id, name: i.name, quantity: i.quantity, unit_price: i.price, customization_notes: cn };
           }),
           subtotal: subtotal,
@@ -895,6 +898,9 @@ async function ckPlaceOrder() {
           .map(function(e){return e[0]+': '+e[1];}).join(' | ');
       } else if(i.customization_notes){
         custNotes = i.customization_notes;
+      }
+      if (i.type === 'instant_quote') {
+        return { type: 'instant_quote', instant_quote_id: i.instant_quote_id, quantity: i.quantity, customization_notes: custNotes };
       }
       return { slug: i.id, quantity: i.quantity, customization_notes: custNotes };
     });

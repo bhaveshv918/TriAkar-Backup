@@ -1,0 +1,92 @@
+/**
+ * Instant Quote — calibrated heuristic pricing engine.
+ *
+ * Deliberately NOT a real slicer (CuraEngine etc.) — that research path was weighed
+ * and rejected for v1: extra hosting cost/complexity on Render, and real slicers are
+ * themselves commonly 15-50%+ off actual print time per slicer-vendor forum reports.
+ * Instead this produces a fast, transparent estimate and the product explicitly
+ * discloses a 15-60% variance band (see instant-quote.html + terms.html 3C), with
+ * production never starting until a human confirms the order (business rule 10).
+ *
+ * Formula follows the structure used by real-world print-on-demand pricing tools:
+ *   material_cost = weight_g × cost_per_gram
+ *   machine_cost  = print_time_hours × hourly_machine_rate
+ *   base_cost     = material_cost + machine_cost + failure_rate_buffer
+ *   final_price   = max(base_cost × (1 + markup%), minimum_charge)
+ *
+ * Weight/time both derive from an "effective fill fraction" — infill% alone
+ * undercounts material for anything with real walls/top/bottom shells, so a flat
+ * shell allowance is added on top of the selected infill%.
+ */
+import supabase from '../db/supabaseClient.js';
+
+const DEFAULTS = {
+  instant_quote_hourly_machine_rate:   60,   // ₹/hr — covers depreciation + electricity
+  instant_quote_markup_percent:        35,   // % on top of base cost
+  instant_quote_min_charge:            249,  // ₹ floor price per quote
+  instant_quote_failure_buffer_percent: 5,   // % buffer for failed/reprinted attempts
+};
+
+// Heuristic constants — not admin-tunable via site_settings (structural, not pricing
+// policy), but isolated here as named constants so they're easy to recalibrate as
+// real order data accumulates.
+const PRINT_SPEED_CM3_PER_HOUR = 12;   // throughput at 100% effective fill
+const SHELL_VOLUME_FRACTION    = 0.20; // walls/top/bottom add roughly this much beyond raw infill%
+const CALIBRATION_CORRECTION   = 1.35; // pulls heuristic time closer to observed real-slice totals (travel/retraction/thin-wall overhead that pure volume math misses)
+
+async function getSetting(key) {
+  const { data } = await supabase.from('site_settings').select('value').eq('key', key).maybeSingle();
+  const v = data?.value;
+  return v != null && v !== '' ? Number(v) : DEFAULTS[key];
+}
+
+async function getPricingConstants() {
+  const [hourly_machine_rate, markup_percent, min_charge, failure_buffer_percent] = await Promise.all([
+    getSetting('instant_quote_hourly_machine_rate'),
+    getSetting('instant_quote_markup_percent'),
+    getSetting('instant_quote_min_charge'),
+    getSetting('instant_quote_failure_buffer_percent'),
+  ]);
+  return { hourly_machine_rate, markup_percent, min_charge, failure_buffer_percent };
+}
+
+const round2 = n => Math.round(n * 100) / 100;
+
+/**
+ * @param {number} volume_cm3
+ * @param {number} infill_percent  5-100
+ * @param {{density_g_cm3:number, cost_per_gram_public:number}} material
+ */
+export async function computeInstantQuotePrice({ volume_cm3, infill_percent, material }) {
+  if (!(volume_cm3 > 0)) throw Object.assign(new Error('Invalid model volume'), { status: 400 });
+  if (!material) throw Object.assign(new Error('Material is required'), { status: 400 });
+
+  const { hourly_machine_rate, markup_percent, min_charge, failure_buffer_percent } = await getPricingConstants();
+
+  const infillFraction = Math.max(0.05, Math.min(1, infill_percent / 100));
+  const effectiveFillFraction = Math.min(1, infillFraction + SHELL_VOLUME_FRACTION);
+
+  const weight_g = round2(volume_cm3 * effectiveFillFraction * material.density_g_cm3);
+  const print_time_hours = round2((volume_cm3 * effectiveFillFraction / PRINT_SPEED_CM3_PER_HOUR) * CALIBRATION_CORRECTION);
+
+  const material_cost = round2(weight_g * material.cost_per_gram_public);
+  const machine_cost = round2(print_time_hours * hourly_machine_rate);
+  const failure_buffer = round2((material_cost + machine_cost) * (failure_buffer_percent / 100));
+  const base_cost = round2(material_cost + machine_cost + failure_buffer);
+  const markup_amount = round2(base_cost * (markup_percent / 100));
+  const raw_price = round2(base_cost + markup_amount);
+  const minimum_applied = raw_price < min_charge;
+  const final_price = Math.round(Math.max(raw_price, min_charge));
+
+  return {
+    weight_g,
+    print_time_hours,
+    final_price,
+    price_breakdown: {
+      material_cost, machine_cost, failure_buffer, base_cost,
+      markup_percent, markup_amount, raw_price, minimum_applied,
+      minimum_charge: min_charge, hourly_machine_rate,
+      variance_note: 'Automated estimate — actual price may vary 15-60% after human review.',
+    },
+  };
+}

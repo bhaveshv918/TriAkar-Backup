@@ -26,6 +26,7 @@ import siteSettingsRoutes from './routes/siteSettings.js';
 import wishlistRoutes    from './routes/wishlist.js';
 import webhookRoutes     from './routes/webhooks.js';
 import newsletterRoutes  from './routes/newsletter.js';
+import instantQuoteRoutes from './routes/instantQuote.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import supabase from './db/supabaseClient.js';
 
@@ -191,6 +192,17 @@ const notifyLimiter = rateLimit({
 });
 app.use('/api/notify', notifyLimiter);
 
+// Instant Quote uploads are heavier than a typical JSON request (mesh parsing +
+// Cloudinary upload), so it gets its own tighter limiter to blunt upload-spam abuse.
+const instantQuoteLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many model uploads. Try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/instant-quote/analyze', instantQuoteLimiter);
+
 // Promo validation is unauthenticated — keep it tight so codes can't be enumerated
 const promoLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -241,6 +253,7 @@ app.use('/api/stories',    storyRoutes);     // Stories CMS — public + admin C
 app.use('/api/site-settings', siteSettingsRoutes); // Public presentation values (Google stats, etc.)
 app.use('/api/wishlist',   wishlistRoutes);  // Saved items — per-user, auth required
 app.use('/api/newsletter', newsletterRoutes); // Footer email signup — public
+app.use('/api/instant-quote', instantQuoteRoutes); // STL/OBJ upload, heuristic pricing, quote lookup
 
 /* /api/profile — see server/routes/auth.js handlers; also accessible at /api/auth/profile */
 

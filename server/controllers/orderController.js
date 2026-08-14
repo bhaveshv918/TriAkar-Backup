@@ -59,15 +59,18 @@ export async function createWhatsAppOrder(req, res, next) {
        shipping and discount server-side. (Previously subtotal / total_amount /
        discount were taken verbatim from the request, so a forged ₹1 "order" with
        real-looking confirmation emails could be created.) */
-    const slugs = [...new Set(items.map(i => i.slug).filter(Boolean))];
-    if (!slugs.length) return res.status(400).json({ error: 'items must reference product slugs' });
+    const productItemsIn      = items.filter(i => i.type !== 'instant_quote');
+    const instantQuoteItemsIn = items.filter(i => i.type === 'instant_quote');
+    const slugs = [...new Set(productItemsIn.map(i => i.slug).filter(Boolean))];
+    if (!slugs.length && !instantQuoteItemsIn.length)
+      return res.status(400).json({ error: 'items must reference product slugs or an Instant Quote' });
 
     const { data: products, error: pErr } = await supabase
-      .from('products').select('slug, name, price').in('slug', slugs).eq('is_active', true);
+      .from('products').select('slug, name, price').in('slug', slugs.length ? slugs : ['__none__']).eq('is_active', true);
     if (pErr) throw pErr;
 
     let subtotal = 0;
-    const pricedItems = items.map(i => {
+    const pricedItems = productItemsIn.map(i => {
       const qty = Number(i.quantity);
       if (!Number.isInteger(qty) || qty < 1) throw Object.assign(new Error(`Invalid quantity for "${i.slug}"`), { status: 400 });
       const p = products.find(x => x.slug === i.slug);
@@ -76,6 +79,27 @@ export async function createWhatsAppOrder(req, res, next) {
       return { slug: i.slug, name: p.name, quantity: qty, unit_price: p.price,
                customization_notes: i.customization_notes || null };
     });
+
+    if (instantQuoteItemsIn.length) {
+      const quoteIds = instantQuoteItemsIn.map(i => i.instant_quote_id);
+      const { data: quoteRows, error: qErr } = await supabase
+        .from('instant_quote_requests').select('*').in('id', quoteIds).eq('user_id', user_id);
+      if (qErr) throw qErr;
+      for (const i of instantQuoteItemsIn) {
+        const qty = Number(i.quantity) || 1;
+        const q = (quoteRows || []).find(x => x.id === i.instant_quote_id);
+        if (!q) throw Object.assign(new Error('One of your Instant Quote items was not found'), { status: 400 });
+        if (q.status !== 'quoted') throw Object.assign(new Error('One of your Instant Quote items has already been ordered or expired'), { status: 400 });
+        if (new Date(q.expires_at) < new Date()) throw Object.assign(new Error('Your Instant Quote has expired — please re-upload the model'), { status: 400 });
+        subtotal += q.final_price * qty;
+        pricedItems.push({
+          type: 'instant_quote', instant_quote_id: q.id,
+          name: `Instant Quote — ${q.file_name || 'model'}`, quantity: qty, unit_price: q.final_price,
+          customization_notes: i.customization_notes || null,
+        });
+      }
+      await supabase.from('instant_quote_requests').update({ status: 'ordered' }).in('id', quoteIds);
+    }
 
     const shipping_charge = subtotal >= 999 ? 0 : 99;
 
@@ -162,7 +186,7 @@ export async function createWhatsAppOrder(req, res, next) {
 
 export async function getOrdersByUser(req, res, next) {
   try {
-    const SELECT = '*, order_items(*, products(name, images))';
+    const SELECT = '*, order_items(*, products(name, images), instant_quote_requests(file_name, model_file_url, printer_id, material_id, infill_percent, estimated_print_time_hours, estimated_weight_g, price_breakdown))';
     const userId = req.user.id;
     const userEmail = req.user.email || '';
 
@@ -209,7 +233,7 @@ export async function getOrderById(req, res, next) {
     const param = (req.params.id || '').trim();
     if (!param) return res.status(400).json({ error: 'Order ID required' });
 
-    const SELECT = '*, order_items(*, products(name, slug, images))';
+    const SELECT = '*, order_items(*, products(name, slug, images), instant_quote_requests(file_name, model_file_url, printer_id, material_id, infill_percent, estimated_print_time_hours, estimated_weight_g, price_breakdown))';
     const userId = req.user.id;
     let data = null;
 

@@ -33,17 +33,21 @@ export async function createOrder(req, res, next) {
       { onConflict: 'id' },
     );
 
-    /* 2. Fetch & validate products by slug */
-    const slugs = items.map(i => i.slug);
+    /* 2. Split cart into catalog-product items and Instant Quote items — each
+       is re-priced from its own source of truth server-side (never the client). */
+    const productItems      = items.filter(i => i.type !== 'instant_quote');
+    const instantQuoteItems = items.filter(i => i.type === 'instant_quote');
+
+    const slugs = productItems.map(i => i.slug);
     const { data: products, error: pErr } = await supabase
       .from('products')
       .select('id, name, slug, price, stock_qty')
-      .in('slug', slugs)
+      .in('slug', slugs.length ? slugs : ['__none__'])
       .eq('is_active', true);
     if (pErr) throw pErr;
 
     let subtotal = 0;
-    for (const item of items) {
+    for (const item of productItems) {
       // SECURITY: quantity must be a positive integer. Without this a negative or
       // zero quantity drives the subtotal down (pay ₹1 for a ₹5000 item) and the
       // decrement_stock RPC — stock_qty = GREATEST(0, stock_qty - qty) — would even
@@ -56,6 +60,31 @@ export async function createOrder(req, res, next) {
       if (p.stock_qty < qty)
         return res.status(400).json({ error: `Insufficient stock for "${p.name}"` });
       subtotal += p.price * qty;
+    }
+
+    /* Instant Quote items: re-fetch price from the signed, previously-computed
+       quote row — the cart only ever carries the quote id, never a price. */
+    let quotes = [];
+    if (instantQuoteItems.length) {
+      const quoteIds = instantQuoteItems.map(i => i.instant_quote_id);
+      const { data: quoteRows, error: qErr } = await supabase
+        .from('instant_quote_requests').select('*')
+        .in('id', quoteIds).eq('user_id', user_id);
+      if (qErr) throw qErr;
+      quotes = quoteRows || [];
+
+      for (const item of instantQuoteItems) {
+        const qty = Number(item.quantity) || 1;
+        if (!Number.isInteger(qty) || qty < 1)
+          return res.status(400).json({ error: 'Invalid quantity for an Instant Quote item' });
+        const q = quotes.find(x => x.id === item.instant_quote_id);
+        if (!q) return res.status(400).json({ error: 'One of your Instant Quote items was not found' });
+        if (q.status !== 'quoted')
+          return res.status(400).json({ error: 'One of your Instant Quote items has already been ordered or expired' });
+        if (new Date(q.expires_at) < new Date())
+          return res.status(400).json({ error: 'Your Instant Quote has expired — please re-upload the model for a fresh price' });
+        subtotal += q.final_price * qty;
+      }
     }
     const shipping_charge = subtotal >= 999 ? 0 : 99;
 
@@ -134,6 +163,11 @@ export async function createOrder(req, res, next) {
       orderInsert.promo_code      = applied_promo.code;
       orderInsert.discount_amount = discount_amount;
     }
+    // Rule 10 (mandatory human confirmation before production applies to any
+    // customizable product, and doubly so for an automated STL/OBJ price estimate):
+    // an order containing Instant Quote items must not auto-confirm on payment.
+    // verifyPayment() below preserves this status instead of flipping to 'confirmed'.
+    if (instantQuoteItems.length) orderInsert.order_status = 'quote_pending_confirmation';
 
     const { data: order, error: oErr } = await supabase
       .from('orders')
@@ -143,7 +177,7 @@ export async function createOrder(req, res, next) {
     if (oErr) throw oErr;
 
     /* 5. Create order items */
-    const rows = items.map(item => {
+    const productRows = productItems.map(item => {
       const p = products.find(x => x.slug === item.slug);
       return {
         order_id: order.id, product_id: p.id,
@@ -151,8 +185,24 @@ export async function createOrder(req, res, next) {
         customization_notes: item.customization_notes || null,
       };
     });
-    const { error: iErr } = await supabase.from('order_items').insert(rows);
+    const quoteRows = instantQuoteItems.map(item => {
+      const q = quotes.find(x => x.id === item.instant_quote_id);
+      return {
+        order_id: order.id, instant_quote_id: q.id,
+        quantity: Number(item.quantity) || 1, unit_price: q.final_price,
+        customization_notes: item.customization_notes || null,
+      };
+    });
+    const { error: iErr } = await supabase.from('order_items').insert([...productRows, ...quoteRows]);
     if (iErr) throw iErr;
+
+    // Lock each used quote so it can't be re-added to a second order (a quote's
+    // price is a point-in-time estimate, not a standing catalog price).
+    if (instantQuoteItems.length) {
+      await supabase.from('instant_quote_requests')
+        .update({ status: 'ordered' })
+        .in('id', instantQuoteItems.map(i => i.instant_quote_id));
+    }
 
     /* 6. Create Razorpay order (amount in paise) */
     let rzpOrder;
@@ -211,7 +261,7 @@ export async function verifyPayment(req, res, next) {
     // FIX #1: verify this order belongs to the authenticated user
     const { data: existingOrder, error: fetchErr } = await supabase
       .from('orders')
-      .select('id, user_id, status, razorpay_order_id')
+      .select('id, user_id, status, razorpay_order_id, order_status')
       .eq('id', order_id)
       .single();
     if (fetchErr || !existingOrder) {
@@ -232,11 +282,16 @@ export async function verifyPayment(req, res, next) {
       return res.json({ ok: true, order_id });
     }
 
+    // Instant Quote orders stay pending human confirmation of the customization
+    // (rule 10) even after payment clears — only the payment_status/status flip
+    // to confirmed; order_status is left for admin to move on manually.
+    const isPendingQuoteConfirmation = existingOrder.order_status === 'quote_pending_confirmation';
+
     // FIX #7: check that the DB update actually succeeds before decrementing stock
     const { data: updatedOrder, error: oErr } = await supabase.from('orders')
       .update({
         status:             'confirmed',
-        order_status:       'confirmed',
+        order_status:       isPendingQuoteConfirmation ? 'quote_pending_confirmation' : 'confirmed',
         razorpay_payment_id,
         payment_received:   true,
         payment_status:     'paid',
@@ -261,7 +316,9 @@ export async function verifyPayment(req, res, next) {
     // automatically — flag it for an admin to resolve (refund or backorder) instead of
     // letting decrement_stock's floor-at-zero clamp make the shortfall invisible.
     let oversold = false;
-    for (const item of orderItems ?? []) {
+    // Instant Quote line items have no catalog product_id (they're made-to-order,
+    // not stocked) — nothing to decrement for those.
+    for (const item of (orderItems ?? []).filter(i => i.product_id)) {
       const { data: hadEnough } = await supabase.rpc('decrement_stock', {
         p_product_id: item.product_id,
         p_qty:        item.quantity,
@@ -294,11 +351,12 @@ export async function verifyPayment(req, res, next) {
     try {
       const { data: ord } = await supabase
         .from('orders')
-        .select('*, order_items(quantity, unit_price, products(name))')
+        .select('*, order_items(quantity, unit_price, products(name), instant_quote_requests(file_name))')
         .eq('id', order_id).single();
       if (ord) {
         const items = (ord.order_items || []).map(it => ({
-          name: it.products?.name || 'Item', quantity: it.quantity, unit_price: it.unit_price,
+          name: it.products?.name || (it.instant_quote_requests?.file_name && `Instant Quote — ${it.instant_quote_requests.file_name}`) || 'Item',
+          quantity: it.quantity, unit_price: it.unit_price,
         }));
         const orderData = {
           order_id:        ord.invoice_number || ord.order_id || ord.id,

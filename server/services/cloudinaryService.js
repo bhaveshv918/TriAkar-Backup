@@ -57,4 +57,28 @@ export function uploadBufferToCloudinary(buffer, options = {}) {
   });
 }
 
+/**
+ * Upload a raw (non-image) file buffer to Cloudinary — used for Instant Quote
+ * STL/OBJ models. resource_type:'raw' is required for Cloudinary to store the
+ * file as-is instead of attempting image processing. public_id is randomised
+ * server-side (never derived from the user-supplied filename) so an uploaded
+ * name can't be used to guess/collide with another file's storage path.
+ */
+export function uploadRawBufferToCloudinary(buffer, options = {}) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: 'raw',
+        folder: options.folder || 'triakar/instant-quote-models',
+        public_id: options.public_id, // caller supplies a random id
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+    stream.end(buffer);
+  });
+}
+
 export { cloudinary };
