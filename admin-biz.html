@@ -1531,6 +1531,7 @@ html[data-theme="dark"] .biz-login{
           <div class="calc-item"><label>Items</label><span id="t_count">0</span></div>
           <div class="calc-item"><label>Total Qty</label><span id="t_qty">0</span></div>
           <div class="calc-item revenue"><label>Subtotal (excl GST)</label><span id="t_sub">₹0</span></div>
+          <div class="calc-item" id="t_disc_row" style="display:none;color:#c0392b"><label>Discount</label><span id="t_disc">₹0</span></div>
           <div class="calc-item"><label>GST Amount</label><span id="t_gst">₹0</span></div>
           <div class="calc-item cost"><label>Total Cost</label><span id="t_cost">₹0</span></div>
           <div class="calc-item profit"><label>Gross Profit</label><span id="t_profit">₹0</span></div>
@@ -5228,7 +5229,7 @@ function onItemNum(i,f,v){
   recalcTotals();
 }
 function recalcTotals(){
-  let count=0,qty=0,sub=0,gst=0,cost=0,anyGst=false;
+  let count=0,qty=0,sub=0,gst=0,cost=0,anyGst=false,disc=0;
   _items.forEach(it=>{
     // Rate ₹ is entered excluding GST, so the item amount is already the taxable
     // value and GST is added on top (not extracted back out of an inclusive price).
@@ -5239,6 +5240,7 @@ function recalcTotals(){
     sub+=amt;
     gst+=amt*((it.gst||0)/100);
     cost+=it.qty*it.cost;
+    disc+=it.disc||0;
     if((it.gst||0)>0) anyGst=true;
   });
   const fee=parseFloat(document.getElementById('qa_platformfee')?.value)||0;
@@ -5262,6 +5264,11 @@ function recalcTotals(){
   S('t_count',count); S('t_qty',qty);
   S('t_sub',fmt(sub)); S('t_gst',fmt(gst)); S('t_cost',fmt(cost));
   S('t_profit',fmt(profit)); S('t_margin',margin.toFixed(1)+'%'); S('t_grand',fmt(grand));
+  const discRow=document.getElementById('t_disc_row');
+  if(discRow){
+    if(disc>0){ discRow.style.display=''; S('t_disc',fmt(disc)); }
+    else discRow.style.display='none';
+  }
   const pe=document.getElementById('t_profit'); if(pe) pe.style.color=profit>=0?'var(--green)':'var(--red)';
   const me=document.getElementById('t_margin'); if(me) me.style.color=margin>=0?'var(--green)':'var(--red)';
   // Keep the payment amount in sync with the bill total while Full/Partial is picked
@@ -5627,12 +5634,12 @@ async function submitQuickAddAsQuotation(){
   // (e.g. ₹2/g × 500g × qty 1 stored as ₹2 instead of ₹1000). Carry pricingMode +
   // total grams through so the amount, and any later edit, stays correct.
   const items=_items.filter(it=>it.name&&it.name.trim()).map(it=>({
-    name:it.name, qty:it.qty||1, rate:it.rate||0, gst:it.gst||0,
+    name:it.name, qty:it.qty||1, rate:it.rate||0, disc:it.disc||0, gst:it.gst||0,
     pricingMode:it.pricingMode||'piece', grams:itemTotalGrams(it)||0, hsn:it.hsn||'',
     variant:it.variant||'', remarks:it.remarks||'',
   }));
   if(!items.length){ toast('Add at least one item','error'); return; }
-  let sub=0,gstAmt=0; items.forEach(it=>{ const amt=it.pricingMode==='gram'?(it.qty||0)*(it.grams||0)*(it.rate||0):(it.qty||0)*(it.rate||0); sub+=amt; gstAmt+=amt*((it.gst||0)/100); });
+  let sub=0,gstAmt=0; items.forEach(it=>{ const gross=it.pricingMode==='gram'?(it.qty||0)*(it.grams||0)*(it.rate||0):(it.qty||0)*(it.rate||0); const amt=Math.max(0,gross-(it.disc||0)); sub+=amt; gstAmt+=amt*((it.gst||0)/100); });
   const g=id=>document.getElementById(id)?.value?.trim()||null;
   const manualNumber=g('qa_qt_number')||await genQuotationNumber();
   const now=new Date(), fyStart=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
@@ -6420,7 +6427,7 @@ function editQuotation(id){
     set('qa_country',q.customer_country||'India');
     set('qa_gstin',q.customer_gstin); set('qa_qt_validity',q.validity_date); set('qa_qt_terms',q.terms_notes);
     set('qa_qt_promised',q.promised_date); set('qa_qt_number',q.quotation_number); set('qa_date',q.quotation_date);
-    _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0,hsn:it.hsn||(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:it.sku||'',variant:it.variant||'',remarks:it.remarks||''})) : [blankItem()];
+    _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,disc:it.disc||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0,hsn:it.hsn||(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:it.sku||'',variant:it.variant||'',remarks:it.remarks||''})) : [blankItem()];
     renderItems();
     renderQaQtTncPresets();
     const saveBtn=document.getElementById('qaSaveBtn'); if(saveBtn) saveBtn.innerHTML='💾 Update Quotation';
@@ -6441,7 +6448,7 @@ function duplicateQuotation(id){
     set('qa_country',q.customer_country||'India');
     set('qa_gstin',q.customer_gstin); set('qa_qt_validity',q.validity_date); set('qa_qt_terms',q.terms_notes);
     set('qa_qt_promised',q.promised_date); set('qa_qt_number',await genQuotationNumber()); set('qa_date',today());
-    _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0,hsn:it.hsn||(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:it.sku||'',variant:it.variant||'',remarks:it.remarks||''})) : [blankItem()];
+    _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,disc:it.disc||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0,hsn:it.hsn||(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:it.sku||'',variant:it.variant||'',remarks:it.remarks||''})) : [blankItem()];
     renderItems();
     renderQaQtTncPresets();
     const saveBtn=document.getElementById('qaSaveBtn'); if(saveBtn) saveBtn.innerHTML='💾 Save Quotation';
@@ -6504,10 +6511,13 @@ async function printQuotation(id){
   if(error||!q){ if(win) win.close(); toast('Could not load quotation','error'); return; }
   const items=(Array.isArray(q.items)?q.items:[]).map(it=>{
     const qty=parseInt(it.qty)||1, rate=parseFloat(it.rate)||0, gst=parseFloat(it.gst)||0;
-    const base=it.pricingMode==='gram' ? qty*(parseFloat(it.grams)||0)*rate : qty*rate;
+    const gross=it.pricingMode==='gram' ? qty*(parseFloat(it.grams)||0)*rate : qty*rate;
+    const disc=Math.min(parseFloat(it.disc)||0,gross);
+    const base=gross-disc;
     return {
       product_name:it.name||'—', qty, gst_rate:gst, hsn_code:it.hsn||'',
       selling_price:Math.round(base*(1+gst/100)*100)/100,
+      discount_amount:disc,
       variant:[it.variant||'', (it.pricingMode==='gram'&&it.grams)?`${it.grams}g`:''].filter(Boolean).join(' · '),
       remarks:it.remarks||'',
     };
@@ -11980,7 +11990,7 @@ async function printInvoice(d, type, docKind, win){
 
   // Support multi-item orders (d.items) and legacy single rows (d)
   const items=(d.items&&d.items.length)?d.items:[d];
-  let subtotal=0, gstAmt=0;
+  let subtotal=0, gstAmt=0, totalDisc=0;
   const hsnSummary={};
   // Quotation always shows the itemized GST breakdown; a plain Invoice does too once
   // GST actually applies (a non-GST invoice keeps the simple 4-column table). Order
@@ -11999,7 +12009,7 @@ async function printInvoice(d, type, docKind, win){
     // For GST invoices show taxable (ex-GST) amounts in the rate/amount columns
     const iamt=iamt_incl-igst;
     const iunit_show=iqty>0 ? ((type==='gst'&&irate>0)?iamt/iqty:iamt_incl/iqty) : ((type==='gst'&&irate>0)?iamt:iamt_incl);
-    subtotal+=iamt; gstAmt+=igst;
+    subtotal+=iamt; gstAmt+=igst; totalDisc+=idisc;
     if(showGstCols){
       const hk=it.hsn_code||'—';
       const hrow=hsnSummary[hk]||(hsnSummary[hk]={taxable:0,gst:0,rate:irate});
@@ -12349,6 +12359,10 @@ tbody tr:last-child td{border-bottom:none}
   </tbody>
 </table>
 <table><tbody>
+  ${totalDisc>=0.005?`<tr>
+    <td colspan="3" style="text-align:right;color:#c0392b;font-size:11px">Discount</td>
+    <td style="text-align:right;color:#c0392b;font-size:11px">−₹${totalDisc.toFixed(2)}</td>
+  </tr>`:''}
   ${Math.abs(roundOff)>=0.005?`<tr>
     <td colspan="3" style="text-align:right;color:#555;font-size:11px">Round Off</td>
     <td style="text-align:right;color:#555;font-size:11px">${roundOff<0?'−':'+'}₹${Math.abs(roundOff).toFixed(2)}</td>
