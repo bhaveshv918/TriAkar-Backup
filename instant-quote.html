@@ -284,7 +284,7 @@ const IQ = (function(){
     uploadAndAnalyze(file, ext);
   }
 
-  function uploadAndAnalyze(file, format){
+  async function uploadAndAnalyze(file, format){
     const wrap = document.getElementById('iqProgressWrap');
     const fill = document.getElementById('iqProgressFill');
     const label = document.getElementById('iqProgressLabel');
@@ -293,9 +293,15 @@ const IQ = (function(){
     const fd = new FormData();
     fd.append('model', file);
 
+    // Plain XHR (not Auth.apiFetch) so upload progress events are available, but that
+    // means the automatic near-expiry token refresh Auth.apiFetch normally does for us
+    // has to be triggered explicitly first — otherwise a stale token 401s here even
+    // though every other Auth.apiFetch call on this page would have silently refreshed.
+    const authHeader = await Auth.authHeaderAsync();
+
     const xhr = new XMLHttpRequest();
     xhr.open('POST', TA_API + '/api/instant-quote/analyze');
-    xhr.setRequestHeader('Authorization', 'Bearer ' + Auth.getToken());
+    if (authHeader.Authorization) xhr.setRequestHeader('Authorization', authHeader.Authorization);
     xhr.upload.onprogress = function(e){
       if (!e.lengthComputable) return;
       fill.style.width = Math.round((e.loaded / e.total) * 100) + '%';
