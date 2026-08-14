@@ -1809,26 +1809,32 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 })();
 
-/* ══ TRIAKAR MINUTES, launch-teaser popup, every page load ══
-   Shows on every page load (no longer gated by localStorage) across
-   any page that includes shared.js. Opens on a 30s loading screen with
-   a progress bar, then reveals the promo card. Close, email capture
-   (reuses the newsletter API), and a WhatsApp "contact to know more"
-   shortcut. */
+/* ══ TRIAKAR MINUTES, launch-teaser popup, once per day ══
+   Shows the first time the site is opened each calendar day (localStorage
+   date-stamp, not per-session) across any page that includes shared.js.
+   Card shows immediately with a 30s auto-dismiss progress bar; the popup
+   closes itself when the bar finishes. Close, email capture (reuses the
+   newsletter API), and a WhatsApp "contact to know more" shortcut. */
 (function(){
-  var LOADING_MS=30000;
+  var AUTO_CLOSE_MS=30000;
+
+  function _todayKey(){
+    var d=new Date();
+    return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+  }
+
+  if(localStorage.getItem('_tmPromoLastShown')===_todayKey()) return;
 
   function _show(){
+    if(localStorage.getItem('_tmPromoLastShown')===_todayKey()) return;
+    localStorage.setItem('_tmPromoLastShown', _todayKey());
+
     var waHref='https://wa.me/919217555833?text='+encodeURIComponent('Hi TriAkar! I\'d like to know more about Triakar Minutes.');
 
     var ov=document.createElement('div');
     ov.className='tm-promo-ov';
     ov.innerHTML=
-      '<div class="tm-promo-loading">'
-      + '<div class="tm-promo-loading-text">Loading Triakar Minutes…</div>'
-      + '<div class="tm-promo-loading-track"><div class="tm-promo-loading-bar"></div></div>'
-      + '</div>'
-      + '<div class="tm-promo-card glass-a" hidden>'
+      '<div class="tm-promo-card glass-a">'
       + '<button type="button" class="tm-promo-close" aria-label="Close">×</button>'
       + '<div class="tm-promo-badge">Coming Soon</div>'
       + '<div class="tm-promo-title">Introducing <span class="tm-promo-accent">Triakar Minutes</span></div>'
@@ -1838,22 +1844,18 @@ document.addEventListener('DOMContentLoaded', function(){
       + '<button type="submit">Subscribe</button>'
       + '</form>'
       + '<a class="tm-promo-contact" href="'+waHref+'" target="_blank" rel="noopener">Contact to know more</a>'
+      + '<div class="tm-promo-loading-track"><div class="tm-promo-loading-bar"></div></div>'
       + '</div>';
     document.body.appendChild(ov);
     requestAnimationFrame(function(){ ov.classList.add('show'); });
 
     var bar=ov.querySelector('.tm-promo-loading-bar');
-    requestAnimationFrame(function(){ bar.style.transitionDuration=LOADING_MS+'ms'; bar.style.width='100%'; });
+    requestAnimationFrame(function(){ bar.style.transitionDuration=AUTO_CLOSE_MS+'ms'; bar.style.width='100%'; });
 
-    var revealTimer=setTimeout(function(){
-      var loading=ov.querySelector('.tm-promo-loading');
-      var card=ov.querySelector('.tm-promo-card');
-      loading.remove();
-      card.hidden=false;
-    }, LOADING_MS);
+    var closeTimer=setTimeout(_close, AUTO_CLOSE_MS);
 
     function _close(){
-      clearTimeout(revealTimer);
+      clearTimeout(closeTimer);
       ov.classList.remove('show');
       setTimeout(function(){ ov.remove(); }, 350);
     }
