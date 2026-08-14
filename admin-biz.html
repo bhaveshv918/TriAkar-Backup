@@ -374,6 +374,8 @@ tr:hover td{background:var(--bg-2)}
 .csel-native{position:absolute;inset:0;opacity:0;width:100%;pointer-events:none}
 .csel-trigger{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-2);font-family:var(--sans);font-size:12px;font-weight:600;padding:7px 10px;cursor:pointer;transition:border-color .15s,background .15s}
 .csel-trigger:hover{border-color:var(--border-h);background:var(--bg-3)}
+.csel-disabled .csel-trigger{opacity:.5;cursor:not-allowed}
+.csel-disabled .csel-trigger:hover{border-color:var(--border);background:var(--bg-2)}
 .csel-trigger svg{flex-shrink:0;color:var(--text-3);transition:transform .15s}
 .csel.open .csel-trigger{border-color:var(--accent);color:var(--accent-h);background:var(--accent-bg)}
 .csel.open .csel-trigger svg{transform:rotate(180deg);color:var(--accent-h)}
@@ -4392,6 +4394,7 @@ function enhanceSelectsIn(containerId){
     wrap.appendChild(panel);
     trigger.addEventListener('click',e=>{
       e.stopPropagation();
+      if(sel.disabled) return;
       const wasOpen=wrap.classList.contains('open');
       document.querySelectorAll('.csel.open').forEach(w=>w.classList.remove('open'));
       if(!wasOpen) wrap.classList.add('open');
@@ -4424,6 +4427,7 @@ function syncCustomSelects(containerId){
     const label=wrap.querySelector('.csel-label');
     const trigger=wrap.querySelector('.csel-trigger');
     const panel=wrap.querySelector('.csel-panel');
+    wrap.classList.toggle('csel-disabled',sel.disabled);
     const opt=sel.options[sel.selectedIndex];
     if(label) label.textContent=opt?opt.text:'';
     const colorMap=_cselColorMap(sel.dataset.colorize);
@@ -9271,7 +9275,7 @@ function renderOrderDetail(items){
       </div>
     </div>`:''}
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:2px">
-      <select onchange="updateOrderStatus('${key}',this.value)" class="month-select" style="font-size:11px;padding:5px 8px" ${locked?'disabled title="Locked, unlock to change status"':''}>${UNIFIED_STATUSES.map(x=>`<option value="${x}"${f.status===x?' selected':''}>${STATUS_LABEL[x]}</option>`).join('')}</select>
+      <select onchange="updateOrderStatus('${key}',this.value)" class="month-select" data-colorize="status" style="font-size:11px;padding:5px 8px" ${locked?'disabled title="Locked, unlock to change status"':''}>${UNIFIED_STATUSES.map(x=>`<option value="${x}"${f.status===x?' selected':''}>${STATUS_LABEL[x]}</option>`).join('')}</select>
       <span style="font-size:11px;color:var(--text-3)">${locked?'Locked, unlock to edit':''}</span>
     </div>
   </div>`;
@@ -9698,6 +9702,7 @@ function renderODModal(){
   const f=items[0];
   document.getElementById('odTitle').textContent='Order '+(f.order_id||('#'+String(f.id).slice(0,8)));
   document.getElementById('orderDetailBody').innerHTML=renderOrderDetail(items);
+  enhanceSelectsIn('orderDetailBody');
   document.getElementById('orderDetailRail').innerHTML=renderODRail(items);
   const i=_orderKeys.indexOf(_odKey);
   const prev=document.getElementById('odPrev'), next=document.getElementById('odNext');
