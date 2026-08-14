@@ -260,6 +260,7 @@
 
   /* ── Start ──────────────────────────────────────────────── */
   function start() {
+    if (isRunning) return;
     isRunning = true;
     liftGantry(0, false);
     slideHead(8, 0);
