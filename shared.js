@@ -1844,21 +1844,62 @@ document.addEventListener('DOMContentLoaded', function(){
       + '<button type="submit">Subscribe</button>'
       + '</form>'
       + '<a class="tm-promo-contact" href="'+waHref+'" target="_blank" rel="noopener">Contact to know more</a>'
+      + '<div class="tm-promo-loading-label">Closing automatically in <span class="tm-promo-loading-secs">30</span>s</div>'
       + '<div class="tm-promo-loading-track"><div class="tm-promo-loading-bar"></div></div>'
       + '</div>';
     document.body.appendChild(ov);
     requestAnimationFrame(function(){ ov.classList.add('show'); });
 
+    var card=ov.querySelector('.tm-promo-card');
     var bar=ov.querySelector('.tm-promo-loading-bar');
-    requestAnimationFrame(function(){ bar.style.transitionDuration=AUTO_CLOSE_MS+'ms'; bar.style.width='100%'; });
+    var secsEl=ov.querySelector('.tm-promo-loading-secs');
+    var msLeft=AUTO_CLOSE_MS;
+    var lastTick=Date.now();
+    var closeTimer=null, countdownTimer=null, paused=false;
 
-    var closeTimer=setTimeout(_close, AUTO_CLOSE_MS);
+    bar.style.animationDuration=AUTO_CLOSE_MS+'ms';
+
+    function _tick(){
+      var now=Date.now();
+      msLeft-=(now-lastTick);
+      lastTick=now;
+      secsEl.textContent=Math.max(Math.ceil(msLeft/1000),0);
+      if(msLeft<=0){ clearInterval(countdownTimer); _close(); }
+    }
+
+    function _start(){
+      lastTick=Date.now();
+      bar.style.animationPlayState='running';
+      closeTimer=setTimeout(_close, msLeft);
+      countdownTimer=setInterval(_tick, 1000);
+    }
+
+    function _pause(){
+      if(paused) return;
+      paused=true;
+      var now=Date.now();
+      msLeft-=(now-lastTick);
+      clearTimeout(closeTimer);
+      clearInterval(countdownTimer);
+      bar.style.animationPlayState='paused';
+    }
+
+    function _resume(){
+      if(!paused) return;
+      paused=false;
+      _start();
+    }
+
+    _start();
 
     function _close(){
       clearTimeout(closeTimer);
+      clearInterval(countdownTimer);
       ov.classList.remove('show');
       setTimeout(function(){ ov.remove(); }, 350);
     }
+    card.addEventListener('mouseenter', _pause);
+    card.addEventListener('mouseleave', _resume);
     ov.addEventListener('click', function(e){
       if(e.target===ov) _close();
       if(e.target.closest('.tm-promo-close')) _close();
