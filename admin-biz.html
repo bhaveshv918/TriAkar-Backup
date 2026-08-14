@@ -6511,13 +6511,18 @@ async function printQuotation(id){
   if(error||!q){ if(win) win.close(); toast('Could not load quotation','error'); return; }
   const items=(Array.isArray(q.items)?q.items:[]).map(it=>{
     const qty=parseInt(it.qty)||1, rate=parseFloat(it.rate)||0, gst=parseFloat(it.gst)||0;
-    const gross=it.pricingMode==='gram' ? qty*(parseFloat(it.grams)||0)*rate : qty*rate;
+    // unitRate is the actual per-qty rate entered (grams factored in for ₹/gram
+    // items), kept separate from the discount so the printed Rate column always
+    // shows what was typed in, never a value shrunk by the discount.
+    const unitRate=it.pricingMode==='gram' ? (parseFloat(it.grams)||0)*rate : rate;
+    const gross=qty*unitRate;
     const disc=Math.min(parseFloat(it.disc)||0,gross);
     const base=gross-disc;
     return {
       product_name:it.name||'—', qty, gst_rate:gst, hsn_code:it.hsn||'',
       selling_price:Math.round(base*(1+gst/100)*100)/100,
       discount_amount:disc,
+      unit_rate:Math.round(unitRate*100)/100,
       variant:[it.variant||'', (it.pricingMode==='gram'&&it.grams)?`${it.grams}g`:''].filter(Boolean).join(' · '),
       remarks:it.remarks||'',
     };
@@ -12008,7 +12013,12 @@ async function printInvoice(d, type, docKind, win){
     const igst=(type==='gst'&&irate>0)?iamt_incl-(iamt_incl/(1+irate/100)):0;
     // For GST invoices show taxable (ex-GST) amounts in the rate/amount columns
     const iamt=iamt_incl-igst;
-    const iunit_show=iqty>0 ? ((type==='gst'&&irate>0)?iamt/iqty:iamt_incl/iqty) : ((type==='gst'&&irate>0)?iamt:iamt_incl);
+    // Rate column: show the actual rate entered (excl. GST, before discount), not a
+    // value back-derived from the discounted line total, so a discount never makes
+    // it look like the rate itself changed. Falls back to the old derivation for
+    // rows that don't carry an explicit unit_rate (orders/records built pre-fix).
+    const iunit_show=it.unit_rate!=null ? parseFloat(it.unit_rate) :
+      (iqty>0 ? ((type==='gst'&&irate>0)?iamt/iqty:iamt_incl/iqty) : ((type==='gst'&&irate>0)?iamt:iamt_incl));
     subtotal+=iamt; gstAmt+=igst; totalDisc+=idisc;
     if(showGstCols){
       const hk=it.hsn_code||'—';
