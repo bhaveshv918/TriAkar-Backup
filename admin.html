@@ -1844,6 +1844,17 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
     </div>
 
     <div class="p-head" style="margin-top:36px">
+      <div class="p-title">All Uploads <span style="font-weight:400;color:var(--text-3);font-size:12px">— every model uploaded and quoted, not just ones that became orders</span></div>
+      <div class="p-actions"><input type="text" id="iqUploadSearch" placeholder="Search name, email, file..." oninput="filterIqUploads()" style="min-width:180px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)"></div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Model</th><th>Customer</th><th>Printer</th><th>Material</th><th>Infill</th><th>Weight/Time</th><th>Price</th><th>Status</th></tr></thead>
+        <tbody id="iqUploadsBody"><tr><td colspan="9" class="tbl-msg">Loading...</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="p-head" style="margin-top:36px">
       <div class="p-title">Materials Catalog</div>
       <div class="p-actions"><button class="btn-secondary" onclick="addIqMaterial()">+ Add material</button></div>
     </div>
@@ -6037,7 +6048,55 @@ async function markEnquiryRead(id){
 let _iqOrders=[],_iqMaterials=[],_iqPrinters=[];
 
 async function loadInstantQuotes(){
-  await Promise.all([loadIqOrders(),loadIqMaterials(),loadIqPrinters()]);
+  await Promise.all([loadIqOrders(),loadIqMaterials(),loadIqPrinters(),loadIqUploads()]);
+}
+
+/* Every uploaded model + computed quote, regardless of whether it became an
+   order — a standing record for the business, not just an order sub-view. */
+let _iqUploads=[],_iqProfiles={};
+async function loadIqUploads(){
+  const{data,error}=await sb.from('instant_quote_requests').select('*').order('created_at',{ascending:false}).limit(500);
+  if(error){document.getElementById('iqUploadsBody').innerHTML='<tr><td colspan="9" class="tbl-msg">Error loading uploads</td></tr>';return}
+  _iqUploads=data||[];
+  const userIds=[...new Set(_iqUploads.map(q=>q.user_id).filter(Boolean))];
+  if(userIds.length){
+    const{data:profiles}=await sb.from('profiles').select('id,full_name,phone').in('id',userIds);
+    _iqProfiles={};
+    (profiles||[]).forEach(p=>{_iqProfiles[p.id]=p;});
+  }
+  renderIqUploads(_iqUploads);
+}
+
+function renderIqUploads(list){
+  const tbody=document.getElementById('iqUploadsBody');
+  if(!list.length){tbody.innerHTML='<tr><td colspan="9" class="tbl-msg">No uploads yet.</td></tr>';return}
+  const statusBadge={quoted:'badge-yellow',in_cart:'badge-yellow',ordered:'badge-green',expired:'badge-red'};
+  tbody.innerHTML=list.map(q=>{
+    const prof=_iqProfiles[q.user_id]||{};
+    return '<tr>'
+      +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(q.created_at)+'</td>'
+      +'<td>'+(q.model_file_url?'<a href="'+esc(q.model_file_url)+'" target="_blank" rel="noopener" download>'+esc(q.file_name||'model')+' ↓</a>':esc(q.file_name||'—'))+'</td>'
+      +'<td style="font-size:11px">'+esc(prof.full_name||'—')+'<br>'+esc(prof.phone||'')+'</td>'
+      +'<td>'+esc(_iqPrinterName(q.printer_id))+'</td>'
+      +'<td>'+esc(_iqMaterialName(q.material_id))+'</td>'
+      +'<td>'+esc(String(q.infill_percent||''))+'%</td>'
+      +'<td style="font-size:11px">'+esc(String(q.estimated_weight_g||'—'))+'g / '+esc(String(q.estimated_print_time_hours||'—'))+'h</td>'
+      +'<td>₹'+Number(q.final_price||0).toLocaleString('en-IN')+'</td>'
+      +'<td><span class="badge '+(statusBadge[q.status]||'badge-yellow')+'">'+esc(q.status||'—')+'</span></td>'
+      +'</tr>';
+  }).join('');
+}
+
+function filterIqUploads(){
+  const term=(document.getElementById('iqUploadSearch').value||'').toLowerCase();
+  if(!term){renderIqUploads(_iqUploads);return}
+  renderIqUploads(_iqUploads.filter(q=>{
+    const prof=_iqProfiles[q.user_id]||{};
+    return (q.file_name||'').toLowerCase().includes(term)
+      ||(prof.full_name||'').toLowerCase().includes(term)
+      ||(prof.phone||'').toLowerCase().includes(term)
+      ||(q.status||'').toLowerCase().includes(term);
+  }));
 }
 
 async function loadIqOrders(){
