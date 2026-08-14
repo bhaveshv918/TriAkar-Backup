@@ -141,6 +141,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
    nothing that was visible before is now hidden by default, collapsing any card
    you don't need right now is opt-in, not required. */
 .settings-card{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+/* Settings/Documents "Common Settings" tab: a real fixed 2-column grid (was
+   auto-fit, which only ever actually rendered as 1 column at this container's
+   width), frequently-changed cards (Terms & Notes, Operational Defaults) on
+   top, set-once cards (Business Identity, Contact, Bank) below. */
+.settings-grid-2col{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+@media(max-width:860px){.settings-grid-2col{grid-template-columns:1fr}}
 .settings-card>summary{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px}
 .settings-card>summary::-webkit-details-marker{display:none}
 .settings-card>summary::after{content:'▾';font-size:11px;flex-shrink:0;transition:transform .2s ease;color:var(--text-3)}
@@ -3771,10 +3777,42 @@ html[data-theme="dark"] .biz-login{
         </div>
       </div>
 
-      <div data-doc-tab="common" style="max-width:1100px;display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;align-items:start">
+      <div data-doc-tab="common" class="settings-grid-2col" style="max-width:1100px">
 
-        <details class="settings-card" open>
-          <summary>Business Identity</summary>
+        <!-- Changes often (new preset every time a use-case comes up), top of the
+             page, in its own full-width row so the growing list has room. -->
+        <details class="settings-card" open style="grid-column:1/-1">
+          <summary>Terms &amp; Notes Presets <span style="font-weight:400;text-transform:none;letter-spacing:0">— changes often</span></summary>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">Named reusable text blocks, insert one from a dropdown instead of retyping, manual override always still available. Same list feeds Quotation's Terms &amp; Conditions, the Invoice's own Terms &amp; Conditions, and Add Order's Notes field (which prints on the Order Record, and on the Invoice too if that's turned on above).</div>
+          <div style="display:grid;grid-template-columns:180px 1fr auto;gap:8px;margin-bottom:10px">
+            <input type="text" id="tnc_name" placeholder="Preset name">
+            <textarea id="tnc_text" rows="2" placeholder="Preset text" style="resize:vertical"></textarea>
+            <button class="btn btn-primary btn-sm" onclick="addTncPreset()">+ Add</button>
+          </div>
+          <div id="tncPresetList"></div>
+        </details>
+
+        <!-- Also changes fairly often as the business evolves (rates, HSN per new
+             product category), paired next to Terms & Notes in the same top row. -->
+        <details class="settings-card" open data-mobile-collapse>
+          <summary>Operational Defaults <span style="font-weight:400;text-transform:none;letter-spacing:0">— changes often, synced across Add Sale / Products / Filament</span></summary>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="form-group"><label>Default HSN</label><input type="text" id="def_hsn" placeholder="3926"></div>
+            <div class="form-group"><label>Default GST %</label><select id="def_gst"><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select></div>
+            <div class="form-group"><label>Default Making Cost ₹</label><input type="number" id="def_cogs" step="0.01" placeholder="0"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:10px">SKU category codes: HOM · WAL · FIG · PER · GFT · UTL · TEC · CUS &nbsp;·&nbsp; per-document-type field toggles live under the Invoice / Quotation / Order Record tabs above.</div>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+            <button class="btn btn-primary btn-sm" onclick="saveBizDefaults()">Save</button>
+            <span id="defaultsSavedMsg" style="font-size:12px;color:var(--green);display:none">✓ Saved</span>
+          </div>
+        </details>
+
+        <!-- Set once and rarely touched again from here on: identity, contact,
+             banking. Bottom half of the page, Bank gets the full-width row since
+             it also carries the QR/stamp uploads. -->
+        <details class="settings-card" open data-mobile-collapse>
+          <summary>Business Identity <span style="font-weight:400;text-transform:none;letter-spacing:0">— set once</span></summary>
           <div class="form-group">
             <label>Business / Brand Name</label>
             <input type="text" id="cfg_name" placeholder="TriAkar">
@@ -3800,7 +3838,7 @@ html[data-theme="dark"] .biz-login{
         </details>
 
         <details class="settings-card" open data-mobile-collapse>
-          <summary>Contact Details</summary>
+          <summary>Contact Details <span style="font-weight:400;text-transform:none;letter-spacing:0">— set once</span></summary>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div class="form-group">
               <label>Phone</label>
@@ -3821,48 +3859,29 @@ html[data-theme="dark"] .biz-login{
           </div>
         </details>
 
-        <details class="settings-card" open data-mobile-collapse>
-          <summary>Bank Details <span style="font-weight:400;text-transform:none;letter-spacing:0">(payment info + QR + stamp, shared by Invoice, Quotation &amp; Order Record)</span></summary>
-          <div class="form-group"><label>Account Holder Name</label><input type="text" id="cfg_bank_holder" placeholder="TriAkar / your name"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div class="form-group"><label>Bank Name</label><input type="text" id="cfg_bank_name" placeholder="State Bank of India"></div>
-            <div class="form-group"><label>Branch</label><input type="text" id="cfg_bank_branch" placeholder="Greater Noida West"></div>
-            <div class="form-group"><label>Account Number</label><input type="text" id="cfg_bank_acc" style="font-family:var(--mono);letter-spacing:.05em"></div>
-            <div class="form-group"><label>IFSC</label><input type="text" id="cfg_bank_ifsc" style="font-family:var(--mono);letter-spacing:.05em" placeholder="SBIN0000000"></div>
-            <div class="form-group"><label>Account Type</label><input type="text" id="cfg_bank_actype" placeholder="Current Account"></div>
+        <details class="settings-card" open data-mobile-collapse style="grid-column:1/-1">
+          <summary>Bank Details <span style="font-weight:400;text-transform:none;letter-spacing:0">— set once, payment info + QR + stamp, shared by Invoice, Quotation &amp; Order Record</span></summary>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+            <div>
+              <div class="form-group"><label>Account Holder Name</label><input type="text" id="cfg_bank_holder" placeholder="TriAkar / your name"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div class="form-group"><label>Bank Name</label><input type="text" id="cfg_bank_name" placeholder="State Bank of India"></div>
+                <div class="form-group"><label>Branch</label><input type="text" id="cfg_bank_branch" placeholder="Greater Noida West"></div>
+                <div class="form-group"><label>Account Number</label><input type="text" id="cfg_bank_acc" style="font-family:var(--mono);letter-spacing:.05em"></div>
+                <div class="form-group"><label>IFSC</label><input type="text" id="cfg_bank_ifsc" style="font-family:var(--mono);letter-spacing:.05em" placeholder="SBIN0000000"></div>
+                <div class="form-group"><label>Account Type</label><input type="text" id="cfg_bank_actype" placeholder="Current Account"></div>
+                <div class="form-group"><label>Payment Due, days from invoice date</label><input type="number" id="cfg_due_days" step="1" min="0" placeholder="7"></div>
+              </div>
+            </div>
+            <div>
+              <div id="bizCommonQr"></div>
+              <div id="bizCommonStamp"></div>
+            </div>
           </div>
-          <div class="form-group"><label>Payment Due, days from invoice date</label><input type="number" id="cfg_due_days" step="1" min="0" placeholder="7"></div>
-          <div id="bizCommonQr"></div>
-          <div id="bizCommonStamp"></div>
           <div style="display:flex;gap:10px;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
             <button class="btn btn-primary btn-sm" onclick="saveBizSettings('settingsSavedMsg_bank')">Save</button>
             <span id="settingsSavedMsg_bank" style="font-size:12px;color:var(--green);display:none">✓ Saved</span>
           </div>
-        </details>
-
-        <details class="settings-card" open data-mobile-collapse>
-          <summary>Operational Defaults <span style="font-weight:400;text-transform:none;letter-spacing:0">— synced, used across Add Sale / Products / Filament</span></summary>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div class="form-group"><label>Default HSN</label><input type="text" id="def_hsn" placeholder="3926"></div>
-            <div class="form-group"><label>Default GST %</label><select id="def_gst"><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select></div>
-            <div class="form-group"><label>Default Making Cost ₹</label><input type="number" id="def_cogs" step="0.01" placeholder="0"></div>
-          </div>
-          <div style="font-size:11px;color:var(--text-3);margin-top:10px">SKU category codes: HOM · WAL · FIG · PER · GFT · UTL · TEC · CUS &nbsp;·&nbsp; per-document-type field toggles live under the Invoice / Quotation / Order Record tabs above.</div>
-          <div style="display:flex;gap:10px;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
-            <button class="btn btn-primary btn-sm" onclick="saveBizDefaults()">Save</button>
-            <span id="defaultsSavedMsg" style="font-size:12px;color:var(--green);display:none">✓ Saved</span>
-          </div>
-        </details>
-
-        <details class="settings-card" open style="grid-column:1/-1">
-          <summary>Terms &amp; Notes Presets</summary>
-          <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">Named reusable text blocks, insert one from a dropdown instead of retyping, manual override always still available. Same list feeds Quotation's Terms &amp; Conditions, the Invoice's own Terms &amp; Conditions, and Add Order's Notes field (which prints on the Order Record, and on the Invoice too if that's turned on above).</div>
-          <div style="display:grid;grid-template-columns:180px 1fr auto;gap:8px;margin-bottom:10px">
-            <input type="text" id="tnc_name" placeholder="Preset name">
-            <textarea id="tnc_text" rows="2" placeholder="Preset text" style="resize:vertical"></textarea>
-            <button class="btn btn-primary btn-sm" onclick="addTncPreset()">+ Add</button>
-          </div>
-          <div id="tncPresetList"></div>
         </details>
 
       </div>
