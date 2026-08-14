@@ -174,6 +174,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
    gives it the same clearly-a-button presence every other tonal icon button has. */
 .btn-icon-muted{--tint:var(--text-2);--tint-bg:var(--bg-3)}
 .btn-icon-muted.btn-icon-tint{border-color:var(--border-h)}
+/* Toggle buttons (Filters, Pending & Unlocked) reuse .btn-icon-tint but need a
+   visibly-pressed state, plain tint alone doesn't read as "on". */
+.btn-icon-tint.active{--tint:#fff;--tint-bg:var(--accent);border-color:var(--accent)}
 
 /* ── Skeleton loading (Phase 10 Group 3, L) ──────────────────
    Admin's own token set (--bg-2/--bg-3), not the customer-site skeleton CSS,
@@ -2152,7 +2155,10 @@ html[data-theme="dark"] .biz-login{
           <div class="p-title">Sales</div>
           <div class="p-sub" id="salesviewSubtitle">Confirmed orders, excludes cancelled &amp; returned</div>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="toggleStatsView('salesviewKpi','salesviewCompare')">📊 View Stats</button>
+        <button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="toggleStatsView('salesviewKpi','salesviewCompare')" style="gap:5px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          View Stats
+        </button>
       </div>
       <div id="salesviewKpi" style="display:none;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
       <div id="salesviewCompare" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;flex-wrap:wrap;gap:24px"></div>
@@ -2161,9 +2167,18 @@ html[data-theme="dark"] .biz-login{
            the ones that still need work or a payment follow-up. -->
       <div class="filter-bar" style="align-items:center">
         <input type="text" id="svSearch" placeholder="Search order / product / customer…" oninput="loadSalesview()" style="min-width:200px;flex:1">
-        <button class="btn btn-ghost btn-sm" id="svPendingBtn" onclick="toggleSvPending()" title="Orders that are neither completed/delivered nor marked paid">⏳ Pending &amp; Unlocked</button>
-        <button class="btn btn-ghost btn-sm" id="svToggleBtn" onclick="toggleSalesviewFilters()">⚙ Filters<span id="svActiveCount" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:6px">0</span></button>
-        <button class="btn btn-ghost btn-sm" onclick="clearSalesviewFilters()">Clear</button>
+        <button class="btn btn-icon-tint btn-icon-accept btn-sm" id="svPendingBtn" onclick="toggleSvPending()" title="Orders that are neither completed/delivered nor marked paid" style="gap:5px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>
+          Pending &amp; Unlocked
+        </button>
+        <button class="btn btn-icon-tint btn-icon-muted btn-sm" id="svToggleBtn" onclick="toggleSalesviewFilters()" style="gap:5px">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          Filters<span id="svActiveCount" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:2px">0</span>
+        </button>
+        <button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="clearSalesviewFilters()" style="gap:5px">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Clear
+        </button>
       </div>
       <div id="salesviewFilters" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow)">
         <div class="form-grid">
@@ -2271,9 +2286,18 @@ html[data-theme="dark"] .biz-login{
            ever made. Same idiom as All Orders' sfView/sfMonth filters. -->
       <div class="filter-bar" style="align-items:center;margin-bottom:8px">
         <input type="text" id="qtSearch" placeholder="Search quotation # / customer…" oninput="loadQuotations()" style="min-width:200px;flex:1">
-        <button class="btn btn-ghost btn-sm" onclick="showQuotationsFy()" title="Jump to This Financial Year">📅 This FY</button>
-        <button class="btn btn-ghost btn-sm" id="qtToggleBtn" onclick="toggleQuotationFilters()">⚙ Filters<span id="qtActiveCount" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:6px">0</span></button>
-        <button class="btn btn-ghost btn-sm" onclick="clearQuotationFilters()">Clear</button>
+        <button class="btn btn-icon-tint btn-icon-accept btn-sm" onclick="showQuotationsFy()" title="Jump to This Financial Year" style="gap:5px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          This FY
+        </button>
+        <button class="btn btn-icon-tint btn-icon-muted btn-sm" id="qtToggleBtn" onclick="toggleQuotationFilters()" style="gap:5px">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          Filters<span id="qtActiveCount" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:2px">0</span>
+        </button>
+        <button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="clearQuotationFilters()" style="gap:5px">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Clear
+        </button>
       </div>
       <div id="quotationFilters" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow)">
         <div class="form-grid">
