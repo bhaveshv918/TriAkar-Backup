@@ -100,9 +100,12 @@
 .iq-error{background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA;border-radius:8px;padding:12px 14px;font-size:12.5px;margin-bottom:14px;display:none}
 
 /* ── Mobile bottom-anchored CTA ─────────────── */
-.iq-mobile-bar{display:none}
+/* Shown only on narrow viewports (media query), and only once a price exists
+   (.has-price, toggled in JS via classList — NOT inline style, which would
+   override the media query and show this floating bar on desktop too). */
+.iq-mobile-bar{display:none!important}
 @media(max-width:1000px){
-  .iq-mobile-bar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:60;align-items:center;justify-content:space-between;gap:14px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:rgba(15,15,13,.88);-webkit-backdrop-filter:blur(16px) saturate(150%);backdrop-filter:blur(16px) saturate(150%);border-top:1px solid rgba(255,255,255,.1)}
+  .iq-mobile-bar.has-price{display:flex!important;position:fixed;left:0;right:0;bottom:0;z-index:60;align-items:center;justify-content:space-between;gap:14px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:rgba(15,15,13,.88);-webkit-backdrop-filter:blur(16px) saturate(150%);backdrop-filter:blur(16px) saturate(150%);border-top:1px solid rgba(255,255,255,.1)}
   .iq-mobile-price{color:#fff}
   .iq-mobile-price b{font-family:var(--font-g);font-size:20px;display:block}
   .iq-mobile-price span{font-size:10px;color:var(--stone-l);text-transform:uppercase;letter-spacing:.08em}
@@ -184,7 +187,7 @@
   </div>
 </div>
 
-<div class="iq-mobile-bar" id="iqMobileBar" style="display:none">
+<div class="iq-mobile-bar" id="iqMobileBar">
   <div class="iq-mobile-price"><b id="iqMobilePrice">₹0</b><span>Instant estimate</span></div>
   <button class="btn btn-accent" onclick="IQ.addToCart()">Add to Cart →</button>
 </div>
@@ -365,7 +368,7 @@ const IQ = (function(){
     ['iqStepPrinter','iqStepMaterial','iqStepInfill'].forEach(id => document.getElementById(id).classList.remove('active','done'));
     document.getElementById('iqPriceBox').style.display = 'none';
     document.getElementById('iqFinalizeEmpty').style.display = 'block';
-    document.getElementById('iqMobileBar').style.display = 'none';
+    document.getElementById('iqMobileBar').classList.remove('has-price');
     showError('');
   }
 
@@ -450,7 +453,7 @@ const IQ = (function(){
       + (bd.minimum_applied ? `<div class="iq-bd-row"><span>Minimum charge applied</span><strong>₹${Number(bd.minimum_charge).toLocaleString('en-IN')}</strong></div>` : '');
 
     const mobileBar = document.getElementById('iqMobileBar');
-    mobileBar.style.display = 'flex';
+    mobileBar.classList.add('has-price');
     document.getElementById('iqMobilePrice').textContent = '₹' + Number(q.final_price).toLocaleString('en-IN');
   }
 
