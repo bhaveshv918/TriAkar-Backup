@@ -561,17 +561,18 @@ html[data-theme="dark"] #panelQuickadd.qa-bg-quotation{background:linear-gradien
 .stat-pill-pulse-dot{position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;box-shadow:0 0 0 2px var(--bg-1);animation:reminder-pulse 1.6s ease-in-out infinite}
 @keyframes reminder-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.7)}}
 /* Order-tracking KPIs (#openKpi: Upcoming/In Production/Dispatched/SLA Breached/
-   Due Today) get their own bigger, black AKAR-toned card, deliberately distinct
-   from the lighter reminder pills above them, these are the numbers checked every
-   single day, worth demanding a second look rather than blending into the row. */
+   Due Today) get their own bigger, boldly colored card (tonal, matching each
+   metric's own color), deliberately larger than the reminder pills above them,
+   these are the numbers checked every single day, worth demanding a second
+   look rather than blending into the row. */
 .stat-kpi-row{gap:10px;margin-top:12px}
-.stat-kpi{position:relative;display:flex;align-items:center;gap:12px;background:#151F17;border-radius:12px;padding:12px 18px;box-shadow:0 3px 10px rgba(0,0,0,.22);cursor:pointer;transition:transform .15s ease,box-shadow .15s ease;flex:1 1 150px;min-width:140px}
-.stat-kpi:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.32)}
-.stat-kpi-icon{flex-shrink:0;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;background:rgba(255,255,255,.08);color:var(--pill-color,#fff)}
+.stat-kpi{position:relative;display:flex;align-items:center;gap:12px;background:var(--pill-color-bg,var(--bg-2));border:1px solid var(--pill-color,var(--border));border-radius:12px;padding:12px 18px;box-shadow:var(--shadow);cursor:pointer;transition:transform .15s ease,box-shadow .15s ease;flex:1 1 150px;min-width:140px}
+.stat-kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow-h)}
+.stat-kpi-icon{flex-shrink:0;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;background:var(--bg-1);color:var(--pill-color,var(--text-3))}
 .stat-kpi-body{min-width:0}
-.stat-kpi-val{font-size:24px;font-weight:800;color:#fff;line-height:1.1}
-.stat-kpi-label{font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:rgba(255,255,255,.5);white-space:nowrap}
-.stat-kpi-urgent{box-shadow:0 0 0 1.5px var(--pill-color),0 3px 10px rgba(0,0,0,.22)}
+.stat-kpi-val{font-size:24px;font-weight:800;color:var(--pill-color,var(--text));line-height:1.1}
+.stat-kpi-label{font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-3);white-space:nowrap}
+.stat-kpi-urgent{box-shadow:0 0 0 1.5px var(--pill-color)}
 
 /* ── Top header, ONE responsive element at every width ───────
    (Round-2 #4.1 desktop header, later unified with what used to be a
@@ -7923,16 +7924,17 @@ async function loadOpenOrders(){
   renderOpenRemindersRow();
   const badge=document.getElementById('openCount_hdr'); if(badge) badge.textContent=groups.length;
   const kpi=document.getElementById('openKpi');
-  // Bigger, black AKAR-toned cards, not the lighter reminder pills, these five
-  // numbers (Upcoming/In Production/Dispatched/SLA Breached/Due Today) are the
-  // ones checked every single day and are meant to draw the eye first.
-  const kpiCard=(color,icon,label,val,title,action,urgent)=>`<div class="stat-kpi${urgent?' stat-kpi-urgent':''}" style="--pill-color:${color}" title="${esc(title)}" onclick="${action}"><div class="stat-kpi-icon">${icon}</div><div class="stat-kpi-body"><div class="stat-kpi-val">${val}</div><div class="stat-kpi-label">${label}</div></div></div>`;
+  // Bigger, boldly colored tonal cards (not black, not the lighter reminder
+  // pills), these five numbers (Upcoming/In Production/Dispatched/SLA Breached/
+  // Due Today) are the ones checked every single day and are meant to draw the
+  // eye first.
+  const kpiCard=(color,bg,icon,label,val,title,action,urgent)=>`<div class="stat-kpi${urgent?' stat-kpi-urgent':''}" style="--pill-color:${color};--pill-color-bg:${bg}" title="${esc(title)}" onclick="${action}"><div class="stat-kpi-icon">${icon}</div><div class="stat-kpi-body"><div class="stat-kpi-val">${val}</div><div class="stat-kpi-label">${label}</div></div></div>`;
   if(kpi) kpi.innerHTML=
-    kpiCard('#fff','◷','Upcoming Orders',esc(upcomingOrders),'Manual entry, click to edit. Not counted in any total','editUpcomingOrders()')
-    +kpiCard('var(--blue)','⚙','In Production',prodGroups.length,'Show all in-production orders',"openOpenOrdersDrawer('production')")
-    +kpiCard('var(--purple)','➤','Dispatched',trackGroups.length,'Show all dispatched orders',"openOpenOrdersDrawer('dispatched')")
-    +kpiCard('var(--red)','⚠','SLA Breached',breached,'Show breached orders',"openOpenOrdersDrawer('breached')",breached>0)
-    +kpiCard('var(--yellow)','◷','Due Today',dueToday,'Show orders due today',"openOpenOrdersDrawer('dueToday')",dueToday>0);
+    kpiCard('var(--text-2)','var(--bg-3)','◷','Upcoming Orders',esc(upcomingOrders),'Manual entry, click to edit. Not counted in any total','editUpcomingOrders()')
+    +kpiCard('var(--blue)','var(--blue-bg)','⚙','In Production',prodGroups.length,'Show all in-production orders',"openOpenOrdersDrawer('production')")
+    +kpiCard('var(--purple)','var(--purple-bg)','➤','Dispatched',trackGroups.length,'Show all dispatched orders',"openOpenOrdersDrawer('dispatched')")
+    +kpiCard('var(--red)','var(--red-bg)','⚠','SLA Breached',breached,'Show breached orders',"openOpenOrdersDrawer('breached')",breached>0)
+    +kpiCard('var(--yellow)','var(--yellow-bg)','◷','Due Today',dueToday,'Show orders due today',"openOpenOrdersDrawer('dueToday')",dueToday>0);
   loadFilamentLowStockAlert();
   loadShopPunchStatus();
 
