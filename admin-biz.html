@@ -560,6 +560,18 @@ html[data-theme="dark"] #panelQuickadd.qa-bg-quotation{background:linear-gradien
 .stat-pill-clear{opacity:.75}
 .stat-pill-pulse-dot{position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;box-shadow:0 0 0 2px var(--bg-1);animation:reminder-pulse 1.6s ease-in-out infinite}
 @keyframes reminder-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.7)}}
+/* Order-tracking KPIs (#openKpi: Upcoming/In Production/Dispatched/SLA Breached/
+   Due Today) get their own bigger, black AKAR-toned card, deliberately distinct
+   from the lighter reminder pills above them, these are the numbers checked every
+   single day, worth demanding a second look rather than blending into the row. */
+.stat-kpi-row{gap:10px;margin-top:12px}
+.stat-kpi{position:relative;display:flex;align-items:center;gap:12px;background:#151F17;border-radius:12px;padding:12px 18px;box-shadow:0 3px 10px rgba(0,0,0,.22);cursor:pointer;transition:transform .15s ease,box-shadow .15s ease;flex:1 1 150px;min-width:140px}
+.stat-kpi:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.32)}
+.stat-kpi-icon{flex-shrink:0;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;background:rgba(255,255,255,.08);color:var(--pill-color,#fff)}
+.stat-kpi-body{min-width:0}
+.stat-kpi-val{font-size:24px;font-weight:800;color:#fff;line-height:1.1}
+.stat-kpi-label{font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:rgba(255,255,255,.5);white-space:nowrap}
+.stat-kpi-urgent{box-shadow:0 0 0 1.5px var(--pill-color),0 3px 10px rgba(0,0,0,.22)}
 
 /* ── Top header, ONE responsive element at every width ───────
    (Round-2 #4.1 desktop header, later unified with what used to be a
@@ -1322,10 +1334,6 @@ html[data-theme="dark"] .biz-login{
          OPEN ORDERS, command center (B16, landing)
     ═══════════════════════════════════════════════════════ -->
     <div class="panel active" id="panelOpenorders">
-      <div class="p-head">
-        <div><div class="p-title">Task</div><div class="p-sub">Not just orders, everything due today: production, dispatch tracking, GST filing &amp; low-stock alerts</div></div>
-      </div>
-
       <!-- Daily quick-log strip, the landing tab doubles as a punch-clock / daily log,
            so the things you'd otherwise open 3 other tabs for are one click away here. -->
       <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px">
@@ -1411,7 +1419,7 @@ html[data-theme="dark"] .biz-login{
              one unit instead of two disconnected blocks. -->
         <div class="stat-strip" style="margin:12px 0 0;padding-top:12px;border-top:1px solid var(--border)">
           <div id="openRemindersRow" class="stat-strip" style="margin:0"></div>
-          <div id="openKpi" class="stat-strip" style="margin:0"></div>
+          <div id="openKpi" class="stat-strip stat-kpi-row" style="margin:12px 0 0"></div>
         </div>
         <div id="openGstReminder" style="display:none;margin:10px 0 0"></div>
         <div id="openFilamentAlert" style="display:none;margin:10px 0 0"></div>
@@ -1472,6 +1480,14 @@ html[data-theme="dark"] .biz-login{
           </table>
         </div>
       </details>
+
+      <!-- Was the page header at the top; moved down here as a closing note instead,
+           the tab title is already shown in the top nav, this reads better as a
+           reminder of what the tab covers once you've scrolled through it. -->
+      <div style="text-align:center;padding:24px 20px 8px;color:var(--text-3);font-size:11.5px">
+        <div style="font-weight:700;letter-spacing:.4px;text-transform:uppercase;font-size:10px;color:var(--text-2);margin-bottom:3px">Task</div>
+        Everything due today, in one place: production, dispatch tracking, GST filing &amp; low-stock alerts.
+      </div>
     </div><!-- /openorders -->
 
     <!-- ══════════════════════════════════════════════════════
@@ -4818,7 +4834,7 @@ function applyStaffTabRestrictions(){
 
 function updateBizClock(){
   const el=document.getElementById('bizTopTime'); if(!el) return;
-  el.textContent=new Date().toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+  el.textContent=new Date().toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hour12:true});
 }
 
 // Boot the app once authenticated
@@ -7907,15 +7923,16 @@ async function loadOpenOrders(){
   renderOpenRemindersRow();
   const badge=document.getElementById('openCount_hdr'); if(badge) badge.textContent=groups.length;
   const kpi=document.getElementById('openKpi');
-  // bg explicit rather than derived from color (var(--text-3) has no matching
-  // -bg counterpart the way the semantic colors do).
-  const kpiPill=(color,bg,icon,label,val,title,action)=>`<div class="stat-pill stat-pill-active" style="--pill-color:${color};--pill-color-bg:${bg}" title="${esc(title)}" onclick="${action}"><div class="stat-pill-icon">${icon}</div><div class="stat-pill-body"><span class="stat-pill-val">${val}</span><span class="stat-pill-label">${label}</span></div></div>`;
+  // Bigger, black AKAR-toned cards, not the lighter reminder pills, these five
+  // numbers (Upcoming/In Production/Dispatched/SLA Breached/Due Today) are the
+  // ones checked every single day and are meant to draw the eye first.
+  const kpiCard=(color,icon,label,val,title,action,urgent)=>`<div class="stat-kpi${urgent?' stat-kpi-urgent':''}" style="--pill-color:${color}" title="${esc(title)}" onclick="${action}"><div class="stat-kpi-icon">${icon}</div><div class="stat-kpi-body"><div class="stat-kpi-val">${val}</div><div class="stat-kpi-label">${label}</div></div></div>`;
   if(kpi) kpi.innerHTML=
-    kpiPill('var(--text-3)','var(--bg-3)','◷','Upcoming Orders',esc(upcomingOrders),'Manual entry, click to edit. Not counted in any total','editUpcomingOrders()')
-    +kpiPill('var(--blue)','var(--blue-bg)','⚙','In Production',prodGroups.length,'Show all in-production orders',"openOpenOrdersDrawer('production')")
-    +kpiPill('var(--purple)','var(--purple-bg)','➤','Dispatched',trackGroups.length,'Show all dispatched orders',"openOpenOrdersDrawer('dispatched')")
-    +kpiPill('var(--red)','var(--red-bg)','⚠','SLA Breached',breached,'Show breached orders',"openOpenOrdersDrawer('breached')")
-    +kpiPill('var(--yellow)','var(--yellow-bg)','◷','Due Today',dueToday,'Show orders due today',"openOpenOrdersDrawer('dueToday')");
+    kpiCard('#fff','◷','Upcoming Orders',esc(upcomingOrders),'Manual entry, click to edit. Not counted in any total','editUpcomingOrders()')
+    +kpiCard('var(--blue)','⚙','In Production',prodGroups.length,'Show all in-production orders',"openOpenOrdersDrawer('production')")
+    +kpiCard('var(--purple)','➤','Dispatched',trackGroups.length,'Show all dispatched orders',"openOpenOrdersDrawer('dispatched')")
+    +kpiCard('var(--red)','⚠','SLA Breached',breached,'Show breached orders',"openOpenOrdersDrawer('breached')",breached>0)
+    +kpiCard('var(--yellow)','◷','Due Today',dueToday,'Show orders due today',"openOpenOrdersDrawer('dueToday')",dueToday>0);
   loadFilamentLowStockAlert();
   loadShopPunchStatus();
 
@@ -8044,9 +8061,9 @@ async function loadShopPunchStatus(){
   if(!data){ el.textContent='Not logged yet today'; return; }
   if(data.closed_all_day){ el.textContent='Closed today'+(data.reason?', '+data.reason:''); return; }
   const bits=[];
-  if(data.open_time) bits.push('Opened '+data.open_time);
-  if(data.break_start) bits.push('Break '+data.break_start+(data.break_end?'–'+data.break_end:'–…'));
-  if(data.close_time) bits.push('Closed '+data.close_time);
+  if(data.open_time) bits.push('Opened '+fmtTime12(data.open_time));
+  if(data.break_start) bits.push('Break '+fmtTime12(data.break_start)+(data.break_end?'–'+fmtTime12(data.break_end):'–…'));
+  if(data.close_time) bits.push('Closed '+fmtTime12(data.close_time));
   el.textContent=bits.length?bits.join(' · '):'Not logged yet today';
 }
 async function punchShop(action){
@@ -8059,7 +8076,7 @@ async function punchShop(action){
   // First click per action per day wins, repeat clicks are a no-op (same system for
   // all 4 buttons) so accidentally double-tapping never overwrites the real punch time.
   if(existing && existing[field]){
-    toast((LABEL[action]||'Already logged')+' already at '+existing[field].slice(0,5));
+    toast((LABEL[action]||'Already logged')+' already at '+fmtTime12(existing[field]));
     return;
   }
   const payload={date, closed_all_day:false,
@@ -8068,7 +8085,7 @@ async function punchShop(action){
   payload[field]=nowTime;
   const {error}=await sb.from('biz_shop_log').upsert(payload,{onConflict:'date'});
   if(error){ toast('Error: '+error.message,'error'); return; }
-  toast((LABEL[action]||'Logged')+' at '+nowTime);
+  toast((LABEL[action]||'Logged')+' at '+fmtTime12(nowTime));
   loadShopPunchStatus();
 }
 function toggleQuickLog(which){
@@ -8727,9 +8744,9 @@ async function loadShopLog(){
   tbody.innerHTML=rows.map(r=>`<tr>
     <td style="font-family:var(--mono);font-size:11px">${esc(r.date)}</td>
     <td><span class="badge badge-${r.closed_all_day?'cancelled':'completed'}">${r.closed_all_day?'Closed':'Open'}</span></td>
-    <td style="font-family:var(--mono);font-size:11px">${esc(r.open_time||'—')}</td>
-    <td style="font-family:var(--mono);font-size:11px">${esc(r.close_time||'—')}</td>
-    <td style="font-family:var(--mono);font-size:11px">${r.break_start?esc(r.break_start)+'–'+esc(r.break_end||''):'—'}</td>
+    <td style="font-family:var(--mono);font-size:11px">${r.open_time?esc(fmtTime12(r.open_time)):'—'}</td>
+    <td style="font-family:var(--mono);font-size:11px">${r.close_time?esc(fmtTime12(r.close_time)):'—'}</td>
+    <td style="font-family:var(--mono);font-size:11px">${r.break_start?esc(fmtTime12(r.break_start))+'–'+(r.break_end?esc(fmtTime12(r.break_end)):''):'—'}</td>
     <td style="font-size:11px;color:var(--text-3)">${esc(r.reason||'')}</td>
     <td class="td-actions"><button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editShopLog('${r.date}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteShopLog('${r.date}')">✕</button></td>
   </tr>`).join('');
@@ -8772,6 +8789,18 @@ async function loadSalesBadge(){
 
 let _salesCache=[];
 function fmtDay(s){ if(!s) return '—'; const p=String(s).slice(0,10).split('-'); if(p.length<3) return s; const mon=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(p[1])]||''; return p[2]+' '+mon+' '+p[0].slice(2); }
+// "14:05" (24-hr, how TIME columns like biz_shop_log.open_time actually come back
+// from the DB) -> "2:05 pm" for display. Every clock/timestamp shown across Biz OS
+// should read in 12-hour AM/PM, not 24-hour; this is the one place that conversion
+// happens so it stays consistent everywhere a raw "HH:MM[:SS]" needs to be shown.
+function fmtTime12(hhmm){
+  if(!hhmm) return '';
+  const [h,m]=String(hhmm).split(':').map(Number);
+  if(isNaN(h)||isNaN(m)) return hhmm;
+  const period=h>=12?'pm':'am';
+  const h12=h%12||12;
+  return `${h12}:${String(m).padStart(2,'0')} ${period}`;
+}
 // DD-Mon-YYYY, every date printed on a customer-facing document (Invoice/Quotation/
 // Order Record), distinct from fmtDay()'s "05 Aug 26" used in admin table columns.
 function fmtDocDate(s){ if(!s) return s; const p=String(s).slice(0,10).split('-'); if(p.length<3) return s; const mon=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(p[1])]||''; return p[2]+'-'+mon+'-'+p[0]; }
