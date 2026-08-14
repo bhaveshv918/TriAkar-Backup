@@ -1809,23 +1809,26 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 })();
 
-/* ══ TRIAKAR MINUTES, launch-teaser popup, once per first-time visitor ══
-   Shows on first page load ever (localStorage, not per-session) across
-   any page that includes shared.js. Close, email capture (reuses the
-   newsletter API), and a WhatsApp "contact to know more" shortcut. */
+/* ══ TRIAKAR MINUTES, launch-teaser popup, every page load ══
+   Shows on every page load (no longer gated by localStorage) across
+   any page that includes shared.js. Opens on a 30s loading screen with
+   a progress bar, then reveals the promo card. Close, email capture
+   (reuses the newsletter API), and a WhatsApp "contact to know more"
+   shortcut. */
 (function(){
-  if(localStorage.getItem('_tmPromoShown')) return;
+  var LOADING_MS=30000;
 
   function _show(){
-    if(localStorage.getItem('_tmPromoShown')) return;
-    localStorage.setItem('_tmPromoShown','1');
-
     var waHref='https://wa.me/919217555833?text='+encodeURIComponent('Hi TriAkar! I\'d like to know more about Triakar Minutes.');
 
     var ov=document.createElement('div');
     ov.className='tm-promo-ov';
     ov.innerHTML=
-      '<div class="tm-promo-card glass-a">'
+      '<div class="tm-promo-loading">'
+      + '<div class="tm-promo-loading-text">Loading Triakar Minutes…</div>'
+      + '<div class="tm-promo-loading-track"><div class="tm-promo-loading-bar"></div></div>'
+      + '</div>'
+      + '<div class="tm-promo-card glass-a" hidden>'
       + '<button type="button" class="tm-promo-close" aria-label="Close">×</button>'
       + '<div class="tm-promo-badge">Coming Soon</div>'
       + '<div class="tm-promo-title">Introducing <span class="tm-promo-accent">Triakar Minutes</span></div>'
@@ -1839,12 +1842,25 @@ document.addEventListener('DOMContentLoaded', function(){
     document.body.appendChild(ov);
     requestAnimationFrame(function(){ ov.classList.add('show'); });
 
+    var bar=ov.querySelector('.tm-promo-loading-bar');
+    requestAnimationFrame(function(){ bar.style.transitionDuration=LOADING_MS+'ms'; bar.style.width='100%'; });
+
+    var revealTimer=setTimeout(function(){
+      var loading=ov.querySelector('.tm-promo-loading');
+      var card=ov.querySelector('.tm-promo-card');
+      loading.remove();
+      card.hidden=false;
+    }, LOADING_MS);
+
     function _close(){
+      clearTimeout(revealTimer);
       ov.classList.remove('show');
       setTimeout(function(){ ov.remove(); }, 350);
     }
-    ov.querySelector('.tm-promo-close').addEventListener('click', _close);
-    ov.addEventListener('click', function(e){ if(e.target===ov) _close(); });
+    ov.addEventListener('click', function(e){
+      if(e.target===ov) _close();
+      if(e.target.closest('.tm-promo-close')) _close();
+    });
   }
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(_show, 1500); });
