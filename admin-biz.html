@@ -2642,7 +2642,7 @@ html[data-theme="dark"] .biz-login{
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="runSave(this,saveCustomer)">Save</button>
           <button class="btn btn-ghost" onclick="closeCustomerModal()">Cancel</button>
-          <button class="btn btn-danger btn-sm" id="cm_delBtn" onclick="deleteCustomer()" style="margin-left:auto;display:none">Delete</button>
+          <button class="btn btn-danger btn-sm" id="cm_delBtn" onclick="deleteCustomer()" style="margin-left:auto;display:none;gap:5px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg> Delete</button>
         </div>
       </div>
     </div>
@@ -3694,7 +3694,7 @@ html[data-theme="dark"] .biz-login{
         <div><div class="p-title">Balance Sheet</div><div class="p-sub">Bank balance + stock value vs. outstanding receivables</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <select id="bsView" onchange="loadBalanceSheet()"><option value="month">This Month</option><option value="fy">This Financial Year</option><option value="all">All Time</option></select>
-          <button class="btn btn-ghost btn-sm" onclick="editOpeningBalance()">✎ Set Opening Balance</button>
+          <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editOpeningBalance()" style="gap:5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg> Set Opening Balance</button>
         </div>
       </div>
       <div id="bsBody"></div>
@@ -6902,7 +6902,7 @@ function renderAllTncPresetDropdowns(){
 }
 function loadTncPresets(){
   const box=document.getElementById('tncPresetList'); if(!box) return;
-  box.innerHTML=_tncPresets.length?_tncPresets.map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)"><div><b style="font-size:12px">${esc(p.name)}</b><div style="font-size:11px;color:var(--text-3)">${esc((p.text||'').slice(0,80))}</div></div><button class="btn btn-ghost btn-sm" onclick="deleteTncPreset('${p.id}')">✕</button></div>`).join('')
+  box.innerHTML=_tncPresets.length?_tncPresets.map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)"><div><b style="font-size:12px">${esc(p.name)}</b><div style="font-size:11px;color:var(--text-3)">${esc((p.text||'').slice(0,80))}</div></div><button class="btn btn-danger btn-sm" onclick="deleteTncPreset('${p.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></div>`).join('')
     :'<div style="font-size:12px;color:var(--text-3)">No presets yet</div>';
 }
 async function addTncPreset(){
@@ -8582,9 +8582,9 @@ function renderLedgerRows(){
     <td class="td-num" style="font-weight:700;color:${r.type==='in'?'var(--green)':'var(--red)'}">${r.type==='in'?'+':'-'}${fmt(r.amount)}</td>
     <td style="font-size:11px;color:var(--text-3)">${esc(r.mode||'—')}${r.ref?' · '+esc(r.ref):''}</td>
     <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(r.recordId||r.orderId||'—')}</td>
-    <td class="td-actions">${r.id?`<button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editIncome('${r.id}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteIncome('${r.id}')">✕</button>`
-      :r.payId?`<button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editLedgerPayment('${r.payId}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteLedgerPayment('${r.payId}')" title="Remove this payment, an accidentally-duplicated entry">✕</button>`
-      :r.expId?`<button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editExpense('${r.expId}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteLedgerExpense('${r.expId}')" title="Remove this expense">✕</button>`
+    <td class="td-actions">${r.id?`<button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editIncome('${r.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deleteIncome('${r.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button>`
+      :r.payId?`<button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editLedgerPayment('${r.payId}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deleteLedgerPayment('${r.payId}')" title="Remove this payment, an accidentally-duplicated entry" style="padding:3px 6px">${ICO_DELETE}</button>`
+      :r.expId?`<button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editExpense('${r.expId}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deleteLedgerExpense('${r.expId}')" title="Remove this expense" style="padding:3px 6px">${ICO_DELETE}</button>`
       :(r.isSale&&r.saleId?`<a href="#" onclick="jumpToOrderDetail('${r.saleId}',event)" style="color:var(--accent);font-size:10px;font-family:var(--mono)" title="Open order details">${esc(r.recordId||r.orderId||'view order')}</a>`:'')}</td>
   </tr>`).join('');
 }
@@ -8861,7 +8861,7 @@ async function loadShopLog(){
     <td style="font-family:var(--mono);font-size:11px">${r.close_time?esc(fmtTime12(r.close_time)):'—'}</td>
     <td style="font-family:var(--mono);font-size:11px">${r.break_start?esc(fmtTime12(r.break_start))+'–'+(r.break_end?esc(fmtTime12(r.break_end)):''):'—'}</td>
     <td style="font-size:11px;color:var(--text-3)">${esc(r.reason||'')}</td>
-    <td class="td-actions"><button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editShopLog('${r.date}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteShopLog('${r.date}')">✕</button></td>
+    <td class="td-actions"><button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editShopLog('${r.date}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deleteShopLog('${r.date}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
   </tr>`).join('');
 }
 function showAddShopLog(){
@@ -10296,7 +10296,7 @@ function renderPrinters(){
       <td style="font-size:11px;color:var(--text-3)">${esc(specs||'—')}</td>
       <td class="td-num">${p.purchase_value?fmt(p.purchase_value):'—'}</td>
       <td><span class="badge ${p.active?'badge-won':'badge-lost'}">${p.active?'Active':'Inactive'}</span></td>
-      <td class="td-actions"><button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editPrinter('${p.id}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deletePrinter('${p.id}')">✕</button></td>
+      <td class="td-actions"><button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editPrinter('${p.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deletePrinter('${p.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
     </tr>`;
   }).join(''):`<tr><td colspan="6" class="empty"><div class="em-text">No machines added yet</div></td></tr>`;
 }
@@ -10310,7 +10310,7 @@ function renderAttempts(){
       <td>${esc(printer?printer.name:'—')}</td>
       <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(ATTEMPT_REASON_LABEL[a.reason]||a.reason||'—')}</span></td>
       <td style="font-size:12px">${esc(a.note||'—')}</td>
-      <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteAttempt('${a.id}')">✕</button></td>
+      <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteAttempt('${a.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
     </tr>`;
   }).join(''):`<tr><td colspan="6" class="empty"><div class="em-text">No print attempts logged</div></td></tr>`;
 }
@@ -10783,7 +10783,7 @@ function renderFilamentLowStockPopupBody(material){
     <tbody>${list.map(r=>`<tr>
       <td>${esc(r.brand||'')} ${esc(r.color||'')}</td>
       <td class="td-num" style="color:${r.pct<10?'var(--red)':'var(--yellow)'};font-weight:700">${Math.round(r.pct)}% <span style="color:var(--text-3);font-weight:400;font-size:10px">(${Math.round(r.remaining)}g)</span></td>
-      <td class="td-actions"><button class="btn btn-ghost btn-sm" onclick="markSpoolFinishedFromAlert('${r.id}','${esc(material).replace(/'/g,"\\'")}')">Mark Finish</button></td>
+      <td class="td-actions"><button class="btn btn-icon-tint btn-icon-order btn-sm" onclick="markSpoolFinishedFromAlert('${r.id}','${esc(material).replace(/'/g,"\\'")}')" style="gap:5px">${ICO_RECYCLE} Mark Finish</button></td>
     </tr>`).join('')}</tbody>
   </table></div>`:`<div class="empty"><div class="em-text">All colours restocked</div></div>`;
 }
@@ -10811,7 +10811,7 @@ async function loadGstPortal(){
     <td style="font-family:var(--mono);font-size:11px">${esc(r.filed_date||'—')}</td>
     <td>${r.file_url?`<a href="#" data-u="${esc(r.file_url)}" onclick="event.preventDefault();openGstFile(this.dataset.u)" style="color:var(--accent)">view</a>`:'—'}</td>
     <td style="font-size:12px">${esc(r.notes||'—')}</td>
-    <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteGstFiling('${r.id}')">✕</button></td>
+    <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteGstFiling('${r.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
   </tr>`).join(''):`<tr><td colspan="6" class="empty"><div class="em-text">No filings uploaded yet</div></td></tr>`;
   loadGstStateBreakdown();
 }
@@ -11069,9 +11069,9 @@ async function gstaLoadHistory(){
     <td class="td-num">${fmt(p.totals?.total||0)}</td>
     <td>${esc(p.filed_date||'Not filed')}</td>
     <td class="td-actions">
-      <button class="btn btn-ghost btn-sm" onclick="gstaReopenPeriod('${p.id}')">Open</button>
-      ${p.status==='filed'?`<button class="btn btn-ghost btn-sm" onclick="gstaUnmarkFiled('${p.id}')">Unmark Filed</button>`:`<button class="btn btn-ghost btn-sm" onclick="gstaMarkFiledFromHistory('${p.id}')">✓ Mark as Filed</button>`}
-      <button class="btn btn-danger btn-sm" onclick="gstaDeletePeriod('${p.id}','${esc(p.period)}')">✕</button>
+      <button class="btn btn-icon-tint btn-icon-doc btn-sm" onclick="gstaReopenPeriod('${p.id}')" title="Open" style="gap:5px">${ICO_VIEW} Open</button>
+      ${p.status==='filed'?`<button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="gstaUnmarkFiled('${p.id}')" style="gap:5px">${ICO_UNLOCK} Unmark Filed</button>`:`<button class="btn btn-icon-tint btn-icon-accept btn-sm" onclick="gstaMarkFiledFromHistory('${p.id}')" style="gap:5px">${ICO_ACCEPT} Mark as Filed</button>`}
+      <button class="btn btn-danger btn-sm" onclick="gstaDeletePeriod('${p.id}','${esc(p.period)}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button>
     </td>
   </tr>`).join(''):`<tr><td colspan="7" class="empty"><div class="em-text">No periods calculated yet</div></td></tr>`;
   gstaRenderTrendChart();
@@ -11249,7 +11249,7 @@ async function loadInvoicing(){
     <td style="font-family:var(--mono);font-size:11px">${r.order_id?orderIdTag(r.order_id,{size:'11px'}):'—'}</td>
     <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${r.doc_kind==='record'?'Record':'Invoice'}</span></td>
     <td style="font-family:var(--mono);font-size:11px">${fmtDay(r.generated_at)}</td>
-    <td class="td-actions" style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="viewLoggedInvoice('${r.order_id||''}','${r.sale_id||''}','${r.doc_kind||'invoice'}')" title="Open the actual invoice/record document">👁 View</button> ${r.order_id?`<button class="btn btn-ghost btn-sm" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${esc(r.order_id)}';loadSales();}},300)">↗ Order</button>`:''} <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editInvoiceLog('${r.id}','${esc(r.invoice_number)}')" title="Edit">✎</button> <button class="btn btn-danger btn-sm" onclick="deleteInvoiceLog('${r.id}','${esc(r.invoice_number)}')">✕</button></td>
+    <td class="td-actions" style="white-space:nowrap"><button class="btn btn-icon-tint btn-icon-doc btn-sm" onclick="viewLoggedInvoice('${r.order_id||''}','${r.sale_id||''}','${r.doc_kind||'invoice'}')" title="Open the actual invoice/record document" style="padding:3px 6px">${ICO_VIEW}</button> ${r.order_id?`<button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${esc(r.order_id)}';loadSales();}},300)" title="Jump to order" style="padding:3px 6px">${ICO_EXTERNAL}</button>`:''} <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editInvoiceLog('${r.id}','${esc(r.invoice_number)}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deleteInvoiceLog('${r.id}','${esc(r.invoice_number)}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
   </tr>`).join(''):`<tr><td colspan="5" class="empty"><div class="em-text">No invoices generated yet</div></td></tr>`;
 }
 // Renumber a logged invoice directly, e.g. to fix a typo or align with a paper series.
