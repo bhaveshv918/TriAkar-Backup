@@ -12113,6 +12113,13 @@ async function printInvoice(d, type, docKind, win){
     // rows that don't carry an explicit unit_rate (orders/records built pre-fix).
     const iunit_show=it.unit_rate!=null ? parseFloat(it.unit_rate) :
       (iqty>0 ? ((type==='gst'&&irate>0)?iamt/iqty:iamt_incl/iqty) : ((type==='gst'&&irate>0)?iamt:iamt_incl));
+    // Row Total column: same principle as the Rate fix above. iamt_incl/iamt are
+    // already net of the discount, so showing them directly made the row's own Rate
+    // × Qty + GST Amt stop adding up to the Total shown right next to them (a ₹4,500
+    // discount made the Total column look ₹4,500 short with no visible reason on that
+    // row). Add the discount back for display so Total = Rate×Qty + GST Amt again;
+    // the discount still only shows up once, as its own line before the real Total.
+    const iamt_incl_show=iamt_incl+idisc, iamt_show=iamt+idisc;
     subtotal+=iamt; gstAmt+=igst; totalDisc+=idisc;
     if(showGstCols){
       const hk=it.hsn_code||'—';
@@ -12132,7 +12139,7 @@ async function printInvoice(d, type, docKind, win){
       <td class="td-r">₹${iunit_show.toFixed(2)}</td>
       <td class="td-r">${irate?irate+'%':'—'}</td>
       <td class="td-r">₹${igst.toFixed(2)}</td>
-      <td class="td-r">₹${iamt_incl.toFixed(2)}</td>
+      <td class="td-r">₹${iamt_incl_show.toFixed(2)}</td>
     </tr>`;
     }
     return `<tr>
@@ -12140,7 +12147,7 @@ async function printInvoice(d, type, docKind, win){
       <td>${nameCell}</td>
       <td class="td-r">${iqty}</td>
       <td class="td-r">₹${iunit_show.toFixed(2)}</td>
-      <td class="td-r">₹${iamt.toFixed(2)}</td>
+      <td class="td-r">₹${iamt_show.toFixed(2)}</td>
     </tr>`;
   }).join('');
   const hasGst=(type==='gst'&&gstAmt>0.005);
