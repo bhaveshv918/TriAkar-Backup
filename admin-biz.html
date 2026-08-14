@@ -327,6 +327,26 @@ tr:hover td{background:var(--bg-2)}
 .filter-bar select,.filter-bar input{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-2);font-family:var(--sans);font-size:12px;padding:6px 9px;outline:none;transition:border-color .15s}
 .filter-bar select:focus,.filter-bar input:focus{border-color:var(--accent);color:var(--text)}
 .filter-bar select option{background:var(--bg-2)}
+/* Search box gets a leading icon and a touch more breathing room, so it reads as
+   "the" search field rather than just another text input in the row. */
+.filter-search{position:relative;flex:1;min-width:200px;display:flex;align-items:center}
+.filter-search svg{position:absolute;left:10px;color:var(--text-3);pointer-events:none}
+.filter-search input{width:100%;padding-left:30px!important}
+/* One removable pill per active filter (renderFilterChips()), sits directly under
+   the toolbar so it's obvious at a glance what's narrowing the list right now,
+   without opening the Filters panel to check. */
+.filter-chips{display:none;flex-wrap:wrap;gap:6px;margin:-4px 0 12px}
+.filter-chip{display:inline-flex;align-items:center;gap:6px;background:var(--accent-bg);color:var(--accent-h);border:1px solid transparent;border-radius:20px;padding:4px 6px 4px 11px;font-size:11px;font-weight:600;white-space:nowrap}
+.filter-chip button{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:none;background:rgba(0,0,0,.08);color:inherit;cursor:pointer;padding:0}
+.filter-chip button:hover{background:rgba(0,0,0,.18)}
+/* Filters panel: was one flat grid of every field regardless of relevance (e.g.
+   Month/From/To all shown even though only one applies to the current Period).
+   Grouped into labelled sections instead, and per-field visibility is toggled by
+   the page's onXxViewChange() so only the one date control that matters shows. */
+.filter-panel{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow)}
+.filter-panel-section{margin-bottom:12px}
+.filter-panel-section:last-child{margin-bottom:0}
+.filter-panel-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px}
 /* Standalone month / date pickers (dashboard etc.) */
 .month-select,input[type=month],input[type=date]{
   background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);
@@ -1816,93 +1836,118 @@ html[data-theme="dark"] .biz-login{
       <div id="sfChannelBtns" class="filter-bar" style="align-items:center;margin-bottom:8px"></div>
       <!-- One search box + a single Filters toggle (B4) -->
       <div class="filter-bar" style="align-items:center">
-        <input type="text" id="sfSearch" placeholder="Search order / product / customer…" oninput="loadSales()" style="min-width:200px;flex:1">
-        <button class="btn btn-ghost btn-sm" id="sfFyBtn" onclick="showSalesFy()" title="Jump to This Financial Year, same as picking it in Filters > Period">📅 This FY</button>
-        <button class="btn btn-ghost btn-sm" id="sfToggleBtn" onclick="toggleSalesFilters()">⚙ Filters<span id="sfActiveCount" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:6px">0</span></button>
-        <button class="btn btn-ghost btn-sm" onclick="clearSalesFilters()">Clear</button>
+        <div class="filter-search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="sfSearch" placeholder="Search order / product / customer…" oninput="loadSales()">
+        </div>
+        <button class="btn btn-icon-tint btn-icon-accept btn-sm" id="sfFyBtn" onclick="showSalesFy()" title="Jump to This Financial Year, same as picking it in Filters > Period" style="gap:5px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          This FY
+        </button>
+        <button class="btn btn-icon-tint btn-icon-muted btn-sm" id="sfToggleBtn" onclick="toggleSalesFilters()" style="gap:5px">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          Filters<span id="sfActiveCount" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:2px">0</span>
+        </button>
+        <button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="clearSalesFilters()" style="gap:5px">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Clear
+        </button>
       </div>
-      <div id="salesFilters" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow)">
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Channel</label>
-            <select id="sfChannel" onchange="loadSales()">
-              <option value="">All Channels</option>
-              <option value="shop">Studio</option>
-              <option value="amazon">Amazon</option>
-              <option value="flipkart">Flipkart</option>
-              <option value="website">Website</option>
-            </select>
+      <div id="sfChips" class="filter-chips"></div>
+      <div id="salesFilters" class="filter-panel" style="display:none">
+        <div class="filter-panel-section">
+          <div class="filter-panel-section-title">Order</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Channel</label>
+              <select id="sfChannel" onchange="loadSales()">
+                <option value="">All Channels</option>
+                <option value="shop">Studio</option>
+                <option value="amazon">Amazon</option>
+                <option value="flipkart">Flipkart</option>
+                <option value="website">Website</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select id="sfStatus" onchange="loadSales()">
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="order_received">Order Received</option>
+                <option value="processing">Processing</option>
+                <option value="printing">Printing</option>
+                <option value="packed">Packed</option>
+                <option value="dispatched">Dispatched</option>
+                <option value="delivered">Delivered</option>
+                <option value="delaying">Delaying</option>
+                <option value="delayed">Delayed</option>
+                <option value="return_initiated">Return Initiated</option>
+                <option value="return_picked_up">Return Picked Up</option>
+                <option value="returned">Returned</option>
+                <option value="claim_filed">Claim Filed</option>
+                <option value="claimed">Claimed</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled_before_dispatch">Cancelled (Before Dispatch)</option>
+                <option value="cancelled_before_delivery">Cancelled (Before Delivery)</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Payment</label>
+              <select id="sfPayment" onchange="loadSales()">
+                <option value="">All Payments</option>
+                <option value="upi">UPI</option>
+                <option value="bharatpe">BharatPe</option>
+                <option value="ca_sbi">C/A, SBI</option>
+                <option value="ca_karur">C/A, Karur Vysya</option>
+                <option value="razorpay">Razorpay</option>
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="gpay">GPay</option>
+                <option value="paytm">Paytm</option>
+                <option value="cod">COD</option>
+                <option value="online">Online / Prepaid</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Locked?</label>
+              <select id="sfPaid" onchange="loadSales()" title="Locked = marked paid, no further changes; Unlocked = still editable">
+                <option value="">Locked &amp; Unlocked</option>
+                <option value="1">Locked only</option>
+                <option value="0">Unlocked only</option>
+              </select>
+            </div>
           </div>
-          <div class="form-group">
-            <label>Status</label>
-            <select id="sfStatus" onchange="loadSales()">
-              <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="order_received">Order Received</option>
-              <option value="processing">Processing</option>
-              <option value="printing">Printing</option>
-              <option value="packed">Packed</option>
-              <option value="dispatched">Dispatched</option>
-              <option value="delivered">Delivered</option>
-              <option value="delaying">Delaying</option>
-              <option value="delayed">Delayed</option>
-              <option value="return_initiated">Return Initiated</option>
-              <option value="return_picked_up">Return Picked Up</option>
-              <option value="returned">Returned</option>
-              <option value="claim_filed">Claim Filed</option>
-              <option value="claimed">Claimed</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled_before_dispatch">Cancelled (Before Dispatch)</option>
-              <option value="cancelled_before_delivery">Cancelled (Before Delivery)</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
+        </div>
+        <div class="filter-panel-section">
+          <div class="filter-panel-section-title">Period</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Period</label>
+              <select id="sfView" onchange="onSfViewChange()">
+                <option value="all">All Time</option>
+                <option value="month" selected>Select Month</option>
+                <option value="fy">This Financial Year</option>
+                <option value="calendar">Calendar Year</option>
+                <option value="custom">Custom Range</option>
+              </select>
+            </div>
+            <div class="form-group" id="sfMonthWrap"><label>Month</label><input type="month" id="sfMonth" onchange="loadSales()"></div>
+            <div class="form-group" id="sfFromWrap" style="display:none"><label>From</label><input type="date" id="sfFrom" onchange="loadSales()"></div>
+            <div class="form-group" id="sfToWrap" style="display:none"><label>To</label><input type="date" id="sfTo" onchange="loadSales()"></div>
           </div>
-          <div class="form-group">
-            <label>Payment</label>
-            <select id="sfPayment" onchange="loadSales()">
-              <option value="">All Payments</option>
-              <option value="upi">UPI</option>
-              <option value="bharatpe">BharatPe</option>
-              <option value="ca_sbi">C/A, SBI</option>
-              <option value="ca_karur">C/A, Karur Vysya</option>
-              <option value="razorpay">Razorpay</option>
-              <option value="cash">Cash</option>
-              <option value="card">Card</option>
-              <option value="gpay">GPay</option>
-              <option value="paytm">Paytm</option>
-              <option value="cod">COD</option>
-              <option value="online">Online / Prepaid</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Locked?</label>
-            <select id="sfPaid" onchange="loadSales()" title="Locked = marked paid, no further changes; Unlocked = still editable">
-              <option value="">Locked &amp; Unlocked</option>
-              <option value="1">Locked only</option>
-              <option value="0">Unlocked only</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Period</label>
-            <select id="sfView" onchange="onSfViewChange()">
-              <option value="all">All Time</option>
-              <option value="month" selected>Select Month</option>
-              <option value="fy">This Financial Year</option>
-              <option value="calendar">Calendar Year</option>
-              <option value="custom">Custom Range</option>
-            </select>
-          </div>
-          <div class="form-group"><label>Month</label><input type="month" id="sfMonth" onchange="loadSales()"></div>
-          <div class="form-group"><label>From</label><input type="date" id="sfFrom" onchange="loadSales()"></div>
-          <div class="form-group"><label>To</label><input type="date" id="sfTo" onchange="loadSales()"></div>
-          <div class="form-group">
-            <label>Sort</label>
-            <select id="sfSort" onchange="loadSales()">
-              <option value="date_desc">Newest first</option>
-              <option value="date_asc">Oldest first</option>
-              <option value="price_desc">Price: high → low</option>
-              <option value="price_asc">Price: low → high</option>
-            </select>
+        </div>
+        <div class="filter-panel-section">
+          <div class="filter-panel-section-title">Sort</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <select id="sfSort" onchange="loadSales()">
+                <option value="date_desc">Newest first</option>
+                <option value="date_asc">Oldest first</option>
+                <option value="price_desc">Price: high → low</option>
+                <option value="price_asc">Price: low → high</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -4120,6 +4165,22 @@ const ICO_RETURN='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" st
 const ICO_EYE_OFF='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-6.5 0-10.5-7-10.5-7a19.77 19.77 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c6.5 0 10.5 7 10.5 7a19.77 19.77 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 const ICO_SELL='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24L3 3v6.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.59-4.59a2 2 0 0 0 0-2.83Z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>';
 const ICO_RECYCLE='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 19H4.8a2 2 0 0 1-1.7-3l2.5-4.4"/><path d="m9 5 3-3 3 3"/><path d="M12 2v9"/><path d="m14.8 12 3.5 6a2 2 0 0 1-1.7 3H12"/><path d="m8 17-3 3 3 3"/></svg>';
+const ICO_CLOSE='<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+const ICO_SEARCH='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
+const ICO_FILTER='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>';
+const ICO_CALENDAR='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+// Generic active-filter "chip" row: one small removable pill per applied filter,
+// so it's obvious at a glance what's narrowing the list without opening the panel.
+// Reused across every panel's filter bar (chips array: {label, clear}, clear is a
+// no-arg function reference, not a string, so this never touches eval/onclick-string
+// injection). Container should be an empty div with class="filter-chips".
+function renderFilterChips(containerId, chips){
+  const el=document.getElementById(containerId); if(!el) return;
+  window[`_filterChipHandlers_${containerId}`]=chips;
+  if(!chips.length){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display='flex';
+  el.innerHTML=chips.map((c,i)=>`<span class="filter-chip">${esc(c.label)}<button type="button" onclick="_filterChipHandlers_${containerId}[${i}].clear()" title="Remove this filter">${ICO_CLOSE}</button></span>`).join('');
+}
 function fmt(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function fmtD(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 // GST periods are stored/keyed as "YYYY-MM" everywhere (comparisons, API calls, filenames),
@@ -8655,8 +8716,19 @@ function onSfViewChange(){
   }
   // 'custom' leaves From/To exactly as typed, just clears Month so they aren't both applied.
   if(view==='custom') set('sfMonth','');
+  // Only the one date control that actually applies to the chosen Period shows,
+  // instead of Month/From/To all sitting there regardless of relevance.
+  const show=(id,on)=>{ const e=document.getElementById(id); if(e) e.style.display=on?'':'none'; };
+  show('sfMonthWrap',view==='month');
+  show('sfFromWrap',view==='fy'||view==='calendar'||view==='custom');
+  show('sfToWrap',view==='fy'||view==='calendar'||view==='custom');
   loadSales();
 }
+// Removes one active filter and reloads, backing the X on each chip in the
+// active-filters row (renderFilterChips()) — a targeted single-field clear
+// instead of the operator having to reopen the whole panel.
+function clearSfField(id){ const e=document.getElementById(id); if(e) e.value=''; loadSales(); }
+function clearSfPeriod(){ const sv=document.getElementById('sfView'); if(sv) sv.value='all'; onSfViewChange(); }
 // One-click "This FY" (top-level button, next to Search), same result as opening
 // Filters and picking "This Financial Year" from Period, just without the extra
 // click. Opens the Filters panel too so the applied From/To dates are visible.
@@ -8743,7 +8815,27 @@ async function loadSales(){
   const _sa=document.getElementById('selectAllSales'); if(_sa)_sa.checked=false;
   updateBulkBar();
   updateSalesFilterBadge();
+  renderSalesFilterChips({ch,st,pay,paid,mo,from,to,se,view:v('sfView')});
   if(typeof refreshOrderDetailModal==='function') refreshOrderDetailModal();
+}
+// One removable pill per active All Orders filter, so what's narrowing the list is
+// visible without opening the Filters panel. Each chip's X clears just that field.
+const SF_PAYMENT_LABELS={upi:'UPI',bharatpe:'BharatPe',ca_sbi:'C/A, SBI',ca_karur:'C/A, Karur Vysya',razorpay:'Razorpay',cash:'Cash',card:'Card',gpay:'GPay',paytm:'Paytm',cod:'COD',online:'Online / Prepaid'};
+const SF_CHANNEL_LABELS={shop:'Studio',amazon:'Amazon',flipkart:'Flipkart',website:'Website'};
+function renderSalesFilterChips({ch,st,pay,paid,mo,from,to,se,view}){
+  const chips=[];
+  if(ch) chips.push({label:'Channel: '+(SF_CHANNEL_LABELS[ch]||ch), clear:()=>clearSfField('sfChannel')});
+  if(st) chips.push({label:'Status: '+(STATUS_LABEL?.[st]||st), clear:()=>clearSfField('sfStatus')});
+  if(pay) chips.push({label:'Payment: '+(SF_PAYMENT_LABELS[pay]||pay), clear:()=>clearSfField('sfPayment')});
+  if(paid!=='') chips.push({label:paid==='1'?'Locked only':'Unlocked only', clear:()=>clearSfField('sfPaid')});
+  let periodLabel=null;
+  if(view==='month'&&mo) periodLabel=new Date(mo+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  else if(view==='fy'&&from){ const fyY=Number(from.slice(0,4)); periodLabel=`FY ${fyY}-${String((fyY+1)%100).padStart(2,'0')}`; }
+  else if(view==='calendar'&&from) periodLabel='Year '+from.slice(0,4);
+  else if(view==='custom'&&(from||to)) periodLabel=(from?fmtDay(from):'…')+' – '+(to?fmtDay(to):'…');
+  if(periodLabel) chips.push({label:periodLabel, clear:clearSfPeriod});
+  if(se) chips.push({label:'Search: '+se, clear:()=>clearSfField('sfSearch')});
+  renderFilterChips('sfChips', chips);
 }
 
 // Find all line items belonging to the same order as the given first-item id
@@ -9405,7 +9497,7 @@ function exportSalesExcel(){
   XLSX.writeFile(wb,filename+'.xlsx');
 }
 
-function clearSalesFilters(){ ['sfChannel','sfStatus','sfPayment','sfPaid','sfMonth','sfFrom','sfTo','sfSearch'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';}); const so=document.getElementById('sfSort'); if(so) so.value='date_desc'; const sv=document.getElementById('sfView'); if(sv) sv.value='all'; loadSales(); }
+function clearSalesFilters(){ ['sfChannel','sfStatus','sfPayment','sfPaid','sfMonth','sfFrom','sfTo','sfSearch'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';}); const so=document.getElementById('sfSort'); if(so) so.value='date_desc'; const sv=document.getElementById('sfView'); if(sv) sv.value='all'; ['sfMonthWrap','sfFromWrap','sfToWrap'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';}); loadSales(); }
 
 // ── Recycle Bin ────────────────────────────────────────────
 async function openRecycleBin(){
