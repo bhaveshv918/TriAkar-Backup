@@ -4535,7 +4535,7 @@ const NAV_CONFIG = [
       // the hundreds of existing references to them don't ripple). salesview and
       // quotations are genuinely new tabs, not renames.
       { id: 'quickadd',   label: 'Add Order',    icon: '＋', shortcut: 'a' },
-      { id: 'sales',      label: 'All Orders',   icon: '≡', shortcut: 'o', badge: 'salesCount' },
+      { id: 'sales',      label: 'All Orders',   icon: '≡', shortcut: 'o/z', badge: 'salesCount' },
       { id: 'salesview',  label: 'Sales',        icon: '✓', shortcut: 's', badge: 'salesviewCount' },
       { id: 'quotations', label: 'Quotations',   icon: '⎘', shortcut: 'q' },
       { id: 'import',     label: 'Import & Labels', icon: '⇲', shortcut: 'l' },
@@ -13565,8 +13565,12 @@ document.addEventListener('keydown',function(ev){
 // tab added there automatically gets its shortcut wired here too.
 // 't' for Today's Tasks stays hardcoded, that tab lives outside NAV_CONFIG now (it's
 // the direct header button, not a dropdown item), so it won't show up in the flatMap below.
+// A tab can have more than one hotkey (e.g. All Orders: 'o/z'), '/'-separated in
+// NAV_CONFIG so the same string still displays correctly as-is (O/Z) everywhere
+// it's shown (header dropdown, Ctrl+K palette, cheat sheet), each key split out
+// into its own map entry here so either one jumps to that tab.
 const BIZ_TAB_KEYS=Object.assign({t:'openorders'},Object.fromEntries(
-  NAV_CONFIG.flatMap(sec=>sec.items).filter(it=>it.shortcut).map(it=>[it.shortcut,it.id])
+  NAV_CONFIG.flatMap(sec=>sec.items).filter(it=>it.shortcut).flatMap(it=>it.shortcut.split('/').map(k=>[k,it.id]))
 ));
 function bizAnyModalOpen(){
   const ids=['recycleBinModal','orderDetailModal','customerModal','dashDrilldown','openOrdersDrawer',
