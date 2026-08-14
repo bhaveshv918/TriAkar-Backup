@@ -20,7 +20,7 @@
 :root{
   --bg:#F4F6F5;--bg-1:#FFFFFF;--bg-2:#EEF2F0;--bg-3:#E2E9E4;
   --border:rgba(20,42,30,.10);--border-h:rgba(20,42,30,.22);
-  --text:#16201A;--text-2:#52685A;--text-3:#63715F;
+  --text:#16201A;--text-2:#52685A;--text-3:#495647;
   --accent:#C4622A;--accent-h:#A8521F;--accent-bg:rgba(196,98,42,.12);
   --green:#16A34A;--green-bg:rgba(22,163,74,.11);
   --red:#DC2626;--red-bg:rgba(220,38,38,.10);
@@ -43,7 +43,7 @@ html[data-theme="dark"]{
   color-scheme:dark;
   --bg:#070C08;--bg-1:#0C1410;--bg-2:#111C13;--bg-3:#172418;
   --border:rgba(255,255,255,.06);--border-h:rgba(255,255,255,.12);
-  --text:#E2EAE4;--text-2:#879E8C;--text-3:#7C9483;
+  --text:#E2EAE4;--text-2:#879E8C;--text-3:#93AC98;
   --accent:#E0814C;--accent-h:#EA9A6B;--accent-bg:rgba(196,98,42,.16);
   --green:#4ADE80;--green-bg:rgba(74,222,128,.08);
   --red:#F87171;--red-bg:rgba(248,113,113,.08);
@@ -365,6 +365,13 @@ tr:hover td{background:var(--bg-2)}
 .csel-option{padding:7px 10px;border-radius:8px;font-size:12px;color:var(--text-2);cursor:pointer;white-space:nowrap}
 .csel-option:hover{background:var(--bg-2);color:var(--text)}
 .csel-option.selected{background:var(--accent-bg);color:var(--accent-h);font-weight:700}
+/* Status filter: colors match the badge-* classes each status already renders
+   with everywhere else (see STATUS_COLOR), the trigger itself tints to that
+   color once a specific status is picked, and each option gets a small color
+   dot so the list scans the same way the Status column's badges already do. */
+.csel-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;vertical-align:middle;flex-shrink:0}
+.csel-trigger-colored{background:var(--csel-color-bg)!important;border-color:transparent!important;color:var(--csel-color)!important}
+.csel-trigger-colored svg{color:var(--csel-color)!important}
 /* Standalone month / date pickers (dashboard etc.) */
 .month-select,input[type=month],input[type=date]{
   background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);
@@ -1318,17 +1325,44 @@ html[data-theme="dark"] .biz-login{
            so the things you'd otherwise open 3 other tabs for are one click away here. -->
       <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <button class="btn btn-primary btn-sm" onclick="switchTab('quickadd')">＋ Add Order</button>
-          <button class="btn btn-sm" onclick="switchTab('import')" title="Jumps straight to Import &amp; Labels, whichever mode (CSV / Shipping Labels) you last used">🏷 Import &amp; Labels</button>
+          <button class="btn btn-primary btn-sm" onclick="switchTab('quickadd')" style="gap:6px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1.4"/><circle cx="19" cy="21" r="1.4"/><path d="M1 1h3.2l2.68 13.39a2 2 0 0 0 2 1.61h9.24a2 2 0 0 0 2-1.61L22 6H6"/></svg>
+            Add Order
+          </button>
+          <button class="btn btn-icon-tint btn-icon-doc btn-sm" onclick="switchTab('import')" title="Jumps straight to Import &amp; Labels, whichever mode (CSV / Shipping Labels) you last used" style="gap:6px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24L3 3v6.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.59-4.59a2 2 0 0 0 0-2.83Z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+            Import &amp; Labels
+          </button>
           <span class="qa-quicklog-divider" style="width:1px;height:22px;background:var(--border)"></span>
-          <button class="btn btn-sm" onclick="punchShop('open')">🟢 Studio Open</button>
-          <button class="btn btn-sm" onclick="punchShop('break_start')">☕ Break Start</button>
-          <button class="btn btn-sm" onclick="punchShop('break_end')">☕ Break End</button>
-          <button class="btn btn-sm" onclick="punchShop('close')">🔴 Studio Close</button>
+          <button class="btn btn-icon-tint btn-icon-order btn-sm" onclick="punchShop('open')" style="gap:6px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+            Studio Open
+          </button>
+          <button class="btn btn-icon-tint btn-icon-invoice btn-sm" onclick="punchShop('break_start')" style="gap:6px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h15v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8Z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+            Break Start
+          </button>
+          <button class="btn btn-icon-tint btn-icon-accept btn-sm" onclick="punchShop('break_end')" style="gap:6px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h15v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8Z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+            Break End
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="punchShop('close')" style="gap:6px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+            Studio Close
+          </button>
           <span class="qa-quicklog-divider" style="width:1px;height:22px;background:var(--border)"></span>
-          <button class="btn btn-ghost btn-sm" onclick="toggleQuickLog('expense')">+ Expense</button>
-          <button class="btn btn-ghost btn-sm" onclick="toggleQuickLog('payment')">+ Payment Received</button>
-          <button class="btn btn-ghost btn-sm" onclick="toggleQuickLog('filament')">+ Filament Arrived</button>
+          <button class="btn btn-danger btn-sm" onclick="toggleQuickLog('expense')" style="gap:6px">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Expense
+          </button>
+          <button class="btn btn-icon-tint btn-icon-order btn-sm" onclick="toggleQuickLog('payment')" style="gap:6px">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Payment Received
+          </button>
+          <button class="btn btn-icon-tint btn-icon-duplicate btn-sm" onclick="toggleQuickLog('filament')" style="gap:6px">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Filament Arrived
+          </button>
         </div>
         <div id="shopPunchStatus" style="font-size:11px;color:var(--text-3);margin-top:8px">Loading today's log…</div>
 
@@ -1888,7 +1922,7 @@ html[data-theme="dark"] .biz-login{
             </div>
             <div class="form-group">
               <label>Status</label>
-              <select id="sfStatus" onchange="loadSales()">
+              <select id="sfStatus" onchange="loadSales()" data-colorize="status">
                 <option value="">All Status</option>
                 <option value="pending">Pending</option>
                 <option value="order_received">Order Received</option>
@@ -4187,6 +4221,11 @@ const ICO_CLOSE='<svg width="10" height="10" viewBox="0 0 24 24" fill="none" str
 const ICO_SEARCH='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
 const ICO_FILTER='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>';
 const ICO_CALENDAR='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+const ICO_TAG='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24L3 3v6.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.59-4.59a2 2 0 0 0 0-2.83Z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>';
+const ICO_PLAY='<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 3 20 12 6 21 6 3"/></svg>';
+const ICO_COFFEE='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h15v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8Z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>';
+const ICO_STOP='<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>';
+const ICO_SPOOL='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>';
 // Generic active-filter "chip" row: one small removable pill per applied filter,
 // so it's obvious at a glance what's narrowing the list without opening the panel.
 // Reused across every panel's filter bar (chips array: {label, clear}, clear is a
@@ -4238,16 +4277,34 @@ function enhanceSelectsIn(containerId){
     document.addEventListener('click',()=>document.querySelectorAll('.csel.open').forEach(w=>w.classList.remove('open')));
   }
 }
+// Selects can opt in to per-option colors via data-colorize="status" (matches
+// data-colorize to a *_COLOR map below, e.g. STATUS_COLOR), reusing the exact
+// same colors each value already renders with elsewhere (badge-* classes) rather
+// than inventing a second color language just for the dropdown. Real <option>s
+// can't be colored individually in any browser, custom .csel-option divs can.
+function _cselColorMap(name){ return name==='status'?STATUS_COLOR:null; }
 function syncCustomSelects(containerId){
   const container=document.getElementById(containerId); if(!container) return;
   container.querySelectorAll('select.csel-native').forEach(sel=>{
     const wrap=sel.closest('.csel'); if(!wrap) return;
     const label=wrap.querySelector('.csel-label');
+    const trigger=wrap.querySelector('.csel-trigger');
     const panel=wrap.querySelector('.csel-panel');
     const opt=sel.options[sel.selectedIndex];
     if(label) label.textContent=opt?opt.text:'';
+    const colorMap=_cselColorMap(sel.dataset.colorize);
+    const selColor=colorMap&&opt?colorMap[opt.value]:null;
+    if(trigger){
+      trigger.classList.toggle('csel-trigger-colored',!!selColor);
+      trigger.style.setProperty('--csel-color', selColor?`var(--${selColor})`:'');
+      trigger.style.setProperty('--csel-color-bg', selColor?`var(--${selColor}-bg)`:'');
+    }
     if(panel){
-      panel.innerHTML=[...sel.options].map((o,i)=>`<div class="csel-option${i===sel.selectedIndex?' selected':''}" data-i="${i}">${esc(o.text)}</div>`).join('');
+      panel.innerHTML=[...sel.options].map((o,i)=>{
+        const c=colorMap?colorMap[o.value]:null;
+        const dot=c?`<span class="csel-dot" style="background:var(--${c})"></span>`:'';
+        return `<div class="csel-option${i===sel.selectedIndex?' selected':''}" data-i="${i}">${dot}${esc(o.text)}</div>`;
+      }).join('');
       panel.querySelectorAll('.csel-option').forEach(opEl=>{
         opEl.addEventListener('click',()=>{
           sel.selectedIndex=parseInt(opEl.dataset.i,10);
@@ -9169,6 +9226,11 @@ const UNIFIED_STATUSES=['pending','order_received','processing','printing','pack
 // instead of as revenue).
 const NON_REVENUE_STATUSES=['cancelled','cancelled_before_dispatch','cancelled_before_delivery','returned','claimed'];
 const STATUS_LABEL={pending:'Pending',order_received:'Order Received',processing:'Processing',printing:'Printing',packed:'Packed',dispatched:'Dispatched',delivered:'Delivered',delaying:'Delaying',return_initiated:'Return Initiated',return_picked_up:'Return Picked Up',returned:'Returned',claim_filed:'Claim Filed',completed:'Completed',delayed:'Delayed',cancelled_before_dispatch:'Cancelled (Before Dispatch)',cancelled_before_delivery:'Cancelled (Before Delivery)',cancelled:'Cancelled',claimed:'Claimed'};
+// Same colors as the badge-* classes each status already renders with on every
+// order row (badge-completed=green, badge-pending=yellow, etc.), reused here so
+// the Status filter dropdown's options/trigger match instead of introducing a
+// second, different color language just for the filter.
+const STATUS_COLOR={pending:'yellow',order_received:'blue',processing:'blue',printing:'purple',packed:'accent',dispatched:'blue',delivered:'green',delaying:'yellow',return_initiated:'red',return_picked_up:'red',returned:'red',claim_filed:'purple',completed:'green',delayed:'red',cancelled_before_dispatch:'red',cancelled_before_delivery:'red',cancelled:'yellow',claimed:'purple'};
 // ── Configurable fee rules (per platform & price range) ─────
 // Stored in site_settings.biz_fee_rules (shared across devices). Edited in the
 // Fees & Returns tab. Used for return-loss + import forward fees.
