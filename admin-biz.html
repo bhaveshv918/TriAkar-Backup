@@ -158,7 +158,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .btn-icon-order{--tint:var(--green);--tint-bg:var(--green-bg)}
 .btn-icon-invoice{--tint:var(--orange);--tint-bg:var(--orange-bg)}
 .btn-icon-accept{--tint:var(--blue);--tint-bg:var(--blue-bg)}
-.btn-icon-muted{--tint:var(--text-3);--tint-bg:var(--bg-2)}
+/* --bg-2 sits almost flush against the white card/modal background it's used on
+   (#EEF2F0 vs #FFFFFF), so every "muted" icon button (Edit, mostly) was nearly
+   invisible, not read as a button at all until hovered. bg-3 plus a real border
+   gives it the same clearly-a-button presence every other tonal icon button has. */
+.btn-icon-muted{--tint:var(--text-2);--tint-bg:var(--bg-3)}
+.btn-icon-muted.btn-icon-tint{border-color:var(--border-h)}
 
 /* ── Skeleton loading (Phase 10 Group 3, L) ──────────────────
    Admin's own token set (--bg-2/--bg-3), not the customer-site skeleton CSS,
@@ -1870,11 +1875,11 @@ html[data-theme="dark"] .biz-login{
             </select>
           </div>
           <div class="form-group">
-            <label>Paid?</label>
-            <select id="sfPaid" onchange="loadSales()">
-              <option value="">Paid &amp; Unpaid</option>
-              <option value="1">Paid only</option>
-              <option value="0">Unpaid only</option>
+            <label>Locked?</label>
+            <select id="sfPaid" onchange="loadSales()" title="Locked = marked paid, no further changes; Unlocked = still editable">
+              <option value="">Locked &amp; Unlocked</option>
+              <option value="1">Locked only</option>
+              <option value="0">Unlocked only</option>
             </select>
           </div>
           <div class="form-group">
@@ -8731,7 +8736,6 @@ async function loadSales(){
       <td onclick="event.stopPropagation()"><select onchange="updateOrderStatus('${key}',this.value)" ${allPaid?'disabled title="Locked, unlock to change status"':''} class="badge-select badge-${status==='mixed'?'pending':status}">${status==='mixed'?'<option value="" selected disabled>Mixed</option>':''}${UNIFIED_STATUSES.map(x=>`<option value="${x}"${status===x?' selected':''}>${STATUS_LABEL[x]}</option>`).join('')}</select></td>
       <td style="text-align:center" onclick="event.stopPropagation()">
         <button class="btn btn-icon-tint ${allPaid?'btn-icon-order':'btn-icon-muted'} btn-sm" title="${allPaid?'Locked, click to unlock for editing':'Unlocked, click to lock'}" onclick="togglePaidOrder('${key}',${allPaid})" style="padding:3px 6px">${allPaid?ICO_LOCK:ICO_UNLOCK}</button>
-        ${!allPaid?`<button class="btn btn-icon-tint btn-icon-muted btn-sm" title="Edit order" onclick="openAddOrderEdit('${items[0].id}')" style="padding:3px 6px;margin-left:3px">${ICO_EDIT}</button>`:''}
       </td>
     </tr>`;
   }).join('');
@@ -8868,17 +8872,21 @@ function renderOrderDetail(items){
         <div><div style="color:var(--text-3);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Profit</div><div style="font-size:13px;font-weight:700;color:${profit>=0?'var(--green)':'var(--red)'}">${fmt(profit)} · ${margin.toFixed(1)}%</div></div>
       </div>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:2px">
       <select onchange="updateOrderStatus('${key}',this.value)" class="month-select" style="font-size:11px;padding:5px 8px" ${locked?'disabled title="Locked, unlock to change status"':''}>${UNIFIED_STATUSES.map(x=>`<option value="${x}"${f.status===x?' selected':''}>${STATUS_LABEL[x]}</option>`).join('')}</select>
       <button class="btn btn-icon-tint ${locked?'btn-icon-order':'btn-icon-muted'} btn-sm" onclick="togglePaidOrder('${key}',${locked})" style="gap:6px">${locked?ICO_LOCK:ICO_UNLOCK} ${locked?'Locked · unlock':'Lock order'}</button>
       ${!locked?`<button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="openAddOrderEdit('${items[0].id}')" style="gap:6px">${ICO_EDIT} Edit</button>`:''}
-      <button class="btn btn-icon-tint btn-icon-muted btn-sm" id="revealBtn_${key}" onclick="revealCost('${key}')" style="gap:6px">${ICO_VIEW} Show cost &amp; profit</button>
+      <span style="width:1px;align-self:stretch;background:var(--border);margin:2px 2px"></span>
       <button class="btn btn-icon-tint btn-icon-invoice btn-sm" onclick="printOrderInvoice('${key}')" style="gap:6px">${ICO_INVOICE} Invoice</button>
       <button class="btn btn-icon-tint btn-icon-doc btn-sm" onclick="printOrderInvoice('${key}','record')" style="gap:6px">${ICO_RECORD} Order Record</button>
+      <button class="btn btn-icon-tint btn-icon-muted btn-sm" id="revealBtn_${key}" onclick="revealCost('${key}')" style="gap:6px">${ICO_VIEW} Show cost &amp; profit</button>
+      <span style="width:1px;align-self:stretch;background:var(--border);margin:2px 2px"></span>
       <button class="btn btn-icon-tint btn-icon-duplicate btn-sm" onclick="duplicateOrder('${key}')" title="Copy this order's customer, items &amp; pricing into Add Order as a new order" style="gap:6px">${ICO_DUPLICATE} Duplicate</button>
       ${['delivered','completed','dispatched'].includes(f.status)?`<button class="btn btn-icon-tint btn-icon-accept btn-sm" onclick="initiateReturnFromOrder('${key}')" style="gap:6px">${ICO_RETURN} Initiate Return</button>`:''}
-      ${locked?'<span style="font-size:11px;color:var(--text-3)">Locked, unlock to edit</span>'
-        :`<button class="btn btn-danger btn-sm" onclick="deleteOrder('${key}')" style="gap:6px">${ICO_DELETE} Delete order</button>`}
+      <div style="margin-left:auto">
+        ${locked?'<span style="font-size:11px;color:var(--text-3)">Locked, unlock to edit</span>'
+          :`<button class="btn btn-danger btn-sm" onclick="deleteOrder('${key}')" style="gap:6px">${ICO_DELETE} Delete order</button>`}
+      </div>
     </div>
   </div>`;
 }
