@@ -1838,19 +1838,19 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
     </div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Order</th><th>Model</th><th>Build</th><th>Material</th><th>Color</th><th>Nozzle</th><th>Infill</th><th>Est. weight/time</th><th>Price</th><th>Customer</th><th>Lead contact</th><th>Date</th><th>Action</th></tr></thead>
-        <tbody id="iqOrdersBody"><tr><td colspan="13" class="tbl-msg">Loading...</td></tr></tbody>
+        <thead><tr><th>Order</th><th>Model</th><th>Build</th><th>Material</th><th>Color</th><th>Nozzle</th><th>Layer</th><th>Infill</th><th>Est. weight/time</th><th>Price</th><th>Customer</th><th>Lead contact</th><th>Notes</th><th>Date</th><th>Action</th></tr></thead>
+        <tbody id="iqOrdersBody"><tr><td colspan="15" class="tbl-msg">Loading...</td></tr></tbody>
       </table>
     </div>
 
     <div class="p-head" style="margin-top:36px">
-      <div class="p-title">All Uploads <span style="font-weight:400;color:var(--text-3);font-size:12px">— every model uploaded and quoted, not just ones that became orders</span></div>
+      <div class="p-title">All Uploads <span style="font-weight:400;color:var(--text-3);font-size:12px">(every model uploaded and quoted, not just ones that became orders)</span></div>
       <div class="p-actions"><input type="text" id="iqUploadSearch" placeholder="Search name, email, file, lead..." oninput="filterIqUploads()" style="min-width:180px;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)"></div>
     </div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Model</th><th>Account</th><th>Lead contact</th><th>Build</th><th>Material</th><th>Color</th><th>Nozzle</th><th>Infill</th><th>Weight/Time</th><th>Price</th><th>Status</th></tr></thead>
-        <tbody id="iqUploadsBody"><tr><td colspan="12" class="tbl-msg">Loading...</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Model</th><th>Account</th><th>Lead contact</th><th>Build</th><th>Material</th><th>Color</th><th>Nozzle</th><th>Layer</th><th>Infill</th><th>Weight/Time</th><th>Price</th><th>Notes</th><th>Status</th></tr></thead>
+        <tbody id="iqUploadsBody"><tr><td colspan="14" class="tbl-msg">Loading...</td></tr></tbody>
       </table>
     </div>
 
@@ -1860,8 +1860,8 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
     </div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Name</th><th>Type</th><th>Density (g/cm³)</th><th>₹/gram</th><th>Default</th><th>Active</th></tr></thead>
-        <tbody id="iqMaterialsBody"><tr><td colspan="6" class="tbl-msg">Loading...</td></tr></tbody>
+        <thead><tr><th>Name</th><th>Group</th><th>Limited colors</th><th>Density (g/cm³)</th><th>₹/gram</th><th>Default</th><th>Active</th></tr></thead>
+        <tbody id="iqMaterialsBody"><tr><td colspan="7" class="tbl-msg">Loading...</td></tr></tbody>
       </table>
     </div>
 
@@ -1877,7 +1877,7 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
     </div>
 
     <div class="p-head" style="margin-top:36px">
-      <div class="p-title">Printer Build Sizes <span style="font-weight:400;color:var(--text-3);font-size:12px">— names are for your reference only, customers only ever see the dimensions</span></div>
+      <div class="p-title">Printer Build Sizes <span style="font-weight:400;color:var(--text-3);font-size:12px">(names are for your reference only, customers only ever see the dimensions)</span></div>
       <div class="p-actions"><button class="btn-secondary" onclick="addIqPrinter()">+ Add build size</button></div>
     </div>
     <div class="tbl-wrap">
@@ -6071,7 +6071,7 @@ async function loadInstantQuotes(){
 let _iqUploads=[],_iqProfiles={};
 async function loadIqUploads(){
   const{data,error}=await sb.from('instant_quote_requests').select('*').order('created_at',{ascending:false}).limit(500);
-  if(error){document.getElementById('iqUploadsBody').innerHTML='<tr><td colspan="12" class="tbl-msg">Error loading uploads</td></tr>';return}
+  if(error){document.getElementById('iqUploadsBody').innerHTML='<tr><td colspan="14" class="tbl-msg">Error loading uploads</td></tr>';return}
   _iqUploads=data||[];
   const userIds=[...new Set(_iqUploads.map(q=>q.user_id).filter(Boolean))];
   if(userIds.length){
@@ -6089,7 +6089,7 @@ function _iqLeadCell(q){
 
 function renderIqUploads(list){
   const tbody=document.getElementById('iqUploadsBody');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="12" class="tbl-msg">No uploads yet.</td></tr>';return}
+  if(!list.length){tbody.innerHTML='<tr><td colspan="14" class="tbl-msg">No uploads yet.</td></tr>';return}
   const statusBadge={quoted:'badge-yellow',in_cart:'badge-yellow',ordered:'badge-green',expired:'badge-red'};
   tbody.innerHTML=list.map(q=>{
     const prof=_iqProfiles[q.user_id]||{};
@@ -6102,9 +6102,11 @@ function renderIqUploads(list){
       +'<td>'+esc(_iqMaterialName(q.material_id))+'</td>'
       +'<td>'+esc(_iqColorName(q.color_id))+'</td>'
       +'<td>'+esc(String(q.nozzle_mm||'0.4'))+'mm</td>'
+      +'<td>'+esc(String(q.layer_height_mm||'0.2'))+'mm</td>'
       +'<td>'+esc(String(q.infill_percent||''))+'%</td>'
       +'<td style="font-size:11px">'+esc(String(q.estimated_weight_g||'—'))+'g / '+esc(String(q.estimated_print_time_hours||'—'))+'h</td>'
       +'<td>₹'+Number(q.final_price||0).toLocaleString('en-IN')+'</td>'
+      +'<td style="font-size:11px;max-width:160px">'+esc(q.custom_notes||'')+'</td>'
       +'<td><span class="badge '+(statusBadge[q.status]||'badge-yellow')+'">'+esc(q.status||'—')+'</span></td>'
       +'</tr>';
   }).join('');
@@ -6130,7 +6132,7 @@ async function loadIqOrders(){
     .eq('order_status','quote_pending_confirmation')
     .is('deleted_at',null)
     .order('created_at',{ascending:false});
-  if(error){document.getElementById('iqOrdersBody').innerHTML='<tr><td colspan="13" class="tbl-msg">Error loading Instant Quote orders</td></tr>';return}
+  if(error){document.getElementById('iqOrdersBody').innerHTML='<tr><td colspan="15" class="tbl-msg">Error loading Instant Quote orders</td></tr>';return}
   _iqOrders=data||[];
   const cEl=document.getElementById('iqCount'); if(cEl)cEl.textContent=_iqOrders.length;
   checkNewItems('instantquotes','dotIQ',_iqOrders.length);
@@ -6143,7 +6145,7 @@ function _iqColorName(id){const c=(_iqColors||[]).find(x=>x.id===id);return c?c.
 
 function renderIqOrders(){
   const tbody=document.getElementById('iqOrdersBody');
-  if(!_iqOrders.length){tbody.innerHTML='<tr><td colspan="13" class="tbl-msg">No Instant Quote orders awaiting confirmation.</td></tr>';return}
+  if(!_iqOrders.length){tbody.innerHTML='<tr><td colspan="15" class="tbl-msg">No Instant Quote orders awaiting confirmation.</td></tr>';return}
   tbody.innerHTML=_iqOrders.map(o=>{
     const rows=(o.order_items||[]).filter(it=>it.instant_quote_requests);
     if(!rows.length)return '';
@@ -6156,11 +6158,13 @@ function renderIqOrders(){
         +'<td>'+esc(_iqMaterialName(q.material_id))+'</td>'
         +'<td>'+esc(_iqColorName(q.color_id))+'</td>'
         +'<td>'+esc(String(q.nozzle_mm||'0.4'))+'mm</td>'
+        +'<td>'+esc(String(q.layer_height_mm||'0.2'))+'mm</td>'
         +'<td>'+esc(String(q.infill_percent||''))+'%</td>'
         +'<td style="font-size:11px">'+esc(String(q.estimated_weight_g||'—'))+'g / '+esc(String(q.estimated_print_time_hours||'—'))+'h</td>'
         +'<td>₹'+Number(it.unit_price||0).toLocaleString('en-IN')+'</td>'
         +'<td style="font-size:11px">'+esc(o.customer_name||o.shipping_address?.full_name||'—')+'<br>'+esc(o.customer_phone||'')+'</td>'
         +'<td style="font-size:11px">'+_iqLeadCell(q)+'</td>'
+        +'<td style="font-size:11px;max-width:160px">'+esc(q.custom_notes||'')+'</td>'
         +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(o.created_at)+'</td>'
         +'<td><button class="btn-save" onclick="confirmIqOrder(\''+o.id+'\')">Confirm →</button></td>'
         +'</tr>';
@@ -6179,18 +6183,19 @@ async function confirmIqOrder(orderId){
 
 async function loadIqMaterials(){
   const{data,error}=await sb.from('instant_quote_materials').select('*').order('sort_order');
-  if(error){document.getElementById('iqMaterialsBody').innerHTML='<tr><td colspan="6" class="tbl-msg">Error loading materials</td></tr>';return}
+  if(error){document.getElementById('iqMaterialsBody').innerHTML='<tr><td colspan="7" class="tbl-msg">Error loading materials</td></tr>';return}
   _iqMaterials=data||[];
   document.getElementById('iqMaterialsBody').innerHTML=(_iqMaterials.length?_iqMaterials:[]).map(m=>
     '<tr>'
     +'<td>'+esc(m.name)+'</td>'
-    +'<td>'+esc(m.filament_type||'')+'</td>'
+    +'<td>'+esc(m.material_group||'')+'</td>'
+    +'<td style="font-size:11px">'+(m.limited_colors&&m.limited_colors.length?esc(m.limited_colors.join(', ')):'<span style="color:var(--text-3)">All colors</span>')+'</td>'
     +'<td>'+Number(m.density_g_cm3).toFixed(2)+'</td>'
     +'<td>₹'+Number(m.cost_per_gram_public).toFixed(2)+'</td>'
     +'<td><button class="btn-secondary" onclick="setIqDefault(\'instant_quote_materials\',\''+m.id+'\',\'loadIqMaterials\')">'+(m.is_default?'★ Default':'Set default')+'</button></td>'
     +'<td><button class="btn-secondary" onclick="toggleIqActive(\'instant_quote_materials\',\''+m.id+'\','+(!m.active)+',\'loadIqMaterials\')">'+(m.active?'Active':'Inactive')+'</button></td>'
     +'</tr>'
-  ).join('')||'<tr><td colspan="6" class="tbl-msg">No materials yet.</td></tr>';
+  ).join('')||'<tr><td colspan="7" class="tbl-msg">No materials yet.</td></tr>';
 }
 
 async function loadIqColors(){
@@ -6242,10 +6247,13 @@ async function setIqDefault(table,id,reload){
 async function addIqMaterial(){
   const name=prompt('Material name (e.g. "PETG-CF"):'); if(!name)return;
   const filament_type=prompt('Filament type label:',name)||name;
+  const material_group=prompt('Group shown to customers (Regular / Good Strength / Outdoor & Durable / Top Strength / Flexible):','Regular')||'Regular';
   const density_g_cm3=parseFloat(prompt('Density g/cm³:','1.24'))||1.24;
   const cost_per_gram_public=parseFloat(prompt('Public price per gram (₹):','1.80'));
   if(!cost_per_gram_public){toast('Price per gram is required','error');return}
-  const{error}=await sb.from('instant_quote_materials').insert({name,filament_type,density_g_cm3,cost_per_gram_public});
+  const limitedRaw=prompt('Limit to specific colors? Comma-separated names, or leave blank for all colors:','');
+  const limited_colors=limitedRaw&&limitedRaw.trim()?limitedRaw.split(',').map(s=>s.trim()).filter(Boolean):null;
+  const{error}=await sb.from('instant_quote_materials').insert({name,filament_type,material_group,density_g_cm3,cost_per_gram_public,limited_colors});
   if(error){toast('Error: '+error.message,'error');return}
   toast('Material added','success');
   loadIqMaterials();
