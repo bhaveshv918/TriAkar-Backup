@@ -10,6 +10,9 @@ const Auth = (function () {
   const REFRESH_KEY = 'ta_refresh';   // FIX #11: store refresh token
   const EXPIRY_KEY  = 'ta_expiry';    // FIX #11: store expiry timestamp
 
+  const SUPABASE_URL = 'https://qarjbmogersuaerkhlcu.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
+
   function getToken()   { return localStorage.getItem(TOKEN_KEY); }
   function isLoggedIn() { return !!getToken(); }
 
@@ -61,9 +64,9 @@ const Auth = (function () {
     _refreshPromise = (async () => {
       try {
         // Use Supabase's token refresh endpoint directly
-        const res = await fetch('https://qarjbmogersuaerkhlcu.supabase.co/auth/v1/token?grant_type=refresh_token', {
+        const res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs' },
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
           body: JSON.stringify({ refresh_token: refresh }),
         });
         if (res.ok) {
@@ -129,6 +132,41 @@ const Auth = (function () {
     _updateNav();
     try { if (typeof Cart !== 'undefined' && Cart.mergeOnLogin) await Cart.mergeOnLogin(); } catch (_) {}
     try { if (typeof Wishlist !== 'undefined' && Wishlist.mergeOnLogin) await Wishlist.mergeOnLogin(); } catch (_) {}
+  }
+
+  // Starts a real (but nameless) Supabase session with no email/password, so
+  // a feature like Instant Quote can require *a* session (for RLS/ownership,
+  // rate limiting, the server's requireAuth check) without making the visitor
+  // create an account first. Requires "Allow anonymous sign-ins" to be turned
+  // on in the Supabase dashboard (Authentication -> Settings), it is off by
+  // default on new projects, so this throws a clear error if it isn't enabled
+  // rather than failing silently.
+  async function signInAnonymously() {
+    const res = await fetch(SUPABASE_URL + '/auth/v1/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY },
+      body: JSON.stringify({}),
+    });
+    if (!res.ok) {
+      let msg = 'Could not start a session';
+      try { const e = await res.json(); msg = e.msg || e.error_description || e.message || msg; } catch (_) {}
+      throw new Error(msg);
+    }
+    const data = await res.json();
+    if (!data.access_token) throw new Error('Anonymous sign-in is not enabled for this project');
+    _save(data.access_token, data.user, data.refresh_token, data.expires_in);
+    _updateNav();
+    try { if (typeof Cart !== 'undefined' && Cart.mergeOnLogin) await Cart.mergeOnLogin(); } catch (_) {}
+    return data;
+  }
+
+  // A session exists (real login or anonymous) or gets created on the spot.
+  // Use this instead of isLoggedIn() wherever a feature should work for a
+  // first-time visitor without forcing them through a login screen first.
+  async function ensureSession() {
+    if (isLoggedIn()) return true;
+    await signInAnonymously();
+    return true;
   }
 
   async function logout() {
@@ -204,5 +242,5 @@ const Auth = (function () {
     }
   }
 
-  return { signup, login, setSession, logout, getToken, getUser, isLoggedIn, authHeader, authHeaderAsync, apiFetch, isExpired, init, API_BASE };
+  return { signup, login, setSession, logout, getToken, getUser, isLoggedIn, authHeader, authHeaderAsync, apiFetch, isExpired, init, API_BASE, signInAnonymously, ensureSession };
 })();
