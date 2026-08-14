@@ -3757,6 +3757,10 @@ html[data-theme="dark"] .biz-login{
               <input type="text" id="cfg_pan" placeholder="AXXXX0000X" style="font-family:var(--mono);letter-spacing:.05em">
             </div>
           </div>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+            <button class="btn btn-primary btn-sm" onclick="saveBizSettings('settingsSavedMsg_identity')">Save</button>
+            <span id="settingsSavedMsg_identity" style="font-size:12px;color:var(--green);display:none">✓ Saved</span>
+          </div>
         </details>
 
         <details class="settings-card" open data-mobile-collapse>
@@ -3775,6 +3779,10 @@ html[data-theme="dark"] .biz-login{
             <label>Website</label>
             <input type="text" id="cfg_web" placeholder="triakar.com">
           </div>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+            <button class="btn btn-primary btn-sm" onclick="saveBizSettings('settingsSavedMsg_contact')">Save</button>
+            <span id="settingsSavedMsg_contact" style="font-size:12px;color:var(--green);display:none">✓ Saved</span>
+          </div>
         </details>
 
         <details class="settings-card" open data-mobile-collapse>
@@ -3790,6 +3798,10 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>Payment Due, days from invoice date</label><input type="number" id="cfg_due_days" step="1" min="0" placeholder="7"></div>
           <div id="bizCommonQr"></div>
           <div id="bizCommonStamp"></div>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+            <button class="btn btn-primary btn-sm" onclick="saveBizSettings('settingsSavedMsg_bank')">Save</button>
+            <span id="settingsSavedMsg_bank" style="font-size:12px;color:var(--green);display:none">✓ Saved</span>
+          </div>
         </details>
 
         <details class="settings-card" open data-mobile-collapse>
@@ -3800,7 +3812,10 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group"><label>Default Making Cost ₹</label><input type="number" id="def_cogs" step="0.01" placeholder="0"></div>
           </div>
           <div style="font-size:11px;color:var(--text-3);margin-top:10px">SKU category codes: HOM · WAL · FIG · PER · GFT · UTL · TEC · CUS &nbsp;·&nbsp; per-document-type field toggles live under the Invoice / Quotation / Order Record tabs above.</div>
-          <div style="margin-top:10px"><button class="btn btn-primary btn-sm" onclick="saveBizDefaults()">Save Defaults</button> <span id="defaultsSavedMsg" style="font-size:12px;color:var(--green);display:none">✓ Saved</span></div>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+            <button class="btn btn-primary btn-sm" onclick="saveBizDefaults()">Save</button>
+            <span id="defaultsSavedMsg" style="font-size:12px;color:var(--green);display:none">✓ Saved</span>
+          </div>
         </details>
 
         <details class="settings-card" open style="grid-column:1/-1">
@@ -3813,11 +3828,6 @@ html[data-theme="dark"] .biz-login{
           </div>
           <div id="tncPresetList"></div>
         </details>
-
-        <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;padding-top:4px">
-          <button class="btn btn-primary" onclick="saveBizSettings()">Save Invoice Details</button>
-          <span id="settingsSavedMsg" style="font-size:12px;color:var(--green);display:none">✓ Saved</span>
-        </div>
 
       </div>
 
@@ -3946,14 +3956,20 @@ function collapseSecondarySettingsCards(){
   _settingsCollapsedOnce=true;
   document.querySelectorAll('#panelSettings [data-mobile-collapse]').forEach(el=>el.removeAttribute('open'));
 }
-async function saveBizSettings(){
+// Business Identity / Contact Details / Bank Details each got their own Save
+// button (was one shared button at the very bottom of all three), but they're
+// still one combined settings blob under the hood (site_settings.biz_business_
+// settings), so every save here still reads and persists all three sections
+// together, just flashes the "Saved" confirmation next to whichever card's
+// button was actually clicked (msgId).
+async function saveBizSettings(msgId){
   const g=id=>(document.getElementById(id)?.value.trim()||'');
   const cfg={name:g('cfg_name'),addr:g('cfg_addr'),gstin:g('cfg_gstin'),pan:g('cfg_pan'),phone:g('cfg_phone'),email:g('cfg_email'),web:g('cfg_web'),
     bankHolder:g('cfg_bank_holder'),bankName:g('cfg_bank_name'),bankBranch:g('cfg_bank_branch'),bankAcc:g('cfg_bank_acc'),bankIfsc:g('cfg_bank_ifsc'),bankAcType:g('cfg_bank_actype'),dueDays:g('cfg_due_days'),
     qr:_qrCollect('bizCommonQr'),stamp:_stampCollect()};
   _bizSettingsCache=cfg;
   localStorage.setItem(BIZ_SETTINGS_KEY,JSON.stringify(cfg));
-  const msg=document.getElementById('settingsSavedMsg');
+  const msg=document.getElementById(msgId||'settingsSavedMsg_identity');
   try{
     const {error}=await sb.from('site_settings').upsert({key:'biz_business_settings',value:JSON.stringify(cfg),updated_at:new Date().toISOString()},{onConflict:'key'});
     if(error) throw error;
