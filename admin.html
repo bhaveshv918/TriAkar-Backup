@@ -1836,6 +1836,22 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
     <div class="p-head">
       <div class="p-title">Instant Quotes <span style="font-weight:400;color:var(--text-3);font-size:12px">(orders awaiting customization confirmation before production)</span></div>
     </div>
+
+    <div style="padding:14px 16px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:24px;max-width:680px">
+      <div style="font-weight:700;font-size:13px;margin-bottom:4px">Pricing Formula <span style="font-weight:400;color:var(--text-3);font-size:11px">· controls every Instant Quote price site-wide</span></div>
+      <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">final_price = max((material_cost + machine_cost + failure_buffer) × (1 + markup%), minimum charge)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label class="form-label">Machine rate (₹/hour)</label><input type="number" step="1" id="iqRateHourly" class="form-input" placeholder="60"></div>
+        <div><label class="form-label">Markup (%)</label><input type="number" step="1" id="iqRateMarkup" class="form-input" placeholder="35"></div>
+        <div><label class="form-label">Minimum charge (₹)</label><input type="number" step="1" id="iqRateMinCharge" class="form-input" placeholder="249"></div>
+        <div><label class="form-label">Failure/reprint buffer (%)</label><input type="number" step="1" id="iqRateFailBuf" class="form-input" placeholder="5"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+        <button class="btn-primary" onclick="saveIqPricingSettings()">Save pricing</button>
+        <span id="iqRateStatus" style="font-size:12px;color:var(--text-3)"></span>
+      </div>
+    </div>
+
     <div class="tbl-wrap">
       <table>
         <thead><tr><th>Order</th><th>Model</th><th>Build</th><th>Material</th><th>Color</th><th>Nozzle</th><th>Layer</th><th>Infill</th><th>Est. weight/time</th><th>Price</th><th>Customer</th><th>Lead contact</th><th>Notes</th><th>Date</th><th>Action</th></tr></thead>
@@ -1860,8 +1876,8 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
     </div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Name</th><th>Group</th><th>Limited colors</th><th>Density (g/cm³)</th><th>₹/gram</th><th>Default</th><th>Active</th></tr></thead>
-        <tbody id="iqMaterialsBody"><tr><td colspan="7" class="tbl-msg">Loading...</td></tr></tbody>
+        <thead><tr><th>Name</th><th>Group</th><th>Limited colors</th><th>Density (g/cm³)</th><th>₹/gram</th><th>Default</th><th>Active</th><th>Edit</th></tr></thead>
+        <tbody id="iqMaterialsBody"><tr><td colspan="8" class="tbl-msg">Loading...</td></tr></tbody>
       </table>
     </div>
 
@@ -1871,8 +1887,8 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
     </div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Color</th><th>Hex</th><th>Default</th><th>Active</th></tr></thead>
-        <tbody id="iqColorsBody"><tr><td colspan="4" class="tbl-msg">Loading...</td></tr></tbody>
+        <thead><tr><th>Color</th><th>Hex</th><th>Default</th><th>Active</th><th>Edit</th></tr></thead>
+        <tbody id="iqColorsBody"><tr><td colspan="5" class="tbl-msg">Loading...</td></tr></tbody>
       </table>
     </div>
 
@@ -1882,8 +1898,8 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
     </div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Name (admin only)</th><th>Build volume (mm)</th><th>Default</th><th>Active</th></tr></thead>
-        <tbody id="iqPrintersBody"><tr><td colspan="4" class="tbl-msg">Loading...</td></tr></tbody>
+        <thead><tr><th>Name (admin only)</th><th>Build volume (mm)</th><th>Default</th><th>Active</th><th>Edit</th></tr></thead>
+        <tbody id="iqPrintersBody"><tr><td colspan="5" class="tbl-msg">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -6062,8 +6078,40 @@ async function loadInstantQuotes(){
   // Catalog lookups (materials/printers/colors) must land before the two
   // tables that render names/dims from them, or those columns show "—" on
   // first paint until a manual refresh.
-  await Promise.all([loadIqMaterials(),loadIqPrinters(),loadIqColors()]);
+  await Promise.all([loadIqMaterials(),loadIqPrinters(),loadIqColors(),loadIqPricingSettings()]);
   await Promise.all([loadIqOrders(),loadIqUploads()]);
+}
+
+/* Pricing Formula (site_settings keys read by instantQuotePricingService.js).
+   Same table/upsert pattern as Site Content, site_settings has a proper
+   admin-write RLS policy so the browser sb client can write it directly. */
+const IQ_RATE_KEYS={
+  instant_quote_hourly_machine_rate:'iqRateHourly',
+  instant_quote_markup_percent:'iqRateMarkup',
+  instant_quote_min_charge:'iqRateMinCharge',
+  instant_quote_failure_buffer_percent:'iqRateFailBuf',
+};
+const IQ_RATE_DEFAULTS={instant_quote_hourly_machine_rate:60,instant_quote_markup_percent:35,instant_quote_min_charge:249,instant_quote_failure_buffer_percent:5};
+async function loadIqPricingSettings(){
+  const{data,error}=await sb.from('site_settings').select('key,value').in('key',Object.keys(IQ_RATE_KEYS));
+  const m={}; (data||[]).forEach(r=>m[r.key]=r.value);
+  if(error){const s=document.getElementById('iqRateStatus'); if(s){s.textContent='Could not load pricing, site_settings table may be missing.';s.style.color='#B91C1C';} }
+  Object.keys(IQ_RATE_KEYS).forEach(key=>{
+    const el=document.getElementById(IQ_RATE_KEYS[key]);
+    if(el)el.value=(m[key]!=null&&m[key]!=='')?m[key]:IQ_RATE_DEFAULTS[key];
+  });
+}
+async function saveIqPricingSettings(){
+  const rows=Object.keys(IQ_RATE_KEYS).map(key=>{
+    const el=document.getElementById(IQ_RATE_KEYS[key]);
+    return {key,value:String(el?el.value:IQ_RATE_DEFAULTS[key])};
+  });
+  if(rows.some(r=>r.value===''||isNaN(Number(r.value)))){toast('All pricing fields must be numbers','error');return}
+  const{error}=await sb.from('site_settings').upsert(rows,{onConflict:'key'});
+  const s=document.getElementById('iqRateStatus');
+  if(error){if(s){s.textContent='Error: '+error.message;s.style.color='#B91C1C';} toast('Error: '+error.message,'error');return}
+  if(s){s.textContent='Saved ✓';s.style.color='var(--text-3)';}
+  toast('Pricing formula updated, applies to every new quote immediately','success');
 }
 
 /* Every uploaded model + computed quote, regardless of whether it became an
@@ -6194,8 +6242,9 @@ async function loadIqMaterials(){
     +'<td>₹'+Number(m.cost_per_gram_public).toFixed(2)+'</td>'
     +'<td><button class="btn-secondary" onclick="setIqDefault(\'instant_quote_materials\',\''+m.id+'\',\'loadIqMaterials\')">'+(m.is_default?'★ Default':'Set default')+'</button></td>'
     +'<td><button class="btn-secondary" onclick="toggleIqActive(\'instant_quote_materials\',\''+m.id+'\','+(!m.active)+',\'loadIqMaterials\')">'+(m.active?'Active':'Inactive')+'</button></td>'
+    +'<td><button class="btn-secondary" onclick="editIqMaterial(\''+m.id+'\')">Edit</button></td>'
     +'</tr>'
-  ).join('')||'<tr><td colspan="7" class="tbl-msg">No materials yet.</td></tr>';
+  ).join('')||'<tr><td colspan="8" class="tbl-msg">No materials yet.</td></tr>';
 }
 
 async function loadIqColors(){
@@ -6208,8 +6257,9 @@ async function loadIqColors(){
     +'<td style="font-family:var(--mono);font-size:11px">'+esc(c.hex)+'</td>'
     +'<td><button class="btn-secondary" onclick="setIqDefault(\'instant_quote_colors\',\''+c.id+'\',\'loadIqColors\')">'+(c.is_default?'★ Default':'Set default')+'</button></td>'
     +'<td><button class="btn-secondary" onclick="toggleIqActive(\'instant_quote_colors\',\''+c.id+'\','+(!c.active)+',\'loadIqColors\')">'+(c.active?'Active':'Inactive')+'</button></td>'
+    +'<td><button class="btn-secondary" onclick="editIqColor(\''+c.id+'\')">Edit</button></td>'
     +'</tr>'
-  ).join('')||'<tr><td colspan="4" class="tbl-msg">No colors yet.</td></tr>';
+  ).join('')||'<tr><td colspan="5" class="tbl-msg">No colors yet.</td></tr>';
 }
 
 async function loadIqPrinters(){
@@ -6222,8 +6272,9 @@ async function loadIqPrinters(){
     +'<td>'+p.build_x_mm+' × '+p.build_y_mm+' × '+p.build_z_mm+'</td>'
     +'<td><button class="btn-secondary" onclick="setIqDefault(\'instant_quote_printers\',\''+p.id+'\',\'loadIqPrinters\')">'+(p.is_default?'★ Default':'Set default')+'</button></td>'
     +'<td><button class="btn-secondary" onclick="toggleIqActive(\'instant_quote_printers\',\''+p.id+'\','+(!p.active)+',\'loadIqPrinters\')">'+(p.active?'Active':'Inactive')+'</button></td>'
+    +'<td><button class="btn-secondary" onclick="editIqPrinter(\''+p.id+'\')">Edit</button></td>'
     +'</tr>'
-  ).join('')||'<tr><td colspan="4" class="tbl-msg">No build sizes yet.</td></tr>';
+  ).join('')||'<tr><td colspan="5" class="tbl-msg">No build sizes yet.</td></tr>';
 }
 
 async function toggleIqActive(table,id,newVal,reload){
@@ -6277,6 +6328,45 @@ async function addIqPrinter(){
   const{error}=await sb.from('instant_quote_printers').insert({name,build_x_mm,build_y_mm,build_z_mm});
   if(error){toast('Error: '+error.message,'error');return}
   toast('Build size added','success');
+  loadIqPrinters();
+}
+
+async function editIqMaterial(id){
+  const m=(_iqMaterials||[]).find(x=>x.id===id); if(!m)return;
+  const name=prompt('Material name:',m.name); if(!name)return;
+  const filament_type=prompt('Filament type label:',m.filament_type||name)||name;
+  const material_group=prompt('Group shown to customers (Regular / Good Strength / Outdoor & Durable / Top Strength / Flexible):',m.material_group||'Regular')||'Regular';
+  const density_g_cm3=parseFloat(prompt('Density g/cm³:',m.density_g_cm3))||m.density_g_cm3;
+  const cost_per_gram_public=parseFloat(prompt('Public price per gram (₹):',m.cost_per_gram_public));
+  if(!cost_per_gram_public){toast('Price per gram is required','error');return}
+  const limitedRaw=prompt('Limit to specific colors? Comma-separated names, or leave blank for all colors:',(m.limited_colors||[]).join(', '));
+  const limited_colors=limitedRaw&&limitedRaw.trim()?limitedRaw.split(',').map(s=>s.trim()).filter(Boolean):null;
+  const{error}=await sb.from('instant_quote_materials').update({name,filament_type,material_group,density_g_cm3,cost_per_gram_public,limited_colors}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return}
+  toast('Material updated','success');
+  loadIqMaterials();
+}
+
+async function editIqColor(id){
+  const c=(_iqColors||[]).find(x=>x.id===id); if(!c)return;
+  const name=prompt('Color name:',c.name); if(!name)return;
+  const hex=prompt('Hex code (e.g. #C4622A):',c.hex); if(!hex)return;
+  const{error}=await sb.from('instant_quote_colors').update({name,hex}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return}
+  toast('Color updated','success');
+  loadIqColors();
+}
+
+async function editIqPrinter(id){
+  const p=(_iqPrinters||[]).find(x=>x.id===id); if(!p)return;
+  const name=prompt('Reference name (not shown to customers):',p.name); if(!name)return;
+  const build_x_mm=parseFloat(prompt('Build X (mm):',p.build_x_mm));
+  const build_y_mm=parseFloat(prompt('Build Y (mm):',p.build_y_mm));
+  const build_z_mm=parseFloat(prompt('Build Z (mm):',p.build_z_mm));
+  if(!build_x_mm||!build_y_mm||!build_z_mm){toast('All build dimensions are required','error');return}
+  const{error}=await sb.from('instant_quote_printers').update({name,build_x_mm,build_y_mm,build_z_mm}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return}
+  toast('Build size updated','success');
   loadIqPrinters();
 }
 
@@ -7013,35 +7103,45 @@ function openStoryModal(id){
   document.getElementById('stSlug').value=(s&&s.slug)||'';
   document.getElementById('stExcerpt').value=s?s.excerpt:'';
   document.getElementById('stFullText').value=s?s.full_text:'';
-  document.getElementById('stImageUrl').value=(s&&s.image_url)||'';
   document.getElementById('stCustomerName').value=(s&&s.customer_name)||'';
   document.getElementById('stCustomerLocation').value=(s&&s.customer_location)||'';
   document.getElementById('stImageFile').value='';
   document.getElementById('stImageUploadStatus').textContent='';
-  updateStoryImagePreview();
+  _stImages=(s&&s.image_url)?[s.image_url,...((s.images)||[])]:[];
+  renderStImagesGrid();
   document.getElementById('stModalTitle').textContent=s?'Edit Story':'Add Story';
   document.getElementById('storyModal').style.display='flex';
 }
 function closeStoryModal(){ document.getElementById('storyModal').style.display='none'; }
-function updateStoryImagePreview(){
-  const url=document.getElementById('stImageUrl').value.trim();
-  const img=document.getElementById('stImagePreview');
-  if(url){ img.src=url; img.style.display=''; } else { img.style.display='none'; img.src=''; }
+let _stImages=[];
+function renderStImagesGrid(){
+  const grid=document.getElementById('stImagesGrid');
+  grid.innerHTML=_stImages.map(function(url,i){
+    return '<div style="position:relative;width:84px;height:84px">'
+      +'<img src="'+esc(url)+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid var(--border);background:var(--bg-2)">'
+      +(i===0?'<span style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,.65);color:#fff;font-size:9px;padding:1px 5px;border-radius:4px">Cover</span>':'')
+      +'<button type="button" onclick="removeStImage('+i+')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#111;color:#fff;border:1px solid var(--border);cursor:pointer;font-size:12px;line-height:1">×</button>'
+      +'</div>';
+  }).join('') || '<span style="font-size:12px;color:var(--text-3)">No photos yet</span>';
 }
+function removeStImage(i){ _stImages.splice(i,1); renderStImagesGrid(); }
 async function uploadStoryImage(input){
-  const file=input.files&&input.files[0];
-  if(!file) return;
+  const files=input.files?Array.from(input.files):[];
+  if(!files.length) return;
+  if(_stImages.length+files.length>4){ toast('Max 4 photos per story','error'); input.value=''; return; }
   const status=document.getElementById('stImageUploadStatus');
-  status.textContent='Uploading…'; status.style.color='var(--text-3)';
   try{
     const{data:sess}=await sb.auth.getSession();
     const token=sess&&sess.session&&sess.session.access_token;
-    const fd=new FormData(); fd.append('image',file);
-    const r=await fetch(API+'/api/admin/upload-image?folder=triakar/stories',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
-    if(!r.ok) throw new Error((await r.json()).error||'Upload failed');
-    const{url}=await r.json();
-    document.getElementById('stImageUrl').value=url;
-    updateStoryImagePreview();
+    for(let idx=0;idx<files.length;idx++){
+      status.textContent='Uploading '+(idx+1)+'/'+files.length+'…'; status.style.color='var(--text-3)';
+      const fd=new FormData(); fd.append('image',files[idx]);
+      const r=await fetch(API+'/api/admin/upload-image?folder=triakar/stories',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+      if(!r.ok) throw new Error((await r.json()).error||'Upload failed');
+      const{url}=await r.json();
+      _stImages.push(url);
+      renderStImagesGrid();
+    }
     status.textContent='Uploaded ✓'; status.style.color='var(--green)';
   }catch(err){
     status.textContent='Failed: '+err.message; status.style.color='#fca5a5';
@@ -7060,7 +7160,8 @@ async function saveStory(){
     slug:document.getElementById('stSlug').value.trim(),
     excerpt:document.getElementById('stExcerpt').value.trim(),
     full_text:document.getElementById('stFullText').value.trim(),
-    image_url:document.getElementById('stImageUrl').value.trim()||null,
+    image_url:_stImages[0]||null,
+    images:_stImages.slice(1),
     customer_name:document.getElementById('stCustomerName').value.trim()||null,
     customer_location:document.getElementById('stCustomerLocation').value.trim()||null,
   };
@@ -7305,15 +7406,10 @@ async function saveReview(){
       </div>
       <p style="font-size:11px;color:var(--text-3);margin:-4px 0 0;line-height:1.5">A real name + city turns the card from an anonymous excerpt into a verifiable customer story, same trust signal as product reviews. Leave blank to keep it anonymous (e.g. a bulk/corporate order where no individual is named).</p>
       <div>
-        <label class="form-label">Photo <span style="font-weight:400;color:var(--text-3);font-size:11px">· the finished piece, or the customer with it</span></label>
-        <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
-          <img id="stImagePreview" src="" style="width:84px;height:84px;object-fit:cover;border-radius:8px;border:1px solid var(--border);display:none;background:var(--bg-2)">
-          <div style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:6px">
-            <input id="stImageFile" type="file" accept="image/jpeg,image/png,image/webp" onchange="uploadStoryImage(this)">
-            <input id="stImageUrl" class="form-input" placeholder="https://res.cloudinary.com/… (or upload above)" oninput="updateStoryImagePreview()">
-            <span id="stImageUploadStatus" style="font-size:11px;color:var(--text-3)"></span>
-          </div>
-        </div>
+        <label class="form-label">Photos <span style="font-weight:400;color:var(--text-3);font-size:11px">· 1-4 images, first one is the cover shown on the story card. Mixed orientations are fine, the detail page shows them as a swipeable gallery</span></label>
+        <div id="stImagesGrid" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"></div>
+        <input id="stImageFile" type="file" accept="image/jpeg,image/png,image/webp" multiple onchange="uploadStoryImage(this)">
+        <span id="stImageUploadStatus" style="font-size:11px;color:var(--text-3);display:block;margin-top:4px"></span>
       </div>
       <div style="display:flex;gap:10px;margin-top:6px">
         <button class="btn-primary" onclick="saveStory()" title="Shortcut: Ctrl+Enter" style="flex:1">Save Story <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
