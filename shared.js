@@ -450,6 +450,7 @@ const Cart=(function(){
         id:iid, type:'instant_quote', instant_quote_id:q.instant_quote_id,
         name:q.name, price:q.price, quantity:q.quantity||1, color:'', image:q.image||'',
         customization:{
+          ...(q.quoteNumber?{'Quote #':q.quoteNumber}:{}),
           Material:q.material||'', Color:q.color||'', Nozzle:q.nozzle||'', 'Layer height':q.layerHeight||'',
           Strength:(q.infill!=null?q.infill+'% infill':''), 'Build size':q.printer||'',
           ...(q.otherNotes?{Notes:q.otherNotes}:{}),

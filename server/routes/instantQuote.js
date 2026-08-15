@@ -23,6 +23,16 @@ function signQuoteToken(payload) {
   const sig = crypto.createHmac('sha256', TOKEN_SECRET).update(body).digest('base64url');
   return `${body}.${sig}`;
 }
+// Customer-facing reference for a priced quote, e.g. "IQ-20260816-4821".
+// Same date+random-suffix shape as generateInvoiceNumber() in
+// paymentController.js, but quote_number is DB-unique, so on the rare
+// collision this just regenerates and retries the insert.
+function generateQuoteNumber() {
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `IQ-${date}-${rand}`;
+}
+
 function verifyQuoteToken(token) {
   const [body, sig] = String(token || '').split('.');
   if (!body || !sig) throw Object.assign(new Error('Invalid quote token'), { status: 400 });
@@ -164,7 +174,7 @@ router.post('/price', optionalAuth, async (req, res, next) => {
 
     const priced = await computeInstantQuotePrice({ volume_cm3: geometry.volume_cm3, infill_percent: infill, material, nozzle_mm: nozzle, layer_height_mm: layerHeight });
 
-    const { data: quote, error } = await supabase.from('instant_quote_requests').insert({
+    const row = {
       user_id: req.user?.id || null,
       model_file_url: geometry.model_file_url,
       model_public_id: geometry.model_public_id,
@@ -190,7 +200,17 @@ router.post('/price', optionalAuth, async (req, res, next) => {
       contact_phone: contact_phone ? String(contact_phone).trim().slice(0, 20)  : null,
       custom_notes:  custom_notes  ? String(custom_notes).trim().slice(0, 500)  : null,
       layer_height_mm: layerHeight,
-    }).select().single();
+    };
+
+    // quote_number is DB-unique but collision-checked here too, on the rare
+    // clash (same-second date+random match) this just tries a fresh number
+    // rather than failing the whole quote over a display-only field.
+    let quote, error;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      ({ data: quote, error } = await supabase.from('instant_quote_requests')
+        .insert({ ...row, quote_number: generateQuoteNumber() }).select().single());
+      if (!error || error.code !== '23505') break;
+    }
     if (error) throw error;
 
     res.json({ quote });
