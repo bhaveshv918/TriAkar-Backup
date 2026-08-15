@@ -68,17 +68,10 @@ router.post('/analyze', requireAuth, uploadModel.single('model'), async (req, re
 
     const stats = await analyzeMeshWithTimeout(req.file.buffer, format, unit);
 
-    // Reject before spending an upload if the model can't possibly fit any active printer.
-    const { data: printers } = await supabase
-      .from('instant_quote_printers').select('build_x_mm,build_y_mm,build_z_mm').eq('active', true);
-    const dims = [stats.dims_mm.x, stats.dims_mm.y, stats.dims_mm.z].sort((a, b) => b - a);
-    const fitsAny = (printers || []).some(p => {
-      const build = [p.build_x_mm, p.build_y_mm, p.build_z_mm].sort((a, b) => b - a);
-      return dims[0] <= build[0] && dims[1] <= build[1] && dims[2] <= build[2];
-    });
-    if (printers?.length && !fitsAny) {
-      return res.status(400).json({ error: 'This model is larger than any of our available printer build volumes.' });
-    }
+    // Deliberately never reject an upload for being "too big to fit" any
+    // catalog printer, oversized parts still get a quote (split/rescale/large-
+    // format printing is a production-team judgment call, not something an
+    // automated upload gate should block a customer over).
 
     // Raw (non-image) Cloudinary resources use the public_id's own extension for
     // delivery/content-type, a bare id with no extension produced a URL with no
@@ -158,11 +151,9 @@ router.post('/price', requireAuth, async (req, res, next) => {
       return res.status(400).json({ error: `${material.name} is only available in: ${material.limited_colors.join(', ')}` });
     }
 
-    const dims = [geometry.dims_mm.x, geometry.dims_mm.y, geometry.dims_mm.z].sort((a, b) => b - a);
-    const build = [printer.build_x_mm, printer.build_y_mm, printer.build_z_mm].sort((a, b) => b - a);
-    if (dims[0] > build[0] || dims[1] > build[1] || dims[2] > build[2]) {
-      return res.status(400).json({ error: `Model does not fit the selected printer's build volume` });
-    }
+    // Deliberately never blocked for not fitting the selected printer's build
+    // volume, same reasoning as /analyze, an oversized model still gets priced
+    // and ordered; production handles sizing/splitting as a human judgment call.
 
     const priced = await computeInstantQuotePrice({ volume_cm3: geometry.volume_cm3, infill_percent: infill, material, nozzle_mm: nozzle, layer_height_mm: layerHeight });
 
