@@ -359,8 +359,14 @@
 .test-nav-btn.dark{background:var(--charcoal);color:var(--ivory);border-color:var(--charcoal)}
 .test-nav-btn.dark:hover{background:var(--accent);border-color:var(--accent)}
 @media(max-width:900px){
-  .reviews-layout{flex-direction:column;gap:20px}
+  /* Without this, the column-direction cross-axis default (align-items
+     inherited as flex-start from the desktop row layout) lets each child
+     size to its own max-content instead of stretching to the phone's
+     width, which is what was blowing the whole section out past the
+     viewport, cards overflowing, nav column misaligned, everything. */
+  .reviews-layout{flex-direction:column;align-items:stretch;gap:20px}
   .reviews-side{flex:1 1 auto}
+  .reviews-main{width:100%}
   .reviews-nav-col{flex-direction:row;padding-top:0;order:3;align-self:center}
 }
 .test-scroll{display:flex;gap:18px;margin-top:0;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;padding-bottom:4px;scrollbar-width:none}
@@ -806,8 +812,8 @@ html.a11y-reduce-motion .promo-item:first-child{opacity:1}
       </div><!-- /test-scroll -->
       </div><!-- /reviews-main -->
       <div class="reviews-nav-col">
-        <button class="test-nav-btn dark" aria-label="Next reviews" onclick="taTestScroll(1)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
-        <button class="test-nav-btn" aria-label="Previous reviews" onclick="taTestScroll(-1)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <button class="test-nav-btn dark" aria-label="Next reviews" onclick="taTestScroll(1);taTestUserInteracted()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+        <button class="test-nav-btn" aria-label="Previous reviews" onclick="taTestScroll(-1);taTestUserInteracted()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       </div>
     </div><!-- /reviews-layout -->
   </div>
@@ -937,6 +943,34 @@ function taTestScroll(dir){
   var w=(card?card.getBoundingClientRect().width:300)+gap;
   el.scrollBy({left:dir*w,behavior:'smooth'});
 }
+
+/* Auto-advance the reviews carousel one card every 7s, loops back to the
+   start at the end. Pauses while the visitor is actually touching/dragging
+   it or has used the arrows recently, and while it's off-screen, so it
+   doesn't fight the user or burn cycles scrolled past. */
+var taTestPauseUntil=0;
+function taTestUserInteracted(){ taTestPauseUntil=Date.now()+6000; }
+(function(){
+  var el=document.getElementById('testScroll');
+  if(!el)return;
+  if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  var AUTO_MS=7000,timer=null;
+  function tick(){
+    if(Date.now()<taTestPauseUntil)return;
+    var atEnd=el.scrollLeft+el.clientWidth>=el.scrollWidth-4;
+    if(atEnd)el.scrollTo({left:0,behavior:'smooth'});
+    else taTestScroll(1);
+  }
+  ['pointerdown','touchstart','wheel'].forEach(function(ev){el.addEventListener(ev,taTestUserInteracted,{passive:true});});
+  if('IntersectionObserver' in window){
+    new IntersectionObserver(function(entries){
+      if(entries[0].isIntersecting){ if(!timer)timer=setInterval(tick,AUTO_MS); }
+      else{ clearInterval(timer); timer=null; }
+    },{threshold:.3}).observe(el);
+  }else{
+    timer=setInterval(tick,AUTO_MS);
+  }
+})();
 
 function _renderHpGrid(prods){
   const grid=document.getElementById('hpProdGrid');
