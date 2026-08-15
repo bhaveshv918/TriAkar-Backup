@@ -91,19 +91,23 @@
 .tm-pin{display:flex;flex-direction:column;align-items:center;gap:5px;flex-shrink:0;width:52px}
 .tm-pin span{font-size:7.2px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--stone);text-align:center;line-height:1.25}
 .tm-track{position:relative;flex:1;height:44px}
-.tm-track::before{content:"";position:absolute;left:0;right:0;top:50%;height:3px;background:repeating-linear-gradient(90deg,var(--stone-p) 0 8px,transparent 8px 16px);transform:translateY(-50%);border-radius:2px}
+.tm-track::before{content:"";position:absolute;left:0;right:0;top:50%;height:6px;background-image:repeating-linear-gradient(90deg,var(--ivory) 0 9px,transparent 9px 18px),linear-gradient(var(--stone-l),var(--stone-l));transform:translateY(-50%);border-radius:3px}
 .tm-progress{position:absolute;left:0;top:50%;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent-l));transform:translateY(-50%);width:0%;transition:width 1s cubic-bezier(.4,0,.2,1);border-radius:2px}
 .tm-car{position:absolute;top:50%;left:0%;transform:translate(-50%,-58%);transition:left 1.1s cubic-bezier(.4,0,.2,1);animation:tmHop .55s ease-in-out infinite}
 .tm-car-inner{animation:tmHop .55s ease-in-out infinite;display:block}
-.tm-car svg{display:block;width:36px;height:26px;filter:drop-shadow(0 3px 4px rgba(0,0,0,.2))}
+.tm-car svg{display:block;width:36px;height:26px;filter:drop-shadow(0 3px 4px rgba(0,0,0,.2));overflow:visible}
 .tm-wheel{animation:tmSpin .45s linear infinite;transform-box:fill-box;transform-origin:center}
 .tm-dust{position:absolute;left:-6px;bottom:-2px;width:10px;height:5px;border-radius:50%;background:var(--stone-p);opacity:0;animation:tmDust 1.1s ease-out infinite}
 .tm-dust.d2{left:-13px;animation-delay:.35s}
+.tm-smoke{position:absolute;left:3px;top:2px;width:6px;height:6px;border-radius:50%;background:var(--stone-l);opacity:0;animation:tmSmoke 1.6s ease-out infinite}
+.tm-smoke.s2{animation-delay:.5s}
+.tm-smoke.s3{animation-delay:1.05s}
 @keyframes tmHop{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-7px) rotate(-4deg)}}
 @keyframes tmSpin{to{transform:rotate(360deg)}}
 @keyframes tmDust{0%{opacity:.55;transform:translateX(0) scale(1)}100%{opacity:0;transform:translateX(-16px) scale(.3)}}
+@keyframes tmSmoke{0%{opacity:0;transform:translate(0,0) scale(.4)}20%{opacity:.5}100%{opacity:0;transform:translate(-10px,-9px) scale(1.6)}}
 .tm-caption{margin-top:14px;text-align:center;font-size:11.5px;font-weight:600;color:var(--charcoal);min-height:16px;transition:opacity .3s}
-@media(prefers-reduced-motion:reduce){.tm-car,.tm-car-inner,.tm-wheel,.tm-dust{animation:none!important}}
+@media(prefers-reduced-motion:reduce){.tm-car,.tm-car-inner,.tm-wheel,.tm-dust,.tm-smoke{animation:none!important}}
 @media(max-width:420px){.tm-pin{width:42px}.tm-pin span{font-size:6.6px}}
 .track-alts{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--stone-p);margin-top:48px}
 .ta-card{background:rgba(250,250,248,.78);-webkit-backdrop-filter:blur(12px) saturate(140%);backdrop-filter:blur(12px) saturate(140%);padding:24px 22px;transition:background .25s,box-shadow .3s,transform .3s cubic-bezier(.4,0,.2,1)}
@@ -308,7 +312,10 @@
           <stop offset="100%" stop-color="#FF3B30" stop-opacity="0"/>
         </radialGradient>
       </defs>
-      <path id="heroRoute" d="M40,190 C130,60 190,230 280,140 C350,70 400,210 480,130 C540,70 590,200 660,120 C710,70 750,160 800,110 C830,85 850,105 870,90" fill="none" stroke="var(--stone-l)" stroke-width="2.4" stroke-dasharray="1 11" stroke-linecap="round" opacity=".5"/>
+      <!-- road bed -->
+      <path d="M40,190 C130,60 190,230 280,140 C350,70 400,210 480,130 C540,70 590,200 660,120 C710,70 750,160 800,110 C830,85 850,105 870,90" fill="none" stroke="var(--stone-l)" stroke-width="9" stroke-linecap="round" opacity=".2"/>
+      <!-- lane markings, doubles as the car's motion path -->
+      <path id="heroRoute" d="M40,190 C130,60 190,230 280,140 C350,70 400,210 480,130 C540,70 590,200 660,120 C710,70 750,160 800,110 C830,85 850,105 870,90" fill="none" stroke="var(--ivory)" stroke-width="2.2" stroke-dasharray="16 13" stroke-linecap="round" opacity=".55"/>
 
       <!-- studio pin -->
       <g transform="translate(40,190)">
@@ -346,6 +353,24 @@
             <!-- taillight, red, bigger -->
             <circle cx="-14.5" cy="7.3" r="4" fill="url(#heroTailGlow)"/>
             <circle cx="-14.5" cy="7.3" r="1.9" fill="#FF3B30"/>
+            <!-- exhaust smoke, puffing continuously -->
+            <g class="hc-smoke">
+              <circle cx="-16" cy="8" r="2" fill="var(--stone-l)" opacity="0">
+                <animate attributeName="opacity" values="0;0;.55;.3;0" keyTimes="0;0.05;0.25;0.6;1" dur="1.6s" repeatCount="indefinite"/>
+                <animateTransform attributeName="transform" type="translate" values="0,0;-4,-3;-9,-7;-15,-11" keyTimes="0;0.3;0.65;1" dur="1.6s" repeatCount="indefinite" additive="sum"/>
+                <animateTransform attributeName="transform" type="scale" values="0.4;0.8;1.3;1.7" keyTimes="0;0.3;0.65;1" dur="1.6s" repeatCount="indefinite" additive="sum"/>
+              </circle>
+              <circle cx="-16" cy="8" r="2" fill="var(--stone-l)" opacity="0">
+                <animate attributeName="opacity" values="0;0;.55;.3;0" keyTimes="0;0.05;0.25;0.6;1" dur="1.6s" begin="0.5s" repeatCount="indefinite"/>
+                <animateTransform attributeName="transform" type="translate" values="0,0;-4,-3;-9,-7;-15,-11" keyTimes="0;0.3;0.65;1" dur="1.6s" begin="0.5s" repeatCount="indefinite" additive="sum"/>
+                <animateTransform attributeName="transform" type="scale" values="0.4;0.8;1.3;1.7" keyTimes="0;0.3;0.65;1" dur="1.6s" begin="0.5s" repeatCount="indefinite" additive="sum"/>
+              </circle>
+              <circle cx="-16" cy="8" r="2" fill="var(--stone-l)" opacity="0">
+                <animate attributeName="opacity" values="0;0;.55;.3;0" keyTimes="0;0.05;0.25;0.6;1" dur="1.6s" begin="1.05s" repeatCount="indefinite"/>
+                <animateTransform attributeName="transform" type="translate" values="0,0;-4,-3;-9,-7;-15,-11" keyTimes="0;0.3;0.65;1" dur="1.6s" begin="1.05s" repeatCount="indefinite" additive="sum"/>
+                <animateTransform attributeName="transform" type="scale" values="0.4;0.8;1.3;1.7" keyTimes="0;0.3;0.65;1" dur="1.6s" begin="1.05s" repeatCount="indefinite" additive="sum"/>
+              </circle>
+            </g>
           </g>
         </g>
       </g>
@@ -353,7 +378,8 @@
 
     <!-- static reduced-motion fallback: road with the car parked mid-route -->
     <svg class="dbh-route-static" viewBox="0 0 900 240" preserveAspectRatio="xMidYMid meet">
-      <path d="M40,190 C130,60 190,230 280,140 C350,70 400,210 480,130 C540,70 590,200 660,120 C710,70 750,160 800,110 C830,85 850,105 870,90" fill="none" stroke="var(--stone-l)" stroke-width="2.4" stroke-dasharray="1 11" stroke-linecap="round" opacity=".5"/>
+      <path d="M40,190 C130,60 190,230 280,140 C350,70 400,210 480,130 C540,70 590,200 660,120 C710,70 750,160 800,110 C830,85 850,105 870,90" fill="none" stroke="var(--stone-l)" stroke-width="9" stroke-linecap="round" opacity=".2"/>
+      <path d="M40,190 C130,60 190,230 280,140 C350,70 400,210 480,130 C540,70 590,200 660,120 C710,70 750,160 800,110 C830,85 850,105 870,90" fill="none" stroke="var(--ivory)" stroke-width="2.2" stroke-dasharray="16 13" stroke-linecap="round" opacity=".55"/>
       <g transform="translate(40,190)">
         <path d="M0,-34C-11,-34 -20,-25 -20,-14C-20,3 0,24 0,24C0,24 20,3 20,-14C20,-25 11,-34 0,-34Z" fill="var(--accent)"/>
         <rect x="-8" y="-22" width="16" height="13" rx="2" fill="var(--ivory)"/>
@@ -375,6 +401,8 @@
         <circle cx="23" cy="0" r="1.2" fill="#FFF8E1"/>
         <circle cx="-14.5" cy="7.3" r="4" fill="url(#heroTailGlow)"/>
         <circle cx="-14.5" cy="7.3" r="1.9" fill="#FF3B30"/>
+        <circle cx="-19" cy="4" r="2.4" fill="var(--stone-l)" opacity=".35"/>
+        <circle cx="-23" cy="0" r="3.2" fill="var(--stone-l)" opacity=".2"/>
       </g>
     </svg>
   </div>
@@ -405,6 +433,9 @@
               <div class="tm-car" id="tmCar">
                 <div class="tm-dust"></div>
                 <div class="tm-dust d2"></div>
+                <div class="tm-smoke"></div>
+                <div class="tm-smoke s2"></div>
+                <div class="tm-smoke s3"></div>
                 <div class="tm-car-inner">
                   <svg viewBox="0 0 60 42" fill="none" style="overflow:visible">
                     <defs>
@@ -470,11 +501,46 @@ function fmtPrice(n){return'₹'+Number(n||0).toLocaleString('en-IN');}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 const MAP_CAPTIONS=[
-  'Order confirmed! The car is warming up in the TriAkar garage.',
-  'Still printing, layer by layer. The car is parked, radio on full volume.',
-  'Quality check underway. The car got a quick polish while it waits.',
-  'Vroom! On the road now, hopping over speed bumps like a pro.',
-  'Delivered! The car is doing a little victory lap outside your door.'
+  [
+    'Order confirmed! The car is warming up in the TriAkar garage.',
+    'Order locked in. The car is doing its morning stretches before the big drive.',
+    'Confirmed! The car just got its first cup of chai for the day.',
+    'Order received. The car is polishing its horn for the journey ahead.',
+    'All set! The car is double checking its mirrors and pretending to be busy.',
+    'Confirmed and counting. The car is arguing with GPS about the fastest route.'
+  ],
+  [
+    'Still printing, layer by layer. The car is parked, radio on full volume.',
+    'Printer is humming along. The car is napping with one eye open.',
+    'Layer by layer, patience by patience. The car is playing antakshari with itself.',
+    'Printing in progress. The car ordered a samosa while it waits.',
+    'Almost there, one layer at a time. The car is practicing its horn honks.',
+    'Printer is on a roll. The car is catching up on gossip with the delivery drone.'
+  ],
+  [
+    'Quality check underway. The car got a quick polish while it waits.',
+    'Inspection time. The car is flexing its freshly cleaned windshield.',
+    'Getting the final once over. The car checked its tyre pressure twice, just in case.',
+    'Quality check in progress. The car is practicing its best delivered on time smile.',
+    'Almost approved. The car topped up on fuel and confidence.',
+    'Final inspection. The car is straightening its number plate for the photo.'
+  ],
+  [
+    'Vroom! On the road now, hopping over speed bumps like a pro.',
+    'On the move, dodging potholes with Olympic level precision.',
+    'Cruising along, honking hello at every stray dog on the way.',
+    'On the highway now, radio blasting, windows down, mood elevated.',
+    'Zooming past traffic like it owns the road, it does not.',
+    'Taking the scenic route, mostly because it missed one turn.'
+  ],
+  [
+    'Delivered! The car is doing a little victory lap outside your door.',
+    'Mission complete. The car is taking a well earned nap in the shade.',
+    'Delivered with a smile. The car honked twice out of pure joy.',
+    'All done! The car is already bragging to other cars about this delivery.',
+    'Delivered safe and sound. The car did a very responsible, very legal celebratory parking job.',
+    'Job done! The car gave itself a proud little bumper pat.'
+  ]
 ];
 const MAP_CAPTION_WA='Waiting on your WhatsApp confirmation. Engine is off for now.';
 
@@ -488,7 +554,9 @@ function renderMap(step,cancelled,isWA){
   const pct=Math.max(4,Math.min(96,Math.round((step/4)*100)));
   car.style.left=pct+'%';
   prog.style.width=pct+'%';
-  cap.textContent=(isWA&&step===0)?MAP_CAPTION_WA:(MAP_CAPTIONS[step]||MAP_CAPTIONS[0]);
+  const pool=MAP_CAPTIONS[step]||MAP_CAPTIONS[0];
+  const pick=pool[Math.floor(Math.random()*pool.length)];
+  cap.textContent=(isWA&&step===0)?MAP_CAPTION_WA:pick;
 }
 
 function renderTimeline(st){
