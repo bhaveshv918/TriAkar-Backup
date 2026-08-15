@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import crypto from 'crypto';
 import supabase from '../db/supabaseClient.js';
-import { requireAuth } from '../middleware/authMiddleware.js';
+import { requireAuth, optionalAuth } from '../middleware/authMiddleware.js';
 import { uploadModel } from '../middleware/uploadMiddleware.js';
 import { uploadRawBufferToCloudinary } from '../services/cloudinaryService.js';
 import { analyzeMeshWithTimeout } from '../services/meshAnalysisService.js';
@@ -59,8 +59,13 @@ router.get('/options', async (_req, res, next) => {
   } catch (err) { next(err); }
 });
 
-/* ── POST /api/instant-quote/analyze, upload + mesh analysis ── */
-router.post('/analyze', requireAuth, uploadModel.single('model'), async (req, res, next) => {
+/* ── POST /api/instant-quote/analyze, upload + mesh analysis ──
+   No login required, a first-time visitor can upload and price a model
+   straight away. optionalAuth attaches req.user when they're already
+   logged in, but never blocks an anonymous upload. Login only becomes
+   mandatory at actual checkout (createOrder / createWhatsAppOrder), where
+   an unclaimed (user_id null) quote gets claimed by whoever is checking out. */
+router.post('/analyze', optionalAuth, uploadModel.single('model'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No model file provided' });
     const unit = req.body.unit === 'inch' ? 'inch' : 'mm';
@@ -92,7 +97,7 @@ router.post('/analyze', requireAuth, uploadModel.single('model'), async (req, re
       dims_mm: stats.dims_mm,
       surface_area_cm2: stats.surface_area_cm2,
       triangle_count: stats.triangle_count,
-      user_id: req.user.id,
+      user_id: req.user?.id || null,
       exp: Date.now() + TOKEN_TTL_MS,
     };
 
@@ -113,13 +118,15 @@ const VALID_LAYER_HEIGHTS_BY_NOZZLE = {
   0.8: [0.2, 0.3, 0.4, 0.6],
 };
 
-router.post('/price', requireAuth, async (req, res, next) => {
+router.post('/price', optionalAuth, async (req, res, next) => {
   try {
     const { quote_token, printer_id, material_id, color_id, infill_percent, nozzle_mm, layer_height_mm, contact_name, contact_phone, custom_notes } = req.body;
     if (!quote_token) return res.status(400).json({ error: 'quote_token is required' });
 
     const geometry = verifyQuoteToken(quote_token);
-    if (geometry.user_id !== req.user.id) {
+    // geometry.user_id is only set if the visitor was already logged in at
+    // upload time, an anonymous upload carries no user_id to check against.
+    if (geometry.user_id && req.user && geometry.user_id !== req.user.id) {
       return res.status(403).json({ error: 'This quote token does not belong to your account' });
     }
 
@@ -158,7 +165,7 @@ router.post('/price', requireAuth, async (req, res, next) => {
     const priced = await computeInstantQuotePrice({ volume_cm3: geometry.volume_cm3, infill_percent: infill, material, nozzle_mm: nozzle, layer_height_mm: layerHeight });
 
     const { data: quote, error } = await supabase.from('instant_quote_requests').insert({
-      user_id: req.user.id,
+      user_id: req.user?.id || null,
       model_file_url: geometry.model_file_url,
       model_public_id: geometry.model_public_id,
       file_name: geometry.file_name,

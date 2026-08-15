@@ -82,13 +82,15 @@ export async function createWhatsAppOrder(req, res, next) {
 
     if (instantQuoteItemsIn.length) {
       const quoteIds = instantQuoteItemsIn.map(i => i.instant_quote_id);
+      // Not filtered by user_id: an anonymously-uploaded quote (user_id null)
+      // gets claimed for this account below; one already owned elsewhere is rejected.
       const { data: quoteRows, error: qErr } = await supabase
-        .from('instant_quote_requests').select('*').in('id', quoteIds).eq('user_id', user_id);
+        .from('instant_quote_requests').select('*').in('id', quoteIds);
       if (qErr) throw qErr;
       for (const i of instantQuoteItemsIn) {
         const qty = Number(i.quantity) || 1;
         const q = (quoteRows || []).find(x => x.id === i.instant_quote_id);
-        if (!q) throw Object.assign(new Error('One of your Instant Quote items was not found'), { status: 400 });
+        if (!q || (q.user_id && q.user_id !== user_id)) throw Object.assign(new Error('One of your Instant Quote items was not found'), { status: 400 });
         if (q.status !== 'quoted') throw Object.assign(new Error('One of your Instant Quote items has already been ordered or expired'), { status: 400 });
         if (new Date(q.expires_at) < new Date()) throw Object.assign(new Error('Your Instant Quote has expired — please re-upload the model'), { status: 400 });
         subtotal += q.final_price * qty;
@@ -98,7 +100,7 @@ export async function createWhatsAppOrder(req, res, next) {
           customization_notes: i.customization_notes || null,
         });
       }
-      await supabase.from('instant_quote_requests').update({ status: 'ordered' }).in('id', quoteIds);
+      await supabase.from('instant_quote_requests').update({ status: 'ordered', user_id }).in('id', quoteIds);
     }
 
     const shipping_charge = subtotal >= 999 ? 0 : 99;

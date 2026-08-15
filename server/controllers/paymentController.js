@@ -67,9 +67,12 @@ export async function createOrder(req, res, next) {
     let quotes = [];
     if (instantQuoteItems.length) {
       const quoteIds = instantQuoteItems.map(i => i.instant_quote_id);
+      // Not filtered by user_id here: a quote uploaded before login has no
+      // owner yet (user_id null) and gets claimed by whoever checks out with
+      // it below. Anything already owned by a different account is rejected.
       const { data: quoteRows, error: qErr } = await supabase
         .from('instant_quote_requests').select('*')
-        .in('id', quoteIds).eq('user_id', user_id);
+        .in('id', quoteIds);
       if (qErr) throw qErr;
       quotes = quoteRows || [];
 
@@ -78,7 +81,8 @@ export async function createOrder(req, res, next) {
         if (!Number.isInteger(qty) || qty < 1)
           return res.status(400).json({ error: 'Invalid quantity for an Instant Quote item' });
         const q = quotes.find(x => x.id === item.instant_quote_id);
-        if (!q) return res.status(400).json({ error: 'One of your Instant Quote items was not found' });
+        if (!q || (q.user_id && q.user_id !== user_id))
+          return res.status(400).json({ error: 'One of your Instant Quote items was not found' });
         if (q.status !== 'quoted')
           return res.status(400).json({ error: 'One of your Instant Quote items has already been ordered or expired' });
         if (new Date(q.expires_at) < new Date())
@@ -197,10 +201,11 @@ export async function createOrder(req, res, next) {
     if (iErr) throw iErr;
 
     // Lock each used quote so it can't be re-added to a second order (a quote's
-    // price is a point-in-time estimate, not a standing catalog price).
+    // price is a point-in-time estimate, not a standing catalog price), and
+    // claim it for this account if it was uploaded anonymously before login.
     if (instantQuoteItems.length) {
       await supabase.from('instant_quote_requests')
-        .update({ status: 'ordered' })
+        .update({ status: 'ordered', user_id })
         .in('id', instantQuoteItems.map(i => i.instant_quote_id));
     }
 

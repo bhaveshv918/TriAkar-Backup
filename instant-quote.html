@@ -529,24 +529,18 @@ const IQ = (function(){
   }
 
   /* ── Upload + analyze ─────────────────────── */
-  // No login wall: a first-time visitor can upload and price a model straight
-  // away. ensureSession() silently starts an anonymous Supabase session under
-  // the hood if there isn't one already, which is all the backend needs
-  // (RLS/ownership, requireAuth). The lead-capture modal that already shows
-  // right after upload is what actually collects a name/number, standing in
-  // for the account-creation step this flow deliberately skips.
+  // No login wall: the backend's /analyze and /price routes accept anonymous
+  // requests, so a first-time visitor can upload and price a model straight
+  // away. Login is only required later, at actual checkout. The lead-capture
+  // modal that already shows right after upload is what collects a
+  // name/number, standing in for the account-creation step this flow
+  // deliberately skips until the visitor is ready to order.
   async function pickFile(file){
     showError('');
     if (!file) return;
     const ext = (file.name.split('.').pop() || '').toLowerCase();
     if (ext !== 'stl' && ext !== 'obj') { showError('Only .stl and .obj files are supported.'); return; }
     if (file.size > 50 * 1024 * 1024) { showError('File is larger than 50MB.'); return; }
-    try {
-      await Auth.ensureSession();
-    } catch (e) {
-      showError('Could not start a session: ' + (e && e.message ? e.message : 'please try again.'));
-      return;
-    }
     state.file = file; state.format = ext;
     uploadAndAnalyze(file, ext);
   }
@@ -564,28 +558,13 @@ const IQ = (function(){
     // means the automatic near-expiry token refresh Auth.apiFetch normally does for us
     // has to be triggered explicitly first, otherwise a stale token 401s here even
     // though every other Auth.apiFetch call on this page would have silently refreshed.
-    let authHeader = await Auth.authHeaderAsync();
-
-    // A dead session (refresh token itself invalid/expired) leaves authHeaderAsync()
-    // with nothing to send; sending the request anyway just gets a confusing raw
-    // "Unauthorised" error back and every step after upload stays stuck. Self-heal
-    // with a fresh anonymous session rather than sending the visitor to a login page
-    // they were never asked to use in the first place.
-    if (!authHeader.Authorization) {
-      try {
-        await Auth.signInAnonymously();
-        authHeader = await Auth.authHeaderAsync();
-      } catch (_) {}
-    }
-    if (!authHeader.Authorization) {
-      wrap.style.display = 'none';
-      showError('Could not start a session. Check your connection and try again.');
-      return;
-    }
+    // Sent only if the visitor happens to already be logged in, the backend
+    // accepts this request with no auth at all.
+    const authHeader = await Auth.authHeaderAsync();
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', TA_API + '/api/instant-quote/analyze');
-    xhr.setRequestHeader('Authorization', authHeader.Authorization);
+    if (authHeader.Authorization) xhr.setRequestHeader('Authorization', authHeader.Authorization);
     xhr.upload.onprogress = function(e){
       if (!e.lengthComputable) return;
       fill.style.width = Math.round((e.loaded / e.total) * 100) + '%';
