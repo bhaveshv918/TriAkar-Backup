@@ -338,8 +338,8 @@ img{display:block;max-width:100%}
    FILTERS
    ═══════════════════════════════════════════════════════════ */
 .story-photo-boxes{display:flex;gap:4px}
-.story-pbox{width:30px;height:30px;border-radius:5px;background-size:cover;background-position:center;border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text-3);cursor:pointer;flex-shrink:0}
-.story-pbox.filled{border-style:solid}
+.story-pbox{position:relative;width:30px;height:30px;border-radius:5px;background-size:cover;background-position:center;border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text-3);cursor:pointer;flex-shrink:0}
+.story-pbox.filled{border-style:solid;cursor:grab}
 .story-pbox.drag{border-color:var(--accent);background-color:rgba(196,98,42,.15)}
 .filter-bar{
   display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center;
@@ -7103,11 +7103,32 @@ function renderStoryPhotoBoxes(s){
   for(let i=0;i<STORY_MAX_PHOTOS;i++){
     const url=urls[i];
     boxes.push(url
-      ? `<div class="story-pbox filled" style="background-image:url('${esc(url)}')" onclick="removeStoryPhotoAt('${s.id}',${i})" title="Click to remove"></div>`
+      ? `<div class="story-pbox filled" draggable="true" style="background-image:url('${esc(url)}')" ondragstart="storyPhotoDragStart(event,'${s.id}',${i})" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="storyPhotoDropReorder(event,'${s.id}',${i})" onclick="removeStoryPhotoAt('${s.id}',${i})" title="Drag to reorder, click to remove">${i===0?'<span style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,.65);color:#fff;font-size:8px;padding:0 3px;border-radius:3px">Cover</span>':''}</div>`
       : `<div class="story-pbox empty" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleStoryPhotoDrop(event,'${s.id}')" onclick="document.getElementById('storyDropInput_${s.id}').click()" title="Drag & drop an image, or click">+</div>`
     );
   }
   return `<div class="story-photo-boxes" data-id="${s.id}">${boxes.join('')}<input type="file" id="storyDropInput_${s.id}" accept="image/jpeg,image/png,image/webp" multiple style="display:none" onchange="handleStoryPhotoPick(event,'${s.id}')"></div>`;
+}
+let _dragStoryId=null, _dragIdx=null;
+function storyPhotoDragStart(event,storyId,idx){
+  _dragStoryId=storyId; _dragIdx=idx;
+  event.dataTransfer.effectAllowed='move';
+}
+async function storyPhotoDropReorder(event,storyId,idx){
+  event.preventDefault();
+  event.stopPropagation();
+  event.currentTarget.classList.remove('drag');
+  if(_dragStoryId!==storyId || _dragIdx===null || _dragIdx===idx){ _dragStoryId=null; _dragIdx=null; return; }
+  const s=_storiesCache.find(x=>x.id===storyId); if(!s){ _dragStoryId=null; _dragIdx=null; return; }
+  const all=[s.image_url,...((s.images)||[])].filter(Boolean);
+  const [moved]=all.splice(_dragIdx,1);
+  all.splice(idx,0,moved);
+  _dragStoryId=null; _dragIdx=null;
+  try{
+    await adminApi('/api/stories/'+storyId,{method:'PUT',body:JSON.stringify({image_url:all[0]||null,images:all.slice(1)})});
+    toast('Reordered ✓','success');
+    loadStoriesAdmin();
+  }catch(e){ toast('Error: '+e.message,'error'); }
 }
 async function uploadFilesToStory(storyId,files){
   const s=_storiesCache.find(x=>x.id===storyId); if(!s) return;
@@ -7178,7 +7199,7 @@ let _stImages=[];
 function renderStImagesGrid(){
   const grid=document.getElementById('stImagesGrid');
   grid.innerHTML=_stImages.map(function(url,i){
-    return '<div style="position:relative;width:84px;height:84px">'
+    return '<div draggable="true" ondragstart="stImageDragStart(event,'+i+')" ondragover="event.preventDefault();this.style.opacity=0.5" ondragleave="this.style.opacity=1" ondrop="stImageDropReorder(event,'+i+')" style="position:relative;width:84px;height:84px;cursor:grab" title="Drag to reorder">'
       +'<img src="'+esc(url)+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid var(--border);background:var(--bg-2)">'
       +(i===0?'<span style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,.65);color:#fff;font-size:9px;padding:1px 5px;border-radius:4px">Cover</span>':'')
       +'<button type="button" onclick="removeStImage('+i+')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#111;color:#fff;border:1px solid var(--border);cursor:pointer;font-size:12px;line-height:1">×</button>'
@@ -7186,6 +7207,17 @@ function renderStImagesGrid(){
   }).join('') || '<span style="font-size:12px;color:var(--text-3)">No photos yet</span>';
 }
 function removeStImage(i){ _stImages.splice(i,1); renderStImagesGrid(); }
+let _dragStImgIdx=null;
+function stImageDragStart(event,i){ _dragStImgIdx=i; event.dataTransfer.effectAllowed='move'; }
+function stImageDropReorder(event,i){
+  event.preventDefault();
+  event.currentTarget.style.opacity=1;
+  if(_dragStImgIdx===null || _dragStImgIdx===i) return;
+  const [moved]=_stImages.splice(_dragStImgIdx,1);
+  _stImages.splice(i,0,moved);
+  _dragStImgIdx=null;
+  renderStImagesGrid();
+}
 async function uploadStoryImage(input){
   const files=input.files?Array.from(input.files):[];
   if(!files.length) return;
