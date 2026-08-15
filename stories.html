@@ -277,21 +277,64 @@
   }
 
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function galleryHtml(s){
+    const gallery=[s.image_url,...((s.images)||[])].filter(Boolean);
+    if(!gallery.length) return { html:`<div class="story-photo-fallback">${TAG_ICON[s.tag]||'✨'}</div>`, count:0 };
+    if(gallery.length===1) return { html:`<img src="${esc(gallery[0])}" alt="${esc(s.title)}" loading="lazy">`, count:1 };
+    const slides=gallery.map(u=>`<div class="story-mini-slide"><img src="${esc(u)}" alt="${esc(s.title)}" loading="lazy"></div>`).join('');
+    const dots=`<div class="story-mini-dots">${gallery.map((_,i)=>`<span class="${i===0?'active':''}"></span>`).join('')}</div>`;
+    const hint=`<span class="story-swipe-hint">›</span>`;
+    return { html:`<div class="story-mini-track">${slides}</div>${dots}${hint}`, count:gallery.length };
+  }
   function cardHtml(s){
     const monthLabel = s.year ? (MONTH_NAMES[s.month]||'') + ' ' + s.year : (MONTH_NAMES[s.month]||'');
-    const photoHtml = s.image_url
-      ? `<img src="${esc(s.image_url)}" alt="${esc(s.title)}" loading="lazy">`
-      : `<div class="story-photo-fallback">${TAG_ICON[s.tag]||'✨'}</div>`;
+    const gallery = galleryHtml(s);
     let customerHtml = '';
     if(s.customer_name || s.customer_location){
       const initial = (s.customer_name || s.customer_location || '?').charAt(0).toUpperCase();
       customerHtml = `<div class="story-customer"><span class="story-customer-avatar">${esc(initial)}</span><span>${s.customer_name ? `<span class="story-customer-name">${esc(s.customer_name)}</span> ` : ''}${s.customer_location ? `<span class="story-customer-loc">${s.customer_name ? '· ' : ''}${esc(s.customer_location)}</span>` : ''}</span></div>`;
     }
     return `<a class="story-card" href="stories/${esc(s.slug||'')}" data-tag="${esc(s.tag)}" data-year="${esc(s.year||'')}" data-month="${esc(monthLabel)}">
-      <div class="story-photo">${photoHtml}</div>
+      <div class="story-photo"${gallery.count>1?` data-gallery-count="${gallery.count}"`:''}>${gallery.html}</div>
       <div class="story-head"><span class="story-month">${esc(monthLabel)}</span><span class="story-tag">${esc(s.tag)}</span></div>
       <div class="story-body"><div class="story-title">${esc(s.title)}</div><div class="story-excerpt">${esc(s.excerpt)}</div>${customerHtml}</div>
     </a>`;
+  }
+  /* Auto-advances each multi-photo card gallery, same pattern as the homepage
+     reviews carousel: pauses on touch/scroll, only runs while visible, and
+     respects reduced-motion. One observer per card since a stories page can
+     have 20+ cards, unlike the single reviews carousel element. */
+  function setupCardGalleries(){
+    if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const AUTO_MS=3200;
+    document.querySelectorAll('.story-photo[data-gallery-count]').forEach(wrap=>{
+      const track=wrap.querySelector('.story-mini-track');
+      const dots=wrap.querySelectorAll('.story-mini-dots span');
+      const hint=wrap.querySelector('.story-swipe-hint');
+      if(!track) return;
+      let pauseUntil=0, timer=null;
+      const pause=()=>{ pauseUntil=Date.now()+5000; };
+      ['pointerdown','touchstart','wheel'].forEach(ev=>track.addEventListener(ev,pause,{passive:true}));
+      track.addEventListener('click',e=>e.preventDefault(),{capture:true});
+      track.addEventListener('scroll',()=>{
+        const i=Math.round(track.scrollLeft/track.clientWidth);
+        dots.forEach((d,di)=>d.classList.toggle('active',di===i));
+        if(hint) hint.style.display = i===0 ? '' : 'none';
+      },{passive:true});
+      const tick=()=>{
+        if(Date.now()<pauseUntil) return;
+        const atEnd=track.scrollLeft+track.clientWidth>=track.scrollWidth-4;
+        track.scrollTo({left:atEnd?0:track.scrollLeft+track.clientWidth,behavior:'smooth'});
+      };
+      if('IntersectionObserver' in window){
+        new IntersectionObserver(entries=>{
+          if(entries[0].isIntersecting){ if(!timer) timer=setInterval(tick,AUTO_MS); }
+          else{ clearInterval(timer); timer=null; }
+        },{threshold:.4}).observe(wrap);
+      } else {
+        timer=setInterval(tick,AUTO_MS);
+      }
+    });
   }
 
   function renderYearFilters(years){
@@ -329,6 +372,7 @@
     const years = [...new Set(stories.map(s=>s.year).filter(Boolean))].sort((a,b)=>b-a);
     renderYearFilters(years);
     wireStoryInteractions(); // re-wire against the freshly rendered cards
+    setupCardGalleries();
   }).catch(()=>{ /* offline / API down, static fallback cards already work */ });
 })();
 </script>
