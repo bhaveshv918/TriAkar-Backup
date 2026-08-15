@@ -24,7 +24,7 @@
  *   - .tpa-head's `left` slides within the gantry for L/R passes.
  *   - Result: rail + head are ONE unit. No drift possible.
  *
- * Timing: ~7 s loop (28 layers × ~220 ms/layer + 1.2 s hold + 0.6 s reset).
+ * Timing: ~26 s loop at 1.4x speed (28 layers × ~857 ms/layer + 1.3 s hold + 0.7 s reset).
  */
 
 (function () {
@@ -32,21 +32,20 @@
 
   /* ── Configuration ─────────────────────────────────────── */
   const CFG = {
-    PASS_DURATION_MS: 1050,   /* smooth, continuous nozzle sweep */
-    LAYER_INTERVAL_MS: 150,   /* brief reversal pause, keeps motion flowing */
-    HOLD_MS:          1800,
-    RESET_MS:          700,
-    LAYER_HEIGHT_PX:     5,   /* must match .tpa-layer { height } in CSS */
+    PASS_DURATION_MS: 750,    /* smooth, continuous nozzle sweep (1.4x speed) */
+    LAYER_INTERVAL_MS: 107,   /* brief reversal pause, keeps motion flowing */
+    HOLD_MS:          1286,
+    RESET_MS:          500,
+    LAYER_HEIGHT_PX:     3,   /* must match .tpa-layer { height } in CSS */
 
-    /* Vase / artifact silhouette */
+    /* Table-lamp silhouette: wide base, thin neck, flared shade on top */
     objectWidth(i, total) {
       const t = i / total;
-      if (t < 0.06) return 140 + t / 0.06 * 8;
-      if (t < 0.18) return 148 - (t - 0.06) / 0.12 * 48;
-      if (t < 0.45) return 100 + Math.sin((t - 0.18) / 0.27 * Math.PI) * 28;
-      if (t < 0.65) return 128 - (t - 0.45) / 0.20 * 52;
-      if (t < 0.78) return 76  - (t - 0.65) / 0.13 * 24;
-      return 52 + (t - 0.78) / 0.22 * 18;
+      if (t < 0.07) return 132 - t / 0.07 * 10;
+      if (t < 0.16) return 122 - (t - 0.07) / 0.09 * 88;
+      if (t < 0.60) return 34 + Math.sin((t - 0.16) / 0.44 * Math.PI) * 4;
+      if (t < 0.68) return 34 + (t - 0.60) / 0.08 * 62;
+      return 96 - (t - 0.68) / 0.32 * 38;
     },
 
     COLORS: [
@@ -96,6 +95,10 @@
           <!-- Layer stack, grows upward from bed -->
           <div class="tpa-object-wrap" id="tpaObject"></div>
 
+          <!-- Light inside the shade, sibling of the stack so a reset
+               (which wipes .tpa-object-wrap) never removes it -->
+          <div class="tpa-lamp-light" id="tpaLampLight"></div>
+
           <!-- Static bed -->
           <div class="tpa-bed"></div>
 
@@ -112,6 +115,7 @@
   const objWrap      = document.getElementById('tpaObject');
   const drip         = document.getElementById('tapDrip');
   const glow         = document.getElementById('tpaGlow');
+  const lampLight    = document.getElementById('tpaLampLight');
   const layerCountEl = null;
 
   /* ── State ──────────────────────────────────────────────── */
@@ -154,6 +158,9 @@
   function sceneW() { return scene.offsetWidth || 260; }
   function xPx(pct) { return Math.round(sceneW() * pct / 100); }
 
+  /* Lamp light sits inside the shade, near the top of the finished print */
+  lampLight.style.bottom = (BED_HEIGHT + totalLayers * CFG.LAYER_HEIGHT_PX * 0.8) + 'px';
+
   /* ── Move helpers ───────────────────────────────────────── */
   /* Slide head L/R within the gantry (only left changes) */
   function slideHead(xPercent, durationMs) {
@@ -165,7 +172,7 @@
 
   /* Lift entire gantry to the correct Y for a given layer */
   function liftGantry(layerIdx, animate) {
-    gantry.style.transition = animate ? 'top 0.3s ease-out' : 'none';
+    gantry.style.transition = animate ? 'top 0.21s ease-out' : 'none';
     gantry.style.top = gantryTopForLayer(layerIdx) + 'px';
   }
 
@@ -178,7 +185,7 @@
     setTimeout(() => {
       glow.classList.remove('on');
       drip.classList.remove('active');
-    }, 380);
+    }, 271);
   }
 
   /* ── Deposit one layer ──────────────────────────────────── */
@@ -231,6 +238,7 @@
           setTimeout(runPass, CFG.LAYER_INTERVAL_MS);
         } else {
           glow.classList.remove('on');
+          lampLight.classList.add('on');   /* print done: the lamp lights up */
           setTimeout(reset, CFG.HOLD_MS);
         }
       }, CFG.PASS_DURATION_MS);
@@ -244,6 +252,7 @@
     isResetting = true;
     isRunning = false;
     glow.classList.remove('on');
+    lampLight.classList.remove('on');
     objWrap.classList.add('resetting');
 
     setTimeout(() => {
@@ -254,7 +263,7 @@
       setTimeout(() => {
         isResetting = false;
         start();
-      }, 300);
+      }, 214);
     }, CFG.RESET_MS);
   }
 
@@ -264,7 +273,7 @@
     isRunning = true;
     liftGantry(0, false);
     slideHead(8, 0);
-    setTimeout(runPass, 350);
+    setTimeout(runPass, 250);
   }
 
   /* ── Tab visibility ─────────────────────────────────────── */
