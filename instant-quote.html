@@ -83,8 +83,6 @@
 
 /* ── Printer / build-size, deliberately small & de-emphasized, no numbered
    step, no printer names shown (customers just pick a size). ── */
-.iq-printer-mini{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.6);border-radius:10px}
-.iq-printer-mini-label{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--stone);font-weight:700;margin-right:2px}
 .iq-pill{border:1.5px solid rgba(22,22,20,.14);border-radius:999px;padding:6px 13px;font-size:12px;font-weight:600;color:var(--charcoal);background:#fff;cursor:pointer;transition:all .18s;white-space:nowrap}
 .iq-pill:hover{border-color:rgba(196,98,42,.4)}
 .iq-pill.selected{border-color:var(--accent);background:var(--accent);color:#fff}
@@ -101,6 +99,15 @@
 .iq-step-title{font-family:var(--font-g);font-size:17px;color:var(--charcoal);font-weight:400}
 .iq-step-hint{font-size:11.5px;color:var(--stone);margin-left:auto;font-weight:400}
 
+/* One card holding every configuration field (build size, material, color,
+   nozzle/layer height, strength) as clearly separated sub-sections, instead
+   of five separate cards. */
+.iq-config-section{padding:16px 0}
+.iq-config-section:first-of-type{padding-top:0}
+.iq-config-section+.iq-config-section{border-top:1px solid rgba(22,22,20,.08)}
+.iq-config-label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--charcoal);font-weight:700;margin-bottom:12px;display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
+.iq-config-hint{font-size:10.5px;color:var(--stone);text-transform:none;letter-spacing:0;font-weight:400}
+
 /* Button-style option rows (material / nozzle / infill), compact, scale to
    many options (9 materials) without turning into a huge card grid. */
 .iq-btn-row{display:flex;flex-wrap:wrap;gap:8px;row-gap:14px}
@@ -116,7 +123,10 @@
    Flexible), all in one left-to-right line, a thin divider between each
    cluster instead of stacking groups on separate rows. Scrolls horizontally
    on narrow screens rather than wrapping/breaking the layout. */
-.iq-mat-groups{display:flex;align-items:flex-start;gap:0;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+/* padding-left here (not 0) gives the first button's selected-state
+   box-shadow ring room to render, otherwise overflow-x:auto clips it flush
+   against the scroll container's edge. */
+.iq-mat-groups{display:flex;align-items:flex-start;gap:0;overflow-x:auto;padding:3px 0 6px 3px;-webkit-overflow-scrolling:touch}
 .iq-mat-group{display:flex;flex-direction:column;gap:8px;flex-shrink:0;padding:0 16px}
 .iq-mat-group:first-child{padding-left:0}
 .iq-mat-group+.iq-mat-group{border-left:1px solid rgba(22,22,20,.12)}
@@ -139,8 +149,13 @@
 /* Color swatches */
 .iq-color-row{display:flex;flex-wrap:wrap;gap:12px}
 .iq-color-choice{display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer}
-.iq-color-dot{width:32px;height:32px;border-radius:50%;border:2px solid rgba(0,0,0,.1);transition:all .18s;box-shadow:inset 0 0 0 2px rgba(255,255,255,.5)}
-.iq-color-choice.selected .iq-color-dot{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),inset 0 0 0 2px rgba(255,255,255,.6)}
+.iq-color-dot{width:32px;height:32px;border-radius:50%;border:2px solid rgba(0,0,0,.1);transition:all .18s;box-shadow:inset 0 0 0 2px rgba(255,255,255,.5);position:relative}
+/* A charcoal ring (not the brand orange) so the selection indicator never
+   blends into the Orange swatch itself, plus a white checkmark overlay so
+   selection reads clearly even on the lightest (White/Natural) swatches
+   where a ring alone is easy to miss. */
+.iq-color-choice.selected .iq-color-dot{border-color:transparent;box-shadow:0 0 0 2px #fff,0 0 0 4px var(--charcoal)}
+.iq-color-choice.selected .iq-color-dot::after{content:'';position:absolute;top:50%;left:50%;width:10px;height:6px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:translate(-50%,-65%) rotate(-45deg);filter:drop-shadow(0 0 1.5px rgba(0,0,0,.6))}
 .iq-color-choice span{font-size:10px;color:var(--stone);font-weight:600}
 
 .iq-price-box{background:var(--charcoal);border-radius:14px;padding:24px 22px;color:var(--ivory)}
@@ -269,44 +284,44 @@
       <button type="button" class="iq-recommend-btn" onclick="IQ.useRecommended()">⚡ Use recommended defaults</button>
     </div>
 
-    <div class="iq-printer-mini">
-      <span class="iq-printer-mini-label">Build size</span>
-      <div id="iqPrinterRow" style="display:flex;gap:8px;flex-wrap:wrap"></div>
-    </div>
-    <input type="text" class="iq-other-input" id="iqOtherPrinter" style="display:none" placeholder="Tell us the build size you need" oninput="IQ.setOther('printer', this.value)">
+    <div class="iq-step" id="iqStepConfig">
+      <div class="iq-step-head"><div class="iq-step-n">1</div><div class="iq-step-title">Configure your print</div></div>
 
-    <div class="iq-step" id="iqStepMaterial">
-      <div class="iq-step-head"><div class="iq-step-n">1</div><div class="iq-step-title">Material</div></div>
-      <div class="iq-mat-groups" id="iqMaterialRow"></div>
-      <input type="text" class="iq-other-input" id="iqOtherMaterial" style="display:none" placeholder="Tell us which material you need" oninput="IQ.setOther('material', this.value)">
-    </div>
+      <div class="iq-config-section">
+        <div class="iq-config-label">Build size</div>
+        <div id="iqPrinterRow" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+        <input type="text" class="iq-other-input" id="iqOtherPrinter" style="display:none" placeholder="Tell us the build size you need" oninput="IQ.setOther('printer', this.value)">
+      </div>
 
-    <div class="iq-step" id="iqStepColor">
-      <div class="iq-step-head"><div class="iq-step-n">2</div><div class="iq-step-title">Color</div><div class="iq-step-hint" id="iqColorHint"></div></div>
-      <div class="iq-color-row" id="iqColorRow"></div>
-      <input type="text" class="iq-other-input" id="iqOtherColor" style="display:none" placeholder="Tell us the color you need" oninput="IQ.setOther('color', this.value)">
-    </div>
+      <div class="iq-config-section">
+        <div class="iq-config-label">Material</div>
+        <div class="iq-mat-groups" id="iqMaterialRow"></div>
+        <input type="text" class="iq-other-input" id="iqOtherMaterial" style="display:none" placeholder="Tell us which material you need" oninput="IQ.setOther('material', this.value)">
+      </div>
 
-    <div class="iq-step" id="iqStepNozzle">
-      <div class="iq-step-head"><div class="iq-step-n">3</div><div class="iq-step-title">Nozzle</div><div class="iq-step-hint">Larger = faster, less fine detail</div></div>
-      <div class="iq-btn-row" id="iqNozzleRow"></div>
-      <input type="text" class="iq-other-input" id="iqOtherNozzle" style="display:none" placeholder="Tell us more" oninput="IQ.setOther('nozzle', this.value)">
-    </div>
+      <div class="iq-config-section">
+        <div class="iq-config-label">Color <span class="iq-config-hint" id="iqColorHint"></span></div>
+        <div class="iq-color-row" id="iqColorRow"></div>
+        <input type="text" class="iq-other-input" id="iqOtherColor" style="display:none" placeholder="Tell us the color you need" oninput="IQ.setOther('color', this.value)">
+      </div>
 
-    <div class="iq-step" id="iqStepLayerHeight">
-      <div class="iq-step-head"><div class="iq-step-n">4</div><div class="iq-step-title">Layer Height</div><div class="iq-step-hint">Thinner = smoother finish, slower</div></div>
-      <div class="iq-btn-row" id="iqLayerHeightRow"></div>
-      <input type="text" class="iq-other-input" id="iqOtherLayerHeight" style="display:none" placeholder="Tell us more" oninput="IQ.setOther('layerHeight', this.value)">
-    </div>
+      <div class="iq-config-section">
+        <div class="iq-config-label">Nozzle &amp; Layer Height <span class="iq-config-hint">Larger nozzle = faster, less fine detail. Layer height options depend on the nozzle.</span></div>
+        <div class="iq-btn-row" id="iqNozzleRow"></div>
+        <input type="text" class="iq-other-input" id="iqOtherNozzle" style="display:none" placeholder="Tell us more" oninput="IQ.setOther('nozzle', this.value)">
+        <div class="iq-btn-row" id="iqLayerHeightRow" style="margin-top:12px"></div>
+        <input type="text" class="iq-other-input" id="iqOtherLayerHeight" style="display:none" placeholder="Tell us more" oninput="IQ.setOther('layerHeight', this.value)">
+      </div>
 
-    <div class="iq-step" id="iqStepInfill">
-      <div class="iq-step-head"><div class="iq-step-n">5</div><div class="iq-step-title">Strength</div><div class="iq-step-hint">How solid the print is inside</div></div>
-      <div class="iq-btn-row" id="iqInfillRow"></div>
-      <input type="text" class="iq-other-input" id="iqOtherInfill" style="display:none" placeholder="Tell us more" oninput="IQ.setOther('infill', this.value)">
+      <div class="iq-config-section">
+        <div class="iq-config-label">Strength <span class="iq-config-hint">How solid the print is inside</span></div>
+        <div class="iq-btn-row" id="iqInfillRow"></div>
+        <input type="text" class="iq-other-input" id="iqOtherInfill" style="display:none" placeholder="Tell us more" oninput="IQ.setOther('infill', this.value)">
+      </div>
     </div>
 
     <div class="iq-step" id="iqStepFinalize">
-      <div class="iq-step-head"><div class="iq-step-n">6</div><div class="iq-step-title">Finalize</div></div>
+      <div class="iq-step-head"><div class="iq-step-n">2</div><div class="iq-step-title">Finalize</div></div>
       <div id="iqFinalizeEmpty" class="iq-empty-note">Upload a model to see your price.</div>
       <div id="iqPriceBox" class="iq-price-box" style="display:none">
         <div class="iq-price-big" id="iqPriceBig">₹0</div>
@@ -412,12 +427,37 @@ const NOZZLE_TIERS = [
   { mm: 0.6, label: '0.6mm', sub: 'Faster' },
   { mm: 0.8, label: '0.8mm', sub: 'Fastest' },
 ];
-const LAYER_HEIGHT_TIERS = [
-  { mm: 0.08, label: '0.08mm', sub: 'Ultra smooth' },
-  { mm: 0.12, label: '0.12mm', sub: 'Fine' },
-  { mm: 0.2,  label: '0.2mm',  sub: 'Standard', popular: true },
-  { mm: 0.28, label: '0.28mm', sub: 'Fast/draft' },
-];
+// Layer height is physically bounded by nozzle diameter (roughly 20-80% of
+// it in real slicers), so the available options change with the selected
+// nozzle rather than being one fixed list. Must match VALID_LAYER_HEIGHTS_BY_NOZZLE
+// in server/routes/instantQuote.js exactly, or a legitimate choice here gets
+// rejected server-side.
+const LAYER_HEIGHT_TIERS_BY_NOZZLE = {
+  0.2: [
+    { mm: 0.05, label: '0.05mm', sub: 'Ultra fine' },
+    { mm: 0.08, label: '0.08mm', sub: 'Fine' },
+    { mm: 0.1,  label: '0.1mm',  sub: 'Standard', popular: true },
+    { mm: 0.14, label: '0.14mm', sub: 'Fast' },
+  ],
+  0.4: [
+    { mm: 0.08, label: '0.08mm', sub: 'Ultra smooth' },
+    { mm: 0.12, label: '0.12mm', sub: 'Fine' },
+    { mm: 0.2,  label: '0.2mm',  sub: 'Standard', popular: true },
+    { mm: 0.28, label: '0.28mm', sub: 'Fast/draft' },
+  ],
+  0.6: [
+    { mm: 0.12, label: '0.12mm', sub: 'Fine' },
+    { mm: 0.2,  label: '0.2mm',  sub: 'Standard' },
+    { mm: 0.3,  label: '0.3mm',  sub: 'Fast', popular: true },
+    { mm: 0.4,  label: '0.4mm',  sub: 'Draft' },
+  ],
+  0.8: [
+    { mm: 0.2,  label: '0.2mm',  sub: 'Fine' },
+    { mm: 0.3,  label: '0.3mm',  sub: 'Standard' },
+    { mm: 0.4,  label: '0.4mm',  sub: 'Fast', popular: true },
+    { mm: 0.6,  label: '0.6mm',  sub: 'Draft' },
+  ],
+};
 const MATERIAL_GROUP_ORDER = ['Regular', 'Good Strength', 'Outdoor & Durable', 'Top Strength', 'Flexible'];
 
 const IQ = (function(){
@@ -658,7 +698,7 @@ const IQ = (function(){
     document.getElementById('iqFileInput').value = '';
     document.querySelectorAll('#iqPrinterRow .iq-pill, #iqMaterialRow .iq-choice, #iqColorRow .iq-color-choice').forEach(el => el.classList.remove('selected'));
     document.querySelectorAll('.iq-other-input').forEach(el => { el.value = ''; el.style.display = 'none'; });
-    ['iqStepMaterial','iqStepColor','iqStepNozzle','iqStepLayerHeight','iqStepInfill','iqStepFinalize'].forEach(id => document.getElementById(id).classList.remove('active','done'));
+    ['iqStepConfig','iqStepFinalize'].forEach(id => document.getElementById(id).classList.remove('active','done'));
     document.getElementById('iqPriceBox').style.display = 'none';
     document.getElementById('iqFinalizeEmpty').style.display = 'block';
     document.getElementById('iqMobileBar').classList.remove('has-price');
@@ -740,10 +780,15 @@ const IQ = (function(){
       `<button type="button" class="iq-choice" data-mm="${n.mm}" onclick="IQ.selectNozzle(${n.mm})">${n.popular ? '<span class="iq-popular-badge">Popular</span>' : ''}${n.label}<span class="iq-choice-sub">${n.sub}</span></button>`).join('')
       + otherButtonHtml('nozzle');
   }
+  function layerHeightTiersForNozzle(){
+    return LAYER_HEIGHT_TIERS_BY_NOZZLE[state.nozzle] || LAYER_HEIGHT_TIERS_BY_NOZZLE[0.4];
+  }
   function renderLayerHeightRow(){
-    document.getElementById('iqLayerHeightRow').innerHTML = LAYER_HEIGHT_TIERS.map(t =>
+    const tiers = layerHeightTiersForNozzle();
+    document.getElementById('iqLayerHeightRow').innerHTML = tiers.map(t =>
       `<button type="button" class="iq-choice" data-mm="${t.mm}" onclick="IQ.selectLayerHeight(${t.mm})">${t.popular ? '<span class="iq-popular-badge">Popular</span>' : ''}${t.label}<span class="iq-choice-sub">${t.sub}</span></button>`).join('')
       + otherButtonHtml('layerHeight');
+    return tiers;
   }
   function renderInfillRow(){
     document.getElementById('iqInfillRow').innerHTML = INFILL_TIERS.map(t =>
@@ -759,7 +804,6 @@ const IQ = (function(){
   function selectMaterial(id){
     state.materialId = id;
     document.querySelectorAll('#iqMaterialRow .iq-choice').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
-    document.getElementById('iqStepMaterial').classList.add('done');
     // Switching material can narrow the color list (ABS/ASA), if the current
     // color falls outside the new allowlist, swap to one that's still valid.
     const allowed = renderColorRow();
@@ -775,25 +819,31 @@ const IQ = (function(){
   function selectColor(id){
     state.colorId = id;
     document.querySelectorAll('#iqColorRow .iq-color-choice').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
-    document.getElementById('iqStepColor').classList.add('done');
     maybePrice();
   }
   function selectNozzle(mm){
     state.nozzle = mm;
     document.querySelectorAll('#iqNozzleRow .iq-choice[data-mm]').forEach(el => el.classList.toggle('selected', Number(el.dataset.mm) === mm));
-    document.getElementById('iqStepNozzle').classList.add('done');
+    // Available layer heights are nozzle-dependent, re-render for the new
+    // nozzle and swap the current pick if it's no longer a valid option.
+    const tiers = renderLayerHeightRow();
+    const stillValid = tiers.find(t => t.mm === state.layerHeight);
+    if (!stillValid) {
+      const preferred = tiers.find(t => t.popular) || tiers[0];
+      selectLayerHeight(preferred.mm);
+      return; // selectLayerHeight already calls maybePrice
+    }
+    document.querySelectorAll('#iqLayerHeightRow .iq-choice[data-mm]').forEach(el => el.classList.toggle('selected', Number(el.dataset.mm) === state.layerHeight));
     maybePrice();
   }
   function selectLayerHeight(mm){
     state.layerHeight = mm;
     document.querySelectorAll('#iqLayerHeightRow .iq-choice[data-mm]').forEach(el => el.classList.toggle('selected', Number(el.dataset.mm) === mm));
-    document.getElementById('iqStepLayerHeight').classList.add('done');
     maybePrice();
   }
   function selectInfill(pct){
     state.infill = pct;
     document.querySelectorAll('#iqInfillRow .iq-choice[data-pct]').forEach(el => el.classList.toggle('selected', Number(el.dataset.pct) === pct));
-    document.getElementById('iqStepInfill').classList.add('done');
     maybePrice();
   }
 
@@ -804,8 +854,7 @@ const IQ = (function(){
     state.other = { printer: '', material: '', color: '', nozzle: '', layerHeight: '', infill: '' };
     if (options.printers && options.printers.length) selectPrinter(pickFittingPrinter().id);
     if (options.materials && options.materials.length) selectMaterial((options.materials.find(x => x.is_default) || options.materials[0]).id);
-    selectNozzle((NOZZLE_TIERS.find(t => t.popular) || NOZZLE_TIERS[0]).mm);
-    selectLayerHeight((LAYER_HEIGHT_TIERS.find(t => t.popular) || LAYER_HEIGHT_TIERS[0]).mm);
+    selectNozzle((NOZZLE_TIERS.find(t => t.popular) || NOZZLE_TIERS[0]).mm); // cascades a matching layer-height pick too
     selectInfill((INFILL_TIERS.find(t => t.popular) || INFILL_TIERS[0]).pct);
   }
 
@@ -921,10 +970,8 @@ const IQ = (function(){
     dz.addEventListener('drop', function(e){ if (e.dataTransfer.files[0]) pickFile(e.dataTransfer.files[0]); });
     initViewer();
     renderNozzleRow();
-    renderLayerHeightRow();
     renderInfillRow();
-    selectNozzle(0.4);
-    selectLayerHeight(0.2);
+    selectNozzle(0.4); // cascades renderLayerHeightRow() + a matching layer-height pick
     selectInfill(15);
     loadOptions();
   });

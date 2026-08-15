@@ -109,7 +109,16 @@ router.post('/analyze', requireAuth, uploadModel.single('model'), async (req, re
 
 /* ── POST /api/instant-quote/price, compute price + persist the quote ── */
 const VALID_NOZZLES = [0.2, 0.4, 0.6, 0.8];
-const VALID_LAYER_HEIGHTS = [0.08, 0.12, 0.2, 0.28];
+// Layer height is physically bounded by nozzle diameter, so the valid set
+// depends on which nozzle was picked. Must match LAYER_HEIGHT_TIERS_BY_NOZZLE
+// in instant-quote.html exactly (mm values only), or a legitimate frontend
+// choice gets rejected here.
+const VALID_LAYER_HEIGHTS_BY_NOZZLE = {
+  0.2: [0.05, 0.08, 0.1, 0.14],
+  0.4: [0.08, 0.12, 0.2, 0.28],
+  0.6: [0.12, 0.2, 0.3, 0.4],
+  0.8: [0.2, 0.3, 0.4, 0.6],
+};
 
 router.post('/price', requireAuth, async (req, res, next) => {
   try {
@@ -130,8 +139,9 @@ router.post('/price', requireAuth, async (req, res, next) => {
       return res.status(400).json({ error: 'nozzle_mm must be one of 0.2, 0.4, 0.6, 0.8' });
     }
     const layerHeight = Number(layer_height_mm) || 0.2;
-    if (!VALID_LAYER_HEIGHTS.includes(layerHeight)) {
-      return res.status(400).json({ error: 'layer_height_mm must be one of 0.08, 0.12, 0.2, 0.28' });
+    const validLayerHeights = VALID_LAYER_HEIGHTS_BY_NOZZLE[nozzle] || [];
+    if (!validLayerHeights.includes(layerHeight)) {
+      return res.status(400).json({ error: `layer_height_mm for a ${nozzle}mm nozzle must be one of ${validLayerHeights.join(', ')}` });
     }
 
     const [{ data: printer }, { data: material }, { data: color }] = await Promise.all([

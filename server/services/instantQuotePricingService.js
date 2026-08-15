@@ -51,7 +51,14 @@ const NOZZLE_TIME_MULTIPLIER = { 0.2: 1.7, 0.4: 1.0, 0.6: 0.75, 0.8: 0.55 };
 // height, so more total passes and more time; a thicker layer height is
 // faster but coarser. Independent of nozzle width (nozzle affects line
 // width/flow rate, layer height affects the Z step).
-const LAYER_HEIGHT_TIME_MULTIPLIER = { 0.08: 1.6, 0.12: 1.25, 0.2: 1.0, 0.28: 0.8 };
+// Covers every layer height reachable across all four nozzle sizes (each
+// nozzle only offers a subset, see LAYER_HEIGHT_TIERS_BY_NOZZLE in
+// instant-quote.html), 0.2mm/1.0x stays the baseline throughout.
+const LAYER_HEIGHT_TIME_MULTIPLIER = {
+  0.05: 2.4, 0.08: 1.9, 0.1: 1.6, 0.12: 1.25,
+  0.14: 1.1, 0.2: 1.0, 0.28: 0.8, 0.3: 0.78,
+  0.4: 0.65, 0.6: 0.5,
+};
 
 async function getSetting(key) {
   const { data } = await supabase.from('site_settings').select('value').eq('key', key).maybeSingle();
