@@ -567,18 +567,18 @@
   const CFG = {
     LAYER_HEIGHT_PX: 3,   /* must match .tpa-layer { height } in CSS */
     FILL_RATIO:      0.8, /* the lamp fills 80% of the scene's build volume */
-    SHADE_START_T:   0.52, /* fraction of the print where the shade begins */
+    SHADE_START_T:   0.48, /* fraction of the print where the shade begins */
 
-    /* Table-lamp silhouette as a 0..1 width ratio: wide base, thin neck,
-       a shade spanning nearly half the object's height. */
+    /* Table-lamp silhouette as a 0..1 width ratio, modelled on a real
+       lamp reference: a small flat foot, a thin straight pole (no
+       organic taper), then a shade with straight (not curved) sides. */
     widthRatio(i, total) {
       const t = i / total;
       const shadeStart = CFG.SHADE_START_T;
-      if (t < 0.07) return 1.000 - t / 0.07 * 0.076;
-      if (t < 0.16) return 0.924 - (t - 0.07) / 0.09 * 0.667;
-      if (t < 0.45) return 0.258 + Math.sin((t - 0.16) / 0.29 * Math.PI) * 0.03;
-      if (t < shadeStart) return 0.258 + (t - 0.45) / (shadeStart - 0.45) * 0.470;
-      return 0.727 - (t - shadeStart) / (1 - shadeStart) * 0.288;
+      if (t < 0.04) return 0.55 - t / 0.04 * 0.05;
+      if (t < 0.08) return 0.50 - (t - 0.04) / 0.04 * 0.38;
+      if (t < shadeStart) return 0.12;
+      return 1.000 - (t - shadeStart) / (1 - shadeStart) * 0.512;
     },
 
     /* Warm grey-to-terracotta gradient, sampled by fraction so it still
@@ -788,7 +788,7 @@
     el.className        = 'tpa-layer';
     el.style.width      = Math.round(CFG.widthRatio(layerIndex, totalLayers) * maxObjectWidth) + 'px';
     el.style.background = CFG.colorAt(t);
-    el.style.boxShadow  = 'inset 0 1px 0 rgba(255,255,255,.12), inset 0 -1px 0 rgba(0,0,0,.1)';
+    el.style.boxShadow  = 'inset 0 1px 0 rgba(255,255,255,.12), inset 0 -1px 0 rgba(0,0,0,.1), 0 0 0 1px rgba(0,0,0,.22)';
     objWrap.appendChild(el);
 
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('in')));
