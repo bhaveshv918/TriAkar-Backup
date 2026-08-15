@@ -1,28 +1,6 @@
--- TriAkar — Stories CMS: replace placeholder/sample content with finalized stories
---
--- The 12 seed stories inserted by 20260710_site_stories.sql were always placeholder/sample
--- content (Rajesh's Maruti bracket, the Jaipur wedding ring holders, etc). This replaces them
--- wholesale with 21 real, finalized customer stories supplied by the user, October 2025
--- through August 2026.
---
--- Notes on mapping from the source data to this schema:
---   - Source category "Replacement Parts" (plural) is stored as tag "Replacement Part"
---     (singular) to match the existing filter pill wiring in stories.html
---     (data-filter="Replacement Part"); the pill label itself already displays "REPLACEMENT
---     PARTS" in the UI, so this is a storage/display split that already existed, not a new one.
---   - Source only provided one block of story text ("hook"), not a separate short teaser vs
---     full detail, so it is stored verbatim in both excerpt and full_text rather than being
---     shortened or paraphrased.
---   - Source "customer" field is stored as-is in customer_name, including the literal
---     "Name withheld, customer hasn't approved sharing it yet" placeholder text, so it renders
---     unaltered. customer_location is left null for all rows since the source did not separate
---     name from location.
---   - image_url is left null for every row (no images supplied yet); the existing card
---     fallback (tag emoji icon) covers this without breaking layout.
---   - Where more than one story shares a year+month, sort_order preserves the order the
---     stories appeared in the source file.
---
--- Safe to run once in the Supabase SQL Editor. Idempotent via full delete + reinsert.
+-- Full reset of site_stories: delete every existing row and re-insert the
+-- complete, current set (includes the DRDO-free version of the enclosure
+-- boxes story), instead of patching a single row.
 
 DELETE FROM site_stories;
 
