@@ -249,7 +249,10 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
        a left-to-right swipe anywhere on the page opens the menu;
        a right-to-left swipe (outside the panel) closes it. Swipes that
        start inside a horizontal scroller/carousel are ignored so
-       product rows keep scrolling normally. */
+       product rows keep scrolling normally. Elements marked .no-swipe-nav
+       (e.g. a drag-to-rotate 3D viewer) opt out the same way, since a
+       plain drag gesture there isn't a horizontal scroller by CSS but
+       still shouldn't be hijacked into opening the drawer. */
     const inHScroll=el=>{
       for(let n=el;n&&n!==document.body&&n.nodeType===1;n=n.parentElement){
         const cs=getComputedStyle(n);
@@ -264,7 +267,7 @@ function gtagEvent(name, params){ try{ if(typeof window!=='undefined' && typeof 
       const t=e.touches[0];
       swX=t.clientX;swY=t.clientY;
       swOpen=document.documentElement.classList.contains('drawer-open');
-      swOK=!e.target.closest('.nav-drawer')&&!inHScroll(e.target);
+      swOK=!e.target.closest('.nav-drawer')&&!e.target.closest('.no-swipe-nav')&&!inHScroll(e.target);
     },{passive:true});
     document.addEventListener('touchend',e=>{
       if(!swOK||window.innerWidth>768)return;
