@@ -15,7 +15,6 @@
  *         .tpa-glow
  *     .tpa-object-wrap    ← layer stack          (bottom-anchored, centered)
  *     .tpa-shade-glow     ← trapezoid glow matching the shade's own silhouette
- *     .tpa-pull-thread    ← pull-chain, appears once printed, tugged to switch on
  *     .tpa-bed            ← print bed            (static, bottom)
  *   .tpa-speed-bar         ← 1x/2x/5x/10x pace control, below the cabinet
  *
@@ -31,11 +30,12 @@
  * rather than being fixed pixel constants, otherwise the print looks lost
  * in empty space on larger cabinets or clipped on smaller ones.
  *
- * Once printed, a pull-chain appears, gets tugged, and the whole shade
- * (not a small dot) lights up warmly. The scene then holds on the lit
- * lamp for a fixed 20s (not affected by the speed control, since that's
- * about giving the finished piece a moment, not print pacing) before
- * fading out and printing again.
+ * Once printed, the whole shade (not a small dot) lights up warmly,
+ * clipped to the shade's own trapezoid so the light looks like it's
+ * coming from inside that specific shade. The scene then holds on the
+ * lit lamp for a fixed 20s (not affected by the speed control, since
+ * that's about giving the finished piece a moment, not print pacing)
+ * before fading out and printing again.
  */
 
 (function () {
@@ -55,16 +55,15 @@
   };
   function dur(ms) { return ms / SPEED; }
 
-  /* Fixed, independent of SPEED: the pull-chain flourish and the hold
-     on the finished, lit lamp are about showing it off, not print pace. */
-  const THREAD_REVEAL_DELAY_MS = 300;
-  const LIGHT_ON_DELAY_MS      = 340;   /* fires mid-pull, at the "click" */
-  const FINISHED_HOLD_MS       = 20000;
+  /* Fixed, independent of SPEED: the hold on the finished, lit lamp is
+     about giving it a moment, not print pacing. */
+  const FINISHED_HOLD_MS = 20000;
 
   const CFG = {
     LAYER_HEIGHT_PX: 3,   /* must match .tpa-layer { height } in CSS */
     FILL_RATIO:      0.8, /* the lamp fills 80% of the scene's build volume */
     SHADE_START_T:   0.48, /* fraction of the print where the shade begins */
+    SHADE_TAPER:     0.512, /* how much the shade narrows, bottom to top */
 
     /* Table-lamp silhouette as a 0..1 width ratio, modelled on a real
        lamp reference: a small flat foot, a thin straight pole (no
@@ -75,7 +74,7 @@
       if (t < 0.04) return 0.55 - t / 0.04 * 0.05;
       if (t < 0.08) return 0.50 - (t - 0.04) / 0.04 * 0.38;
       if (t < shadeStart) return 0.12;
-      return 1.000 - (t - shadeStart) / (1 - shadeStart) * 0.512;
+      return 1.000 - (t - shadeStart) / (1 - shadeStart) * CFG.SHADE_TAPER;
     },
 
     /* Warm grey-to-terracotta gradient, sampled by fraction so it still
@@ -145,14 +144,10 @@
           <!-- Layer stack, grows upward from bed -->
           <div class="tpa-object-wrap" id="tpaObject"></div>
 
-          <!-- Glow shaped like the shade itself, siblings of the stack
+          <!-- Glow shaped like the shade itself, sibling of the stack
                so a reset (which wipes .tpa-object-wrap) never removes
-               them -->
+               it -->
           <div class="tpa-shade-glow" id="tpaShadeGlow"></div>
-          <div class="tpa-pull-thread" id="tpaPullThread">
-            <span class="tpa-pull-string"></span>
-            <span class="tpa-pull-bead"></span>
-          </div>
 
           <!-- Static bed -->
           <div class="tpa-bed"></div>
@@ -179,7 +174,6 @@
   const drip         = document.getElementById('tapDrip');
   const glow         = document.getElementById('tpaGlow');
   const shadeGlow    = document.getElementById('tpaShadeGlow');
-  const pullThread   = document.getElementById('tpaPullThread');
   const speedBar     = document.getElementById('tpaSpeedBar');
   const layerCountEl = null;
 
@@ -216,14 +210,18 @@
     maxObjectWidth = sceneW() * CFG.FILL_RATIO;
   }
 
-  /* Once the print is finished, size and position the shade glow and
-     the pull-chain to match the ACTUAL printed shade, so the light
-     looks like it's coming from inside that specific shade. */
+  /* Once the print is finished, size and position the shade glow to
+     match the ACTUAL printed shade, so the light looks like it's
+     coming from inside that specific shade.
+     The shade's bottom/top ratios are known analytically (1.0 and
+     1 - SHADE_TAPER, straight from the widthRatio formula) rather than
+     read back via widthRatio() at the boundary index, which can land
+     on the pole side by a rounding hair and undersize the glow. */
   function positionShade() {
     const shadeStartIdx = Math.round(CFG.SHADE_START_T * totalLayers);
     const shadeHeightPx = (totalLayers - shadeStartIdx) * CFG.LAYER_HEIGHT_PX;
-    const shadeBottomW  = CFG.widthRatio(shadeStartIdx, totalLayers) * maxObjectWidth;
-    const shadeTopW     = CFG.widthRatio(totalLayers - 1, totalLayers) * maxObjectWidth;
+    const shadeBottomW  = maxObjectWidth;
+    const shadeTopW      = (1 - CFG.SHADE_TAPER) * maxObjectWidth;
     const shadeBottomY  = BED_HEIGHT + shadeStartIdx * CFG.LAYER_HEIGHT_PX;
 
     shadeGlow.style.width  = Math.round(shadeBottomW) + 'px';
@@ -232,8 +230,6 @@
     const topHalfPct = Math.max(8, (shadeTopW / shadeBottomW) * 50);
     shadeGlow.style.clipPath = `polygon(${50 - topHalfPct}% 0%, ${50 + topHalfPct}% 0%, 100% 100%, 0% 100%)`;
     shadeGlow.style.webkitClipPath = shadeGlow.style.clipPath;
-
-    pullThread.style.bottom = Math.round(shadeBottomY - 2) + 'px';
   }
 
   /* ── Move helpers ───────────────────────────────────────── */
@@ -282,18 +278,11 @@
     if (layerCountEl) layerCountEl.textContent = layerIndex;
   }
 
-  /* ── Pull the chain, then the shade lights up ──────────────
-     Runs once, when the print finishes. The light turns on mid-pull,
-     at the moment the chain would "click", not after it settles. */
-  function pullChainAndLightUp() {
+  /* ── The shade lights up ────────────────────────────────────
+     Runs once, when the print finishes. */
+  function lightUpShade() {
     positionShade();
-    pullThread.classList.add('visible');
-    setTimeout(() => {
-      pullThread.classList.add('pulling');
-      setTimeout(() => {
-        shadeGlow.classList.add('on');
-      }, LIGHT_ON_DELAY_MS);
-    }, THREAD_REVEAL_DELAY_MS);
+    shadeGlow.classList.add('on');
   }
 
   /* ── Single pass ──────────────────────────────────────────
@@ -329,7 +318,7 @@
           setTimeout(runPass, dur(BASE.LAYER_INTERVAL_MS));
         } else {
           glow.classList.remove('on');
-          pullChainAndLightUp();
+          lightUpShade();
           setTimeout(reset, FINISHED_HOLD_MS);
         }
       }, passMs);
@@ -344,7 +333,6 @@
     isRunning = false;
     glow.classList.remove('on');
     shadeGlow.classList.remove('on');
-    pullThread.classList.remove('visible', 'pulling');
     objWrap.classList.add('resetting');
 
     setTimeout(() => {
@@ -381,7 +369,7 @@
   /* ── Speed control ──────────────────────────────────────────
      Changing SPEED takes effect from the next scheduled step
      onward; nothing needs to be torn down or restarted. The
-     pull-chain flourish and the finished-lamp hold stay fixed. */
+     finished-lamp hold stays fixed regardless of pace. */
   speedBar.addEventListener('click', (e) => {
     const btn = e.target.closest('.tpa-speed-btn');
     if (!btn) return;
