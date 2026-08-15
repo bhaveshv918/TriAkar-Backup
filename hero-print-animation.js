@@ -14,8 +14,10 @@
  *         .tpa-drip
  *         .tpa-glow
  *     .tpa-object-wrap    ← layer stack          (bottom-anchored, centered)
- *     .tpa-lamp-light     ← glow inside the shade (lights up when print finishes)
+ *     .tpa-shade-glow     ← trapezoid glow matching the shade's own silhouette
+ *     .tpa-pull-thread    ← pull-chain, appears once printed, tugged to switch on
  *     .tpa-bed            ← print bed            (static, bottom)
+ *   .tpa-speed-bar         ← 1x/2x/5x/10x pace control, below the cabinet
  *
  * KEY INSIGHT:
  *   - .tpa-gantry is position:absolute, full scene width, height = head height.
@@ -29,19 +31,22 @@
  * rather than being fixed pixel constants, otherwise the print looks lost
  * in empty space on larger cabinets or clipped on smaller ones.
  *
- * Timing runs at 2x the tuned "1x" pace baked into BASE below.
+ * Once printed, a pull-chain appears, gets tugged, and the whole shade
+ * (not a small dot) lights up warmly. The scene then holds on the lit
+ * lamp for a fixed 20s (not affected by the speed control, since that's
+ * about giving the finished piece a moment, not print pacing) before
+ * fading out and printing again.
  */
 
 (function () {
   'use strict';
 
   /* ── Configuration ─────────────────────────────────────── */
-  const SPEED = 2;   /* fixed 2x pace for the live site (no UI here) */
+  let SPEED = 2;   /* default pace; buttons below can change this live */
 
   const BASE = {
     PASS_DURATION_MS: 750,   /* smooth, continuous nozzle sweep, at 1x */
     LAYER_INTERVAL_MS: 107,  /* brief reversal pause, keeps motion flowing */
-    HOLD_MS:          1286,
     RESET_MS:          500,
     BOOT_DELAY_MS:     250,
     RESTART_DELAY_MS:  214,
@@ -50,19 +55,27 @@
   };
   function dur(ms) { return ms / SPEED; }
 
+  /* Fixed, independent of SPEED: the pull-chain flourish and the hold
+     on the finished, lit lamp are about showing it off, not print pace. */
+  const THREAD_REVEAL_DELAY_MS = 300;
+  const LIGHT_ON_DELAY_MS      = 340;   /* fires mid-pull, at the "click" */
+  const FINISHED_HOLD_MS       = 20000;
+
   const CFG = {
     LAYER_HEIGHT_PX: 3,   /* must match .tpa-layer { height } in CSS */
-    FILL_RATIO:     0.8,  /* the lamp fills 80% of the scene's build volume */
+    FILL_RATIO:      0.8, /* the lamp fills 80% of the scene's build volume */
+    SHADE_START_T:   0.52, /* fraction of the print where the shade begins */
 
     /* Table-lamp silhouette as a 0..1 width ratio: wide base, thin neck,
-       a shade that now spans nearly half the object's height. */
+       a shade spanning nearly half the object's height. */
     widthRatio(i, total) {
       const t = i / total;
+      const shadeStart = CFG.SHADE_START_T;
       if (t < 0.07) return 1.000 - t / 0.07 * 0.076;
       if (t < 0.16) return 0.924 - (t - 0.07) / 0.09 * 0.667;
       if (t < 0.45) return 0.258 + Math.sin((t - 0.16) / 0.29 * Math.PI) * 0.03;
-      if (t < 0.52) return 0.258 + (t - 0.45) / 0.07 * 0.470;
-      return 0.727 - (t - 0.52) / 0.48 * 0.288;
+      if (t < shadeStart) return 0.258 + (t - 0.45) / (shadeStart - 0.45) * 0.470;
+      return 0.727 - (t - shadeStart) / (1 - shadeStart) * 0.288;
     },
 
     /* Warm grey-to-terracotta gradient, sampled by fraction so it still
@@ -132,9 +145,14 @@
           <!-- Layer stack, grows upward from bed -->
           <div class="tpa-object-wrap" id="tpaObject"></div>
 
-          <!-- Light inside the shade, sibling of the stack so a reset
-               (which wipes .tpa-object-wrap) never removes it -->
-          <div class="tpa-lamp-light" id="tpaLampLight"></div>
+          <!-- Glow shaped like the shade itself, siblings of the stack
+               so a reset (which wipes .tpa-object-wrap) never removes
+               them -->
+          <div class="tpa-shade-glow" id="tpaShadeGlow"></div>
+          <div class="tpa-pull-thread" id="tpaPullThread">
+            <span class="tpa-pull-string"></span>
+            <span class="tpa-pull-bead"></span>
+          </div>
 
           <!-- Static bed -->
           <div class="tpa-bed"></div>
@@ -142,6 +160,14 @@
         </div><!-- /.tpa-scene -->
 
       </div><!-- /.tpa-cabinet -->
+
+      <!-- Pace control, below the cabinet -->
+      <div class="tpa-speed-bar" id="tpaSpeedBar">
+        <button class="tpa-speed-btn" type="button" data-speed="1">1x</button>
+        <button class="tpa-speed-btn active" type="button" data-speed="2">2x</button>
+        <button class="tpa-speed-btn" type="button" data-speed="5">5x</button>
+        <button class="tpa-speed-btn" type="button" data-speed="10">10x</button>
+      </div>
 
     </div>`;
 
@@ -152,7 +178,9 @@
   const objWrap      = document.getElementById('tpaObject');
   const drip         = document.getElementById('tapDrip');
   const glow         = document.getElementById('tpaGlow');
-  const lampLight    = document.getElementById('tpaLampLight');
+  const shadeGlow    = document.getElementById('tpaShadeGlow');
+  const pullThread   = document.getElementById('tpaPullThread');
+  const speedBar     = document.getElementById('tpaSpeedBar');
   const layerCountEl = null;
 
   /* ── State ──────────────────────────────────────────────── */
@@ -186,7 +214,26 @@
     const targetHeight = (sceneH() - BED_HEIGHT) * CFG.FILL_RATIO;
     totalLayers    = Math.max(20, Math.round(targetHeight / CFG.LAYER_HEIGHT_PX));
     maxObjectWidth = sceneW() * CFG.FILL_RATIO;
-    lampLight.style.bottom = (BED_HEIGHT + totalLayers * CFG.LAYER_HEIGHT_PX * 0.8) + 'px';
+  }
+
+  /* Once the print is finished, size and position the shade glow and
+     the pull-chain to match the ACTUAL printed shade, so the light
+     looks like it's coming from inside that specific shade. */
+  function positionShade() {
+    const shadeStartIdx = Math.round(CFG.SHADE_START_T * totalLayers);
+    const shadeHeightPx = (totalLayers - shadeStartIdx) * CFG.LAYER_HEIGHT_PX;
+    const shadeBottomW  = CFG.widthRatio(shadeStartIdx, totalLayers) * maxObjectWidth;
+    const shadeTopW     = CFG.widthRatio(totalLayers - 1, totalLayers) * maxObjectWidth;
+    const shadeBottomY  = BED_HEIGHT + shadeStartIdx * CFG.LAYER_HEIGHT_PX;
+
+    shadeGlow.style.width  = Math.round(shadeBottomW) + 'px';
+    shadeGlow.style.height = Math.round(shadeHeightPx) + 'px';
+    shadeGlow.style.bottom = Math.round(shadeBottomY) + 'px';
+    const topHalfPct = Math.max(8, (shadeTopW / shadeBottomW) * 50);
+    shadeGlow.style.clipPath = `polygon(${50 - topHalfPct}% 0%, ${50 + topHalfPct}% 0%, 100% 100%, 0% 100%)`;
+    shadeGlow.style.webkitClipPath = shadeGlow.style.clipPath;
+
+    pullThread.style.bottom = Math.round(shadeBottomY - 2) + 'px';
   }
 
   /* ── Move helpers ───────────────────────────────────────── */
@@ -235,6 +282,20 @@
     if (layerCountEl) layerCountEl.textContent = layerIndex;
   }
 
+  /* ── Pull the chain, then the shade lights up ──────────────
+     Runs once, when the print finishes. The light turns on mid-pull,
+     at the moment the chain would "click", not after it settles. */
+  function pullChainAndLightUp() {
+    positionShade();
+    pullThread.classList.add('visible');
+    setTimeout(() => {
+      pullThread.classList.add('pulling');
+      setTimeout(() => {
+        shadeGlow.classList.add('on');
+      }, LIGHT_ON_DELAY_MS);
+    }, THREAD_REVEAL_DELAY_MS);
+  }
+
   /* ── Single pass ──────────────────────────────────────────
      One uninterrupted sweep across the bed. The head is never
      snapped mid-pass: each pass starts exactly where the last
@@ -268,8 +329,8 @@
           setTimeout(runPass, dur(BASE.LAYER_INTERVAL_MS));
         } else {
           glow.classList.remove('on');
-          lampLight.classList.add('on');   /* print done: the lamp lights up */
-          setTimeout(reset, dur(BASE.HOLD_MS));
+          pullChainAndLightUp();
+          setTimeout(reset, FINISHED_HOLD_MS);
         }
       }, passMs);
     }));
@@ -282,7 +343,8 @@
     isResetting = true;
     isRunning = false;
     glow.classList.remove('on');
-    lampLight.classList.remove('on');
+    shadeGlow.classList.remove('on');
+    pullThread.classList.remove('visible', 'pulling');
     objWrap.classList.add('resetting');
 
     setTimeout(() => {
@@ -314,6 +376,19 @@
     } else if (!isResetting) {
       layerIndex > 0 && layerIndex < totalLayers ? reset() : start();
     }
+  });
+
+  /* ── Speed control ──────────────────────────────────────────
+     Changing SPEED takes effect from the next scheduled step
+     onward; nothing needs to be torn down or restarted. The
+     pull-chain flourish and the finished-lamp hold stay fixed. */
+  speedBar.addEventListener('click', (e) => {
+    const btn = e.target.closest('.tpa-speed-btn');
+    if (!btn) return;
+    SPEED = Number(btn.dataset.speed);
+    speedBar.querySelectorAll('.tpa-speed-btn').forEach((b) => {
+      b.classList.toggle('active', b === btn);
+    });
   });
 
   /* ── Boot ───────────────────────────────────────────────── */

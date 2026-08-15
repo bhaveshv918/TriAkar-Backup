@@ -238,30 +238,69 @@
   100% { transform: scale(1.4);  opacity: 1;   }
 }
 
-/* ── LAMP LIGHT ──────────────────────────────────────────── */
-/* Sits inside the shade; lights up once the print finishes. */
-.tpa-lamp-light {
+/* ── SHADE GLOW ──────────────────────────────────────────── */
+/* Sized/clipped in JS to the ACTUAL printed shade's trapezoid, so the
+   whole shade appears lit, not a small dot floating near it. */
+.tpa-shade-glow {
   position: absolute;
   left: 50%;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,214,120,.95) 0%, rgba(255,176,64,.55) 40%, rgba(255,150,40,0) 74%);
-  filter: blur(1.5px);
-  transform: translate(-50%, 50%) scale(0.3);
+  transform: translateX(-50%);
+  background:
+    radial-gradient(ellipse at 50% 20%, rgba(255,236,190,.95) 0%, rgba(255,200,110,.7) 40%, rgba(255,165,70,.35) 68%, rgba(255,150,50,0) 100%);
+  filter: blur(2px);
   opacity: 0;
   pointer-events: none;
   z-index: 15;
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  transition: opacity 0.6s ease;
 }
-.tpa-lamp-light.on {
+.tpa-shade-glow.on {
   opacity: 1;
-  transform: translate(-50%, 50%) scale(1);
-  animation: tpa-lamp-pulse 1.6s ease-in-out infinite alternate;
+  animation: tpa-shade-pulse 2.4s ease-in-out infinite alternate;
 }
-@keyframes tpa-lamp-pulse {
-  0%   { opacity: 0.85; }
+@keyframes tpa-shade-pulse {
+  0%   { opacity: 0.88; }
   100% { opacity: 1; }
+}
+
+/* ── PULL CHAIN ──────────────────────────────────────────── */
+/* Hangs from inside the shade; appears once printed, then gets tugged
+   to switch the light on. */
+.tpa-pull-thread {
+  position: absolute;
+  left: 50%;
+  width: 10px;
+  transform: translateX(-50%) translateY(0);
+  transform-origin: top center;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 16;
+  transition: opacity 0.3s ease;
+}
+.tpa-pull-thread.visible { opacity: 1; }
+.tpa-pull-string {
+  display: block;
+  width: 1.5px;
+  height: 16px;
+  margin: 0 auto;
+  background: linear-gradient(180deg, rgba(120,110,95,.85), rgba(120,110,95,.5));
+}
+.tpa-pull-bead {
+  display: block;
+  width: 5px;
+  height: 5px;
+  margin: -1px auto 0;
+  border-radius: 50%;
+  background: #8a7d68;
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.2);
+}
+.tpa-pull-thread.pulling {
+  animation: tpa-thread-pull 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes tpa-thread-pull {
+  0%   { transform: translateX(-50%) translateY(0); }
+  35%  { transform: translateX(-50%) translateY(14px); }
+  55%  { transform: translateX(-50%) translateY(11px); }
+  100% { transform: translateX(-50%) translateY(0); }
 }
 
 /* ── OBJECT LAYER STACK ──────────────────────────────────── */
@@ -328,6 +367,31 @@
 @keyframes tpa-fade-out {
   0%   { opacity: 1; }
   100% { opacity: 0; }
+}
+
+/* ── SPEED BAR ───────────────────────────────────────────── */
+.tpa-speed-bar {
+  display: flex;
+  gap: 5px;
+}
+.tpa-speed-btn {
+  font-family: 'Manrope', sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(0,0,0,0.13);
+  background: rgba(255,255,255,0.5);
+  color: #6b6560;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.tpa-speed-btn:hover { border-color: rgba(228,106,46,0.5); }
+.tpa-speed-btn.active {
+  background: #e46a2e;
+  border-color: #e46a2e;
+  color: #fff;
 }
 
 /* ── RESPONSIVE ──────────────────────────────────────────── */

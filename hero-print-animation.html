@@ -15,10 +15,8 @@
     font-family: 'Manrope', sans-serif;
     background: #EAE7DF;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 16px;
     min-height: 100vh;
   }
   /* Mirror the hero-right panel from index.html */
@@ -34,30 +32,6 @@
   #triakar-print-animation {
     width: 300px;
     height: 420px;
-  }
-  /* Preview-only speed control, not part of the shipped widget */
-  .speed-bar {
-    display: flex;
-    gap: 8px;
-  }
-  .speed-btn {
-    font-family: 'Manrope', sans-serif;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    padding: 8px 18px;
-    border-radius: 8px;
-    border: 1px solid rgba(0,0,0,.15);
-    background: #fff;
-    color: #3a3632;
-    cursor: pointer;
-    transition: background .15s ease, border-color .15s ease, color .15s ease;
-  }
-  .speed-btn:hover { border-color: #e46a2e; }
-  .speed-btn.active {
-    background: #e46a2e;
-    border-color: #e46a2e;
-    color: #fff;
   }
 </style>
 <style>
@@ -275,7 +249,7 @@
 }
 .tpa-drip.active {
   animation-name: tpa-drip-fall;
-  animation-duration: 0.135s;
+  animation-duration: 0.27s;
   animation-timing-function: ease-out;
   animation-fill-mode: forwards;
 }
@@ -298,7 +272,7 @@
 .tpa-glow.on {
   opacity: 1;
   animation-name: tpa-glow-pulse;
-  animation-duration: 0.18s;
+  animation-duration: 0.36s;
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
   animation-direction: alternate;
@@ -308,30 +282,69 @@
   100% { transform: scale(1.4);  opacity: 1;   }
 }
 
-/* ── LAMP LIGHT ──────────────────────────────────────────── */
-/* Sits inside the shade; lights up once the print finishes. */
-.tpa-lamp-light {
+/* ── SHADE GLOW ──────────────────────────────────────────── */
+/* Sized/clipped in JS to the ACTUAL printed shade's trapezoid, so the
+   whole shade appears lit, not a small dot floating near it. */
+.tpa-shade-glow {
   position: absolute;
   left: 50%;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,214,120,.95) 0%, rgba(255,176,64,.55) 40%, rgba(255,150,40,0) 74%);
-  filter: blur(1.5px);
-  transform: translate(-50%, 50%) scale(0.3);
+  transform: translateX(-50%);
+  background:
+    radial-gradient(ellipse at 50% 20%, rgba(255,236,190,.95) 0%, rgba(255,200,110,.7) 40%, rgba(255,165,70,.35) 68%, rgba(255,150,50,0) 100%);
+  filter: blur(2px);
   opacity: 0;
   pointer-events: none;
   z-index: 15;
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  transition: opacity 0.6s ease;
 }
-.tpa-lamp-light.on {
+.tpa-shade-glow.on {
   opacity: 1;
-  transform: translate(-50%, 50%) scale(1);
-  animation: tpa-lamp-pulse 1.6s ease-in-out infinite alternate;
+  animation: tpa-shade-pulse 2.4s ease-in-out infinite alternate;
 }
-@keyframes tpa-lamp-pulse {
-  0%   { opacity: 0.85; }
+@keyframes tpa-shade-pulse {
+  0%   { opacity: 0.88; }
   100% { opacity: 1; }
+}
+
+/* ── PULL CHAIN ──────────────────────────────────────────── */
+/* Hangs from inside the shade; appears once printed, then gets tugged
+   to switch the light on. */
+.tpa-pull-thread {
+  position: absolute;
+  left: 50%;
+  width: 10px;
+  transform: translateX(-50%) translateY(0);
+  transform-origin: top center;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 16;
+  transition: opacity 0.3s ease;
+}
+.tpa-pull-thread.visible { opacity: 1; }
+.tpa-pull-string {
+  display: block;
+  width: 1.5px;
+  height: 16px;
+  margin: 0 auto;
+  background: linear-gradient(180deg, rgba(120,110,95,.85), rgba(120,110,95,.5));
+}
+.tpa-pull-bead {
+  display: block;
+  width: 5px;
+  height: 5px;
+  margin: -1px auto 0;
+  border-radius: 50%;
+  background: #8a7d68;
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.2);
+}
+.tpa-pull-thread.pulling {
+  animation: tpa-thread-pull 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes tpa-thread-pull {
+  0%   { transform: translateX(-50%) translateY(0); }
+  35%  { transform: translateX(-50%) translateY(14px); }
+  55%  { transform: translateX(-50%) translateY(11px); }
+  100% { transform: translateX(-50%) translateY(0); }
 }
 
 /* ── OBJECT LAYER STACK ──────────────────────────────────── */
@@ -363,7 +376,7 @@
 }
 .tpa-layer.in {
   animation-name: tpa-layer-appear;
-  animation-duration: 0.145s;
+  animation-duration: 0.29s;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   animation-fill-mode: forwards;
 }
@@ -449,6 +462,31 @@
   100% { opacity: 0; }
 }
 
+/* ── SPEED BAR ───────────────────────────────────────────── */
+.tpa-speed-bar {
+  display: flex;
+  gap: 5px;
+}
+.tpa-speed-btn {
+  font-family: 'Manrope', sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(0,0,0,0.13);
+  background: rgba(255,255,255,0.5);
+  color: #6b6560;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.tpa-speed-btn:hover { border-color: rgba(228,106,46,0.5); }
+.tpa-speed-btn.active {
+  background: #e46a2e;
+  border-color: #e46a2e;
+  color: #fff;
+}
+
 /* ── RESPONSIVE ──────────────────────────────────────────── */
 @media (max-width: 1100px) {
   .tpa-cabinet { width: 230px; }
@@ -463,13 +501,6 @@
 <body>
   <div class="preview-shell">
     <div id="triakar-print-animation"></div>
-  </div>
-  <!-- Preview-only speed control; not present in the shipped about.html widget -->
-  <div class="speed-bar" id="tpaSpeedBar">
-    <button class="speed-btn" data-speed="1" onclick="tpaSetSpeed(1)">1x</button>
-    <button class="speed-btn active" data-speed="2" onclick="tpaSetSpeed(2)">2x</button>
-    <button class="speed-btn" data-speed="5" onclick="tpaSetSpeed(5)">5x</button>
-    <button class="speed-btn" data-speed="10" onclick="tpaSetSpeed(10)">10x</button>
   </div>
 <script>
 /**
@@ -488,9 +519,11 @@
  *         .tpa-drip
  *         .tpa-glow
  *     .tpa-object-wrap    ← layer stack          (bottom-anchored, centered)
- *     .tpa-lamp-light     ← glow inside the shade (lights up when print finishes)
+ *     .tpa-shade-glow     ← trapezoid glow matching the shade's own silhouette
+ *     .tpa-pull-thread    ← pull-chain, appears once printed, tugged to switch on
  *     .tpa-bed            ← print bed            (static, bottom)
  *     .tpa-info           ← LAYERS / PLA+        (static, above bed)
+ *   .tpa-speed-bar         ← 1x/2x/5x/10x pace control, below the cabinet
  *
  * KEY INSIGHT:
  *   - .tpa-gantry is position:absolute, full scene width, height = head height.
@@ -501,46 +534,51 @@
  *
  * The lamp always fills ~80% of the scene's build volume (both axes).
  *
- * PREVIEW ONLY: this file exposes window.tpaSetSpeed(n) wired to the
- * 1x/2x/5x/10x buttons below, so the pace can be tuned live. "1x" here
- * is the tuned BASE pace (about.html's production widget always runs
- * a fixed 2x on top of the same BASE, no buttons there).
+ * Once printed, a pull-chain appears, gets tugged, and the whole shade
+ * (not a small dot) lights up warmly. The scene then holds on the lit
+ * lamp for a fixed 20s (not affected by the speed control, since that's
+ * about giving the finished piece a moment, not print pacing) before
+ * fading out and printing again.
  */
 
 (function () {
   'use strict';
 
   /* ── Configuration ─────────────────────────────────────── */
-  let SPEED = 2;   /* default; buttons below can change this live */
+  let SPEED = 2;   /* default; the speed bar below can change this live */
 
   const BASE = {
     PASS_DURATION_MS: 750,   /* smooth, continuous nozzle sweep, at 1x */
     LAYER_INTERVAL_MS: 107,  /* brief reversal pause, keeps motion flowing */
-    HOLD_MS:          857,
     RESET_MS:          393,
     BOOT_DELAY_MS:     250,
     RESTART_DELAY_MS:  214,
     DEPOSIT_FLASH_MS:  271,
     LIFT_MS:           110,
-    DRIP_FALL_MS:      270,
-    GLOW_PULSE_MS:     360,
-    LAYER_APPEAR_MS:   160,
   };
   function dur(ms) { return ms / SPEED; }
 
+  /* Fixed, independent of SPEED: the pull-chain flourish and the hold
+     on the finished, lit lamp are about showing it off, not print pace. */
+  const THREAD_REVEAL_DELAY_MS = 300;
+  const LIGHT_ON_DELAY_MS      = 340;   /* fires mid-pull, at the "click" */
+  const FINISHED_HOLD_MS       = 20000;
+
   const CFG = {
     LAYER_HEIGHT_PX: 3,   /* must match .tpa-layer { height } in CSS */
-    FILL_RATIO:     0.8,  /* the lamp fills 80% of the scene's build volume */
+    FILL_RATIO:      0.8, /* the lamp fills 80% of the scene's build volume */
+    SHADE_START_T:   0.52, /* fraction of the print where the shade begins */
 
     /* Table-lamp silhouette as a 0..1 width ratio: wide base, thin neck,
-       a shade that now spans nearly half the object's height. */
+       a shade spanning nearly half the object's height. */
     widthRatio(i, total) {
       const t = i / total;
+      const shadeStart = CFG.SHADE_START_T;
       if (t < 0.07) return 1.000 - t / 0.07 * 0.076;
       if (t < 0.16) return 0.924 - (t - 0.07) / 0.09 * 0.667;
       if (t < 0.45) return 0.258 + Math.sin((t - 0.16) / 0.29 * Math.PI) * 0.03;
-      if (t < 0.52) return 0.258 + (t - 0.45) / 0.07 * 0.470;
-      return 0.727 - (t - 0.52) / 0.48 * 0.288;
+      if (t < shadeStart) return 0.258 + (t - 0.45) / (shadeStart - 0.45) * 0.470;
+      return 0.727 - (t - shadeStart) / (1 - shadeStart) * 0.288;
     },
 
     /* Warm grey-to-terracotta gradient, sampled by fraction so it still
@@ -610,9 +648,14 @@
           <!-- Layer stack, grows upward from bed -->
           <div class="tpa-object-wrap" id="tpaObject"></div>
 
-          <!-- Light inside the shade, sibling of the stack so a reset
-               (which wipes .tpa-object-wrap) never removes it -->
-          <div class="tpa-lamp-light" id="tpaLampLight"></div>
+          <!-- Glow shaped like the shade itself, siblings of the stack
+               so a reset (which wipes .tpa-object-wrap) never removes
+               them -->
+          <div class="tpa-shade-glow" id="tpaShadeGlow"></div>
+          <div class="tpa-pull-thread" id="tpaPullThread">
+            <span class="tpa-pull-string"></span>
+            <span class="tpa-pull-bead"></span>
+          </div>
 
           <!-- Static bed -->
           <div class="tpa-bed"></div>
@@ -634,6 +677,14 @@
         </span>
       </div>
 
+      <!-- Pace control, below the info panel -->
+      <div class="tpa-speed-bar" id="tpaSpeedBar">
+        <button class="tpa-speed-btn" type="button" data-speed="1">1x</button>
+        <button class="tpa-speed-btn active" type="button" data-speed="2">2x</button>
+        <button class="tpa-speed-btn" type="button" data-speed="5">5x</button>
+        <button class="tpa-speed-btn" type="button" data-speed="10">10x</button>
+      </div>
+
     </div>`;
 
   /* ── Refs ───────────────────────────────────────────────── */
@@ -643,7 +694,9 @@
   const objWrap      = document.getElementById('tpaObject');
   const drip         = document.getElementById('tapDrip');
   const glow         = document.getElementById('tpaGlow');
-  const lampLight    = document.getElementById('tpaLampLight');
+  const shadeGlow    = document.getElementById('tpaShadeGlow');
+  const pullThread   = document.getElementById('tpaPullThread');
+  const speedBar     = document.getElementById('tpaSpeedBar');
   const layerCountEl = document.getElementById('tpaLayerCount');
 
   /* ── State ──────────────────────────────────────────────── */
@@ -677,7 +730,26 @@
     const targetHeight = (sceneH() - BED_HEIGHT) * CFG.FILL_RATIO;
     totalLayers    = Math.max(20, Math.round(targetHeight / CFG.LAYER_HEIGHT_PX));
     maxObjectWidth = sceneW() * CFG.FILL_RATIO;
-    lampLight.style.bottom = (BED_HEIGHT + totalLayers * CFG.LAYER_HEIGHT_PX * 0.8) + 'px';
+  }
+
+  /* Once the print is finished, size and position the shade glow and
+     the pull-chain to match the ACTUAL printed shade, so the light
+     looks like it's coming from inside that specific shade. */
+  function positionShade() {
+    const shadeStartIdx = Math.round(CFG.SHADE_START_T * totalLayers);
+    const shadeHeightPx = (totalLayers - shadeStartIdx) * CFG.LAYER_HEIGHT_PX;
+    const shadeBottomW  = CFG.widthRatio(shadeStartIdx, totalLayers) * maxObjectWidth;
+    const shadeTopW     = CFG.widthRatio(totalLayers - 1, totalLayers) * maxObjectWidth;
+    const shadeBottomY  = BED_HEIGHT + shadeStartIdx * CFG.LAYER_HEIGHT_PX;
+
+    shadeGlow.style.width  = Math.round(shadeBottomW) + 'px';
+    shadeGlow.style.height = Math.round(shadeHeightPx) + 'px';
+    shadeGlow.style.bottom = Math.round(shadeBottomY) + 'px';
+    const topHalfPct = Math.max(8, (shadeTopW / shadeBottomW) * 50);
+    shadeGlow.style.clipPath = `polygon(${50 - topHalfPct}% 0%, ${50 + topHalfPct}% 0%, 100% 100%, 0% 100%)`;
+    shadeGlow.style.webkitClipPath = shadeGlow.style.clipPath;
+
+    pullThread.style.bottom = Math.round(shadeBottomY - 2) + 'px';
   }
 
   /* ── Move helpers ───────────────────────────────────────── */
@@ -697,9 +769,7 @@
 
   /* ── Deposit effect ─────────────────────────────────────── */
   function depositEffect() {
-    glow.style.animationDuration = dur(BASE.GLOW_PULSE_MS) + 'ms';
     glow.classList.add('on');
-    drip.style.animationDuration = dur(BASE.DRIP_FALL_MS) + 'ms';
     drip.classList.remove('active');
     void drip.offsetWidth;
     drip.classList.add('active');
@@ -719,7 +789,6 @@
     el.style.width      = Math.round(CFG.widthRatio(layerIndex, totalLayers) * maxObjectWidth) + 'px';
     el.style.background = CFG.colorAt(t);
     el.style.boxShadow  = 'inset 0 1px 0 rgba(255,255,255,.12), inset 0 -1px 0 rgba(0,0,0,.1)';
-    el.style.animationDuration = dur(BASE.LAYER_APPEAR_MS) + 'ms';
     objWrap.appendChild(el);
 
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('in')));
@@ -727,6 +796,20 @@
     depositEffect();
     layerIndex++;
     layerCountEl.textContent = layerIndex;
+  }
+
+  /* ── Pull the chain, then the shade lights up ──────────────
+     Runs once, when the print finishes. The light turns on mid-pull,
+     at the moment the chain would "click", not after it settles. */
+  function pullChainAndLightUp() {
+    positionShade();
+    pullThread.classList.add('visible');
+    setTimeout(() => {
+      pullThread.classList.add('pulling');
+      setTimeout(() => {
+        shadeGlow.classList.add('on');
+      }, LIGHT_ON_DELAY_MS);
+    }, THREAD_REVEAL_DELAY_MS);
   }
 
   /* ── Single pass ──────────────────────────────────────────
@@ -762,8 +845,8 @@
           setTimeout(runPass, dur(BASE.LAYER_INTERVAL_MS));
         } else {
           glow.classList.remove('on');
-          lampLight.classList.add('on');   /* print done: the lamp lights up */
-          setTimeout(reset, dur(BASE.HOLD_MS));
+          pullChainAndLightUp();
+          setTimeout(reset, FINISHED_HOLD_MS);
         }
       }, passMs);
     }));
@@ -776,7 +859,8 @@
     isResetting = true;
     isRunning = false;
     glow.classList.remove('on');
-    lampLight.classList.remove('on');
+    shadeGlow.classList.remove('on');
+    pullThread.classList.remove('visible', 'pulling');
     objWrap.classList.add('resetting');
 
     setTimeout(() => {
@@ -810,15 +894,18 @@
     }
   });
 
-  /* ── Speed control (preview only) ─────────────────────────
+  /* ── Speed control ──────────────────────────────────────────
      Changing SPEED takes effect from the next scheduled step
-     onward; nothing needs to be torn down or restarted. */
-  window.tpaSetSpeed = function (n) {
-    SPEED = n;
-    document.querySelectorAll('#tpaSpeedBar .speed-btn').forEach((btn) => {
-      btn.classList.toggle('active', Number(btn.dataset.speed) === n);
+     onward; nothing needs to be torn down or restarted. The
+     pull-chain flourish and the finished-lamp hold stay fixed. */
+  speedBar.addEventListener('click', (e) => {
+    const btn = e.target.closest('.tpa-speed-btn');
+    if (!btn) return;
+    SPEED = Number(btn.dataset.speed);
+    speedBar.querySelectorAll('.tpa-speed-btn').forEach((b) => {
+      b.classList.toggle('active', b === btn);
     });
-  };
+  });
 
   /* ── Boot ───────────────────────────────────────────────── */
   document.readyState === 'complete' ? start() : window.addEventListener('load', start);
