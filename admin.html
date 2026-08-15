@@ -337,6 +337,10 @@ img{display:block;max-width:100%}
 /* ═══════════════════════════════════════════════════════════
    FILTERS
    ═══════════════════════════════════════════════════════════ */
+.story-photo-boxes{display:flex;gap:4px}
+.story-pbox{width:30px;height:30px;border-radius:5px;background-size:cover;background-position:center;border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text-3);cursor:pointer;flex-shrink:0}
+.story-pbox.filled{border-style:solid}
+.story-pbox.drag{border-color:var(--accent);background-color:rgba(196,98,42,.15)}
 .filter-bar{
   display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center;
 }
@@ -2211,8 +2215,8 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
       </div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Year</th><th>Month</th><th>Tag</th><th>Title</th><th>Published</th><th>Actions</th></tr></thead>
-          <tbody id="storiesBody"><tr><td colspan="6" class="tbl-msg">Loading…</td></tr></tbody>
+          <thead><tr><th>Year</th><th>Month</th><th>Tag</th><th>Title</th><th>Photos <span style="font-weight:400;color:var(--text-3);font-size:10px">drag &amp; drop</span></th><th>Published</th><th>Actions</th></tr></thead>
+          <tbody id="storiesBody"><tr><td colspan="7" class="tbl-msg">Loading…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -7085,11 +7089,68 @@ async function loadStoriesAdmin(){
       <td>${s.year}</td>
       <td>${MONTH_NAMES_ST[s.month]||s.month}</td>
       <td>${esc(s.tag)}</td>
-      <td>${esc(s.title)}${s.image_url?' <span title="Has photo" style="opacity:.6">📷</span>':''}${s.customer_name?'<br><span style="font-size:11px;color:var(--text-3)">'+esc(s.customer_name)+(s.customer_location?', '+esc(s.customer_location):'')+'</span>':''}</td>
+      <td>${esc(s.title)}${s.customer_name?'<br><span style="font-size:11px;color:var(--text-3)">'+esc(s.customer_name)+(s.customer_location?', '+esc(s.customer_location):'')+'</span>':''}</td>
+      <td>${renderStoryPhotoBoxes(s)}</td>
       <td>${s.published?'<span style="color:var(--green)">Yes</span>':'<span style="color:var(--text-3)">Hidden</span>'}</td>
       <td><button class="btn-secondary" onclick="openStoryModal('${s.id}')">Edit</button> <button class="btn-secondary" style="color:#fca5a5" onclick="deleteStoryAdmin('${s.id}')">Delete</button>${s.published&&s.slug?` <a class="btn-secondary" href="https://www.triakar.com/stories/${encodeURIComponent(s.slug)}" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none">View ↗</a>`:''}</td>
-    </tr>`).join(''):'<tr><td colspan="6" class="tbl-msg">No stories yet</td></tr>';
-  }catch(e){ body.innerHTML='<tr><td colspan="6" class="tbl-msg">Error: '+esc(e.message)+'</td></tr>'; }
+    </tr>`).join(''):'<tr><td colspan="7" class="tbl-msg">No stories yet</td></tr>';
+  }catch(e){ body.innerHTML='<tr><td colspan="7" class="tbl-msg">Error: '+esc(e.message)+'</td></tr>'; }
+}
+const STORY_MAX_PHOTOS=5;
+function renderStoryPhotoBoxes(s){
+  const urls=[s.image_url,...((s.images)||[])].filter(Boolean);
+  const boxes=[];
+  for(let i=0;i<STORY_MAX_PHOTOS;i++){
+    const url=urls[i];
+    boxes.push(url
+      ? `<div class="story-pbox filled" style="background-image:url('${esc(url)}')" onclick="removeStoryPhotoAt('${s.id}',${i})" title="Click to remove"></div>`
+      : `<div class="story-pbox empty" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleStoryPhotoDrop(event,'${s.id}')" onclick="document.getElementById('storyDropInput_${s.id}').click()" title="Drag & drop an image, or click">+</div>`
+    );
+  }
+  return `<div class="story-photo-boxes" data-id="${s.id}">${boxes.join('')}<input type="file" id="storyDropInput_${s.id}" accept="image/jpeg,image/png,image/webp" multiple style="display:none" onchange="handleStoryPhotoPick(event,'${s.id}')"></div>`;
+}
+async function uploadFilesToStory(storyId,files){
+  const s=_storiesCache.find(x=>x.id===storyId); if(!s) return;
+  let all=[s.image_url,...((s.images)||[])].filter(Boolean);
+  if(all.length>=STORY_MAX_PHOTOS){ toast('Max '+STORY_MAX_PHOTOS+' photos per story','error'); return; }
+  try{
+    const{data:sess}=await sb.auth.getSession();
+    const token=sess&&sess.session&&sess.session.access_token;
+    for(const file of files){
+      if(all.length>=STORY_MAX_PHOTOS) break;
+      const fd=new FormData(); fd.append('image',file);
+      const r=await fetch(API+'/api/admin/upload-image?folder=triakar/stories',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+      if(!r.ok) throw new Error((await r.json()).error||'Upload failed');
+      const{url}=await r.json();
+      all.push(url);
+    }
+    await adminApi('/api/stories/'+storyId,{method:'PUT',body:JSON.stringify({image_url:all[0]||null,images:all.slice(1)})});
+    toast('Uploaded ✓','success');
+    loadStoriesAdmin();
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+function handleStoryPhotoDrop(event,id){
+  event.preventDefault();
+  event.currentTarget.classList.remove('drag');
+  const files=Array.from((event.dataTransfer&&event.dataTransfer.files)||[]).filter(f=>f.type.startsWith('image/'));
+  if(!files.length){ toast('Drop image files only','error'); return; }
+  uploadFilesToStory(id,files);
+}
+function handleStoryPhotoPick(event,id){
+  const files=Array.from(event.target.files||[]);
+  event.target.value='';
+  if(files.length) uploadFilesToStory(id,files);
+}
+async function removeStoryPhotoAt(id,idx){
+  const s=_storiesCache.find(x=>x.id===id); if(!s) return;
+  if(!confirm('Remove this photo?')) return;
+  const all=[s.image_url,...((s.images)||[])].filter(Boolean);
+  all.splice(idx,1);
+  try{
+    await adminApi('/api/stories/'+id,{method:'PUT',body:JSON.stringify({image_url:all[0]||null,images:all.slice(1)})});
+    toast('Removed','success');
+    loadStoriesAdmin();
+  }catch(e){ toast('Error: '+e.message,'error'); }
 }
 function openStoryModal(id){
   const s=id?_storiesCache.find(x=>x.id===id):null;
@@ -7128,7 +7189,7 @@ function removeStImage(i){ _stImages.splice(i,1); renderStImagesGrid(); }
 async function uploadStoryImage(input){
   const files=input.files?Array.from(input.files):[];
   if(!files.length) return;
-  if(_stImages.length+files.length>4){ toast('Max 4 photos per story','error'); input.value=''; return; }
+  if(_stImages.length+files.length>STORY_MAX_PHOTOS){ toast('Max '+STORY_MAX_PHOTOS+' photos per story','error'); input.value=''; return; }
   const status=document.getElementById('stImageUploadStatus');
   try{
     const{data:sess}=await sb.auth.getSession();
@@ -7406,7 +7467,7 @@ async function saveReview(){
       </div>
       <p style="font-size:11px;color:var(--text-3);margin:-4px 0 0;line-height:1.5">A real name + city turns the card from an anonymous excerpt into a verifiable customer story, same trust signal as product reviews. Leave blank to keep it anonymous (e.g. a bulk/corporate order where no individual is named).</p>
       <div>
-        <label class="form-label">Photos <span style="font-weight:400;color:var(--text-3);font-size:11px">· 1-4 images, first one is the cover shown on the story card. Mixed orientations are fine, the detail page shows them as a swipeable gallery</span></label>
+        <label class="form-label">Photos <span style="font-weight:400;color:var(--text-3);font-size:11px">· 1-5 images, first one is the cover shown on the story card. Mixed orientations are fine, the detail page shows them as a swipeable gallery</span></label>
         <div id="stImagesGrid" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"></div>
         <input id="stImageFile" type="file" accept="image/jpeg,image/png,image/webp" multiple onchange="uploadStoryImage(this)">
         <span id="stImageUploadStatus" style="font-size:11px;color:var(--text-3);display:block;margin-top:4px"></span>

@@ -51,9 +51,19 @@
 .story-post{max-width:720px;margin:0 auto;padding:28px 20px 10px}
 .story-post-breadcrumb{font-size:13px;color:var(--warm);margin-bottom:18px}
 .story-post-breadcrumb a{color:inherit}
-.story-post-photo{width:100%;aspect-ratio:16/9;border-radius:8px;overflow:hidden;margin-bottom:24px;background:linear-gradient(135deg,rgba(196,98,42,.14),rgba(22,22,20,.08))}
-.story-post-photo img{width:100%;height:100%;object-fit:cover;display:block}
-.story-post-photo-fallback{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:56px;opacity:.35}
+.story-post-photo{width:100%;border-radius:8px;margin-bottom:24px;position:relative}
+.story-gallery-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-radius:8px}
+.story-gallery-track::-webkit-scrollbar{display:none}
+.story-gallery-slide{flex:0 0 100%;scroll-snap-align:start;aspect-ratio:4/3;background:linear-gradient(135deg,rgba(196,98,42,.14),rgba(22,22,20,.08))}
+.story-gallery-slide img{width:100%;height:100%;object-fit:cover;display:block}
+.story-post-photo-fallback{width:100%;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;font-size:56px;opacity:.35;background:linear-gradient(135deg,rgba(196,98,42,.14),rgba(22,22,20,.08));border-radius:8px}
+.story-gallery-dots{position:absolute;bottom:10px;left:0;right:0;display:flex;justify-content:center;gap:6px}
+.story-gallery-dots span{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.55);transition:background .2s,transform .2s}
+.story-gallery-dots span.active{background:#fff;transform:scale(1.3)}
+.story-gallery-arrow{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:50%;border:none;background:rgba(0,0,0,.45);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px}
+.story-gallery-arrow.prev{left:10px}
+.story-gallery-arrow.next{right:10px}
+@media(max-width:640px){.story-gallery-arrow{display:none}}
 .story-post-meta{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
 .story-post-title{font-family:var(--font-g);font-size:clamp(26px,4vw,40px);font-weight:400;line-height:1.25;margin-bottom:18px}
 .story-post-lead{font-size:17px;line-height:1.75;color:var(--charcoal);font-weight:500;margin-bottom:16px}
@@ -279,6 +289,21 @@
     return {list:sameTag.concat(otherTag).slice(0,15), allRead:false};
   }
 
+  function setupGallerySwipe(){
+    const track=document.getElementById('galleryTrack');
+    const photoEl=document.getElementById('postPhoto');
+    const dots=photoEl.querySelectorAll('.story-gallery-dots span');
+    const goTo=i=>track.scrollTo({left:i*track.clientWidth,behavior:'smooth'});
+    const prevBtn=photoEl.querySelector('.story-gallery-arrow.prev');
+    const nextBtn=photoEl.querySelector('.story-gallery-arrow.next');
+    if(prevBtn) prevBtn.onclick=()=>goTo(Math.max(0,Math.round(track.scrollLeft/track.clientWidth)-1));
+    if(nextBtn) nextBtn.onclick=()=>goTo(Math.min(dots.length-1,Math.round(track.scrollLeft/track.clientWidth)+1));
+    track.addEventListener('scroll',()=>{
+      const i=Math.round(track.scrollLeft/track.clientWidth);
+      dots.forEach((d,di)=>d.classList.toggle('active',di===i));
+    },{passive:true});
+  }
+
   function render(s, related, allStories){
     const base='https://www.triakar.com';
     const url=base+'/stories/'+encodeURIComponent(s.slug);
@@ -298,10 +323,15 @@
 
     const photoEl=document.getElementById('postPhoto');
     let image=base+'/assets/og-image.jpg';
-    if(s.image_url){
-      photoEl.innerHTML=`<img src="${esc(s.image_url)}" alt="${esc(s.title)}">`;
+    const gallery=[s.image_url,...((s.images)||[])].filter(Boolean);
+    if(gallery.length){
+      image=gallery[0];
+      const slides=gallery.map(u=>`<div class="story-gallery-slide"><img src="${esc(u)}" alt="${esc(s.title)}" loading="lazy"></div>`).join('');
+      const dots=gallery.length>1?`<div class="story-gallery-dots">${gallery.map((_,i)=>`<span data-i="${i}" class="${i===0?'active':''}"></span>`).join('')}</div>`:'';
+      const arrows=gallery.length>1?`<button type="button" class="story-gallery-arrow prev" aria-label="Previous photo">‹</button><button type="button" class="story-gallery-arrow next" aria-label="Next photo">›</button>`:'';
+      photoEl.innerHTML=`<div class="story-gallery-track" id="galleryTrack">${slides}</div>${dots}${arrows}`;
       photoEl.style.display='';
-      image=s.image_url;
+      if(gallery.length>1) setupGallerySwipe();
     } else {
       photoEl.innerHTML=`<div class="story-post-photo-fallback">${TAG_ICON[s.tag]||'✨'}</div>`;
       photoEl.style.display='';

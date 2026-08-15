@@ -42,7 +42,7 @@ export async function getPublicStories(req, res) {
   try {
     const { data, error } = await supabase
       .from('site_stories')
-      .select('id,slug,year,month,sort_order,tag,title,excerpt,full_text,image_url,customer_name,customer_location')
+      .select('id,slug,year,month,sort_order,tag,title,excerpt,full_text,image_url,images,customer_name,customer_location')
       .eq('published', true)
       .order('year', { ascending: false })
       .order('month', { ascending: false })
@@ -75,7 +75,7 @@ export async function getStoryBySlug(req, res) {
     const { slug } = req.params;
     const { data: story, error } = await supabase
       .from('site_stories')
-      .select('id,slug,year,month,sort_order,tag,title,excerpt,full_text,image_url,customer_name,customer_location')
+      .select('id,slug,year,month,sort_order,tag,title,excerpt,full_text,image_url,images,customer_name,customer_location')
       .eq('slug', slug)
       .eq('published', true)
       .maybeSingle();
@@ -134,7 +134,7 @@ export async function getAllStories(req, res) {
   }
 }
 
-const ALLOWED_FIELDS = ['year', 'month', 'sort_order', 'tag', 'title', 'excerpt', 'full_text', 'image_url', 'customer_name', 'customer_location', 'slug', 'published'];
+const ALLOWED_FIELDS = ['year', 'month', 'sort_order', 'tag', 'title', 'excerpt', 'full_text', 'image_url', 'images', 'customer_name', 'customer_location', 'slug', 'published'];
 
 /* ─────────────────────────────────────────────────────────────────────────
    ADMIN — POST /api/stories/
