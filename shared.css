@@ -43,6 +43,7 @@
   --nav-blur: blur(11px) saturate(150%);
 
   --glass-a-bg: rgba(244,242,236,.62);
+
   --glass-a-border: rgba(255,255,255,.55);
   --glass-a-shadow: 0 10px 34px rgba(22,22,20,.14), inset 0 1px 0 rgba(255,255,255,.65), inset 0 -1px 1px rgba(0,0,0,.04);
   --glass-a-sheen: linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,0) 46%);
@@ -78,6 +79,18 @@
   --font-g: "Glorida", "Manrope", sans-serif; /* woff2 in assets/fonts/ */
   --font-b: "Manrope", sans-serif;
   --font-h: "Noto Sans Devanagari", sans-serif;
+}
+
+/* Mobile GPUs recomposite backdrop-filter far more expensively than
+   desktop, and --glass-blur/--glass-blur-strong feed nearly every glass
+   surface site-wide (cart sidebar, modals, scroll-top, a11y fab, etc).
+   Overriding the variables here cuts blur cost everywhere at once instead
+   of hunting down each consumer individually. */
+@media(max-width:768px){
+  :root{
+    --glass-blur: blur(11px) saturate(160%);
+    --glass-blur-strong: blur(16px) saturate(170%);
+  }
 }
 
 /* Mobile overrides */
@@ -836,6 +849,12 @@ html[data-menu-style="4"] .drawer-login{margin-top:12px}
 }
 .cart-overlay{position:fixed;inset:0;z-index:1190;background:rgba(0,0,0,.35);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .4s;cursor:pointer}
 .cart-overlay.open{opacity:1;pointer-events:all}
+/* Mobile: the sidebar right next to it already blurs its own background, a
+   second full-viewport blur layer underneath is redundant GPU cost for a dim
+   overlay whose only job is to darken the page, drop it there. */
+@media(max-width:768px){
+  .cart-overlay{backdrop-filter:none;-webkit-backdrop-filter:none}
+}
 .cart-head{display:flex;justify-content:space-between;align-items:center;padding:20px 22px 14px;border-bottom:1px solid var(--stone-p)}
 .cart-head h3{font-size:15px;font-weight:700}
 .cart-close{background:none;border:none;font-size:22px;color:var(--stone);cursor:pointer;line-height:1}
@@ -988,15 +1007,20 @@ html.nav-compact .wishlist-btn,html.nav-compact .cart-btn{display:none!important
 }
 
 /* ── WHATSAPP FLOAT ─── */
-.wa-float{position:fixed;bottom:24px;right:24px;z-index:999;width:52px;height:52px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(37,211,102,.4);transition:transform .2s;cursor:pointer;text-decoration:none;animation:waPulse 2.4s ease-in-out infinite}
-.wa-float:hover{transform:scale(1.08);animation:none}
+.wa-float{position:fixed;bottom:24px;right:24px;z-index:999;width:52px;height:52px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(37,211,102,.4);transition:transform .2s;cursor:pointer;text-decoration:none}
+.wa-float:hover{transform:scale(1.08)}
+.wa-float:hover::after{animation:none;opacity:0}
 .wa-float svg{width:27px;height:27px;fill:white}
 .wa-float-tip{position:absolute;right:62px;top:50%;transform:translateY(-50%);background:var(--charcoal);color:white;font-size:11px;padding:6px 12px;border-radius:4px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s}
 .wa-float:hover .wa-float-tip{opacity:1}
-@keyframes waPulse{0%,100%{box-shadow:0 4px 16px rgba(37,211,102,.4)}50%{box-shadow:0 4px 16px rgba(37,211,102,.4),0 0 0 8px rgba(37,211,102,.12)}}
+/* Pulse ring runs on transform/opacity instead of box-shadow, both are
+   compositor-only so this animates for free on the GPU even though it runs
+   forever, box-shadow keyframes force a paint every frame instead. */
+.wa-float::after{content:'';position:absolute;inset:-2px;border-radius:50%;border:2px solid rgba(37,211,102,.45);opacity:0;transform:scale(.85);animation:waPulseRing 2.4s ease-in-out infinite;pointer-events:none}
+@keyframes waPulseRing{0%{opacity:.55;transform:scale(.85)}70%{opacity:0;transform:scale(1.22)}100%{opacity:0;transform:scale(1.22)}}
 @media(max-width:768px){.wa-float{bottom:80px;right:18px;width:48px;height:48px}.wa-float svg{width:25px;height:25px}.wa-float-tip{display:none}}
 body.has-buy-bar .wa-float{display:none}
-@media(prefers-reduced-motion:reduce){.wa-float{animation:none}}
+@media(prefers-reduced-motion:reduce){.wa-float::after{animation:none;display:none}}
 
 /* ── SCROLL TO TOP ─── */
 .scroll-top{position:fixed;bottom:24px;right:22px;z-index:998;width:42px;height:42px;border-radius:50%;background:var(--glass-b-bg);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);border:1px solid var(--glass-b-border);box-shadow:var(--glass-b-shadow);color:rgba(255,255,255,.95);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;pointer-events:none;transform:translateY(10px) scale(.9);transition:opacity .25s ease,transform .25s ease}
@@ -1229,6 +1253,16 @@ body.has-buy-bar .wa-float{display:none}
   box-shadow:0 6px 20px rgba(196,98,42,.10);
   transform:translateY(-2px);
 }
+/* Mobile: these render many times per grid (stories/gifts/contact pages), each
+   with its own full-radius blur compositing layer. Blur cost scales with the
+   square of the radius, so halving it here is the single cheapest way to cut
+   scroll-jank on phones without dropping the frosted-glass look entirely. */
+@media(max-width:768px){
+  .story-card,.contact-block,.gift-card{
+    backdrop-filter:blur(6px) saturate(140%);
+    -webkit-backdrop-filter:blur(6px) saturate(140%);
+  }
+}
 
 /* ════════════════════════════════════════════════════════════
    ACCESSIBILITY WIDGET + MODES  (site-wide, injected by partials.js)
@@ -1314,6 +1348,12 @@ body.has-buy-bar .a11y-fab{bottom:84px}
     background:var(--accent);color:#fff;font-size:9px;font-weight:700;
     display:none;align-items:center;justify-content:center;line-height:1}
   .tabn-badge.on{display:inline-flex}
+  /* Slow blink on the Instant Quote tab dot, draws the eye without being a
+     notification-count badge (there's nothing to count here). */
+  .tabn-quote-dot{position:absolute;top:-2px;right:-4px;width:7px;height:7px;border-radius:50%;
+    background:var(--accent);animation:tabnQuoteDotBlink 2.4s ease-in-out infinite}
+  @keyframes tabnQuoteDotBlink{0%,100%{opacity:1}50%{opacity:.22}}
+  @media(prefers-reduced-motion:reduce){.tabn-quote-dot{animation:none}}
   body.has-bottomnav{padding-bottom:calc(78px + env(safe-area-inset-bottom,0px))}
   body.has-bottomnav .a11y-fab{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
   body.has-bottomnav .scroll-top{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
@@ -1934,11 +1974,11 @@ nav.main-nav.scrolled{
   margin-top:8px;
 }
 .tm-promo-loading-bar{
-  height:100%;width:0;border-radius:999px;
+  height:100%;width:100%;border-radius:999px;transform:scaleX(0);transform-origin:left;
   background:linear-gradient(135deg,var(--accent),var(--accent-l),var(--accent));
   animation-name:tm-promo-bar-fill;animation-timing-function:linear;animation-fill-mode:forwards;
 }
-@keyframes tm-promo-bar-fill{from{width:0}to{width:100%}}
+@keyframes tm-promo-bar-fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 .tm-promo-ov.show .tm-promo-card{transform:translateY(0) scale(1)}
 .tm-promo-close{
   position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:50%;

@@ -379,7 +379,7 @@ window._FOOTER_HTML = `<footer>
     var seg=(path.split('/').pop()||'').replace(/\.html$/,'');
     var isHome=(seg===''||seg==='index');
     var isShop=(seg==='products'||seg==='product-detail');
-    var isWish=(seg==='wishlist');
+    var isQuote=(seg==='instant-quote');
     var isAcct=(seg==='account');
 
     /* Real glass refraction (feDisplacementMap) for actual Safari, shared by
@@ -472,10 +472,10 @@ window._FOOTER_HTML = `<footer>
       '<a href="/products.html" class="tabn-item'+(isShop?' active':'')+'" aria-label="Shop">'+
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>'+
         '<span>Shop</span></a>'+
-      '<a href="/wishlist.html" class="tabn-item'+(isWish?' active':'')+'" aria-label="Wishlist">'+
-        '<span class="tabn-ico-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>'+
-        '<span class="wishlist-badge tabn-badge" id="tabnWishBadge">0</span></span>'+
-        '<span>Saved</span></a>'+
+      '<a href="/instant-quote.html" class="tabn-item'+(isQuote?' active':'')+'" aria-label="Instant Quote">'+
+        '<span class="tabn-ico-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 2.5L4 13.5h6l-1 8 8.5-11H11l1.5-8z"/></svg>'+
+        '<span class="tabn-quote-dot" aria-hidden="true"></span></span>'+
+        '<span>Quote</span></a>'+
       '<a href="#" class="tabn-item" aria-label="Cart" onclick="if(window.openCart){openCart();}return false;">'+
         '<span class="tabn-ico-wrap"><svg viewBox="0 0 18 18" fill="none"><path d="M1 1h2.5l1.6 8h8.4l1.5-5.5H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="14.5" r="1.2" fill="currentColor"/><circle cx="13" cy="14.5" r="1.2" fill="currentColor"/></svg>'+
         '<span class="cart-badge tabn-badge" id="tabnCartBadge">0</span></span>'+
