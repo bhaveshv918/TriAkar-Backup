@@ -65,11 +65,6 @@
 
 /* ── Viewer / dropzone ─────────────────────── */
 .iq-viewer-shell{background:var(--ivory);border-radius:16px;overflow:hidden;position:relative;aspect-ratio:1/1;border:1px solid var(--stone-p)}
-/* On laptop/desktop the square-aspect viewer would otherwise get taller than
-   the viewport just from the column being wide, capping its height keeps the
-   configure card visible on the initial screen instead of pushing it below
-   the fold. Mobile is unaffected (viewer width there is already small). */
-@media(min-width:1001px){.iq-viewer-shell{max-height:min(46vh,420px)}}
 .iq-viewer-canvas{width:100%;height:100%;display:block;cursor:grab}
 .iq-viewer-canvas:active{cursor:grabbing}
 .iq-dropzone{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px;cursor:pointer;transition:background .2s,border-color .2s;border:2px dashed rgba(22,22,20,.16);border-radius:16px;margin:0}
@@ -85,7 +80,7 @@
 .iq-viewer-hint{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:11px;color:var(--stone);opacity:.85;pointer-events:none}
 .iq-remove-btn{position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:50%;background:rgba(15,15,13,.65);color:#fff;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:5}
 
-.iq-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--stone-p);border-radius:10px;overflow:hidden;margin-top:14px}
+.iq-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--stone-p);border-radius:10px;overflow:hidden;margin-top:14px}
 .iq-stat{background:#fff;padding:12px 10px;text-align:center}
 .iq-stat-v{font-size:14px;font-weight:700;color:var(--charcoal)}
 .iq-stat-l{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--stone);margin-top:2px}
@@ -242,24 +237,6 @@
   </div>
 </div>
 
-<div class="iq-howsteps">
-  <div class="iq-howsteps-row">
-    <div class="iq-howstep"><div class="iq-howstep-n">1</div><div class="iq-howstep-t">Upload your file</div></div>
-    <div class="iq-howstep-arrow">→</div>
-    <div class="iq-howstep"><div class="iq-howstep-n">2</div><div class="iq-howstep-t">Pick material &amp; color</div></div>
-    <div class="iq-howstep-arrow">→</div>
-    <div class="iq-howstep"><div class="iq-howstep-n">3</div><div class="iq-howstep-t">See your instant price</div></div>
-    <div class="iq-howstep-arrow">→</div>
-    <div class="iq-howstep"><div class="iq-howstep-n">4</div><div class="iq-howstep-t">Add to cart &amp; pay</div></div>
-    <div class="iq-howstep-arrow">→</div>
-    <div class="iq-howstep"><div class="iq-howstep-n">5</div><div class="iq-howstep-t">We confirm details</div></div>
-    <div class="iq-howstep-arrow">→</div>
-    <div class="iq-howstep"><div class="iq-howstep-n">6</div><div class="iq-howstep-t">We print</div></div>
-    <div class="iq-howstep-arrow">→</div>
-    <div class="iq-howstep"><div class="iq-howstep-n">7</div><div class="iq-howstep-t">Pack &amp; dispatch securely</div></div>
-  </div>
-</div>
-
 <div class="iq-layout">
   <div class="iq-col-left">
     <div class="iq-viewer-shell no-swipe-nav" id="iqViewerShell">
@@ -284,6 +261,9 @@
       <div class="iq-stat"><div class="iq-stat-v" id="iqStatDims">–</div><div class="iq-stat-l">Dimensions</div></div>
       <div class="iq-stat"><div class="iq-stat-v" id="iqStatWeight">–</div><div class="iq-stat-l">Est. weight</div></div>
       <div class="iq-stat"><div class="iq-stat-v" id="iqStatTime">–</div><div class="iq-stat-l">Est. print time</div></div>
+      <!-- Build size is auto-picked (whichever active printer the model actually
+           fits), not a customer-facing choice, shown here as a readout only. -->
+      <div class="iq-stat"><div class="iq-stat-v" id="iqStatBuildSize">–</div><div class="iq-stat-l">Build size (auto)</div></div>
     </div>
   </div>
 
@@ -296,12 +276,6 @@
 
     <div class="iq-step" id="iqStepConfig">
       <div class="iq-step-head"><div class="iq-step-n">1</div><div class="iq-step-title">Configure your print</div></div>
-
-      <div class="iq-config-section">
-        <div class="iq-config-label">Build size</div>
-        <div id="iqPrinterRow" style="display:flex;gap:8px;flex-wrap:wrap"></div>
-        <input type="text" class="iq-other-input" id="iqOtherPrinter" style="display:none" placeholder="Tell us the build size you need" oninput="IQ.setOther('printer', this.value)">
-      </div>
 
       <div class="iq-config-section">
         <div class="iq-config-label">Material</div>
@@ -724,7 +698,7 @@ const IQ = (function(){
     document.getElementById('iqViewerHint').style.display = 'none';
     document.getElementById('iqStats').style.display = 'none';
     document.getElementById('iqFileInput').value = '';
-    document.querySelectorAll('#iqPrinterRow .iq-pill, #iqMaterialRow .iq-choice, #iqColorRow .iq-color-choice').forEach(el => el.classList.remove('selected'));
+    document.querySelectorAll('#iqMaterialRow .iq-choice, #iqColorRow .iq-color-choice').forEach(el => el.classList.remove('selected'));
     document.querySelectorAll('.iq-other-input').forEach(el => { el.value = ''; el.style.display = 'none'; });
     ['iqStepConfig','iqStepFinalize'].forEach(id => document.getElementById(id).classList.remove('active','done'));
     document.getElementById('iqPriceBox').style.display = 'none';
@@ -751,16 +725,14 @@ const IQ = (function(){
   }
   function setOther(cat, value){ state.other[cat] = value; }
 
-  /* ── Options (printer/material/color) + fixed nozzle/layer-height/infill rows ── */
+  /* ── Options (material/color) + fixed nozzle/layer-height/infill rows.
+     Build size/printer is deliberately not a customer-facing choice, it's
+     auto-picked to fit the model and shown as a readout in the stats row. ── */
   async function loadOptions(){
     try {
       const res = await fetch(TA_API + '/api/instant-quote/options');
       const json = await res.json();
       options = json;
-
-      document.getElementById('iqPrinterRow').innerHTML = (json.printers || []).map(p =>
-        `<button type="button" class="iq-pill" data-id="${p.id}" onclick="IQ.selectPrinter('${p.id}')">${p.build_x_mm}×${p.build_y_mm}×${p.build_z_mm}mm</button>`).join('')
-        + `<button type="button" class="iq-pill iq-other-choice" onclick="IQ.toggleOther('printer')">Other</button>`;
 
       renderMaterialRow(json.materials || []);
       renderColorRow(); // full list until a material narrows it
@@ -824,9 +796,14 @@ const IQ = (function(){
       + otherButtonHtml('infill');
   }
 
+  // Printer/build-size is never a customer choice, only ever set by
+  // pickFittingPrinter()/reconcilePrinterFit(); this just applies the pick and
+  // reflects it in the stats readout.
   function selectPrinter(id){
     state.printerId = id;
-    document.querySelectorAll('#iqPrinterRow .iq-pill').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
+    const p = (options.printers || []).find(x => x.id === id);
+    const el = document.getElementById('iqStatBuildSize');
+    if (el) el.textContent = p ? `${p.build_x_mm}×${p.build_y_mm}×${p.build_z_mm}mm` : '–';
     maybePrice();
   }
   function selectMaterial(id){
