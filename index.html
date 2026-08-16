@@ -994,10 +994,11 @@ function _setupHpStoryGalleries(){
     var dots=wrap.querySelectorAll('.story-mini-dots span');
     var hint=wrap.querySelector('.story-swipe-hint');
     if(!track) return;
-    var pauseUntil=0, timer=null;
+    var pauseUntil=0, timer=null, downScroll=0;
     var pause=function(){ pauseUntil=Date.now()+5000; };
+    track.addEventListener('pointerdown',function(){ downScroll=track.scrollLeft; },{passive:true});
     ['pointerdown','touchstart','wheel'].forEach(function(ev){ track.addEventListener(ev,pause,{passive:true}); });
-    track.addEventListener('click',function(e){e.preventDefault();},{capture:true});
+    track.addEventListener('click',function(e){ if(Math.abs(track.scrollLeft-downScroll)>5) e.preventDefault(); },{capture:true});
     track.addEventListener('scroll',function(){
       var i=Math.round(track.scrollLeft/track.clientWidth);
       dots.forEach(function(d,di){ d.classList.toggle('active',di===i); });

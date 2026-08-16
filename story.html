@@ -55,7 +55,11 @@
 .story-gallery-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-radius:8px}
 .story-gallery-track::-webkit-scrollbar{display:none}
 .story-gallery-slide{flex:0 0 100%;scroll-snap-align:start;aspect-ratio:4/3;background:linear-gradient(135deg,rgba(196,98,42,.14),rgba(22,22,20,.08))}
-.story-gallery-slide img{width:100%;height:100%;object-fit:cover;display:block}
+.story-gallery-slide img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
+.story-lightbox{display:none;position:fixed;inset:0;background:rgba(10,10,9,.94);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out;padding:32px}
+.story-lightbox.open{display:flex}
+.story-lightbox img{max-width:92vw;max-height:92vh;object-fit:contain;border-radius:4px}
+.story-lightbox-close{position:absolute;top:18px;right:22px;width:38px;height:38px;border-radius:50%;border:none;background:rgba(255,255,255,.12);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .story-post-photo-fallback{width:100%;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;font-size:56px;opacity:.35;background:linear-gradient(135deg,rgba(196,98,42,.14),rgba(22,22,20,.08));border-radius:8px}
 .story-gallery-dots{position:absolute;bottom:10px;left:0;right:0;display:flex;justify-content:center;gap:6px}
 .story-gallery-dots span{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.55);transition:background .2s,transform .2s}
@@ -99,6 +103,11 @@
 </div>
 <div id="nav-root"></div><script>if(window._NAV_HTML)document.getElementById("nav-root").outerHTML=window._NAV_HTML;</script>
 <div id="drawer-root"></div><script>if(window._DRAWER_HTML)document.getElementById("drawer-root").outerHTML=window._DRAWER_HTML;</script>
+
+<div class="story-lightbox" id="storyLightbox" onclick="closeLightbox()">
+  <button type="button" class="story-lightbox-close" aria-label="Close" onclick="closeLightbox()">×</button>
+  <img id="storyLightboxImg" src="" alt="">
+</div>
 
 <article class="story-post" id="storyPost">
 
@@ -289,6 +298,32 @@
     return {list:sameTag.concat(otherTag).slice(0,15), allRead:false};
   }
 
+  function openLightbox(src,alt){
+    const img=document.getElementById('storyLightboxImg');
+    img.src=src; img.alt=alt||'';
+    document.getElementById('storyLightbox').classList.add('open');
+    document.body.style.overflow='hidden';
+  }
+  function closeLightbox(){
+    document.getElementById('storyLightbox').classList.remove('open');
+    document.body.style.overflow='';
+  }
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeLightbox(); });
+
+  /* Click-to-zoom on the gallery photo. Distinguishes a tap from a
+     swipe by comparing scroll position at pointerdown vs click, so
+     swiping between photos doesn't accidentally pop the lightbox. */
+  function setupGalleryZoom(){
+    const track=document.getElementById('galleryTrack');
+    if(!track) return;
+    let downScroll=0;
+    track.addEventListener('pointerdown',()=>{ downScroll=track.scrollLeft; },{passive:true});
+    track.addEventListener('click',e=>{
+      if(Math.abs(track.scrollLeft-downScroll)>5) return;
+      if(e.target.tagName==='IMG') openLightbox(e.target.src,e.target.alt);
+    });
+  }
+
   function setupGallerySwipe(){
     const track=document.getElementById('galleryTrack');
     const photoEl=document.getElementById('postPhoto');
@@ -331,6 +366,7 @@
       const arrows=gallery.length>1?`<button type="button" class="story-gallery-arrow prev" aria-label="Previous photo">‹</button><button type="button" class="story-gallery-arrow next" aria-label="Next photo">›</button>`:'';
       photoEl.innerHTML=`<div class="story-gallery-track" id="galleryTrack">${slides}</div>${dots}${arrows}`;
       photoEl.style.display='';
+      setupGalleryZoom();
       if(gallery.length>1) setupGallerySwipe();
     } else {
       photoEl.innerHTML=`<div class="story-post-photo-fallback">${TAG_ICON[s.tag]||'✨'}</div>`;

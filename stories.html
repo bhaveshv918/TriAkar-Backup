@@ -314,10 +314,13 @@
       const dots=wrap.querySelectorAll('.story-mini-dots span');
       const hint=wrap.querySelector('.story-swipe-hint');
       if(!track) return;
-      let pauseUntil=0, timer=null;
+      let pauseUntil=0, timer=null, downScroll=0;
       const pause=()=>{ pauseUntil=Date.now()+5000; };
+      track.addEventListener('pointerdown',()=>{ downScroll=track.scrollLeft; },{passive:true});
       ['pointerdown','touchstart','wheel'].forEach(ev=>track.addEventListener(ev,pause,{passive:true}));
-      track.addEventListener('click',e=>e.preventDefault(),{capture:true});
+      // Only block navigation if this was an actual swipe (scroll position moved),
+      // so a plain tap on the photo still opens the story like the rest of the card.
+      track.addEventListener('click',e=>{ if(Math.abs(track.scrollLeft-downScroll)>5) e.preventDefault(); },{capture:true});
       track.addEventListener('scroll',()=>{
         const i=Math.round(track.scrollLeft/track.clientWidth);
         dots.forEach((d,di)=>d.classList.toggle('active',di===i));
