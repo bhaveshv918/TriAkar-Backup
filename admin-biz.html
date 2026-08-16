@@ -1442,7 +1442,10 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group"><label>Total ₹</label><input type="number" id="ql_fil_total" step="0.01"></div>
           </div>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:6px;font-size:12px"><input type="checkbox" id="ql_fil_makespool" checked> Add to Spool Tracker as a new spool</label>
-          <button class="btn btn-primary btn-sm" onclick="runSave(this,saveQuickFilament)" title="Shortcut: Ctrl+Enter" style="margin-top:8px">Save Purchase <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-primary btn-sm" onclick="runSave(this,saveQuickFilament)" title="Shortcut: Ctrl+Enter">Save Purchase <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
+            <button class="btn btn-ghost btn-sm" onclick="openSpoolCatalogueFromTask()" title="Show the customer-facing color catalogue, refreshed with the spool just added">🎨 Open Spool Catalogue</button>
+          </div>
         </div>
 
         <!-- Every reminder (GST filing, filament running low, not completed, not locked) used
@@ -10563,6 +10566,9 @@ function showSpoolCatalogue(){
   document.getElementById('spoolCatalogueModal').style.display='block';
 }
 function closeSpoolCatalogue(){ document.getElementById('spoolCatalogueModal').style.display='none'; }
+// Opened from Today's Tasks (Filament Arrived), where Spool Tracker's own data may not be
+// loaded yet, so refresh _spoolRows first rather than showing whatever was last cached.
+async function openSpoolCatalogueFromTask(){ await loadSpoolTracker(); showSpoolCatalogue(); }
 function renderSpoolCatalogue(){
   const grid=document.getElementById('spoolCatalogueGrid'); if(!grid) return;
   const matFilter=document.getElementById('catFilterMaterial')?.value||'all';
