@@ -3179,7 +3179,15 @@ html[data-theme="dark"] .biz-login{
         </select>
         <button class="btn btn-ghost btn-sm" onclick="closeSpoolCatalogue()">✕ Close</button>
       </div>
-      <div id="spoolCatalogueGrid" style="padding:24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px;max-width:1400px;margin:0 auto"></div>
+      <div style="display:flex;align-items:flex-start;max-width:1600px;margin:0 auto">
+        <!-- Reference palette, Numakers' full real color range, not tied to physical stock -->
+        <div style="width:230px;flex:none;border-right:1px solid var(--border);padding:18px 14px;position:sticky;top:73px;max-height:calc(100vh - 73px);overflow-y:auto">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:8px">Reference Palette</div>
+          <input type="text" id="spoolColorRefSearch" oninput="renderColorReference()" placeholder="Search colors…" style="width:100%;box-sizing:border-box;border-radius:7px;border:1px solid var(--border);font-size:12px;padding:6px 8px;background:var(--bg-2);color:var(--text-1);margin-bottom:8px">
+          <div id="spoolColorRefList"></div>
+        </div>
+        <div id="spoolCatalogueGrid" style="flex:1;padding:24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px"></div>
+      </div>
     </div>
 
     <!-- ══════════════════════════════════════════════════════
@@ -10474,32 +10482,59 @@ let _spoolRows=[];
 const SPOOL_BADGE={Opened:'badge-processing',Packed:'badge-packed',Finsh:'badge-delivered',TBR:'badge-pending'};
 function spoolRemaining(r){ return Math.max(0,(parseFloat(r.total_grams)||0)-(parseFloat(r.grams_used)||0)-(parseFloat(r.waste_grams)||0)); }
 function spoolPct(r){ const tot=parseFloat(r.total_grams)||0; return tot?Math.max(0,spoolRemaining(r)/tot*100):0; }
-// Free-text color names can't be reliably matched to a real shade programmatically
-// ("Golden Silk" isn't a CSS color), color_hex is the accurate, admin-picked source of
-// truth. As a courtesy, typing a name the browser DOES recognize (gold, silver, black…)
-// nudges the picker there as a starting point; anything unrecognized is left alone.
+// Master name -> hex reference, scraped from Numakers' own PLA/PLA+/PLA CF/Silk/Matte/
+// Metallic/Starlight/Glow/Tri-Color, PETG-HS/Translucent/CF, ABS and ASA color pickers
+// (india.numakers.com, checked 2026-08-17). This is our actual vendor's real color range,
+// so it's a far more reliable source than guessing from CSS-recognized color-name strings.
+const NUMAKERS_COLOR_MAP={
+  "pitch black":"#0e0e10","black":"#000000","obsidian night":"#0e0e10","dark gray":"#3a3b3c","midnight gray":"#383f44",
+  "light gray":"#8c969d","simply silver":"#8b97a3","silver":"#c0c0c0","moon gray":"#747f8c","volcanic rock gray":"#70777f",
+  "pure white":"#f1ece1","white":"#ffffff","ivory white":"#e6d2b5","bone white":"#aca79d","beige":"#b79a77","light beige":"#d7caab",
+  "nuclear red":"#bb1e10","imperial red":"#6e0b05","red":"#bb1e10","apple red":"#bb1e10","ruby red":"#c10c26","wine red":"#80464f",
+  "outrageous orange":"#e25303","burnt orange":"#e25303","fluorescent orange":"#ff4d08","orange":"#f08c2d","orange glitter":"#f08c2d",
+  "molten sol":"#f28e1c","terracotta orange":"#d67842","rust copper":"#8d4931","burnt copper":"#7d4b2c","copper":"#b87333","bronze":"#b08d57",
+  "lemon yellow":"#f9a800","bahama yellow":"#ffcc33","fluorescent yellow":"#fff600","sunshine yellow":"#fdfc5d","yellow":"#fdda76",
+  "enchanted gold":"#fccc4c","gold":"#d4af37",
+  "grass green":"#61993b","fluorescent green":"#00b51b","forest green":"#008351","army green":"#50533c","olive green":"#4b5e42",
+  "ryobix green":"#ccda46","green":"#009b4f","green glitter":"#009b4f","tactical green":"#667c59","lemongrass green":"#66875e",
+  "ferrous green":"#1e4f39","mint green":"#d4ffd4","titan":"#546b4e",
+  "beige brown":"#986e52","chocolate brown":"#4c2b20","tungsten brown":"#543d35","sunset bronze":"#7a6562",
+  "royal blue":"#00387b","light blue":"#007cb0","lagoon blue":"#048b8c","teal blue":"#7ebab5","water blue":"#1a7585",
+  "denim blue":"#6381a2","navy blue":"#314963","titanium blue":"#344f7d","blue":"#063e66","neptune":"#2c7c84",
+  "aqua blue":"#66f2dd","ice blue":"#aeffd7","ice blue glitter":"#007cb0","comet":"#3b665e",
+  "mauve purple":"#844c82","lavender violet":"#76689a","thanos purple":"#6843b4","purple":"#655e88","lilac purple":"#886fac","nebula":"#594177",
+  "atomic pink":"#d8a0a6","magenta":"#cc3366","pink":"#f17b8f","pink glitter":"#f17b8f","hot pink":"#d12c7e","sakura pink":"#ffb7c5",
+  "apricot":"#e6baa8","apricot skin":"#e6baa8","skin":"#fbceb1","military khaki":"#755f3e",
+  "transparent":"#f5f5f5","arctic":"#7cb7a5","arctic glitter":"#7cb7a5","burnished copper":"#774548","midnight":"#424379",
+};
+function normColorKey(name){ return String(name||'').trim().toLowerCase(); }
+// Single source of truth for "what hex should this color name render as": admin-picked
+// color_hex wins if set, then an exact/substring match against our vendor's real color
+// range (NUMAKERS_COLOR_MAP), then a last-resort guess via CSS-recognized color-name
+// strings (gold, silver, black…), else null (caller decides the neutral placeholder).
+function resolveColorHex(name, explicitHex){
+  if(explicitHex) return explicitHex;
+  const key=normColorKey(name);
+  if(!key) return null;
+  if(NUMAKERS_COLOR_MAP[key]) return NUMAKERS_COLOR_MAP[key];
+  const partial=Object.keys(NUMAKERS_COLOR_MAP).find(k=>key.includes(k)||k.includes(key));
+  if(partial) return NUMAKERS_COLOR_MAP[partial];
+  const probe=document.createElement('span'); probe.style.color='';
+  probe.style.color=key.split(/\s+/)[0];
+  if(probe.style.color){
+    document.body.appendChild(probe); const rgb=getComputedStyle(probe).color; document.body.removeChild(probe);
+    const m=rgb.match(/\d+/g); if(m&&m.length>=3) return '#'+m.slice(0,3).map(n=>(+n).toString(16).padStart(2,'0')).join('');
+  }
+  return null;
+}
 function syncSpoolColorName(name){
   const picker=document.getElementById('spa_color_hex'); if(!picker||!name) return;
-  const probe=document.createElement('span');
-  probe.style.color=''; probe.style.color=name.trim().split(/\s+/)[0];   // try the first word
-  if(probe.style.color){
-    document.body.appendChild(probe);
-    const rgb=getComputedStyle(probe).color; document.body.removeChild(probe);
-    const m=rgb.match(/\d+/g);
-    if(m&&m.length>=3) picker.value='#'+m.slice(0,3).map(n=>(+n).toString(16).padStart(2,'0')).join('');
-  }
+  const hex=resolveColorHex(name);
+  if(hex) picker.value=hex;
 }
-// Swatch for the list, color_hex if the admin set one, else a best-effort guess from
-// the name (same browser-recognition trick), else a neutral placeholder.
+// Swatch for the list, color_hex if the admin set one, else resolved via resolveColorHex.
 function spoolSwatch(r){
-  let hex=r.color_hex;
-  if(!hex&&r.color){
-    const probe=document.createElement('span'); probe.style.color='';
-    probe.style.color=String(r.color).trim().split(/\s+/)[0];
-    if(probe.style.color){ document.body.appendChild(probe); const rgb=getComputedStyle(probe).color; document.body.removeChild(probe);
-      const m=rgb.match(/\d+/g); if(m&&m.length>=3) hex='#'+m.slice(0,3).map(n=>(+n).toString(16).padStart(2,'0')).join(''); }
-  }
-  const bg=hex||'#ccc';
+  const bg=resolveColorHex(r.color,r.color_hex)||'#ccc';
   const shiny=/silk|shiny|gloss|metallic|glitter|sparkle/i.test(r.finish||'')||/silk|shiny|gloss|metallic|glitter|sparkle/i.test(r.color||'');
   return `<span title="${esc(r.color||'')}" style="display:inline-block;width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,.15);vertical-align:middle;margin-right:6px;background:${bg}${shiny?';background-image:linear-gradient(135deg,rgba(255,255,255,.6),rgba(255,255,255,0) 40%,rgba(255,255,255,.35) 60%,rgba(255,255,255,0))':''}"></span>`;
 }
@@ -10630,12 +10665,29 @@ function showSpoolCatalogue(){
     sel.innerHTML='<option value="all">All Materials</option>'+mats.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
   }
   renderSpoolCatalogue();
+  renderColorReference();
   document.getElementById('spoolCatalogueModal').style.display='block';
 }
 function closeSpoolCatalogue(){ document.getElementById('spoolCatalogueModal').style.display='none'; }
 // Opened from Today's Tasks (Filament Arrived), where Spool Tracker's own data may not be
 // loaded yet, so refresh _spoolRows first rather than showing whatever was last cached.
 async function openSpoolCatalogueFromTask(){ await loadSpoolTracker(); showSpoolCatalogue(); }
+// Left-rail reference palette, Numakers' full real color range (not tied to what we
+// physically have in stock), so the admin has every possible shade name+shade on hand
+// when talking a customer through a custom order, or when typing a new spool's color.
+function renderColorReference(){
+  const box=document.getElementById('spoolColorRefList');
+  if(!box) return;
+  const q=(document.getElementById('spoolColorRefSearch')?.value||'').trim().toLowerCase();
+  const names=Object.keys(NUMAKERS_COLOR_MAP).sort();
+  const filtered=q?names.filter(n=>n.includes(q)):names;
+  box.innerHTML=filtered.map(n=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-radius:8px;cursor:default" title="${esc(NUMAKERS_COLOR_MAP[n])}">
+      <span style="display:inline-block;width:20px;height:20px;border-radius:50%;flex:none;background:${esc(NUMAKERS_COLOR_MAP[n])};border:1px solid rgba(0,0,0,.15)"></span>
+      <span style="font-size:12px;text-transform:capitalize">${esc(n)}</span>
+      <span style="margin-left:auto;font-size:10px;color:var(--text-3);font-family:monospace">${esc(NUMAKERS_COLOR_MAP[n])}</span>
+    </div>`).join('')||'<div style="padding:12px 4px;color:var(--text-3);font-size:12px">No match</div>';
+}
 function renderSpoolCatalogue(){
   const grid=document.getElementById('spoolCatalogueGrid'); if(!grid) return;
   const matFilter=document.getElementById('catFilterMaterial')?.value||'all';
@@ -10648,7 +10700,7 @@ function renderSpoolCatalogue(){
   });
   grid.innerHTML=Object.keys(byColor).sort().map(color=>{
     const rows=byColor[color];
-    const hex=rows.find(r=>r.color_hex)?.color_hex||'#ccc';
+    const hex=resolveColorHex(color, rows.find(r=>r.color_hex)?.color_hex)||'#ccc';
     const materials=[...new Set(rows.map(r=>(r.filament_type||'').trim()).filter(Boolean))];
     const kgLeft=rows.reduce((s,r)=>s+spoolRemaining(r),0)/1000;
     const level=kgLeft>0.5?{label:'Plenty',c:'var(--green)'}:kgLeft>0.15?{label:'Limited',c:'var(--yellow)'}:{label:'Low',c:'var(--red)'};
@@ -14008,11 +14060,16 @@ function normTime(str){
 
 function extractLabelData(text,platform){
   let orderId='', qty=1, productName='', customerName='', customerAddress='', sku='';
-  let city='', state='', pincode='', tracking='', paymentMode='', orderDate='', orderTime='', deliveryDate='', dispatchDate='', courier='', price='';
+  let city='', state='', pincode='', tracking='', paymentMode='', orderDate='', orderTime='', deliveryDate='', dispatchDate='', courier='', price='', invoiceNo='';
 
   if(platform==='amazon'){
     // Order Number: 402-XXXXXXX-XXXXXXX
     const om=text.match(/Order[\s\w]*Number[:\s]+(\d{3}-\d{7}-\d{7})/i); if(om) orderId=om[1];
+
+    // Invoice Number: "Invoice Number : IN-30", distinct from "Invoice Details" (the
+    // longer UP-xxxxxxxxx-xxxx doc-series ID) and "Invoice Date", both of which sit
+    // right next to it on the same block.
+    const inv=text.match(/Invoice Number\s*:?\s*([A-Za-z0-9\-\/]+)/i); if(inv) invoiceNo=inv[1].trim();
 
     // Payment: "Mode of Payment: UPI/COD/Card" → map to COD or Prepaid
     const pm=text.match(/Mode of Payment[:\s]+(\w[\w\/\s]*?)(?:\n|$)/i);
@@ -14025,15 +14082,31 @@ function extractLabelData(text,platform){
     const id=text.match(/Invoice Date\s*:?\s*([\d.\/]+)/i);
     if(id) dispatchDate=parseLabelDate(id[1].trim())||'';
 
+    // Order time: Amazon invoices don't label an order time directly, the payment
+    // transaction timestamp ("Date & Time: 13/08/2026, 23:53:02 hrs") is the closest
+    // stand-in, same convention Flipkart uses (order date + time together).
+    const tt=text.match(/Date\s*&\s*Time[:\s]+[\d.\/]+,?\s*([\d:]+)/i);
+    if(tt) orderTime=normTime(tt[1]);
+
     // Price from Invoice Value
     const pr=text.match(/Invoice Value[:\s]*[₹Rs.]*\s*([\d,]+\.?\d*)/i);
     if(pr) price=pr[1].replace(/,/g,'');
+
+    // Qty from the line-item row: UnitPrice Qty NetAmount TaxRate% TaxType, e.g.
+    // "₹508.47 1 ₹508.47 18% IGST ₹91.52 ₹599.99" — anchor on the two-decimal amounts
+    // either side of it plus the trailing %/IGST-CGST landmark so we don't grab HSN or GSTIN digits.
+    const qm=text.match(/[\d,]+\.\d{2}\s+(\d+)\s+₹?[\d,]+\.\d{2}\s+[\d.]+%\s*(?:IGST|CGST)/i);
+    if(qm) qty=parseInt(qm[1])||1;
 
     // Product name: from "TRIAKAR [name]" to ASIN (B0XXXXXXX) or HSN or SKU bracket
     const pn=text.match(/TRIAKAR\s+([\s\S]{5,300}?)\s*\|\s*B0[A-Z0-9]{7,10}/i)
       || text.match(/TRIAKAR\s+([\s\S]{5,200}?)\s*\(\s*[A-Z]{2}-[A-Z0-9-]+\s*\)/i)
       || text.match(/TRIAKAR\s+([\s\S]{5,200}?)\s*HSN:/i);
     if(pn) productName=pn[1].trim().replace(/\s+/g,' ');
+
+    // Internal SKU: sits in parens right after the ASIN, e.g. "B0GZ7LZF7D ( TAF/DSK/OWL/LVD/312 )"
+    const skM=text.match(/B0[A-Z0-9]{7,10}\s*\(\s*([A-Z]{2,6}(?:\/[A-Z0-9]{1,8}){2,5})\s*\)/i);
+    if(skM){ sku=skM[1]; if(!productName.includes(sku)) productName+=' | '+sku; }
 
     // AWB tracking, only on shipping labels, not on tax invoices; skip transaction ID
     const aw=text.match(/AWB\s*(?:No\.?|#)?\s*:?\s*([A-Z0-9]{10,})/i);
@@ -14042,6 +14115,17 @@ function extractLabelData(text,platform){
     // Customer name: first real name line after "Shipping Address"
     const sa=text.match(/Shipping Address\s*:?\s*[\r\n]+\s*([A-Za-z][^\r\n]{2,50})/i);
     if(sa) customerName=sa[1].trim().replace(/,\s*$/,'');
+
+    // Full customer address: everything under "Shipping Address :" up to the state-code /
+    // place-of-supply footer, minus the repeated name line (Amazon prints it twice) and the
+    // trailing "IN" country line, comma-joined like Flipkart's customerAddress output.
+    const shipBlock=text.match(/Shipping Address\s*:?\s*([\s\S]*?)(?:State\/UT Code|Place of supply)/i);
+    if(shipBlock){
+      let lines=shipBlock[1].split(/[\r\n]+/).map(l=>l.trim()).filter(Boolean);
+      if(customerName) lines=lines.filter(l=>l!==customerName);
+      lines=lines.filter(l=>!/^IN$/i.test(l));
+      customerAddress=lines.join(', ');
+    }
 
     // Customer state from "Place of delivery: MAHARASHTRA"
     const pod=text.match(/Place of delivery[:\s]+([A-Za-z][A-Za-z\s]{3,25})/i);
@@ -14156,18 +14240,23 @@ function extractLabelData(text,platform){
     // Price and qty
     const pr=text.match(/TOTAL PRICE[:\s]+([\d.]+)/i); if(pr) price=pr[1];
     const qm=text.match(/TOTAL QTY[:\s]+(\d+)/i); if(qm) qty=parseInt(qm[1])||1;
+
+    // Invoice number (Flipkart's own doc series, distinct from the order ID)
+    const inv=text.match(/Invoice No\.?\s*:?\s*([A-Za-z0-9\-\/]+)/i); if(inv) invoiceNo=inv[1].trim();
   }
 
   if(!qty||qty<1){ const qm=text.match(/(?:qty|quantity)[:\s]+(\d+)/i); if(qm) qty=parseInt(qm[1])||1; }
 
-  // GST details from the invoice block (same pattern on Amazon and Flipkart)
+  // GST details from the invoice block. Flipkart prints "IGST: 18.00%" (rate after label);
+  // Amazon prints "18% IGST" (rate before label, in the Tax Rate/Tax Type columns) — try
+  // both orderings so either platform's invoice text matches.
   const hsnM=text.match(/HSN\s*(?:Code)?\s*:\s*(\d{4,8})/i);
   const hsn=hsnM?hsnM[1]:'';
-  const igstRM=text.match(/IGST\s*:\s*([\d.]+)\s*%/i);
-  const cgstRM=text.match(/CGST\s*:\s*([\d.]+)\s*%/i);
+  const igstRM=text.match(/IGST\s*:\s*([\d.]+)\s*%/i) || text.match(/([\d.]+)\s*%\s*IGST/i);
+  const cgstRM=text.match(/CGST\s*:\s*([\d.]+)\s*%/i) || text.match(/([\d.]+)\s*%\s*CGST/i);
   const gstRate=igstRM?parseFloat(igstRM[1]):(cgstRM?parseFloat(cgstRM[1])*2:0);
 
-  return {orderId,qty,productName,customerName,customerAddress,city,state,pincode,tracking,paymentMode,orderDate,orderTime,deliveryDate,dispatchDate,courier,price,hsn,gstRate,sku};
+  return {orderId,qty,productName,customerName,customerAddress,city,state,pincode,tracking,paymentMode,orderDate,orderTime,deliveryDate,dispatchDate,courier,price,hsn,gstRate,sku,invoiceNo};
 }
 
 // ── Theme (dark / light), parity with the Admin Panel, shared 'ta_theme' pref ──
@@ -14501,6 +14590,7 @@ async function importExtractedLabels(){
       grams_used:grams||null,
       gst_rate:r.gstRate||(_bizDefaults&&_bizDefaults.gst)||0,
       hsn_code:r.hsn||(_bizDefaults&&_bizDefaults.hsn)||null,
+      invoice_no:r.invoiceNo||null,
       customer_name:r.customerName||null,
       customer_address:r.customerAddress||null,
       customer_city:r.city||null,
