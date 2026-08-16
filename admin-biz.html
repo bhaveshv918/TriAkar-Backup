@@ -14082,6 +14082,15 @@ function extractLabelData(text,platform){
     const id=text.match(/Invoice Date\s*:?\s*([\d.\/]+)/i);
     if(id) dispatchDate=parseLabelDate(id[1].trim())||'';
 
+    // Delivery date: Amazon invoices/labels carry no explicitly-labelled promised-delivery
+    // field (unlike Flipkart's CPD), business convention here is order date + 5 days.
+    // Built via Date.UTC (not local midnight + toISOString) so the browser's local
+    // timezone offset can't shift the result back a day.
+    if(/^\d{4}-\d{2}-\d{2}$/.test(orderDate)){
+      const [oy,om,ody]=orderDate.split('-').map(Number);
+      deliveryDate=new Date(Date.UTC(oy,om-1,ody+5)).toISOString().slice(0,10);
+    }
+
     // Order time: Amazon invoices don't label an order time directly, the payment
     // transaction timestamp ("Date & Time: 13/08/2026, 23:53:02 hrs") is the closest
     // stand-in, same convention Flipkart uses (order date + time together).
