@@ -2981,6 +2981,7 @@ html[data-theme="dark"] .biz-login{
           <input type="file" id="spoolBulkInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="spoolBulkUpload(event)">
           <button class="btn btn-ghost btn-sm" onclick="toggleSpoolCustomize()" title="Show / hide / reorder KPI tiles">⚙ Widgets</button>
           <button class="btn btn-ghost btn-sm" id="spoolViewToggleBtn" onclick="toggleSpoolViewMode()" title="Switch between grouped (Color → Material → Company) and a flat list">☰ Flat list</button>
+          <button class="btn btn-ghost btn-sm" onclick="showSpoolCatalogue()" title="Clean color-only view to show a customer on the spot">🎨 Catalogue</button>
           <select id="spoolFilterStatus" onchange="renderSpoolTracker()" style="border-radius:6px;border:1px solid var(--border);font-size:12px;padding:6px 8px;background:var(--bg-1);color:var(--text-1)">
             <option value="all">All Spools</option>
             <option value="available">Available</option>
@@ -3056,6 +3057,18 @@ html[data-theme="dark"] .biz-login{
         </div>
       </div>
 </div>
+
+      <!-- Catalogue view, full-screen, colors-only, meant to be shown directly to a customer -->
+      <div id="spoolCatalogueModal" style="display:none;position:fixed;inset:0;z-index:2500;background:var(--bg);overflow-y:auto">
+        <div style="position:sticky;top:0;z-index:2;background:var(--bg-1);border-bottom:1px solid var(--border);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);padding:16px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <div style="font-size:18px;font-weight:800;flex:1;min-width:160px">Available Colors</div>
+          <select id="catFilterMaterial" onchange="renderSpoolCatalogue()" style="border-radius:8px;border:1px solid var(--border);font-size:13px;padding:8px 10px;background:var(--bg-2);color:var(--text-1)">
+            <option value="all">All Materials</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="closeSpoolCatalogue()">✕ Close</button>
+        </div>
+        <div id="spoolCatalogueGrid" style="padding:24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px;max-width:1400px;margin:0 auto"></div>
+      </div>
 
       <!-- Bulk action bar, shown only when spools are selected -->
       <div id="spoolBulkBar" style="display:none;background:var(--accent);color:#fff;border-radius:7px;padding:10px 16px;margin-bottom:10px;align-items:center;gap:10px;flex-wrap:wrap">
@@ -10106,6 +10119,43 @@ function renderSpoolTracker(){
   });
   tbody.innerHTML=html;
   updateSpoolBulkBar();
+}
+// Catalogue view, colors currently in physical stock only, no prices/notes/internal fields.
+// Meant for the admin to pull up on a screen and show a walk-in/on-call customer what's available right now.
+function showSpoolCatalogue(){
+  const sel=document.getElementById('catFilterMaterial');
+  if(sel){
+    const mats=[...new Set(_spoolRows.filter(r=>r.status!=='Finsh'&&spoolRemaining(r)>0).map(r=>(r.filament_type||'').trim()).filter(Boolean))].sort();
+    sel.innerHTML='<option value="all">All Materials</option>'+mats.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
+  }
+  renderSpoolCatalogue();
+  document.getElementById('spoolCatalogueModal').style.display='block';
+}
+function closeSpoolCatalogue(){ document.getElementById('spoolCatalogueModal').style.display='none'; }
+function renderSpoolCatalogue(){
+  const grid=document.getElementById('spoolCatalogueGrid'); if(!grid) return;
+  const matFilter=document.getElementById('catFilterMaterial')?.value||'all';
+  const available=_spoolRows.filter(r=>r.status!=='Finsh'&&spoolRemaining(r)>0&&(matFilter==='all'||(r.filament_type||'').trim()===matFilter));
+  if(!available.length){ grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-3)">No colors in stock right now</div>'; return; }
+  const byColor={};
+  available.forEach(r=>{
+    const color=(r.color||'').trim()||'Unspecified';
+    (byColor[color]=byColor[color]||[]).push(r);
+  });
+  grid.innerHTML=Object.keys(byColor).sort().map(color=>{
+    const rows=byColor[color];
+    const hex=rows.find(r=>r.color_hex)?.color_hex||'#ccc';
+    const materials=[...new Set(rows.map(r=>(r.filament_type||'').trim()).filter(Boolean))];
+    const kgLeft=rows.reduce((s,r)=>s+spoolRemaining(r),0)/1000;
+    const level=kgLeft>0.5?{label:'Plenty',c:'var(--green)'}:kgLeft>0.15?{label:'Limited',c:'var(--yellow)'}:{label:'Low',c:'var(--red)'};
+    const shiny=rows.some(r=>/silk|shiny|gloss|metallic|glitter|sparkle/i.test(r.finish||'')||/silk|shiny|gloss|metallic|glitter|sparkle/i.test(r.color||''));
+    return `<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:16px;padding:18px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.04)">
+      <div style="width:64px;height:64px;border-radius:50%;margin:0 auto 12px;background:${esc(hex)};border:1px solid rgba(0,0,0,.15);${shiny?'background-image:linear-gradient(135deg,rgba(255,255,255,.6),rgba(255,255,255,0) 40%,rgba(255,255,255,.35) 60%,rgba(255,255,255,0));':''}"></div>
+      <div style="font-size:14px;font-weight:700">${esc(color)}</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:4px">${materials.map(esc).join(' · ')||'—'}</div>
+      <div style="margin-top:10px;display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:3px 10px;border-radius:20px;background:${level.c};color:#fff">${level.label}</div>
+    </div>`;
+  }).join('');
 }
 function getSelectedSpoolIds(){
   return [...document.querySelectorAll('.spool-cb:checked')].map(c=>c.dataset.id);
