@@ -826,6 +826,10 @@ function renderProduct(ap){
     customization_fields:ap.customization_fields||[],
   };
   curProduct={...p, id, slug:id, min_order_qty:ap.min_order_qty||null, qty_step:ap.qty_step||1, square_crop:!!ap.square_crop};
+  if(window._viewItemTrackedId!==id){
+    window._viewItemTrackedId=id;
+    if(typeof gtagEvent==='function')gtagEvent('view_item',{currency:'INR',value:p.price,items:[{item_id:id,item_name:p.name,price:p.price}]});
+  }
   // Apply square crop mode on the image box
   const mainImgBox=document.getElementById('mainImg');
   if(mainImgBox){

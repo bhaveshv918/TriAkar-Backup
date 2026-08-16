@@ -471,6 +471,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /* ── Step navigation ─────────────────────────────────────── */
+var _ckShippingInfoTracked = false;
 function showStep(n) {
   document.getElementById('ckStep1').style.display = n === 1 ? '' : 'none';
   document.getElementById('ckStep2').style.display = n === 2 ? '' : 'none';
@@ -481,6 +482,10 @@ function showStep(n) {
   document.getElementById('ckLbl2').classList.toggle('active', n === 2);
   document.getElementById('ckStep1Btn').classList.toggle('clickable', n === 2);
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (n === 2 && !_ckShippingInfoTracked) {
+    _ckShippingInfoTracked = true;
+    if (typeof gtagEvent === 'function') gtagEvent('add_shipping_info', { currency: 'INR', value: Cart.total() });
+  }
 }
 
 /* ── Load saved default address ─────────────────────────── */
@@ -788,6 +793,7 @@ async function ckPlaceOrder() {
   var shipping = subtotal >= 999 ? 0 : 99;
   var discount = ckPromo ? ckPromo.discount_amount : 0;
   var total    = Math.max(0, subtotal + shipping - discount);
+  if (typeof gtagEvent === 'function') gtagEvent('add_payment_info', { currency: 'INR', value: total, payment_type: payMethod });
   /* TRK-YYYYMMDD-XXXX, used for WhatsApp orders; online orders get server-generated invoice_number */
   function _genTRK(){var d=new Date();var dt=d.toISOString().slice(0,10).replace(/-/g,'');var r=Math.floor(1000+Math.random()*9000);return'TRK-'+dt+'-'+r;}
   var trkId = _genTRK();
