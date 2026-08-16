@@ -294,6 +294,13 @@ tr:hover td{background:var(--bg-2)}
 .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent)}
 .form-group select option{background:var(--bg-2)}
 .form-sep{grid-column:1/-1;height:1px;background:var(--border);margin:4px 0}
+/* Inline table-row edit mode (Instant Quotes materials/colors/printers, and any
+   future "click Edit, cells become inputs in place" row) — same visual language
+   as .form-group's inputs, just sized to sit inside a table cell instead of a
+   full form field (no label, tighter padding). */
+.iq-edit-input{background:var(--bg-2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--sans);font-size:12px;padding:5px 8px;outline:none;transition:border-color .15s;box-sizing:border-box}
+.iq-edit-input:focus{border-color:var(--accent)}
+.iq-edit-input[type="color"]{padding:2px;width:28px;height:28px;vertical-align:middle;cursor:pointer}
 .calc-row{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
 .calc-item label{font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);display:block;margin-bottom:3px}
 .calc-item span{font-family:var(--mono);font-size:14px;font-weight:700}
@@ -8531,7 +8538,11 @@ async function confirmIqOrder(orderId){
 let _iqEditMaterial=null,_iqEditColor=null,_iqEditPrinter=null;
 const IQ_MATERIAL_GROUPS=['Regular','Good Strength','Outdoor & Durable','Top Strength','Flexible'];
 const _iqRowActionBtns=(onEdit)=>'<button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="'+onEdit+'" title="Edit" style="padding:3px 6px">'+ICO_EDIT+'</button>';
-const _iqSaveCancelBtns=(onSave,onCancel)=>'<button class="btn btn-icon-tint btn-icon-accept btn-sm" onclick="'+onSave+'" title="Save" style="padding:3px 6px">'+ICO_ACCEPT+'</button> <button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="'+onCancel+'" title="Cancel" style="padding:3px 6px">'+ICO_CLOSE+'</button>';
+// ICO_CLOSE (10×10, built for the filter-bar's small "clear" button) reads as
+// half-cut/broken sitting next to ICO_ACCEPT's 15×15 checkmark, same viewBox and
+// stroke-width as ICO_ACCEPT instead so the Save/Cancel pair matches in weight.
+const ICO_CANCEL_15='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+const _iqSaveCancelBtns=(onSave,onCancel)=>'<span style="display:inline-flex;gap:6px"><button class="btn btn-icon-tint btn-icon-accept btn-sm" onclick="'+onSave+'" title="Save" style="padding:5px">'+ICO_ACCEPT+'</button><button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="'+onCancel+'" title="Cancel" style="padding:5px">'+ICO_CANCEL_15+'</button></span>';
 
 async function loadIqMaterials(){
   const{data,error}=await sb.from('instant_quote_materials').select('*').order('sort_order');
@@ -8557,11 +8568,11 @@ function renderIqMaterialsRows(){
 }
 function _iqMaterialEditRow(m){
   return '<tr>'
-    +'<td data-label="Name"><input type="text" id="iqmEditName" value="'+esc(m.name)+'" style="width:100%"></td>'
-    +'<td data-label="Group"><select id="iqmEditGroup" style="width:100%">'+IQ_MATERIAL_GROUPS.map(g=>'<option value="'+esc(g)+'"'+(g===(m.material_group||'Regular')?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select></td>'
-    +'<td data-label="Limited colors"><input type="text" id="iqmEditColors" value="'+esc((m.limited_colors||[]).join(', '))+'" placeholder="blank = all colors" style="width:100%"></td>'
-    +'<td data-label="Density"><input type="number" id="iqmEditDensity" value="'+m.density_g_cm3+'" step="0.01" style="width:80px"></td>'
-    +'<td data-label="₹/gram"><input type="number" id="iqmEditPrice" value="'+m.cost_per_gram_public+'" step="0.01" style="width:80px"></td>'
+    +'<td data-label="Name"><input type="text" class="iq-edit-input" id="iqmEditName" value="'+esc(m.name)+'" style="width:100%"></td>'
+    +'<td data-label="Group"><select class="iq-edit-input" id="iqmEditGroup" style="width:100%">'+IQ_MATERIAL_GROUPS.map(g=>'<option value="'+esc(g)+'"'+(g===(m.material_group||'Regular')?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select></td>'
+    +'<td data-label="Limited colors"><input type="text" class="iq-edit-input" id="iqmEditColors" value="'+esc((m.limited_colors||[]).join(', '))+'" placeholder="blank = all colors" style="width:100%"></td>'
+    +'<td data-label="Density"><input type="number" class="iq-edit-input" id="iqmEditDensity" value="'+m.density_g_cm3+'" step="0.01" style="width:80px"></td>'
+    +'<td data-label="₹/gram"><input type="number" class="iq-edit-input" id="iqmEditPrice" value="'+m.cost_per_gram_public+'" step="0.01" style="width:80px"></td>'
     +'<td data-label="Default"><button class="btn btn-ghost btn-sm" onclick="setIqDefault(\'instant_quote_materials\',\''+m.id+'\',\'loadIqMaterials\')">'+(m.is_default?'★ Default':'Set default')+'</button></td>'
     +'<td data-label="Active"><button class="btn btn-ghost btn-sm" onclick="toggleIqActive(\'instant_quote_materials\',\''+m.id+'\','+(!m.active)+',\'loadIqMaterials\')">'+(m.active?'Active':'Inactive')+'</button></td>'
     +'<td data-label="Edit">'+_iqSaveCancelBtns("saveEditIqMaterial('"+m.id+"')","cancelEditIqMaterial()")+'</td>'
@@ -8604,8 +8615,8 @@ function renderIqColorsRows(){
 }
 function _iqColorEditRow(c){
   return '<tr>'
-    +'<td data-label="Color"><input type="text" id="iqcEditName" value="'+esc(c.name)+'" style="width:100%"></td>'
-    +'<td data-label="Hex"><input type="color" id="iqcEditHexPicker" value="'+esc(c.hex)+'" onchange="document.getElementById(\'iqcEditHex\').value=this.value" style="vertical-align:middle;margin-right:6px"><input type="text" id="iqcEditHex" value="'+esc(c.hex)+'" style="width:80px;font-family:var(--mono)"></td>'
+    +'<td data-label="Color"><input type="text" class="iq-edit-input" id="iqcEditName" value="'+esc(c.name)+'" style="width:100%"></td>'
+    +'<td data-label="Hex" style="white-space:nowrap"><input type="color" class="iq-edit-input" id="iqcEditHexPicker" value="'+esc(c.hex)+'" onchange="document.getElementById(\'iqcEditHex\').value=this.value" style="margin-right:6px"><input type="text" class="iq-edit-input" id="iqcEditHex" value="'+esc(c.hex)+'" style="width:80px;font-family:var(--mono)"></td>'
     +'<td data-label="Default"><button class="btn btn-ghost btn-sm" onclick="setIqDefault(\'instant_quote_colors\',\''+c.id+'\',\'loadIqColors\')">'+(c.is_default?'★ Default':'Set default')+'</button></td>'
     +'<td data-label="Active"><button class="btn btn-ghost btn-sm" onclick="toggleIqActive(\'instant_quote_colors\',\''+c.id+'\','+(!c.active)+',\'loadIqColors\')">'+(c.active?'Active':'Inactive')+'</button></td>'
     +'<td data-label="Edit">'+_iqSaveCancelBtns("saveEditIqColor('"+c.id+"')","cancelEditIqColor()")+'</td>'
@@ -8643,8 +8654,8 @@ function renderIqPrintersRows(){
 }
 function _iqPrinterEditRow(p){
   return '<tr>'
-    +'<td data-label="Name"><input type="text" id="iqpEditName" value="'+esc(p.name)+'" style="width:100%"></td>'
-    +'<td data-label="Build volume"><div style="display:flex;gap:4px;align-items:center"><input type="number" id="iqpEditX" value="'+p.build_x_mm+'" style="width:60px">×<input type="number" id="iqpEditY" value="'+p.build_y_mm+'" style="width:60px">×<input type="number" id="iqpEditZ" value="'+p.build_z_mm+'" style="width:60px"></div></td>'
+    +'<td data-label="Name"><input type="text" class="iq-edit-input" id="iqpEditName" value="'+esc(p.name)+'" style="width:100%"></td>'
+    +'<td data-label="Build volume"><div style="display:flex;gap:4px;align-items:center"><input type="number" class="iq-edit-input" id="iqpEditX" value="'+p.build_x_mm+'" style="width:60px">×<input type="number" class="iq-edit-input" id="iqpEditY" value="'+p.build_y_mm+'" style="width:60px">×<input type="number" class="iq-edit-input" id="iqpEditZ" value="'+p.build_z_mm+'" style="width:60px"></div></td>'
     +'<td data-label="Default"><button class="btn btn-ghost btn-sm" onclick="setIqDefault(\'instant_quote_printers\',\''+p.id+'\',\'loadIqPrinters\')">'+(p.is_default?'★ Default':'Set default')+'</button></td>'
     +'<td data-label="Active"><button class="btn btn-ghost btn-sm" onclick="toggleIqActive(\'instant_quote_printers\',\''+p.id+'\','+(!p.active)+',\'loadIqPrinters\')">'+(p.active?'Active':'Inactive')+'</button></td>'
     +'<td data-label="Edit">'+_iqSaveCancelBtns("saveEditIqPrinter('"+p.id+"')","cancelEditIqPrinter()")+'</td>'
