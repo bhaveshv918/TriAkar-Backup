@@ -15,8 +15,27 @@
  *   final_price   = max(base_cost × (1 + markup%), minimum_charge)
  *
  * Weight/time both derive from an "effective fill fraction", infill% alone
- * undercounts material for anything with real walls/top/bottom shells, so a flat
+ * undercounts material for anything with real walls/top/bottom shells, so a
  * shell allowance is added on top of the selected infill%.
+ *
+ * That allowance used to be a single flat constant (SHELL_VOLUME_FRACTION),
+ * which badly underestimates thin-walled/relief geometry (frames, lithophanes,
+ * logos, anything closer to a shell than a block): a real slicer forces the
+ * *entire* cross-section solid wherever it's thinner than 2 wall passes, so a
+ * thin part can end up almost 100% solid regardless of the infill% picked,
+ * while a chunky part with a real hollow core stays close to its infill%.
+ * Verified 2026-08-16 against a "frame" model (250x170x9mm, mesh volume
+ * 74.316 cm3, 15% infill, PLA) that Bambu Studio sliced to 72.23g, weight
+ * = volume x effective_fill x density means the ACTUAL effective fill was
+ * ~0.78, not the ~0.27 the flat 0.12 constant produced, a 2.8x price-side
+ * miss. Surface area (already measured by meshAnalysisService and already
+ * stored per-quote, just never fed into pricing before this fix) is the
+ * signal that lets the shell allowance scale with how "thin" the geometry
+ * actually is: shell_volume ~= surface_area x skin_thickness, so
+ * shell_volume / total_volume grows automatically for thin/high-surface-area
+ * shapes and stays small for chunky ones. Still only one real reference point
+ * for the "thin" regime, keep validating against real orders and adjust
+ * SHELL_SKIN_THICKNESS_CM as more data comes in.
  */
 import supabase from '../db/supabaseClient.js';
 
@@ -39,7 +58,8 @@ const DEFAULTS = {
 // compounded into a 3x overshoot on time. These are single-data-point estimates,
 // not a statistically fitted model, recalibrate further as real orders land.
 const PRINT_SPEED_CM3_PER_HOUR = 18;   // throughput at 100% effective fill, at the 0.4mm baseline nozzle
-const SHELL_VOLUME_FRACTION    = 0.12; // walls/top/bottom add roughly this much beyond raw infill%
+const SHELL_VOLUME_FRACTION    = 0.12; // floor, used when surface_area isn't available, and as the minimum for chunky/low-surface-area shapes
+const SHELL_SKIN_THICKNESS_CM  = 0.1;  // ~1mm forced-solid skin per unit of surface area (top/bottom shell layers dominate for thin/relief shapes, wall loops for chunkier ones)
 const CALIBRATION_CORRECTION   = 1.15; // small buffer for travel/retraction overhead pure volume math misses
 
 // A larger nozzle lays down more plastic per pass (thicker lines/layers), so the same
@@ -82,20 +102,38 @@ const round2 = n => Math.round(n * 100) / 100;
  * @param {number} volume_cm3
  * @param {number} infill_percent  5-100
  * @param {{density_g_cm3:number, cost_per_gram_public:number}} material
+ * @param {number} [surface_area_cm2]  from meshAnalysisService; drives the geometry-aware
+ *   shell term below. Falls back to the flat SHELL_VOLUME_FRACTION floor if omitted.
  */
-export async function computeInstantQuotePrice({ volume_cm3, infill_percent, material, nozzle_mm = 0.4, layer_height_mm = 0.2 }) {
+export async function computeInstantQuotePrice({ volume_cm3, infill_percent, material, nozzle_mm = 0.4, layer_height_mm = 0.2, surface_area_cm2 = null }) {
   if (!(volume_cm3 > 0)) throw Object.assign(new Error('Invalid model volume'), { status: 400 });
   if (!material) throw Object.assign(new Error('Material is required'), { status: 400 });
 
   const { hourly_machine_rate, markup_percent, min_charge, failure_buffer_percent } = await getPricingConstants();
 
   const infillFraction = Math.max(0.05, Math.min(1, infill_percent / 100));
-  const effectiveFillFraction = Math.min(1, infillFraction + SHELL_VOLUME_FRACTION);
+  // shell_volume ≈ surface_area × forced-solid skin thickness, so this grows on its own
+  // for thin/high-surface-area geometry (frames, lithophanes, reliefs) instead of using
+  // the same flat allowance for every shape — see the comment block at the top of this
+  // file. Never goes below the old flat constant, so chunky/low-surface-area parts keep
+  // the original (already order-validated) behavior.
+  const skinShellFraction = (surface_area_cm2 > 0)
+    ? Math.min(1, (surface_area_cm2 * SHELL_SKIN_THICKNESS_CM) / volume_cm3)
+    : SHELL_VOLUME_FRACTION;
+  const weightFillFraction = Math.min(1, infillFraction + Math.max(SHELL_VOLUME_FRACTION, skinShellFraction));
+  // Print time deliberately keeps the flat SHELL_VOLUME_FRACTION model rather than
+  // weightFillFraction above: mass scales with true solid volume regardless of shape, but
+  // time doesn't scale the same way for wide/thin parts (few Z layers, most of the "extra
+  // solid" is fast wide top/bottom passes, not slow deep infill) — on the one thin-geometry
+  // reference point we have (2026-08-16, see file header), the flat model's time estimate
+  // was already close to the real slice (1.28h vs ~1.43h actual), reusing weightFillFraction
+  // here instead would have overshot to ~3.7h. Revisit if real order data says otherwise.
+  const timeFillFraction = Math.min(1, infillFraction + SHELL_VOLUME_FRACTION);
   const nozzleMultiplier = NOZZLE_TIME_MULTIPLIER[nozzle_mm] || 1.0;
   const layerHeightMultiplier = LAYER_HEIGHT_TIME_MULTIPLIER[layer_height_mm] || 1.0;
 
-  const weight_g = round2(volume_cm3 * effectiveFillFraction * material.density_g_cm3);
-  const print_time_hours = round2((volume_cm3 * effectiveFillFraction / PRINT_SPEED_CM3_PER_HOUR) * CALIBRATION_CORRECTION * nozzleMultiplier * layerHeightMultiplier);
+  const weight_g = round2(volume_cm3 * weightFillFraction * material.density_g_cm3);
+  const print_time_hours = round2((volume_cm3 * timeFillFraction / PRINT_SPEED_CM3_PER_HOUR) * CALIBRATION_CORRECTION * nozzleMultiplier * layerHeightMultiplier);
 
   const material_cost = round2(weight_g * material.cost_per_gram_public);
   const machine_cost = round2(print_time_hours * hourly_machine_rate);

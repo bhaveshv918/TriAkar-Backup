@@ -172,7 +172,7 @@ router.post('/price', optionalAuth, async (req, res, next) => {
     // volume, same reasoning as /analyze, an oversized model still gets priced
     // and ordered; production handles sizing/splitting as a human judgment call.
 
-    const priced = await computeInstantQuotePrice({ volume_cm3: geometry.volume_cm3, infill_percent: infill, material, nozzle_mm: nozzle, layer_height_mm: layerHeight });
+    const priced = await computeInstantQuotePrice({ volume_cm3: geometry.volume_cm3, infill_percent: infill, material, nozzle_mm: nozzle, layer_height_mm: layerHeight, surface_area_cm2: geometry.surface_area_cm2 });
 
     const row = {
       user_id: req.user?.id || null,
