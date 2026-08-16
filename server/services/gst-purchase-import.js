@@ -112,7 +112,19 @@ export function parseGstr2bB2b(buffer) {
 // Expense would double-subtract the same fee from the balance sheet, so they default to
 // "exclude" rather than "expense" — but are still surfaced in the review list (never silently
 // dropped), with an override available since the admin may disagree for a specific invoice.
-const MARKETPLACE_FEE_VENDOR_KEYWORDS = ['amazonsellerservices', 'clicktechretail', 'flipkartinternet', 'retailez'];
+const MARKETPLACE_FEE_VENDOR_KEYWORDS = ['amazonsellerservices', 'flipkartinternet', 'retailez'];
+
+// Confirmed by the admin (2026-08-17 review of real GSTR-2B rows) after repeatedly overriding
+// the old "unrecognized" default: these are known vendors bought FROM on Amazon, not marketplace
+// fee entities. Clicktech Retail Private Limited is Amazon's own retail-selling arm (like the
+// old Cloudtail/Appario) — it SELLS to this business, it doesn't charge platform fees (that's
+// Amazon Seller Services Pvt Ltd, above). Category is a best-guess default; still flagged for
+// per-invoice review since the admin's own picks varied (equipment vs other) by invoice.
+const KNOWN_AMAZON_VENDOR_DEFAULTS = [
+  { keyword: 'clicktechretail', category: 'equipment', reason: 'Clicktech Retail Private Limited is Amazon\'s own retail-selling arm (sells products to this business), not a platform fee entity. Verify category per invoice.' },
+  { keyword: 'smartoholicbrands', category: 'utilities', reason: 'Smartoholic Brands, an Amazon marketplace vendor (confirmed by admin).' },
+  { keyword: 'mmwillcare', category: 'packaging', reason: 'MM Will Care, an Amazon marketplace vendor (confirmed by admin).' },
+];
 
 // Courier/GTA operators beyond Porter that also bill under RCM for delivery. Kept as a
 // distinct bucket from `shipping` (which Porter itself uses everywhere else in the app,
@@ -139,6 +151,10 @@ export function suggestCategorization(row) {
 
   if (MARKETPLACE_FEE_VENDOR_KEYWORDS.some((k) => name.includes(k))) {
     return { target: 'exclude', category: null, reason: `${row.vendorName} is a marketplace fee entity, already netted into the payout amount logged in Money In/Out. Importing this separately would double-count it.` };
+  }
+  const knownAmazonVendor = KNOWN_AMAZON_VENDOR_DEFAULTS.find((v) => name.includes(v.keyword));
+  if (knownAmazonVendor) {
+    return { target: 'expense', category: knownAmazonVendor.category, reason: knownAmazonVendor.reason };
   }
   if (row.rcm || name.includes('porter')) {
     return { target: 'expense', category: 'shipping', reason: 'Reverse-charge / GTA (delivery) charge, e.g. Porter.' };
