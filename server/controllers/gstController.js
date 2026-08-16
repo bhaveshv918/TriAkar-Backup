@@ -2,7 +2,7 @@ import supabase from '../db/supabaseClient.js';
 import { logActivity } from '../services/activityLog.js';
 import { reconcileGstPeriod } from '../services/gst-reconciliation.js';
 import { buildExportCsv } from '../services/gst-export-templates.js';
-import { parseGstr2bB2b, suggestCategorization } from '../services/gst-purchase-import.js';
+import { parseGstr2bB2b, suggestCategorization, EXPENSE_CATEGORIES, PURCHASE_CATEGORIES } from '../services/gst-purchase-import.js';
 
 const PERIOD_RE = /^\d{4}-\d{2}$/;
 
@@ -261,9 +261,6 @@ export async function parseGstImport(req, res, next) {
     res.json({ period, rows: reviewed });
   } catch (err) { respondGstError(res, err); }
 }
-
-const EXPENSE_CATEGORIES = ['materials', 'equipment', 'packaging', 'marketing', 'rent', 'utilities', 'shipping', 'staff_salary', 'other'];
-const PURCHASE_CATEGORIES = ['raw_material', 'packaging', 'equipment', 'other'];
 
 // ── POST /api/admin/gst/import/commit, inserts reviewed rows into Purchases/Expenses ──
 export async function commitGstImport(req, res, next) {

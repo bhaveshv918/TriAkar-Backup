@@ -12,6 +12,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import * as XLSX from 'xlsx';
 
+// Single source of truth for valid category values, mirrored in admin-biz.html's
+// GSTI_EXPENSE_CATS/GSTI_PURCHASE_CATS (frontend dropdowns) and pu_category/ex_category
+// (manual Add Purchase/Expense forms). The commit controller validates against these exports
+// rather than keeping its own copy, since a stale duplicate here previously caused any row
+// suggested with a category added after that copy was made (e.g. logistics, bank_charges) to
+// silently downgrade to "other" on commit.
+export const EXPENSE_CATEGORIES = ['materials', 'equipment', 'packaging', 'marketing', 'rent', 'utilities', 'shipping', 'logistics', 'travelling', 'professional_fees', 'software_it', 'bank_charges', 'printing_stationery', 'repairs_maintenance', 'insurance', 'staff_salary', 'refund', 'other'];
+export const PURCHASE_CATEGORIES = ['raw_material', 'packaging', 'equipment', 'consumables', 'spares_tools', 'other'];
+
 function parseNumber(v) {
   if (v === '' || v === null || v === undefined) return 0;
   const n = Number(String(v).replace(/[, ₹]/g, ''));
