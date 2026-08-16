@@ -20,6 +20,13 @@ function parseNumber(v) {
 function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
 function normKey(s) { return String(s ?? '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''); }
 
+// Word-boundary match, not a bare substring `includes` — short generic keywords like "bank" or
+// "cab" would otherwise false-positive inside unrelated vendor names (e.g. "Bankim Polymers").
+function hasWord(text, keyword) {
+  const escaped = keyword.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:[^a-z0-9]|$)`, 'i').test(text);
+}
+
 /** DD/MM/YYYY (the GST portal's date format on every export) -> YYYY-MM-DD. */
 function parseGstDate(v) {
   const s = String(v || '').trim();
@@ -107,6 +114,19 @@ export function parseGstr2bB2b(buffer) {
 // dropped), with an override available since the admin may disagree for a specific invoice.
 const MARKETPLACE_FEE_VENDOR_KEYWORDS = ['amazonsellerservices', 'clicktechretail', 'flipkartinternet', 'retailez'];
 
+// Courier/GTA operators beyond Porter that also bill under RCM for delivery. Kept as a
+// distinct bucket from `shipping` (which Porter itself uses everywhere else in the app,
+// e.g. the quick-log Porter button) so this doesn't fork one real-world expense into two
+// category labels — see suggestCategorization below for how the two stay consistent.
+const LOGISTICS_VENDOR_KEYWORDS = ['delhivery', 'dtdc', 'bluedart', 'blue dart', 'ecomexpress', 'ecom express', 'xpressbees', 'shadowfax', 'shiprocket', 'gati', 'safexpress', 'tci', 'vrl', 'transport', 'cargo', 'courier', 'logistic'];
+const TRAVEL_VENDOR_KEYWORDS = ['makemytrip', 'irctc', 'railway', 'indigo', 'airindia', 'air india', 'spicejet', 'uber', 'ola', 'redbus', 'travels', 'travel', 'cab', 'taxi'];
+const PROFESSIONAL_FEE_KEYWORDS = ['chartered accountant', 'chartered accountants', 'llp', 'associates', 'consultants', 'consultancy', 'advocate', 'legal'];
+const SOFTWARE_IT_KEYWORDS = ['godaddy', 'hostinger', 'aws', 'amazon web services', 'google cloud', 'microsoft', 'adobe', 'canva', 'zoho', 'tally', 'digitalocean', 'cloudinary', 'vercel', 'render.com', 'namecheap', 'meta platforms', 'facebook'];
+const BANK_CHARGE_KEYWORDS = ['razorpay', 'payu', 'paytm', 'cashfree', 'bank', 'hdfc', 'icici', 'sbi', 'axis', 'kotak', 'idfc', 'yes bank'];
+const PRINTING_STATIONERY_KEYWORDS = ['printing press', 'stationery', 'stationers', 'xerox', 'print shop'];
+const INSURANCE_KEYWORDS = ['insurance', 'lic', 'bajaj allianz', 'icici lombard', 'hdfc ergo', 'star health'];
+const REPAIRS_MAINTENANCE_KEYWORDS = ['repair', 'maintenance', 'servicing', 'service center', 'service centre'];
+
 /**
  * Suggest a target table + category for one GSTR-2B B2B line, using ONLY the categories that
  * already exist in biz_expenses/biz_purchases (per spec: don't invent a new scheme). Never
@@ -115,6 +135,7 @@ const MARKETPLACE_FEE_VENDOR_KEYWORDS = ['amazonsellerservices', 'clicktechretai
  */
 export function suggestCategorization(row) {
   const name = normKey(row.vendorName);
+  const rawName = String(row.vendorName || '').toLowerCase();
 
   if (MARKETPLACE_FEE_VENDOR_KEYWORDS.some((k) => name.includes(k))) {
     return { target: 'exclude', category: null, reason: `${row.vendorName} is a marketplace fee entity, already netted into the payout amount logged in Money In/Out. Importing this separately would double-count it.` };
@@ -122,14 +143,32 @@ export function suggestCategorization(row) {
   if (row.rcm || name.includes('porter')) {
     return { target: 'expense', category: 'shipping', reason: 'Reverse-charge / GTA (delivery) charge, e.g. Porter.' };
   }
-  if (name.includes('google')) {
+  if (LOGISTICS_VENDOR_KEYWORDS.some((k) => hasWord(rawName, k))) {
+    return { target: 'expense', category: 'logistics', reason: 'Freight / courier vendor.' };
+  }
+  if (name.includes('google') || name.includes('facebook') || name.includes('meta')) {
     return { target: 'expense', category: 'marketing', reason: 'Ad spend.' };
   }
-  if (name.includes('razorpay')) {
-    return { target: 'expense', category: 'other', reason: 'Payment gateway fee (no dedicated category exists yet).' };
+  if (TRAVEL_VENDOR_KEYWORDS.some((k) => hasWord(rawName, k))) {
+    return { target: 'expense', category: 'travelling', reason: 'Travel / conveyance vendor.' };
   }
-  if (name.includes('bank')) {
-    return { target: 'expense', category: 'other', reason: 'Bank charges (no dedicated category exists yet).' };
+  if (PROFESSIONAL_FEE_KEYWORDS.some((k) => hasWord(rawName, k))) {
+    return { target: 'expense', category: 'professional_fees', reason: 'CA / legal / consultancy fee.' };
+  }
+  if (SOFTWARE_IT_KEYWORDS.some((k) => hasWord(rawName, k))) {
+    return { target: 'expense', category: 'software_it', reason: 'Software, hosting, or IT subscription.' };
+  }
+  if (BANK_CHARGE_KEYWORDS.some((k) => hasWord(rawName, k))) {
+    return { target: 'expense', category: 'bank_charges', reason: 'Payment gateway or bank charge.' };
+  }
+  if (PRINTING_STATIONERY_KEYWORDS.some((k) => hasWord(rawName, k))) {
+    return { target: 'expense', category: 'printing_stationery', reason: 'Printing / stationery vendor.' };
+  }
+  if (INSURANCE_KEYWORDS.some((k) => hasWord(rawName, k))) {
+    return { target: 'expense', category: 'insurance', reason: 'Insurance premium.' };
+  }
+  if (REPAIRS_MAINTENANCE_KEYWORDS.some((k) => hasWord(rawName, k))) {
+    return { target: 'expense', category: 'repairs_maintenance', reason: 'Repair / maintenance / service charge.' };
   }
   // Unrecognized vendor: default to Purchases (raw material) since most B2B invoices for this
   // business are material/component vendors, but flag for the admin to confirm, don't assume.
