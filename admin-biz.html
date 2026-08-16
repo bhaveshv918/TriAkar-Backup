@@ -2395,6 +2395,86 @@ html[data-theme="dark"] .biz-login{
     </div><!-- /quotations -->
 
     <!-- ══════════════════════════════════════════════════════
+         INSTANT QUOTES
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelInstantquotes">
+      <div class="p-head">
+        <div><div class="p-title">Instant Quotes</div><div class="p-sub">STL/OBJ upload → auto price. Orders stay pending until you confirm the customization with the customer.</div></div>
+      </div>
+
+      <div id="iqKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:18px"></div>
+
+      <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:24px;max-width:680px;box-shadow:var(--shadow)">
+        <div style="font-weight:700;font-size:13px;margin-bottom:4px">Pricing Formula <span style="font-weight:400;color:var(--text-3);font-size:11px">controls every Instant Quote price site-wide</span></div>
+        <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">final_price = max((material_cost + machine_cost + failure_buffer) × (1 + markup%), minimum charge)</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Machine rate (₹/hour)</label><input type="number" step="1" id="iqRateHourly" placeholder="60"></div>
+          <div class="form-group"><label>Markup (%)</label><input type="number" step="1" id="iqRateMarkup" placeholder="35"></div>
+          <div class="form-group"><label>Minimum charge (₹)</label><input type="number" step="1" id="iqRateMinCharge" placeholder="249"></div>
+          <div class="form-group"><label>Failure/reprint buffer (%)</label><input type="number" step="1" id="iqRateFailBuf" placeholder="5"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+          <button class="btn btn-primary btn-sm" onclick="saveIqPricingSettings()">Save pricing</button>
+          <span id="iqRateStatus" style="font-size:12px;color:var(--text-3)"></span>
+        </div>
+      </div>
+
+      <div class="p-head" style="margin-top:8px">
+        <div><div class="p-title" style="font-size:15px">Orders Pending Confirmation</div></div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Order</th><th>Model</th><th>Build</th><th>Material</th><th>Color</th><th>Nozzle</th><th>Layer</th><th>Infill</th><th>Est. weight/time</th><th>Price</th><th>Customer</th><th>Lead contact</th><th>Notes</th><th>Date</th><th>Action</th></tr></thead>
+          <tbody id="iqOrdersBody"><tr><td colspan="15" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="p-head" style="margin-top:32px">
+        <div><div class="p-title" style="font-size:15px">All Uploads</div><div class="p-sub">Every model uploaded and quoted, not just ones that became orders</div></div>
+        <input type="text" id="iqUploadSearch" placeholder="Search name, phone, file, lead…" oninput="filterIqUploads()" style="min-width:200px">
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Model</th><th>Account</th><th>Lead contact</th><th>Build</th><th>Material</th><th>Color</th><th>Nozzle</th><th>Layer</th><th>Infill</th><th>Weight/Time</th><th>Price</th><th>Notes</th><th>Status</th></tr></thead>
+          <tbody id="iqUploadsBody"><tr><td colspan="14" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="p-head" style="margin-top:32px">
+        <div><div class="p-title" style="font-size:15px">Materials Catalog</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="addIqMaterial()">+ Add material</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Group</th><th>Limited colors</th><th>Density (g/cm³)</th><th>₹/gram</th><th>Default</th><th>Active</th><th>Edit</th></tr></thead>
+          <tbody id="iqMaterialsBody"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="p-head" style="margin-top:32px">
+        <div><div class="p-title" style="font-size:15px">Colors Catalog</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="addIqColor()">+ Add color</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Color</th><th>Hex</th><th>Default</th><th>Active</th><th>Edit</th></tr></thead>
+          <tbody id="iqColorsBody"><tr><td colspan="5" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="p-head" style="margin-top:32px">
+        <div><div class="p-title" style="font-size:15px">Printer Build Sizes</div><div class="p-sub">Names are for your reference only, customers only ever see the dimensions</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="addIqPrinter()">+ Add build size</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Name (admin only)</th><th>Build volume (mm)</th><th>Default</th><th>Active</th><th>Edit</th></tr></thead>
+          <tbody id="iqPrintersBody"><tr><td colspan="5" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+    </div><!-- /instantquotes -->
+
+    <!-- ══════════════════════════════════════════════════════
          IMPORT CSV
     ═══════════════════════════════════════════════════════ -->
     <div class="panel" id="panelImport">
@@ -4694,6 +4774,7 @@ const NAV_CONFIG = [
       { id: 'sales',      label: 'All Orders',   icon: '≡', shortcut: 'o/z', badge: 'salesCount' },
       { id: 'salesview',  label: 'Sales',        icon: '✓', shortcut: 's', badge: 'salesviewCount' },
       { id: 'quotations', label: 'Quotations',   icon: '⎘', shortcut: 'q' },
+      { id: 'instantquotes', label: 'Instant Quotes', icon: '⧉', shortcut: 'r', badge: 'iqCount' },
       { id: 'import',     label: 'Import & Labels', icon: '⇲', shortcut: 'l' },
       { id: 'customers',  label: 'Customers',    icon: '☺', shortcut: 'c', badge: 'custCount' },
     ]
@@ -5000,6 +5081,7 @@ async function startApp(){
   await Promise.all([loadProducts(), initDashMonths(), loadTncPresetsCache()]);
   loadDashboard();
   loadOpenOrders();
+  loadIqOrders();
   loadSalesBadge();
   loadReturnsBadge();
   loadCustomers();
@@ -5040,7 +5122,7 @@ function switchTab(name){
     customers:loadCustomers, fees:loadFeesTab, returns:loadReturns, spooltracker:loadSpoolTracker, openorders:loadOpenOrders, expenses:loadExpenses,
     ledger:loadLedger, purchases:loadPurchases, balance:loadBalanceSheet, shoplog:loadShopLog, machinery:loadMachinery,
     gstportal:loadGstPortal, invoicing:loadInvoicing, gstauto:loadGstAuto,
-    salesview:loadSalesview, quotations:loadQuotations, rack:loadRackItems,
+    salesview:loadSalesview, quotations:loadQuotations, rack:loadRackItems, instantquotes:loadInstantQuotes,
     // Notes/T&C preset dropdowns only ever got populated inside setQaFormMode(),
     // which only runs on an explicit Order/Quotation toggle click, opening the tab
     // via "+ Add Order" (or edit/duplicate, none of which call setQaFormMode) left
@@ -7969,7 +8051,18 @@ function setOoChannel(c){ _ooChannel=c; loadOpenOrders(); }
 // tables, so any failure or exception anywhere earlier in that function (a flaky
 // fetch, a bad row) silently skipped this block too, with no error shown, "GST
 // reminders just don't show up." Now it can't be taken down by anything else on the page.
-let _openReminders={gst:0,gstColor:null,filament:0,notCompleted:0,notLocked:0};
+let _openReminders={gst:0,gstColor:null,filament:0,notCompleted:0,notLocked:0,iq:0,iqIsNew:false};
+// Blinks the Instant Quotes tile only when the pending-confirmation count has grown
+// since it was last looked at (localStorage), not just whenever it's non-zero — a
+// backlog that's been sitting there isn't "new". Cleared when loadInstantQuotes()
+// runs, i.e. the admin actually opened the tab.
+function checkNewIqEntry(count){
+  let lastSeen=0;
+  try{ lastSeen=parseInt(localStorage.getItem('biz_iq_last_seen_count')||'0',10)||0; }catch(e){}
+  _openReminders.iq=count;
+  _openReminders.iqIsNew=count>lastSeen&&_curBizTab!=='instantquotes';
+  renderOpenRemindersRow();
+}
 async function loadOpenGstReminder(){
   const gstRem=document.getElementById('openGstReminder'); if(!gstRem) return;
   try{
@@ -8010,6 +8103,7 @@ const REMINDER_TILE_META={
   filament:{icon:'🧵',label:'Filament Low'},
   notCompleted:{icon:'⏰',label:'Not Completed'},
   notLocked:{icon:'🔒',label:'Not Locked'},
+  iq:{icon:'⧉',label:'Instant Quotes'},
 };
 function renderOpenRemindersRow(){
   const row=document.getElementById('openRemindersRow'); if(!row) return;
@@ -8019,6 +8113,7 @@ function renderOpenRemindersRow(){
     {key:'filament', count:r.filament, color:'var(--red)', action:"toggleOpenReminderDetail('openFilamentAlert')"},
     {key:'notCompleted', count:r.notCompleted, color:'var(--red)', action:"openOpenOrdersDrawer('notCompleted')"},
     {key:'notLocked', count:r.notLocked, color:'var(--yellow)', action:"openOpenOrdersDrawer('notLocked')"},
+    {key:'iq', count:r.iq, color:r.iqIsNew?'var(--red)':'var(--blue)', action:"switchTab('instantquotes')"},
   ];
   row.style.display='flex';
   row.innerHTML=tiles.map(t=>{
@@ -8227,6 +8322,342 @@ async function toggleReviewReceived(id,current){
   const {error}=await sb.from('biz_sales').update({review_received:!current}).eq('id',id);
   if(error){ toast('Error: '+error.message,'error'); return; }
   loadOpenOrders();
+}
+
+// ══════════════ INSTANT QUOTES ══════════════
+// Ported from admin.html (moved into Business OS so it gets the same styling and
+// backend-access treatment as everything else here). Rule 10 (mandatory human
+// confirmation before production) applies doubly to an automated STL/OBJ price
+// estimate: an order stays order_status='quote_pending_confirmation' even after
+// payment clears until an admin reviews it here and confirms, via the same
+// order-status endpoint every other order confirmation uses.
+function fmtDateTimeIST(iso){return new Date(iso).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true})}
+let _iqOrders=[],_iqMaterials=[],_iqPrinters=[],_iqColors=[],_iqUploads=[],_iqProfiles={};
+
+async function loadInstantQuotes(){
+  // Catalog lookups (materials/printers/colors) must land before the two tables
+  // that render names/dims from them, or those columns show "—" until a manual refresh.
+  await Promise.all([loadIqMaterials(),loadIqPrinters(),loadIqColors(),loadIqPricingSettings()]);
+  await Promise.all([loadIqOrders(),loadIqUploads()]);
+  // Opening the tab is "the admin looked", stop the Today's Tasks blink here.
+  try{ localStorage.setItem('biz_iq_last_seen_count', String(_iqOrders.length)); }catch(e){}
+  _openReminders.iqIsNew=false; renderOpenRemindersRow();
+  renderIqKpi();
+}
+
+function renderIqKpi(){
+  const kpi=document.getElementById('iqKpi'); if(!kpi) return;
+  const activeMaterials=_iqMaterials.filter(m=>m.active).length;
+  const card=(color,bg,icon,label,val)=>`<div class="stat-kpi" style="--pill-color:${color};--pill-color-bg:${bg}"><div class="stat-kpi-icon">${icon}</div><div class="stat-kpi-body"><div class="stat-kpi-val">${val}</div><div class="stat-kpi-label">${label}</div></div></div>`;
+  kpi.innerHTML=
+    card('var(--yellow)','var(--yellow-bg)','⧉','Pending Confirmation',_iqOrders.length)
+    +card('var(--blue)','var(--blue-bg)','⇧','Total Uploads',_iqUploads.length)
+    +card('var(--green)','var(--green-bg)','✓','Active Materials',activeMaterials);
+}
+
+/* Pricing Formula (site_settings keys read by instantQuotePricingService.js).
+   site_settings has a proper admin-write RLS policy so the browser sb client
+   can write it directly, same pattern as Site Content in admin.html. */
+const IQ_RATE_KEYS={
+  instant_quote_hourly_machine_rate:'iqRateHourly',
+  instant_quote_markup_percent:'iqRateMarkup',
+  instant_quote_min_charge:'iqRateMinCharge',
+  instant_quote_failure_buffer_percent:'iqRateFailBuf',
+};
+const IQ_RATE_DEFAULTS={instant_quote_hourly_machine_rate:60,instant_quote_markup_percent:35,instant_quote_min_charge:249,instant_quote_failure_buffer_percent:5};
+async function loadIqPricingSettings(){
+  const{data,error}=await sb.from('site_settings').select('key,value').in('key',Object.keys(IQ_RATE_KEYS));
+  const m={}; (data||[]).forEach(r=>m[r.key]=r.value);
+  if(error){const s=document.getElementById('iqRateStatus'); if(s){s.textContent='Could not load pricing, site_settings table may be missing.';s.style.color='var(--red)';} }
+  Object.keys(IQ_RATE_KEYS).forEach(key=>{
+    const el=document.getElementById(IQ_RATE_KEYS[key]);
+    if(el)el.value=(m[key]!=null&&m[key]!=='')?m[key]:IQ_RATE_DEFAULTS[key];
+  });
+}
+async function saveIqPricingSettings(){
+  const rows=Object.keys(IQ_RATE_KEYS).map(key=>{
+    const el=document.getElementById(IQ_RATE_KEYS[key]);
+    return {key,value:String(el?el.value:IQ_RATE_DEFAULTS[key])};
+  });
+  if(rows.some(r=>r.value===''||isNaN(Number(r.value)))){toast('All pricing fields must be numbers','error');return}
+  const{error}=await sb.from('site_settings').upsert(rows,{onConflict:'key'});
+  const s=document.getElementById('iqRateStatus');
+  if(error){if(s){s.textContent='Error: '+error.message;s.style.color='var(--red)';} toast('Error: '+error.message,'error');return}
+  if(s){s.textContent='Saved ✓';s.style.color='var(--text-3)';}
+  toast('Pricing formula updated, applies to every new quote immediately','success');
+}
+
+/* Every uploaded model + computed quote, regardless of whether it became an
+   order — a standing record for the business, not just an order sub-view. */
+async function loadIqUploads(){
+  const{data,error}=await sb.from('instant_quote_requests').select('*').order('created_at',{ascending:false}).limit(500);
+  if(error){document.getElementById('iqUploadsBody').innerHTML='<tr><td colspan="14" class="empty"><div class="em-text">Error loading uploads</div></td></tr>';return}
+  _iqUploads=data||[];
+  const userIds=[...new Set(_iqUploads.map(q=>q.user_id).filter(Boolean))];
+  if(userIds.length){
+    const{data:profiles}=await sb.from('profiles').select('id,full_name,phone').in('id',userIds);
+    _iqProfiles={};
+    (profiles||[]).forEach(p=>{_iqProfiles[p.id]=p;});
+  }
+  renderIqKpi();
+  renderIqUploads(_iqUploads);
+}
+
+// How many times this same customer has generated a quote (matched by account,
+// or by the lead phone number for anonymous/pre-login quotes) — a signal of
+// genuine interest worth a follow-up, distinct from the pending-confirmation
+// task count shown on the Today's Tasks tile.
+function _iqAttemptCount(q){
+  const key=q.user_id||q.contact_phone;
+  if(!key) return 1;
+  return _iqUploads.filter(u=>(u.user_id||u.contact_phone)===key).length;
+}
+function _iqAttemptChip(q){
+  const n=_iqAttemptCount(q);
+  if(n<2) return '';
+  return ' <span class="badge" style="background:var(--accent-bg);color:var(--accent);margin-left:4px">Tried '+n+'×</span>';
+}
+
+function _iqLeadCell(q){
+  if(!q.contact_name&&!q.contact_phone)return '<span style="color:var(--text-3)">Skipped</span>';
+  return esc(q.contact_name||'—')+_iqAttemptChip(q)+'<br>'+esc(q.contact_phone||'');
+}
+
+function renderIqUploads(list){
+  const tbody=document.getElementById('iqUploadsBody');
+  if(!list.length){tbody.innerHTML='<tr><td colspan="14" class="empty"><div class="em-text">No uploads yet.</div></td></tr>';return}
+  const statusBadge={quoted:'badge-pending',in_cart:'badge-pending',ordered:'badge-completed',expired:'badge-returned'};
+  tbody.innerHTML=list.map(q=>{
+    const prof=_iqProfiles[q.user_id]||{};
+    return '<tr>'
+      +'<td data-label="Date" style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(q.created_at)+'</td>'
+      +'<td data-label="Model">'+(q.model_file_url?'<a href="'+esc(q.model_file_url)+'" target="_blank" rel="noopener" download="'+esc(q.file_name||'model')+'">'+esc(q.file_name||'model')+' ↓</a>':esc(q.file_name||'—'))+'</td>'
+      +'<td data-label="Account" style="font-size:11px">'+esc(prof.full_name||'—')+'<br>'+esc(prof.phone||'')+'</td>'
+      +'<td data-label="Lead contact" style="font-size:11px">'+_iqLeadCell(q)+'</td>'
+      +'<td data-label="Build" style="font-size:11px;white-space:nowrap">'+esc(_iqPrinterDims(q.printer_id))+'</td>'
+      +'<td data-label="Material">'+esc(_iqMaterialName(q.material_id))+'</td>'
+      +'<td data-label="Color">'+esc(_iqColorName(q.color_id))+'</td>'
+      +'<td data-label="Nozzle">'+esc(String(q.nozzle_mm||'0.4'))+'mm</td>'
+      +'<td data-label="Layer">'+esc(String(q.layer_height_mm||'0.2'))+'mm</td>'
+      +'<td data-label="Infill">'+esc(String(q.infill_percent||''))+'%</td>'
+      +'<td data-label="Weight/Time" style="font-size:11px">'+esc(String(q.estimated_weight_g||'—'))+'g / '+esc(String(q.estimated_print_time_hours||'—'))+'h</td>'
+      +'<td data-label="Price">₹'+Number(q.final_price||0).toLocaleString('en-IN')+'</td>'
+      +'<td data-label="Notes" style="font-size:11px;max-width:160px">'+esc(q.custom_notes||'')+'</td>'
+      +'<td data-label="Status"><span class="badge '+(statusBadge[q.status]||'badge-pending')+'">'+esc(q.status||'—')+'</span></td>'
+      +'</tr>';
+  }).join('');
+}
+
+function filterIqUploads(){
+  const term=(document.getElementById('iqUploadSearch').value||'').toLowerCase();
+  if(!term){renderIqUploads(_iqUploads);return}
+  renderIqUploads(_iqUploads.filter(q=>{
+    const prof=_iqProfiles[q.user_id]||{};
+    return (q.file_name||'').toLowerCase().includes(term)
+      ||(prof.full_name||'').toLowerCase().includes(term)
+      ||(prof.phone||'').toLowerCase().includes(term)
+      ||(q.contact_name||'').toLowerCase().includes(term)
+      ||(q.contact_phone||'').toLowerCase().includes(term)
+      ||(q.status||'').toLowerCase().includes(term);
+  }));
+}
+
+async function loadIqOrders(){
+  const{data,error}=await sb.from('orders')
+    .select('*, order_items(*, instant_quote_requests(*))')
+    .eq('order_status','quote_pending_confirmation')
+    .is('deleted_at',null)
+    .order('created_at',{ascending:false});
+  if(error){ const b=document.getElementById('iqOrdersBody'); if(b) b.innerHTML='<tr><td colspan="15" class="empty"><div class="em-text">Error loading Instant Quote orders</div></td></tr>'; return}
+  _iqOrders=data||[];
+  const cEl=document.getElementById('iqCount_hdr'); if(cEl)cEl.textContent=_iqOrders.length;
+  checkNewIqEntry(_iqOrders.length);
+  renderIqOrders();
+  renderIqKpi();
+}
+
+function _iqPrinterDims(id){const p=(_iqPrinters||[]).find(x=>x.id===id);return p?(p.build_x_mm+'×'+p.build_y_mm+'×'+p.build_z_mm+'mm'):'—';}
+function _iqMaterialName(id){const m=(_iqMaterials||[]).find(x=>x.id===id);return m?m.name:'—';}
+function _iqColorName(id){const c=(_iqColors||[]).find(x=>x.id===id);return c?c.name:'—';}
+
+function renderIqOrders(){
+  const tbody=document.getElementById('iqOrdersBody'); if(!tbody) return;
+  if(!_iqOrders.length){tbody.innerHTML='<tr><td colspan="15" class="empty"><div class="em-text">No Instant Quote orders awaiting confirmation.</div></td></tr>';return}
+  tbody.innerHTML=_iqOrders.map(o=>{
+    const rows=(o.order_items||[]).filter(it=>it.instant_quote_requests);
+    if(!rows.length)return '';
+    return rows.map(it=>{
+      const q=it.instant_quote_requests;
+      return '<tr>'
+        +'<td data-label="Order" style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+esc(o.invoice_number||o.order_id||o.id)+'</td>'
+        +'<td data-label="Model">'+(q.model_file_url?'<a href="'+esc(q.model_file_url)+'" target="_blank" rel="noopener" download="'+esc(q.file_name||'model')+'">'+esc(q.file_name||'model')+' ↓</a>':esc(q.file_name||'—'))+'</td>'
+        +'<td data-label="Build" style="font-size:11px;white-space:nowrap">'+esc(_iqPrinterDims(q.printer_id))+'</td>'
+        +'<td data-label="Material">'+esc(_iqMaterialName(q.material_id))+'</td>'
+        +'<td data-label="Color">'+esc(_iqColorName(q.color_id))+'</td>'
+        +'<td data-label="Nozzle">'+esc(String(q.nozzle_mm||'0.4'))+'mm</td>'
+        +'<td data-label="Layer">'+esc(String(q.layer_height_mm||'0.2'))+'mm</td>'
+        +'<td data-label="Infill">'+esc(String(q.infill_percent||''))+'%</td>'
+        +'<td data-label="Est. weight/time" style="font-size:11px">'+esc(String(q.estimated_weight_g||'—'))+'g / '+esc(String(q.estimated_print_time_hours||'—'))+'h</td>'
+        +'<td data-label="Price">₹'+Number(it.unit_price||0).toLocaleString('en-IN')+'</td>'
+        +'<td data-label="Customer" style="font-size:11px">'+esc(o.customer_name||o.shipping_address?.full_name||'—')+'<br>'+esc(o.customer_phone||'')+'</td>'
+        +'<td data-label="Lead contact" style="font-size:11px">'+_iqLeadCell(q)+'</td>'
+        +'<td data-label="Notes" style="font-size:11px;max-width:160px">'+esc(q.custom_notes||'')+'</td>'
+        +'<td data-label="Date" style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(o.created_at)+'</td>'
+        +'<td data-label="Action"><button class="btn btn-primary btn-sm" onclick="confirmIqOrder(\''+o.id+'\')">Confirm →</button></td>'
+        +'</tr>';
+    }).join('');
+  }).join('');
+}
+
+async function confirmIqOrder(orderId){
+  if(!confirm('Confirm this Instant Quote order for production? Only do this after verifying the customization details with the customer.'))return;
+  try{
+    await bizApiFetch('/api/admin/orders/'+orderId+'/status',{method:'PUT',body:JSON.stringify({status:'confirmed'})});
+    toast('Order confirmed for production','success');
+    loadIqOrders();
+  }catch(e){toast('Error: '+(e.message||e),'error');}
+}
+
+async function loadIqMaterials(){
+  const{data,error}=await sb.from('instant_quote_materials').select('*').order('sort_order');
+  if(error){document.getElementById('iqMaterialsBody').innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">Error loading materials</div></td></tr>';return}
+  _iqMaterials=data||[];
+  document.getElementById('iqMaterialsBody').innerHTML=(_iqMaterials.length?_iqMaterials:[]).map(m=>
+    '<tr>'
+    +'<td data-label="Name">'+esc(m.name)+'</td>'
+    +'<td data-label="Group">'+esc(m.material_group||'')+'</td>'
+    +'<td data-label="Limited colors" style="font-size:11px">'+(m.limited_colors&&m.limited_colors.length?esc(m.limited_colors.join(', ')):'<span style="color:var(--text-3)">All colors</span>')+'</td>'
+    +'<td data-label="Density">'+Number(m.density_g_cm3).toFixed(2)+'</td>'
+    +'<td data-label="₹/gram">₹'+Number(m.cost_per_gram_public).toFixed(2)+'</td>'
+    +'<td data-label="Default"><button class="btn btn-ghost btn-sm" onclick="setIqDefault(\'instant_quote_materials\',\''+m.id+'\',\'loadIqMaterials\')">'+(m.is_default?'★ Default':'Set default')+'</button></td>'
+    +'<td data-label="Active"><button class="btn btn-ghost btn-sm" onclick="toggleIqActive(\'instant_quote_materials\',\''+m.id+'\','+(!m.active)+',\'loadIqMaterials\')">'+(m.active?'Active':'Inactive')+'</button></td>'
+    +'<td data-label="Edit"><button class="btn btn-ghost btn-sm" onclick="editIqMaterial(\''+m.id+'\')">Edit</button></td>'
+    +'</tr>'
+  ).join('')||'<tr><td colspan="8" class="empty"><div class="em-text">No materials yet.</div></td></tr>';
+  renderIqKpi();
+}
+
+async function loadIqColors(){
+  const{data,error}=await sb.from('instant_quote_colors').select('*').order('sort_order');
+  if(error){document.getElementById('iqColorsBody').innerHTML='<tr><td colspan="5" class="empty"><div class="em-text">Error loading colors</div></td></tr>';return}
+  _iqColors=data||[];
+  document.getElementById('iqColorsBody').innerHTML=(_iqColors.length?_iqColors:[]).map(c=>
+    '<tr>'
+    +'<td data-label="Color"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:'+esc(c.hex)+';vertical-align:-2px;margin-right:6px;border:1px solid rgba(0,0,0,.15)"></span>'+esc(c.name)+'</td>'
+    +'<td data-label="Hex" style="font-family:var(--mono);font-size:11px">'+esc(c.hex)+'</td>'
+    +'<td data-label="Default"><button class="btn btn-ghost btn-sm" onclick="setIqDefault(\'instant_quote_colors\',\''+c.id+'\',\'loadIqColors\')">'+(c.is_default?'★ Default':'Set default')+'</button></td>'
+    +'<td data-label="Active"><button class="btn btn-ghost btn-sm" onclick="toggleIqActive(\'instant_quote_colors\',\''+c.id+'\','+(!c.active)+',\'loadIqColors\')">'+(c.active?'Active':'Inactive')+'</button></td>'
+    +'<td data-label="Edit"><button class="btn btn-ghost btn-sm" onclick="editIqColor(\''+c.id+'\')">Edit</button></td>'
+    +'</tr>'
+  ).join('')||'<tr><td colspan="5" class="empty"><div class="em-text">No colors yet.</div></td></tr>';
+}
+
+async function loadIqPrinters(){
+  const{data,error}=await sb.from('instant_quote_printers').select('*').order('sort_order');
+  if(error){document.getElementById('iqPrintersBody').innerHTML='<tr><td colspan="5" class="empty"><div class="em-text">Error loading build sizes</div></td></tr>';return}
+  _iqPrinters=data||[];
+  document.getElementById('iqPrintersBody').innerHTML=(_iqPrinters.length?_iqPrinters:[]).map(p=>
+    '<tr>'
+    +'<td data-label="Name">'+esc(p.name)+'</td>'
+    +'<td data-label="Build volume">'+p.build_x_mm+' × '+p.build_y_mm+' × '+p.build_z_mm+'</td>'
+    +'<td data-label="Default"><button class="btn btn-ghost btn-sm" onclick="setIqDefault(\'instant_quote_printers\',\''+p.id+'\',\'loadIqPrinters\')">'+(p.is_default?'★ Default':'Set default')+'</button></td>'
+    +'<td data-label="Active"><button class="btn btn-ghost btn-sm" onclick="toggleIqActive(\'instant_quote_printers\',\''+p.id+'\','+(!p.active)+',\'loadIqPrinters\')">'+(p.active?'Active':'Inactive')+'</button></td>'
+    +'<td data-label="Edit"><button class="btn btn-ghost btn-sm" onclick="editIqPrinter(\''+p.id+'\')">Edit</button></td>'
+    +'</tr>'
+  ).join('')||'<tr><td colspan="5" class="empty"><div class="em-text">No build sizes yet.</div></td></tr>';
+}
+
+async function toggleIqActive(table,id,newVal,reload){
+  const{error}=await sb.from(table).update({active:newVal}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return}
+  toast(newVal?'Marked active':'Marked inactive','success');
+  (window[reload]||function(){})();
+}
+
+// Only one row per catalog table should be is_default — clear the rest first, same
+// pattern as a radio button, so the customer-facing auto-select logic (which picks
+// the row with is_default=true) never has to reconcile ties.
+async function setIqDefault(table,id,reload){
+  await sb.from(table).update({is_default:false}).neq('id',id);
+  const{error}=await sb.from(table).update({is_default:true}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return}
+  toast('Default updated','success');
+  (window[reload]||function(){})();
+}
+
+async function addIqMaterial(){
+  const name=prompt('Material name (e.g. "PETG-CF"):'); if(!name)return;
+  const filament_type=prompt('Filament type label:',name)||name;
+  const material_group=prompt('Group shown to customers (Regular / Good Strength / Outdoor & Durable / Top Strength / Flexible):','Regular')||'Regular';
+  const density_g_cm3=parseFloat(prompt('Density g/cm³:','1.24'))||1.24;
+  const cost_per_gram_public=parseFloat(prompt('Public price per gram (₹):','1.80'));
+  if(!cost_per_gram_public){toast('Price per gram is required','error');return}
+  const limitedRaw=prompt('Limit to specific colors? Comma-separated names, or leave blank for all colors:','');
+  const limited_colors=limitedRaw&&limitedRaw.trim()?limitedRaw.split(',').map(s=>s.trim()).filter(Boolean):null;
+  const{error}=await sb.from('instant_quote_materials').insert({name,filament_type,material_group,density_g_cm3,cost_per_gram_public,limited_colors});
+  if(error){toast('Error: '+error.message,'error');return}
+  toast('Material added','success');
+  loadIqMaterials();
+}
+
+async function addIqColor(){
+  const name=prompt('Color name:'); if(!name)return;
+  const hex=prompt('Hex code (e.g. #C4622A):','#0F0F0D'); if(!hex)return;
+  const{error}=await sb.from('instant_quote_colors').insert({name,hex});
+  if(error){toast('Error: '+error.message,'error');return}
+  toast('Color added','success');
+  loadIqColors();
+}
+
+async function addIqPrinter(){
+  const name=prompt('Reference name (not shown to customers), e.g. "Snapmaker U1":'); if(!name)return;
+  const build_x_mm=parseFloat(prompt('Build X (mm):','220'));
+  const build_y_mm=parseFloat(prompt('Build Y (mm):','220'));
+  const build_z_mm=parseFloat(prompt('Build Z (mm):','250'));
+  if(!build_x_mm||!build_y_mm||!build_z_mm){toast('All build dimensions are required','error');return}
+  const{error}=await sb.from('instant_quote_printers').insert({name,build_x_mm,build_y_mm,build_z_mm});
+  if(error){toast('Error: '+error.message,'error');return}
+  toast('Build size added','success');
+  loadIqPrinters();
+}
+
+async function editIqMaterial(id){
+  const m=(_iqMaterials||[]).find(x=>x.id===id); if(!m)return;
+  const name=prompt('Material name:',m.name); if(!name)return;
+  const filament_type=prompt('Filament type label:',m.filament_type||name)||name;
+  const material_group=prompt('Group shown to customers (Regular / Good Strength / Outdoor & Durable / Top Strength / Flexible):',m.material_group||'Regular')||'Regular';
+  const density_g_cm3=parseFloat(prompt('Density g/cm³:',m.density_g_cm3))||m.density_g_cm3;
+  const cost_per_gram_public=parseFloat(prompt('Public price per gram (₹):',m.cost_per_gram_public));
+  if(!cost_per_gram_public){toast('Price per gram is required','error');return}
+  const limitedRaw=prompt('Limit to specific colors? Comma-separated names, or leave blank for all colors:',(m.limited_colors||[]).join(', '));
+  const limited_colors=limitedRaw&&limitedRaw.trim()?limitedRaw.split(',').map(s=>s.trim()).filter(Boolean):null;
+  const{error}=await sb.from('instant_quote_materials').update({name,filament_type,material_group,density_g_cm3,cost_per_gram_public,limited_colors}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return}
+  toast('Material updated','success');
+  loadIqMaterials();
+}
+
+async function editIqColor(id){
+  const c=(_iqColors||[]).find(x=>x.id===id); if(!c)return;
+  const name=prompt('Color name:',c.name); if(!name)return;
+  const hex=prompt('Hex code (e.g. #C4622A):',c.hex); if(!hex)return;
+  const{error}=await sb.from('instant_quote_colors').update({name,hex}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return}
+  toast('Color updated','success');
+  loadIqColors();
+}
+
+async function editIqPrinter(id){
+  const p=(_iqPrinters||[]).find(x=>x.id===id); if(!p)return;
+  const name=prompt('Reference name (not shown to customers):',p.name); if(!name)return;
+  const build_x_mm=parseFloat(prompt('Build X (mm):',p.build_x_mm));
+  const build_y_mm=parseFloat(prompt('Build Y (mm):',p.build_y_mm));
+  const build_z_mm=parseFloat(prompt('Build Z (mm):',p.build_z_mm));
+  if(!build_x_mm||!build_y_mm||!build_z_mm){toast('All build dimensions are required','error');return}
+  const{error}=await sb.from('instant_quote_printers').update({name,build_x_mm,build_y_mm,build_z_mm}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return}
+  toast('Build size updated','success');
+  loadIqPrinters();
 }
 
 // ══════════════ DAILY QUICK-LOG STRIP (landing tab) ══════════════
