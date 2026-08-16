@@ -8525,11 +8525,24 @@ async function confirmIqOrder(orderId){
   }catch(e){toast('Error: '+(e.message||e),'error');}
 }
 
+// Edit mode swaps a single row's cells for inputs in place (id of the row currently
+// being edited, per table — null when none). Only one row per table can be in edit
+// mode at a time, same "one open at a time" idiom as the Quick-Log strip.
+let _iqEditMaterial=null,_iqEditColor=null,_iqEditPrinter=null;
+const IQ_MATERIAL_GROUPS=['Regular','Good Strength','Outdoor & Durable','Top Strength','Flexible'];
+const _iqRowActionBtns=(onEdit)=>'<button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="'+onEdit+'" title="Edit" style="padding:3px 6px">'+ICO_EDIT+'</button>';
+const _iqSaveCancelBtns=(onSave,onCancel)=>'<button class="btn btn-icon-tint btn-icon-accept btn-sm" onclick="'+onSave+'" title="Save" style="padding:3px 6px">'+ICO_ACCEPT+'</button> <button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="'+onCancel+'" title="Cancel" style="padding:3px 6px">'+ICO_CLOSE+'</button>';
+
 async function loadIqMaterials(){
   const{data,error}=await sb.from('instant_quote_materials').select('*').order('sort_order');
   if(error){document.getElementById('iqMaterialsBody').innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">Error loading materials</div></td></tr>';return}
   _iqMaterials=data||[];
+  renderIqMaterialsRows();
+  renderIqKpi();
+}
+function renderIqMaterialsRows(){
   document.getElementById('iqMaterialsBody').innerHTML=(_iqMaterials.length?_iqMaterials:[]).map(m=>
+    m.id===_iqEditMaterial?_iqMaterialEditRow(m):
     '<tr>'
     +'<td data-label="Name">'+esc(m.name)+'</td>'
     +'<td data-label="Group">'+esc(m.material_group||'')+'</td>'
@@ -8538,40 +8551,118 @@ async function loadIqMaterials(){
     +'<td data-label="₹/gram">₹'+Number(m.cost_per_gram_public).toFixed(2)+'</td>'
     +'<td data-label="Default"><button class="btn btn-ghost btn-sm" onclick="setIqDefault(\'instant_quote_materials\',\''+m.id+'\',\'loadIqMaterials\')">'+(m.is_default?'★ Default':'Set default')+'</button></td>'
     +'<td data-label="Active"><button class="btn btn-ghost btn-sm" onclick="toggleIqActive(\'instant_quote_materials\',\''+m.id+'\','+(!m.active)+',\'loadIqMaterials\')">'+(m.active?'Active':'Inactive')+'</button></td>'
-    +'<td data-label="Edit"><button class="btn btn-ghost btn-sm" onclick="editIqMaterial(\''+m.id+'\')">Edit</button></td>'
+    +'<td data-label="Edit">'+_iqRowActionBtns("startEditIqMaterial('"+m.id+"')")+'</td>'
     +'</tr>'
   ).join('')||'<tr><td colspan="8" class="empty"><div class="em-text">No materials yet.</div></td></tr>';
-  renderIqKpi();
+}
+function _iqMaterialEditRow(m){
+  return '<tr>'
+    +'<td data-label="Name"><input type="text" id="iqmEditName" value="'+esc(m.name)+'" style="width:100%"></td>'
+    +'<td data-label="Group"><select id="iqmEditGroup" style="width:100%">'+IQ_MATERIAL_GROUPS.map(g=>'<option value="'+esc(g)+'"'+(g===(m.material_group||'Regular')?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select></td>'
+    +'<td data-label="Limited colors"><input type="text" id="iqmEditColors" value="'+esc((m.limited_colors||[]).join(', '))+'" placeholder="blank = all colors" style="width:100%"></td>'
+    +'<td data-label="Density"><input type="number" id="iqmEditDensity" value="'+m.density_g_cm3+'" step="0.01" style="width:80px"></td>'
+    +'<td data-label="₹/gram"><input type="number" id="iqmEditPrice" value="'+m.cost_per_gram_public+'" step="0.01" style="width:80px"></td>'
+    +'<td data-label="Default"><button class="btn btn-ghost btn-sm" onclick="setIqDefault(\'instant_quote_materials\',\''+m.id+'\',\'loadIqMaterials\')">'+(m.is_default?'★ Default':'Set default')+'</button></td>'
+    +'<td data-label="Active"><button class="btn btn-ghost btn-sm" onclick="toggleIqActive(\'instant_quote_materials\',\''+m.id+'\','+(!m.active)+',\'loadIqMaterials\')">'+(m.active?'Active':'Inactive')+'</button></td>'
+    +'<td data-label="Edit">'+_iqSaveCancelBtns("saveEditIqMaterial('"+m.id+"')","cancelEditIqMaterial()")+'</td>'
+    +'</tr>';
+}
+function startEditIqMaterial(id){ _iqEditMaterial=id; renderIqMaterialsRows(); }
+function cancelEditIqMaterial(){ _iqEditMaterial=null; renderIqMaterialsRows(); }
+async function saveEditIqMaterial(id){
+  const name=document.getElementById('iqmEditName').value.trim(); if(!name){toast('Material name is required','error');return}
+  const material_group=document.getElementById('iqmEditGroup').value;
+  const density_g_cm3=parseFloat(document.getElementById('iqmEditDensity').value);
+  const cost_per_gram_public=parseFloat(document.getElementById('iqmEditPrice').value);
+  if(!density_g_cm3||!cost_per_gram_public){toast('Density and price per gram are required','error');return}
+  const limitedRaw=document.getElementById('iqmEditColors').value;
+  const limited_colors=limitedRaw&&limitedRaw.trim()?limitedRaw.split(',').map(s=>s.trim()).filter(Boolean):null;
+  const{error}=await sb.from('instant_quote_materials').update({name,filament_type:name,material_group,density_g_cm3,cost_per_gram_public,limited_colors}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return}
+  toast('Material updated','success');
+  _iqEditMaterial=null;
+  loadIqMaterials();
 }
 
 async function loadIqColors(){
   const{data,error}=await sb.from('instant_quote_colors').select('*').order('sort_order');
   if(error){document.getElementById('iqColorsBody').innerHTML='<tr><td colspan="5" class="empty"><div class="em-text">Error loading colors</div></td></tr>';return}
   _iqColors=data||[];
+  renderIqColorsRows();
+}
+function renderIqColorsRows(){
   document.getElementById('iqColorsBody').innerHTML=(_iqColors.length?_iqColors:[]).map(c=>
+    c.id===_iqEditColor?_iqColorEditRow(c):
     '<tr>'
     +'<td data-label="Color"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:'+esc(c.hex)+';vertical-align:-2px;margin-right:6px;border:1px solid rgba(0,0,0,.15)"></span>'+esc(c.name)+'</td>'
     +'<td data-label="Hex" style="font-family:var(--mono);font-size:11px">'+esc(c.hex)+'</td>'
     +'<td data-label="Default"><button class="btn btn-ghost btn-sm" onclick="setIqDefault(\'instant_quote_colors\',\''+c.id+'\',\'loadIqColors\')">'+(c.is_default?'★ Default':'Set default')+'</button></td>'
     +'<td data-label="Active"><button class="btn btn-ghost btn-sm" onclick="toggleIqActive(\'instant_quote_colors\',\''+c.id+'\','+(!c.active)+',\'loadIqColors\')">'+(c.active?'Active':'Inactive')+'</button></td>'
-    +'<td data-label="Edit"><button class="btn btn-ghost btn-sm" onclick="editIqColor(\''+c.id+'\')">Edit</button></td>'
+    +'<td data-label="Edit">'+_iqRowActionBtns("startEditIqColor('"+c.id+"')")+'</td>'
     +'</tr>'
   ).join('')||'<tr><td colspan="5" class="empty"><div class="em-text">No colors yet.</div></td></tr>';
+}
+function _iqColorEditRow(c){
+  return '<tr>'
+    +'<td data-label="Color"><input type="text" id="iqcEditName" value="'+esc(c.name)+'" style="width:100%"></td>'
+    +'<td data-label="Hex"><input type="color" id="iqcEditHexPicker" value="'+esc(c.hex)+'" onchange="document.getElementById(\'iqcEditHex\').value=this.value" style="vertical-align:middle;margin-right:6px"><input type="text" id="iqcEditHex" value="'+esc(c.hex)+'" style="width:80px;font-family:var(--mono)"></td>'
+    +'<td data-label="Default"><button class="btn btn-ghost btn-sm" onclick="setIqDefault(\'instant_quote_colors\',\''+c.id+'\',\'loadIqColors\')">'+(c.is_default?'★ Default':'Set default')+'</button></td>'
+    +'<td data-label="Active"><button class="btn btn-ghost btn-sm" onclick="toggleIqActive(\'instant_quote_colors\',\''+c.id+'\','+(!c.active)+',\'loadIqColors\')">'+(c.active?'Active':'Inactive')+'</button></td>'
+    +'<td data-label="Edit">'+_iqSaveCancelBtns("saveEditIqColor('"+c.id+"')","cancelEditIqColor()")+'</td>'
+    +'</tr>';
+}
+function startEditIqColor(id){ _iqEditColor=id; renderIqColorsRows(); }
+function cancelEditIqColor(){ _iqEditColor=null; renderIqColorsRows(); }
+async function saveEditIqColor(id){
+  const name=document.getElementById('iqcEditName').value.trim(); if(!name){toast('Color name is required','error');return}
+  const hex=document.getElementById('iqcEditHex').value.trim(); if(!hex){toast('Hex code is required','error');return}
+  const{error}=await sb.from('instant_quote_colors').update({name,hex}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return}
+  toast('Color updated','success');
+  _iqEditColor=null;
+  loadIqColors();
 }
 
 async function loadIqPrinters(){
   const{data,error}=await sb.from('instant_quote_printers').select('*').order('sort_order');
   if(error){document.getElementById('iqPrintersBody').innerHTML='<tr><td colspan="5" class="empty"><div class="em-text">Error loading build sizes</div></td></tr>';return}
   _iqPrinters=data||[];
+  renderIqPrintersRows();
+}
+function renderIqPrintersRows(){
   document.getElementById('iqPrintersBody').innerHTML=(_iqPrinters.length?_iqPrinters:[]).map(p=>
+    p.id===_iqEditPrinter?_iqPrinterEditRow(p):
     '<tr>'
     +'<td data-label="Name">'+esc(p.name)+'</td>'
     +'<td data-label="Build volume">'+p.build_x_mm+' × '+p.build_y_mm+' × '+p.build_z_mm+'</td>'
     +'<td data-label="Default"><button class="btn btn-ghost btn-sm" onclick="setIqDefault(\'instant_quote_printers\',\''+p.id+'\',\'loadIqPrinters\')">'+(p.is_default?'★ Default':'Set default')+'</button></td>'
     +'<td data-label="Active"><button class="btn btn-ghost btn-sm" onclick="toggleIqActive(\'instant_quote_printers\',\''+p.id+'\','+(!p.active)+',\'loadIqPrinters\')">'+(p.active?'Active':'Inactive')+'</button></td>'
-    +'<td data-label="Edit"><button class="btn btn-ghost btn-sm" onclick="editIqPrinter(\''+p.id+'\')">Edit</button></td>'
+    +'<td data-label="Edit">'+_iqRowActionBtns("startEditIqPrinter('"+p.id+"')")+'</td>'
     +'</tr>'
   ).join('')||'<tr><td colspan="5" class="empty"><div class="em-text">No build sizes yet.</div></td></tr>';
+}
+function _iqPrinterEditRow(p){
+  return '<tr>'
+    +'<td data-label="Name"><input type="text" id="iqpEditName" value="'+esc(p.name)+'" style="width:100%"></td>'
+    +'<td data-label="Build volume"><div style="display:flex;gap:4px;align-items:center"><input type="number" id="iqpEditX" value="'+p.build_x_mm+'" style="width:60px">×<input type="number" id="iqpEditY" value="'+p.build_y_mm+'" style="width:60px">×<input type="number" id="iqpEditZ" value="'+p.build_z_mm+'" style="width:60px"></div></td>'
+    +'<td data-label="Default"><button class="btn btn-ghost btn-sm" onclick="setIqDefault(\'instant_quote_printers\',\''+p.id+'\',\'loadIqPrinters\')">'+(p.is_default?'★ Default':'Set default')+'</button></td>'
+    +'<td data-label="Active"><button class="btn btn-ghost btn-sm" onclick="toggleIqActive(\'instant_quote_printers\',\''+p.id+'\','+(!p.active)+',\'loadIqPrinters\')">'+(p.active?'Active':'Inactive')+'</button></td>'
+    +'<td data-label="Edit">'+_iqSaveCancelBtns("saveEditIqPrinter('"+p.id+"')","cancelEditIqPrinter()")+'</td>'
+    +'</tr>';
+}
+function startEditIqPrinter(id){ _iqEditPrinter=id; renderIqPrintersRows(); }
+function cancelEditIqPrinter(){ _iqEditPrinter=null; renderIqPrintersRows(); }
+async function saveEditIqPrinter(id){
+  const name=document.getElementById('iqpEditName').value.trim(); if(!name){toast('Reference name is required','error');return}
+  const build_x_mm=parseFloat(document.getElementById('iqpEditX').value);
+  const build_y_mm=parseFloat(document.getElementById('iqpEditY').value);
+  const build_z_mm=parseFloat(document.getElementById('iqpEditZ').value);
+  if(!build_x_mm||!build_y_mm||!build_z_mm){toast('All build dimensions are required','error');return}
+  const{error}=await sb.from('instant_quote_printers').update({name,build_x_mm,build_y_mm,build_z_mm}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return}
+  toast('Build size updated','success');
+  _iqEditPrinter=null;
+  loadIqPrinters();
 }
 
 async function toggleIqActive(table,id,newVal,reload){
@@ -8625,45 +8716,6 @@ async function addIqPrinter(){
   const{error}=await sb.from('instant_quote_printers').insert({name,build_x_mm,build_y_mm,build_z_mm});
   if(error){toast('Error: '+error.message,'error');return}
   toast('Build size added','success');
-  loadIqPrinters();
-}
-
-async function editIqMaterial(id){
-  const m=(_iqMaterials||[]).find(x=>x.id===id); if(!m)return;
-  const name=prompt('Material name:',m.name); if(!name)return;
-  const filament_type=prompt('Filament type label:',m.filament_type||name)||name;
-  const material_group=prompt('Group shown to customers (Regular / Good Strength / Outdoor & Durable / Top Strength / Flexible):',m.material_group||'Regular')||'Regular';
-  const density_g_cm3=parseFloat(prompt('Density g/cm³:',m.density_g_cm3))||m.density_g_cm3;
-  const cost_per_gram_public=parseFloat(prompt('Public price per gram (₹):',m.cost_per_gram_public));
-  if(!cost_per_gram_public){toast('Price per gram is required','error');return}
-  const limitedRaw=prompt('Limit to specific colors? Comma-separated names, or leave blank for all colors:',(m.limited_colors||[]).join(', '));
-  const limited_colors=limitedRaw&&limitedRaw.trim()?limitedRaw.split(',').map(s=>s.trim()).filter(Boolean):null;
-  const{error}=await sb.from('instant_quote_materials').update({name,filament_type,material_group,density_g_cm3,cost_per_gram_public,limited_colors}).eq('id',id);
-  if(error){toast('Error: '+error.message,'error');return}
-  toast('Material updated','success');
-  loadIqMaterials();
-}
-
-async function editIqColor(id){
-  const c=(_iqColors||[]).find(x=>x.id===id); if(!c)return;
-  const name=prompt('Color name:',c.name); if(!name)return;
-  const hex=prompt('Hex code (e.g. #C4622A):',c.hex); if(!hex)return;
-  const{error}=await sb.from('instant_quote_colors').update({name,hex}).eq('id',id);
-  if(error){toast('Error: '+error.message,'error');return}
-  toast('Color updated','success');
-  loadIqColors();
-}
-
-async function editIqPrinter(id){
-  const p=(_iqPrinters||[]).find(x=>x.id===id); if(!p)return;
-  const name=prompt('Reference name (not shown to customers):',p.name); if(!name)return;
-  const build_x_mm=parseFloat(prompt('Build X (mm):',p.build_x_mm));
-  const build_y_mm=parseFloat(prompt('Build Y (mm):',p.build_y_mm));
-  const build_z_mm=parseFloat(prompt('Build Z (mm):',p.build_z_mm));
-  if(!build_x_mm||!build_y_mm||!build_z_mm){toast('All build dimensions are required','error');return}
-  const{error}=await sb.from('instant_quote_printers').update({name,build_x_mm,build_y_mm,build_z_mm}).eq('id',id);
-  if(error){toast('Error: '+error.message,'error');return}
-  toast('Build size updated','success');
   loadIqPrinters();
 }
 
