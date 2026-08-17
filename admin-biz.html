@@ -5438,7 +5438,7 @@ let _items=[];
 // Round Off auto-calculates every recalcTotals() unless the operator has typed into
 // qa_roundoff themselves this order, see recalcTotals().
 let _qaRoundoffManual=false;
-function blankItem(){ return {rowId:null,productId:null,name:'',variant:'',pricingMode:'piece',qty:1,rate:12,disc:0,discType:'amount',discPct:0,gst:0,cost:0,grams:0,waste:0,hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:'',spool:'',extraSpools:[],remarks:'',itemType:'product',spoolSaleId:null}; }
+function blankItem(){ return {rowId:null,productId:null,name:'',variant:'',pricingMode:'piece',qty:1,rate:12,disc:0,discType:'amount',discPct:0,gst:0,cost:0,grams:0,waste:0,hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:'',spool:'',extraSpools:[],remarks:'',itemType:'product',spoolSaleId:null,inclTotal:''}; }
 // Amount for one line: per-piece is qty × rate (unchanged); per-gram is
 // qty × totalGrams × rate, where totalGrams is this piece's own grams plus
 // every part's grams (parts live in extraSpools, each carrying its own label).
@@ -5758,7 +5758,7 @@ function renderItems(){
       <div class="r" data-label="Qty"><input type="number" min="1" value="${it.qty}" oninput="onItemNum(${i},'qty',this.value)"></div>
       <div class="r" data-label="Rate ₹">
         <input type="number" step="0.01" id="rate_${i}" value="${it.rate||''}" placeholder="12" title="${it.pricingMode==='gram'?'Price per gram, excluding GST':'Price per piece, excluding GST'}" oninput="onItemNum(${i},'rate',this.value)">
-        <input type="number" step="0.01" class="rate-incl-gst" placeholder="or ₹ incl. GST" title="Type this line's final amount (GST included) and the taxable rate above is worked out for you at ${it.gst||0}% GST" oninput="onItemInclTotal(${i},this.value)" style="margin-top:3px;width:100%;font-size:10px;padding:3px 5px;background:var(--bg-2);border:1px solid var(--border);border-radius:5px;color:var(--text-3)">
+        <input type="number" step="0.01" value="${it.inclTotal||''}" class="rate-incl-gst" placeholder="or ₹ incl. GST" title="Type this line's final amount (GST included) and the taxable rate above is worked out for you at ${it.gst||0}% GST" oninput="onItemInclTotal(${i},this.value)" style="margin-top:3px;width:100%;font-size:10px;padding:3px 5px;background:var(--bg-2);border:1px solid var(--border);border-radius:5px;color:var(--text-3)">
       </div>
       <div class="r" data-label="Disc ₹"><input type="number" step="0.01" value="${it.disc||''}" placeholder="0" oninput="onItemNum(${i},'disc',this.value)"></div>
       <div class="r" data-label="GST %"><select onchange="onItemNum(${i},'gst',this.value)">${[0,5,12,18,28].map(v=>`<option value="${v}"${v==it.gst?' selected':''}>${v}%</option>`).join('')}</select></div>
@@ -5887,6 +5887,7 @@ function onItemNum(i,f,v){
 // every downstream total (recalcTotals, save, invoice) stays untouched.
 function onItemInclTotal(i,v){
   const it=_items[i]; if(!it) return;
+  it.inclTotal=v;   // remembered on the item so it survives renderItems() re-renders, e.g. from other fields changing
   const total=parseFloat(v);
   if(!total){ return; }
   const units=it.pricingMode==='gram' ? (it.qty*itemTotalGrams(it)) : it.qty;
