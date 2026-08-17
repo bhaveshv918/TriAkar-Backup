@@ -1849,15 +1849,26 @@ html[data-theme="dark"] .biz-login{
         <!-- ── Notes, prints as "Special Instructions" on the Order Record, and
              optionally on the Invoice too if that's turned on in Document Settings;
              never shown on the customer Quotation, that has its own separate Terms
-             field. Same reusable-preset pattern as Quotation's Terms & Conditions,
-             one shared preset list (biz_tnc_presets) for any block of boilerplate
-             text you reuse across orders. -->
+             field. Preset dropdown here still pulls from every preset regardless of
+             doc_type, it's just a quick-insert for internal notes, not one of the
+             three per-document Terms & Conditions blocks below. -->
         <div class="form-group" style="margin-bottom:16px">
           <label>Notes <span style="font-weight:400;color:var(--text-3);font-size:10px">prints on Order Record, optionally Invoice too (Document Settings)</span></label>
           <div style="display:flex;gap:8px;margin-bottom:6px">
             <select id="qa_notes_preset" onchange="applyQaNotesPreset()" style="max-width:220px"><option value="">— insert a preset —</option></select>
           </div>
           <textarea id="qa_notes" rows="2" placeholder="Pick a preset above, or type your own" style="resize:vertical"></textarea>
+        </div>
+
+        <!-- ── Order Record's own Terms & Conditions, distinct from Notes above and
+             from Invoice/Quotation's T&C below, each of the three documents writes
+             and prints its own text, from its own preset list (doc_type='record'). -->
+        <div class="form-group qa-order-only" style="margin-bottom:16px">
+          <label>Terms &amp; Conditions <span style="font-weight:400;color:var(--text-3);font-size:10px">prints on Order Record (Document Settings)</span></label>
+          <div style="display:flex;gap:8px;margin-bottom:6px">
+            <select id="qa_rec_tnc_preset" onchange="applyQaRecTncPreset()" style="max-width:220px"><option value="">— insert a preset —</option></select>
+          </div>
+          <textarea id="qa_rec_terms" rows="3" style="resize:vertical" placeholder="Pick a preset above, or type your own"></textarea>
         </div>
 
         <!-- ── Invoice's own Terms & Conditions, same field/preset/print pattern as
@@ -3946,16 +3957,45 @@ html[data-theme="dark"] .biz-login{
       <div data-doc-tab="common" class="settings-grid-2col" style="max-width:1100px">
 
         <!-- Changes often (new preset every time a use-case comes up), top of the
-             page, in its own full-width row so the growing list has room. -->
+             page, in its own full-width row so the growing list has room. Three
+             independent Terms & Conditions preset lists, one per document, each
+             written and managed separately, with its own default (★) that
+             auto-fills a blank field the next time that document is started. The
+             internal Notes field (Add Order → Notes) still pulls from every
+             preset regardless of which of the three lists it's in, that's a
+             flat quick-insert, not one of these three documents. -->
         <details class="settings-card" open style="grid-column:1/-1">
-          <summary>Terms &amp; Notes Presets <span style="font-weight:400;text-transform:none;letter-spacing:0">— changes often</span></summary>
-          <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">Named reusable text blocks, insert one from a dropdown instead of retyping, manual override always still available. Same list feeds Quotation's Terms &amp; Conditions, the Invoice's own Terms &amp; Conditions, and Add Order's Notes field (which prints on the Order Record, and on the Invoice too if that's turned on above).</div>
-          <div style="display:grid;grid-template-columns:180px 1fr auto;gap:8px;margin-bottom:10px">
-            <input type="text" id="tnc_name" placeholder="Preset name">
-            <textarea id="tnc_text" rows="2" placeholder="Preset text" style="resize:vertical"></textarea>
-            <button class="btn btn-primary btn-sm" onclick="addTncPreset()">+ Add</button>
+          <summary>Terms &amp; Conditions Presets <span style="font-weight:400;text-transform:none;letter-spacing:0">— changes often</span></summary>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">Three separate lists, one per document, insert one from a dropdown instead of retyping (manual override always still available). Mark one per document as default (☆) to auto-fill a blank Terms &amp; Conditions field the next time that document is started.</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">
+            <div>
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:6px">Order Record</div>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+                <input type="text" id="tnc_name_record" placeholder="Preset name">
+                <textarea id="tnc_text_record" rows="2" placeholder="Preset text" style="resize:vertical"></textarea>
+                <button class="btn btn-primary btn-sm" onclick="addTncPreset('record')">+ Add</button>
+              </div>
+              <div id="tncPresetList_record"></div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:6px">Invoice</div>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+                <input type="text" id="tnc_name_invoice" placeholder="Preset name">
+                <textarea id="tnc_text_invoice" rows="2" placeholder="Preset text" style="resize:vertical"></textarea>
+                <button class="btn btn-primary btn-sm" onclick="addTncPreset('invoice')">+ Add</button>
+              </div>
+              <div id="tncPresetList_invoice"></div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:6px">Quotation</div>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+                <input type="text" id="tnc_name_quotation" placeholder="Preset name">
+                <textarea id="tnc_text_quotation" rows="2" placeholder="Preset text" style="resize:vertical"></textarea>
+                <button class="btn btn-primary btn-sm" onclick="addTncPreset('quotation')">+ Add</button>
+              </div>
+              <div id="tncPresetList_quotation"></div>
+            </div>
           </div>
-          <div id="tncPresetList"></div>
         </details>
 
         <!-- Also changes fairly often as the business evolves (rates, HSN per new
@@ -4227,7 +4267,7 @@ const DOC_FIELD_GROUPS=[
       ['Customer & Product',[['customer','Customer info'],['hsn','HSN'],['material','Material']]],
       ['Cost & Production',[['cost_price','Cost price'],['margin','Margin'],['designer_maker','Designer / maker'],['production_status','Production status'],['printer','Printer used'],['priority_flag','Priority flag']]],
       ['Shipping & Notes',[['courier_tracking','Courier + tracking'],['special_instructions','Special instructions'],['internal_notes','Internal notes']]],
-      ['Signature & Payment',[['signature','Signature / stamp'],['bank_details','Bank account details'],['upi_qr','UPI / bank QR']]],
+      ['Signature & Payment',[['signature','Signature / stamp'],['bank_details','Bank account details'],['upi_qr','UPI / bank QR'],['terms_notes','Terms & Conditions']]],
     ] },
   { key:'quotation', label:'Quotation', containerId:'bizDocQuotationFields', settingsKey:'doc_quotation_fields', groups:[
       ['Header & Identity',[['business_identity','Business name / address'],['gstin','Your GSTIN']]],
@@ -6023,6 +6063,7 @@ async function getOrderFields(){
     customer_gstin:g('qa_gstin'),
     notes:g('qa_notes'),
     terms_notes:g('qa_inv_terms'),
+    record_terms_notes:g('qa_rec_terms'),
     import_source:'manual',
     // Visible, editable field (qa_refdoc): auto-fills with the source quotation's
     // number when this order was opened via "Add to Order" from a quotation
@@ -6109,6 +6150,14 @@ function resetQuickAdd(){
   _qaIsGift=false;
   document.getElementById('qaGiftToggle')?.classList.remove('active');
   const giftHint=document.getElementById('qaGiftHint'); if(giftHint) giftHint.style.display='none';
+  // Auto-fill each Terms & Conditions field with that document's own default
+  // preset (if one's marked). Every edit flow (loadOrderForEdit, editQuotation,
+  // duplicateOrder) calls resetQuickAdd() first and then overwrites these with
+  // the real saved value right after, so defaulting here only ever actually
+  // sticks for a genuinely new order/quotation.
+  const recTa=document.getElementById('qa_rec_terms'); if(recTa) recTa.value=tncDefaultText('record');
+  const invTa=document.getElementById('qa_inv_terms'); if(invTa) invTa.value=tncDefaultText('invoice');
+  const qtTa=document.getElementById('qa_qt_terms'); if(qtTa) qtTa.value=tncDefaultText('quotation');
 }
 
 // ── Payment status pills (new-order flow) ────────────────────────────
@@ -6219,6 +6268,7 @@ async function setQaFormMode(mode){
   const saveBtn=document.getElementById('qaSaveBtn');
   renderQaNotesPresets();   // Notes field is visible in both Order and Quotation mode
   renderQaInvTncPresets();
+  renderQaRecTncPresets();
   if(mode==='quotation'){
     saveBtn && (saveBtn.innerHTML=_qaEditQuotationId?'💾 Update Quotation':'💾 Save Quotation');
     const numEl=document.getElementById('qa_qt_number'); if(numEl&&!numEl.value) numEl.value=await genQuotationNumber();
@@ -6228,6 +6278,9 @@ async function setQaFormMode(mode){
     if(saveBtn) saveBtn.innerHTML='💾 Save';
   }
 }
+// Three separate Terms & Conditions preset lists (doc_type='record'/'invoice'/
+// 'quotation'), each dropdown only ever offers presets written for that exact
+// document, so Order Record boilerplate never accidentally lands on an Invoice.
 function applyQaInvTncPreset(){
   const sel=document.getElementById('qa_inv_tnc_preset'); if(!sel||sel.value==='') return;
   const p=_tncPresets.find(x=>x.id===sel.value); if(!p) return;
@@ -6235,7 +6288,16 @@ function applyQaInvTncPreset(){
 }
 function renderQaInvTncPresets(){
   const sel=document.getElementById('qa_inv_tnc_preset'); if(!sel) return;
-  sel.innerHTML='<option value="">— insert a preset —</option>'+_tncPresets.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  sel.innerHTML='<option value="">— insert a preset —</option>'+_tncPresets.filter(p=>p.docType==='invoice').map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+}
+function applyQaRecTncPreset(){
+  const sel=document.getElementById('qa_rec_tnc_preset'); if(!sel||sel.value==='') return;
+  const p=_tncPresets.find(x=>x.id===sel.value); if(!p) return;
+  const ta=document.getElementById('qa_rec_terms'); if(ta) ta.value=p.text||'';
+}
+function renderQaRecTncPresets(){
+  const sel=document.getElementById('qa_rec_tnc_preset'); if(!sel) return;
+  sel.innerHTML='<option value="">— insert a preset —</option>'+_tncPresets.filter(p=>p.docType==='record').map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
 }
 function applyQaQtTncPreset(){
   const sel=document.getElementById('qa_qt_tnc_preset'); if(!sel||sel.value==='') return;
@@ -6244,12 +6306,11 @@ function applyQaQtTncPreset(){
 }
 function renderQaQtTncPresets(){
   const sel=document.getElementById('qa_qt_tnc_preset'); if(!sel) return;
-  sel.innerHTML='<option value="">— insert a preset —</option>'+_tncPresets.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  sel.innerHTML='<option value="">— insert a preset —</option>'+_tncPresets.filter(p=>p.docType==='quotation').map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
 }
-// Order Record / Invoice's Notes field, same preset-insert pattern and the same
-// shared preset list (biz_tnc_presets table) as Quotation's Terms & Conditions,
-// they're both just "a reusable block of text", no reason to keep two separate
-// lists an operator has to manage independently.
+// Order Record / Invoice's Notes field is still a flat, unscoped quick-insert
+// (every preset regardless of doc_type), it's internal notes, not one of the
+// three per-document Terms & Conditions blocks above.
 function applyQaNotesPreset(){
   const sel=document.getElementById('qa_notes_preset'); if(!sel||sel.value==='') return;
   const p=_tncPresets.find(x=>x.id===sel.value); if(!p) return;
@@ -6356,7 +6417,7 @@ function openAddOrderEdit(firstId){
   set('qa_packet',f.package_size); set('qa_cname',f.customer_name); set('qa_phone',f.customer_phone);
   set('qa_address',f.customer_address); set('qa_city',f.customer_city); set('qa_state',f.customer_state);
   set('qa_pin',f.customer_pincode); set('qa_country',f.customer_country||'India'); set('qa_gstin',f.customer_gstin); set('qa_notes',f.notes);
-  set('qa_inv_terms',f.terms_notes);
+  set('qa_inv_terms',f.terms_notes); set('qa_rec_terms',f.record_terms_notes);
   set('qa_platformfee', f.platform_fee||0); set('qa_shipping', f.shipping_fee||0); set('qa_porter', f.other_deductions||0);
   // Show exactly what was saved, not a freshly auto-calculated figure, an operator
   // who deliberately zeroed this out (or the order predates round-off entirely, an
@@ -7088,33 +7149,49 @@ async function genQuotationNumber(){
 // Terms & Notes presets, stored in the biz_tnc_presets Supabase table (was
 // localStorage-only, which meant presets lived in a single browser and were
 // gone for good the moment that browser's site data got cleared). _tncPresets
-// is an in-memory cache of {id,name,text}, loaded once in startApp() and
-// refreshed after every add/delete so the dropdowns stay in sync without a
-// round-trip on every render.
+// is an in-memory cache of {id,name,text,docType,isDefault}, loaded once in
+// startApp() and refreshed after every add/delete/default-toggle so the
+// dropdowns stay in sync without a round-trip on every render. Each preset
+// belongs to exactly one of the three documents (record/invoice/quotation),
+// see the doc_type column, so a name/text block written for one document never
+// shows up in another's "insert a preset" dropdown.
 let _tncPresets=[];
+const TNC_DOC_TYPES=[['record','Order Record'],['invoice','Invoice'],['quotation','Quotation']];
 async function loadTncPresetsCache(){
   const {data,error}=await sb.from('biz_tnc_presets').select('*').order('name');
   if(error){ _tncPresets=[]; return; }
-  _tncPresets=(data||[]).map(p=>({id:p.id,name:p.name,text:p.body}));
+  _tncPresets=(data||[]).map(p=>({id:p.id,name:p.name,text:p.body,docType:p.doc_type||'invoice',isDefault:!!p.is_default}));
 }
 function renderAllTncPresetDropdowns(){
   if(typeof renderQaNotesPresets==='function') renderQaNotesPresets();
   if(typeof renderQaInvTncPresets==='function') renderQaInvTncPresets();
+  if(typeof renderQaRecTncPresets==='function') renderQaRecTncPresets();
   if(typeof renderQaQtTncPresets==='function') renderQaQtTncPresets();
   if(typeof renderQtTncPresets==='function') renderQtTncPresets();
 }
+// One card per document, each with its own add-form, list and "set as default"
+// star, instead of the old single flat list.
 function loadTncPresets(){
-  const box=document.getElementById('tncPresetList'); if(!box) return;
-  box.innerHTML=_tncPresets.length?_tncPresets.map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)"><div><b style="font-size:12px">${esc(p.name)}</b><div style="font-size:11px;color:var(--text-3)">${esc((p.text||'').slice(0,80))}</div></div><button class="btn btn-danger btn-sm" onclick="deleteTncPreset('${p.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></div>`).join('')
-    :'<div style="font-size:12px;color:var(--text-3)">No presets yet</div>';
+  TNC_DOC_TYPES.forEach(([type])=>{
+    const box=document.getElementById('tncPresetList_'+type); if(!box) return;
+    const list=_tncPresets.filter(p=>p.docType===type);
+    box.innerHTML=list.length?list.map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+      <div><b style="font-size:12px">${esc(p.name)}</b>${p.isDefault?' <span class="badge" style="background:var(--accent-bg);color:var(--accent)">Default</span>':''}<div style="font-size:11px;color:var(--text-3)">${esc((p.text||'').slice(0,80))}</div></div>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        ${p.isDefault?'':`<button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="setDefaultTncPreset('${p.id}','${type}')" title="Set as default, auto-fills a blank ${esc(TNC_DOC_TYPES.find(t=>t[0]===type)[1])} field on a new order/quotation" style="padding:3px 6px">☆</button>`}
+        <button class="btn btn-danger btn-sm" onclick="deleteTncPreset('${p.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button>
+      </div>
+    </div>`).join('')
+      :'<div style="font-size:12px;color:var(--text-3)">No presets yet</div>';
+  });
 }
-async function addTncPreset(){
-  const name=(document.getElementById('tnc_name')?.value||'').trim();
-  const text=(document.getElementById('tnc_text')?.value||'').trim();
+async function addTncPreset(docType){
+  const name=(document.getElementById('tnc_name_'+docType)?.value||'').trim();
+  const text=(document.getElementById('tnc_text_'+docType)?.value||'').trim();
   if(!name||!text){ toast('Enter both a name and the terms text','error'); return; }
-  const {error}=await sb.from('biz_tnc_presets').insert({name,body:text});
+  const {error}=await sb.from('biz_tnc_presets').insert({name,body:text,doc_type:docType});
   if(error){ toast('Error: '+error.message,'error'); return; }
-  document.getElementById('tnc_name').value=''; document.getElementById('tnc_text').value='';
+  document.getElementById('tnc_name_'+docType).value=''; document.getElementById('tnc_text_'+docType).value='';
   await loadTncPresetsCache(); loadTncPresets(); renderAllTncPresetDropdowns(); toast('Preset added');
 }
 async function deleteTncPreset(id){
@@ -7122,9 +7199,24 @@ async function deleteTncPreset(id){
   if(error){ toast('Error: '+error.message,'error'); return; }
   await loadTncPresetsCache(); loadTncPresets(); renderAllTncPresetDropdowns();
 }
+// Only one default per doc_type (biz_tnc_presets_one_default_per_type partial
+// unique index is the real backstop), so unset any existing default in this
+// type first, then set the new one. Two writes, not atomic, but a brief window
+// with zero defaults for this type is harmless (worst case a new order/quotation
+// just doesn't get an auto-filled Terms & Conditions that one time).
+async function setDefaultTncPreset(id,docType){
+  await sb.from('biz_tnc_presets').update({is_default:false}).eq('doc_type',docType).eq('is_default',true);
+  const {error}=await sb.from('biz_tnc_presets').update({is_default:true}).eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  await loadTncPresetsCache(); loadTncPresets(); toast('Default preset updated');
+}
+function tncDefaultText(docType){
+  const p=_tncPresets.find(x=>x.docType===docType&&x.isDefault);
+  return p?(p.text||''):'';
+}
 function renderQtTncPresets(){
   const sel=document.getElementById('qt_tnc_preset'); if(!sel) return;
-  sel.innerHTML='<option value="">— insert a preset —</option>'+_tncPresets.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  sel.innerHTML='<option value="">— insert a preset —</option>'+_tncPresets.filter(p=>p.docType==='quotation').map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
 }
 function applyQtTncPreset(){
   const sel=document.getElementById('qt_tnc_preset'); if(!sel||sel.value==='') return;
@@ -7155,6 +7247,7 @@ async function showAddQuotation(){
   _quoteItems=[blankQuoteItem()];
   renderQuoteItems();
   renderQtTncPresets();
+  const termsTa=document.getElementById('qt_terms'); if(termsTa) termsTa.value=tncDefaultText('quotation');
   document.getElementById('quotationForm').style.display='block';
 }
 function closeQuotationForm(){ document.getElementById('quotationForm').style.display='none'; }
@@ -13950,11 +14043,15 @@ ${(()=>{
 })()}
 
 ${(()=>{
-  const showTerms=((isQuote&&docQuo('terms_notes'))||(!isQuote&&!isRecord&&docInv('terms_notes')))&&d.terms_notes;
+  // Each of the three documents prints its own Terms & Conditions text, from its
+  // own column: Order Record's record_terms_notes, Invoice/Quotation's shared
+  // terms_notes name but on different tables (biz_sales vs biz_quotations).
+  const termsText=isRecord?d.record_terms_notes:d.terms_notes;
+  const showTerms=(isRecord?docRec('terms_notes'):isQuote?docQuo('terms_notes'):docInv('terms_notes'))&&termsText;
   if(!showTerms) return '';
   return `<div class="terms-plain">
     <div class="info-lbl">Terms &amp; Conditions</div>
-    <div class="info-val" style="white-space:pre-wrap">${esc(d.terms_notes)}</div>
+    <div class="info-val" style="white-space:pre-wrap">${esc(termsText)}</div>
   </div>`;
 })()}
 
