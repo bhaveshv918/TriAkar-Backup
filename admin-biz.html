@@ -5691,7 +5691,10 @@ function renderItems(){
         </div>`:''}
       </div>
       <div class="r" data-label="Qty"><input type="number" min="1" value="${it.qty}" oninput="onItemNum(${i},'qty',this.value)"></div>
-      <div class="r" data-label="Rate ₹"><input type="number" step="0.01" value="${it.rate||''}" placeholder="12" title="${it.pricingMode==='gram'?'Price per gram, excluding GST':'Price per piece, excluding GST'}" oninput="onItemNum(${i},'rate',this.value)"></div>
+      <div class="r" data-label="Rate ₹">
+        <input type="number" step="0.01" id="rate_${i}" value="${it.rate||''}" placeholder="12" title="${it.pricingMode==='gram'?'Price per gram, excluding GST':'Price per piece, excluding GST'}" oninput="onItemNum(${i},'rate',this.value)">
+        <input type="number" step="0.01" class="rate-incl-gst" placeholder="or ₹ incl. GST" title="Type this line's final amount (GST included) and the taxable rate above is worked out for you at ${it.gst||0}% GST" oninput="onItemInclTotal(${i},this.value)" style="margin-top:3px;width:100%;font-size:10px;padding:3px 5px;background:var(--bg-2);border:1px solid var(--border);border-radius:5px;color:var(--text-3)">
+      </div>
       <div class="r" data-label="Disc ₹"><input type="number" step="0.01" value="${it.disc||''}" placeholder="0" oninput="onItemNum(${i},'disc',this.value)"></div>
       <div class="r" data-label="GST %"><select onchange="onItemNum(${i},'gst',this.value)">${[0,5,12,18,28].map(v=>`<option value="${v}"${v==it.gst?' selected':''}>${v}%</option>`).join('')}</select></div>
       <div class="r" data-label="HSN"><input type="text" value="${esc(it.hsn||'')}" placeholder="${esc((_bizDefaults&&_bizDefaults.hsn)||'3926')}" title="HSN/SAC code, prefilled from your default, edit per item as needed" oninput="_items[${i}].hsn=this.value"></div>
@@ -5810,6 +5813,25 @@ function onItemNum(i,f,v){
   if(el) el.innerHTML=`${fmt(itemAmount(_items[i]))}${_items[i].pricingMode==='gram'?`<div style="font-size:9px;color:var(--text-3);font-weight:400">${itemTotalGrams(_items[i])}g total</div>`:''}`;
   const costHint=document.getElementById('costHint_'+i);
   if(costHint) costHint.textContent=_items[i].cost?`= ${fmt(_items[i].qty*_items[i].cost)} total`:'';
+  recalcTotals();
+}
+// Reverse GST entry: operator types the line's final amount (GST included) instead
+// of the taxable rate, e.g. 1180 at 18% GST -> rate ₹1000, GST ₹180. Splits back out
+// using this row's own qty/GST%/pricing mode so it matches whatever itemAmount()
+// would compute forward, then writes the result into the normal Rate ₹ field so
+// every downstream total (recalcTotals, save, invoice) stays untouched.
+function onItemInclTotal(i,v){
+  const it=_items[i]; if(!it) return;
+  const total=parseFloat(v);
+  if(!total){ return; }
+  const units=it.pricingMode==='gram' ? (it.qty*itemTotalGrams(it)) : it.qty;
+  if(!units) return;
+  const taxableTotal=total/(1+((it.gst||0)/100));
+  it.rate=Math.round((taxableTotal/units)*100)/100;
+  const rateInput=document.getElementById('rate_'+i);
+  if(rateInput) rateInput.value=it.rate||'';
+  const el=document.getElementById('amt_'+i);
+  if(el) el.innerHTML=`${fmt(itemAmount(it))}${it.pricingMode==='gram'?`<div style="font-size:9px;color:var(--text-3);font-weight:400">${itemTotalGrams(it)}g total</div>`:''}`;
   recalcTotals();
 }
 function recalcTotals(){
