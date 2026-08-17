@@ -14070,8 +14070,13 @@ ${(()=>{
 ${(()=>{
   // Each of the three documents prints its own Terms & Conditions text, from its
   // own column: Order Record's record_terms_notes, Invoice/Quotation's shared
-  // terms_notes name but on different tables (biz_sales vs biz_quotations).
-  const termsText=isRecord?d.record_terms_notes:d.terms_notes;
+  // terms_notes name but on different tables (biz_sales vs biz_quotations). A
+  // record saved before this field existed (or one where it was just left
+  // blank) falls back to today's default preset for that document, live at
+  // print time, not a one-time DB backfill, so it always reflects whichever
+  // preset is currently marked default, even if that's changed since.
+  const termsDocType=isRecord?'record':isQuote?'quotation':'invoice';
+  const termsText=(isRecord?d.record_terms_notes:d.terms_notes)||(typeof tncDefaultText==='function'?tncDefaultText(termsDocType):'');
   const showTerms=(isRecord?docRec('terms_notes'):isQuote?docQuo('terms_notes'):docInv('terms_notes'))&&termsText;
   if(!showTerms) return '';
   return `<div class="terms-plain">
