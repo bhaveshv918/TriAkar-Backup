@@ -13187,8 +13187,8 @@ function nextDocNumber(){
 // the insert/update will still fail with a clear error at that point). Gap =
 // informational only, sequence gaps in an invoice series are normal and legal,
 // this is a heads-up, not a block.
-// period, e.g. '2026-27-AUG', scopes the dup/gap check to the current month instead of
-// the whole FY now that the sequence itself resets every month (see allocateInvoiceNumber).
+// period, e.g. '2026-27', scopes the dup/gap check to the current financial year
+// (see allocateInvoiceNumber, the sequence itself resets once a year, not monthly).
 async function checkInvoiceNumberIssues(candidateNumber, period, excludeId){
   const {data:periodRows}=await sb.from('biz_invoices').select('id,invoice_number').eq('period',period);
   const rows=(periodRows||[]).filter(r=>r.id!==excludeId);
@@ -13199,7 +13199,7 @@ async function checkInvoiceNumberIssues(candidateNumber, period, excludeId){
     const candidateSeq=parseInt(m[1],10);
     let maxSeq=0;
     rows.forEach(r=>{ const mm=(r.invoice_number||'').match(/(\d+)\s*$/); if(mm){ const s=parseInt(mm[1],10); if(s>maxSeq) maxSeq=s; } });
-    if(candidateSeq>maxSeq+1) gapMsg=`Skips ahead: last issued this month is #${maxSeq}, this would be #${candidateSeq}.`;
+    if(candidateSeq>maxSeq+1) gapMsg=`Skips ahead: last issued this year is #${maxSeq}, this would be #${candidateSeq}.`;
   }
   return {isDup, gapMsg};
 }
@@ -13207,11 +13207,10 @@ async function allocateInvoiceNumber(saleId, orderId, docKind, manualNumber){
   try{
     const now=new Date(), fyStartYear=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
     const fy=`${fyStartYear}-${String((fyStartYear+1)%100).padStart(2,'0')}`;
-    // Monthly reset: the counter/dup-check key includes the month, so a fresh month
-    // gets a fresh row in biz_invoice_counters (UPSERT creates it starting at 1)
-    // instead of continuing the FY-wide sequence.
-    const mmm=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][now.getMonth()];
-    const period=`${fy}-${mmm}`;
+    // FY-wide series, e.g. TRK-2627-003: resets once a year (1st April), not monthly.
+    // period is just the FY itself now, no month suffix, so the sequence carries on
+    // across the whole year instead of restarting every month.
+    const period=fy;
     // order_id checked FIRST and is the one that sticks: it's stable across every
     // reprint of a multi-item order, whereas saleId is just whichever line item's
     // row happens to be items[0] this time (shifts if items were added/removed/
@@ -13231,7 +13230,7 @@ async function allocateInvoiceNumber(saleId, orderId, docKind, manualNumber){
     let useManual=!!manualNumber;
     if(manualNumber){
       const {isDup,gapMsg}=await checkInvoiceNumberIssues(manualNumber,period,null);
-      if(isDup&&!confirm(`"${manualNumber}" is already used by another invoice this month. Use it anyway?`)) useManual=false;   // fall through to the sequential number instead
+      if(isDup&&!confirm(`"${manualNumber}" is already used by another invoice this financial year. Use it anyway?`)) useManual=false;   // fall through to the sequential number instead
       else if(gapMsg) toast('Invoice number: '+gapMsg,'error');
     }
     if(useManual){
@@ -13253,9 +13252,10 @@ async function allocateInvoiceNumber(saleId, orderId, docKind, manualNumber){
       const {data:periodRows}=await sb.from('biz_invoices').select('invoice_number').eq('period',period);
       let maxSeq=0;
       (periodRows||[]).forEach(r=>{ const m=(r.invoice_number||'').match(/(\d+)\s*$/); if(m){ const s=parseInt(m[1],10); if(s>maxSeq) maxSeq=s; } });
-      // TRK/2026-27/AUG/01, 2-digit padding. padStart is a no-op once seq reaches
-      // 100+, so it naturally extends past 99 without any special-casing needed.
-      const num=`TRK/${fy}/${mmm}/${String(maxSeq+1).padStart(2,'0')}`;
+      // TRK-2627-003, FY as 4 digits (26+27) then a 3-digit sequence. padStart is a
+      // no-op once seq reaches 1000+, so it naturally extends without special-casing.
+      const fyShort=`${String(fyStartYear).slice(-2)}${String((fyStartYear+1)%100).padStart(2,'0')}`;
+      const num=`TRK-${fyShort}-${String(maxSeq+1).padStart(3,'0')}`;
       const {error:insErr}=await sb.from('biz_invoices').insert({invoice_number:num,financial_year:fy,period,sale_id:saleId||null,order_id:orderId||null,doc_kind:docKind});
       if(!insErr) return num;
       const isCollision=insErr.code==='23505'||/duplicate|unique/i.test(insErr.message||'');
