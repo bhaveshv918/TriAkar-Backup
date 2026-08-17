@@ -7171,17 +7171,31 @@ function renderAllTncPresetDropdowns(){
 }
 // One card per document, each with its own add-form, list and "set as default"
 // star, instead of the old single flat list.
+// Preset text is truncated to 80 chars in the list by default, the eye icon
+// toggles a given preset open to its full text in place (no separate modal).
+let _tncExpandedIds=new Set();
+function toggleTncPresetView(id){
+  if(_tncExpandedIds.has(id)) _tncExpandedIds.delete(id); else _tncExpandedIds.add(id);
+  loadTncPresets();
+}
 function loadTncPresets(){
   TNC_DOC_TYPES.forEach(([type])=>{
     const box=document.getElementById('tncPresetList_'+type); if(!box) return;
     const list=_tncPresets.filter(p=>p.docType===type);
-    box.innerHTML=list.length?list.map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
-      <div><b style="font-size:12px">${esc(p.name)}</b>${p.isDefault?' <span class="badge" style="background:var(--accent-bg);color:var(--accent)">Default</span>':''}<div style="font-size:11px;color:var(--text-3)">${esc((p.text||'').slice(0,80))}</div></div>
+    box.innerHTML=list.length?list.map(p=>{
+      const full=p.text||'';
+      const isLong=full.length>80;
+      const expanded=_tncExpandedIds.has(p.id);
+      const shownText=expanded?full:full.slice(0,80)+(isLong?'…':'');
+      return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+      <div style="min-width:0"><b style="font-size:12px">${esc(p.name)}</b>${p.isDefault?' <span class="badge" style="background:var(--accent-bg);color:var(--accent)">Default</span>':''}<div style="font-size:11px;color:var(--text-3);white-space:${expanded?'pre-wrap':'normal'}">${esc(shownText)}</div></div>
       <div style="display:flex;gap:4px;flex-shrink:0">
+        ${isLong?`<button class="btn btn-icon-tint btn-icon-doc btn-sm" onclick="toggleTncPresetView('${p.id}')" title="${expanded?'Collapse':'View full text'}" style="padding:3px 6px">${expanded?ICO_EYE_OFF:ICO_VIEW}</button>`:''}
         ${p.isDefault?'':`<button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="setDefaultTncPreset('${p.id}','${type}')" title="Set as default, auto-fills a blank ${esc(TNC_DOC_TYPES.find(t=>t[0]===type)[1])} field on a new order/quotation" style="padding:3px 6px">☆</button>`}
         <button class="btn btn-danger btn-sm" onclick="deleteTncPreset('${p.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button>
       </div>
-    </div>`).join('')
+    </div>`;
+    }).join('')
       :'<div style="font-size:12px;color:var(--text-3)">No presets yet</div>';
   });
 }
