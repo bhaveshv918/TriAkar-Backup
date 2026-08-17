@@ -2778,8 +2778,8 @@ html[data-theme="dark"] .biz-login{
           <div id="cmAcctSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:10px"></div>
           <div class="tbl-wrap" style="max-height:300px;overflow-y:auto">
             <table>
-              <thead><tr><th>Date</th><th>Event</th><th>Detail</th><th class="td-num">Amount</th><th></th></tr></thead>
-              <tbody id="cmOrdersBody"><tr><td colspan="5" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+              <thead><tr><th>Date</th><th>Event</th><th>Detail</th><th class="td-num">Amount</th><th class="td-num">Balance</th><th></th></tr></thead>
+              <tbody id="cmOrdersBody"><tr><td colspan="6" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
             </table>
           </div>
         </div>
@@ -7858,7 +7858,7 @@ async function loadCustomerHistory(c){
   }
   const {data,error}=await sb.from('biz_sales').select('id,order_id,order_date,channel_id,product_name,sku,selling_price,round_off,status,qty')
     .eq('is_deleted',false).ilike('customer_name',name).order('order_date',{ascending:false}).limit(200);
-  if(error||!data||!data.length){ body.innerHTML='<tr><td colspan="5" class="empty"><div class="em-text">No orders found</div></td></tr>'; if(countEl) countEl.textContent=''; return; }
+  if(error||!data||!data.length){ body.innerHTML='<tr><td colspan="6" class="empty"><div class="em-text">No orders found</div></td></tr>'; if(countEl) countEl.textContent=''; return; }
   const gmap={},groups=[];
   data.forEach(s=>{ const k=s.order_id?('o:'+s.order_id):('r:'+s.id); if(!gmap[k]){gmap[k]={items:[]};groups.push(gmap[k]);} gmap[k].items.push(s); });
   if(countEl) countEl.textContent='('+groups.length+' order'+(groups.length===1?'':'s')+')';
@@ -7869,25 +7869,34 @@ async function loadCustomerHistory(c){
   groups.forEach(g=>{
     const f=g.items[0], total=g.items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0)+(parseFloat(f.round_off)||0);
     const more=g.items.length>1?` +${g.items.length-1} more`:'';
-    events.push({date:f.order_date,type:'order',sortKey:f.order_date+' 0',row:`<tr style="cursor:pointer" onclick="closeCustomerModal();jumpToOrderDetail('${f.id}')">
+    events.push({date:f.order_date,type:'order',sortKey:f.order_date+' 0',balanceDelta:total,build:bal=>`<tr style="cursor:pointer" onclick="closeCustomerModal();jumpToOrderDetail('${f.id}')">
       <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(f.order_date)}</td>
       <td><span class="badge" style="background:var(--accent-bg);color:var(--accent)">Order</span></td>
       <td>${chHtml(f.channel_id)} ${esc(f.sku||f.product_name||'—')}${more}${f.order_id?orderIdTag(f.order_id,{size:'10px'}):''}</td>
       <td class="td-num">${fmt(total)}</td>
+      <td class="td-num" style="font-family:var(--mono);color:${bal>0.005?'var(--red)':'var(--text-3)'}" title="Balance due after this transaction">${fmt(bal)}</td>
       <td><span class="badge badge-${f.status}">${STATUS_LABEL?.[f.status]||f.status}</span></td>
     </tr>`});
   });
   payRows.forEach(p=>{
-    events.push({date:p.payment_date,type:'payment',sortKey:p.payment_date+' 1',row:`<tr>
+    events.push({date:p.payment_date,type:'payment',sortKey:p.payment_date+' 1',balanceDelta:-(parseFloat(p.amount)||0),build:bal=>`<tr>
       <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(p.payment_date)}</td>
       <td><span class="badge" style="background:var(--green-bg);color:var(--green)">Payment</span></td>
       <td>${esc(p.source||'—')}${p.notes?' · '+esc(p.notes):''}${orderIdTag(p.order_id,{size:'10px'})}</td>
       <td class="td-num" style="color:var(--green)">+${fmt(p.amount)}</td>
+      <td class="td-num" style="font-family:var(--mono);color:${bal>0.005?'var(--red)':'var(--text-3)'}" title="Balance due after this transaction">${fmt(bal)}</td>
       <td></td>
     </tr>`});
   });
+  // Running balance ("kitna balance bacha tha" after each transaction), computed
+  // oldest-first (orders add to what's owed, payments reduce it), then re-sorted
+  // back to newest-first for display, each row keeps the balance as it stood right
+  // after that transaction happened, not today's balance repeated on every row.
+  events.sort((a,b)=>a.sortKey.localeCompare(b.sortKey));
+  let running=0;
+  events.forEach(e=>{ running+=e.balanceDelta; e.balanceAfter=Math.round(running*100)/100; });
   events.sort((a,b)=>b.sortKey.localeCompare(a.sortKey));
-  body.innerHTML=events.length?events.map(e=>e.row).join(''):'<tr><td colspan="5" class="empty"><div class="em-text">No orders found</div></td></tr>';
+  body.innerHTML=events.length?events.map(e=>e.build(e.balanceAfter)).join(''):'<tr><td colspan="6" class="empty"><div class="em-text">No orders found</div></td></tr>';
 }
 function closeCustomerModal(){ const m=document.getElementById('customerModal'); if(m) m.style.display='none'; }
 async function saveCustomer(){
