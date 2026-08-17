@@ -5206,7 +5206,18 @@ function switchTab(name){
     quickadd:()=>{
       if(typeof renderQaNotesPresets==='function') renderQaNotesPresets();
       if(typeof renderQaInvTncPresets==='function') renderQaInvTncPresets();
+      if(typeof renderQaRecTncPresets==='function') renderQaRecTncPresets();
       if(typeof _qaFormMode!=='undefined'&&_qaFormMode==='quotation'&&typeof renderQaQtTncPresets==='function') renderQaQtTncPresets();
+      // The "+ Add Order" nav button lands here directly (no resetQuickAdd() call,
+      // that only runs from inside edit/duplicate/new-quotation flows), so a
+      // genuinely fresh visit never got its default Terms & Conditions text.
+      // Only fills blank fields, and only in 'new' mode, so it never clobbers an
+      // in-progress edit/duplicate/from-quotation load.
+      if(_qaMode==='new'&&typeof tncDefaultText==='function'){
+        const recTa=document.getElementById('qa_rec_terms'); if(recTa&&!recTa.value) recTa.value=tncDefaultText('record');
+        const invTa=document.getElementById('qa_inv_terms'); if(invTa&&!invTa.value) invTa.value=tncDefaultText('invoice');
+        const qtTa=document.getElementById('qa_qt_terms'); if(qtTa&&!qtTa.value) qtTa.value=tncDefaultText('quotation');
+      }
     },
   };
   if(loaders[name]) loaders[name]();
