@@ -1736,6 +1736,7 @@ html[data-theme="dark"] .biz-login{
                 <option value="online">Online / Prepaid</option><option value="other">Other</option>
               </select>
             </div>
+            <div class="form-group"><label>Payment Due Date <span style="font-weight:400;color:var(--text-3);font-size:10px">when the balance is expected</span></label><input type="date" id="qaPayDueDate"></div>
           </div>
           <button type="button" class="btn btn-secondary btn-sm" id="qaAddPaymentBtn" onclick="addPaymentInstallment()" style="display:none">+ Add Payment</button>
           <div id="qaPayNewHint" style="font-size:11px;color:var(--text-3)">This payment logs automatically when you save the order.</div>
@@ -5986,6 +5987,7 @@ async function getOrderFields(){
     order_date:g('qa_date')||today(),
     delivery_date:g('qa_delivery_date'),
     dispatch_date:g('qa_dispatch_date'),
+    payment_due_date:g('qaPayDueDate'),
     order_id:manualOrderId||await ensureUniqueOrderId(),
     // Payment Mode used to be its own top-of-form dropdown, duplicating the Source/Mode
     // picked lower down in the Payment section, now it's just read from there directly.
@@ -6329,6 +6331,7 @@ function openAddOrderEdit(firstId){
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
   set('qa_channel',f.channel_id||'shop'); set('qa_date',f.order_date); set('qa_delivery_date',f.delivery_date);
   set('qa_dispatch_date',f.dispatch_date); set('qa_orderid',f.order_id); set('qaPaySource',f.payment_mode);
+  set('qaPayDueDate',f.payment_due_date);
   if(typeof setQaStatus==='function') setQaStatus(f.status||'pending');
   if(typeof setLeadSource==='function') setLeadSource(f.lead_source||'');
   let fulfilChip='delivery';
@@ -13460,8 +13463,13 @@ async function printInvoice(d, type, docKind, win){
   const docNo=isRecord?(d.order_id||nextDocNumber()):isQuote?(d.quotation_number||await genQuotationNumber()):await allocateInvoiceNumber(d.id||d.sale_id||null, d.order_id||null, docKind||'invoice', (d.invoice_no||'').trim()||null);
   if(!docNo){ if(win) win.close(); return; } // allocateInvoiceNumber already toasted the reason
   const docDate=d.order_date||today();
-  const dueDateObj=new Date(docDate+'T00:00:00'); dueDateObj.setDate(dueDateObj.getDate()+DUE_DAYS);
-  const dueDateStr=dueDateObj.toISOString().slice(0,10);
+  // A due date picked on the order (Add Order → Payment → "Payment Due Date")
+  // always wins over the generic Order Date + global Due Days fallback below.
+  let dueDateStr=d.payment_due_date||null;
+  if(!dueDateStr){
+    const dueDateObj=new Date(docDate+'T00:00:00'); dueDateObj.setDate(dueDateObj.getDate()+DUE_DAYS);
+    dueDateStr=dueDateObj.toISOString().slice(0,10);
+  }
   // Only the first line of a multi-item order carries round_off (buildSaleRowsWithIds
   // stores it once, like platform_fee/shipping_fee), so read it off d directly rather
   // than summing across items.
