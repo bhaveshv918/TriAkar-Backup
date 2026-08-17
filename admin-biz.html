@@ -7105,6 +7105,7 @@ async function loadQuotations(){
         ${convertible?`<button class="btn btn-icon-tint btn-icon-order btn-sm" onclick="openAddOrderFromQuotation('${q.id}')" title="Add to Order, opens the Add Order page pre-filled from this quotation" style="gap:5px">${ICO_ORDER} Order</button>`:''}
         ${convertible?`<button class="btn btn-icon-tint btn-icon-accept btn-sm" onclick="acceptQuotation('${q.id}')" title="Accept">${ICO_ACCEPT}</button>`:''}
         ${convertible?`<button class="btn btn-icon-tint btn-icon-invoice btn-sm" onclick="makeInvoiceFromQuotation('${q.id}')" title="Make Invoice, creates the order from this quotation and generates its invoice right away">${ICO_INVOICE}</button>`:''}
+        ${(!convertible&&q.converted_order_id)?`<button class="btn btn-icon-tint btn-icon-invoice btn-sm" onclick="viewLoggedInvoice('${q.converted_order_id}',null,'invoice')" title="Open the Invoice for the order this quotation became" style="gap:5px">${ICO_INVOICE} Invoice</button>`:''}
         <button class="btn btn-icon-tint btn-icon-duplicate btn-sm" onclick="duplicateQuotation('${q.id}')" title="Duplicate, opens as a new quotation you can edit before saving">${ICO_DUPLICATE}</button>
         <button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="editQuotation('${q.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button>
       </td>
@@ -7468,7 +7469,11 @@ async function quotationSaleRows(q){
       customer_name:q.customer_name||null, customer_phone:q.customer_phone||null, customer_address:q.customer_address||null,
       customer_city:q.customer_city||null, customer_state:q.customer_state||null, customer_pincode:q.customer_pincode||null,
       customer_country:q.customer_country||'India', customer_gstin:q.customer_gstin||null,
-      notes:null, terms_notes:q.terms_notes||null, import_source:'manual', order_time:orderTime,
+      // Never carry the Quotation's own Terms & Conditions text into the resulting
+      // order's Invoice terms_notes, they're two separate documents with two
+      // separate preset lists now. Left blank here, printInvoice() falls back to
+      // Invoice's own default preset at print time.
+      notes:null, terms_notes:null, record_terms_notes:null, import_source:'manual', order_time:orderTime,
       reference_document:q.quotation_number||null,
       product_id:null, spool_id:null, item_type:'product', spool_sale_id:null,
       product_name:it.name||'—', variant:it.variant||null, sku:null, hsn_code:it.hsn||null,
