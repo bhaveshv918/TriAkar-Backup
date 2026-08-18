@@ -683,16 +683,10 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
      one), so the toast container's clearance is a precise match, not a guess. */
   #toastContainer{top:64px;left:12px;right:12px;max-width:none}
 
-  /* Add Order's top-right icon pair sat at top:14px, which on mobile falls inside
-     the fixed 52px .biz-topbar (z-index:240, above the icons' 150), completely
-     hiding them behind it. Push below the topbar instead. !important: the
-     unconditional .qa-fixed-icons{top:14px} rule lives later in the stylesheet
-     (premium visual upgrade section), so on a tied specificity it wins over this
-     media query by source order alone without it. */
-  .qa-fixed-icons{top:64px!important}
-  /* 36px falls under the 44px thumb-target minimum this project's mobile-first
-     guidance calls for; desktop keeps 36px (mouse precision, no such minimum). */
-  .qa-icon-btn{width:44px!important;height:44px!important;font-size:17px!important}
+  /* Add Order's fixed bottom bar spans full width on mobile (sidebar is an
+     overlay drawer here, not a layout column) and clears the home-bar safe area. */
+  .qa-fixed-bottom-bar{left:0!important}
+  .qa-fixed-bottom-btn{min-height:44px;font-size:13px!important}
 
   /* Sidebar → slide-in drawer below the top bar */
   .sidebar{
@@ -792,27 +786,22 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
   #orderDetailModal>div,#editSaleModal>div,#recycleBinModal>div,#customerModal>div{margin:0;max-width:100%!important}
 
 }
-/* Add Order: fixed Save/Cancel pairs, top-right icons + bottom full-text, both stay
-   put across every screen size while the long form scrolls underneath them. */
-.qa-fixed-icons{position:fixed;top:14px;right:16px;z-index:150;display:flex;gap:8px}
-.qa-icon-btn{width:36px;height:36px;padding:0;border-radius:50%;display:flex;align-items:center;
-  justify-content:center;font-size:15px;line-height:1;border:1px solid var(--border);
-  background:var(--bg-1);color:var(--text);cursor:pointer;box-shadow:0 4px 14px rgba(16,32,24,.20)}
-.qa-icon-btn-accent{background:var(--accent);border-color:var(--accent);color:#fff}
-/* Deliberately NOT fixed or sticky. The form's content (2000px+) is always far
-   taller than the visible pane, so a bar that must stay reachable throughout the
-   whole scroll unavoidably overlaps whatever section currently sits at the bottom
-   of the viewport (the Items row, right from first load, no scrolling needed to
-   trigger it) — tried fixed, tried sticky, both hit this because it's a property
-   of "always visible during scroll" on a tall form, not a CSS bug. The top-right
-   icon pair (.qa-fixed-icons, genuinely fixed, but tucked in the header margin
-   where there's never form content) already covers "reachable while scrolling"
-   with zero overlap risk. This bottom bar's job is just to look like a proper
-   closing action footer once you reach the real end of the form. */
-.qa-fixed-bottom-bar{margin-top:20px;padding:16px 20px;border-radius:var(--radius);
-  display:flex;justify-content:flex-end;gap:8px;
-  background:var(--bg-1);border:1px solid var(--border);box-shadow:0 4px 16px rgba(16,32,24,.08)}
-.qa-fixed-bottom-btn{border-radius:24px!important;padding:12px 20px!important}
+/* Add Order: Save/Cancel pinned to the bottom of the viewport, always reachable
+   while the long form scrolls underneath, instead of the old top-right icon pair.
+   left offset matches the sidebar column so the bar never sits under it on desktop;
+   the mobile media query above overrides this to left:0 since the sidebar is an
+   overlay drawer there, not a layout column. */
+.qa-fixed-bottom-bar{position:fixed;left:var(--sidebar-w);right:0;bottom:0;z-index:180;
+  padding:14px 24px calc(14px + env(safe-area-inset-bottom,0px));
+  display:flex;justify-content:flex-end;align-items:center;gap:10px;
+  background:var(--bg-1);border-top:1px solid var(--border);box-shadow:0 -4px 16px rgba(16,32,24,.08)}
+.shell.sb-collapsed .qa-fixed-bottom-bar{left:58px}
+.qa-fixed-bottom-btn{border-radius:24px!important;padding:12px 20px!important;display:inline-flex;align-items:center;gap:7px}
+.qa-shortcut-hint{font-size:10.5px;color:var(--text-3);margin-right:auto;display:flex;align-items:center;gap:4px}
+.qa-shortcut-hint kbd{font-family:inherit;font-size:10px;font-weight:700;color:var(--text-2);
+  background:var(--bg-2);border:1px solid var(--border);border-radius:4px;padding:1px 5px}
+/* Room at the end of the form so the fixed bar never covers the last field. */
+#quickAddForm{padding-bottom:76px}
 /* Round-2 Batch 5, interaction polish (premium TRI/AKAR feel) */
 .btn,button,.tab,input,select,textarea,.badge,.qchip{transition:background .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease,transform .1s ease}
 input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(196,98,42,.15)}
@@ -1545,16 +1534,6 @@ html[data-theme="dark"] .biz-login{
          QUICK ADD SALE
     ═══════════════════════════════════════════════════════ -->
     <div class="panel qa-bg-order" id="panelQuickadd">
-      <!-- Fixed icon-only pair, top-right, stays put while the long form scrolls.
-           Cancel forwards to exitAddOrderEditMode() (same action as the bottom Cancel
-           and the old edit-only "Cancel edit" button, now unified into one control
-           visible in every mode, not just while editing). Save forwards to the form's
-           real submit button via requestSubmit() so it shares the same _qaSaving guard,
-           no separate disable-state to keep in sync. -->
-      <div class="qa-fixed-icons" id="qaFixedIconsTop">
-        <button type="button" class="qa-icon-btn" onclick="exitAddOrderEditMode()" title="Cancel">✕</button>
-        <button type="button" class="qa-icon-btn qa-icon-btn-accent" onclick="document.getElementById('quickAddForm').requestSubmit()" title="Save · Ctrl/Cmd+Enter also saves">💾</button>
-      </div>
       <div class="p-head">
         <div>
           <div class="p-title">Add Order</div>
@@ -1930,15 +1909,20 @@ html[data-theme="dark"] .biz-login{
             <button type="button" class="btn btn-ghost btn-sm" onclick="confirmClearQuickAdd()" title="Wipes the whole form">Clear</button>
           </div>
         </div>
-        <!-- Closing action footer, normal document flow (not fixed/sticky, see the
-             .qa-fixed-bottom-bar comment in CSS for why). "Reachable while scrolling"
-             is the top-right icon pair's job; this one just needs to look like a
-             proper footer at the form's actual end. Save is rightmost/last, same
-             left-to-right order as the top-right icons. -->
+        <!-- Closing action footer, pinned to the bottom of the viewport (see
+             .qa-fixed-bottom-bar in CSS) so Save/Cancel stay reachable across the
+             whole scroll instead of only at the form's actual end. -->
         <div class="qa-fixed-bottom-bar" id="qaFixedBottom">
-          <button type="button" class="btn btn-ghost btn-sm qa-fixed-bottom-btn" onclick="exitAddOrderEditMode()">✕ Cancel</button>
+          <span class="qa-shortcut-hint"><kbd>Ctrl</kbd>/<kbd>&#8984;</kbd> + <kbd>Enter</kbd> to save</span>
+          <button type="button" class="btn btn-ghost btn-sm qa-fixed-bottom-btn" onclick="exitAddOrderEditMode()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Cancel
+          </button>
           <button type="submit" class="btn btn-primary qa-fixed-bottom-btn" id="qaSaveBtn"
-            title="Ctrl/Cmd+Enter also saves">💾 Save</button>
+            title="Ctrl/Cmd+Enter also saves">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Save
+          </button>
         </div>
       </form>
     </div><!-- /quickadd -->
