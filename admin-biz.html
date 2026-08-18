@@ -4037,6 +4037,10 @@ html[data-theme="dark"] .biz-login{
               <input type="text" id="cfg_pan" placeholder="AXXXX0000X" style="font-family:var(--mono);letter-spacing:.05em">
             </div>
           </div>
+          <div class="form-group">
+            <label>MSME / Udyam Registration Number</label>
+            <input type="text" id="cfg_msme" placeholder="UDYAM-XX-00-0000000" style="font-family:var(--mono);letter-spacing:.05em">
+          </div>
           <div style="display:flex;gap:10px;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
             <button class="btn btn-primary btn-sm" onclick="saveBizSettings('settingsSavedMsg_identity')">Save</button>
             <span id="settingsSavedMsg_identity" style="font-size:12px;color:var(--green);display:none">✓ Saved</span>
@@ -4166,7 +4170,7 @@ function getBizSettings(){
   try{ return JSON.parse(localStorage.getItem(BIZ_SETTINGS_KEY)||'{}'); }
   catch(e){ return {}; }
 }
-const BIZ_SETTINGS_FIELD_MAP={cfg_name:'name',cfg_addr:'addr',cfg_gstin:'gstin',cfg_pan:'pan',cfg_phone:'phone',cfg_email:'email',cfg_web:'web',
+const BIZ_SETTINGS_FIELD_MAP={cfg_name:'name',cfg_addr:'addr',cfg_gstin:'gstin',cfg_pan:'pan',cfg_msme:'msme',cfg_phone:'phone',cfg_email:'email',cfg_web:'web',
   cfg_bank_holder:'bankHolder',cfg_bank_name:'bankName',cfg_bank_branch:'bankBranch',cfg_bank_acc:'bankAcc',cfg_bank_ifsc:'bankIfsc',cfg_bank_actype:'bankAcType',cfg_due_days:'dueDays'};
 function _populateBizSettingsForm(cfg){
   Object.entries(BIZ_SETTINGS_FIELD_MAP).forEach(([elId,key])=>{
@@ -4223,7 +4227,7 @@ function collapseSecondarySettingsCards(){
 // button was actually clicked (msgId).
 async function saveBizSettings(msgId){
   const g=id=>(document.getElementById(id)?.value.trim()||'');
-  const cfg={name:g('cfg_name'),addr:g('cfg_addr'),gstin:g('cfg_gstin'),pan:g('cfg_pan'),phone:g('cfg_phone'),email:g('cfg_email'),web:g('cfg_web'),
+  const cfg={name:g('cfg_name'),addr:g('cfg_addr'),gstin:g('cfg_gstin'),pan:g('cfg_pan'),msme:g('cfg_msme'),phone:g('cfg_phone'),email:g('cfg_email'),web:g('cfg_web'),
     bankHolder:g('cfg_bank_holder'),bankName:g('cfg_bank_name'),bankBranch:g('cfg_bank_branch'),bankAcc:g('cfg_bank_acc'),bankIfsc:g('cfg_bank_ifsc'),bankAcType:g('cfg_bank_actype'),dueDays:g('cfg_due_days'),
     qr:_qrCollect('bizCommonQr'),stamp:_stampCollect()};
   _bizSettingsCache=cfg;
@@ -13561,6 +13565,7 @@ async function printInvoice(d, type, docKind, win){
   const SELLER_ADDR=cfg.addr||'';
   const SELLER_GSTIN=cfg.gstin||'';
   const SELLER_PAN=cfg.pan||'';
+  const SELLER_MSME=cfg.msme||'';
   const SELLER_EMAIL=cfg.email||'';
   const SELLER_PHONE=cfg.phone||'';
   const SELLER_WEB=cfg.web||'triakar.com';
@@ -13979,20 +13984,28 @@ tbody tr:last-child td{border-bottom:none}
         SELLER_PHONE?ICON_WHATSAPP+esc(SELLER_PHONE):'',
         SELLER_EMAIL?ICON_MAIL+esc(SELLER_EMAIL):'',
         SELLER_WEB?ICON_WEB+esc(SELLER_WEB):'',
-        (hdrShowGstin&&SELLER_GSTIN)?'GSTIN: '+esc(SELLER_GSTIN):''
+        (hdrShowGstin&&SELLER_GSTIN)?'GSTIN: '+esc(SELLER_GSTIN):'',
+        (hdrShowGstin&&SELLER_MSME)?'MSME: '+esc(SELLER_MSME):''
       ].filter(Boolean).join(' · ')}</div>
       ${(SELLER_ADDR&&hdrShowAddr)?`<div class="hdr-contact-addr">${esc(SELLER_ADDR)}</div>`:''}`:''}
     </div>
   </div>
   <div class="hdr-doc">
     <div class="doc-no">${esc(docNo)}</div>
-    <div class="doc-meta-box"><table>${(isRecord?[['Date',docDate],['Complete Date',d.delivery_date||'—']]:isQuote?[['Date',docDate],...((docQuo('validity_period')&&d.validity_date)?[['Valid Until',d.validity_date]]:[])]:[['Invoice Date',docDate]]).concat(
-      // Reference Document: the quotation number an order was created from (see
-      // reference_document in getOrderFields/quotationSaleRows), stays absent when the
-      // order was started fresh. Never shown on a quotation itself, only downstream on
-      // its order record / invoice, and rendered as plain text, not run through
-      // fmtDocDate below.
-      (!isQuote&&d.reference_document)?[['Ref. Quotation',d.reference_document,true]]:[],
+    <div class="doc-meta-box"><table>${(isRecord?[['Date',docDate],['Complete Date',d.delivery_date||'—']]:isQuote?[['Date',docDate],...((docQuo('validity_period')&&d.validity_date)?[['Valid Until',d.validity_date]]:[])]:[['Invoice Date',docDate],
+      // Due Date: only appears when a Payment Due Date was actually entered on the
+      // order (Add Order -> Payment -> "Payment Due Date"), not the DUE_DAYS-derived
+      // fallback used elsewhere for internal due-date math, so the field stays absent
+      // rather than showing a guessed date nobody typed.
+      ...(d.payment_due_date?[['Due Date',dueDateStr]]:[])
+    ]).concat(
+      // Document Reference: PO number, quotation number this order was made from, or
+      // any other reference typed into Add Order's "Document Reference" field (see
+      // reference_document in getOrderFields/quotationSaleRows), stays absent when
+      // nothing was entered. Never shown on a quotation itself, only downstream on its
+      // order record / invoice, and rendered as plain text, not run through fmtDocDate
+      // below.
+      (!isQuote&&d.reference_document)?[['Document Reference',d.reference_document,true]]:[],
       // Reverse Charge, mandatory field on a GST tax invoice. Defaults to No, since a
       // normal sale stays supplier-pays-GST regardless of whether the customer has a
       // GSTIN, RCM only applies to specific notified categories (Section 9(3)/9(4)/9(5)),
