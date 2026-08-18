@@ -13993,10 +13993,12 @@ tbody tr:last-child td{border-bottom:none}
       // its order record / invoice, and rendered as plain text, not run through
       // fmtDocDate below.
       (!isQuote&&d.reference_document)?[['Ref. Quotation',d.reference_document,true]]:[],
-      // Reverse Charge, mandatory field on a GST tax invoice. Auto-derived for now
-      // (Yes once the customer's GSTIN is on the order, No otherwise); a manual
-      // override is coming later via Add Order, this is just the automatic default.
-      (!isQuote&&!isRecord&&hasGst)?[['Reverse Charge',d.customer_gstin?'Yes':'No',true]]:[]
+      // Reverse Charge, mandatory field on a GST tax invoice. Defaults to No, since a
+      // normal sale stays supplier-pays-GST regardless of whether the customer has a
+      // GSTIN, RCM only applies to specific notified categories (Section 9(3)/9(4)/9(5)),
+      // never something that follows automatically from GSTIN presence. Reads
+      // d.reverse_charge for the manual per-order override coming later via Add Order.
+      (!isQuote&&!isRecord&&hasGst)?[['Reverse Charge',d.reverse_charge==='Yes'?'Yes':'No',true]]:[]
     ).map(([k,v,plain])=>`<tr><td class="dmb-k">${k}</td><td class="dmb-v">${plain?esc(v):esc(v==='—'?v:fmtDocDate(v))}</td></tr>`).join('')}</table></div>
     <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;margin-top:5px">
       ${(d.channel_id&&(isQuote||isRecord))?`<div class="doc-badge">${esc(CH_NAMES?.[d.channel_id]||d.channel_id)}</div>`:''}
