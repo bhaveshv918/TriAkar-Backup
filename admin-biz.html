@@ -245,6 +245,10 @@ tr:hover td{background:var(--bg-2)}
 .row-upcoming:hover td{background:var(--blue-bg)}
 .td-num{font-family:var(--mono);font-size:11px;text-align:right}
 .td-actions{white-space:nowrap;text-align:right}
+/* GST reconciliation import table, target/category selects had no styling at
+   all, rendered as bare browser dropdowns next to a fully-designed table. */
+.gsti-target,.gsti-cat{background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-family:var(--sans);font-size:12px;padding:5px 8px;outline:none}
+.gsti-target:disabled,.gsti-cat:disabled{opacity:.55;cursor:not-allowed}
 
 /* ── Status badges ────────────────────────────────────────── */
 .badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
@@ -341,7 +345,7 @@ tr:hover td{background:var(--bg-2)}
 
 .pay-status-group{display:flex;gap:6px;flex-wrap:wrap;padding:4px;border-radius:8px;border:1px solid transparent}
 .pay-status-group.field-invalid{border-color:var(--red)!important}
-.pay-status-group button{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-2);font-family:var(--sans);font-size:12px;font-weight:600;padding:6px 12px;cursor:pointer;transition:border-color .15s,background .15s,color .15s}
+.pay-status-group button{background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text-2);font-family:var(--sans);font-size:12px;font-weight:600;padding:6px 12px;cursor:pointer;transition:border-color .15s,background .15s,color .15s}
 .pay-status-group button.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .pay-status-group button[data-v="no_payment_yet"].active{background:var(--text-3);border-color:var(--text-3)}
 
@@ -1698,8 +1702,8 @@ html[data-theme="dark"] .biz-login{
           <div class="calc-item">
             <label>Round Off (₹)</label>
             <div style="display:flex;align-items:center;gap:4px">
-              <input type="number" id="qa_roundoff" step="0.01" value="0" title="Auto-fills to round the grand total to the nearest rupee. Edit it yourself (e.g. to 0) to override, your value sticks until you start a new order." oninput="_qaRoundoffManual=true" onchange="recalcTotals()" style="width:70px;padding:2px 6px;font-size:12px">
-              <button type="button" class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="_qaRoundoffManual=false;recalcTotals()" title="Auto-calculate, rounds the grand total to the nearest rupee" style="padding:3px 5px">
+              <input type="number" id="qa_roundoff" step="0.01" value="0" title="Auto-fills to round the grand total to the nearest rupee. Edit it yourself (e.g. to 0) to override, your value sticks until you start a new order." oninput="_qaRoundoffManual=true" onchange="recalcTotals()" style="width:70px;padding:4px 8px;font-size:12px;background:var(--bg-2);border:1px solid var(--border);color:var(--text)">
+              <button type="button" class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="_qaRoundoffManual=false;recalcTotals()" title="Auto-calculate, rounds the grand total to the nearest rupee" style="padding:3px 6px">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/></svg>
               </button>
             </div>
@@ -2158,7 +2162,7 @@ html[data-theme="dark"] .biz-login{
         <div style="max-width:740px;margin:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.4);overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 40px)">
           <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg-2);flex-shrink:0">
             <div style="font-size:13px;font-weight:700" id="odTitle">Order</div>
-            <div style="display:flex;gap:6px;align-items:center">
+            <div style="display:flex;gap:8px;align-items:center">
               <button class="btn btn-ghost btn-sm" id="odPrev" onclick="orderDetailNav(-1)" title="Previous order">‹ Prev</button>
               <button class="btn btn-ghost btn-sm" id="odNext" onclick="orderDetailNav(1)" title="Next order">Next ›</button>
               <button onclick="closeOrderDetail()" style="background:none;border:none;color:var(--text-3);font-size:18px;cursor:pointer;padding:0 4px">✕</button>
@@ -2666,7 +2670,7 @@ html[data-theme="dark"] .biz-login{
         <div id="lblExtracted" style="display:none">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
             <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3)">Step 3, Review extracted orders (<span id="lblCount">0</span> found)</div>
-            <div style="display:flex;gap:6px">
+            <div style="display:flex;gap:8px">
               <button class="btn btn-primary btn-sm" onclick="importExtractedLabels()">Import All</button>
               <button class="btn btn-ghost btn-sm" onclick="clearLabels()">Clear</button>
             </div>
@@ -3327,7 +3331,7 @@ html[data-theme="dark"] .biz-login{
       <div class="p-head">
         <div><div class="p-title">GST Summary</div><div class="p-sub">Regular scheme, CGST / SGST / IGST breakdown</div></div>
         <div style="display:flex;gap:8px;align-items:center">
-          <select id="gstYear" onchange="loadGST()"></select>
+          <select id="gstYear" onchange="loadGST()" style="background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;padding:5px 8px"></select>
           <button class="btn btn-ghost btn-sm" onclick="exportGSTExcel()">↓ Export for CA</button>
         </div>
       </div>
@@ -3652,7 +3656,7 @@ html[data-theme="dark"] .biz-login{
             <input type="month" id="stFrom" style="flex:1">
             <input type="month" id="stTo" style="flex:1">
           </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-primary btn-sm" onclick="loadStateReport()">View</button>
             <button class="btn btn-ghost btn-sm" onclick="exportStateReport()">↓ Excel</button>
           </div>
@@ -3879,7 +3883,7 @@ html[data-theme="dark"] .biz-login{
       <div class="p-head">
         <div><div class="p-title">Balance Sheet</div><div class="p-sub">Bank balance + stock value vs. outstanding receivables</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <select id="bsView" onchange="loadBalanceSheet()"><option value="month">This Month</option><option value="fy">This Financial Year</option><option value="all">All Time</option></select>
+          <select id="bsView" onchange="loadBalanceSheet()" style="background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;padding:5px 8px"><option value="month">This Month</option><option value="fy">This Financial Year</option><option value="all">All Time</option></select>
           <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editOpeningBalance()" style="gap:5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg> Set Opening Balance</button>
         </div>
       </div>
@@ -4303,8 +4307,8 @@ function _qrBlockHtml(containerId){
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <div id="${containerId}_preview" style="width:48px;height:48px;border:1px solid var(--border);border-radius:6px;background-color:var(--bg-2);background-size:contain;background-position:center;background-repeat:no-repeat;flex-shrink:0"></div>
       <input type="file" accept="image/*" id="${containerId}_file" style="font-size:11px" onchange="uploadQrImage('${containerId}')">
-      <select id="${containerId}_position" style="font-size:12px">${QR_POSITIONS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>
-      <label style="font-size:11px;color:var(--text-3)">Size <input type="number" id="${containerId}_size" min="20" max="300" step="1" placeholder="90" style="width:60px;font-size:12px"> px</label>
+      <select id="${containerId}_position" style="font-size:12px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);padding:5px 8px">${QR_POSITIONS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>
+      <label style="font-size:11px;color:var(--text-3)">Size <input type="number" id="${containerId}_size" min="20" max="300" step="1" placeholder="90" style="width:60px;font-size:12px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);padding:5px 8px"> px</label>
       <button type="button" class="btn btn-ghost btn-sm" onclick="clearQrImage('${containerId}')">Remove</button>
     </div>
     <div style="font-size:10px;color:var(--text-3);margin-top:6px">Size in px (compact ~60 · standard ~90 · large ~130)</div>
@@ -4349,9 +4353,9 @@ function _stampBlockHtml(){
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <div id="bizStamp_preview" style="width:48px;height:48px;border:1px solid var(--border);border-radius:6px;background-color:var(--bg-2);background-size:contain;background-position:center;background-repeat:no-repeat;flex-shrink:0"></div>
       <input type="file" accept="image/*" id="bizStamp_file" style="font-size:11px" onchange="uploadStampImage()">
-      <label style="font-size:11px;color:var(--text-3)">Size <input type="number" id="bizStamp_size" min="20" max="300" step="1" placeholder="70" style="width:55px;font-size:12px"> px</label>
-      <select id="bizStamp_align" style="font-size:12px"><option value="left">Left of signature</option><option value="center">Centered</option><option value="right">Right of signature</option></select>
-      <label style="font-size:11px;color:var(--text-3)">Vertical offset <input type="number" id="bizStamp_offsety" step="1" placeholder="0" style="width:50px;font-size:12px"> px</label>
+      <label style="font-size:11px;color:var(--text-3)">Size <input type="number" id="bizStamp_size" min="20" max="300" step="1" placeholder="70" style="width:55px;font-size:12px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);padding:5px 8px"> px</label>
+      <select id="bizStamp_align" style="font-size:12px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);padding:5px 8px"><option value="left">Left of signature</option><option value="center">Centered</option><option value="right">Right of signature</option></select>
+      <label style="font-size:11px;color:var(--text-3)">Vertical offset <input type="number" id="bizStamp_offsety" step="1" placeholder="0" style="width:50px;font-size:12px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);padding:5px 8px"> px</label>
       <button type="button" class="btn btn-ghost btn-sm" onclick="clearStampImage()">Remove</button>
     </div>
     <div style="font-size:10px;color:var(--text-3);margin-top:6px">Prints over the Authorised Signatory area wherever Signature / stamp is turned on. Positive vertical offset nudges it down toward the signature line, negative moves it up.</div>
@@ -5642,7 +5646,7 @@ function renderImportSpoolRows(prefix){
   const arr=importSpoolState(prefix);
   wrap.innerHTML=arr.map((v,i)=>`
     <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
-      <select onchange="setImportSpoolRow('${prefix}',${i},this.value)" style="flex:1;min-width:0">${spoolOptions(v)}</select>
+      <select onchange="setImportSpoolRow('${prefix}',${i},this.value)" style="flex:1;min-width:0;background:var(--bg-2);border:1px solid var(--border);color:var(--text);padding:6px 9px">${spoolOptions(v)}</select>
       ${i===0?'<span class="badge" style="background:var(--bg-2);color:var(--text-3);white-space:nowrap">Default</span>':`<button type="button" class="btn btn-ghost btn-sm" onclick="removeImportSpoolRow('${prefix}',${i})">✕</button>`}
     </div>`).join('');
 }
@@ -8761,7 +8765,7 @@ const _iqRowActionBtns=(onEdit)=>'<button class="btn btn-icon-tint btn-icon-edit
 // half-cut/broken sitting next to ICO_ACCEPT's 15×15 checkmark, same viewBox and
 // stroke-width as ICO_ACCEPT instead so the Save/Cancel pair matches in weight.
 const ICO_CANCEL_15='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-const _iqSaveCancelBtns=(onSave,onCancel)=>'<span style="display:inline-flex;gap:6px"><button class="btn btn-icon-tint btn-icon-accept btn-sm" onclick="'+onSave+'" title="Save" style="padding:5px">'+ICO_ACCEPT+'</button><button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="'+onCancel+'" title="Cancel" style="padding:5px">'+ICO_CANCEL_15+'</button></span>';
+const _iqSaveCancelBtns=(onSave,onCancel)=>'<span style="display:inline-flex;gap:8px"><button class="btn btn-icon-tint btn-icon-accept btn-sm" onclick="'+onSave+'" title="Save" style="padding:5px">'+ICO_ACCEPT+'</button><button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="'+onCancel+'" title="Cancel" style="padding:5px">'+ICO_CANCEL_15+'</button></span>';
 
 async function loadIqMaterials(){
   const{data,error}=await sb.from('instant_quote_materials').select('*').order('sort_order');
