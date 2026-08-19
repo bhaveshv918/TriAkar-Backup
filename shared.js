@@ -1936,8 +1936,16 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }
 
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(_show, 1500); });
-  else setTimeout(_show, 1500);
+  // Fires after the window 'load' event (matches the Sentry-deferral pattern
+  // elsewhere in this file), not a flat setTimeout from script parse time. A large
+  // overlay appearing 1.5s into page load was routinely winning "largest painted
+  // element" over the actual hero content, tanking Largest Contentful Paint
+  // (measured 2.5s render delay directly attributable to this popup, Lighthouse
+  // audit 2026-08-20). Waiting for load + a short delay keeps the once-a-day promo
+  // but takes it out of the critical rendering path.
+  function _scheduleShow(){ setTimeout(_show, 2000); }
+  if(document.readyState==='complete') _scheduleShow();
+  else window.addEventListener('load', _scheduleShow, { once:true });
 })();
 
 /* ══ Themed confirm dialog, replaces the native browser confirm() ══
