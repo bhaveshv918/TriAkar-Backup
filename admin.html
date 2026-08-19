@@ -701,45 +701,15 @@ tr.order-detail-row td{padding:0!important;border-bottom:1px solid var(--border)
    RESPONSIVE, mobile drawer nav (matches Business OS)
    ═══════════════════════════════════════════════════════════ */
 @media(max-width:768px){
-  /* Top bar, drop space-hungry bits; brand badge is redundant on mobile */
-  .top-time,.top-user,.top-status,.top-badge{display:none}
-  .top-bar{padding:0 12px;height:48px}
-  .top-logo{font-size:11px;letter-spacing:.08em}
-  .top-right{gap:5px}
-  .top-btn{padding:5px 8px!important;font-size:9px!important}
-  /* Business OS / Site / Sign Out → compact icon-only pills (text pills
-     at any font size didn't fit six header controls in 375px) */
-  .top-btn-biz,.top-btn-site,.top-btn-signout{font-size:0!important;padding:6px 9px!important}
-  .top-btn-biz::before{content:"◳";font-size:15px;line-height:1}
-  .top-btn-site::before{content:"🏠";font-size:13px;line-height:1}
-  .top-btn-signout::before{content:"🚪";font-size:13px;line-height:1}
+  /* Top bar, fixed 52px, hamburger opens the Ctrl/Cmd+K command palette,
+     which IS the mobile nav (no slide-in drawer), same pattern as
+     Business OS. Baseline .biz-topbar/.biz-tb-hamburger mobile rules live
+     in the shared block above; this only drops the bits that don't fit
+     52px (search/time/brand subline), matching admin-biz.html's own
+     equivalent block. */
+  .top-status{display:none}
 
-  /* Hamburger shows; sidebar becomes a slide-in drawer */
-  .nav-toggle{display:flex!important}
-  :root,html[data-theme="dark"],html[data-theme="light"]{--sidebar-w:0px}
-  .admin-body{flex-direction:column;min-height:calc(100vh - 48px)}
-  .sidebar{
-    position:fixed;top:48px;bottom:0;left:0;width:248px;max-width:84vw;top:48px!important;
-    transform:translateX(-100%);transition:transform .25s ease;
-    flex-direction:column;height:auto!important;min-width:unset;
-    overflow-y:auto;overflow-x:hidden;
-    padding:8px 0 calc(24px + env(safe-area-inset-bottom,0px));
-    border-right:1px solid var(--border);border-top:none;
-    z-index:230;box-shadow:2px 0 18px rgba(0,0,0,.25);-webkit-overflow-scrolling:touch;
-  }
-  .sidebar.open{transform:none}
-  .sidebar-section{display:block}
-  .tab{
-    flex-direction:row;align-items:center;justify-content:flex-start;
-    width:100%!important;min-width:unset;padding:11px 16px;gap:10px;
-    border-radius:0;margin:0;text-align:left;letter-spacing:0;
-  }
-  .tab-icon{font-size:16px;width:20px;margin:0;line-height:1}
-  .tab-label{display:block!important;font-size:13px;letter-spacing:0;max-width:none;overflow:visible}
-  .tab-count,.callback-count{display:inline-block!important;margin-left:auto}
-  .tab-dot{display:inline-block!important}
-
-  /* Main area, full width below the top bar (no bottom nav) */
+  /* Main area, full width below the fixed top bar (no bottom nav) */
   .main-area{width:100%;overflow-y:auto}
   .panel{padding:14px 12px calc(28px + env(safe-area-inset-bottom,0px))}
   .p-head{flex-direction:column;align-items:flex-start;gap:8px;margin-bottom:14px}
@@ -1068,6 +1038,84 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
 
 /* ── Bar fill, brand gradient ─── */
 .bar-fill{background:linear-gradient(90deg,var(--accent),var(--accent-h))}
+
+/* ═══════════════════════════════════════════════════════════
+   HEADER NAV, ported from Business OS (admin-biz.html): top-bar
+   only, no sidebar. NAV_CONFIG-driven category dropdowns
+   (.biz-tb-nav/.biz-tb-cat/.biz-tb-dropdown/.biz-tb-dd-*) and the
+   Ctrl/Cmd+K command palette (.cmdk-*) share their base rules
+   with Business OS via admin-theme.css §22/§23; this block only
+   adds the admin.html-local baseline + mobile bits that shared
+   file doesn't carry (each panel owns its own topbar markup, per
+   the "keep both files self-contained" rule).
+   ═══════════════════════════════════════════════════════════ */
+.biz-tb-hamburger{display:none;font-size:18px}
+.biz-topbar{position:sticky;top:0;z-index:100;padding:0 20px;gap:12px}
+.admin-body{display:flex;min-height:calc(100vh - 52px)}
+.main-area{flex:1;min-width:0;width:100%}
+.biz-tb-search{flex:1;max-width:440px;position:relative}
+.biz-tb-search input{width:100%}
+
+/* Icon-row tints, same palette/approach as admin-biz.html's own (not shared
+   via admin-theme.css, each panel keeps its own copy per the "no shared nav
+   file" decision). Always-on tint, not just on hover, so the row reads as
+   more than one flat grey at rest. */
+.biz-tb-icon-blue{background:rgba(37,99,235,.10);border-color:rgba(37,99,235,.28);color:#2563EB}
+.biz-tb-icon-blue:hover{background:rgba(37,99,235,.18);border-color:#2563EB}
+.biz-tb-icon-purple{background:rgba(124,58,237,.10);border-color:rgba(124,58,237,.28);color:#7C3AED}
+.biz-tb-icon-purple:hover{background:rgba(124,58,237,.18);border-color:#7C3AED}
+.biz-tb-icon-amber{background:rgba(217,119,6,.10);border-color:rgba(217,119,6,.28);color:#D97706}
+.biz-tb-icon-amber:hover{background:rgba(217,119,6,.18);border-color:#D97706}
+.biz-tb-icon-muted{background:var(--bg-3);border-color:var(--border-h);color:var(--text-2)}
+.biz-tb-icon-muted:hover{background:var(--bg-2);border-color:var(--text-3)}
+.biz-tb-admin-link{background:var(--accent-bg);border-color:rgba(196,98,42,.28);color:var(--accent)}
+.biz-tb-admin-link:hover{background:rgba(196,98,42,.18);border-color:var(--accent)}
+.biz-tb-signout{background:var(--red-bg);border-color:rgba(220,38,38,.24);color:var(--red)}
+.biz-tb-signout:hover{background:rgba(220,38,38,.16);border-color:var(--red)}
+.biz-tb-icon.spinning{animation:btn-spin .6s linear}
+@keyframes btn-spin{to{transform:rotate(360deg)}}
+
+/* Quick-action bar + stat-tile row, Dashboard only (Business-OS-style,
+   reuses the same KPI numbers dashWKpis() already computes). */
+.qa-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.qa-btn{
+  display:inline-flex;align-items:center;gap:7px;
+  font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--text);
+  background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);
+  padding:9px 14px;cursor:pointer;transition:border-color .15s ease,background .15s ease,transform .15s ease;
+}
+.qa-btn:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
+.qa-btn-icon{font-size:14px;line-height:1}
+.stat-kpi-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px}
+.stat-kpi{
+  position:relative;display:flex;align-items:center;gap:12px;flex:1 1 150px;
+  background:var(--pill-color-bg,var(--bg-2));border:1px solid var(--pill-color,var(--border));
+  border-radius:12px;padding:12px 16px;box-shadow:var(--shadow);cursor:pointer;
+  transition:transform .15s ease,box-shadow .15s ease;
+}
+.stat-kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow-h)}
+.stat-kpi-icon{flex-shrink:0;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;background:var(--bg-1);color:var(--pill-color,var(--text-3))}
+.stat-kpi-body{min-width:0}
+.stat-kpi-val{font-size:21px;font-weight:800;color:var(--pill-color,var(--text));line-height:1.15;font-family:var(--mono)}
+.stat-kpi-label{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-3);white-space:nowrap}
+.stat-kpi-urgent{box-shadow:0 0 0 1.5px var(--pill-color)}
+
+@media(min-width:1081px){
+  .biz-tb-nav{display:flex}
+}
+@media(max-width:768px){
+  .biz-topbar{position:fixed;top:0;left:0;right:0;height:52px;z-index:240;padding:0 12px;gap:8px}
+  .biz-tb-hamburger{display:inline-flex!important}
+  .admin-tb-brand-sub,.biz-tb-search,.biz-tb-time{display:none}
+  #toastContainer{top:64px}
+  .admin-body{flex-direction:column;min-height:calc(100vh - 52px)}
+  .main-area{margin-top:52px;width:100%;overflow-x:hidden}
+  .qa-bar{gap:6px}
+  .qa-btn{padding:8px 11px;font-size:11.5px}
+  .stat-kpi-row{gap:8px}
+  .stat-kpi{padding:10px 12px}
+  .stat-kpi-val{font-size:17px}
+}
 </style>
 <link rel="stylesheet" href="/admin-theme.css">
 <script defer src="/_vercel/insights/script.js"></script>
@@ -1124,131 +1172,59 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
      ═══════════════════════════════════════════════════════════ -->
 <div id="adminDash">
 
-  <div class="top-bar">
-    <div class="top-left">
-      <button class="nav-toggle" id="navToggle" onclick="toggleAdminNav()" aria-label="Menu">☰</button>
-      <button class="sb-collapse" id="adminCollapseBtn" onclick="toggleAdminSidebar()" title="Collapse / expand sidebar">‹‹</button>
-      <div class="top-logo">TRIAKAR</div>
-      <div class="top-badge">Admin</div>
-      <span title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="font-size:9px;font-weight:700;color:var(--text-3);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;white-space:nowrap">v154</span>
+  <div class="nav-backdrop" id="navBackdrop" onclick="toggleNav(false)"></div>
+  <div class="biz-topbar">
+    <button class="biz-tb-icon biz-tb-hamburger biz-tb-icon-muted" onclick="toggleNav()" aria-label="Menu, opens the command palette">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <div class="admin-tb-brand" title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="display:flex;flex-direction:column;line-height:1.05;white-space:nowrap">
+      <span style="font-family:'Glorida','Inter',sans-serif;font-size:15px;font-weight:800;letter-spacing:.04em"><span style="color:var(--accent)">TRI</span><span style="color:var(--text)">AKAR</span></span>
+      <span class="admin-tb-brand-sub" style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Admin Panel <span style="color:var(--accent)">v155</span></span>
     </div>
-    <div class="top-center">
-      <div style="position:relative;width:100%">
-        <input type="text" id="globalSearch" placeholder="Search orders, products, customers…" autocomplete="off" oninput="globalSearchRun()" onfocus="globalSearchRun()" onkeydown="if(event.key==='Escape')closeGlobalSearch()" style="width:100%;padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
-        <div id="globalSearchResults" style="display:none;position:absolute;top:115%;left:0;right:0;max-height:60vh;overflow:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-h);z-index:3000;padding:6px"></div>
-      </div>
+    <nav class="biz-tb-nav" id="adminTbNav"></nav>
+    <button class="biz-tb-icon biz-tb-cmdk biz-tb-icon-muted" onclick="openCmdPalette()" title="Command palette (Ctrl/Cmd+K)" style="font-size:14px;font-weight:700">⌘</button>
+    <div class="biz-tb-search">
+      <input type="text" id="globalSearch" placeholder="Search orders, products, customers…" autocomplete="off" oninput="globalSearchRun()" onfocus="globalSearchRun()" onkeydown="if(event.key==='Escape')closeGlobalSearch()">
+      <div id="globalSearchResults" style="display:none;position:absolute;top:115%;left:0;right:0;max-height:60vh;overflow:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-h);z-index:3000;padding:6px"></div>
     </div>
-    <div class="top-right">
-      <!-- Notification center (Module 7) -->
-      <div style="position:relative">
-        <button class="theme-toggle" onclick="toggleNotifications(event)" title="Notifications" style="position:relative">🔔<span id="notifBadge" style="display:none;position:absolute;top:-3px;right:-3px;background:var(--red);color:#fff;font-size:9px;font-weight:700;min-width:15px;height:15px;line-height:15px;text-align:center;border-radius:8px;padding:0 3px">0</span></button>
-        <div id="notifDropdown" style="display:none;position:absolute;top:115%;right:0;width:290px;max-height:60vh;overflow:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-h);z-index:3000;padding:8px"></div>
-      </div>
-      <div class="top-time" id="topTime"></div>
-      <div class="top-status"><span class="pulse"></span> Admin Online</div>
-      <a href="admin-biz.html" class="top-btn top-btn-biz" title="Open Business OS">◳ Business OS</a>
-      <button class="theme-toggle" onclick="refreshCurrentAdminTab()" title="Refresh current tab">⟳</button>
-      <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
-      <a href="index.html" class="top-btn top-btn-site" title="Open storefront">← Site</a>
-      <button class="top-btn top-btn-signout" onclick="doLogout()" title="Sign out">Sign Out</button>
+    <div class="biz-tb-time" id="topTime"></div>
+    <!-- Notification center (Module 7) -->
+    <div style="position:relative">
+      <button class="biz-tb-icon biz-tb-icon-amber" onclick="toggleNotifications(event)" title="Notifications" style="position:relative">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span id="notifBadge" style="display:none;position:absolute;top:-3px;right:-3px;background:var(--red);color:#fff;font-size:9px;font-weight:700;min-width:15px;height:15px;line-height:15px;text-align:center;border-radius:8px;padding:0 3px">0</span>
+      </button>
+      <div id="notifDropdown" style="display:none;position:absolute;top:115%;right:0;width:290px;max-height:60vh;overflow:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-h);z-index:3000;padding:8px"></div>
     </div>
+    <button class="biz-tb-icon biz-tb-icon-blue" id="adminRefreshBtn" onclick="refreshCurrentAdminTab()" title="Refresh current tab">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/></svg>
+    </button>
+    <button class="biz-tb-icon biz-tb-icon-amber" id="themeToggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+    <a href="admin-biz.html" class="biz-tb-icon biz-tb-admin-link" title="Open Business OS">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    </a>
+    <a href="index.html" class="biz-tb-icon biz-tb-icon-blue" title="Open storefront">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </a>
+    <button class="biz-tb-icon biz-tb-signout" onclick="doLogout()" title="Sign out">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+
+  <!-- Badge/dot elements for the 3 legacy hidden tabs (Callbacks/Messages/Enquiries,
+       consolidated into the Unified Inbox, Round-2 #2). Not shown in the NAV_CONFIG
+       dropdowns or the command palette (same "hidden but functional" treatment as
+       before), but loadCallbacks()/loadMessages()/loadCustomEnquiries() write to
+       these element ids unguarded, so they must still exist in the DOM or those
+       loaders throw partway through and abort. Deep-linked from the Inbox's "Open"
+       button and from notifications, switchTab() still works for all three. -->
+  <div style="display:none" aria-hidden="true">
+    <span class="callback-count" id="callbackCount">0</span><span class="tab-dot" id="dotCallbacks"></span>
+    <span class="tab-count" id="messageCount">0</span><span class="tab-dot" id="dotMessages"></span>
+    <span class="tab-count" id="enquiryCount">0</span><span class="tab-dot" id="dotEnquiries"></span>
   </div>
 
   <div class="admin-body">
-  <nav class="sidebar">
-
-    <div class="sidebar-section">Operations</div>
-    <button class="tab active" data-tab="dashboard" onclick="switchTab('dashboard')">
-      <span class="tab-icon">▥</span><span class="tab-label">Dashboard</span>
-    <span class="tab-keyhint">D</span>
-    </button>
-    <button class="tab" data-tab="orders" onclick="switchTab('orders')">
-      <span class="tab-icon">◈</span><span class="tab-label">Orders</span><span class="tab-count" id="orderCount">0</span><span class="tab-dot" id="dotOrders"></span>
-    <span class="tab-keyhint">O</span>
-    </button>
-    <!-- Round-2 #2, Callbacks/Messages/Enquiries consolidated into the Unified Inbox.
-         Tabs hidden (not deleted) so the count badges + detail panels still work
-         when opened from the inbox's "Open" button and notifications. -->
-    <button class="tab" data-tab="callbacks" onclick="switchTab('callbacks')" style="display:none">
-      <span class="tab-icon">↩</span><span class="tab-label">Callbacks</span><span class="callback-count" id="callbackCount">0</span><span class="tab-dot" id="dotCallbacks"></span>
-    <span class="tab-keyhint">B</span>
-    </button>
-    <button class="tab" data-tab="customers" onclick="switchTab('customers')">
-      <span class="tab-icon">◯</span><span class="tab-label">Customers</span><span class="tab-count" id="customerCount">0</span><span class="tab-dot" id="dotCustomers"></span>
-    <span class="tab-keyhint">C</span>
-    </button>
-
-    <div class="sidebar-section">Catalogue</div>
-    <button class="tab" data-tab="products" onclick="switchTab('products')">
-      <span class="tab-icon">▦</span><span class="tab-label">Products</span><span class="tab-count" id="productCount">0</span>
-    <span class="tab-keyhint">P</span>
-    </button>
-    <button class="tab" data-tab="categories" onclick="switchTab('categories')">
-      <span class="tab-icon">≡</span><span class="tab-label">Categories</span>
-    <span class="tab-keyhint">G</span>
-    </button>
-    <button class="tab" data-tab="makerworld" onclick="switchTab('makerworld')">
-      <span class="tab-icon">⇲</span><span class="tab-label">Import from MakerWorld</span>
-    <span class="tab-keyhint">K</span>
-    </button>
-    <button class="tab" data-tab="reviews" onclick="switchTab('reviews')">
-      <span class="tab-icon">★</span><span class="tab-label">Reviews</span><span class="tab-count" id="reviewCount">0</span><span class="tab-dot" id="dotReviews"></span>
-    <span class="tab-keyhint">R</span>
-    </button>
-    <button class="tab" data-tab="productstudio" onclick="switchTab('productstudio')">
-      <span class="tab-icon">✦</span><span class="tab-label">Product Studio</span>
-    <span class="tab-keyhint">U</span>
-    </button>
-
-    <div class="sidebar-section">Inbox</div>
-    <button class="tab" data-tab="inbox" onclick="switchTab('inbox')">
-      <span class="tab-icon">✉</span><span class="tab-label">Unified Inbox</span>
-    <span class="tab-keyhint">I</span>
-    </button>
-    <button class="tab" data-tab="messages" onclick="switchTab('messages')" style="display:none">
-      <span class="tab-icon">◻</span><span class="tab-label">Messages</span><span class="tab-count" id="messageCount">0</span><span class="tab-dot" id="dotMessages"></span>
-    <span class="tab-keyhint">M</span>
-    </button>
-    <button class="tab" data-tab="enquiries" onclick="switchTab('enquiries')" style="display:none">
-      <span class="tab-icon">✎</span><span class="tab-label">Enquiries</span><span class="tab-count" id="enquiryCount">0</span><span class="tab-dot" id="dotEnquiries"></span>
-    <span class="tab-keyhint">Q</span>
-    </button>
-    <div class="sidebar-section">Marketing</div>
-    <button class="tab" data-tab="promo" onclick="switchTab('promo')">
-      <span class="tab-icon">◊</span><span class="tab-label">Promo Codes</span>
-    <span class="tab-keyhint">W</span>
-    </button>
-    <button class="tab" data-tab="subscribers" onclick="switchTab('subscribers')">
-      <span class="tab-icon">✉</span><span class="tab-label">Subscribers</span><span class="tab-count" id="subscriberCount">0</span>
-    </button>
-    <button class="tab" data-tab="analytics" onclick="switchTab('analytics')">
-      <span class="tab-icon">↗</span><span class="tab-label">Analytics</span>
-    <span class="tab-keyhint">A</span>
-    </button>
-    <button class="tab" data-tab="content" onclick="switchTab('content')">
-      <span class="tab-icon">▤</span><span class="tab-label">Site Content</span>
-    <span class="tab-keyhint">V</span>
-    </button>
-
-    <div class="sidebar-section">System</div>
-    <button class="tab" data-tab="activity" onclick="switchTab('activity')">
-      <span class="tab-icon">≣</span><span class="tab-label">Activity Log</span>
-    <span class="tab-keyhint">Y</span>
-    </button>
-    <button class="tab" data-tab="logs" onclick="switchTab('logs')">
-      <span class="tab-icon">⊘</span><span class="tab-label">Security Logs</span>
-    <span class="tab-keyhint">L</span>
-    </button>
-    <button class="tab" data-tab="recyclebin" onclick="switchTab('recyclebin')">
-      <span class="tab-icon">⊗</span><span class="tab-label">Recycle Bin</span><span class="tab-count" id="binCount">0</span>
-    <span class="tab-keyhint">X</span>
-    </button>
-    <button class="tab" data-tab="appearance" onclick="switchTab('appearance')">
-      <span class="tab-icon">◐</span><span class="tab-label">Appearance</span>
-    <span class="tab-keyhint">T</span>
-    </button>
-
-  </nav>
   <div class="main-area">
 
   <!-- ── CALLBACKS PANEL ───────────────────────── -->
@@ -1276,6 +1252,20 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
         <button class="btn-secondary" id="dashEditBtn" onclick="toggleDashEdit()">⚙ Customize</button>
       </div>
     </div>
+
+    <!-- Quick-action bar, Business-OS-style: the most common "start a task" shortcuts,
+         one click away from wherever the admin lands. -->
+    <div class="qa-bar">
+      <button type="button" class="qa-btn" onclick="switchTab('products');openProductForm()"><span class="qa-btn-icon">＋</span>Add Product</button>
+      <button type="button" class="qa-btn" onclick="switchTab('promo');openPromoModal()"><span class="qa-btn-icon">◊</span>Add Promo Code</button>
+      <button type="button" class="qa-btn" onclick="switchTab('makerworld')"><span class="qa-btn-icon">⇲</span>Import from MakerWorld</button>
+      <button type="button" class="qa-btn" onclick="switchTab('orders')"><span class="qa-btn-icon">◈</span>View Orders</button>
+      <button type="button" class="qa-btn" onclick="switchTab('reviews')"><span class="qa-btn-icon">★</span>Moderate Reviews</button>
+    </div>
+    <!-- Stat-tile row, reuses the exact same numbers dashWKpis() below already
+         computes for the "Key metrics" widget, just surfaced above the fold too. -->
+    <div class="stat-kpi-row" id="dashStatRow"></div>
+
     <div class="dash-grid" id="dashGrid"><div style="grid-column:1/-1;padding:44px;text-align:center;color:var(--text-3)">Loading dashboard…</div></div>
   </div>
 
@@ -2684,6 +2674,8 @@ function showDashboard(user){
   document.getElementById('adminDash').classList.add('show');
   updateClock();setInterval(updateClock,30000);
   initTheme();
+  renderAdminHeaderNav();
+  updateAdminHeaderNavActive('dashboard');
   loadCategories().then(()=>{loadProducts();loadOrders();loadDashboard();loadLogs();loadCustomers();loadMessages();loadCustomEnquiries();loadCallbacks();loadRecycleBin();loadReviewsAdmin();loadGoogleSettings();loadActivity();setTimeout(refreshNotifBadge,2500);});
 }
 
@@ -2820,6 +2812,170 @@ function renderActivity(){
     +'<td style="font-size:12px">'+esc(a.detail||'—')+'</td>'
     +'</tr>').join('');
 }
+// ═══════════════════════════════════════════════════════════
+// HEADER NAV, ported from Business OS (admin-biz.html Phase 3/5): the
+// left sidebar is gone, a top-bar with NAV_CONFIG-driven category
+// dropdowns plus the Ctrl/Cmd+K command palette are now the only
+// navigation surfaces. Single source of truth for every dropdown item,
+// its icon, its badge element id, its dot element id and its one-letter
+// keyboard shortcut, mirroring admin-biz.html's own NAV_CONFIG exactly
+// (same field names, same rendering approach, adapted inline here per
+// the "no shared nav file" decision, each panel owns its own copy).
+// item.id must match the existing switchTab(id) / panel<Id> convention.
+// The 3 legacy hidden tabs (callbacks/messages/enquiries, consolidated
+// into the Unified Inbox) are intentionally NOT listed here, same
+// "hidden but functional" treatment as before, still reachable via
+// switchTab() from the Inbox's "Open" button and from notifications.
+const NAV_CONFIG = [
+  {
+    id: 'operations', label: 'Operations', color: 'var(--accent)',
+    items: [
+      { id: 'dashboard', label: 'Dashboard', icon: '▥', shortcut: 'd' },
+      { id: 'orders',    label: 'Orders',    icon: '◈', shortcut: 'o', badge: 'orderCount',    dot: 'dotOrders' },
+      { id: 'customers', label: 'Customers', icon: '◯', shortcut: 'c', badge: 'customerCount', dot: 'dotCustomers' },
+    ]
+  },
+  {
+    id: 'catalogue', label: 'Catalogue', color: 'var(--blue)',
+    items: [
+      { id: 'products',     label: 'Products',              icon: '▦', shortcut: 'p', badge: 'productCount' },
+      { id: 'categories',   label: 'Categories',             icon: '≡', shortcut: 'g' },
+      { id: 'makerworld',   label: 'Import from MakerWorld', icon: '⇲', shortcut: 'k' },
+      { id: 'reviews',      label: 'Reviews',                icon: '★', shortcut: 'r', badge: 'reviewCount', dot: 'dotReviews' },
+      { id: 'productstudio',label: 'Product Studio',         icon: '✦', shortcut: 'u' },
+    ]
+  },
+  {
+    id: 'inbox', label: 'Inbox', color: 'var(--purple)',
+    items: [
+      { id: 'inbox', label: 'Unified Inbox', icon: '✉', shortcut: 'i' },
+    ]
+  },
+  {
+    id: 'marketing', label: 'Marketing', color: 'var(--green)',
+    items: [
+      { id: 'promo',       label: 'Promo Codes', icon: '◊', shortcut: 'w' },
+      { id: 'subscribers', label: 'Subscribers', icon: '✎', badge: 'subscriberCount' },
+      { id: 'analytics',   label: 'Analytics',   icon: '↗', shortcut: 'a' },
+      { id: 'content',     label: 'Site Content',icon: '▤', shortcut: 'v' },
+    ]
+  },
+  {
+    id: 'system', label: 'System', color: '#6B7280',
+    items: [
+      { id: 'activity',   label: 'Activity Log',   icon: '≣', shortcut: 'y' },
+      { id: 'logs',       label: 'Security Logs',  icon: '⊘', shortcut: 'l' },
+      { id: 'recyclebin', label: 'Recycle Bin',    icon: '⊗', shortcut: 'x', badge: 'binCount' },
+      { id: 'appearance', label: 'Appearance',     icon: '◐', shortcut: 't' },
+    ]
+  },
+];
+
+function _navDdItemHtml(sec,it){
+  return `
+          <button type="button" class="biz-tb-dd-item" data-tab="${it.id}" onclick="switchTab('${it.id}');_adminCatCloseAll()">
+            <span class="biz-tb-dd-icon" style="color:${sec.color}">${it.icon}</span>
+            <span class="biz-tb-dd-label">${esc(it.label)}</span>
+            ${it.badge?`<span class="biz-tb-dd-badge" id="${it.badge}">0</span>`:''}
+            ${it.dot?`<span class="tab-dot" id="${it.dot}" style="position:static;box-shadow:none"></span>`:''}
+            ${it.shortcut?`<span class="biz-tb-dd-key">${it.shortcut.toUpperCase()}</span>`:''}
+          </button>`;
+}
+function renderAdminHeaderNav(){
+  const host=document.getElementById('adminTbNav'); if(!host) return;
+  host.innerHTML=NAV_CONFIG.map(sec=>`
+    <div class="biz-tb-cat" data-cat="${sec.id}" style="--cat-color:${sec.color}"
+         onmouseenter="_adminCatOpen('${sec.id}')" onmouseleave="_adminCatCloseSoon()">
+      <span>${esc(sec.label)}</span><span class="cat-chev">▾</span>
+      <div class="biz-tb-dropdown" onmouseenter="_adminCatCancelClose()" onmouseleave="_adminCatCloseSoon()">
+        ${sec.items.map(it=>_navDdItemHtml(sec,it)).join('')}
+      </div>
+    </div>`).join('');
+}
+let _adminCatCloseTimer=null;
+function _adminCatOpen(catId){
+  clearTimeout(_adminCatCloseTimer);
+  document.querySelectorAll('.biz-tb-cat').forEach(el=>el.classList.toggle('cat-open',el.dataset.cat===catId));
+}
+function _adminCatCloseSoon(){ clearTimeout(_adminCatCloseTimer); _adminCatCloseTimer=setTimeout(_adminCatCloseAll,180); }
+function _adminCatCancelClose(){ clearTimeout(_adminCatCloseTimer); }
+function _adminCatCloseAll(){ document.querySelectorAll('.biz-tb-cat.cat-open').forEach(el=>el.classList.remove('cat-open')); }
+document.addEventListener('click',e=>{ if(!e.target.closest('.biz-tb-nav')) _adminCatCloseAll(); });
+
+// Header category underline reflects whichever tab is active.
+function updateAdminHeaderNavActive(tabId){
+  const sec=NAV_CONFIG.find(s=>s.items.some(it=>it.id===tabId));
+  document.querySelectorAll('.biz-tb-cat').forEach(el=>el.classList.toggle('cat-active',sec&&el.dataset.cat===sec.id));
+  document.querySelectorAll('.biz-tb-dd-item').forEach(el=>el.classList.toggle('dd-active',el.dataset.tab===tabId));
+}
+
+// ── Command palette, Ctrl/Cmd+K, mirrors admin-biz.html's getCmdkItems()/
+// openCmdPalette()/closeCmdPalette()/_cmdkFilter()/_cmdkNav(), same names,
+// same behaviour, reading this file's own NAV_CONFIG instead. On mobile
+// this IS the entire nav (the hamburger opens it, there's no drawer). ──
+function getCmdkItems(){
+  return NAV_CONFIG.flatMap(sec=>sec.items.map(it=>({...it,color:sec.color,section:sec.label})));
+}
+let _cmdkResults=[], _cmdkSel=0;
+function openCmdPalette(){
+  let ov=document.getElementById('cmdkOverlay');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='cmdkOverlay'; ov.className='cmdk-overlay';
+    ov.innerHTML=`<div class="cmdk-box">
+      <input type="text" class="cmdk-input" id="cmdkInput" placeholder="Jump to a page or action…" autocomplete="off">
+      <div class="cmdk-list" id="cmdkList"></div>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click',e=>{ if(e.target===ov) closeCmdPalette(); });
+    document.getElementById('cmdkInput').addEventListener('input',e=>_cmdkFilter(e.target.value));
+    document.getElementById('cmdkInput').addEventListener('keydown',_cmdkNav);
+  }
+  ov.classList.add('show');
+  _cmdkFilter('');
+  setTimeout(()=>document.getElementById('cmdkInput').focus(),10);
+}
+function closeCmdPalette(){ const ov=document.getElementById('cmdkOverlay'); if(ov) ov.classList.remove('show'); }
+function _cmdkFilter(q){
+  const query=(q||'').trim().toLowerCase();
+  const items=getCmdkItems();
+  _cmdkResults=!query?items:items.filter(it=>it.label.toLowerCase().includes(query)||it.section.toLowerCase().includes(query));
+  _cmdkSel=0;
+  _cmdkRender();
+}
+function _cmdkRender(){
+  const list=document.getElementById('cmdkList'); if(!list) return;
+  if(!_cmdkResults.length){ list.innerHTML='<div class="cmdk-empty">No matches</div>'; return; }
+  list.innerHTML=_cmdkResults.map((it,i)=>`
+    <button type="button" class="cmdk-item${i===_cmdkSel?' cmdk-active':''}" onclick="_cmdkGo(${i})">
+      <span class="cmdk-icon">${it.icon}</span>
+      <span class="cmdk-label">${esc(it.label)}</span>
+      <span class="cmdk-section" style="--cmd-color:${it.color}">${esc(it.section)}</span>
+      ${it.shortcut?`<span class="cmdk-key">${it.shortcut.toUpperCase()}</span>`:''}
+    </button>`).join('');
+}
+function _cmdkGo(i){ const it=_cmdkResults[i]; if(!it) return; switchTab(it.id); closeCmdPalette(); }
+function _cmdkNav(ev){
+  if(ev.key==='ArrowDown'){ ev.preventDefault(); _cmdkSel=Math.min(_cmdkSel+1,_cmdkResults.length-1); _cmdkRender(); }
+  else if(ev.key==='ArrowUp'){ ev.preventDefault(); _cmdkSel=Math.max(_cmdkSel-1,0); _cmdkRender(); }
+  else if(ev.key==='Enter'){ ev.preventDefault(); _cmdkGo(_cmdkSel); }
+  else if(ev.key==='Escape'){ ev.preventDefault(); closeCmdPalette(); }
+}
+// Hamburger (mobile) toggles the command palette open/closed; there's no
+// slide-in drawer any more, same as Business OS's toggleNav().
+function toggleNav(force){
+  const ov=document.getElementById('cmdkOverlay');
+  const isOpen=ov&&ov.classList.contains('show');
+  const open=(force===undefined)?!isOpen:!!force;
+  if(open) openCmdPalette(); else closeCmdPalette();
+}
+document.addEventListener('keydown',function(ev){
+  if((ev.ctrlKey||ev.metaKey)&&ev.key==='k'){
+    const ls=document.getElementById('loginScreen');
+    if(ls&&!ls.classList.contains('hidden')&&getComputedStyle(ls).display!=='none') return;
+    ev.preventDefault(); openCmdPalette(); return;
+  }
+});
+
 document.addEventListener('click',function(e){
   const gs=document.getElementById('globalSearchResults');
   if(gs&&gs.style.display!=='none'&&!e.target.closest('#globalSearch')&&!e.target.closest('#globalSearchResults')) gs.style.display='none';
@@ -2829,6 +2985,9 @@ document.addEventListener('click',function(e){
 });
 document.addEventListener('keydown',function(ev){
   if(ev.key!=='Escape') return;
+  var cmdk=document.getElementById('cmdkOverlay');
+  if(cmdk&&cmdk.classList.contains('show')){closeCmdPalette();return;}
+  if(document.querySelector('.biz-tb-cat.cat-open')){_adminCatCloseAll();return;}
   var om=document.getElementById('orderModal');
   if(om&&om.style.display!=='none'){closeOrderModal();return;}
   var pm=document.getElementById('promoModal');
@@ -2845,8 +3004,6 @@ document.addEventListener('keydown',function(ev){
   if(nd&&nd.style.display==='block'){nd.style.display='none';return;}
   var rm=document.getElementById('recordModal');
   if(rm&&rm.style.display!=='none'){rm.style.display='none';return;}
-  var sbEl=document.querySelector('.sidebar');
-  if(sbEl&&sbEl.classList.contains('open')){closeAdminNav();return;}
   // Nothing was open to close, Esc again goes "home" (Dashboard).
   if(_curAdminTab!=='dashboard') switchTab('dashboard');
 });
@@ -2884,11 +3041,14 @@ document.addEventListener('keydown',function(ev){
 // One-letter tab jump, C=Customers, P=Products, R=Reviews, etc. Skipped while typing in
 // a field, while a modal/form is open (so the letter isn't hijacked mid-task), or combined
 // with Ctrl/Cmd/Alt. 'n' is excluded, that's already the add-new shortcut above.
-const ADMIN_TAB_KEYS={
-  d:'dashboard', o:'orders', b:'callbacks', c:'customers', p:'products', g:'categories',
-  k:'makerworld', r:'reviews', i:'inbox', m:'messages', q:'enquiries', w:'promo',
-  a:'analytics', y:'activity', v:'content', l:'logs', x:'recyclebin', t:'appearance',
-};
+// Derived from NAV_CONFIG (the single source of truth, see below), not hardcoded, so a
+// tab added there automatically gets its shortcut wired here too, same as Business OS.
+// The 3 legacy hidden tabs (callbacks/messages/enquiries, consolidated into the Unified
+// Inbox) intentionally have no NAV_CONFIG entry, so their old b/m/q hotkeys are retired
+// along with their nav visibility, they stay reachable only via deep-link/switchTab().
+const ADMIN_TAB_KEYS=Object.fromEntries(
+  NAV_CONFIG.flatMap(sec=>sec.items).filter(it=>it.shortcut).flatMap(it=>it.shortcut.split('/').map(k=>[k,it.id]))
+);
 function adminAnyModalOpen(){
   const om=document.getElementById('orderModal'); if(om&&om.style.display!=='none') return true;
   const pm=document.getElementById('promoModal'); if(pm&&pm.style.display!=='none') return true;
@@ -2915,7 +3075,7 @@ document.addEventListener('keydown',function(ev){
 // native action on lots of focused elements (activates a button, ticks a
 // checkbox, scrolls the page), so this also skips buttons/links/custom
 // tabindex controls, not just typing fields. No-op on mobile where
-// .top-center (holding #globalSearch) is hidden below 768px, there's
+// .biz-tb-search (holding #globalSearch) is hidden below 768px, there's
 // nowhere sensible to send focus so plain space keeps scrolling instead.
 document.addEventListener('keydown',function(ev){
   if(ev.code!=='Space'||ev.repeat) return;
@@ -2931,57 +3091,13 @@ document.addEventListener('keydown',function(ev){
 
 setInterval(refreshNotifBadge, 20000);
 
-// §2b, desktop sidebar collapse (remembered)
-function toggleAdminSidebar(){
-  const c=document.body.classList.toggle('sb-collapsed');
-  try{ localStorage.setItem('admin_sidebar_collapsed',c?'1':'0'); }catch(e){}
-  const b=document.getElementById('adminCollapseBtn'); if(b) b.textContent=c?'››':'‹‹';
-}
-(function(){ try{ if(localStorage.getItem('admin_sidebar_collapsed')==='1'){ document.body.classList.add('sb-collapsed'); var b=document.getElementById('adminCollapseBtn'); if(b) b.textContent='››'; } }catch(e){} })();
-
-// -- Dock-style hover magnify for the collapsed sidebar --
+/* ── Right-swipe to open the command palette (mobile only), left-swipe
+   closes it. There's no sidebar drawer any more (Business OS pattern),
+   the palette IS the mobile nav, mirrors admin-biz.html's own swipe
+   handler exactly, reading toggleNav()/cmdkOverlay instead of a
+   drawer element. ── */
 (function(){
-  const sidebar=document.querySelector('.admin-body .sidebar'); if(!sidebar) return;
-  let tip=document.querySelector('.dock-tooltip');
-  if(!tip){ tip=document.createElement('div'); tip.className='dock-tooltip'; document.body.appendChild(tip); }
-  const collapsed=()=>document.body.classList.contains('sb-collapsed');
-  function clearDock(){ sidebar.querySelectorAll('.tab').forEach(t=>t.classList.remove('dock-hover','dock-near','dock-far')); tip.classList.remove('show'); }
-  sidebar.addEventListener('mouseenter',()=>{ if(collapsed()) sidebar.style.overflow='visible'; });
-  sidebar.addEventListener('mouseleave',()=>{ sidebar.style.overflow=''; clearDock(); });
-  sidebar.addEventListener('mouseover',e=>{
-    if(!collapsed()) return;
-    const tab=e.target.closest('.tab'); if(!tab||!sidebar.contains(tab)) return;
-    const list=Array.from(sidebar.querySelectorAll('.tab'));
-    const idx=list.indexOf(tab);
-    list.forEach((t,i)=>{
-      t.classList.remove('dock-hover','dock-near','dock-far');
-      const d=Math.abs(i-idx);
-      if(d===0) t.classList.add('dock-hover');
-      else if(d===1) t.classList.add('dock-near');
-      else if(d===2) t.classList.add('dock-far');
-    });
-    const label=tab.querySelector('.tab-label'), r=tab.getBoundingClientRect();
-    tip.textContent=label?label.textContent.trim():'';
-    tip.style.top=(r.top+r.height/2)+'px'; tip.style.left=(r.right+14)+'px';
-    tip.classList.add('show');
-  });
-})();
-
-function toggleAdminNav(){
-  const sb=document.querySelector('.sidebar'); if(!sb)return;
-  let bd=document.getElementById('navBackdrop');
-  if(!bd){ bd=document.createElement('div'); bd.id='navBackdrop'; bd.className='nav-backdrop'; bd.addEventListener('click',closeAdminNav); document.body.appendChild(bd); }
-  const open=sb.classList.toggle('open');
-  bd.classList.toggle('show',open);
-}
-function closeAdminNav(){
-  const sb=document.querySelector('.sidebar'); if(sb)sb.classList.remove('open');
-  const bd=document.getElementById('navBackdrop'); if(bd)bd.classList.remove('show');
-}
-
-/* ── Right-swipe to open sidebar (mobile only) ── */
-(function(){
-  let swX=0,swY=0,swOK=false,swOpen=false;
+  let swX=0,swY=0,swOK=false;
   const inHScroll=el=>{
     for(let n=el;n&&n!==document.body&&n.nodeType===1;n=n.parentElement){
       const cs=getComputedStyle(n);
@@ -2994,9 +3110,7 @@ function closeAdminNav(){
     if(window.innerWidth>768)return;
     const t=e.touches[0];
     swX=t.clientX;swY=t.clientY;
-    const sb=document.querySelector('.sidebar');
-    swOpen=sb&&sb.classList.contains('open');
-    swOK=!e.target.closest('.sidebar')&&!inHScroll(e.target);
+    swOK=!e.target.closest('#cmdkOverlay')&&!inHScroll(e.target);
   },{passive:true});
   document.addEventListener('touchend',e=>{
     if(!swOK||window.innerWidth>768)return;
@@ -3004,14 +3118,18 @@ function closeAdminNav(){
     const t=e.changedTouches[0];
     const dx=t.clientX-swX,dy=t.clientY-swY;
     if(Math.abs(dy)>60||Math.abs(dx)<70)return;
-    if(!swOpen&&dx>0)toggleAdminNav();
-    else if(swOpen&&dx<0)closeAdminNav();
+    const ov=document.getElementById('cmdkOverlay');
+    const isOpen=ov&&ov.classList.contains('show');
+    if(!isOpen&&dx>0)toggleNav();
+    else if(isOpen&&dx<0)toggleNav(false);
   },{passive:true});
 })();
 
 let _curAdminTab='dashboard';
 function refreshCurrentAdminTab(){
   const m={dashboard:loadDashboard,orders:loadOrders,customers:loadCustomers,products:loadProducts,messages:loadMessages,enquiries:loadCustomEnquiries,callbacks:loadCallbacks,inbox:loadInbox,reviews:()=>{loadReviewsAdmin();if(typeof loadGoogleSettings==='function')loadGoogleSettings();},recyclebin:loadRecycleBin,analytics:()=>{loadAnalytics();if(typeof loadGa4==='function')loadGa4();},promo:loadPromoCodes,activity:loadActivity,content:()=>{loadContentSettings();loadStoriesAdmin();},appearance:(typeof loadMenuStyleSetting==='function'?loadMenuStyleSetting:function(){}),categories:loadCategories,logs:loadLogs};
+  const btn=document.getElementById('adminRefreshBtn');
+  if(btn){ btn.classList.add('spinning'); setTimeout(()=>btn.classList.remove('spinning'),600); }
   if(typeof m[_curAdminTab]==='function'){ try{ m[_curAdminTab](); toast('Refreshed','success'); }catch(e){} }
 }
 
@@ -3038,8 +3156,8 @@ function applyTableLabels(root){
 
 function switchTab(tab){
   _curAdminTab=tab;
-  closeAdminNav();
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  toggleNav(false);   // close the mobile command palette after choosing a tab
+  updateAdminHeaderNavActive(tab);
   ['Dashboard','Callbacks','Orders','Customers','Products','Makerworld','Messages','Enquiries','Analytics','Categories','Logs','Recyclebin','Promo','Reviews','Appearance','Activity','Content','Inbox','Productstudio','Subscribers'].forEach(p=>{
     const el=document.getElementById('panel'+p);
     if(el)el.classList.toggle('active',p.toLowerCase()===tab);
@@ -3207,8 +3325,25 @@ async function loadDashboard(){
   }catch(e){ grid.innerHTML='<div style="grid-column:1/-1;padding:30px;color:#B91C1C">Error loading dashboard: '+esc(e.message)+'</div>'; }
 }
 
+// Stat-tile row above the dashboard grid (Business-OS-style), reuses the exact
+// same figures dashWKpis() below already computes, just surfaced above the fold
+// as clickable tiles that jump straight to the relevant tab.
+function renderDashStatRow(){
+  const row=document.getElementById('dashStatRow'); if(!row||!_dashData) return;
+  const d=_dashData, lowStock=(_products||[]).filter(p=>p.is_active&&(p.stock_qty??0)<=5).length;
+  const open=d.orders.filter(o=>DASH_OPEN_STATUSES.includes(o.status)||DASH_OPEN_STATUSES.includes(o.order_status)).length;
+  const pending=_dashPending();
+  const tiles=[
+    {color:'var(--green)',bg:'var(--green-bg)',icon:'₹',label:'Revenue · 30d',val:'₹'+d.monthRevenue.toLocaleString('en-IN'),tab:'dashboard'},
+    {color:'var(--accent)',bg:'var(--accent-bg)',icon:'◈',label:'Open Orders',val:open,tab:'orders',urgent:open>0},
+    {color:'var(--red)',bg:'var(--red-bg)',icon:'▦',label:'Low / Out of Stock',val:lowStock,tab:'products',urgent:lowStock>0},
+    {color:'var(--purple)',bg:'var(--purple-bg)',icon:'★',label:'Pending Reviews',val:pending,tab:'reviews',urgent:pending>0},
+  ];
+  row.innerHTML=tiles.map(t=>`<div class="stat-kpi${t.urgent?' stat-kpi-urgent':''}" style="--pill-color:${t.color};--pill-color-bg:${t.bg}" onclick="switchTab('${t.tab}')"><div class="stat-kpi-icon">${t.icon}</div><div class="stat-kpi-body"><div class="stat-kpi-val">${t.val}</div><div class="stat-kpi-label">${esc(t.label)}</div></div></div>`).join('');
+}
 function dashRender(){
   const grid=document.getElementById('dashGrid'); if(!grid||!_dashData)return;
+  renderDashStatRow();
   const layout=dashGetLayout(),byKey={}; DASH_WIDGETS.forEach(w=>byKey[w.key]=w);
   const visible=dashOrderedKeys().filter(k=>!layout.hidden.includes(k));
   let html=visible.map(k=>{const w=byKey[k]; if(!w)return'';
@@ -5817,9 +5952,11 @@ function checkNewItems(key,dotId,currentCount){
   const seen=parseInt(localStorage.getItem('ta_seen_'+key)||'0',10);
   const dot=document.getElementById(dotId);
   if(!dot)return;
-  // Check if this tab is currently active
-  const tabBtn=dot.closest('.tab');
-  const isActive=tabBtn&&tabBtn.classList.contains('active');
+  // Check if this tab is currently active. Dot indicators now live inside a
+  // header dropdown item (.biz-tb-dd-item, ported from the old sidebar .tab
+  // button), updateAdminHeaderNavActive() marks the active one with dd-active.
+  const tabBtn=dot.closest('.biz-tb-dd-item');
+  const isActive=tabBtn&&tabBtn.classList.contains('dd-active');
   if(currentCount>seen&&!isActive){
     dot.classList.add('visible');
   }else{
