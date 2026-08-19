@@ -38,10 +38,10 @@
   color-scheme:light;
 }
 /* ── Dark theme, mirrors the Admin Panel palette for cross-panel parity ──
-   Round 3 — color-scheme was never declared, so native browser chrome that
+   Round 3, color-scheme was never declared, so native browser chrome that
    CSS can't reach (the open <select> dropdown list, scrollbars, date/time
    picker popups) kept rendering in the OS's default LIGHT style even in
-   dark mode — the closed control looked themed (that's your own CSS) but
+   dark mode, the closed control looked themed (that's your own CSS) but
    the moment it opened, it fell back to a plain white system popup. ── */
 html[data-theme="dark"]{
   color-scheme:dark;
@@ -262,6 +262,16 @@ tr:hover td{background:var(--bg-2)}
 .badge-dispatched{background:var(--blue-bg);color:var(--blue)}
 .badge-delivered{background:var(--green-bg);color:var(--green)}
 .badge-delayed{background:var(--red-bg);color:var(--red)}
+/* Round, these 6 UNIFIED_STATUSES values had no matching .badge-X rule, so
+   any order/return in one of these statuses rendered with no tonal background
+   at all (just bare uppercase text), unlike every other status in the same
+   dropdown/column. */
+.badge-delaying{background:var(--yellow-bg);color:var(--yellow)}
+.badge-return_initiated{background:var(--accent-bg);color:var(--accent)}
+.badge-return_picked_up{background:var(--blue-bg);color:var(--blue)}
+.badge-claim_filed{background:var(--purple-bg);color:var(--purple)}
+.badge-cancelled_before_dispatch{background:var(--yellow-bg);color:var(--yellow)}
+.badge-cancelled_before_delivery{background:var(--yellow-bg);color:var(--yellow)}
 /* Order ID tag (orderIdTag()), plain text wherever an order ID is listed
    (All Orders, Today's Tasks, Order Detail, Returns, Invoicing). */
 .oid-tag{background:none;border:none;padding:0}
@@ -295,7 +305,7 @@ tr:hover td{background:var(--bg-2)}
 .form-group select option{background:var(--bg-2)}
 .form-sep{grid-column:1/-1;height:1px;background:var(--border);margin:4px 0}
 /* Inline table-row edit mode (Instant Quotes materials/colors/printers, and any
-   future "click Edit, cells become inputs in place" row) — same visual language
+   future "click Edit, cells become inputs in place" row), same visual language
    as .form-group's inputs, just sized to sit inside a table cell instead of a
    full form field (no label, tighter padding). */
 .iq-edit-input{background:var(--bg-2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--sans);font-size:12px;padding:5px 8px;outline:none;transition:border-color .15s;box-sizing:border-box}
@@ -414,7 +424,8 @@ tr:hover td{background:var(--bg-2)}
 /* Interactive quick-select chips (status / lead source / fulfillment) */
 .chip-label{display:block;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:6px}
 .qchips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.qchip{padding:7px 12px;border:1px solid var(--border);border-radius:20px;background:var(--bg-2);color:var(--text);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.qchip{display:inline-flex;align-items:center;gap:5px;padding:7px 12px;border:1px solid var(--border);border-radius:20px;background:var(--bg-2);color:var(--text);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.qchip svg{flex-shrink:0}
 .qchip:hover{border-color:var(--border-h)}
 .qchip.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 1px 2px rgba(16,32,24,.18)}
 /* Document field on/off switch, adapted from .qchip's toggle-button pattern into a real
@@ -440,7 +451,7 @@ tr:hover td{background:var(--bg-2)}
 .qa-doc-btn:hover{border-color:var(--accent);color:var(--accent)}
 .qa-doc-btn-accent{background:var(--accent);color:#fff;border-color:var(--accent)}
 .qa-doc-btn-accent:hover{color:#fff;opacity:.9}
-.qa-doc-icon{font-size:13px}
+.qa-doc-icon{font-size:13px;display:inline-flex;align-items:center}
 /* Order/Quotation mode toggle, one pill, a sliding thumb behind whichever side is
    active, centered on the page (the "sexy swipe" ask, iOS-settings-style). */
 .qa-mode-toggle{position:relative;display:inline-flex;background:var(--bg-2);border:1px solid var(--border);
@@ -932,8 +943,9 @@ tr:hover td{background:var(--accent-bg)!important}
 .badge-completed,.badge-won{box-shadow:0 0 0 1px rgba(22,163,74,.18)}
 html[data-theme="dark"] .badge-completed,html[data-theme="dark"] .badge-won{box-shadow:0 0 0 1px rgba(74,222,128,.18)}
 .badge-returned,.badge-lost{box-shadow:0 0 0 1px rgba(220,38,38,.15)}
-.badge-claimed{box-shadow:0 0 0 1px rgba(124,58,237,.15)}
-.badge-pending,.badge-cancelled{box-shadow:0 0 0 1px rgba(217,119,6,.15)}
+.badge-claimed,.badge-claim_filed{box-shadow:0 0 0 1px rgba(124,58,237,.15)}
+.badge-pending,.badge-cancelled,.badge-delaying,.badge-cancelled_before_dispatch,.badge-cancelled_before_delivery{box-shadow:0 0 0 1px rgba(217,119,6,.15)}
+.badge-return_picked_up{box-shadow:0 0 0 1px rgba(37,99,235,.15)}
 
 /* ── Quick chips + segmented controls ─── */
 .qchip{border-radius:8px;padding:6px 12px;font-size:11px;font-weight:600;border:1px solid var(--border)}
@@ -960,7 +972,7 @@ input[type=tel],input[type=url],input[type=date],input[type=search],select,texta
 input:focus,select:focus,textarea:focus{
   border-color:var(--accent)!important;box-shadow:0 0 0 3px var(--glow-a)!important;outline:none;
 }
-/* Round 3 — raw <input type=file> (GST Portal upload, Expenses/Purchases invoice, Import CSV,
+/* Round 3, raw <input type=file> (GST Portal upload, Expenses/Purchases invoice, Import CSV,
    Labels PDF) rendered as the bare unstyled browser control everywhere it wasn't hidden behind
    a button trigger. Skin the native file-picker button to match the rest of the design system. */
 input[type=file]{font-family:var(--sans);font-size:12px;color:var(--text-2)}
@@ -969,13 +981,13 @@ input[type=file]::file-selector-button{
   border:none;border-radius:var(--radius);padding:7px 14px;margin-right:10px;cursor:pointer;transition:background .15s;
 }
 input[type=file]::file-selector-button:hover{background:var(--accent-h)}
-/* Round 3 — checkboxes had NO styling anywhere in this file at all (every bulk-select
+/* Round 3, checkboxes had NO styling anywhere in this file at all (every bulk-select
    checkbox across All Sales/Today's Tasks/Products/Customers/Spool Tracker was rendering as
    the plain OS-default checkbox next to an otherwise fully-designed table). */
 input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;cursor:pointer;vertical-align:middle}
 input[type=radio]{accent-color:var(--accent);cursor:pointer}
-/* Round 3 — every plain <select> (channel/status/payment filters, sort, month-range pickers,
-   etc.) kept the native OS dropdown chevron — only .badge-select had the custom minimal arrow
+/* Round 3, every plain <select> (channel/status/payment filters, sort, month-range pickers,
+   etc.) kept the native OS dropdown chevron, only .badge-select had the custom minimal arrow
    the customer-facing site uses (see shared.css .ta-phone-prefix for the same pattern). Applies
    globally; padding-right is !important only so scoped rules' shorthand `padding` (which would
    otherwise silently reset it) can't collapse the arrow's clearance. */
@@ -985,7 +997,7 @@ select{
   background-repeat:no-repeat;background-position:right 9px center;
 }
 /* .badge-select is a compact status pill with its own tighter arrow/padding already set
-   (higher specificity, so it wins on its own) — only widen the arrow clearance for everything
+   (higher specificity, so it wins on its own), only widen the arrow clearance for everything
    else, so this doesn't blow up the pill's intentionally small size. */
 select:not(.badge-select){padding-right:26px!important}
 
@@ -1116,7 +1128,7 @@ html[data-theme="dark"] .biz-login{
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
     <button type="button" class="biz-tb-direct" id="bizTbTodayBtn" onclick="switchTab('openorders')" title="Task">
       <span class="biz-tb-direct-icon">⚑</span><span>Task</span>
-      <span class="biz-tb-dd-badge" id="openCount_hdr">—</span>
+      <span class="biz-tb-dd-badge" id="openCount_hdr">N/A</span>
     </button>
     <nav class="biz-tb-nav" id="bizTbNav"></nav>
     <button class="biz-tb-icon biz-tb-cmdk biz-tb-icon-muted" onclick="openCmdPalette()" title="Command palette (Ctrl/Cmd+K)" style="font-size:14px;font-weight:700">⌘</button>
@@ -1184,14 +1196,14 @@ html[data-theme="dark"] .biz-login{
 
       <!-- KPIs, every tile is clickable, opens the underlying data (§ dashboard drill-down) -->
       <div class="kpi-grid" id="kpiGrid">
-        <div class="kpi green" data-w="revenue" style="cursor:pointer" onclick="openDashDrilldown('revenue')"><div class="kpi-label">Total Revenue</div><div class="kpi-val" id="kpiRevenue">—</div><div class="kpi-sub">Selling price incl. GST</div></div>
-        <div class="kpi blue" data-w="net" style="cursor:pointer" onclick="openDashDrilldown('net')"><div class="kpi-label">Net Revenue</div><div class="kpi-val" id="kpiNet">—</div><div class="kpi-sub">After platform fees</div></div>
-        <div class="kpi green" data-w="profit" style="cursor:pointer" onclick="openDashDrilldown('profit')"><div class="kpi-label">Gross Profit</div><div class="kpi-val" id="kpiProfit">—</div><div class="kpi-sub" id="kpiMarginSub">—</div></div>
-        <div class="kpi yellow" data-w="gst" style="cursor:pointer" onclick="openDashDrilldown('gst')"><div class="kpi-label">Total GST</div><div class="kpi-val" id="kpiGst">—</div><div class="kpi-sub">Collected (payable)</div></div>
-        <div class="kpi purple" data-w="orders" style="cursor:pointer" onclick="openDashDrilldown('orders')"><div class="kpi-label">Total Orders Received</div><div class="kpi-val" id="kpiOrders">—</div><div class="kpi-sub" id="kpiUnitsSub">—</div></div>
-        <div class="kpi" data-w="cancelled" style="cursor:pointer" onclick="openDashDrilldown('cancelled')"><div class="kpi-label">Total Cancelled</div><div class="kpi-val" id="kpiCancelled">—</div><div class="kpi-sub" id="kpiCancelledSub">—</div></div>
-        <div class="kpi red" data-w="returns" style="cursor:pointer" onclick="openDashDrilldown('returns')"><div class="kpi-label">Returns / Claims</div><div class="kpi-val" id="kpiReturns">—</div><div class="kpi-sub">Loss this period</div></div>
-        <div class="kpi" data-w="filament" style="cursor:pointer" onclick="openDashDrilldown('filament')"><div class="kpi-label">Filament Used</div><div class="kpi-val" id="kpiFilament">—</div><div class="kpi-sub">This period, by colour</div></div>
+        <div class="kpi green" data-w="revenue" style="cursor:pointer" onclick="openDashDrilldown('revenue')"><div class="kpi-label">Total Revenue</div><div class="kpi-val" id="kpiRevenue">N/A</div><div class="kpi-sub">Selling price incl. GST</div></div>
+        <div class="kpi blue" data-w="net" style="cursor:pointer" onclick="openDashDrilldown('net')"><div class="kpi-label">Net Revenue</div><div class="kpi-val" id="kpiNet">N/A</div><div class="kpi-sub">After platform fees</div></div>
+        <div class="kpi green" data-w="profit" style="cursor:pointer" onclick="openDashDrilldown('profit')"><div class="kpi-label">Gross Profit</div><div class="kpi-val" id="kpiProfit">N/A</div><div class="kpi-sub" id="kpiMarginSub">N/A</div></div>
+        <div class="kpi yellow" data-w="gst" style="cursor:pointer" onclick="openDashDrilldown('gst')"><div class="kpi-label">Total GST</div><div class="kpi-val" id="kpiGst">N/A</div><div class="kpi-sub">Collected (payable)</div></div>
+        <div class="kpi purple" data-w="orders" style="cursor:pointer" onclick="openDashDrilldown('orders')"><div class="kpi-label">Total Orders Received</div><div class="kpi-val" id="kpiOrders">N/A</div><div class="kpi-sub" id="kpiUnitsSub">N/A</div></div>
+        <div class="kpi" data-w="cancelled" style="cursor:pointer" onclick="openDashDrilldown('cancelled')"><div class="kpi-label">Total Cancelled</div><div class="kpi-val" id="kpiCancelled">N/A</div><div class="kpi-sub" id="kpiCancelledSub">N/A</div></div>
+        <div class="kpi red" data-w="returns" style="cursor:pointer" onclick="openDashDrilldown('returns')"><div class="kpi-label">Returns / Claims</div><div class="kpi-val" id="kpiReturns">N/A</div><div class="kpi-sub">Loss this period</div></div>
+        <div class="kpi" data-w="filament" style="cursor:pointer" onclick="openDashDrilldown('filament')"><div class="kpi-label">Filament Used</div><div class="kpi-val" id="kpiFilament">N/A</div><div class="kpi-sub">This period, by colour</div></div>
       </div>
 
       <!-- Margin by Channel, separate from the Channel Breakdown table for visibility -->
@@ -1433,7 +1445,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-grid">
             <div class="form-group"><label>Category</label><select id="ql_pay_category"><option value="flipkart_payout">Flipkart Payout</option><option value="amazon_payout">Amazon Payout</option><option value="website_payout">Website Payout</option><option value="misc" selected>Extra / Misc</option></select></div>
             <div class="form-group"><label>Amount ₹</label><input type="number" id="ql_pay_amount" step="0.01"></div>
-            <div class="form-group"><label>Mode</label><select id="ql_pay_mode"><option value="">—</option><option value="bank_transfer">Bank Transfer</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="gpay">GPay</option><option value="paytm">Paytm</option></select></div>
+            <div class="form-group"><label>Mode</label><select id="ql_pay_mode"><option value="">Select</option><option value="bank_transfer">Bank Transfer</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="gpay">GPay</option><option value="paytm">Paytm</option></select></div>
           </div>
           <button class="btn btn-primary btn-sm" onclick="runSave(this,saveQuickPayment)" title="Shortcut: Ctrl+Enter" style="margin-top:8px">Save Payment <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
         </div>
@@ -1484,7 +1496,7 @@ html[data-theme="dark"] .biz-login{
           <option value="return_initiated" style="color:#111">Return Initiated</option>
           <option value="returned" style="color:#111">Returned</option>
         </select>
-        <button class="btn btn-sm" onclick="bulkDeleteOpen()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2);margin-left:auto">🗑 Move to Recycle Bin</button>
+        <button class="btn btn-sm" onclick="bulkDeleteOpen()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2);margin-left:auto"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Move to Recycle Bin</button>
       </div>
 
       <!-- Production stays open/closed however you last left it (remembered), Dispatched
@@ -1556,7 +1568,7 @@ html[data-theme="dark"] .biz-login{
              of its own boxed-off section ── -->
         <div class="qa-mode-toggle qa-mode-toggle-sm" id="qaModeSeg" data-v="order">
           <div class="qa-mode-thumb"></div>
-          <button type="button" class="qa-mode-btn active" data-v="order" onclick="setQaFormMode('order')">🧾 Order</button>
+          <button type="button" class="qa-mode-btn active" data-v="order" onclick="setQaFormMode('order')">▤ Order</button>
           <button type="button" class="qa-mode-btn" data-v="quotation" onclick="setQaFormMode('quotation')">⎘ Quotation</button>
         </div>
       </div>
@@ -1564,7 +1576,7 @@ html[data-theme="dark"] .biz-login{
            actually deducted from the rack until this form is saved, so make that
            pending state impossible to miss or lose track of. -->
       <div id="qaRackPendingBanner" style="display:none;background:var(--tri-orange-dim,rgba(196,98,42,.12));border:1px solid var(--accent);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text)">
-        ⏳ Completing a Rack sale, the rack item won't be removed until you Save. Click Clear to cancel and leave the rack listing untouched.
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>Completing a Rack sale, the rack item won't be removed until you Save. Click Clear to cancel and leave the rack listing untouched.
       </div>
 
       <form id="quickAddForm" onsubmit="submitQuickAdd(event)" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();this.requestSubmit();}">
@@ -1576,10 +1588,10 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group">
             <label>Channel</label>
             <select id="qa_channel" onchange="onChannelChange()">
-              <option value="shop" selected>🏠 Studio / Offline</option>
-              <option value="amazon">📦 Amazon</option>
-              <option value="flipkart">🛍️ Flipkart</option>
-              <option value="website">🌐 Website</option>
+              <option value="shop" selected>Studio / Offline</option>
+              <option value="amazon">Amazon</option>
+              <option value="flipkart">Flipkart</option>
+              <option value="website">Website</option>
             </select>
           </div>
           <div class="form-group">
@@ -1642,13 +1654,13 @@ html[data-theme="dark"] .biz-login{
           </div>
         </div>
         <div class="qchips" id="qaLeadChips" style="margin-top:12px">
-          <button type="button" class="qchip" data-v="existing" onclick="setLeadSource('existing')" title="Auto-picked when the typed name/phone matches a known customer">🔁 Existing Customer</button>
-          <button type="button" class="qchip" data-v="studio_walkin" onclick="setLeadSource('studio_walkin')">Studio Walk-in</button>
-          <button type="button" class="qchip" data-v="whatsapp" onclick="setLeadSource('whatsapp')">WhatsApp</button>
-          <button type="button" class="qchip" data-v="google" onclick="setLeadSource('google')">Google</button>
-          <button type="button" class="qchip" data-v="instagram" onclick="setLeadSource('instagram')">Instagram</button>
-          <button type="button" class="qchip" data-v="referral" onclick="setLeadSource('referral')">Referral</button>
-          <button type="button" class="qchip" data-v="other" onclick="setLeadSource('other')">Other</button>
+          <button type="button" class="qchip" data-v="existing" onclick="setLeadSource('existing')" title="Auto-picked when the typed name/phone matches a known customer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/></svg> Existing Customer</button>
+          <button type="button" class="qchip" data-v="studio_walkin" onclick="setLeadSource('studio_walkin')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg> Studio Walk-in</button>
+          <button type="button" class="qchip" data-v="whatsapp" onclick="setLeadSource('whatsapp')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/></svg> WhatsApp</button>
+          <button type="button" class="qchip" data-v="google" onclick="setLeadSource('google')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Google</button>
+          <button type="button" class="qchip" data-v="instagram" onclick="setLeadSource('instagram')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M8 6l1.5-2h5L16 6"/><circle cx="12" cy="13" r="3.5"/></svg> Instagram</button>
+          <button type="button" class="qchip" data-v="referral" onclick="setLeadSource('referral')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1"/><circle cx="9" cy="8" r="3.5"/><path d="M22 21v-1a4 4 0 0 0-3-3.87"/><path d="M16 4.13a4 4 0 0 1 0 7.75"/></svg> Referral</button>
+          <button type="button" class="qchip" data-v="other" onclick="setLeadSource('other')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg> Other</button>
         </div>
         <input type="hidden" id="qa_lead_source" value="">
         </div>
@@ -1748,11 +1760,11 @@ html[data-theme="dark"] .biz-login{
 <div class="qa-card qa-order-only">
           <div class="qa-sec-title">Delivery / Pickup</div>
           <div class="qchips" id="qaFulfilChips">
-            <button type="button" class="qchip active" data-v="delivery" onclick="setFulfillment('delivery')">🚚 Delivery</button>
-            <button type="button" class="qchip" data-v="pickup_self" onclick="setFulfillment('pickup_self')">🧍 Pickup, Self</button>
-            <button type="button" class="qchip" data-v="pickup_by_us" onclick="setFulfillment('pickup_by_us')" title="We go pick it up">🚗 Pickup (by us)</button>
-            <button type="button" class="qchip" data-v="pickup_porter" onclick="setFulfillment('pickup_porter')" title="Customer arranges Porter to collect it">🛵 Porter (by them)</button>
-            <button type="button" class="qchip" data-v="pickup_other" onclick="setFulfillment('pickup_other')">Pickup, Other</button>
+            <button type="button" class="qchip active" data-v="delivery" onclick="setFulfillment('delivery')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="14" height="11" rx="1"/><path d="M15 9h4l3 3v5h-7Z"/><circle cx="6" cy="19" r="2"/><circle cx="17.5" cy="19" r="2"/></svg> Delivery</button>
+            <button type="button" class="qchip" data-v="pickup_self" onclick="setFulfillment('pickup_self')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg> Pickup, Self</button>
+            <button type="button" class="qchip" data-v="pickup_by_us" onclick="setFulfillment('pickup_by_us')" title="We go pick it up"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l2-5a2 2 0 0 1 2-1h10a2 2 0 0 1 2 1l2 5"/><path d="M3 13h18v4a1 1 0 0 1-1 1h-1a2 2 0 1 1-4 0H9a2 2 0 1 1-4 0H4a1 1 0 0 1-1-1Z"/></svg> Pickup (by us)</button>
+            <button type="button" class="qchip" data-v="pickup_porter" onclick="setFulfillment('pickup_porter')" title="Customer arranges Porter to collect it"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M5 19h6l2-8h4M13 11l2-4h3"/></svg> Porter (by them)</button>
+            <button type="button" class="qchip" data-v="pickup_other" onclick="setFulfillment('pickup_other')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg> Pickup, Other</button>
             <input type="text" id="qa_fulfil_other" placeholder="specify…" oninput="onFulfilOther(this.value)" style="display:none;max-width:150px;padding:6px 12px;background:var(--bg-2);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:12px">
           </div>
           <input type="hidden" id="qa_fulfillment" value="delivery">
@@ -1761,7 +1773,7 @@ html[data-theme="dark"] .biz-login{
 
         <!-- ── Order charges (our costs) ────────── -->
 <div class="qa-card qa-order-only">
-        <div class="qa-sec-title">Order Charges <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-3)">— deducted from profit (optional)</span></div>
+        <div class="qa-sec-title">Order Charges<span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-3)">: deducted from profit (optional)</span></div>
         <div class="form-grid">
           <div class="form-group">
             <label>Platform Fee (₹)</label>
@@ -1801,7 +1813,7 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group">
               <label>Courier Partner</label>
               <select id="qa_courier">
-                <option value="">— select —</option>
+                <option value="">Select</option>
                 <option value="delhivery">Delhivery</option>
                 <option value="shiprocket">Shiprocket</option>
                 <option value="amazon_logistics">Amazon Logistics</option>
@@ -1831,7 +1843,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group" style="margin-top:6px">
             <label>Terms &amp; Conditions</label>
             <div style="display:flex;gap:8px;margin-bottom:6px">
-              <select id="qa_qt_tnc_preset" onchange="applyQaQtTncPreset()" style="max-width:220px"><option value="">— insert a preset —</option></select>
+              <select id="qa_qt_tnc_preset" onchange="applyQaQtTncPreset()" style="max-width:220px"><option value="">Insert a preset</option></select>
             </div>
             <textarea id="qa_qt_terms" rows="3" style="resize:vertical" placeholder="Pick a preset above, or type your own"></textarea>
           </div>
@@ -1846,7 +1858,7 @@ html[data-theme="dark"] .biz-login{
         <div class="form-group" style="margin-bottom:16px">
           <label>Notes <span style="font-weight:400;color:var(--text-3);font-size:10px">prints on Order Record, optionally Invoice too (Document Settings)</span></label>
           <div style="display:flex;gap:8px;margin-bottom:6px">
-            <select id="qa_notes_preset" onchange="applyQaNotesPreset()" style="max-width:220px"><option value="">— insert a preset —</option></select>
+            <select id="qa_notes_preset" onchange="applyQaNotesPreset()" style="max-width:220px"><option value="">Insert a preset</option></select>
           </div>
           <textarea id="qa_notes" rows="2" placeholder="Pick a preset above, or type your own" style="resize:vertical"></textarea>
         </div>
@@ -1857,7 +1869,7 @@ html[data-theme="dark"] .biz-login{
         <div class="form-group qa-order-only" style="margin-bottom:16px">
           <label>Terms &amp; Conditions <span style="font-weight:400;color:var(--text-3);font-size:10px">prints on Order Record (Document Settings)</span></label>
           <div style="display:flex;gap:8px;margin-bottom:6px">
-            <select id="qa_rec_tnc_preset" onchange="applyQaRecTncPreset()" style="max-width:220px"><option value="">— insert a preset —</option></select>
+            <select id="qa_rec_tnc_preset" onchange="applyQaRecTncPreset()" style="max-width:220px"><option value="">Insert a preset</option></select>
           </div>
           <textarea id="qa_rec_terms" rows="3" style="resize:vertical" placeholder="Pick a preset above, or type your own"></textarea>
         </div>
@@ -1869,7 +1881,7 @@ html[data-theme="dark"] .biz-login{
         <div class="form-group qa-order-only" style="margin-bottom:16px">
           <label>Terms &amp; Conditions <span style="font-weight:400;color:var(--text-3);font-size:10px">prints on Invoice (Document Settings)</span></label>
           <div style="display:flex;gap:8px;margin-bottom:6px">
-            <select id="qa_inv_tnc_preset" onchange="applyQaInvTncPreset()" style="max-width:220px"><option value="">— insert a preset —</option></select>
+            <select id="qa_inv_tnc_preset" onchange="applyQaInvTncPreset()" style="max-width:220px"><option value="">Insert a preset</option></select>
           </div>
           <textarea id="qa_inv_terms" rows="3" style="resize:vertical" placeholder="Pick a preset above, or type your own"></textarea>
         </div>
@@ -1907,15 +1919,15 @@ html[data-theme="dark"] .biz-login{
         <!-- ── Save row: left = document actions, right = clear/cancel/save ── -->
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between">
           <div class="qa-doc-actions qa-order-only" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-            <button type="button" class="qa-doc-btn" onclick="saveOrderRecord()"><span class="qa-doc-icon">📋</span>Order Record</button>
-            <button type="button" class="qa-doc-btn qa-doc-btn-accent" onclick="saveAndPrint()"><span class="qa-doc-icon">🧾</span>Invoice</button>
+            <button type="button" class="qa-doc-btn" onclick="saveOrderRecord()"><span class="qa-doc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1Z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="16" y2="15"/></svg></span>Order Record</button>
+            <button type="button" class="qa-doc-btn qa-doc-btn-accent" onclick="saveAndPrint()"><span class="qa-doc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2h16v20l-2-1-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></svg></span>Invoice</button>
             <button type="button" class="qa-doc-btn" onclick="setQaFormMode('quotation')"><span class="qa-doc-icon">⎘</span>Quotation</button>
-            <button type="button" class="qchip" id="qaGiftToggle" onclick="toggleQaGift()" title="Friends, clients, relatives, anyone you're gifting a print to">🎁 Mark as Gift</button>
+            <button type="button" class="qchip" id="qaGiftToggle" onclick="toggleQaGift()" title="Friends, clients, relatives, anyone you're gifting a print to"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4"/><path d="M12 8v13M3 12v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M12 8c-1.5 0-4-1-4-3.5A2.5 2.5 0 0 1 10.5 2C12 2 12 5 12 8ZM12 8c1.5 0 4-1 4-3.5A2.5 2.5 0 0 0 13.5 2C12 2 12 5 12 8Z"/></svg> Mark as Gift</button>
             <span id="qaGiftHint" style="display:none;font-size:11px;color:var(--text-3)">No revenue logged, its production cost auto-logs as a Marketing expense</span>
             <button type="button" class="btn btn-danger btn-sm" id="qaMarkReturnBtn" onclick="markReturn()" style="display:none" title="Mark as returned and log in Returns">↩ Mark Return</button>
           </div>
           <div class="qa-doc-actions qa-quote-only" style="display:none;gap:6px;align-items:center">
-            <button type="button" class="qa-doc-btn" onclick="setQaFormMode('order')"><span class="qa-doc-icon">🧾</span>Back to Order</button>
+            <button type="button" class="qa-doc-btn" onclick="setQaFormMode('order')"><span class="qa-doc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span>Back to Order</button>
           </div>
           <div style="display:flex;gap:8px;align-items:center">
             <button type="button" class="btn btn-ghost btn-sm" onclick="confirmClearQuickAdd()" title="Wipes the whole form">Clear</button>
@@ -1946,11 +1958,11 @@ html[data-theme="dark"] .biz-login{
       <div class="p-head">
         <div>
           <div class="p-title">All Orders</div>
-          <div class="p-sub" id="salesSubtitle">—</div>
+          <div class="p-sub" id="salesSubtitle">N/A</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:relative">
-          <button class="btn btn-ghost btn-sm" onclick="toggleStatsView('allOrdersKpi')">📊 View Stats</button>
-          <button class="btn btn-ghost btn-sm" id="allOrdersFinBtn" onclick="toggleAllOrdersFinancials()" title="Cost, fees, profit &amp; margin across every order, same as the per-order Show cost &amp; profit, just totalled up">🔒 Financial Data</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleStatsView('allOrdersKpi')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><line x1="4" y1="20" x2="4" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="20" y1="20" x2="20" y2="14"/></svg>View Stats</button>
+          <button class="btn btn-ghost btn-sm" id="allOrdersFinBtn" onclick="toggleAllOrdersFinancials()" title="Cost, fees, profit &amp; margin across every order, same as the per-order Show cost &amp; profit, just totalled up"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Financial Data</button>
           <!-- Less-frequent utility actions (sync/settlement/restore/export/bin) collapse
                behind a single "More" button on phones instead of stacking into a long
                column of same-looking grey pills; display:contents on desktop means this
@@ -1964,7 +1976,7 @@ html[data-theme="dark"] .biz-login{
             <button class="btn btn-ghost btn-sm" onclick="document.getElementById('restoreSalesInput').click()" title="Re-add orders from a file made with 'Download Selected (Full)'">⬆ Add Selected Data</button>
             <input type="file" id="restoreSalesInput" accept=".json" style="display:none" onchange="restoreSalesFromFile(event)">
             <button class="btn btn-ghost btn-sm" onclick="exportSalesExcel()">↓ Excel</button>
-            <button class="btn btn-ghost btn-sm" onclick="openRecycleBin()" title="Recycle Bin">🗑️ Recycle Bin</button>
+            <button class="btn btn-ghost btn-sm" onclick="openRecycleBin()" title="Recycle Bin"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Recycle Bin</button>
           </div>
         </div>
       </div>
@@ -2098,8 +2110,8 @@ html[data-theme="dark"] .biz-login{
       <!-- Bulk action bar, shown only when rows are selected -->
       <div id="bulkBar" style="display:none;background:var(--accent);color:#fff;border-radius:7px;padding:10px 16px;margin-bottom:10px;display:none;align-items:center;gap:10px;flex-wrap:wrap">
         <span id="bulkCount" style="font-size:12px;font-weight:700;margin-right:4px">0 selected</span>
-        <button class="btn btn-sm" onclick="bulkMarkPaid()" title="Locks selected orders so no further changes can be made" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">🔒 Lock</button>
-        <button class="btn btn-sm" onclick="bulkUnlock()" title="Unmarks paid so selected orders can be edited again" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">🔓 Unlock</button>
+        <button class="btn btn-sm" onclick="bulkMarkPaid()" title="Locks selected orders so no further changes can be made" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Lock</button>
+        <button class="btn btn-sm" onclick="bulkUnlock()" title="Unmarks paid so selected orders can be edited again" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg> Unlock</button>
         <select onchange="if(this.value){bulkMarkStatus(this.value);this.value='';}" title="Set status for selected" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;font-size:11px;padding:5px 8px;cursor:pointer">
           <option value="" style="color:#111">↻ Set status…</option>
           <option value="pending" style="color:#111">Pending</option>
@@ -2121,7 +2133,7 @@ html[data-theme="dark"] .biz-login{
         </select>
         <button class="btn btn-sm" onclick="bulkExport()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">↓ Export Selected</button>
         <button class="btn btn-sm" onclick="bulkDownloadFullData()" title="Full raw data of selected orders, use 'Add Selected Data' to bring them back into All Sales later" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">⬇ Download Selected (Full)</button>
-        <button class="btn btn-sm" onclick="bulkDelete()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2);margin-left:auto">🗑 Delete</button>
+        <button class="btn btn-sm" onclick="bulkDelete()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2);margin-left:auto"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Delete</button>
       </div>
 
       <div class="tbl-wrap">
@@ -2168,7 +2180,7 @@ html[data-theme="dark"] .biz-login{
       <div id="recycleBinModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1100;overflow-y:auto;padding:20px">
         <div style="max-width:800px;margin:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:20px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-            <div style="font-size:14px;font-weight:700">🗑️ Recycle Bin</div>
+            <div style="font-size:14px;font-weight:700"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Recycle Bin</div>
             <button onclick="document.getElementById('recycleBinModal').style.display='none'" style="background:none;border:none;color:var(--text-3);font-size:18px;cursor:pointer">✕</button>
           </div>
           <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">Deleted orders, restore or permanently delete.</div>
@@ -2302,7 +2314,7 @@ html[data-theme="dark"] .biz-login{
       <div class="p-head">
         <div>
           <div class="p-title">Quotations</div>
-          <div class="p-sub" id="quotationsSubtitle">—</div>
+          <div class="p-sub" id="quotationsSubtitle">N/A</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-primary btn-sm" onclick="newQuotation()">+ New Quotation</button>
@@ -2313,7 +2325,7 @@ html[data-theme="dark"] .biz-login{
            all of them at once, same pattern as All Orders' checkbox + bulk bar. -->
       <div id="qtBulkBar" style="display:none;background:var(--accent);color:#fff;border-radius:7px;padding:10px 16px;margin-bottom:10px;align-items:center;gap:10px;flex-wrap:wrap">
         <span id="qtBulkCount" style="font-size:12px;font-weight:700;margin-right:4px">0 selected</span>
-        <button class="btn btn-sm" onclick="bulkDeleteQuotations()" title="Delete selected quotations" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">🗑 Delete Selected</button>
+        <button class="btn btn-sm" onclick="bulkDeleteQuotations()" title="Delete selected quotations" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Delete Selected</button>
         <button class="btn btn-sm" onclick="clearQuotationSelection()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">Clear</button>
       </div>
 
@@ -2406,12 +2418,12 @@ html[data-theme="dark"] .biz-login{
         <div class="form-group" style="margin-top:10px">
           <label>Terms &amp; Conditions</label>
           <div style="display:flex;gap:8px;margin-bottom:6px">
-            <select id="qt_tnc_preset" onchange="applyQtTncPreset()" style="max-width:220px"><option value="">— insert a preset —</option></select>
+            <select id="qt_tnc_preset" onchange="applyQtTncPreset()" style="max-width:220px"><option value="">Insert a preset</option></select>
           </div>
           <textarea id="qt_terms" rows="3" style="resize:vertical" placeholder="Pick a preset above, or type your own"></textarea>
         </div>
         <div style="display:flex;gap:10px;margin-top:14px">
-          <button type="button" class="btn btn-primary" onclick="saveQuotation()">💾 Save Quotation</button>
+          <button type="button" class="btn btn-primary" onclick="saveQuotation()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Quotation</button>
           <button type="button" class="btn btn-ghost" onclick="closeQuotationForm()">✕ Cancel</button>
         </div>
       </div>
@@ -2513,8 +2525,8 @@ html[data-theme="dark"] .biz-login{
       <div class="form-group" style="max-width:500px;margin-bottom:14px">
         <label>What are you uploading?</label>
         <div class="seg" id="importKindSeg">
-          <button type="button" class="seg-btn" data-v="csv" onclick="setImportKind('csv')">📄 Order Report (CSV/Excel)</button>
-          <button type="button" class="seg-btn active" data-v="labels" onclick="setImportKind('labels')">🏷 Shipping Labels (PDF)</button>
+          <button type="button" class="seg-btn" data-v="csv" onclick="setImportKind('csv')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/></svg> Order Report (CSV/Excel)</button>
+          <button type="button" class="seg-btn active" data-v="labels" onclick="setImportKind('labels')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24L4 3v5.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4-4a2 2 0 0 0-.41-1.17Z"/><circle cx="7.5" cy="7.5" r="1"/></svg> Shipping Labels (PDF)</button>
         </div>
       </div>
 
@@ -2528,8 +2540,8 @@ html[data-theme="dark"] .biz-login{
               <label>Platform, select one</label>
               <input type="hidden" id="importPlatform" value="flipkart">
               <div class="seg">
-                <button type="button" class="seg-btn active" data-v="flipkart" onclick="setImportPlatform('flipkart')">🛍️ Flipkart</button>
-                <button type="button" class="seg-btn" data-v="amazon" onclick="setImportPlatform('amazon')">📦 Amazon</button>
+                <button type="button" class="seg-btn active" data-v="flipkart" onclick="setImportPlatform('flipkart')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 7v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-3-5Z"/><path d="M3 7h18"/><path d="M16 11a4 4 0 0 1-8 0"/></svg> Flipkart</button>
+                <button type="button" class="seg-btn" data-v="amazon" onclick="setImportPlatform('amazon')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="M3 8l9 5 9-5"/><line x1="12" y1="13" x2="12" y2="21"/></svg> Amazon</button>
                 <button type="button" class="seg-btn" data-v="generic" onclick="setImportPlatform('generic')">Other</button>
               </div>
             </div>
@@ -2552,7 +2564,7 @@ html[data-theme="dark"] .biz-login{
         <!-- Step 2: Upload -->
         <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Step 2, Upload CSV / Excel file</div>
         <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()" ondragover="dzDragOver(event)" ondragleave="dzDragLeave(event)" ondrop="dzDrop(event)">
-          <div class="dz-icon">📂</div>
+          <div class="dz-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2Z"/></svg></div>
           <div class="dz-title">Click to select or drag & drop CSV / Excel file</div>
           <div class="dz-sub">Amazon: use "Orders" report  ·  Flipkart: use "Sales report" or "Order report"</div>
         </div>
@@ -2574,7 +2586,7 @@ html[data-theme="dark"] .biz-login{
           <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:10px">How to get the report files</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
-              <div style="font-size:12px;font-weight:700;color:var(--orange);margin-bottom:8px">📦 Amazon</div>
+              <div style="font-size:12px;font-weight:700;color:var(--orange);margin-bottom:8px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="M3 8l9 5 9-5"/><line x1="12" y1="13" x2="12" y2="21"/></svg> Amazon</div>
               <ol style="font-size:11px;color:var(--text-3);line-height:2;padding-left:16px">
                 <li>Seller Central → Reports → Fulfillment</li>
                 <li>Or: Business Reports → Orders → By ASIN</li>
@@ -2583,7 +2595,7 @@ html[data-theme="dark"] .biz-login{
               </ol>
             </div>
             <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
-              <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:8px">🛍️ Flipkart</div>
+              <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:8px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 7v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-3-5Z"/><path d="M3 7h18"/><path d="M16 11a4 4 0 0 1-8 0"/></svg> Flipkart</div>
               <ol style="font-size:11px;color:var(--text-3);line-height:2;padding-left:16px">
                 <li>Seller Hub → Reports → Order Report</li>
                 <li>Select date range → Download</li>
@@ -2603,15 +2615,15 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group">
               <label>Platform * <span style="font-weight:400;color:var(--text-3);font-size:10px">tap both to mix Amazon + Flipkart labels in one upload</span></label>
               <div class="seg" id="lblPlatformSeg">
-                <button type="button" class="seg-btn active" data-v="flipkart" onclick="setLblPlatform('flipkart')">🛍️ Flipkart</button>
-                <button type="button" class="seg-btn" data-v="amazon" onclick="setLblPlatform('amazon')">📦 Amazon</button>
+                <button type="button" class="seg-btn active" data-v="flipkart" onclick="setLblPlatform('flipkart')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 7v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-3-5Z"/><path d="M3 7h18"/><path d="M16 11a4 4 0 0 1-8 0"/></svg> Flipkart</button>
+                <button type="button" class="seg-btn" data-v="amazon" onclick="setLblPlatform('amazon')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="M3 8l9 5 9-5"/><line x1="12" y1="13" x2="12" y2="21"/></svg> Amazon</button>
               </div>
               <input type="hidden" id="lbl_platform" value="flipkart">
             </div>
             <div class="form-group">
               <label>Default Product</label>
               <select id="lbl_product">
-                <option value="">— select from catalog (optional) —</option>
+                <option value="">Select from catalog (optional)</option>
               </select>
             </div>
             <div class="form-group">
@@ -2637,7 +2649,7 @@ html[data-theme="dark"] .biz-login{
         <!-- Step 2: Upload -->
         <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Step 2, Upload label PDF(s)</div>
         <div class="dropzone" id="lblDropzone" onclick="document.getElementById('lblFile').click()" ondragover="dzDragOver2(event)" ondragleave="dzDragLeave2(event)" ondrop="dzDrop2(event)">
-          <div class="dz-icon">🏷</div>
+          <div class="dz-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24L4 3v5.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4-4a2 2 0 0 0-.41-1.17Z"/><circle cx="7.5" cy="7.5" r="1"/></svg></div>
           <div class="dz-title">Click to select label PDF(s) or drag & drop</div>
           <div class="dz-sub">Supports Amazon & Flipkart label PDFs, one label per page</div>
         </div>
@@ -2806,7 +2818,7 @@ html[data-theme="dark"] .biz-login{
             <input type="text" id="pf_name" placeholder="e.g. Geometric Vase">
           </div>
           <div class="form-group">
-            <label>SKU <span style="color:var(--text-3);font-weight:400;text-transform:none">— blank = auto</span></label>
+            <label>SKU<span style="color:var(--text-3);font-weight:400;text-transform:none">: blank = auto</span></label>
             <div style="display:flex;gap:6px">
               <input type="text" id="pf_sku" placeholder="TF-… (auto on save)" style="flex:1;min-width:0">
               <button type="button" class="btn btn-ghost btn-sm" onclick="autoFillSku()" title="Generate SKU now">⚙</button>
@@ -2859,7 +2871,7 @@ html[data-theme="dark"] .biz-login{
             <input type="text" id="pf_platform_skus" placeholder="Comma-separated, e.g. TAF/FIG/BAT/BLK/023, B0XXXX, links platform sales to this product">
           </div>
           <div class="form-group" style="grid-column:span 2">
-            <label>Image URL <span style="color:var(--text-3);font-weight:400;text-transform:none">— shown as a thumbnail in All Sales</span></label>
+            <label>Image URL<span style="color:var(--text-3);font-weight:400;text-transform:none">: shown as a thumbnail in All Sales</span></label>
             <input type="text" id="pf_image" placeholder="https://…">
           </div>
           <div class="form-group" style="grid-column:span 2">
@@ -2879,7 +2891,7 @@ html[data-theme="dark"] .biz-login{
         <span id="prodBulkCount" style="font-size:12px;font-weight:700;margin-right:4px">0 selected</span>
         <input type="text" id="prodBulkCategory" placeholder="Set category…" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;font-size:11px;padding:5px 8px;max-width:140px">
         <button class="btn btn-sm" onclick="bulkSetProductCategory()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">Apply</button>
-        <button class="btn btn-sm" onclick="bulkArchiveProducts()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2);margin-left:auto">🗑 Archive</button>
+        <button class="btn btn-sm" onclick="bulkArchiveProducts()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2);margin-left:auto"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Archive</button>
       </div>
       <div class="tbl-wrap">
         <table>
@@ -3028,7 +3040,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>Order ID</label><div style="display:flex;gap:6px"><input type="text" id="rf_orderid" style="flex:1;min-width:0" placeholder="match a sale"><button type="button" class="btn btn-ghost btn-sm" onclick="fetchReturnOrderCosts()" title="Pull costs from the sale">⤵</button></div></div>
           <div class="form-group"><label>Channel</label><select id="rf_channel"><option value="shop">Studio</option><option value="amazon">Amazon</option><option value="flipkart">Flipkart</option><option value="website">Website</option></select></div>
           <div class="form-group"><label>Type</label><select id="rf_type" onchange="onReturnTypeChange()"><option value="return">Standard Return</option><option value="delivery_rejection">Delivery Rejection</option><option value="cancellation">In-Transit Cancellation</option><option value="spf_claim">SPF Claim</option><option value="az_claim">A-Z Claim</option><option value="chargeback">Chargeback</option><option value="other">Other</option></select></div>
-          <div class="form-group"><label>Unit Condition on Return</label><select id="rf_unit_condition" onchange="recalcReturn()"><option value="">— not yet known —</option><option value="reusable">Reusable</option><option value="damaged">Damaged</option><option value="lost">Lost</option></select></div>
+          <div class="form-group"><label>Unit Condition on Return</label><select id="rf_unit_condition" onchange="recalcReturn()"><option value="">Not yet known</option><option value="reusable">Reusable</option><option value="damaged">Damaged</option><option value="lost">Lost</option></select></div>
           <div class="form-group"><label>Initiated Date</label><input type="date" id="rf_date"></div>
           <div class="form-group"><label>Pickup Date <span style="color:var(--text-3);font-weight:400;text-transform:none">done by courier</span></label><input type="date" id="rf_pickup"></div>
           <div class="form-group"><label>Received Date <span style="color:var(--text-3);font-weight:400;text-transform:none">back at studio</span></label><input type="date" id="rf_received"></div>
@@ -3048,7 +3060,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>Fwd Shipping ₹ <span style="color:var(--text-3);font-weight:400;text-transform:none">sunk</span></label><input type="number" id="rf_shipping" step="0.01" oninput="recalcReturn()"></div>
           <div class="form-group"><label>Packing ₹ <span style="color:var(--text-3);font-weight:400;text-transform:none">sunk</span></label><input type="number" id="rf_packing" step="0.01" oninput="recalcReturn()"></div>
           <div class="form-group"><label>Return Shipping ₹ <span id="rf_return_ship_note" style="color:var(--text-3);font-weight:400;text-transform:none"></span></label><input type="number" id="rf_return_ship" step="0.01" oninput="recalcReturn()"></div>
-          <div class="form-group" style="grid-column:span 2"><label>Adjusted Product Cost ₹ <span style="color:var(--text-3);font-weight:400;text-transform:none">— if damaged/unusable, else blank</span></label><input type="number" id="rf_prod_adjusted" step="0.01" placeholder="blank = use product cost" oninput="recalcReturn()"></div>
+          <div class="form-group" style="grid-column:span 2"><label>Adjusted Product Cost ₹</label><input type="number" id="rf_prod_adjusted" step="0.01" placeholder="If damaged/unusable, else blank = use product cost" oninput="recalcReturn()"></div>
         </div>
         <div style="display:flex;gap:20px;flex-wrap:wrap;margin:14px 0;padding:10px 14px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius)">
           <div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3)">Recomputed COGS</div><div style="font-size:15px;font-weight:700" id="rf_calc_cogs">₹0</div></div>
@@ -3084,7 +3096,7 @@ html[data-theme="dark"] .biz-login{
           <input type="file" id="spoolBulkInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="spoolBulkUpload(event)">
           <button class="btn btn-ghost btn-sm" onclick="toggleSpoolCustomize()" title="Show / hide / reorder KPI tiles">⚙ Widgets</button>
           <button class="btn btn-ghost btn-sm" id="spoolViewToggleBtn" onclick="toggleSpoolViewMode()" title="Switch between grouped (Color → Material → Company) and a flat list">☰ Flat list</button>
-          <button class="btn btn-ghost btn-sm" onclick="showSpoolCatalogue()" title="Clean color-only view to show a customer on the spot">🎨 Catalogue</button>
+          <button class="btn btn-ghost btn-sm" onclick="showSpoolCatalogue()" title="Clean color-only view to show a customer on the spot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4a3.6 3.6 0 0 0 3.6-3.6C21 6.6 17.1 2 12 2Z"/><circle cx="7" cy="10" r="1"/><circle cx="11" cy="7" r="1"/><circle cx="16" cy="9" r="1"/></svg> Catalogue</button>
           <select id="spoolFilterStatus" onchange="renderSpoolTracker()" style="border-radius:6px;border:1px solid var(--border);font-size:12px;padding:6px 8px;background:var(--bg-1);color:var(--text-1)">
             <option value="all">All Spools</option>
             <option value="available">Available</option>
@@ -3168,7 +3180,7 @@ html[data-theme="dark"] .biz-login{
           <option value="Opened">Opened</option><option value="Packed">Packed</option><option value="Finsh">Finsh</option><option value="TBR">TBR</option>
         </select>
         <button class="btn btn-sm" onclick="bulkSetSpoolStatus()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">Set Status</button>
-        <button class="btn btn-sm" onclick="bulkDeleteSpools()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2)">🗑 Delete Selected</button>
+        <button class="btn btn-sm" onclick="bulkDeleteSpools()" style="background:rgba(220,50,50,.5);color:#fff;border:1px solid rgba(255,255,255,.2)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Delete Selected</button>
       </div>
 
       <div class="tbl-wrap">
@@ -3186,7 +3198,7 @@ html[data-theme="dark"] .biz-login{
     <div id="spoolCatalogueModal" style="display:none;position:fixed;inset:0;z-index:2500;background:var(--bg);overflow-y:auto">
       <div style="position:sticky;top:0;z-index:2;background:var(--bg-1);border-bottom:1px solid var(--border);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);padding:16px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
         <div style="font-size:18px;font-weight:800;flex:1;min-width:160px">Available Colors</div>
-        <select id="catFilterMaterial" onchange="renderSpoolCatalogue()" style="border-radius:8px;border:1px solid var(--border);font-size:13px;padding:8px 10px;background:var(--bg-2);color:var(--text-1)">
+        <select id="catFilterMaterial" onchange="renderSpoolCatalogue()" style="border-radius:var(--radius);border:1px solid var(--border);font-size:13px;padding:8px 10px;background:var(--bg-2);color:var(--text-1)">
           <option value="all">All Materials</option>
         </select>
         <button class="btn btn-ghost btn-sm" onclick="closeSpoolCatalogue()">✕ Close</button>
@@ -3419,7 +3431,7 @@ html[data-theme="dark"] .biz-login{
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Amazon MTR B2B (CSV)</div>
             <div class="dropzone" id="gstaDzB2b" style="padding:18px" onclick="document.getElementById('gstaFileB2b').click()" ondragover="gstaDzDragOver(event,'B2b')" ondragleave="gstaDzDragLeave('B2b')" ondrop="gstaDzDrop(event,'B2b')">
-              <div class="dz-icon">📄</div>
+              <div class="dz-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/></svg></div>
               <div class="dz-title" id="gstaLabelB2b">Click or drag MTR_B2B CSV</div>
             </div>
             <input type="file" id="gstaFileB2b" accept=".csv" style="display:none" onchange="gstaFileSelect(event,'B2b')">
@@ -3427,7 +3439,7 @@ html[data-theme="dark"] .biz-login{
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Amazon MTR B2C (CSV)</div>
             <div class="dropzone" id="gstaDzB2c" style="padding:18px" onclick="document.getElementById('gstaFileB2c').click()" ondragover="gstaDzDragOver(event,'B2c')" ondragleave="gstaDzDragLeave('B2c')" ondrop="gstaDzDrop(event,'B2c')">
-              <div class="dz-icon">📄</div>
+              <div class="dz-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/></svg></div>
               <div class="dz-title" id="gstaLabelB2c">Click or drag MTR_B2C CSV</div>
             </div>
             <input type="file" id="gstaFileB2c" accept=".csv" style="display:none" onchange="gstaFileSelect(event,'B2c')">
@@ -3435,7 +3447,7 @@ html[data-theme="dark"] .biz-login{
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Flipkart GSTR-1/8 (XLSX)</div>
             <div class="dropzone" id="gstaDzFlipkart" style="padding:18px" onclick="document.getElementById('gstaFileFlipkart').click()" ondragover="gstaDzDragOver(event,'Flipkart')" ondragleave="gstaDzDragLeave('Flipkart')" ondrop="gstaDzDrop(event,'Flipkart')">
-              <div class="dz-icon">📄</div>
+              <div class="dz-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/></svg></div>
               <div class="dz-title" id="gstaLabelFlipkart">Click or drag Flipkart XLSX</div>
             </div>
             <input type="file" id="gstaFileFlipkart" accept=".xlsx,.xls" style="display:none" onchange="gstaFileSelect(event,'Flipkart')">
@@ -3689,12 +3701,12 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>Date</label><input type="date" id="ex_date"></div>
           <div class="form-group"><label>Category</label><select id="ex_category" onchange="onExpenseCategoryChange()"><option value="materials">Materials</option><option value="equipment">Equipment</option><option value="packaging">Packaging</option><option value="marketing">Marketing</option><option value="rent">Rent</option><option value="utilities">Utilities</option><option value="shipping">Shipping</option><option value="logistics">Logistics / Freight</option><option value="travelling">Travelling</option><option value="professional_fees">Professional Fees (CA/Legal)</option><option value="software_it">Software & IT</option><option value="bank_charges">Bank & Gateway Charges</option><option value="printing_stationery">Printing & Stationery</option><option value="repairs_maintenance">Repairs & Maintenance</option><option value="insurance">Insurance</option><option value="staff_salary">Staff Salary</option><option value="refund">Refund / Reversal</option><option value="other">Other</option></select></div>
           <div class="form-group" id="ex_staff_wrap" style="display:none"><label>Employee Name</label><input type="text" id="ex_staff_name" placeholder="e.g. Rohit" oninput="onExpenseCategoryChange()"></div>
-          <div class="form-group" id="ex_spool_wrap" style="display:none"><label>Add to Spool <span style="color:var(--text-3);font-weight:400;text-transform:none">optional, bumps its stock</span></label><select id="ex_spool_id"><option value="">— none —</option></select></div>
+          <div class="form-group" id="ex_spool_wrap" style="display:none"><label>Add to Spool <span style="color:var(--text-3);font-weight:400;text-transform:none">optional, bumps its stock</span></label><select id="ex_spool_id"><option value="">None</option></select></div>
           <div class="form-group" id="ex_spool_grams_wrap" style="display:none"><label>Grams Purchased</label><input type="number" id="ex_spool_grams" step="1" min="0"></div>
           <div class="form-group"><label>Vendor <span style="color:var(--text-3);font-weight:400;text-transform:none">(expense name)</span></label><input type="text" id="ex_vendor"></div>
           <div class="form-group"><label>Amount ₹ (incl GST)</label><input type="number" id="ex_amount" step="0.01"></div>
           <div class="form-group"><label>GST ₹ (of amount)</label><input type="number" id="ex_gst" step="0.01"></div>
-          <div class="form-group"><label>Payment Mode</label><select id="ex_payment"><option value="">—</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="bank">Bank</option><option value="ca_sbi">C/A, SBI</option><option value="ca_karur">C/A, Karur Vysya</option><option value="gpay">GPay</option><option value="paytm">Paytm</option></select></div>
+          <div class="form-group"><label>Payment Mode</label><select id="ex_payment"><option value="">Select</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="bank">Bank</option><option value="ca_sbi">C/A, SBI</option><option value="ca_karur">C/A, Karur Vysya</option><option value="gpay">GPay</option><option value="paytm">Paytm</option></select></div>
           <div class="form-group"><label>Debited From <span style="color:var(--text-3);font-weight:400;text-transform:none">money-out source</span></label><input type="text" id="ex_source" placeholder="e.g. HDFC Current A/c, Cash Drawer"></div>
           <div class="form-group"><label>Order ID <span style="color:var(--text-3);font-weight:400;text-transform:none">optional, links this to an order</span></label><input type="text" id="ex_order_id" placeholder="e.g. TRI-2026-0142"></div>
           <div class="form-group"><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="ex_recurring"> Recurring monthly</label></div>
@@ -3764,7 +3776,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>Date</label><input type="date" id="in_date"></div>
           <div class="form-group"><label>Category</label><select id="in_category"><option value="flipkart_payout">Flipkart Payout</option><option value="amazon_payout">Amazon Payout</option><option value="website_payout">Website Payout</option><option value="misc">Extra / Misc Income</option></select></div>
           <div class="form-group"><label>Amount ₹</label><input type="number" id="in_amount" step="0.01"></div>
-          <div class="form-group"><label>Payment Mode</label><select id="in_payment"><option value="">—</option><option value="bank_transfer">Bank Transfer</option><option value="ca_sbi">C/A, SBI</option><option value="ca_karur">C/A, Karur Vysya</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="gpay">GPay</option><option value="paytm">Paytm</option></select></div>
+          <div class="form-group"><label>Payment Mode</label><select id="in_payment"><option value="">Select</option><option value="bank_transfer">Bank Transfer</option><option value="ca_sbi">C/A, SBI</option><option value="ca_karur">C/A, Karur Vysya</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="gpay">GPay</option><option value="paytm">Paytm</option></select></div>
           <div class="form-group"><label>Bank Reference <span style="color:var(--text-3);font-weight:400;text-transform:none">optional</span></label><input type="text" id="in_bankref"></div>
           <div class="form-group"><label>Order ID <span style="color:var(--text-3);font-weight:400;text-transform:none">optional, links this to an order</span></label><input type="text" id="in_order_id" placeholder="e.g. TRI-2026-0142"></div>
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="in_notes"></div>
@@ -3961,7 +3973,7 @@ html[data-theme="dark"] .biz-login{
              preset regardless of which of the three lists it's in, that's a
              flat quick-insert, not one of these three documents. -->
         <details class="settings-card" open style="grid-column:1/-1">
-          <summary>Terms &amp; Conditions Presets <span style="font-weight:400;text-transform:none;letter-spacing:0">— changes often</span></summary>
+          <summary>Terms &amp; Conditions Presets<span style="font-weight:400;text-transform:none;letter-spacing:0">: changes often</span></summary>
           <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">Three separate lists, one per document, insert one from a dropdown instead of retyping (manual override always still available). Mark one per document as default (☆) to auto-fill a blank Terms &amp; Conditions field the next time that document is started.</div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">
             <div>
@@ -3997,7 +4009,7 @@ html[data-theme="dark"] .biz-login{
         <!-- Also changes fairly often as the business evolves (rates, HSN per new
              product category), paired next to Terms & Notes in the same top row. -->
         <details class="settings-card" open data-mobile-collapse>
-          <summary>Operational Defaults <span style="font-weight:400;text-transform:none;letter-spacing:0">— changes often, synced across Add Sale / Products / Filament</span></summary>
+          <summary>Operational Defaults<span style="font-weight:400;text-transform:none;letter-spacing:0">: changes often, synced across Add Sale / Products / Filament</span></summary>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div class="form-group"><label>Default HSN</label><input type="text" id="def_hsn" placeholder="3926"></div>
             <div class="form-group"><label>Default GST %</label><select id="def_gst"><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select></div>
@@ -4014,7 +4026,7 @@ html[data-theme="dark"] .biz-login{
              banking. Bottom half of the page, Bank gets the full-width row since
              it also carries the QR/stamp uploads. -->
         <details class="settings-card" open data-mobile-collapse>
-          <summary>Business Identity <span style="font-weight:400;text-transform:none;letter-spacing:0">— set once</span></summary>
+          <summary>Business Identity<span style="font-weight:400;text-transform:none;letter-spacing:0">: set once</span></summary>
           <div class="form-group">
             <label>Business / Brand Name</label>
             <input type="text" id="cfg_name" placeholder="TriAkar">
@@ -4044,7 +4056,7 @@ html[data-theme="dark"] .biz-login{
         </details>
 
         <details class="settings-card" open data-mobile-collapse>
-          <summary>Contact Details <span style="font-weight:400;text-transform:none;letter-spacing:0">— set once</span></summary>
+          <summary>Contact Details<span style="font-weight:400;text-transform:none;letter-spacing:0">: set once</span></summary>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div class="form-group">
               <label>Phone</label>
@@ -4066,7 +4078,7 @@ html[data-theme="dark"] .biz-login{
         </details>
 
         <details class="settings-card" open data-mobile-collapse style="grid-column:1/-1">
-          <summary>Bank Details <span style="font-weight:400;text-transform:none;letter-spacing:0">— set once, payment info + QR + stamp, shared by Invoice, Quotation &amp; Order Record</span></summary>
+          <summary>Bank Details<span style="font-weight:400;text-transform:none;letter-spacing:0">: set once, payment info + QR + stamp, shared by Invoice, Quotation &amp; Order Record</span></summary>
           <div class="form-group"><label>Account Holder Name</label><input type="text" id="cfg_bank_holder" placeholder="TriAkar / your name"></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div class="form-group"><label>Bank Name</label><input type="text" id="cfg_bank_name" placeholder="State Bank of India"></div>
@@ -4094,7 +4106,7 @@ html[data-theme="dark"] .biz-login{
         <div class="settings-card">
           <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">What shows on a generated Invoice. Off = hidden. Bank details, QR and stamp are configured once under Common Settings and shared by all three document types.</div>
           <div id="bizDocInvoiceFields"></div>
-          <div style="margin-top:14px"><button class="btn btn-primary" onclick="saveDocCustomization()">💾 Save Template</button> <span id="bizDocStatus" style="font-size:12px;color:var(--green)"></span></div>
+          <div style="margin-top:14px"><button class="btn btn-primary" onclick="saveDocCustomization()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Template</button> <span id="bizDocStatus" style="font-size:12px;color:var(--green)"></span></div>
         </div>
       </div>
 
@@ -4102,7 +4114,7 @@ html[data-theme="dark"] .biz-login{
         <div class="settings-card">
           <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">What shows on a generated Quotation. Off = hidden. Bank details, QR and stamp are configured once under Common Settings and shared by all three document types.</div>
           <div id="bizDocQuotationFields"></div>
-          <div style="margin-top:14px"><button class="btn btn-primary" onclick="saveDocCustomization()">💾 Save Template</button> <span id="bizDocStatus2" style="font-size:12px;color:var(--green)"></span></div>
+          <div style="margin-top:14px"><button class="btn btn-primary" onclick="saveDocCustomization()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Template</button> <span id="bizDocStatus2" style="font-size:12px;color:var(--green)"></span></div>
         </div>
       </div>
 
@@ -4110,7 +4122,7 @@ html[data-theme="dark"] .biz-login{
         <div class="settings-card">
           <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">What shows on the internal Order Record. Off = hidden. Bank details, QR and stamp are configured once under Common Settings and shared by all three document types.</div>
           <div id="bizDocRecordFields"></div>
-          <div style="margin-top:14px"><button class="btn btn-primary" onclick="saveDocCustomization()">💾 Save Template</button> <span id="bizDocStatus3" style="font-size:12px;color:var(--green)"></span></div>
+          <div style="margin-top:14px"><button class="btn btn-primary" onclick="saveDocCustomization()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Template</button> <span id="bizDocStatus3" style="font-size:12px;color:var(--green)"></span></div>
         </div>
       </div>
 
@@ -4132,7 +4144,7 @@ const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 const ADMIN_EMAIL = 'bhaveshv918@gmail.com';
 const MY_STATE = 'Uttar Pradesh'; // your GST registration state, for CGST/SGST vs IGST
 // GSTR-1 Auto-File is the one Business OS feature that needs the Express backend (server-side
-// CSV/XLSX parsing + the reconciliation engine) rather than direct Supabase calls — mirrors
+// CSV/XLSX parsing + the reconciliation engine) rather than direct Supabase calls, mirrors
 // admin.html's adminApi()/getToken() pattern.
 const API = (location.hostname === 'localhost') ? 'http://localhost:3000' : 'https://triakar.onrender.com';
 async function getBizToken(){
@@ -4641,14 +4653,14 @@ function fmtD(n){ return '₹' + (Number(n)||0).toLocaleString('en-IN',{minimumF
 // GST periods are stored/keyed as "YYYY-MM" everywhere (comparisons, API calls, filenames),
 // this is display-only: "2026-06" → "June 2026". Never use this for the stored/compared value.
 function fmtPeriod(period){
-  if(!period) return '—';
+  if(!period) return 'N/A';
   const [y,m]=String(period).split('-');
   const mon=['','January','February','March','April','May','June','July','August','September','October','November','December'][parseInt(m,10)];
   return mon ? `${mon} ${y}` : period;
 }
 // Round 3 fix, toISOString() always converts to UTC first. For India (UTC+5:30) that's
 // usually harmless, but any time between local midnight and ~5:30 AM IST, the UTC date is
-// still the PREVIOUS day, so today()/thisMonth() silently returned yesterday's date —
+// still the PREVIOUS day, so today()/thisMonth() silently returned yesterday's date,
 // throwing off return-window countdowns, SLA "due today" flags, and default order dates
 // for any entry made in the early morning. Use local getFullYear/getMonth/getDate instead.
 function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -4701,7 +4713,7 @@ function applyPrivacyMasking(){
   // wait for the (debounced) MutationObserver tick to catch up with newly-rendered nodes.
   document.body.classList.toggle('privacy-mode',on);
   document.querySelectorAll(PRIVACY_SELECTOR).forEach(on?maskEl:unmaskEl);
-  // Chart canvases can't be text-masked (values are drawn on canvas, not in the DOM) —
+  // Chart canvases can't be text-masked (values are drawn on canvas, not in the DOM),
   // blur them instead so figures aren't readable at a glance while privacy mode is on.
   document.querySelectorAll('.chart-box canvas').forEach(c=>{ c.style.filter=on?'blur(7px)':''; c.style.pointerEvents=on?'none':'auto'; });
   const btn=document.getElementById('privacyBtn');
@@ -4926,7 +4938,7 @@ function _navDdItemHtml(sec,it){
           <button type="button" class="biz-tb-dd-item" data-tab="${it.id}" onclick="switchTab('${it.id}');_bizCatCloseAll()">
             <span class="biz-tb-dd-icon" style="color:${sec.color}">${it.icon}</span>
             <span class="biz-tb-dd-label">${esc(it.label)}</span>
-            ${it.badge?`<span class="biz-tb-dd-badge" id="${it.badge}_hdr">—</span>`:''}
+            ${it.badge?`<span class="biz-tb-dd-badge" id="${it.badge}_hdr">N/A</span>`:''}
             ${it.shortcut?`<span class="biz-tb-dd-key">${it.shortcut.toUpperCase()}</span>`:''}
           </button>`;
 }
@@ -5176,7 +5188,7 @@ function refreshCurrentBizTab(){
 // §2e, immutable activity log (fire-and-forget; never blocks the save)
 function logBizActivity(action, entity, entityId, detail){
   try{
-    // Was always logging the owner's email, even for staff-performed actions —
+    // Was always logging the owner's email, even for staff-performed actions,
     // _currentUserEmail is set at login (checkBizAccess) to whoever actually signed in.
     sb.from('biz_activity_log').insert({
       admin_email:_currentUserEmail||(typeof ADMIN_EMAIL!=='undefined'?ADMIN_EMAIL:null),
@@ -5298,13 +5310,13 @@ function renderProductsTable(){
     <tr>
       <td onclick="event.stopPropagation()"><input type="checkbox" class="prod-cb" data-id="${p.id}" onchange="updateProdBulkBar()"></td>
       <td>${esc(p.name)}</td>
-      <td><span style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(p.sku||'—')}</span></td>
-      <td>${esc(p.category||'—')}</td>
+      <td><span style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(p.sku||'N/A')}</span></td>
+      <td>${esc(p.category||'N/A')}</td>
       <td><span class="badge badge-completed">${esc(TYPE_LABEL[p.product_type]||p.product_type)}</span></td>
       <td class="td-num">${fmtD(p.base_cost)}</td>
       <td class="td-num">${p.gst_rate}%</td>
-      <td style="font-family:var(--mono);font-size:11px">${esc(p.hsn_code||'—')}</td>
-      <td class="td-num" id="stock_${p.id}">—</td>
+      <td style="font-family:var(--mono);font-size:11px">${esc(p.hsn_code||'N/A')}</td>
+      <td class="td-num" id="stock_${p.id}">N/A</td>
       <td class="td-actions">
         <button class="btn btn-ghost btn-sm" onclick="editProduct('${p.id}')">Edit</button>
       </td>
@@ -5760,7 +5772,10 @@ function renderItems(){
         <input type="number" step="0.01" id="rate_${i}" value="${it.rate||''}" placeholder="12" title="${it.pricingMode==='gram'?'Price per gram, excluding GST':'Price per piece, excluding GST'}" oninput="onItemNum(${i},'rate',this.value)">
         <input type="number" step="0.01" value="${it.inclTotal||''}" class="rate-incl-gst" placeholder="or ₹ incl. GST" title="Type this line's final amount (GST included) and the taxable rate above is worked out for you at ${it.gst||0}% GST" oninput="onItemInclTotal(${i},this.value)" style="margin-top:3px;width:100%;font-size:10px;padding:3px 5px;background:var(--bg-2);border:1px solid var(--border);border-radius:5px;color:var(--text-3)">
       </div>
-      <div class="r" data-label="Disc ₹"><input type="number" step="0.01" value="${it.disc||''}" placeholder="0" oninput="onItemNum(${i},'disc',this.value)"></div>
+      <div class="r" data-label="${it.discType==='percent'?'Disc %':'Disc ₹'}">
+        <input type="number" step="0.01" value="${it.discType==='percent'?(it.discPct||''):(it.disc||'')}" placeholder="0" title="${it.discType==='percent'?'Discount %, converted to a ₹ amount automatically':'Flat ₹ discount'}" oninput="onItemDiscInput(${i},this.value)">
+        <div onclick="toggleItemDiscType(${i})" title="Switch between a flat ₹ discount and a %" style="font-size:9px;color:var(--accent);font-weight:700;cursor:pointer;margin-top:3px;text-align:right;user-select:none">${it.discType==='percent'?'% → ₹':'₹ → %'}</div>
+      </div>
       <div class="r" data-label="GST %"><select onchange="onItemNum(${i},'gst',this.value)">${[0,5,12,18,28].map(v=>`<option value="${v}"${v==it.gst?' selected':''}>${v}%</option>`).join('')}</select></div>
       <div class="r" data-label="HSN"><input type="text" value="${esc(it.hsn||'')}" placeholder="${esc((_bizDefaults&&_bizDefaults.hsn)||'3926')}" title="HSN/SAC code, prefilled from your default, edit per item as needed" oninput="_items[${i}].hsn=this.value"></div>
       <div class="r" data-label="Cost ₹"><input type="number" step="0.01" value="${it.cost||''}" placeholder="0" data-cost-input title="Cost to make ONE piece, auto-fills from spool grams × waste × ₹/g. Multiplied by qty for the total below." oninput="onItemNum(${i},'cost',this.value)"><div id="costHint_${i}" style="font-size:9px;color:var(--text-3);font-weight:400;white-space:nowrap">${it.cost?`= ${fmt(it.qty*it.cost)} total`:''}</div></div>
@@ -5858,7 +5873,7 @@ function itemSuggest(i,val){
   const list=(_products||[]).filter(function(p){ return (p.name||'').toLowerCase().includes(q); }).slice(0,8);
   _itemSugg=list;
   if(!list.length){ box.style.display='none'; return; }
-  box.innerHTML=list.map(function(p,idx){ return '<div onclick="itemPick('+i+','+idx+')" style="padding:7px 11px;cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background=\'var(--bg-2)\'" onmouseout="this.style.background=\'\'"><div style="font-weight:600;font-size:12px">'+esc(p.name)+'</div><div style="font-size:11px;color:var(--text-3);font-family:var(--mono)">'+(p.sku?esc(p.sku):'—')+(p.gst_rate?' · '+p.gst_rate+'% GST':'')+'</div></div>'; }).join('');
+  box.innerHTML=list.map(function(p,idx){ return '<div onclick="itemPick('+i+','+idx+')" style="padding:7px 11px;cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background=\'var(--bg-2)\'" onmouseout="this.style.background=\'\'"><div style="font-weight:600;font-size:12px">'+esc(p.name)+'</div><div style="font-size:11px;color:var(--text-3);font-family:var(--mono)">'+(p.sku?esc(p.sku):'N/A')+(p.gst_rate?' · '+p.gst_rate+'% GST':'')+'</div></div>'; }).join('');
   const inp=document.querySelector('.item-row[data-idx="'+i+'"] .item-cell input');
   if(!inp){ box.style.display='none'; return; }
   const r=inp.getBoundingClientRect();
@@ -6025,7 +6040,7 @@ async function applyGiftExpenseIfAny(rows){
   const totalCogs=rows.reduce((s,r)=>s+(parseFloat(r.cogs)||0),0); // cogs is already qty × unit cost, not per-unit
   if(totalCogs<=0) return;
   const f=rows[0];
-  let payload={ date:f.order_date||today(), category:'marketing', vendor:'Gift — '+(f.customer_name||f.product_name||'unnamed'),
+  let payload={ date:f.order_date||today(), category:'marketing', vendor:'Gift, '+(f.customer_name||f.product_name||'unnamed'),
     amount:Math.round(totalCogs*100)/100, notes:'Auto-logged from gift order '+(f.order_id||''), source:'gift_order' };
   payload=await attachRecordId(payload,true,'expense',payload.vendor);
   await insertResilient('biz_expenses',payload);
@@ -6106,7 +6121,7 @@ async function buildSaleRowsWithIds(){
       spool_id:it.spool||null,
       item_type:it.itemType||'product',
       spool_sale_id:it.itemType==='spool'?(it.spoolSaleId||null):null,
-      product_name:(it.name&&it.name.trim())||'—',
+      product_name:(it.name&&it.name.trim())||'N/A',
       variant:it.variant||null,
       sku:it.sku||null,
       hsn_code:it.hsn||null,
@@ -6282,12 +6297,12 @@ async function setQaFormMode(mode){
   renderQaInvTncPresets();
   renderQaRecTncPresets();
   if(mode==='quotation'){
-    saveBtn && (saveBtn.innerHTML=_qaEditQuotationId?'💾 Update Quotation':'💾 Save Quotation');
+    saveBtn && (saveBtn.innerHTML=_qaEditQuotationId?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update Quotation':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Quotation');
     const numEl=document.getElementById('qa_qt_number'); if(numEl&&!numEl.value) numEl.value=await genQuotationNumber();
     renderQaQtTncPresets();
   } else {
     _qaEditQuotationId=null;   // leaving Quotation mode abandons any in-progress edit
-    if(saveBtn) saveBtn.innerHTML='💾 Save';
+    if(saveBtn) saveBtn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
   }
 }
 // Three separate Terms & Conditions preset lists (doc_type='record'/'invoice'/
@@ -6300,7 +6315,7 @@ function applyQaInvTncPreset(){
 }
 function renderQaInvTncPresets(){
   const sel=document.getElementById('qa_inv_tnc_preset'); if(!sel) return;
-  sel.innerHTML='<option value="">— insert a preset —</option>'+_tncPresets.filter(p=>p.docType==='invoice').map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  sel.innerHTML='<option value="">Insert a preset</option>'+_tncPresets.filter(p=>p.docType==='invoice').map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
 }
 function applyQaRecTncPreset(){
   const sel=document.getElementById('qa_rec_tnc_preset'); if(!sel||sel.value==='') return;
@@ -6309,7 +6324,7 @@ function applyQaRecTncPreset(){
 }
 function renderQaRecTncPresets(){
   const sel=document.getElementById('qa_rec_tnc_preset'); if(!sel) return;
-  sel.innerHTML='<option value="">— insert a preset —</option>'+_tncPresets.filter(p=>p.docType==='record').map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  sel.innerHTML='<option value="">Insert a preset</option>'+_tncPresets.filter(p=>p.docType==='record').map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
 }
 function applyQaQtTncPreset(){
   const sel=document.getElementById('qa_qt_tnc_preset'); if(!sel||sel.value==='') return;
@@ -6318,7 +6333,7 @@ function applyQaQtTncPreset(){
 }
 function renderQaQtTncPresets(){
   const sel=document.getElementById('qa_qt_tnc_preset'); if(!sel) return;
-  sel.innerHTML='<option value="">— insert a preset —</option>'+_tncPresets.filter(p=>p.docType==='quotation').map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  sel.innerHTML='<option value="">Insert a preset</option>'+_tncPresets.filter(p=>p.docType==='quotation').map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
 }
 // Order Record / Invoice's Notes field is still a flat, unscoped quick-insert
 // (every preset regardless of doc_type), it's internal notes, not one of the
@@ -6330,7 +6345,7 @@ function applyQaNotesPreset(){
 }
 function renderQaNotesPresets(){
   const sel=document.getElementById('qa_notes_preset'); if(!sel) return;
-  sel.innerHTML='<option value="">— insert a preset —</option>'+_tncPresets.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  sel.innerHTML='<option value="">Insert a preset</option>'+_tncPresets.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
 }
 // Reuses the same Customer & Items entered on the shared form, builds a real
 // biz_quotations row from them instead of duplicating the entry.
@@ -6502,7 +6517,7 @@ async function saveEditedOrder(){
   _qaSaving=true;
   const saveBtn=document.getElementById('qaSaveBtn');
   const saveBtnOrig=saveBtn?saveBtn.innerHTML:'';
-  if(saveBtn){ saveBtn.disabled=true; saveBtn.innerHTML='⏳ Saving…'; }
+  if(saveBtn){ saveBtn.disabled=true; saveBtn.innerHTML='<span class="btn-spinner"></span> Saving…'; }
   try{
   const invalid=flagInvalidFields('quickAddForm');
   if(invalid.length){ reportInvalid(invalid); return; }
@@ -6553,7 +6568,7 @@ async function saveEditedOrder(){
 }
 
 // ── Payment installments (Phase 10 Group 1) ──────────────────
-// is_paid only ever changes via the explicit 🔒/🔓 Lock button now (togglePaidOrder),
+// is_paid only ever changes via the explicit Lock/Unlock button now (togglePaidOrder),
 // logging installments here never touches it, a fully-paid order stays editable and
 // its status stays changeable until someone deliberately locks it.
 async function loadOrderPayments(orderId){
@@ -6569,7 +6584,7 @@ async function loadOrderPayments(orderId){
   const amtEl=document.getElementById('qaPayAmount'); if(amtEl) amtEl.value=Math.max(0,grand-received)||'';
   const body=document.getElementById('qaPayHistoryBody');
   if(body){
-    body.innerHTML=rows.length ? rows.map(r=>`<tr><td>${fmtDay(r.payment_date)}</td><td class="td-num">${fmt(r.amount)}</td><td>${esc(r.source||'—')}</td><td style="text-align:right"><button type="button" class="btn btn-ghost btn-sm" onclick="deletePaymentInstallment('${r.id}')">✕</button></td></tr>`).join('')
+    body.innerHTML=rows.length ? rows.map(r=>`<tr><td>${fmtDay(r.payment_date)}</td><td class="td-num">${fmt(r.amount)}</td><td>${esc(r.source||'N/A')}</td><td style="text-align:right"><button type="button" class="btn btn-ghost btn-sm" onclick="deletePaymentInstallment('${r.id}')">✕</button></td></tr>`).join('')
       : '<tr><td colspan="4" class="empty"><div class="em-text">No payments logged yet</div></td></tr>';
   }
   // Composite mode string (e.g. "upi + cash") built from every source actually used,
@@ -6590,7 +6605,7 @@ function renderQaNewPayments(){
   const wrap=document.getElementById('qaPayHistoryWrap'), body=document.getElementById('qaPayHistoryBody');
   if(!body) return;
   if(wrap) wrap.style.display=_qaNewPayments.length?'':'none';
-  body.innerHTML=_qaNewPayments.length ? _qaNewPayments.map((r,i)=>`<tr><td>${fmtDay(r.payment_date)}</td><td class="td-num">${fmt(r.amount)}</td><td>${esc(r.source||'—')}</td><td style="text-align:right"><button type="button" class="btn btn-ghost btn-sm" onclick="removeQaNewPayment(${i})">✕</button></td></tr>`).join('')
+  body.innerHTML=_qaNewPayments.length ? _qaNewPayments.map((r,i)=>`<tr><td>${fmtDay(r.payment_date)}</td><td class="td-num">${fmt(r.amount)}</td><td>${esc(r.source||'N/A')}</td><td style="text-align:right"><button type="button" class="btn btn-ghost btn-sm" onclick="removeQaNewPayment(${i})">✕</button></td></tr>`).join('')
     : '<tr><td colspan="4" class="empty"><div class="em-text">No payments logged yet</div></td></tr>';
 }
 function removeQaNewPayment(i){ _qaNewPayments.splice(i,1); renderQaNewPayments(); }
@@ -6620,7 +6635,7 @@ async function deletePaymentInstallment(id){
 }
 
 // ── Quick-select chip handlers (status / lead source / fulfillment) ──
-// Order Status History — one row per (order, status) transition, so a later KPI
+// Order Status History, one row per (order, status) transition, so a later KPI
 // pass can measure time actually spent in each stage (e.g. Production, Post-
 // Processing) instead of only ever seeing an order's current status with no record
 // of when it got there. Best-effort: a logging failure must never block the status
@@ -6758,7 +6773,7 @@ document.addEventListener('input', e=>{ if(e.target.classList && e.target.classL
 // moment it saved: no more editing, no more status changes, without anyone actually
 // clicking Lock. Payment amount/balance still track correctly via biz_sale_payments
 // regardless (see loadOrderPayments), locking now only happens when the operator
-// explicitly clicks 🔒.
+// explicitly clicks Lock.
 function applyNewOrderIsPaid(rows){}
 async function applyNewOrderPaymentIfAny(orderId){
   // Multiple transactions logged via "+ Add Payment" before the first save take
@@ -6792,7 +6807,7 @@ async function submitQuickAdd(e){
   _qaSaving=true;
   const saveBtn=document.getElementById('qaSaveBtn');
   const saveBtnOrig=saveBtn?saveBtn.innerHTML:'';
-  if(saveBtn){ saveBtn.disabled=true; saveBtn.innerHTML='⏳ Saving…'; }
+  if(saveBtn){ saveBtn.disabled=true; saveBtn.innerHTML='<span class="btn-spinner"></span> Saving…'; }
   try{
   applyNewOrderIsPaid(rows);
   // Universal Record ID (Phase 10 Group 1), generated server-side (retry-on-collision
@@ -6979,7 +6994,7 @@ async function loadSalesview(){
     const excluded=NON_REVENUE_STATUSES.includes(f.status);
     return `<tr class="sale-row${excluded?' row-breached':''}" onclick="jumpToOrderDetail('${f.id}')" style="cursor:pointer${excluded?';opacity:.7':''}">
       <td>${idx+1}</td><td>${fmtDay(f.order_date)}</td><td>${chHtml(f.channel_id)}</td>
-      <td>${esc(f.customer_name||'—')}</td><td>${esc(f.product_name||'—')}${f.is_gift?' <span title="Gift, ₹0 revenue">🎁</span>':''}${items.length>1?` <span style="color:var(--text-3);font-size:10px">+${items.length-1} more</span>`:''}${excluded?' <span style="color:var(--red);font-size:10px">(excluded from Sales)</span>':''}</td>
+      <td>${esc(f.customer_name||'N/A')}</td><td>${esc(f.product_name||'N/A')}${f.is_gift?' <span title="Gift, ₹0 revenue"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4"/><path d="M12 8v13M3 12v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M12 8c-1.5 0-4-1-4-3.5A2.5 2.5 0 0 1 10.5 2C12 2 12 5 12 8ZM12 8c1.5 0 4-1 4-3.5A2.5 2.5 0 0 0 13.5 2C12 2 12 5 12 8Z"/></svg></span>':''}${items.length>1?` <span style="color:var(--text-3);font-size:10px">+${items.length-1} more</span>`:''}${excluded?' <span style="color:var(--red);font-size:10px">(excluded from Sales)</span>':''}</td>
       <td class="td-num">${totalQty}</td><td class="td-num">${fmt(totalPrice)}</td>
       <td><span class="badge badge-${f.status}">${STATUS_LABEL?.[f.status]||f.status}</span></td>
     </tr>`;
@@ -7085,9 +7100,9 @@ async function loadQuotations(){
     <tr>
       <td onclick="event.stopPropagation()"><input type="checkbox" class="qt-cb" data-id="${q.id}" onchange="toggleQtSelect('${q.id}',this.checked)"></td>
       <td>${idx+1}</td>
-      <td style="white-space:nowrap">${q.quotation_date?fmtDay(q.quotation_date):(q.created_at?fmtDay(q.created_at.slice(0,10)):'—')}</td>
+      <td style="white-space:nowrap">${q.quotation_date?fmtDay(q.quotation_date):(q.created_at?fmtDay(q.created_at.slice(0,10)):'N/A')}</td>
       <td style="max-width:200px">
-        <div style="font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;line-height:1.35">${esc(q.customer_name||'—')}</div>
+        <div style="font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;line-height:1.35">${esc(q.customer_name||'N/A')}</div>
         ${orderIdTag(q.quotation_number)}
       </td>
       <td class="td-num" style="font-weight:700;font-size:12.5px;color:var(--text)">${fmt(q.total)}</td>
@@ -7099,7 +7114,7 @@ async function loadQuotations(){
           <option value="expired"${q.status==='expired'?' selected':''}>Expired</option>
         </select>
       </td>
-      <td>${q.validity_date?fmtDay(q.validity_date):'—'}</td>
+      <td>${q.validity_date?fmtDay(q.validity_date):'N/A'}</td>
       <td class="td-actions" style="white-space:nowrap;text-align:right">
         <button class="btn btn-icon-tint btn-icon-doc btn-sm" onclick="printQuotation('${q.id}')" title="View / Download PDF" style="gap:5px">${ICO_VIEW} View</button>
         ${convertible?`<button class="btn btn-icon-tint btn-icon-order btn-sm" onclick="openAddOrderFromQuotation('${q.id}')" title="Add to Order, opens the Add Order page pre-filled from this quotation" style="gap:5px">${ICO_ORDER} Order</button>`:''}
@@ -7243,7 +7258,7 @@ function tncDefaultText(docType){
 }
 function renderQtTncPresets(){
   const sel=document.getElementById('qt_tnc_preset'); if(!sel) return;
-  sel.innerHTML='<option value="">— insert a preset —</option>'+_tncPresets.filter(p=>p.docType==='quotation').map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  sel.innerHTML='<option value="">Insert a preset</option>'+_tncPresets.filter(p=>p.docType==='quotation').map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
 }
 function applyQtTncPreset(){
   const sel=document.getElementById('qt_tnc_preset'); if(!sel||sel.value==='') return;
@@ -7318,7 +7333,7 @@ function editQuotation(id){
     _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,disc:it.disc||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0,hsn:it.hsn||(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:it.sku||'',variant:it.variant||'',remarks:it.remarks||''})) : [blankItem()];
     renderItems();
     renderQaQtTncPresets();
-    const saveBtn=document.getElementById('qaSaveBtn'); if(saveBtn) saveBtn.innerHTML='💾 Update Quotation';
+    const saveBtn=document.getElementById('qaSaveBtn'); if(saveBtn) saveBtn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update Quotation';
   },150);
 }
 // Same as editQuotation but never sets _qaEditQuotationId, so Save inserts a fresh
@@ -7344,7 +7359,7 @@ function duplicateQuotation(id){
     _items=Array.isArray(q.items)&&q.items.length ? q.items.map(it=>({...blankItem(),name:it.name||'',qty:it.qty||1,rate:it.rate||0,disc:it.disc||0,gst:it.gst||0,pricingMode:it.pricingMode||'piece',grams:it.pricingMode==='gram'?(it.grams||0):0,hsn:it.hsn||(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:it.sku||'',variant:it.variant||'',remarks:it.remarks||''})) : [blankItem()];
     renderItems();
     renderQaQtTncPresets();
-    const saveBtn=document.getElementById('qaSaveBtn'); if(saveBtn) saveBtn.innerHTML='💾 Save Quotation';
+    const saveBtn=document.getElementById('qaSaveBtn'); if(saveBtn) saveBtn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Quotation';
     toast('Duplicated, review and Save to create a new quotation');
   },150);
 }
@@ -7427,7 +7442,7 @@ async function printQuotation(id){
     // (see itemAmount()/recalcTotals), since that's what's actually charged/filed.
     const gstAmt=Math.round(gross*(gst/100)*100)/100;
     return {
-      product_name:it.name||'—', qty, gst_rate:gst, hsn_code:it.hsn||'',
+      product_name:it.name||'N/A', qty, gst_rate:gst, hsn_code:it.hsn||'',
       selling_price:Math.round((gross+gstAmt-disc)*100)/100,
       discount_amount:disc,
       unit_rate:Math.round(unitRate*100)/100,
@@ -7476,7 +7491,7 @@ async function quotationSaleRows(q){
       notes:null, terms_notes:null, record_terms_notes:null, import_source:'manual', order_time:orderTime,
       reference_document:q.quotation_number||null,
       product_id:null, spool_id:null, item_type:'product', spool_sale_id:null,
-      product_name:it.name||'—', variant:it.variant||null, sku:null, hsn_code:it.hsn||null,
+      product_name:it.name||'N/A', variant:it.variant||null, sku:null, hsn_code:it.hsn||null,
       qty, pricing_mode:it.pricingMode||'piece',
       selling_price:Math.round(taxable*(1+(it.gst||0)/100)*100)/100,
       discount_amount:disc, gst_rate:it.gst||0, cogs:0,
@@ -7529,7 +7544,7 @@ async function loadRackItems(){
   body.innerHTML=_rackItems.map(r=>`
     <tr>
       <td>${esc(r.product_name)}</td>
-      <td style="font-size:11px;color:var(--text-3)">${esc(r.rack_location||'—')}</td>
+      <td style="font-size:11px;color:var(--text-3)">${esc(r.rack_location||'N/A')}</td>
       <td class="td-num">${r.qty}</td>
       <td class="td-num">${fmt(r.cost_price)}</td>
       <td class="td-num" style="font-weight:700">${fmt((parseInt(r.qty)||0)*(parseFloat(r.cost_price)||0))}</td>
@@ -7585,7 +7600,7 @@ async function deleteRackItem(id){
 }
 // Opens Add Order pre-filled with this rack product so it goes through the real
 // order flow (shows up in Sales/Orders/the ledger, per H29). Does NOT touch the
-// rack row here — that used to happen immediately, before the order was ever
+// rack row here, that used to happen immediately, before the order was ever
 // saved, so navigating away or failing validation silently lost stock with no
 // order to show for it. _qaSourceRackItemId defers the decrement/delete until
 // submitQuickAdd() actually confirms the insert succeeded.
@@ -7729,13 +7744,13 @@ function renderCustomers(){
   body.innerHTML=list.length?list.map((c,i)=>`<tr style="cursor:pointer" onclick="openCustomerByIdx(${i})">
     <td onclick="event.stopPropagation()"><input type="checkbox" class="cust-cb" data-idx="${i}" onchange="updateCustBulkBar()"></td>
     <td>${esc(c.name)}${c.address?`<div style="font-size:10px;color:var(--text-3)">${esc(c.address)}</div>`:''}${(c.channels||[]).length?`<div style="margin-top:3px;display:flex;gap:6px;flex-wrap:wrap">${c.channels.map(ch=>chHtml(ch)).join('')}</div>`:''}</td>
-    <td style="font-family:var(--mono);font-size:11px">${c.phone?esc((c.country_code&&c.country_code!=='+91'?c.country_code+' ':'')+c.phone):'—'}</td>
-    <td style="font-family:var(--mono);font-size:10px">${esc(c.gstin||'—')}</td>
-    <td>${esc([c.city,c.state].filter(Boolean).join(', ')||'—')}${c.pincode?', '+esc(c.pincode):''}</td>
+    <td style="font-family:var(--mono);font-size:11px">${c.phone?esc((c.country_code&&c.country_code!=='+91'?c.country_code+' ':'')+c.phone):'N/A'}</td>
+    <td style="font-family:var(--mono);font-size:10px">${esc(c.gstin||'N/A')}</td>
+    <td>${esc([c.city,c.state].filter(Boolean).join(', ')||'N/A')}${c.pincode?', '+esc(c.pincode):''}</td>
     <td class="td-num">${c.orders}</td>
     <td class="td-num" style="font-weight:700">${fmt(c.spent)}${(c.due>0)?`<div style="font-weight:400;font-size:10px;color:var(--red)">Due ${fmt(c.due)}</div>`:''}${(c.advance>0)?`<div style="font-weight:400;font-size:10px;color:var(--green)" title="Paid more than their order total, credit/advance sitting with us">Advance ${fmt(c.advance)}</div>`:''}</td>
-    <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${c.first?fmtDay(c.first):'—'}</td>
-    <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${c.last?fmtDay(c.last):'—'}</td>
+    <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${c.first?fmtDay(c.first):'N/A'}</td>
+    <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${c.last?fmtDay(c.last):'N/A'}</td>
     <td>${c.reviewed?'<span class="badge" style="background:var(--green-bg);color:var(--green)">✓</span>':''}</td>
     <td class="td-actions"><button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="event.stopPropagation();openCustomerByIdx(${i})" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button></td>
   </tr>`).join(''):`<tr><td colspan="11" class="empty"><div class="em-text">No customers found</div></td></tr>`;
@@ -7790,7 +7805,7 @@ async function customersBulkUpload(e){
     // exported+edited file (bulkExportCustomers -> edit -> customersBulkUpload) updates
     // in place instead of duplicating every row. Exact match only: normalized phone
     // (last 10 digits) first, then exact case-insensitive name, same convention as
-    // backfill-customer-id.sql — no fuzzy matching.
+    // backfill-customer-id.sql, no fuzzy matching.
     const norm=p=>(p||'').replace(/\D/g,'').slice(-10);
     const {data:existing,error:exErr}=await sb.from('biz_customers').select('id,name,phone');
     if(exErr){ toast('Error: '+exErr.message,'error'); e.target.value=''; return; }
@@ -7872,7 +7887,7 @@ async function loadCustomerHistory(c){
     events.push({date:f.order_date,type:'order',sortKey:f.order_date+' 0',balanceDelta:total,build:bal=>`<tr style="cursor:pointer" onclick="closeCustomerModal();jumpToOrderDetail('${f.id}')">
       <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(f.order_date)}</td>
       <td><span class="badge" style="background:var(--accent-bg);color:var(--accent)">Order</span></td>
-      <td>${chHtml(f.channel_id)} ${esc(f.sku||f.product_name||'—')}${more}${f.order_id?orderIdTag(f.order_id,{size:'10px'}):''}</td>
+      <td>${chHtml(f.channel_id)} ${esc(f.sku||f.product_name||'N/A')}${more}${f.order_id?orderIdTag(f.order_id,{size:'10px'}):''}</td>
       <td class="td-num">${fmt(total)}</td>
       <td class="td-num" style="font-family:var(--mono);color:${bal>0.005?'var(--red)':'var(--text-3)'}" title="Balance due after this transaction">${fmt(bal)}</td>
       <td><span class="badge badge-${f.status}">${STATUS_LABEL?.[f.status]||f.status}</span></td>
@@ -7882,7 +7897,7 @@ async function loadCustomerHistory(c){
     events.push({date:p.payment_date,type:'payment',sortKey:p.payment_date+' 1',balanceDelta:-(parseFloat(p.amount)||0),build:bal=>`<tr>
       <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(p.payment_date)}</td>
       <td><span class="badge" style="background:var(--green-bg);color:var(--green)">Payment</span></td>
-      <td>${esc(p.source||'—')}${p.notes?' · '+esc(p.notes):''}${orderIdTag(p.order_id,{size:'10px'})}</td>
+      <td>${esc(p.source||'N/A')}${p.notes?' · '+esc(p.notes):''}${orderIdTag(p.order_id,{size:'10px'})}</td>
       <td class="td-num" style="color:var(--green)">+${fmt(p.amount)}</td>
       <td class="td-num" style="font-family:var(--mono);color:${bal>0.005?'var(--red)':'var(--text-3)'}" title="Balance due after this transaction">${fmt(bal)}</td>
       <td></td>
@@ -7936,7 +7951,7 @@ function custSuggest(q,srcId){
   const list=(_customersList||[]).filter(function(c){ return (c.name||'').toLowerCase().includes(q)||(c.phone||'').toLowerCase().includes(q); }).slice(0,7);
   _custSugg=list;
   if(!list.length){ box.style.display='none'; return; }
-  box.innerHTML=list.map(function(c,i){ return '<div onclick="custPick('+i+')" style="padding:7px 11px;cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background=\'var(--bg-2)\'" onmouseout="this.style.background=\'\'"><div style="font-weight:600;font-size:12px">'+esc(c.name)+'</div><div style="font-size:11px;color:var(--text-3);font-family:var(--mono)">'+esc(c.phone||'—')+(c.city?' · '+esc(c.city):'')+(c.gstin?' · '+esc(c.gstin):'')+'</div></div>'; }).join('');
+  box.innerHTML=list.map(function(c,i){ return '<div onclick="custPick('+i+')" style="padding:7px 11px;cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background=\'var(--bg-2)\'" onmouseout="this.style.background=\'\'"><div style="font-weight:600;font-size:12px">'+esc(c.name)+'</div><div style="font-size:11px;color:var(--text-3);font-family:var(--mono)">'+esc(c.phone||'N/A')+(c.city?' · '+esc(c.city):'')+(c.gstin?' · '+esc(c.gstin):'')+'</div></div>'; }).join('');
   const inp=document.getElementById(srcId)||document.getElementById('qa_cname');
   const r=inp.getBoundingClientRect();
   box.style.left=r.left+'px'; box.style.top=(r.bottom+3)+'px'; box.style.width=Math.max(220,r.width)+'px';
@@ -8099,7 +8114,7 @@ async function syncWebsiteOrders(opts){
 // ── Sales list ──────────────────────────────────────────────
 // ══════════════ OPEN ORDERS, command center (B16) ══════════════
 function slaText(promised){
-  if(!promised) return '<span style="color:var(--text-3)">—</span>';
+  if(!promised) return '<span style="color:var(--text-3)">N/A</span>';
   const d=Math.round((new Date(promised+'T00:00:00')-new Date(today()+'T00:00:00'))/86400000);
   if(d<0) return `<span style="color:var(--red);font-weight:700">${-d}d overdue</span>`;
   if(d===0) return `<span style="color:var(--yellow);font-weight:700">due today</span>`;
@@ -8195,9 +8210,9 @@ function openOpenOrdersDrawer(kind){
       <tbody>${groups.length?groups.map(g=>{
         const f=g.items[0], total=g.items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0)+(parseFloat(f.round_off)||0);
         return `<tr style="cursor:pointer" onclick="closeOpenOrdersDrawer();jumpToOrderDetail('${f.id}')">
-          <td>${chHtml(f.channel_id)} ${esc(f.order_id||f.product_name||'—')}</td>
-          <td>${esc(f.customer_name||'—')}</td>
-          <td>${f.delivery_date?fmtDay(f.delivery_date):'—'}</td>
+          <td>${chHtml(f.channel_id)} ${esc(f.order_id||f.product_name||'N/A')}</td>
+          <td>${esc(f.customer_name||'N/A')}</td>
+          <td>${f.delivery_date?fmtDay(f.delivery_date):'N/A'}</td>
           <td class="td-num">${fmt(total)}</td>
           <td style="text-align:right;color:var(--text-3)">→</td>
         </tr>`;
@@ -8248,7 +8263,7 @@ function setOoChannel(c){ _ooChannel=c; loadOpenOrders(); }
 // reminders just don't show up." Now it can't be taken down by anything else on the page.
 let _openReminders={gst:0,gstColor:null,filament:0,notCompleted:0,notLocked:0,iq:0,iqIsNew:false};
 // Blinks the Instant Quotes tile only when the pending-confirmation count has grown
-// since it was last looked at (localStorage), not just whenever it's non-zero — a
+// since it was last looked at (localStorage), not just whenever it's non-zero, a
 // backlog that's been sitting there isn't "new". Cleared when loadInstantQuotes()
 // runs, i.e. the admin actually opened the tab.
 function checkNewIqEntry(count){
@@ -8294,10 +8309,10 @@ function gstReminderSummary(){
 // different loader (loadOpenGstReminder, loadFilamentLowStockAlert, loadOpenOrders),
 // re-rendered from the shared _openReminders state whenever any of them updates.
 const REMINDER_TILE_META={
-  gst:{icon:'📄',label:'GST Filing'},
-  filament:{icon:'🧵',label:'Filament Low'},
-  notCompleted:{icon:'⏰',label:'Not Completed'},
-  notLocked:{icon:'🔒',label:'Not Locked'},
+  gst:{icon:'▤',label:'GST Filing'},
+  filament:{icon:'◉',label:'Filament Low'},
+  notCompleted:{icon:'◷',label:'Not Completed'},
+  notLocked:{icon:'⊘',label:'Not Locked'},
   iq:{icon:'⧉',label:'Instant Quotes'},
 };
 function renderOpenRemindersRow(){
@@ -8334,7 +8349,7 @@ function toggleOpenReminderDetail(id){
 }
 async function loadOpenOrders(){
   loadOpenGstReminder();
-  // "Open" = anything not yet in a terminal state, rather than an explicit include-list —
+  // "Open" = anything not yet in a terminal state, rather than an explicit include-list,
   // the old include-list named values ('pending','processing','dispatched','delivered')
   // that used to be outside the DB CHECK constraint entirely, so this query could never
   // return a row; NOT-IN on the terminal states stays correct as new statuses are added.
@@ -8396,7 +8411,7 @@ async function loadOpenOrders(){
   if(kpi) kpi.innerHTML=
     kpiCard('var(--green)','var(--green-bg)','◷','Upcoming Orders',esc(upcomingOrders),'Manual entry, click to edit. Not counted in any total','editUpcomingOrders()')
     +kpiCard('var(--blue)','var(--blue-bg)','⚙','In Production',prodGroups.length,'Show all in-production orders',"openOpenOrdersDrawer('production')")
-    +kpiCard('var(--teal,#0d9488)','var(--teal-bg,rgba(13,148,136,.12))','📦','Packed',packGroups.length,'Show all packed, ready-to-dispatch orders',"openOpenOrdersDrawer('packed')")
+    +kpiCard('var(--teal,#0d9488)','var(--teal-bg,rgba(13,148,136,.12))','▩','Packed',packGroups.length,'Show all packed, ready-to-dispatch orders',"openOpenOrdersDrawer('packed')")
     +kpiCard('var(--purple)','var(--purple-bg)','➤','Dispatched',trackGroups.length,'Show all dispatched orders',"openOpenOrdersDrawer('dispatched')")
     +kpiCard('var(--red)','var(--red-bg)','⚠','SLA Breached',breached,'Show breached orders',"openOpenOrdersDrawer('breached')",breached>0)
     +kpiCard('var(--yellow)','var(--yellow-bg)','◷','Due Today',dueToday,'Show orders due today',"openOpenOrdersDrawer('dueToday')",dueToday>0);
@@ -8404,7 +8419,7 @@ async function loadOpenOrders(){
   loadShopPunchStatus();
 
   const skuItemCol=(f,more)=>{
-    const line=f.sku?`<div style="font-family:var(--mono);font-weight:600">${esc(f.sku)}</div><div style="color:var(--text-3);font-size:10px">${esc(f.product_name||'—')}</div>`:esc(f.product_name||'—');
+    const line=f.sku?`<div style="font-family:var(--mono);font-weight:600">${esc(f.sku)}</div><div style="color:var(--text-3);font-size:10px">${esc(f.product_name||'N/A')}</div>`:esc(f.product_name||'N/A');
     const orderIdLine=orderIdTag(f.order_id);
     return line+orderIdLine+(more?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">${more}</span>`:'');
   };
@@ -8418,9 +8433,9 @@ async function loadOpenOrders(){
       const rowCls=breached?' row-breached':(f.delivery_date===td?' row-due-today':(f.delivery_date?' row-upcoming':''));
       return `<tr class="sale-row${rowCls}" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>jumpToOrderDetail('${f.id}'))">
         <td onclick="event.stopPropagation()"><input type="checkbox" class="open-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateOpenBulkBar()"></td>
-        <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.delivery_date?fmtDay(f.delivery_date):'—'}</td>
+        <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.delivery_date?fmtDay(f.delivery_date):'N/A'}</td>
         <td style="white-space:nowrap">${slaText(f.delivery_date)}</td>
-        <td style="white-space:nowrap">${esc(f.customer_name||'—')}</td>
+        <td style="white-space:nowrap">${esc(f.customer_name||'N/A')}</td>
         <td>${skuItemCol(f,more)}</td>
         <td>${chHtml(f.channel_id)}</td>
         <td onclick="event.stopPropagation()"><select onchange="updateOrderStatus('${f.id}',this.value)" class="badge-select badge-${f.status}">${UNIFIED_STATUSES.map(x=>`<option value="${x}"${f.status===x?' selected':''}>${STATUS_LABEL[x]}</option>`).join('')}</select></td>
@@ -8438,9 +8453,9 @@ async function loadOpenOrders(){
       const rowCls=breached?' row-breached':(f.delivery_date===td?' row-due-today':(f.delivery_date?' row-upcoming':''));
       return `<tr class="sale-row${rowCls}" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>jumpToOrderDetail('${f.id}'))">
         <td onclick="event.stopPropagation()"><input type="checkbox" class="open-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateOpenBulkBar()"></td>
-        <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.delivery_date?fmtDay(f.delivery_date):'—'}</td>
+        <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.delivery_date?fmtDay(f.delivery_date):'N/A'}</td>
         <td style="white-space:nowrap">${slaText(f.delivery_date)}</td>
-        <td style="white-space:nowrap">${esc(f.customer_name||'—')}</td>
+        <td style="white-space:nowrap">${esc(f.customer_name||'N/A')}</td>
         <td>${skuItemCol(f,more)}</td>
         <td>${chHtml(f.channel_id)}</td>
         <td onclick="event.stopPropagation()"><select onchange="updateOrderStatus('${f.id}',this.value)" class="badge-select badge-${f.status}">${UNIFIED_STATUSES.map(x=>`<option value="${x}"${f.status===x?' selected':''}>${STATUS_LABEL[x]}</option>`).join('')}</select></td>
@@ -8455,12 +8470,12 @@ async function loadOpenOrders(){
     else trackBody.innerHTML=trackGroups.map(g=>{ const f=g.items[0]; const ids=g.items.map(s=>s.id).join(',');
       const more=g.items.length>1?`+${g.items.length-1} more`:'';
       const dispatchInfo=dispatchSlaText(f);
-      const rw=returnWindowInfo(f)||'<span style="color:var(--text-3)">—</span>';
+      const rw=returnWindowInfo(f)||'<span style="color:var(--text-3)">N/A</span>';
       const breached=f.delivery_date&&f.delivery_date<td;
       return `<tr class="sale-row${breached?' row-breached':''}" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>jumpToOrderDetail('${f.id}'))">
         <td onclick="event.stopPropagation()"><input type="checkbox" class="open-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateOpenBulkBar()"></td>
-        <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.dispatch_date?fmtDay(f.dispatch_date):'—'}${dispatchInfo?'<br>'+dispatchInfo:''}</td>
-        <td style="white-space:nowrap">${esc(f.customer_name||'—')}</td>
+        <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.dispatch_date?fmtDay(f.dispatch_date):'N/A'}${dispatchInfo?'<br>'+dispatchInfo:''}</td>
+        <td style="white-space:nowrap">${esc(f.customer_name||'N/A')}</td>
         <td>${skuItemCol(f,more)}</td>
         <td>${chHtml(f.channel_id)}</td>
         <td style="font-size:11px;white-space:nowrap">${rw}</td>
@@ -8553,7 +8568,7 @@ let _iqOrders=[],_iqMaterials=[],_iqPrinters=[],_iqColors=[],_iqUploads=[],_iqPr
 
 async function loadInstantQuotes(){
   // Catalog lookups (materials/printers/colors) must land before the two tables
-  // that render names/dims from them, or those columns show "—" until a manual refresh.
+  // that render names/dims from them, or those columns show "N/A" until a manual refresh.
   await Promise.all([loadIqMaterials(),loadIqPrinters(),loadIqColors(),loadIqPricingSettings()]);
   await Promise.all([loadIqOrders(),loadIqUploads()]);
   // Opening the tab is "the admin looked", stop the Today's Tasks blink here.
@@ -8605,7 +8620,7 @@ async function saveIqPricingSettings(){
 }
 
 /* Every uploaded model + computed quote, regardless of whether it became an
-   order — a standing record for the business, not just an order sub-view. */
+   order, a standing record for the business, not just an order sub-view. */
 async function loadIqUploads(){
   const{data,error}=await sb.from('instant_quote_requests').select('*').order('created_at',{ascending:false}).limit(500);
   if(error){document.getElementById('iqUploadsBody').innerHTML='<tr><td colspan="14" class="empty"><div class="em-text">Error loading uploads</div></td></tr>';return}
@@ -8621,7 +8636,7 @@ async function loadIqUploads(){
 }
 
 // How many times this same customer has generated a quote (matched by account,
-// or by the lead phone number for anonymous/pre-login quotes) — a signal of
+// or by the lead phone number for anonymous/pre-login quotes), a signal of
 // genuine interest worth a follow-up, distinct from the pending-confirmation
 // task count shown on the Today's Tasks tile.
 function _iqAttemptCount(q){
@@ -8637,7 +8652,7 @@ function _iqAttemptChip(q){
 
 function _iqLeadCell(q){
   if(!q.contact_name&&!q.contact_phone)return '<span style="color:var(--text-3)">Skipped</span>';
-  return esc(q.contact_name||'—')+_iqAttemptChip(q)+'<br>'+esc(q.contact_phone||'');
+  return esc(q.contact_name||'N/A')+_iqAttemptChip(q)+'<br>'+esc(q.contact_phone||'');
 }
 
 function renderIqUploads(list){
@@ -8648,8 +8663,8 @@ function renderIqUploads(list){
     const prof=_iqProfiles[q.user_id]||{};
     return '<tr>'
       +'<td data-label="Date" style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(q.created_at)+'</td>'
-      +'<td data-label="Model">'+(q.model_file_url?'<a href="'+esc(q.model_file_url)+'" target="_blank" rel="noopener" download="'+esc(q.file_name||'model')+'">'+esc(q.file_name||'model')+' ↓</a>':esc(q.file_name||'—'))+'</td>'
-      +'<td data-label="Account" style="font-size:11px">'+esc(prof.full_name||'—')+'<br>'+esc(prof.phone||'')+'</td>'
+      +'<td data-label="Model">'+(q.model_file_url?'<a href="'+esc(q.model_file_url)+'" target="_blank" rel="noopener" download="'+esc(q.file_name||'model')+'">'+esc(q.file_name||'model')+' ↓</a>':esc(q.file_name||'N/A'))+'</td>'
+      +'<td data-label="Account" style="font-size:11px">'+esc(prof.full_name||'N/A')+'<br>'+esc(prof.phone||'')+'</td>'
       +'<td data-label="Lead contact" style="font-size:11px">'+_iqLeadCell(q)+'</td>'
       +'<td data-label="Build" style="font-size:11px;white-space:nowrap">'+esc(_iqPrinterDims(q.printer_id))+'</td>'
       +'<td data-label="Material">'+esc(_iqMaterialName(q.material_id))+'</td>'
@@ -8657,10 +8672,10 @@ function renderIqUploads(list){
       +'<td data-label="Nozzle">'+esc(String(q.nozzle_mm||'0.4'))+'mm</td>'
       +'<td data-label="Layer">'+esc(String(q.layer_height_mm||'0.2'))+'mm</td>'
       +'<td data-label="Infill">'+esc(String(q.infill_percent||''))+'%</td>'
-      +'<td data-label="Weight/Time" style="font-size:11px">'+esc(String(q.estimated_weight_g||'—'))+'g / '+esc(String(q.estimated_print_time_hours||'—'))+'h</td>'
+      +'<td data-label="Weight/Time" style="font-size:11px">'+esc(String(q.estimated_weight_g||'N/A'))+'g / '+esc(String(q.estimated_print_time_hours||'N/A'))+'h</td>'
       +'<td data-label="Price">₹'+Number(q.final_price||0).toLocaleString('en-IN')+'</td>'
       +'<td data-label="Notes" style="font-size:11px;max-width:160px">'+esc(q.custom_notes||'')+'</td>'
-      +'<td data-label="Status"><span class="badge '+(statusBadge[q.status]||'badge-pending')+'">'+esc(q.status||'—')+'</span></td>'
+      +'<td data-label="Status"><span class="badge '+(statusBadge[q.status]||'badge-pending')+'">'+esc(q.status||'N/A')+'</span></td>'
       +'</tr>';
   }).join('');
 }
@@ -8693,9 +8708,9 @@ async function loadIqOrders(){
   renderIqKpi();
 }
 
-function _iqPrinterDims(id){const p=(_iqPrinters||[]).find(x=>x.id===id);return p?(p.build_x_mm+'×'+p.build_y_mm+'×'+p.build_z_mm+'mm'):'—';}
-function _iqMaterialName(id){const m=(_iqMaterials||[]).find(x=>x.id===id);return m?m.name:'—';}
-function _iqColorName(id){const c=(_iqColors||[]).find(x=>x.id===id);return c?c.name:'—';}
+function _iqPrinterDims(id){const p=(_iqPrinters||[]).find(x=>x.id===id);return p?(p.build_x_mm+'×'+p.build_y_mm+'×'+p.build_z_mm+'mm'):'N/A';}
+function _iqMaterialName(id){const m=(_iqMaterials||[]).find(x=>x.id===id);return m?m.name:'N/A';}
+function _iqColorName(id){const c=(_iqColors||[]).find(x=>x.id===id);return c?c.name:'N/A';}
 
 function renderIqOrders(){
   const tbody=document.getElementById('iqOrdersBody'); if(!tbody) return;
@@ -8707,16 +8722,16 @@ function renderIqOrders(){
       const q=it.instant_quote_requests;
       return '<tr>'
         +'<td data-label="Order" style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+esc(o.invoice_number||o.order_id||o.id)+'</td>'
-        +'<td data-label="Model">'+(q.model_file_url?'<a href="'+esc(q.model_file_url)+'" target="_blank" rel="noopener" download="'+esc(q.file_name||'model')+'">'+esc(q.file_name||'model')+' ↓</a>':esc(q.file_name||'—'))+'</td>'
+        +'<td data-label="Model">'+(q.model_file_url?'<a href="'+esc(q.model_file_url)+'" target="_blank" rel="noopener" download="'+esc(q.file_name||'model')+'">'+esc(q.file_name||'model')+' ↓</a>':esc(q.file_name||'N/A'))+'</td>'
         +'<td data-label="Build" style="font-size:11px;white-space:nowrap">'+esc(_iqPrinterDims(q.printer_id))+'</td>'
         +'<td data-label="Material">'+esc(_iqMaterialName(q.material_id))+'</td>'
         +'<td data-label="Color">'+esc(_iqColorName(q.color_id))+'</td>'
         +'<td data-label="Nozzle">'+esc(String(q.nozzle_mm||'0.4'))+'mm</td>'
         +'<td data-label="Layer">'+esc(String(q.layer_height_mm||'0.2'))+'mm</td>'
         +'<td data-label="Infill">'+esc(String(q.infill_percent||''))+'%</td>'
-        +'<td data-label="Est. weight/time" style="font-size:11px">'+esc(String(q.estimated_weight_g||'—'))+'g / '+esc(String(q.estimated_print_time_hours||'—'))+'h</td>'
+        +'<td data-label="Est. weight/time" style="font-size:11px">'+esc(String(q.estimated_weight_g||'N/A'))+'g / '+esc(String(q.estimated_print_time_hours||'N/A'))+'h</td>'
         +'<td data-label="Price">₹'+Number(it.unit_price||0).toLocaleString('en-IN')+'</td>'
-        +'<td data-label="Customer" style="font-size:11px">'+esc(o.customer_name||o.shipping_address?.full_name||'—')+'<br>'+esc(o.customer_phone||'')+'</td>'
+        +'<td data-label="Customer" style="font-size:11px">'+esc(o.customer_name||o.shipping_address?.full_name||'N/A')+'<br>'+esc(o.customer_phone||'')+'</td>'
         +'<td data-label="Lead contact" style="font-size:11px">'+_iqLeadCell(q)+'</td>'
         +'<td data-label="Notes" style="font-size:11px;max-width:160px">'+esc(q.custom_notes||'')+'</td>'
         +'<td data-label="Date" style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(o.created_at)+'</td>'
@@ -8736,7 +8751,7 @@ async function confirmIqOrder(orderId){
 }
 
 // Edit mode swaps a single row's cells for inputs in place (id of the row currently
-// being edited, per table — null when none). Only one row per table can be in edit
+// being edited, per table, null when none). Only one row per table can be in edit
 // mode at a time, same "one open at a time" idiom as the Quick-Log strip.
 let _iqEditMaterial=null,_iqEditColor=null,_iqEditPrinter=null;
 const IQ_MATERIAL_GROUPS=['Regular','Good Strength','Outdoor & Durable','Top Strength','Flexible'];
@@ -8886,7 +8901,7 @@ async function toggleIqActive(table,id,newVal,reload){
   (window[reload]||function(){})();
 }
 
-// Only one row per catalog table should be is_default — clear the rest first, same
+// Only one row per catalog table should be is_default, clear the rest first, same
 // pattern as a radio button, so the customer-facing auto-select logic (which picks
 // the row with is_default=true) never has to reconcile ties.
 async function setIqDefault(table,id,reload){
@@ -9071,12 +9086,12 @@ async function loadExpenses(){
   if(!rows.length){ tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="em-text">No expenses in this range</div></div></td></tr>`; return; }
   tbody.innerHTML=rows.map(r=>`<tr>
     <td style="font-family:var(--mono);font-size:11px">${esc(r.date)}</td>
-    <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(r.category||'—')}</span>${r.recurring?' <span title="Recurring monthly" style="font-size:10px">↻</span>':''}</td>
-    <td>${esc(r.vendor||'—')}</td>
-    <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(r.order_id||'—')}</td>
+    <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(r.category||'N/A')}</span>${r.recurring?' <span title="Recurring monthly" style="font-size:10px">↻</span>':''}</td>
+    <td>${esc(r.vendor||'N/A')}</td>
+    <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(r.order_id||'N/A')}</td>
     <td class="td-num" style="font-weight:700">${fmt(r.amount)}</td>
     <td class="td-num" style="color:var(--text-3)">${fmt(r.gst_amount)}</td>
-    <td>${r.invoice_url?`<a href="#" data-u="${esc(r.invoice_url)}" onclick="event.preventDefault();openInvoice(this.dataset.u)" style="color:var(--accent)">view</a>`:'—'}</td>
+    <td>${r.invoice_url?`<a href="#" data-u="${esc(r.invoice_url)}" onclick="event.preventDefault();openInvoice(this.dataset.u)" style="color:var(--accent)">view</a>`:'N/A'}</td>
     <td class="td-actions"><button class="btn btn-icon-tint btn-icon-duplicate btn-sm" title="Duplicate to next month" onclick="duplicateExpenseNextMonth('${r.id}')" style="padding:3px 6px">${ICO_DUPLICATE}</button> <button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="editExpense('${r.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deleteExpense('${r.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
   </tr>`).join('');
 }
@@ -9096,7 +9111,7 @@ function onExpenseCategoryChange(){
 function populateExpenseSpoolSelect(){
   const sel=document.getElementById('ex_spool_id'); if(!sel) return;
   const cur=sel.value;
-  sel.innerHTML='<option value="">— none —</option>'+spoolOptions(cur);
+  sel.innerHTML='<option value="">None</option>'+spoolOptions(cur);
 }
 // Round 3, "bill dalu aur stock update hojaye": logging a Materials expense against an
 // existing spool bumps that roll's total_grams instead of needing a separate Spool Tracker edit.
@@ -9344,10 +9359,10 @@ function renderLedgerRows(){
   tbody.innerHTML=rows.map(r=>`<tr>
     <td style="font-family:var(--mono);font-size:11px">${esc(r.date||'')}</td>
     <td><span class="badge badge-${r.type==='in'?'completed':'returned'}">${r.type==='in'?'In':'Out'}</span></td>
-    <td>${esc(r.label||'—')}</td>
+    <td>${esc(r.label||'N/A')}</td>
     <td class="td-num" style="font-weight:700;color:${r.type==='in'?'var(--green)':'var(--red)'}">${r.type==='in'?'+':'-'}${fmt(r.amount)}</td>
-    <td style="font-size:11px;color:var(--text-3)">${esc(r.mode||'—')}${r.ref?' · '+esc(r.ref):''}</td>
-    <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(r.recordId||r.orderId||'—')}</td>
+    <td style="font-size:11px;color:var(--text-3)">${esc(r.mode||'N/A')}${r.ref?' · '+esc(r.ref):''}</td>
+    <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(r.recordId||r.orderId||'N/A')}</td>
     <td class="td-actions">${r.id?`<button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editIncome('${r.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deleteIncome('${r.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button>`
       :r.payId?`<button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editLedgerPayment('${r.payId}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deleteLedgerPayment('${r.payId}')" title="Remove this payment, an accidentally-duplicated entry" style="padding:3px 6px">${ICO_DELETE}</button>`
       :r.expId?`<button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editExpense('${r.expId}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deleteLedgerExpense('${r.expId}')" title="Remove this expense" style="padding:3px 6px">${ICO_DELETE}</button>`
@@ -9432,12 +9447,12 @@ async function loadPurchases(){
   if(!rows.length){ tbody.innerHTML=`<tr><td colspan="8" class="empty"><div class="em-text">No purchases in this range</div></div></td></tr>`; return; }
   tbody.innerHTML=rows.map(r=>`<tr>
     <td style="font-family:var(--mono);font-size:11px">${esc(r.date)}</td>
-    <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(r.category||'—')}</span></td>
-    <td>${esc(r.vendor||'—')}</td>
-    <td>${esc(r.item||'—')}</td>
+    <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(r.category||'N/A')}</span></td>
+    <td>${esc(r.vendor||'N/A')}</td>
+    <td>${esc(r.item||'N/A')}</td>
     <td class="td-num">${r.qty||1}</td>
     <td class="td-num" style="font-weight:700">${fmt(r.total_amount)}</td>
-    <td>${r.invoice_url?`<a href="#" data-u="${esc(r.invoice_url)}" onclick="event.preventDefault();openInvoice(this.dataset.u)" style="color:var(--accent)">view</a>`:'—'}</td>
+    <td>${r.invoice_url?`<a href="#" data-u="${esc(r.invoice_url)}" onclick="event.preventDefault();openInvoice(this.dataset.u)" style="color:var(--accent)">view</a>`:'N/A'}</td>
     <td class="td-actions"><button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="editPurchase('${r.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deletePurchase('${r.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
   </tr>`).join('');
 }
@@ -9536,7 +9551,7 @@ async function loadBalanceSheet(){
     sb.from('biz_sales').select('id,order_id,selling_price,round_off').eq('is_deleted',false).eq('is_paid',false).not('status','in',`(${NON_REVENUE_STATUSES.join(',')})`),
     sb.from('biz_printers').select('purchase_value').eq('active',true),
     sb.from('biz_rack_items').select('qty,cost_price'),
-    // Order payments (biz_sale_payments — partial/full advance logged via "+ Add Payment")
+    // Order payments (biz_sale_payments, partial/full advance logged via "+ Add Payment")
     // are real cash received even when the order was never manually Locked (is_paid), and
     // must count toward Bank Balance the same way loadLedger's "Order Payments" line does.
     sb.from('biz_sale_payments').select('order_id,amount').gte('payment_date',start),
@@ -9623,9 +9638,9 @@ async function loadShopLog(){
   tbody.innerHTML=rows.map(r=>`<tr>
     <td style="font-family:var(--mono);font-size:11px">${esc(r.date)}</td>
     <td><span class="badge badge-${r.closed_all_day?'cancelled':'completed'}">${r.closed_all_day?'Closed':'Open'}</span></td>
-    <td style="font-family:var(--mono);font-size:11px">${r.open_time?esc(fmtTime12(r.open_time)):'—'}</td>
-    <td style="font-family:var(--mono);font-size:11px">${r.close_time?esc(fmtTime12(r.close_time)):'—'}</td>
-    <td style="font-family:var(--mono);font-size:11px">${r.break_start?esc(fmtTime12(r.break_start))+'–'+(r.break_end?esc(fmtTime12(r.break_end)):''):'—'}</td>
+    <td style="font-family:var(--mono);font-size:11px">${r.open_time?esc(fmtTime12(r.open_time)):'N/A'}</td>
+    <td style="font-family:var(--mono);font-size:11px">${r.close_time?esc(fmtTime12(r.close_time)):'N/A'}</td>
+    <td style="font-family:var(--mono);font-size:11px">${r.break_start?esc(fmtTime12(r.break_start))+'–'+(r.break_end?esc(fmtTime12(r.break_end)):''):'N/A'}</td>
     <td style="font-size:11px;color:var(--text-3)">${esc(r.reason||'')}</td>
     <td class="td-actions"><button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editShopLog('${r.date}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deleteShopLog('${r.date}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
   </tr>`).join('');
@@ -9667,7 +9682,7 @@ async function loadSalesBadge(){
 }
 
 let _salesCache=[];
-function fmtDay(s){ if(!s) return '—'; const p=String(s).slice(0,10).split('-'); if(p.length<3) return s; const mon=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(p[1])]||''; return p[2]+' '+mon+' '+p[0].slice(2); }
+function fmtDay(s){ if(!s) return 'N/A'; const p=String(s).slice(0,10).split('-'); if(p.length<3) return s; const mon=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(p[1])]||''; return p[2]+' '+mon+' '+p[0].slice(2); }
 // "14:05" (24-hr, how TIME columns like biz_shop_log.open_time actually come back
 // from the DB) -> "2:05 pm" for display. Every clock/timestamp shown across Biz OS
 // should read in 12-hour AM/PM, not 24-hour; this is the one place that conversion
@@ -9734,7 +9749,7 @@ function toggleAllOrdersFinancials(){
   if(!el) return;
   const shown=el.style.display!=='none';
   el.style.display=shown?'none':'';
-  if(btn) btn.textContent=shown?'🔒 Financial Data':'🙈 Hide Financial Data';
+  if(btn) btn.innerHTML=shown?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Financial Data':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-10-8-10-8a18.4 18.4 0 0 1 4.22-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg> Hide Financial Data';
   if(!shown&&!_allOrdersFinLoaded){ _allOrdersFinLoaded=true; loadAllOrdersFinancials(); }
 }
 // Same unfiltered "whole picture" convention as loadAllOrdersKpi, and the same
@@ -9787,7 +9802,7 @@ function onSfViewChange(){
   loadSales();
 }
 // Removes one active filter and reloads, backing the X on each chip in the
-// active-filters row (renderFilterChips()) — a targeted single-field clear
+// active-filters row (renderFilterChips()), a targeted single-field clear
 // instead of the operator having to reopen the whole panel.
 function clearSfField(id){ const e=document.getElementById(id); if(e) e.value=''; loadSales(); }
 function clearSfPeriod(){ const sv=document.getElementById('sfView'); if(sv) sv.value='all'; onSfViewChange(); }
@@ -9850,12 +9865,12 @@ async function loadSales(){
     // Show SKU as the primary label (products are recognised by SKU day-to-day) with the
     // full description underneath in muted text; falls back to the name if no SKU is set.
     const skuLine=f.sku
-      ?`<div style="font-family:var(--mono);font-weight:600">${esc(f.sku)}</div><div style="color:var(--text-3);font-size:10px">${esc(f.product_name||'—')}</div>`
-      :esc(f.product_name||'—');
+      ?`<div style="font-family:var(--mono);font-weight:600">${esc(f.sku)}</div><div style="color:var(--text-3);font-size:10px">${esc(f.product_name||'N/A')}</div>`
+      :esc(f.product_name||'N/A');
     // Round 3, Order ID visible but minimal (doesn't take extra space, needed for
     // find-in-page / matching against platform dashboards).
     const orderIdLine=orderIdTag(f.order_id);
-    const giftBadge=f.is_gift?` <span title="Gift, ₹0 revenue, cost logged as a Marketing expense">🎁</span>`:'';
+    const giftBadge=f.is_gift?` <span title="Gift, ₹0 revenue, cost logged as a Marketing expense"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4"/><path d="M12 8v13M3 12v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M12 8c-1.5 0-4-1-4-3.5A2.5 2.5 0 0 1 10.5 2C12 2 12 5 12 8ZM12 8c1.5 0 4-1 4-3.5A2.5 2.5 0 0 0 13.5 2C12 2 12 5 12 8Z"/></svg></span>`:'';
     const itemCol=thumb+`<span style="display:inline-block;vertical-align:middle">${skuLine}${giftBadge}${orderIdLine}${items.length>1?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">+${items.length-1} more</span>`:''}${orderAlertBadge(f)}</span>`;
     const breached=daysPastPromiseNotCompleted(f)!=null;
     return `<tr class="sale-row${breached?' row-breached':''}" onclick="rowSelectOrAction(event,'sale-cb',()=>openOrderDetail('${key}',event))" style="cursor:pointer;${allPaid?'opacity:.78':''}">
@@ -9863,7 +9878,7 @@ async function loadSales(){
       <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${idx+1}</td>
       <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(f.order_date)}</td>
       <td>${chHtml(f.channel_id)}</td>
-      <td style="white-space:nowrap">${esc(f.customer_name||'—')}</td>
+      <td style="white-space:nowrap">${esc(f.customer_name||'N/A')}</td>
       <td>${itemCol}</td>
       <td class="td-num">${totalQty}</td>
       <td class="td-num" style="font-weight:700">${fmt(totalPrice)}</td>
@@ -9930,7 +9945,7 @@ function returnWindowInfo(f){
   const daysLeft=Math.ceil((closeDate-new Date(today()))/86400000);
   if(daysLeft>0) return `<span style="color:var(--green)">Return window open, ${daysLeft} day${daysLeft===1?'':'s'} left</span>`;
   // Window closed with no return on record (an actual return moves status off
-  // delivered/completed, so this branch only fires when nothing was ever initiated) —
+  // delivered/completed, so this branch only fires when nothing was ever initiated),
   // suggest locking the order; admin still has to confirm via the button.
   return f.is_paid
     ? `<span style="color:var(--red)">Return window closed</span>`
@@ -9963,18 +9978,18 @@ function renderOrderDetail(items){
     const extraColorNote=Array.isArray(s.extra_spool_usage)&&s.extra_spool_usage.length
       ? `<div style="color:var(--text-3);font-size:10px">+${s.extra_spool_usage.length} more colour${s.extra_spool_usage.length>1?'s':''} used (${s.extra_spool_usage.reduce((a,e)=>a+(parseFloat(e.grams)||0),0)}g)</div>` : '';
     return `<tr>
-      <td>${s.sku?`<span style="font-family:var(--mono);font-weight:600">${esc(s.sku)}</span> · `:''}${esc(s.product_name||'—')}${vl?` <span style="color:var(--text-3)">(${esc(vl)})</span>`:''}${s.hsn_code?` <span style="color:var(--text-3);font-size:10px;font-family:var(--mono)">HSN ${esc(s.hsn_code)}</span>`:''}${extraColorNote}</td>
+      <td>${s.sku?`<span style="font-family:var(--mono);font-weight:600">${esc(s.sku)}</span> · `:''}${esc(s.product_name||'N/A')}${vl?` <span style="color:var(--text-3)">(${esc(vl)})</span>`:''}${s.hsn_code?` <span style="color:var(--text-3);font-size:10px;font-family:var(--mono)">HSN ${esc(s.hsn_code)}</span>`:''}${extraColorNote}</td>
       <td class="td-num">${s.qty||1}</td>
       <td class="td-num">${fmt(s.selling_price)}</td>
       <td class="td-actions" style="white-space:nowrap;text-align:right">${(locked||items.length<2)?'':`<button class="btn btn-danger btn-sm" onclick="deleteSale('${s.id}')">✕</button>`}</td>
     </tr>`; }).join('');
   return `<div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;border-top:2px solid var(--accent)">
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:11px">
-      ${F('Order ID',f.order_id?orderIdTag(f.order_id,{size:'12px',color:'var(--text)'}):'—')}
+      ${F('Order ID',f.order_id?orderIdTag(f.order_id,{size:'12px',color:'var(--text)'}):'N/A')}
       ${F('Record ID <span style="text-transform:none;font-weight:400">(internal tracking)</span>',f.record_id?`<span style="font-family:var(--mono);color:var(--text-3)">${esc(f.record_id)}</span>`:'')}
       ${F('Invoice No <span style="text-transform:none;font-weight:400">(platform, not GST series)</span>',f.invoice_no?esc(f.invoice_no):'')}
       ${F('Date',fmtDay(f.order_date)+(f.order_time?' · '+esc(f.order_time):''))}
-      ${F('Customer',esc(f.customer_name||'—'))}
+      ${F('Customer',esc(f.customer_name||'N/A'))}
       ${F('Phone',f.customer_phone?esc(f.customer_phone):'')}
       ${F('Address',addr)}
       ${F('Payment',f.payment_mode?esc(f.payment_mode):'')}
@@ -9983,7 +9998,7 @@ function renderOrderDetail(items){
       ${F('Dispatch',f.dispatch_date?fmtDay(f.dispatch_date):'')}
       ${F('Promised',f.delivery_date?fmtDay(f.delivery_date):'')}
       ${F('Delivered On',f.delivered_at?fmtDay(f.delivered_at):'')}
-      ${F('Completed',f.completed_at?fmtDay(f.completed_at.slice(0,10))+(slaBreachDays(f)?' <span style="color:var(--red)">— '+slaBreachDays(f)+'d SLA breach</span>':' <span style="color:var(--green)">— on time</span>'):'')}
+      ${F('Completed',f.completed_at?fmtDay(f.completed_at.slice(0,10))+(slaBreachDays(f)?' <span style="color:var(--red)">· '+slaBreachDays(f)+'d SLA breach</span>':' <span style="color:var(--green)">· on time</span>'):'')}
       ${F('Packet',f.package_size?esc(f.package_size):'')}
       ${F('Settlement',f.settlement_amount!=null?fmt(f.settlement_amount)+(f.settlement_fees?' · fees '+fmt(f.settlement_fees):'')+(f.settlement_date?' · '+fmtDay(f.settlement_date):''):'')}
       ${F('Fees & Costs',fees?fmt(fees)+' <span style="color:var(--text-3);font-size:10px">(ship '+fmt(shipF)+' · pack/other '+fmt(othF)+(platF?' · plat '+fmt(platF):'')+')</span>':'')}
@@ -10137,7 +10152,7 @@ async function togglePaidOrder(firstId,allPaid){
 // ── Round 3: unified order lifecycle (was split across status + production_status) ──
 const UNIFIED_STATUSES=['pending','order_received','processing','printing','packed','dispatched','delivered','delaying','return_initiated','return_picked_up','returned','claim_filed','completed','delayed','cancelled_before_dispatch','cancelled_before_delivery','cancelled','claimed'];
 // Round 3, dashboard/revenue counting rule: a sale counts as soon as it's a real order
-// (order_received onward), not only once marked Completed. Only these are excluded —
+// (order_received onward), not only once marked Completed. Only these are excluded:
 // cancellations outright, and returned/claimed orders (which show up as a loss via Returns
 // instead of as revenue).
 const NON_REVENUE_STATUSES=['cancelled','cancelled_before_dispatch','cancelled_before_delivery','returned','claimed'];
@@ -10233,7 +10248,7 @@ async function syncReturnRowForStatus(status,items,f){
   const {data:ex}=await sb.from('biz_returns').select('id,stage').eq('order_id',f.order_id||'').limit(1);
   const stage=status==='returned'?'received':'initiated';
   if(ex&&ex.length){
-    // Real column is received_date (biz_returns.received doesn't exist and never has —
+    // Real column is received_date (biz_returns.received doesn't exist and never has,
     // 'received' is only a valid `stage` enum value), this used to hard-fail with a
     // PostgREST "column not found" error every time an already-logged return got
     // re-marked returned.
@@ -10406,7 +10421,7 @@ function closeOrderDetail(){ _odKey=null; const m=document.getElementById('order
 // switchTab('sales')+setTimeout(openOrderDetail,150), guessing 150ms was long enough
 // for loadSales() to finish. It wasn't always, and worse, the order being jumped to
 // might not even be in the All Orders tab's currently-applied filters (a different
-// month, an excluded status, etc.) — the popup would open, then once the filtered
+// month, an excluded status, etc.), the popup would open, then once the filtered
 // loadSales() actually finished, refreshOrderDetailModal() wouldn't find this order
 // in the freshly-filtered list and would silently close the modal again, looking
 // like it "flashed and disappeared, needs a full page refresh to see it". This
@@ -10460,12 +10475,12 @@ async function loadOrderDetailPayments(orderId, key, fallbackMode, totalPrice){
     // identical to a real itemized history, worth telling them apart at a glance.
     body.innerHTML = fallbackMode
       ? `<tr><td colspan="3" style="font-size:10px;font-style:italic;color:var(--text-3);padding-bottom:2px">Single payment on record, no itemized installments logged</td></tr>
-         <tr><td>—</td><td class="td-num">${fmt(totalPrice)}</td><td>${esc(fallbackMode)}</td></tr>`
+         <tr><td>N/A</td><td class="td-num">${fmt(totalPrice)}</td><td>${esc(fallbackMode)}</td></tr>`
       : '<tr><td colspan="3" class="empty"><div class="em-text">No payment recorded</div></td></tr>';
     return;
   }
   const total=rows.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
-  body.innerHTML = rows.map(r=>`<tr><td>${fmtDay(r.payment_date)}</td><td class="td-num">${fmt(r.amount)}</td><td>${esc(r.source||'—')}</td></tr>`).join('')
+  body.innerHTML = rows.map(r=>`<tr><td>${fmtDay(r.payment_date)}</td><td class="td-num">${fmt(r.amount)}</td><td>${esc(r.source||'N/A')}</td></tr>`).join('')
     + `<tr><td style="font-weight:700">Total received</td><td class="td-num" style="font-weight:700">${fmt(total)}</td><td></td></tr>`;
 }
 // Keep an open modal in sync after loadSales() rebuilds the cache.
@@ -10631,8 +10646,8 @@ async function loadStock(){
   if(!rows.length){ tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="em-icon">◫</div><div class="em-text">No products yet</div></div></td></tr>`; }
   else tbody.innerHTML=rows.map(r=>`<tr>
     <td>${esc(r.name)}</td>
-    <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(r.sku||'—')}</td>
-    <td>${esc(r.category||'—')}</td>
+    <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${esc(r.sku||'N/A')}</td>
+    <td>${esc(r.category||'N/A')}</td>
     <td>${esc(r.product_type)}</td>
     <td class="td-num" style="color:${r.stock_qty<=0?'var(--red)':r.stock_qty<=5?'var(--yellow)':'var(--green)'}">${r.stock_qty}</td>
     <td class="td-num">${fmtD(r.base_cost)}</td>
@@ -10644,11 +10659,11 @@ async function loadStock(){
   if(!mv.length){ mbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="em-text">No movements yet</div></div></td></tr>`; }
   else mbody.innerHTML=mv.map(m=>`<tr>
     <td style="font-family:var(--mono);font-size:11px">${esc(m.date)}</td>
-    <td>${esc(m.biz_products?.name||'—')}</td>
+    <td>${esc(m.biz_products?.name||'N/A')}</td>
     <td>${esc(m.movement_type)}</td>
     <td class="td-num" style="color:${m.qty>0?'var(--green)':'var(--red)'}">${m.qty>0?'+':''}${m.qty}</td>
-    <td class="td-num">${m.unit_cost?fmtD(m.unit_cost):'—'}</td>
-    <td style="color:var(--text-3);font-size:11px">${esc(m.reference_id||m.notes||'—')}</td>
+    <td class="td-num">${m.unit_cost?fmtD(m.unit_cost):'N/A'}</td>
+    <td style="color:var(--text-3);font-size:11px">${esc(m.reference_id||m.notes||'N/A')}</td>
   </tr>`).join('');
 }
 
@@ -10794,13 +10809,13 @@ function renderSpoolTracker(){
     const pct=spoolPct(r);
     const barColor=pct<20?'var(--red)':pct<50?'var(--yellow)':'var(--green)';
     const isResold=r.status==='Finsh'&&r.finish_reason==='resold';
-    const statusLabel=isResold?'Sold':(r.status||'—');
+    const statusLabel=isResold?'Sold':(r.status||'N/A');
     return `<tr onclick="rowSelectOrAction(event,'spool-cb',null)" style="cursor:pointer;${r.status==='Finsh'?'opacity:.6':''}">
       <td><input type="checkbox" class="spool-cb" data-id="${r.id}" onchange="updateSpoolBulkBar()"></td>
       <td>${r.s_no}</td>
       <td>${esc(r.brand)}<br><span style="font-size:11px;color:var(--text-3)">${esc(r.filament_type||'')}${r.finish?' · '+esc(r.finish):''}</span></td>
-      <td>${spoolSwatch(r)}${esc(r.color||'—')}</td>
-      <td style="font-size:11px;color:var(--text-3)">${esc(r.vendor||'—')}</td>
+      <td>${spoolSwatch(r)}${esc(r.color||'N/A')}</td>
+      <td style="font-size:11px;color:var(--text-3)">${esc(r.vendor||'N/A')}</td>
       <td><span class="badge ${isResold?'badge-delivered':badgeClass}">${esc(statusLabel)}</span></td>
       <td>
         <div style="display:flex;align-items:center;gap:8px">
@@ -10810,9 +10825,9 @@ function renderSpoolTracker(){
           <span style="font-size:11px;font-weight:700;min-width:32px;text-align:right">${Math.round(pct)}%</span>
         </div>
       </td>
-      <td class="td-num">${r.cost_per_gram!=null?Number(r.cost_per_gram).toFixed(2):'—'}</td>
-      <td style="font-size:11px;color:var(--text-3)">${esc(r.opened_date||'—')}</td>
-      <td style="font-size:11px;color:var(--text-3)">${esc(r.finished_date||'—')}</td>
+      <td class="td-num">${r.cost_per_gram!=null?Number(r.cost_per_gram).toFixed(2):'N/A'}</td>
+      <td style="font-size:11px;color:var(--text-3)">${esc(r.opened_date||'N/A')}</td>
+      <td style="font-size:11px;color:var(--text-3)">${esc(r.finished_date||'N/A')}</td>
       <td class="td-actions">
         <button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="showSpoolEdit('${r.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button>
         ${r.status!=='Finsh'?`<button class="btn btn-icon-tint btn-icon-order btn-sm" title="Mark resold" onclick="showResellSpool('${r.id}')" style="padding:3px 6px">${ICO_RECYCLE}</button>`:''}
@@ -10903,7 +10918,7 @@ function renderSpoolCatalogue(){
     return `<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:16px;padding:18px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.04)">
       <div style="width:64px;height:64px;border-radius:50%;margin:0 auto 12px;background:${esc(hex)};border:1px solid rgba(0,0,0,.15);${shiny?'background-image:linear-gradient(135deg,rgba(255,255,255,.6),rgba(255,255,255,0) 40%,rgba(255,255,255,.35) 60%,rgba(255,255,255,0));':''}"></div>
       <div style="font-size:14px;font-weight:700">${esc(color)}</div>
-      <div style="font-size:11px;color:var(--text-3);margin-top:4px">${materials.map(esc).join(' · ')||'—'}</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:4px">${materials.map(esc).join(' · ')||'N/A'}</div>
       <div style="margin-top:10px;display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:3px 10px;border-radius:20px;background:${level.c};color:#fff">${level.label}</div>
     </div>`;
   }).join('');
@@ -11033,20 +11048,20 @@ async function saveResellSpool(){
   const date=document.getElementById('rs_date').value||today();
   const extraNotes=document.getElementById('rs_notes').value.trim();
   const profit=price-cost;
-  // 1) Money In — feeds the Balance Sheet
+  // 1) Money In, feeds the Balance Sheet
   const {data:incRow,error:incErr}=await sb.from('biz_income').insert({
     date, category:'filament_resale', amount:price, payment_mode:paymode,
-    notes:'Filament resale to '+buyer+' — spool #'+r.s_no+' ('+(r.brand||'')+' '+(r.color||'')+'). Cost ₹'+cost.toFixed(2)+', profit ₹'+profit.toFixed(2)+(extraNotes?'. '+extraNotes:'')
+    notes:'Filament resale to '+buyer+', spool #'+r.s_no+' ('+(r.brand||'')+' '+(r.color||'')+'). Cost ₹'+cost.toFixed(2)+', profit ₹'+profit.toFixed(2)+(extraNotes?'. '+extraNotes:'')
   }).select().single();
   if(incErr){ toast('Error recording income: '+incErr.message,'error'); return; }
-  // 2) Resale ledger — traceable both ways (spool <-> income)
+  // 2) Resale ledger, traceable both ways (spool <-> income)
   const {error:resErr}=await sb.from('biz_filament_resales').insert({
     spool_id:r.id, buyer_name:buyer, cost_price:cost, sale_price:price,
     date, payment_mode:paymode, income_id:incRow.id, notes:extraNotes||null
   });
   if(resErr){ toast('Error recording resale: '+resErr.message,'error'); return; }
   // 3) Mark the spool itself Finsh/resold so it drops out of available stock
-  //    without polluting in-house consumption stats (grams_used stays 0 — it
+  //    without polluting in-house consumption stats (grams_used stays 0, it
   //    was never printed with, the whole spool left as a resale).
   const spoolNotes=((r.notes?r.notes+' | ':'')+'Resold to '+buyer+' @₹'+price.toFixed(2)).slice(0,100);
   const {error:spErr}=await sb.from('filament_inventory').update({
@@ -11054,7 +11069,7 @@ async function saveResellSpool(){
   }).eq('id',r.id);
   if(spErr){ toast('Income+resale saved, but spool update failed: '+spErr.message,'error'); }
   logBizActivity('edit','spool',r.id,'Resold #'+r.s_no+' to '+buyer+' for ₹'+price.toFixed(2));
-  toast('Marked resold — profit ₹'+profit.toFixed(2)+' recorded in Money In');
+  toast('Marked resold, profit ₹'+profit.toFixed(2)+' recorded in Money In');
   document.getElementById('resellSpoolForm').style.display='none';
   loadSpoolTracker();
 }
@@ -11117,7 +11132,7 @@ async function loadMachinery(){
     const totalVal=_printers.reduce((s,p)=>s+(parseFloat(p.purchase_value)||0),0);
     const byPrinter={}; _attempts.forEach(a=>{ byPrinter[a.printer_id]=(byPrinter[a.printer_id]||0)+1; });
     const worst=Object.entries(byPrinter).sort((a,b)=>b[1]-a[1])[0];
-    const worstName=worst?(_printers.find(p=>p.id===worst[0])||{}).name||'—':'—';
+    const worstName=worst?(_printers.find(p=>p.id===worst[0])||{}).name||'N/A':'N/A';
     kpi.innerHTML=`
       <div class="kpi"><div class="kpi-label">Active Machines</div><div class="kpi-val">${active}</div></div>
       <div class="kpi"><div class="kpi-label">Total Purchase Value</div><div class="kpi-val">${fmt(totalVal)}</div></div>
@@ -11133,9 +11148,9 @@ function renderPrinters(){
     const specs=[p.build_volume,p.build_plate,p.multicolor?'Multicolor/AMS':null,p.other_capability].filter(Boolean).join(' · ');
     return `<tr>
       <td style="font-weight:600">${esc(p.name)}</td>
-      <td>${esc(p.type||'—')}</td>
-      <td style="font-size:11px;color:var(--text-3)">${esc(specs||'—')}</td>
-      <td class="td-num">${p.purchase_value?fmt(p.purchase_value):'—'}</td>
+      <td>${esc(p.type||'N/A')}</td>
+      <td style="font-size:11px;color:var(--text-3)">${esc(specs||'N/A')}</td>
+      <td class="td-num">${p.purchase_value?fmt(p.purchase_value):'N/A'}</td>
       <td><span class="badge ${p.active?'badge-won':'badge-lost'}">${p.active?'Active':'Inactive'}</span></td>
       <td class="td-actions"><button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editPrinter('${p.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deletePrinter('${p.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
     </tr>`;
@@ -11147,10 +11162,10 @@ function renderAttempts(){
     const printer=_printers.find(p=>p.id===a.printer_id);
     return `<tr>
       <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(a.created_at)}</td>
-      <td style="font-family:var(--mono);font-size:11px">${a.order_id?orderIdTag(a.order_id,{size:'11px'}):'—'}</td>
-      <td>${esc(printer?printer.name:'—')}</td>
-      <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(ATTEMPT_REASON_LABEL[a.reason]||a.reason||'—')}</span></td>
-      <td style="font-size:12px">${esc(a.note||'—')}</td>
+      <td style="font-family:var(--mono);font-size:11px">${a.order_id?orderIdTag(a.order_id,{size:'11px'}):'N/A'}</td>
+      <td>${esc(printer?printer.name:'N/A')}</td>
+      <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${esc(ATTEMPT_REASON_LABEL[a.reason]||a.reason||'N/A')}</span></td>
+      <td style="font-size:12px">${esc(a.note||'N/A')}</td>
       <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteAttempt('${a.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
     </tr>`;
   }).join(''):`<tr><td colspan="6" class="empty"><div class="em-text">No print attempts logged</div></td></tr>`;
@@ -11296,8 +11311,8 @@ async function loadReturns(){
     // from the matching sale by order_id (biz_returns itself has no product column).
     const sale=r.order_id&&Array.isArray(_salesCache)?_salesCache.find(s=>s.order_id===r.order_id):null;
     const prodCol=sale
-      ?`${sale.sku?`<div style="font-family:var(--mono);font-weight:600">${esc(sale.sku)}</div>`:''}<div style="color:${sale.sku?'var(--text-3)':'var(--text)'};font-size:${sale.sku?'10px':'12px'}">${esc(sale.product_name||'—')}</div>${orderIdTag(r.order_id)}`
-      :(r.order_id?orderIdTag(r.order_id,{size:'11px'}):`<span style="color:var(--text-3)">—</span>`);
+      ?`${sale.sku?`<div style="font-family:var(--mono);font-weight:600">${esc(sale.sku)}</div>`:''}<div style="color:${sale.sku?'var(--text-3)':'var(--text)'};font-size:${sale.sku?'10px':'12px'}">${esc(sale.product_name||'N/A')}</div>${orderIdTag(r.order_id)}`
+      :(r.order_id?orderIdTag(r.order_id,{size:'11px'}):`<span style="color:var(--text-3)">N/A</span>`);
     return `<tr>
     <td style="font-family:var(--mono);font-size:11px">${esc(r.date||'')}</td>
     <td>${chHtml(r.channel_id)}</td>
@@ -11332,7 +11347,7 @@ function onReturnTypeChange(){
   const noShip=(t==='delivery_rejection'||t==='cancellation');
   const inp=document.getElementById('rf_return_ship'), note=document.getElementById('rf_return_ship_note');
   if(inp){ if(noShip) inp.value='0'; inp.disabled=noShip; }
-  if(note) note.textContent=noShip?'— not applicable, courier returns at no cost':'';
+  if(note) note.textContent=noShip?'Not applicable, courier returns at no cost':'';
   recalcReturn();
   updateClaimFieldsVisibility();
 }
@@ -11435,7 +11450,7 @@ async function saveReturn(){
   if(payload.stage==='claim_paid'&&payload.claim_paid_amount>0&&document.getElementById('rf_log_income')?.checked){
     const {error:incErr}=await sb.from('biz_income').insert({
       date:payload.claim_paid_date||today(), category:CLAIM_INCOME_CATEGORY[payload.channel_id]||'misc',
-      amount:payload.claim_paid_amount, notes:'Claim payout, order '+(payload.order_id||'—'),
+      amount:payload.claim_paid_amount, notes:'Claim payout, order '+(payload.order_id||'N/A'),
     });
     if(incErr) toast('Return saved, but income log failed: '+incErr.message,'error');
     else toast(id?'Return updated + income logged':'Return logged + income logged');
@@ -11580,7 +11595,7 @@ function gstFilingReminderCard(currentPeriodStatus){
   });
   return items.length?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">${items.join('')}</div>`:'';
 }
-// Round 3, "spool 30% ke niche chale jaye toh Open Orders/Today's Tasks me dikhe" —
+// Round 3, "spool 30% ke niche chale jaye toh Open Orders/Today's Tasks me dikhe":
 // surfaces a compact alert box for any active (non-Finsh) spool with under 30% remaining;
 // click it to jump straight to Spool Tracker.
 // Round 3 redesign, grouped by material (PLA / PETG / ...) instead of a flat spool list;
@@ -11649,9 +11664,9 @@ async function loadGstPortal(){
   if(tbody) tbody.innerHTML=_gstFilingsCache.length?_gstFilingsCache.map(r=>`<tr>
     <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${GST_RETURN_LABEL[r.return_type]||r.return_type}</span></td>
     <td style="font-family:var(--mono);font-size:11px">${esc(fmtPeriod(r.period))}</td>
-    <td style="font-family:var(--mono);font-size:11px">${esc(r.filed_date||'—')}</td>
-    <td>${r.file_url?`<a href="#" data-u="${esc(r.file_url)}" onclick="event.preventDefault();openGstFile(this.dataset.u)" style="color:var(--accent)">view</a>`:'—'}</td>
-    <td style="font-size:12px">${esc(r.notes||'—')}</td>
+    <td style="font-family:var(--mono);font-size:11px">${esc(r.filed_date||'N/A')}</td>
+    <td>${r.file_url?`<a href="#" data-u="${esc(r.file_url)}" onclick="event.preventDefault();openGstFile(this.dataset.u)" style="color:var(--accent)">view</a>`:'N/A'}</td>
+    <td style="font-size:12px">${esc(r.notes||'N/A')}</td>
     <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteGstFiling('${r.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
   </tr>`).join(''):`<tr><td colspan="6" class="empty"><div class="em-text">No filings uploaded yet</div></td></tr>`;
   loadGstStateBreakdown();
@@ -11970,7 +11985,7 @@ function gstaRenderTrendChart(){
   ]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true}}}});
 }
 
-// Reminder-suppression check used by gstFilingReminderCard() — cached per session so the
+// Reminder-suppression check used by gstFilingReminderCard(), cached per session so the
 // Business OS home/GST Portal load doesn't hit the backend on every tab switch.
 async function gstaCheckCurrentPeriodStatus(){
   if(_gstaCurrentStatusCache!==undefined) return _gstaCurrentStatusCache;
@@ -12022,7 +12037,7 @@ function gstiCategoryOptions(target,cat){
 }
 function gstiOnTargetChange(sel){
   const tr=sel.closest('tr'); const catSel=tr.querySelector('.gsti-cat'); const target=sel.value;
-  if(target==='exclude'){ catSel.innerHTML='<option value="">—</option>'; catSel.disabled=true; }
+  if(target==='exclude'){ catSel.innerHTML='<option value="">Select</option>'; catSel.disabled=true; }
   else { catSel.disabled=false; catSel.innerHTML=gstiCategoryOptions(target, target==='expense'?'other':'raw_material'); }
 }
 function gstiRenderReview(){
@@ -12114,9 +12129,9 @@ async function loadInvoicing(){
        ondragover="invDragOver(event)" ondragleave="invDragLeave(event)" ondrop="invDrop(event,'${r.id}')">
     <td class="srl" draggable="true" title="Drag onto another row to move here" style="cursor:grab;color:var(--text-3);text-align:center">⠿</td>
     <td style="font-family:var(--mono);font-weight:600">${esc(r.invoice_number)}</td>
-    <td style="font-family:var(--mono);font-size:11px">${r.order_id?orderIdTag(r.order_id,{size:'11px'}):'—'}</td>
+    <td style="font-family:var(--mono);font-size:11px">${r.order_id?orderIdTag(r.order_id,{size:'11px'}):'N/A'}</td>
     <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${r.doc_kind==='record'?'Record':'Invoice'}</span></td>
-    <td style="font-family:var(--mono);font-size:11px">${r.doc_date?fmtDay(r.doc_date):'—'}</td>
+    <td style="font-family:var(--mono);font-size:11px">${r.doc_date?fmtDay(r.doc_date):'N/A'}</td>
     <td style="font-family:var(--mono);font-size:11px">${fmtDay(r.generated_at)}</td>
     <td class="td-actions" style="white-space:nowrap"><button class="btn btn-icon-tint btn-icon-doc btn-sm" onclick="viewLoggedInvoice('${r.order_id||''}','${r.sale_id||''}','${r.doc_kind||'invoice'}')" title="Open the actual invoice/record document" style="padding:3px 6px">${ICO_VIEW}</button> ${r.order_id?`<button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${esc(r.order_id)}';loadSales();}},300)" title="Jump to order" style="padding:3px 6px">${ICO_EXTERNAL}</button>`:''} <button class="btn btn-icon-tint btn-icon-duplicate btn-sm" onclick="duplicateInvoiceLog('${r.id}')" title="Duplicate onto a new sequential number, same order/kind" style="padding:3px 6px">${ICO_DUPLICATE}</button> <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editInvoiceLog('${r.id}','${esc(r.invoice_number)}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deleteInvoiceLog('${r.id}','${esc(r.invoice_number)}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
   </tr>`).join(''):`<tr><td colspan="7" class="empty"><div class="em-text">No invoices generated yet</div></td></tr>`;
@@ -12489,7 +12504,7 @@ async function loadDashboard(){
       <td class="td-num">${fmt(d.net)}</td>
       <td class="td-num" style="color:var(--text-3)">${fmt(d.cogs)}</td>
       <td class="td-num" style="color:${d.profit>=0?'var(--green)':'var(--red)'}">${fmt(d.profit)}</td>
-      <td class="td-num">${d.net>0?(d.profit/d.net*100).toFixed(1)+'%':'—'}</td>
+      <td class="td-num">${d.net>0?(d.profit/d.net*100).toFixed(1)+'%':'N/A'}</td>
     </tr>`;
   }).join('');
 
@@ -12499,7 +12514,7 @@ async function loadDashboard(){
     const d=byChannel[c]; const pct=d.net>0?(d.profit/d.net*100):null;
     return `<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px">
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">${chHtml(c)}</div>
-      <div style="font-size:18px;font-weight:700;margin-top:4px;color:${pct==null?'var(--text-3)':pct>=0?'var(--green)':'var(--red)'}">${pct==null?'—':pct.toFixed(1)+'%'}</div>
+      <div style="font-size:18px;font-weight:700;margin-top:4px;color:${pct==null?'var(--text-3)':pct>=0?'var(--green)':'var(--red)'}">${pct==null?'N/A':pct.toFixed(1)+'%'}</div>
     </div>`;
   }).join('');
 
@@ -12541,8 +12556,8 @@ async function loadDashboard(){
     const m={};
     rows.forEach(s=>{
       const cat=_skuToProduct(s.sku);
-      const key=cat?('cat:'+cat.id):('name:'+(s.product_name||'—'));
-      const disp=cat?cat.name:(s.product_name||'—');
+      const key=cat?('cat:'+cat.id):('name:'+(s.product_name||'N/A'));
+      const disp=cat?cat.name:(s.product_name||'N/A');
       if(!m[key]) m[key]={name:disp,sku:(cat&&cat.sku)||s.sku||'',qty:0,rev:0,profit:0};
       const gst=num(s.selling_price)-(num(s.selling_price)/(1+num(s.gst_rate)/100));
       const net=num(s.selling_price)-num(s.platform_fee)-num(s.shipping_fee)-num(s.other_deductions);
@@ -12614,7 +12629,7 @@ async function loadDashboard(){
     </div>
     <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px">
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">SLA %</div>
-      <div style="font-size:18px;font-weight:700;margin-top:4px;color:${slaPct==null?'var(--text-3)':slaPct>=90?'var(--green)':'var(--red)'}">${slaPct==null?'—':slaPct.toFixed(1)+'%'}</div>
+      <div style="font-size:18px;font-weight:700;margin-top:4px;color:${slaPct==null?'var(--text-3)':slaPct>=90?'var(--green)':'var(--red)'}">${slaPct==null?'N/A':slaPct.toFixed(1)+'%'}</div>
     </div>`;
 
   // New Customers by Channel, a customer counts as "new" this month if their earliest-ever
@@ -12681,9 +12696,9 @@ function openDashDrilldown(key){
   const titleEl=document.getElementById('dashDrilldownTitle'), bodyEl=document.getElementById('dashDrilldownBody');
   const modal=document.getElementById('dashDrilldown');
   const saleRow=s=>`<tr>
-    <td style="font-family:var(--mono);font-size:11px">${s.order_id?orderIdTag(s.order_id,{size:'11px'}):'—'}</td>
-    <td>${esc(s.customer_name||'—')}</td>
-    <td>${esc(s.product_name||'—')}</td>
+    <td style="font-family:var(--mono);font-size:11px">${s.order_id?orderIdTag(s.order_id,{size:'11px'}):'N/A'}</td>
+    <td>${esc(s.customer_name||'N/A')}</td>
+    <td>${esc(s.product_name||'N/A')}</td>
     <td>${chHtml(s.channel_id)}</td>
     <td class="td-num">${fmt(s.selling_price)}</td>
   </tr>`;
@@ -12698,7 +12713,7 @@ function openDashDrilldown(key){
   } else if(key==='returns'){
     titleEl.textContent='Returns / Claims, '+c.label;
     bodyEl.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>Order</th><th>Channel</th><th>Type</th><th>Reason</th><th class="td-num">Loss</th></tr></thead><tbody>${
-      c.rets.length?c.rets.map(r=>`<tr><td style="font-family:var(--mono);font-size:11px">${r.order_id?orderIdTag(r.order_id,{size:'11px'}):'—'}</td><td>${chHtml(r.channel_id)}</td><td>${esc(r.type||'')}</td><td style="font-size:12px">${esc(r.reason||'')}</td><td class="td-num">${fmt(r.amount_lost)}</td></tr>`).join(''):'<tr><td colspan="5" class="empty"><div class="em-text">No returns this period</div></div></td></tr>'
+      c.rets.length?c.rets.map(r=>`<tr><td style="font-family:var(--mono);font-size:11px">${r.order_id?orderIdTag(r.order_id,{size:'11px'}):'N/A'}</td><td>${chHtml(r.channel_id)}</td><td>${esc(r.type||'')}</td><td style="font-size:12px">${esc(r.reason||'')}</td><td class="td-num">${fmt(r.amount_lost)}</td></tr>`).join(''):'<tr><td colspan="5" class="empty"><div class="em-text">No returns this period</div></div></td></tr>'
     }</tbody></table></div>`;
   } else if(key==='filament'){
     titleEl.textContent='Filament Used, '+c.label+' ('+(c.totalGrams/1000).toFixed(3)+' kg)';
@@ -12740,7 +12755,7 @@ function renderDashReturns(rets){
   // resolve a product name from cached sales by order_id (best effort) once, then sort/render
   _dashReturnsRows=rets.map(r=>{
     let prod=''; if(r.order_id && Array.isArray(_salesCache)){ const m=_salesCache.find(s=>s.order_id===r.order_id); if(m) prod=m.product_name; }
-    return {r,prod,typeLabel:TYPE[r.type]||r.type||'—',loss:parseFloat(r.amount_lost)||0};
+    return {r,prod,typeLabel:TYPE[r.type]||r.type||'N/A',loss:parseFloat(r.amount_lost)||0};
   });
   renderDashReturnsRows();
 }
@@ -12751,10 +12766,10 @@ function renderDashReturnsRows(){
   const keyOf=row=>({prod:(row.prod||row.r.order_id||'').toLowerCase(),channel:row.r.channel_id||'',type:row.typeLabel.toLowerCase(),reason:(row.r.reason||'').toLowerCase(),loss:row.loss}[key]);
   const rows=_dashReturnsRows.slice().sort((a,b)=>{ const av=keyOf(a),bv=keyOf(b); return av<bv?-1*dir:av>bv?1*dir:0; });
   el.innerHTML=rows.length?rows.map(({r,prod,typeLabel})=>`<tr>
-    <td>${prod?esc(prod):(r.order_id?orderIdTag(r.order_id,{size:'11px'}):'<span style="color:var(--text-3)">—</span>')}</td>
+    <td>${prod?esc(prod):(r.order_id?orderIdTag(r.order_id,{size:'11px'}):'<span style="color:var(--text-3)">N/A</span>')}</td>
     <td>${chHtml(r.channel_id||'shop')}</td>
     <td><span class="badge ${badge(r.status)}">${esc(typeLabel)}</span></td>
-    <td>${esc(r.reason||'—')}</td>
+    <td>${esc(r.reason||'N/A')}</td>
     <td class="td-num" style="color:var(--red)">${fmt(parseFloat(r.amount_lost)||0)}</td>
   </tr>`).join(''):`<tr><td colspan="5" class="empty"><div class="em-text">No returns this month 🎉</div></td></tr>`;
 }
@@ -12787,7 +12802,7 @@ function renderTopItemsByChannel(){
     const top=Object.values(c.prodMapByChannel[ch]||{}).sort((a,b)=>b.rev-a.rev).slice(0,10);
     return `<div>
       <div style="font-size:11px;font-weight:700;margin-bottom:6px">${chHtml(ch)}</div>
-      ${top.length?`<ol style="margin:0;padding-left:18px;font-size:12px">${top.map(d=>`<li style="margin-bottom:3px">${esc(d.name)} <span class="pmask" style="color:var(--text-3)">— ${fmt(d.rev)}</span></li>`).join('')}</ol>`:'<div class="em-text" style="font-size:11px">No sales this month</div>'}
+      ${top.length?`<ol style="margin:0;padding-left:18px;font-size:12px">${top.map(d=>`<li style="margin-bottom:3px">${esc(d.name)} <span class="pmask" style="color:var(--text-3)">· ${fmt(d.rev)}</span></li>`).join('')}</ol>`:'<div class="em-text" style="font-size:11px">No sales this month</div>'}
     </div>`;
   }).join('');
 }
@@ -12947,7 +12962,7 @@ function showImportMapping(fileName){
     document.getElementById('importPreview').style.display='block';
     return;
   }
-  const colOpts=`<option value="">— skip —</option>${_importCols.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}`;
+  const colOpts=`<option value="">Skip</option>${_importCols.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}`;
   document.getElementById('mappingRows').innerHTML=IMPORT_FIELDS.map(f=>{
     const auto=autoMap(f);
     return `<div class="mapping-row">
@@ -12992,7 +13007,7 @@ function applyPlatformFees(r){
 async function autoCreateProducts(rows){
   const toCreate=new Map();
   rows.forEach(r=>{
-    const name=(r.product_name||'').trim(); if(!name||name==='—') return;
+    const name=(r.product_name||'').trim(); if(!name||name==='N/A') return;
     const sku=(r.sku||'').trim(); const skuL=sku.toLowerCase(), nameL=name.toLowerCase();
     if(skuL && _catalogBySku[skuL]) return;        // already mapped by a platform SKU
     if(!skuL && _catalogByName[nameL]) return;      // already in catalog by name
@@ -13228,7 +13243,7 @@ async function exportPLReport(){
   const custs=Object.keys(byCust), repeat=custs.filter(n=>byCust[n].size>1).length;
   const repeatRate=custs.length?Math.round(repeat/custs.length*1000)/10:0;
   // top products
-  const pm={}; completed.forEach(s=>{ const p=s.product_name||'—'; (pm[p]=pm[p]||{qty:0,rev:0}); pm[p].qty+=num(s.qty); pm[p].rev+=num(s.selling_price); });
+  const pm={}; completed.forEach(s=>{ const p=s.product_name||'N/A'; (pm[p]=pm[p]||{qty:0,rev:0}); pm[p].qty+=num(s.qty); pm[p].rev+=num(s.selling_price); });
   const top=Object.entries(pm).map(([Product,v])=>({Product,Qty:v.qty,Revenue:Math.round(v.rev)})).sort((a,b)=>b.Revenue-a.Revenue).slice(0,30);
   const summary=[
     {Metric:'Revenue (completed)',Value:Math.round(revenue)},
@@ -13250,7 +13265,7 @@ async function exportPLReport(){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(summary),'Summary');
   if(pnl&&pnl.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(pnl),'P&L per sale');
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(top.length?top:[{Product:'—'}]),'Top Products');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(top.length?top:[{Product:'N/A'}]),'Top Products');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((exp&&exp.length)?exp:[{note:'No expenses in range'}]),'Expenses');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(slaRows.length?slaRows:[{note:'No completed orders with both a promised and completed date in range'}]),'SLA Report');
   XLSX.writeFile(wb,`triakar_pl_${from||'all'}_${to||'all'}.xlsx`);
@@ -13343,9 +13358,9 @@ async function loadStateReport(){
   const rows=await _fetchStateReportRows(); if(!rows) return;
   const el=document.getElementById('stateReportResults'); if(!el) return;
   if(!rows.length){ el.innerHTML='<div class="empty"><div class="em-text">No completed sales in this range</div></div>'; return; }
-  const byStateProduct=_groupSum(rows,r=>r.customer_state,r=>r.product_name||'—');
+  const byStateProduct=_groupSum(rows,r=>r.customer_state,r=>r.product_name||'N/A');
   const byStateMonth=_groupSum(rows,r=>r.customer_state,r=>String(r.order_date).slice(0,7));
-  const byStatePlatform=_groupSum(rows,r=>r.customer_state,r=>CH_NAMES[r.channel_id]||r.channel_id||'—');
+  const byStatePlatform=_groupSum(rows,r=>r.customer_state,r=>CH_NAMES[r.channel_id]||r.channel_id||'N/A');
   const states=Object.keys(byStateProduct).sort((a,b)=>{
     const ta=Object.values(byStateProduct[a]).reduce((s,v)=>s+v,0), tb=Object.values(byStateProduct[b]).reduce((s,v)=>s+v,0);
     return tb-ta;
@@ -13358,7 +13373,7 @@ async function loadStateReport(){
       <div class="tbl-wrap"><table><thead><tr><th>State</th>${colList.map(c=>`<th class="td-num">${esc(c)}</th>`).join('')}<th class="td-num">Total</th></tr></thead>
       <tbody>${states.map(s=>{
         const rowTotal=colList.reduce((sum,c)=>sum+((data[s]||{})[c]||0),0);
-        return `<tr><td>${esc(s)}</td>${colList.map(c=>`<td class="td-num">${(data[s]||{})[c]?fmt(data[s][c]):'—'}</td>`).join('')}<td class="td-num" style="font-weight:700">${fmt(rowTotal)}</td></tr>`;
+        return `<tr><td>${esc(s)}</td>${colList.map(c=>`<td class="td-num">${(data[s]||{})[c]?fmt(data[s][c]):'N/A'}</td>`).join('')}<td class="td-num" style="font-weight:700">${fmt(rowTotal)}</td></tr>`;
       }).join('')}</tbody></table></div>
     </div>`;
   };
@@ -13368,9 +13383,9 @@ async function loadStateReport(){
 async function exportStateReport(){
   const rows=await _fetchStateReportRows(); if(!rows) return;
   if(!rows.length){ toast('No data in range','error'); return; }
-  const byStateProduct=_groupSum(rows,r=>r.customer_state,r=>r.product_name||'—');
+  const byStateProduct=_groupSum(rows,r=>r.customer_state,r=>r.product_name||'N/A');
   const byStateMonth=_groupSum(rows,r=>r.customer_state,r=>String(r.order_date).slice(0,7));
-  const byStatePlatform=_groupSum(rows,r=>r.customer_state,r=>CH_NAMES[r.channel_id]||r.channel_id||'—');
+  const byStatePlatform=_groupSum(rows,r=>r.customer_state,r=>CH_NAMES[r.channel_id]||r.channel_id||'N/A');
   const toRows=data=>Object.entries(data).flatMap(([state,cols])=>Object.entries(cols).map(([col,amt])=>({State:state,Group:col,'Revenue ₹':Math.round(amt)})));
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(toRows(byStateProduct)),'State x Product');
@@ -13615,7 +13630,7 @@ async function printInvoice(d, type, docKind, win){
               <th style="text-align:right;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#777;padding:3px 6px;border-bottom:1px solid #ddd">Amount</th>
             </tr></thead>
             <tbody>
-              ${payRows.map(r=>`<tr><td style="padding:3px 6px;font-size:11px">${esc(fmtDocDate(r.payment_date))}</td><td style="padding:3px 6px;font-size:11px">${esc(r.source||'—')}</td><td style="padding:3px 6px;font-size:11px;text-align:right">₹${(parseFloat(r.amount)||0).toFixed(2)}</td></tr>`).join('')}
+              ${payRows.map(r=>`<tr><td style="padding:3px 6px;font-size:11px">${esc(fmtDocDate(r.payment_date))}</td><td style="padding:3px 6px;font-size:11px">${esc(r.source||'N/A')}</td><td style="padding:3px 6px;font-size:11px;text-align:right">₹${(parseFloat(r.amount)||0).toFixed(2)}</td></tr>`).join('')}
               <tr><td colspan="2" style="padding:5px 6px;font-size:11px;font-weight:700;border-top:1.5px solid #999">Total Received</td><td style="padding:5px 6px;font-size:11px;font-weight:700;text-align:right;border-top:1.5px solid #999">₹${totalPaid.toFixed(2)}</td></tr>
             </tbody>
           </table>
@@ -13703,22 +13718,22 @@ async function printInvoice(d, type, docKind, win){
     }
     subtotal+=iamt; gstAmt+=igst; totalDisc+=idisc;
     if(showGstCols){
-      const hk=it.hsn_code||'—';
+      const hk=it.hsn_code||'N/A';
       const hrow=hsnSummary[hk]||(hsnSummary[hk]={taxable:0,gst:0,rate:irate});
       hrow.taxable+=iamt; hrow.gst+=igst;
     }
     const vline=[it.size,it.color,it.variant].filter(Boolean).join(' · ');
     const showHsnMeta=!showGstCols&&it.hsn_code&&(!isRecord||docRec('hsn'));
     const metaBits=[it.sku?'SKU: '+it.sku:'', showHsnMeta?'HSN: '+it.hsn_code:''].filter(Boolean).join('  ·  ');
-    const nameCell=`<strong>${esc(it.product_name||'—')}</strong>${vline?`<div class="item-sub">${esc(vline)}</div>`:''}${it.remarks?`<div class="item-sub" style="font-style:italic">${esc(it.remarks)}</div>`:''}${metaBits?`<div class="item-sub" style="color:#555">${esc(metaBits)}</div>`:''}${idisc>0?`<div class="item-sub" style="color:#c0392b">Discount −₹${idisc.toFixed(2)}</div>`:''}`;
+    const nameCell=`<strong>${esc(it.product_name||'N/A')}</strong>${vline?`<div class="item-sub">${esc(vline)}</div>`:''}${it.remarks?`<div class="item-sub" style="font-style:italic">${esc(it.remarks)}</div>`:''}${metaBits?`<div class="item-sub" style="color:#555">${esc(metaBits)}</div>`:''}${idisc>0?`<div class="item-sub" style="color:#c0392b">Discount −₹${idisc.toFixed(2)}</div>`:''}`;
     if(showGstCols){
       return `<tr>
       <td class="col-sno">${idx+1}</td>
       <td>${nameCell}</td>
-      <td>${esc(it.hsn_code||'—')}</td>
+      <td>${esc(it.hsn_code||'N/A')}</td>
       <td class="td-r">${iqty}</td>
       <td class="td-r">₹${iunit_show.toFixed(2)}</td>
-      <td class="td-r">${irate?irate+'%':'—'}</td>
+      <td class="td-r">${irate?irate+'%':'N/A'}</td>
       <td class="td-r">₹${igst.toFixed(2)}</td>
       <td class="td-r">₹${iamt_incl_show.toFixed(2)}</td>
     </tr>`;
@@ -13779,7 +13794,7 @@ async function printInvoice(d, type, docKind, win){
       docRec('cost_price')?['Cost Price','₹'+cost.toFixed(2)]:null,
       docRec('margin')?['Margin',margin.toFixed(1)+'% (₹'+(subtotal-cost).toFixed(2)+')']:null,
       docRec('designer_maker')&&d.designer?['Designer / Maker',esc(d.designer)]:null,
-      docRec('production_status')?['Production Status',esc(STATUS_LABEL?.[d.status]||d.status||'—')]:null,
+      docRec('production_status')?['Production Status',esc(STATUS_LABEL?.[d.status]||d.status||'N/A')]:null,
       docRec('material')&&material?['Material',esc(material)]:null,
       docRec('printer')&&d.printer?['Printer Used',esc(d.printer)]:null,
       docRec('courier_tracking')&&(d.courier_partner||d.tracking_number)?['Courier / Tracking',[d.courier_partner?esc(d.courier_partner):'',d.tracking_number?esc(d.tracking_number):''].filter(Boolean).join(' · ')]:null,
@@ -13829,7 +13844,7 @@ async function printInvoice(d, type, docKind, win){
       return `<tr>
         <td style="${tdStyle}">${esc(hk)}</td>
         <td class="td-r" style="${tdStyle}">₹${r.taxable.toFixed(2)}</td>
-        <td class="td-r" style="${tdStyle}">${r.rate?r.rate+'%':'—'}</td>
+        <td class="td-r" style="${tdStyle}">${r.rate?r.rate+'%':'N/A'}</td>
         ${splitCells}
         <td class="td-r" style="${tdStyleLast}">₹${r.gst.toFixed(2)}</td>
       </tr>`;
@@ -13888,7 +13903,7 @@ async function printInvoice(d, type, docKind, win){
    pinch-zoom/scroll view of the same fixed A4 sheet, same as any PDF viewer. */
 /* min-height plus the footer's margin-top:auto below: confirmed by actually
    running html2canvas against a short (1-item) quotation that the width was
-   never the problem (it measured exactly 210mm, full page, every time) — a
+   never the problem (it measured exactly 210mm, full page, every time), a
    short document's content just naturally ends partway down the page,
    leaving the rest of the 297mm blank, which reads as "small/incomplete" PDF.
    Stretching the image to fill that gap would distort text and icons
@@ -13988,7 +14003,7 @@ tbody tr:last-child td{border-bottom:none}
   <span id="shareStatus" style="font-size:10px;color:#999"></span>
   <button id="btnDownloadPdf" class="da-outline" onclick="downloadDoc()" disabled style="opacity:.5">⬇</button>
   <button id="btnSharePdf" class="da-outline" onclick="shareDoc()" disabled style="opacity:.5">⤴</button>
-  <button class="da-solid" onclick="window.print()">🖶 Print</button>
+  <button class="da-solid" onclick="window.print()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print</button>
 </div>
 
 <div class="hdr">
@@ -14014,7 +14029,7 @@ tbody tr:last-child td{border-bottom:none}
   </div>
   <div class="hdr-doc">
     <div class="doc-no">${esc(docNo)}</div>
-    <div class="doc-meta-box"><table>${(isRecord?[['Date',docDate],['Complete Date',d.delivery_date||'—']]:isQuote?[['Date',docDate],...((docQuo('validity_period')&&d.validity_date)?[['Valid Until',d.validity_date]]:[])]:[['Invoice Date',docDate],
+    <div class="doc-meta-box"><table>${(isRecord?[['Date',docDate],['Complete Date',d.delivery_date||'N/A']]:isQuote?[['Date',docDate],...((docQuo('validity_period')&&d.validity_date)?[['Valid Until',d.validity_date]]:[])]:[['Invoice Date',docDate],
       // Due Date: only appears when a Payment Due Date was actually entered on the
       // order (Add Order -> Payment -> "Payment Due Date"), not the DUE_DAYS-derived
       // fallback used elsewhere for internal due-date math, so the field stays absent
@@ -14034,7 +14049,7 @@ tbody tr:last-child td{border-bottom:none}
       // never something that follows automatically from GSTIN presence. Reads
       // d.reverse_charge for the manual per-order override coming later via Add Order.
       (!isQuote&&!isRecord&&hasGst)?[['Reverse Charge',d.reverse_charge==='Yes'?'Yes':'No',true]]:[]
-    ).map(([k,v,plain])=>`<tr><td class="dmb-k">${k}</td><td class="dmb-v">${plain?esc(v):esc(v==='—'?v:fmtDocDate(v))}</td></tr>`).join('')}</table></div>
+    ).map(([k,v,plain])=>`<tr><td class="dmb-k">${k}</td><td class="dmb-v">${plain?esc(v):esc(v==='N/A'?v:fmtDocDate(v))}</td></tr>`).join('')}</table></div>
     <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;margin-top:5px">
       ${(d.channel_id&&(isQuote||isRecord))?`<div class="doc-badge">${esc(CH_NAMES?.[d.channel_id]||d.channel_id)}</div>`:''}
     </div>
@@ -14147,7 +14162,7 @@ ${(!isQuote&&((!isRecord&&(d.payment_mode||d.package_size||d.weight_grams))||(is
 <div class="info-strip">
   ${(!isRecord&&docInv('payment_mode'))?`<div class="info-card">
     <div class="info-lbl">Payment</div>
-    <div class="info-val">${esc((d.payment_mode||'—')+'')}${(d.package_size||d.weight_grams)?`<br><span style="font-size:11px;color:#555">Packet: ${[d.package_size?esc(d.package_size):'',d.weight_grams?esc(d.weight_grams)+' g':''].filter(Boolean).join(' · ')}</span>`:''}</div>
+    <div class="info-val">${esc((d.payment_mode||'N/A')+'')}${(d.package_size||d.weight_grams)?`<br><span style="font-size:11px;color:#555">Packet: ${[d.package_size?esc(d.package_size):'',d.weight_grams?esc(d.weight_grams)+' g':''].filter(Boolean).join(' · ')}</span>`:''}</div>
   </div>`:''}
   ${(isRecord&&docRec('courier_tracking'))?`<div class="info-card">
     <div class="info-lbl">Shipping</div>
@@ -14439,7 +14454,7 @@ function extractLabelData(text,platform){
     if(pr) price=pr[1].replace(/,/g,'');
 
     // Qty from the line-item row: UnitPrice Qty NetAmount TaxRate% TaxType, e.g.
-    // "₹508.47 1 ₹508.47 18% IGST ₹91.52 ₹599.99" — anchor on the two-decimal amounts
+    // "₹508.47 1 ₹508.47 18% IGST ₹91.52 ₹599.99", anchor on the two-decimal amounts
     // either side of it plus the trailing %/IGST-CGST landmark so we don't grab HSN or GSTIN digits.
     const qm=text.match(/[\d,]+\.\d{2}\s+(\d+)\s+₹?[\d,]+\.\d{2}\s+[\d.]+%\s*(?:IGST|CGST)/i);
     if(qm) qty=parseInt(qm[1])||1;
@@ -14594,7 +14609,7 @@ function extractLabelData(text,platform){
   if(!qty||qty<1){ const qm=text.match(/(?:qty|quantity)[:\s]+(\d+)/i); if(qm) qty=parseInt(qm[1])||1; }
 
   // GST details from the invoice block. Flipkart prints "IGST: 18.00%" (rate after label);
-  // Amazon prints "18% IGST" (rate before label, in the Tax Rate/Tax Type columns) — try
+  // Amazon prints "18% IGST" (rate before label, in the Tax Rate/Tax Type columns), try
   // both orderings so either platform's invoice text matches.
   const hsnM=text.match(/HSN\s*(?:Code)?\s*:\s*(\d{4,8})/i);
   const hsn=hsnM?hsnM[1]:'';
@@ -14643,7 +14658,7 @@ async function bizGlobalSearchRun(q){
     sb.from('biz_customers').select('id,name,phone,gstin').or(`name.ilike.${like},phone.ilike.${like},gstin.ilike.${like}`).limit(6),
   ]);
   const items=[];
-  (sales.data||[]).forEach(s=>items.push({t:'Sale',label:(s.product_name||'Item')+' · '+(s.customer_name||'—'),sub:(s.order_id||'')+' · ₹'+(s.selling_price||0),term:s.order_id||s.customer_name||s.product_name,tab:'sales'}));
+  (sales.data||[]).forEach(s=>items.push({t:'Sale',label:(s.product_name||'Item')+' · '+(s.customer_name||'N/A'),sub:(s.order_id||'')+' · ₹'+(s.selling_price||0),term:s.order_id||s.customer_name||s.product_name,tab:'sales'}));
   (prods.data||[]).forEach(p=>items.push({t:'Product',label:p.name,sub:p.sku||'',pid:p.id,tab:'products'}));
   (custs.data||[]).forEach(c=>items.push({t:'Customer',label:c.name,sub:(c.phone||'')+(c.gstin?' · '+c.gstin:''),term:c.name,tab:'customers'}));
   _gsResults=items;
@@ -14864,7 +14879,7 @@ function renderExtractedLabels(pages){
       <td><input type="number" value="${r.qty||1}" id="lr_qty_${i}" style="width:46px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;text-align:center"></td>
       <td>
         <select id="lr_psel_${i}" onchange="onLblProductChange(${i})" style="background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;font-size:11px;max-width:150px;width:100%">
-          <option value="">— manual —</option>${prodOpts}
+          <option value="">Manual</option>${prodOpts}
         </select>
         <input type="text" value="${esc(r.productName)}" id="lr_pname_${i}" style="margin-top:4px;width:100%;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;font-size:11px" placeholder="Product name">
       </td>
@@ -14872,7 +14887,7 @@ function renderExtractedLabels(pages){
       <td><input type="number" value="${esc(r.cogs)}" id="lr_cogs_${i}" step="0.01" style="width:66px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;text-align:right;font-family:var(--mono)"></td>
       <td><input type="number" value="${esc(r.grams)}" id="lr_grams_${i}" step="1" style="width:60px;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;text-align:right;font-family:var(--mono)"></td>
       <td style="font-size:11px">
-        <div style="color:var(--text)">${esc(r.customerName||'—')}</div>
+        <div style="color:var(--text)">${esc(r.customerName||'N/A')}</div>
         <div style="color:var(--text-3);margin-top:2px">${esc([r.city,r.state].filter(Boolean).join(', '))}${r.pincode?', '+esc(r.pincode):''}</div>
       </td>
       <td style="font-size:11px;color:var(--text-3)">
@@ -14977,7 +14992,7 @@ function clearLabels(){
 function populateLabelProductSelect(){
   const opts=_products.map(p=>`<option value="${p.id}">${esc(p.name)}${p.sku?' ('+p.sku+')':''}</option>`).join('');
   const sel=document.getElementById('lbl_product');
-  if(sel) sel.innerHTML=`<option value="">— select from catalog (optional) —</option>${opts}`;
+  if(sel) sel.innerHTML=`<option value="">Select from catalog (optional)</option>${opts}`;
 }
 async function initImportPanel(){
   populateLabelProductSelect();
