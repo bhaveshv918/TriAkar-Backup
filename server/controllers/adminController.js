@@ -218,7 +218,7 @@ export async function updateOrderStatus(req, res, next) {
     const { id } = req.params;
     const { status } = req.body;
 
-    const valid = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned', 'refunded'];
+    const valid = ['whatsapp_pending', 'placed', 'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned', 'refunded'];
     if (!valid.includes(status)) {
       return res.status(400).json({ error: 'Invalid status value' });
     }
