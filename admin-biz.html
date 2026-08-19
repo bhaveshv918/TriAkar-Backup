@@ -1508,6 +1508,18 @@ html[data-theme="dark"] .biz-login{
         </div>
       </details>
 
+      <details id="packDetails" style="margin-bottom:20px">
+        <summary style="cursor:pointer;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">Packed <span style="text-transform:none;font-weight:400;color:var(--text-3)">(ready to dispatch)</span></summary>
+        <div class="tbl-wrap" style="margin-top:8px">
+          <table>
+            <thead><tr><th style="width:32px"><input type="checkbox" id="selectAllOpenPack" onchange="toggleSelectAllOpen(this,'pack')"></th><th>Promised</th><th>SLA</th><th>Customer</th><th>Item</th><th>Channel</th><th>Status</th><th class="td-actions"></th></tr></thead>
+            <tbody id="packOrdersBody">
+              <tr class="skel-row"><td colspan="8"><div style="display:flex;gap:16px;align-items:center"><span class="skel-bar" style="width:60px"></span><span class="skel-bar" style="width:110px"></span><span class="skel-bar" style="width:70px"></span><span class="skel-bar" style="width:50px"></span></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
       <details id="dispatchDetails">
         <summary style="cursor:pointer;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">Dispatched <span style="text-transform:none;font-weight:400;color:var(--text-3)">(until return window closes &amp; review is in)</span></summary>
         <div class="tbl-wrap" style="margin-top:8px">
@@ -8138,9 +8150,11 @@ function orderAlertBadge(f){
   if(nl!=null) return `<span title="Completed ${NOT_LOCKED_ALERT_DAYS}+ days ago, still not locked (paid)" style="display:inline-flex;align-items:center;gap:2px;background:var(--yellow-bg);color:var(--yellow);font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:5px">◯ ${nl}d, not locked</span>`;
   return '';
 }
-// Pre-dispatch: still needs studio action (make/print → pack → ready to ship).
-// 'delaying' is a pre-dispatch order running behind, still shown here, not moved to Tracking.
-const PROD_LANE_STATUSES=['pending','order_received','processing','printing','packed','delaying'];
+// Pre-dispatch, still being made: preparing (make/print). 'delaying' is a pre-dispatch
+// order running behind, still shown here, not moved to Tracking.
+const PROD_LANE_STATUSES=['pending','order_received','processing','printing','delaying'];
+// Pre-dispatch, made and boxed, waiting to go out: its own lane between Preparing and Dispatched.
+const PACK_LANE_STATUSES=['packed'];
 // Post-dispatch: admin has shipped it, tracked until the return window closes AND a
 // review is in (or the admin moves it to Completed/Returned/etc. manually). A return in
 // progress (requested but not yet physically back) still shows here so it isn't lost;
@@ -8159,8 +8173,8 @@ function scrollToOpenTable(bodyId){
 // SLA Breached / Due Today have no table of their own on this panel, so these get
 // a lightweight drawer (not the Dashboard's #dashDrilldown, that's tied to
 // _dashCache, a different data source entirely).
-let _openOrderKpiGroups={breached:[],dueToday:[],notCompleted:[],notLocked:[],production:[],dispatched:[]};
-const OPEN_ORDER_DRAWER_TITLES={breached:'SLA Breached',dueToday:'Due Today',notCompleted:'Not Completed, 15d+ past promise',notLocked:'Completed, Not Locked 10d+',production:'In Production',dispatched:'Dispatched'};
+let _openOrderKpiGroups={breached:[],dueToday:[],notCompleted:[],notLocked:[],production:[],packed:[],dispatched:[]};
+const OPEN_ORDER_DRAWER_TITLES={breached:'SLA Breached',dueToday:'Due Today',notCompleted:'Not Completed, 15d+ past promise',notLocked:'Completed, Not Locked 10d+',production:'In Production',packed:'Packed',dispatched:'Dispatched'};
 function openOpenOrdersDrawer(kind){
   const groups=_openOrderKpiGroups[kind]||[];
   const title=OPEN_ORDER_DRAWER_TITLES[kind]||kind;
@@ -8352,6 +8366,7 @@ async function loadOpenOrders(){
   rows.forEach(s=>{ const k=s.order_id?('o:'+s.order_id):('r:'+s.id); if(!gmap[k]){gmap[k]={items:[]};groups.push(gmap[k]);} gmap[k].items.push(s); });
   groups.sort((a,b)=>{ const da=a.items[0].delivery_date||'9999-99', db=b.items[0].delivery_date||'9999-99'; return da<db?-1:da>db?1:0; });
   const prodGroups=groups.filter(g=>PROD_LANE_STATUSES.includes(g.items[0].status));
+  const packGroups=groups.filter(g=>PACK_LANE_STATUSES.includes(g.items[0].status));
   const trackGroups=groups.filter(g=>TRACK_LANE_STATUSES.includes(g.items[0].status));
 
   const td=today(); let breached=0,dueToday=0,inTransit=0;
@@ -8366,7 +8381,7 @@ async function loadOpenOrders(){
   const notLockedGroups=uGroups.filter(g=>daysCompletedNotLocked(g.items[0])!=null);
   // Phase 10 Group 3 (G): kept for the four drawer-opening KPIs (SLA Breached, Due
   // Today, Not Completed, Not Locked), which have no dedicated table on this panel to scroll to.
-  _openOrderKpiGroups={breached:breachedGroups,dueToday:dueTodayGroups,notCompleted:notCompletedGroups,notLocked:notLockedGroups,production:prodGroups,dispatched:trackGroups};
+  _openOrderKpiGroups={breached:breachedGroups,dueToday:dueTodayGroups,notCompleted:notCompletedGroups,notLocked:notLockedGroups,production:prodGroups,packed:packGroups,dispatched:trackGroups};
   // Not Completed / Not Locked are now tiles in #openRemindersRow (with GST/Filament),
   // not their own always-visible box; clicking either opens the same drawer as before.
   _openReminders.notCompleted=notCompletedGroups.length; _openReminders.notLocked=notLockedGroups.length;
@@ -8381,6 +8396,7 @@ async function loadOpenOrders(){
   if(kpi) kpi.innerHTML=
     kpiCard('var(--green)','var(--green-bg)','◷','Upcoming Orders',esc(upcomingOrders),'Manual entry, click to edit. Not counted in any total','editUpcomingOrders()')
     +kpiCard('var(--blue)','var(--blue-bg)','⚙','In Production',prodGroups.length,'Show all in-production orders',"openOpenOrdersDrawer('production')")
+    +kpiCard('var(--teal,#0d9488)','var(--teal-bg,rgba(13,148,136,.12))','📦','Packed',packGroups.length,'Show all packed, ready-to-dispatch orders',"openOpenOrdersDrawer('packed')")
     +kpiCard('var(--purple)','var(--purple-bg)','➤','Dispatched',trackGroups.length,'Show all dispatched orders',"openOpenOrdersDrawer('dispatched')")
     +kpiCard('var(--red)','var(--red-bg)','⚠','SLA Breached',breached,'Show breached orders',"openOpenOrdersDrawer('breached')",breached>0)
     +kpiCard('var(--yellow)','var(--yellow-bg)','◷','Due Today',dueToday,'Show orders due today',"openOpenOrdersDrawer('dueToday')",dueToday>0);
@@ -8397,6 +8413,26 @@ async function loadOpenOrders(){
   if(prodBody){
     if(!prodGroups.length){ prodBody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="em-icon">✓</div><div class="em-text">Nothing waiting on the studio</div></div></td></tr>`; }
     else prodBody.innerHTML=prodGroups.map(g=>{ const f=g.items[0]; const ids=g.items.map(s=>s.id).join(',');
+      const more=g.items.length>1?`+${g.items.length-1} more`:'';
+      const breached=f.delivery_date&&f.delivery_date<td;
+      const rowCls=breached?' row-breached':(f.delivery_date===td?' row-due-today':(f.delivery_date?' row-upcoming':''));
+      return `<tr class="sale-row${rowCls}" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>jumpToOrderDetail('${f.id}'))">
+        <td onclick="event.stopPropagation()"><input type="checkbox" class="open-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateOpenBulkBar()"></td>
+        <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.delivery_date?fmtDay(f.delivery_date):'—'}</td>
+        <td style="white-space:nowrap">${slaText(f.delivery_date)}</td>
+        <td style="white-space:nowrap">${esc(f.customer_name||'—')}</td>
+        <td>${skuItemCol(f,more)}</td>
+        <td>${chHtml(f.channel_id)}</td>
+        <td onclick="event.stopPropagation()"><select onchange="updateOrderStatus('${f.id}',this.value)" class="badge-select badge-${f.status}">${UNIFIED_STATUSES.map(x=>`<option value="${x}"${f.status===x?' selected':''}>${STATUS_LABEL[x]}</option>`).join('')}</select></td>
+        <td class="td-actions" style="color:var(--text-3)">↗</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const packBody=document.getElementById('packOrdersBody');
+  if(packBody){
+    if(!packGroups.length){ packBody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="em-icon">✓</div><div class="em-text">Nothing packed and waiting to dispatch</div></div></td></tr>`; }
+    else packBody.innerHTML=packGroups.map(g=>{ const f=g.items[0]; const ids=g.items.map(s=>s.id).join(',');
       const more=g.items.length>1?`+${g.items.length-1} more`:'';
       const breached=f.delivery_date&&f.delivery_date<td;
       const rowCls=breached?' row-breached':(f.delivery_date===td?' row-due-today':(f.delivery_date?' row-upcoming':''));
@@ -8459,7 +8495,7 @@ async function editUpcomingOrders(){
 // ── Open Orders bulk select (mirrors All Sales' bulk bar, separate class/ids since both
 // panels' tables coexist in the DOM) ──
 function toggleSelectAllOpen(cb,which){
-  const sel=which==='prod'?'#prodOrdersBody .open-cb':'#trackOrdersBody .open-cb';
+  const sel=which==='prod'?'#prodOrdersBody .open-cb':which==='pack'?'#packOrdersBody .open-cb':'#trackOrdersBody .open-cb';
   document.querySelectorAll(sel).forEach(c=>c.checked=cb.checked);
   updateOpenBulkBar();
 }
