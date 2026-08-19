@@ -3151,6 +3151,14 @@ function applyTableLabels(root){
 })();
 
 function switchTab(tab){
+  // Navigating away from Products while the Add/Edit Product form is open used to
+  // leave #productFormWrap.open stuck set forever, which silently blocked every
+  // single-letter keyboard shortcut sitewide (adminAnyModalOpen() treats it as an
+  // open modal) until the user went back and clicked Cancel.
+  if(tab!=='products'){
+    const pw=document.getElementById('productFormWrap');
+    if(pw&&pw.classList.contains('open'))closeProductForm();
+  }
   _curAdminTab=tab;
   toggleNav(false);   // close the mobile command palette after choosing a tab
   updateAdminHeaderNavActive(tab);
