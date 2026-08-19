@@ -41,9 +41,9 @@
   --topbar-bg:rgba(7,12,8,.92);
   --sidebar-w:210px;
 }
-/* Round 3 — color-scheme was never declared, so native browser chrome CSS can't reach (the
+/* Round 3, color-scheme was never declared, so native browser chrome CSS can't reach (the
    open <select> dropdown list, scrollbars, date/time picker popups) kept rendering in the
-   OS's default LIGHT style regardless of theme — the closed control looked themed, but the
+   OS's default LIGHT style regardless of theme, the closed control looked themed, but the
    open popup fell back to plain white. */
 html[data-theme="light"]{
   color-scheme:light;
@@ -444,12 +444,12 @@ td.td-name{color:var(--text);font-weight:500}
 /* Checkbox */
 .fcheck{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2);cursor:pointer}
 .fcheck input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
-/* Round 3 — most checkboxes/radios in this file (bulk-select on Orders/Products/Messages/
+/* Round 3, most checkboxes/radios in this file (bulk-select on Orders/Products/Messages/
    Enquiries/Callbacks/Recycle Bin, product option toggles, payment-status radios) were
-   OUTSIDE .fcheck and had no styling at all — plain OS-default controls. Global fallback. */
+   OUTSIDE .fcheck and had no styling at all, plain OS-default controls. Global fallback. */
 input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;cursor:pointer;vertical-align:middle}
 input[type=radio]{accent-color:var(--accent);cursor:pointer}
-/* Round 3 — plain <select> elements kept the native OS dropdown chevron everywhere; the
+/* Round 3, plain <select> elements kept the native OS dropdown chevron everywhere; the
    customer-facing site (shared.css .ta-phone-prefix) already uses a custom minimal arrow. */
 select{
   -webkit-appearance:none;appearance:none;cursor:pointer;
@@ -1616,7 +1616,7 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
       <div class="fg">
         <div class="ff"><label>Size Class <span class="hint">(for pricing)</span></label>
           <select id="fSizeClass">
-            <option value="">—</option>
+            <option value="">Select</option>
             <option value="S">S, Small</option>
             <option value="M">M, Medium</option>
             <option value="L">L, Large</option>
@@ -1630,7 +1630,7 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
         <div class="ff"><label>Source URL <span class="hint">(original model, internal, never shown publicly)</span></label><input type="text" id="fSourceUrl" placeholder="https://makerworld.com/en/models/…"></div>
         <div class="ff"><label>Licence</label>
           <select id="fLicense">
-            <option value="">— Unknown —</option>
+            <option value="">Unknown</option>
             <option value="own">TriAkar original</option>
             <option value="CC-BY">CC-BY (credit)</option>
             <option value="CC-BY-SA">CC-BY-SA</option>
@@ -1839,7 +1839,7 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
     <!-- A14, GA4 website traffic -->
     <div id="ga4Section" style="margin-bottom:26px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-        <div class="od-label" style="margin:0">Website Traffic <span class="hint">— Google Analytics (GA4)</span></div>
+        <div class="od-label" style="margin:0">Website Traffic <span class="hint">(Google Analytics, GA4)</span></div>
         <select id="ga4Days" onchange="loadGa4()" style="padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:var(--radius)">
           <option value="7">Last 7 days</option>
           <option value="28" selected>Last 28 days</option>
@@ -2189,9 +2189,9 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
         <div style="padding:14px 16px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px">
           <div style="font-weight:700;font-size:13px;margin-bottom:6px">Read-only, from Products tab</div>
           <div style="font-size:12px;color:var(--text-3);line-height:1.8">
-            Material: <b id="psMaterial" style="color:var(--text)">—</b><br>
-            Use case: <b id="psUseCase" style="color:var(--text)">—</b><br>
-            Key features: <b id="psKeyFeatures" style="color:var(--text)">—</b>
+            Material: <b id="psMaterial" style="color:var(--text)">N/A</b><br>
+            Use case: <b id="psUseCase" style="color:var(--text)">N/A</b><br>
+            Key features: <b id="psKeyFeatures" style="color:var(--text)">N/A</b>
           </div>
         </div>
 
@@ -2567,7 +2567,7 @@ async function doLogin(){
 
     if(error){
       const errDetail='ERR '+( error.status||'?')+' · '+( error.message||'unknown');
-      console.error('[login] Supabase auth error —',errDetail);
+      console.error('[login] Supabase auth error:',errDetail);
       _failedAttempts++;
       await checkIPLockout().catch(()=>{});
       document.getElementById('attemptBar').classList.add('show');
@@ -2611,8 +2611,8 @@ async function doLogin(){
 
   }catch(err){
     const errDetail='EXC · '+(err?.message||'unknown')+' ('+(err?.name||'Error')+')';
-    console.error('[login] unexpected exception —',err);
-    console.error('[login] stack —',err?.stack||'(no stack)');
+    console.error('[login] unexpected exception:',err);
+    console.error('[login] stack:',err?.stack||'(no stack)');
     const msg=err?.message||'';
     if(msg.toLowerCase().includes('network')||msg.toLowerCase().includes('fetch'))
       showLoginErr('Network error. Check your connection and try again.',errDetail);
@@ -2748,7 +2748,7 @@ function globalSearchRun(){
     out.push({type:'Product',label:p.name||p.slug,sub:'/'+(p.slug||''),act:"switchTab('products')"});
   });
   (_customers||[]).filter(c=>(c.full_name||'').toLowerCase().includes(q)||(c.email||'').toLowerCase().includes(q)||(c.mobile||'').toLowerCase().includes(q)||(c.user_code||'').toLowerCase().includes(q)).slice(0,6).forEach(c=>{
-    out.push({type:'Customer',label:c.full_name||c.email||'—',sub:c.email||c.mobile||'',act:"switchTab('customers');openUserModal('"+c.id+"')"});
+    out.push({type:'Customer',label:c.full_name||c.email||'N/A',sub:c.email||c.mobile||'',act:"switchTab('customers');openUserModal('"+c.id+"')"});
   });
   (_orders||[]).filter(o=>String(o.invoice_number||'').toLowerCase().includes(q)||String(o.order_id||'').toLowerCase().includes(q)||String(o.customer_name||'').toLowerCase().includes(q)||String(o.customer_email||'').toLowerCase().includes(q)).slice(0,6).forEach(o=>{
     out.push({type:'Order',label:(o.invoice_number||o.order_id||o.id),sub:(o.customer_name||'')+' · ₹'+(o.total_amount||0),act:"switchTab('orders')"});
@@ -2820,10 +2820,10 @@ function renderActivity(){
   if(!list.length){ tbody.innerHTML='<tr><td colspan="5" class="tbl-msg">No activity yet.</td></tr>'; return; }
   tbody.innerHTML=list.map(a=>'<tr>'
     +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(a.created_at)+'</td>'
-    +'<td style="font-size:11px;font-family:var(--mono)">'+esc(a.actor_email||'—')+'</td>'
+    +'<td style="font-size:11px;font-family:var(--mono)">'+esc(a.actor_email||'N/A')+'</td>'
     +'<td><span style="font-size:11px;font-weight:600">'+esc(a.action||'')+'</span></td>'
-    +'<td style="font-size:11px;color:var(--text-3)">'+esc(a.entity_type||'—')+'</td>'
-    +'<td style="font-size:12px">'+esc(a.detail||'—')+'</td>'
+    +'<td style="font-size:11px;color:var(--text-3)">'+esc(a.entity_type||'N/A')+'</td>'
+    +'<td style="font-size:12px">'+esc(a.detail||'N/A')+'</td>'
     +'</tr>').join('');
 }
 // ═══════════════════════════════════════════════════════════
@@ -3413,7 +3413,7 @@ function dashWOpenOrders(){
     const id=o.invoice_number||o.order_id||String(o.id||'').slice(0,8), st=o.status||o.order_status||'pending';
     return `<div class="dash-open-row">`
       +`<span style="font-family:var(--mono);font-size:11px;color:var(--text-2)">${esc(id)}</span>`
-      +`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${esc(o.customer_name||'—')}</span>`
+      +`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${esc(o.customer_name||'N/A')}</span>`
       +`<span style="font-family:var(--mono);font-weight:600;font-size:12px">₹${Number(o.total_amount||0).toLocaleString('en-IN')}</span>`
       +`<span style="display:flex;gap:6px;align-items:center">${dashPill(st)}<button class="btn-sm" onclick="switchTab('orders')">Open</button></span></div>`;
   }).join('')+`<div style="margin-top:10px"><button class="btn-secondary" onclick="switchTab('orders')">View all orders →</button></div>`;
@@ -3446,7 +3446,7 @@ function dashWReviews(){
 function dashWSignups(){
   const s=_dashData.signups||[];
   if(!s.length)return '<div style="color:var(--text-3);font-size:12px">No new signups in the last 7 days.</div>';
-  return s.map(u=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--border);font-size:12px"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.full_name||u.email||'—')}</span><span style="font-size:11px;color:var(--text-3)">${u.created_at?fmtDateShort(u.created_at):''}</span></div>`).join('');
+  return s.map(u=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--border);font-size:12px"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.full_name||u.email||'N/A')}</span><span style="font-size:11px;color:var(--text-3)">${u.created_at?fmtDateShort(u.created_at):''}</span></div>`).join('');
 }
 
 // A14, GA4 website traffic (reads /api/admin/ga4, which uses the service account)
@@ -3711,11 +3711,11 @@ function renderOrders(orders){
     const uidTag=userCode?'<div style="font-size:9px;font-family:var(--mono);font-weight:700;letter-spacing:.05em;color:var(--accent);margin-top:2px">ID: '+userCode+'</div>':'';
     const addr=o.shipping_address||{};
     const addrObj=o.user_addresses||{};
-    const loc=esc(addr.city||addrObj.city||addr.state||addrObj.state||'—');
+    const loc=esc(addr.city||addrObj.city||addr.state||addrObj.state||'N/A');
     // Support both order_items (old) and items JSONB (new)
     const orderItems=o.order_items||[];
     const jsonItems=o.items||[];
-    const itemsList=orderItems.length?orderItems.map(i=>esc((i.products||{}).name||'Item')+' x'+esc(i.quantity)).join(', '):jsonItems.map(i=>esc(i.name||'Item')+' x'+esc(i.quantity)).join(', ')||'—';
+    const itemsList=orderItems.length?orderItems.map(i=>esc((i.products||{}).name||'Item')+' x'+esc(i.quantity)).join(', '):jsonItems.map(i=>esc(i.name||'Item')+' x'+esc(i.quantity)).join(', ')||'N/A';
     const items=itemsList;
     const curStatus=o.order_status||o.status||'placed';
     const selOpts=STATUS_OPTIONS.map(s=>'<option value="'+s+'"'+(curStatus===s?' selected':'')+'>'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>').join('');
@@ -3725,7 +3725,7 @@ function renderOrders(orders){
     const fullAddr=[esc(addr.full_name||addrObj.full_name),esc(addr.address_line1||addrObj.address_line1),esc(addr.address_line2||addrObj.address_line2),
       [esc(addr.city||addrObj.city),esc(addr.state||addrObj.state),esc(addr.pincode||addrObj.pincode)].filter(Boolean).join(', '),
       esc(addr.country||addrObj.country),
-      (addr.phone||addrObj.phone)?'Ph: '+esc(addr.phone||addrObj.phone):''].filter(Boolean).join('<br>')||'—';
+      (addr.phone||addrObj.phone)?'Ph: '+esc(addr.phone||addrObj.phone):''].filter(Boolean).join('<br>')||'N/A';
 
     // Items list for detail, join from order_items + fallback to items JSONB
     const rawItems=o.order_items&&o.order_items.length?o.order_items:(o.items||[]);
@@ -3753,8 +3753,8 @@ function renderOrders(orders){
     const isPaid=o.payment_received===true;
     const isAdv=o.advance_received===true;
     const rzpId=o.razorpay_payment_id||'';
-    const rzpLink=rzpId?'<a href="https://dashboard.razorpay.com/app/payments/'+rzpId+'" target="_blank" rel="noopener" style="color:var(--blue);font-family:var(--mono);font-size:11px;text-decoration:underline">'+rzpId+' ↗</a>':'<span style="color:var(--text-3);font-size:11px">—</span>';
-    const payMethod=(o.payment_method||'—').replace('online','Razorpay').replace('whatsapp','WhatsApp');
+    const rzpLink=rzpId?'<a href="https://dashboard.razorpay.com/app/payments/'+rzpId+'" target="_blank" rel="noopener" style="color:var(--blue);font-family:var(--mono);font-size:11px;text-decoration:underline">'+rzpId+' ↗</a>':'<span style="color:var(--text-3);font-size:11px">N/A</span>';
+    const payMethod=(o.payment_method||'N/A').replace('online','Razorpay').replace('whatsapp','WhatsApp');
     const isWAOrder=o.payment_method==='whatsapp'||o.order_status==='whatsapp_pending';
     const waBadge=isWAOrder?'<span style="display:inline-block;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:3px;background:#25D366;color:#fff;margin-left:5px;vertical-align:middle">WA</span>':'';
     const payStatusLabel=isPaid?'<span style="color:var(--green);font-weight:600">Received</span>':isAdv?'<span style="color:var(--yellow);font-weight:600">Advance</span>':'<span style="color:var(--text-3)">Pending</span>';
@@ -3812,7 +3812,7 @@ function _renderOrderModal(o){
   var fullAddr=[esc(addr.full_name||addrObj.full_name),esc(addr.address_line1||addrObj.address_line1),esc(addr.address_line2||addrObj.address_line2),
     [esc(addr.city||addrObj.city),esc(addr.state||addrObj.state),esc(addr.pincode||addrObj.pincode)].filter(Boolean).join(', '),
     esc(addr.country||addrObj.country),
-    (addr.phone||addrObj.phone)?'Ph: '+esc(addr.phone||addrObj.phone):''].filter(Boolean).join('<br>')||'—';
+    (addr.phone||addrObj.phone)?'Ph: '+esc(addr.phone||addrObj.phone):''].filter(Boolean).join('<br>')||'N/A';
   var rawItems=o.order_items&&o.order_items.length?o.order_items:(o.items||[]);
   var itemsDetail=rawItems.length?rawItems.map(function(i){
     var pname=esc((i.products||{}).name||i.name||'Item');
@@ -3834,8 +3834,8 @@ function _renderOrderModal(o){
   var isPaid=o.payment_received===true;
   var isAdv=o.advance_received===true;
   var rzpId=o.razorpay_payment_id||'';
-  var rzpLink=rzpId?'<a href="https://dashboard.razorpay.com/app/payments/'+rzpId+'" target="_blank" rel="noopener" style="color:var(--blue);font-family:var(--mono);font-size:11px;text-decoration:underline">'+rzpId+' ↗</a>':'<span style="color:var(--text-3);font-size:11px">—</span>';
-  var payMethod=(o.payment_method||'—').replace('online','Razorpay').replace('whatsapp','WhatsApp');
+  var rzpLink=rzpId?'<a href="https://dashboard.razorpay.com/app/payments/'+rzpId+'" target="_blank" rel="noopener" style="color:var(--blue);font-family:var(--mono);font-size:11px;text-decoration:underline">'+rzpId+' ↗</a>':'<span style="color:var(--text-3);font-size:11px">N/A</span>';
+  var payMethod=(o.payment_method||'N/A').replace('online','Razorpay').replace('whatsapp','WhatsApp');
   var payStatusLabel=isPaid?'<span style="color:var(--green);font-weight:600">Received</span>':isAdv?'<span style="color:var(--yellow);font-weight:600">Advance</span>':'<span style="color:var(--text-3)">Pending</span>';
   var selOpts=STATUS_OPTIONS.map(function(s){return'<option value="'+s+'"'+(curStatus===s?' selected':'')+'>'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>';}).join('');
   var tot=_visibleOrders.length,idx=_currentOrderIdx;
@@ -3871,7 +3871,7 @@ function _renderOrderModal(o){
     +'</div></div>'
     +'<div class="od-section" style="grid-column:1/-1"><div class="od-label">Order Items</div><div class="od-items">'+itemsDetail+'</div></div>'
     +'<div class="od-section"><div class="od-label">Order Placed</div><div class="od-value" style="font-family:var(--mono);font-size:12px">'+fmtDateTimeIST(o.created_at)+'</div></div>'
-    +(o.paid_at?'<div class="od-section"><div class="od-label">Payment Received</div><div class="od-value" style="font-family:var(--mono);font-size:12px;color:var(--green)">'+fmtDateTimeIST(o.paid_at)+'</div></div>':'<div class="od-section"><div class="od-label">Payment Received</div><div class="od-value" style="color:var(--text-3)">—</div></div>')
+    +(o.paid_at?'<div class="od-section"><div class="od-label">Payment Received</div><div class="od-value" style="font-family:var(--mono);font-size:12px;color:var(--green)">'+fmtDateTimeIST(o.paid_at)+'</div></div>':'<div class="od-section"><div class="od-label">Payment Received</div><div class="od-value" style="color:var(--text-3)">N/A</div></div>')
     +'<div class="od-section"><div class="od-label">Payment Method</div><div class="od-value">'+payMethod+'</div></div>'
     +'<div class="od-section"><div class="od-label">Razorpay Payment ID</div><div class="od-value">'+rzpLink+'</div></div>'
     +'<div class="od-section" style="grid-column:1/-1"><div class="od-label">Payment Status, '+payStatusLabel+'</div>'
@@ -3952,7 +3952,7 @@ function printInvoice(id){
   const ship=Number(o.shipping_charge||0), disc=Number(o.discount_amount||0);
   const total=o.total_amount!=null?Number(o.total_amount):(subtotal+ship-disc);
   const dt=o.created_at?new Date(o.created_at).toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'}):'';
-  const payM=(o.payment_method||'').replace('online','Razorpay').replace('whatsapp','WhatsApp')||'—';
+  const payM=(o.payment_method||'').replace('online','Razorpay').replace('whatsapp','WhatsApp')||'N/A';
   const payS=o.payment_received?'Paid':(o.advance_received?'Advance received':'Payment pending');
   const html=`<!doctype html><html><head><meta charset="utf-8"><title>Invoice ${esc(inv)}</title><style>
     *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif}
@@ -4112,8 +4112,8 @@ function renderProductsTable(){
   const tbody=document.getElementById('productsBody');
   if(!_products.length){tbody.innerHTML='<tr><td colspan="10" class="tbl-msg">No products yet. Add one above.</td></tr>';return}
   tbody.innerHTML=_products.map(p=>{
-    const img=p.images&&p.images[0]?'<div class="td-img"><img src="'+p.images[0]+'" loading="lazy"></div>':'<div class="td-img" style="display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--text-3)">—</div>';
-    const badgeHtml=p.badge?'<span class="badge badge-accent">'+p.badge+'</span>':'<span style="color:var(--text-3)">—</span>';
+    const img=p.images&&p.images[0]?'<div class="td-img"><img src="'+p.images[0]+'" loading="lazy"></div>':'<div class="td-img" style="display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--text-3)">N/A</div>';
+    const badgeHtml=p.badge?'<span class="badge badge-accent">'+p.badge+'</span>':'<span style="color:var(--text-3)">N/A</span>';
     const priceHtml=p.discount_type?'<span style="text-decoration:line-through;color:var(--text-3);font-size:11px">'+fmtPrice(p.price)+'</span> <span style="color:var(--green)">'+fmtPrice(getDiscountedPrice(p))+'</span>':fmtPrice(p.price);
     const safe=p.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
     // Licence-review flag (migration 004): externally-sourced item not cleared for commercial sale.
@@ -4647,7 +4647,7 @@ async function submitProductForm(){
   }catch(err){
     const detail=err.code?(' ['+err.code+']'):'';
     const msg=(err.message||'Save failed')+detail;
-    console.error('[save] failed —',err);
+    console.error('[save] failed:',err);
     errEl.textContent=msg;
     errEl.scrollIntoView({behavior:'smooth',block:'center'});
   }finally{btn.disabled=false;_syncSaveDirty();}
@@ -4739,7 +4739,7 @@ async function mwGenerate(){
     mwShowResults(d.listing);
     toast('Listing generated, review and edit before saving','success');
   }catch(e){
-    console.error('[makerworld] generate failed —',e);
+    console.error('[makerworld] generate failed:',e);
     errEl.textContent=e.message||'Generation failed';
   }finally{btn.textContent='Generate Listing';btn.disabled=false}
 }
@@ -4817,7 +4817,7 @@ async function mwSave(){
     _mwListing=null;
     toast('Product saved, find it in the Products tab','success');
   }catch(e){
-    console.error('[makerworld] save failed —',e);
+    console.error('[makerworld] save failed:',e);
     errEl.textContent=(e.message||'Save failed')+(e.code?' ['+e.code+']':'');
   }finally{btn.textContent='Save to Products';btn.disabled=false}
 }
@@ -5417,9 +5417,9 @@ async function loadInbox(){
     sb.from('custom_enquiries').select('*').is('deleted_at',null).order('created_at',{ascending:false}).limit(300),
   ]);
   const items=[];
-  (cb.data||[]).forEach(r=>items.push({source:'callback',id:r.id,date:r.created_at,name:r.name||'—',contact:r.phone||r.mobile||'',summary:r.topic||r.message||r.reason||'',status:r.status||'new'}));
-  (ms.data||[]).forEach(r=>items.push({source:'message',id:r.id,date:r.created_at,name:r.name||'—',contact:r.email||r.phone||'',summary:r.subject||r.message||'',status:r.status||'new'}));
-  (en.data||[]).forEach(r=>items.push({source:'enquiry',id:r.id,date:r.created_at,name:r.name||'—',contact:r.email||r.phone||r.mobile||'',summary:r.what_needed||r.message||r.details||'',status:r.status||'new'}));
+  (cb.data||[]).forEach(r=>items.push({source:'callback',id:r.id,date:r.created_at,name:r.name||'N/A',contact:r.phone||r.mobile||'',summary:r.topic||r.message||r.reason||'',status:r.status||'new'}));
+  (ms.data||[]).forEach(r=>items.push({source:'message',id:r.id,date:r.created_at,name:r.name||'N/A',contact:r.email||r.phone||'',summary:r.subject||r.message||'',status:r.status||'new'}));
+  (en.data||[]).forEach(r=>items.push({source:'enquiry',id:r.id,date:r.created_at,name:r.name||'N/A',contact:r.email||r.phone||r.mobile||'',summary:r.what_needed||r.message||r.details||'',status:r.status||'new'}));
   items.sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
   _inboxItems=items; renderInbox();
 }
@@ -5479,10 +5479,10 @@ async function loadLogs(){
     return '<tr>'
       +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+fmtDate(l.created_at)+'</td>'
       +'<td><span class="badge badge-cat">'+l.action+'</span></td>'
-      +'<td>'+(l.email_attempted||'—')+'</td>'
-      +'<td style="font-family:var(--mono);font-size:11px">'+(l.ip||'—')+'</td>'
+      +'<td>'+(l.email_attempted||'N/A')+'</td>'
+      +'<td style="font-family:var(--mono);font-size:11px">'+(l.ip||'N/A')+'</td>'
       +'<td style="font-size:11px" title="'+esc(l.user_agent||'')+'">'+p.device+' · '+p.browser+(l.platform?' <span style="color:var(--text-3)">('+esc(l.platform)+')</span>':'')+'</td>'
-      +'<td style="font-size:11px">'+(l.timezone||'—')+' · '+(l.language||'')+'</td>'
+      +'<td style="font-size:11px">'+(l.timezone||'N/A')+' · '+(l.language||'')+'</td>'
       +'<td>'+resultBadge+newFlag+'</td>'
       +'</tr>';
   }).join('');
@@ -5605,7 +5605,7 @@ function psRenderCustomFieldsForm(){
     let input='';
     if(f.field_type==='dropdown'){
       const opts=(f.field_options||[]).map(function(o){return '<option value="'+o+'"'+(o===val?' selected':'')+'>'+o+'</option>';}).join('');
-      input='<select class="form-input psCustomInput" data-key="'+f.field_key+'"><option value="">—</option>'+opts+'</select>';
+      input='<select class="form-input psCustomInput" data-key="'+f.field_key+'"><option value="">Select</option>'+opts+'</select>';
     }else if(f.field_type==='multi-select'){
       const selected=Array.isArray(val)?val:[];
       const opts=(f.field_options||[]).map(function(o){return '<label style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;font-size:12px"><input type="checkbox" class="psCustomMulti" data-key="'+f.field_key+'" value="'+o+'" '+(selected.indexOf(o)!==-1?'checked':'')+'>'+o+'</label>';}).join('');
@@ -5643,10 +5643,10 @@ function psSelectProduct(id){
   document.getElementById('psDimHeight').value=p.dim_height!=null?p.dim_height:'';
   document.getElementById('psDimUnit').value=p.dim_unit||'cm';
   document.getElementById('psPrimaryColor').value=p.primary_color||'';
-  document.getElementById('psMaterial').textContent=p.material||'—';
-  document.getElementById('psUseCase').textContent=p.use_case||'—';
+  document.getElementById('psMaterial').textContent=p.material||'N/A';
+  document.getElementById('psUseCase').textContent=p.use_case||'N/A';
   const feats=psKeyFeaturesArr(p,3);
-  document.getElementById('psKeyFeatures').textContent=feats.length?feats.join(', '):'—';
+  document.getElementById('psKeyFeatures').textContent=feats.length?feats.join(', '):'N/A';
   psRenderCustomFieldsForm();
   psPreview();
   psLoadHistory(id);
@@ -5783,21 +5783,21 @@ function renderCustomers(list){
   const tbody=document.getElementById('customersBody');
   if(!list.length){tbody.innerHTML='<tr><td colspan="8" class="tbl-msg">No customers found.</td></tr>';return}
   tbody.innerHTML=list.map(c=>{
-    const joined=c.created_at?fmtDateShort(c.created_at):'—';
+    const joined=c.created_at?fmtDateShort(c.created_at):'N/A';
     const orderCount=c.orders_count||0, spent=c.total_spent||0;
     const spentFmt=spent?fmtPrice(spent):'₹0';
     const uidCell=c.user_code
       ?'<span style="font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.06em;background:var(--bg-3);padding:3px 7px;border-radius:4px;color:var(--text)">'+esc(c.user_code)+'</span>'
-      :'<span style="color:var(--text-3);font-size:11px">—</span>';
+      :'<span style="color:var(--text-3);font-size:11px">N/A</span>';
     const roleTag=(c.role&&c.role!=='customer')?' <span style="font-size:9px;text-transform:uppercase;letter-spacing:.05em;background:var(--bg-3);color:var(--accent);padding:1px 5px;border-radius:3px">'+esc(c.role)+'</span>':'';
     const statusPill=c.disabled
       ?'<span style="font-size:10px;font-weight:600;color:#fca5a5;background:#7f1d1d;padding:2px 8px;border-radius:20px">Disabled</span>'
       :'<span style="font-size:10px;font-weight:600;color:var(--green);background:rgba(34,197,94,.12);padding:2px 8px;border-radius:20px">Active</span>';
     return '<tr style="cursor:pointer" onclick="openUserModal(\''+c.id+'\')">'
       +'<td>'+uidCell+'</td>'
-      +'<td class="td-name">'+esc(c.full_name||'—')+roleTag+(c.nickname?'<div style="font-size:10px;color:var(--text-3)">aka '+esc(c.nickname)+'</div>':'')+'</td>'
-      +'<td style="font-family:var(--mono);font-size:11px">'+esc(c.email||'—')+'</td>'
-      +'<td>'+esc(c.mobile||c.phone||'—')+'</td>'
+      +'<td class="td-name">'+esc(c.full_name||'N/A')+roleTag+(c.nickname?'<div style="font-size:10px;color:var(--text-3)">aka '+esc(c.nickname)+'</div>':'')+'</td>'
+      +'<td style="font-family:var(--mono);font-size:11px">'+esc(c.email||'N/A')+'</td>'
+      +'<td>'+esc(c.mobile||c.phone||'N/A')+'</td>'
       +'<td style="font-weight:600;color:'+(orderCount?'var(--text)':'var(--text-3)')+'">'+orderCount+'</td>'
       +'<td style="font-weight:600;color:'+(spent?'var(--green)':'var(--text-3)')+'">'+spentFmt+'</td>'
       +'<td>'+statusPill+'</td>'
@@ -5842,14 +5842,14 @@ function renderUserModal(u,orders,stats,addr){
     :'<span style="font-size:11px;font-weight:600;color:var(--green);background:rgba(34,197,94,.12);padding:3px 10px;border-radius:20px">Active</span>';
   const ordersHtml=orders.length
     ? orders.map(o=>'<tr><td style="font-family:var(--mono);font-size:11px">'+esc(o.invoice_number||o.order_id||o.id.slice(0,8))+'</td>'
-        +'<td style="font-size:11px">'+(o.created_at?fmtDateShort(o.created_at):'—')+'</td>'
-        +'<td><span style="font-size:10px;text-transform:capitalize;color:var(--text-2)">'+esc(o.status||o.order_status||'—')+'</span></td>'
+        +'<td style="font-size:11px">'+(o.created_at?fmtDateShort(o.created_at):'N/A')+'</td>'
+        +'<td><span style="font-size:10px;text-transform:capitalize;color:var(--text-2)">'+esc(o.status||o.order_status||'N/A')+'</span></td>'
         +'<td style="text-align:right;font-weight:600">'+fmtPrice(o.total_amount||0)+'</td></tr>').join('')
     : '<tr><td colspan="4" style="color:var(--text-3);font-size:12px;padding:10px">No orders yet.</td></tr>';
 
   document.getElementById('umBody').innerHTML=
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px">'
-      +'<div><div style="font-size:18px;font-weight:700">'+esc(u.full_name||'—')+'</div>'
+      +'<div><div style="font-size:18px;font-weight:700">'+esc(u.full_name||'N/A')+'</div>'
         +'<div style="font-size:12px;color:var(--text-3);margin-top:2px">'+(u.user_code?'<span style="font-family:var(--mono)">'+esc(u.user_code)+'</span> · ':'')+esc(u.email||'')+'</div></div>'
       +'<div style="text-align:right">'+statusPill+'<div style="margin-top:8px;display:flex;gap:6px;align-items:center"><span style="font-size:11px;color:var(--text-3)">Role</span>'+roleSel
         +' <button class="btn-secondary" style="padding:5px 10px" onclick="saveUserRole()">Set</button></div></div>'
@@ -5858,7 +5858,7 @@ function renderUserModal(u,orders,stats,addr){
     +'<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px">'
       +'<div style="flex:1;min-width:90px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px"><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">Orders</div><div style="font-size:18px;font-weight:700">'+(stats.orders_count||0)+'</div></div>'
       +'<div style="flex:1;min-width:90px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px"><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">Total spent</div><div style="font-size:18px;font-weight:700;color:var(--green)">'+fmtPrice(stats.total_spent||0)+'</div></div>'
-      +'<div style="flex:1;min-width:90px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px"><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">Joined</div><div style="font-size:13px;font-weight:600;margin-top:3px">'+(u.created_at?fmtDateShort(u.created_at):'—')+'</div></div>'
+      +'<div style="flex:1;min-width:90px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px"><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">Joined</div><div style="font-size:13px;font-weight:600;margin-top:3px">'+(u.created_at?fmtDateShort(u.created_at):'N/A')+'</div></div>'
     +'</div>'
     +'<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:10px">Profile</div>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0 14px">'
@@ -5995,12 +5995,12 @@ function renderMessages(list){
       +'<td><input type="checkbox" class="row-check" data-id="'+m.id+'"></td>'
       +'<td><span class="src-badge src-contact">Contact</span></td>'
       +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(m.created_at)+'</td>'
-      +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+esc(ref||'—')+'</td>'
-      +'<td class="td-name">'+esc(m.name||'—')+'</td>'
-      +'<td style="font-family:var(--mono);font-size:11px">'+esc(m.email||'—')+'</td>'
-      +'<td>'+esc(m.phone||'—')+'</td>'
-      +'<td>'+esc(m.subject||'—')+'</td>'
-      +'<td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;color:var(--accent)" onclick="viewMessage(\''+m.id+'\')" title="Click to view full message">'+esc(m.message||'—')+'</td>'
+      +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+esc(ref||'N/A')+'</td>'
+      +'<td class="td-name">'+esc(m.name||'N/A')+'</td>'
+      +'<td style="font-family:var(--mono);font-size:11px">'+esc(m.email||'N/A')+'</td>'
+      +'<td>'+esc(m.phone||'N/A')+'</td>'
+      +'<td>'+esc(m.subject||'N/A')+'</td>'
+      +'<td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;color:var(--accent)" onclick="viewMessage(\''+m.id+'\')" title="Click to view full message">'+esc(m.message||'N/A')+'</td>'
       +'<td>'+badge+'</td>'
       +'<td onclick="event.stopPropagation()">'
         +'<button class="btn-secondary" onclick="viewMessage(\''+m.id+'\')" style="margin-right:6px">View</button>'
@@ -6093,16 +6093,16 @@ function renderCustomEnquiries(list){
     const read=e.is_read;
     const badge=read?'<span class="badge badge-green">Read</span>':'<span class="badge badge-yellow">New</span>';
     const rowStyle=read?'':'style="background:rgba(196,98,42,.04)"';
-    const need=e.what_needed||'—';
+    const need=e.what_needed||'N/A';
     return '<tr onclick="rowSelectOrAction(event,\'row-check\',null)" '+rowStyle+'>'
       +'<td><input type="checkbox" class="row-check" data-id="'+e.id+'"></td>'
       +'<td><span class="src-badge src-custom">Custom Order</span></td>'
-      +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+esc(e.reference_id||'—')+'</td>'
-      +'<td class="td-name">'+esc(e.name||'—')+'</td>'
-      +'<td>'+esc(e.phone||'—')+'</td>'
+      +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+esc(e.reference_id||'N/A')+'</td>'
+      +'<td class="td-name">'+esc(e.name||'N/A')+'</td>'
+      +'<td>'+esc(e.phone||'N/A')+'</td>'
       +'<td style="font-size:11px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;color:var(--accent)" onclick="viewEnquiry(\''+e.id+'\')" title="Click to view full enquiry">'+esc(need)+'</td>'
-      +'<td style="font-size:11px;white-space:nowrap">'+esc(e.budget_range||'—')+'</td>'
-      +'<td style="font-size:11px">'+esc(e.material_preference||'—')+'</td>'
+      +'<td style="font-size:11px;white-space:nowrap">'+esc(e.budget_range||'N/A')+'</td>'
+      +'<td style="font-size:11px">'+esc(e.material_preference||'N/A')+'</td>'
       +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(e.created_at)+'</td>'
       +'<td>'+badge+'</td>'
       +'<td onclick="event.stopPropagation()">'
@@ -6163,16 +6163,16 @@ function renderCallbacks(list){
       :'<span class="badge badge-yellow">Pending</span>';
     const rowStyle=called?'':'style="background:rgba(124,58,237,.04)"';
     const action=called
-      ?'<span style="color:var(--text-3);font-family:var(--mono);font-size:10px">—</span>'
+      ?'<span style="color:var(--text-3);font-family:var(--mono);font-size:10px">N/A</span>'
       :'<button class="btn-sm" onclick="markCallbackCalled(\''+c.id+'\')">Mark as Called</button>';
     return '<tr onclick="rowSelectOrAction(event,\'row-check\',null)" '+rowStyle+'>'
       +'<td><input type="checkbox" class="row-check" data-id="'+c.id+'"></td>'
       +'<td><span class="src-badge src-callback">Callback</span></td>'
-      +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+esc(c.reference_id||'—')+'</td>'
-      +'<td class="td-name">'+esc(c.name||'—')+'</td>'
-      +'<td>'+esc(c.phone||'—')+'</td>'
-      +'<td style="font-size:12px">'+esc(c.topic||'—')+'</td>'
-      +'<td style="font-size:11px">'+esc(c.preferred_time||'—')+'</td>'
+      +'<td style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+esc(c.reference_id||'N/A')+'</td>'
+      +'<td class="td-name">'+esc(c.name||'N/A')+'</td>'
+      +'<td>'+esc(c.phone||'N/A')+'</td>'
+      +'<td style="font-size:12px">'+esc(c.topic||'N/A')+'</td>'
+      +'<td style="font-size:11px">'+esc(c.preferred_time||'N/A')+'</td>'
       +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(c.created_at)+'</td>'
       +'<td>'+statusBadge+'</td>'
       +'<td onclick="event.stopPropagation()">'+action+'</td>'
@@ -6233,9 +6233,9 @@ async function softDeleteOne(table, id, loadFnName){
 
 let _binItems=[], _binFilter='';
 const BIN_SOURCES=[
-  {table:'contact_submissions', label:'Contact',      badge:'src-contact',  canHardDelete:true,  ref:r=>r.reference_id||'—', summary:r=>(r.subject||'')+', '+(r.name||'')},
-  {table:'custom_enquiries',    label:'Custom Order', badge:'src-custom',   canHardDelete:true,  ref:r=>r.reference_id||'—', summary:r=>(r.name||'')+': '+(r.what_needed||'')},
-  {table:'callback_requests',   label:'Callback',     badge:'src-callback', canHardDelete:true,  ref:r=>r.reference_id||'—', summary:r=>(r.name||'')+', '+(r.topic||'')},
+  {table:'contact_submissions', label:'Contact',      badge:'src-contact',  canHardDelete:true,  ref:r=>r.reference_id||'N/A', summary:r=>(r.subject||'')+', '+(r.name||'')},
+  {table:'custom_enquiries',    label:'Custom Order', badge:'src-custom',   canHardDelete:true,  ref:r=>r.reference_id||'N/A', summary:r=>(r.name||'')+': '+(r.what_needed||'')},
+  {table:'callback_requests',   label:'Callback',     badge:'src-callback', canHardDelete:true,  ref:r=>r.reference_id||'N/A', summary:r=>(r.name||'')+', '+(r.topic||'')},
   {table:'orders',              label:'Order',        badge:'',             canHardDelete:true, apiPurge:true, ref:r=>r.order_id||r.id,     summary:r=>(r.customer_name||'')+', ₹'+(r.total_amount||0)},
 ];
 // API-backed bin types (products / users / reviews), served by the Express
@@ -6255,7 +6255,7 @@ async function loadRecycleBin(){
     (items||[]).forEach(it=>{
       const meta=BIN_API_TYPES[it.type]||{label:it.type,badge:''};
       rows.push({src:{key:'api:'+it.type,api:true,type:it.type,label:meta.label,badge:meta.badge,canHardDelete:true,
-        ref:r=>r._name||'—', summary:r=>r._summary||'—'},
+        ref:r=>r._name||'N/A', summary:r=>r._summary||'N/A'},
         row:{id:it.id,deleted_at:it.deleted_at,deleted_by:it.deleted_by,_name:it.name,_summary:it.summary}});
     });
   }catch(e){ console.warn('recycle-bin API:',e.message); }
@@ -6281,9 +6281,9 @@ function renderRecycleBin(rows){
       +'<td><input type="checkbox" class="bin-check" data-cid="'+esc(cid)+'"></td>'
       +'<td><span class="src-badge '+(src.badge||'')+'">'+esc(src.label)+'</span></td>'
       +'<td style="font-family:var(--mono);font-size:11px">'+esc(src.ref(row))+'</td>'
-      +'<td style="font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(src.summary(row)||'—')+'</td>'
+      +'<td style="font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(src.summary(row)||'N/A')+'</td>'
       +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(row.deleted_at)+'</td>'
-      +'<td style="font-size:11px">'+esc(row.deleted_by||'—')+'</td>'
+      +'<td style="font-size:11px">'+esc(row.deleted_by||'N/A')+'</td>'
       +'<td onclick="event.stopPropagation()">'
         +'<button class="btn-save" onclick="restoreOne(\''+src.key+'\',\''+row.id+'\')">Restore</button>'
         +(src.canHardDelete?' <button class="btn-secondary" onclick="hardDeleteOne(\''+src.key+'\',\''+row.id+'\')">Delete forever</button>':'')
@@ -6487,10 +6487,10 @@ async function loadPromoCodes(){
     document.getElementById('promoList').innerHTML=rows.map(p=>{
       const typeLabel=p.discount_type==='free_shipping'?'Free Shipping':p.discount_type==='percent'?'Percent':'Fixed ₹';
       const capStr=p.max_discount_amount?'<span style="font-size:10px;color:var(--text-3)"> (max ₹'+p.max_discount_amount+')</span>':'';
-      const valLabel=p.discount_type==='free_shipping'?'—':p.discount_type==='percent'?p.discount_value+'%'+capStr:'₹'+p.discount_value;
-      const minLabel=p.min_order_amount>0?'₹'+p.min_order_amount:'—';
+      const valLabel=p.discount_type==='free_shipping'?'N/A':p.discount_type==='percent'?p.discount_value+'%'+capStr:'₹'+p.discount_value;
+      const minLabel=p.min_order_amount>0?'₹'+p.min_order_amount:'N/A';
       const usesLabel=(p.current_uses||0)+(p.max_uses?' / '+p.max_uses:' / ∞');
-      const exp=p.expires_at?new Date(p.expires_at).toLocaleDateString('en-IN'):'—';
+      const exp=p.expires_at?new Date(p.expires_at).toLocaleDateString('en-IN'):'N/A';
       const isExpired=p.expires_at&&new Date(p.expires_at)<new Date();
       const statusBadge=isExpired?'<span style="color:#B91C1C;font-weight:700">Expired</span>':p.is_active?'<span style="color:#15803D;font-weight:700">Active</span>':'<span style="color:#B91C1C;font-weight:700">Inactive</span>';
       return`<tr>
@@ -6623,7 +6623,7 @@ async function loadReviewsAdmin(){
       const stars='★'.repeat(r.rating||0)+'☆'.repeat(5-(r.rating||0));
       const starsColor=r.rating>=4?'#2D8A4E':r.rating>=3?'#D97706':'#DC2626';
       const imgCount=(r.images||[]).length;
-      const imgCell=imgCount?`<span style="cursor:pointer;color:var(--accent);font-weight:600" onclick='showReviewImages(${JSON.stringify(r.images)})'>${imgCount} photo${imgCount>1?'s':''}</span>`:'—';
+      const imgCell=imgCount?`<span style="cursor:pointer;color:var(--accent);font-weight:600" onclick='showReviewImages(${JSON.stringify(r.images)})'>${imgCount} photo${imgCount>1?'s':''}</span>`:'N/A';
       const statusBadge=r.status==='approved'
         ?'<span style="color:#15803D;font-weight:700">Approved</span>'
         :r.status==='rejected'
@@ -6635,11 +6635,11 @@ async function loadReviewsAdmin(){
       return`<tr>
         <td style="white-space:nowrap">${date}</td>
         <td><a href="product-detail.html?id=${_esc(r.product_slug)}" target="_blank" style="color:var(--accent)">${_esc(r.product_slug)}</a>${r.product_name?'<br><small style="color:var(--text-3)">'+_esc(r.product_name)+'</small>':''}</td>
-        <td>${_esc(r.reviewer_name||'—')}${r.city?'<br><small style="color:var(--text-3)">'+_esc(r.city)+'</small>':''}</td>
+        <td>${_esc(r.reviewer_name||'N/A')}${r.city?'<br><small style="color:var(--text-3)">'+_esc(r.city)+'</small>':''}</td>
         <td style="color:${starsColor};font-size:15px;letter-spacing:1px">${stars}</td>
         <td style="max-width:220px;white-space:pre-wrap;word-break:break-word;font-size:12px">${_esc((r.review||'').slice(0,120))}${(r.review||'').length>120?'…':''}</td>
         <td>${imgCell}</td>
-        <td style="text-align:center">${r.verified_purchase?'<span style="color:#2D8A4E;font-weight:700">✓</span>':'—'}</td>
+        <td style="text-align:center">${r.verified_purchase?'<span style="color:#2D8A4E;font-weight:700">✓</span>':'N/A'}</td>
         <td style="font-size:11px;color:var(--text-3)">${sourceLabel}</td>
         <td>${statusBadge}</td>
         <td style="white-space:nowrap">
@@ -6681,7 +6681,7 @@ function grRenderSnips(){
   const el=document.getElementById('grSnipList'); if(!el) return;
   el.innerHTML=_grSnippets.length?_grSnippets.map((s,i)=>`<div style="display:flex;gap:8px;align-items:flex-start;background:var(--bg-1);border:1px solid var(--border);border-radius:5px;padding:7px 9px">
     <div style="flex:1;min-width:0">
-      <div style="font-size:12px;font-weight:600">${esc(s.author||'—')} <span style="color:var(--yellow)">${'★'.repeat(Math.max(1,Math.round(s.rating||5)))}</span>${s.date?` <span style="color:var(--text-3);font-size:10px">${esc(s.date)}</span>`:''}${s.customer?` <span style="color:var(--accent);font-size:10px">· ${esc(s.customer)}</span>`:''}</div>
+      <div style="font-size:12px;font-weight:600">${esc(s.author||'N/A')} <span style="color:var(--yellow)">${'★'.repeat(Math.max(1,Math.round(s.rating||5)))}</span>${s.date?` <span style="color:var(--text-3);font-size:10px">${esc(s.date)}</span>`:''}${s.customer?` <span style="color:var(--accent);font-size:10px">· ${esc(s.customer)}</span>`:''}</div>
       <div style="font-size:11px;color:var(--text-2)">${esc(s.text||'')}</div>
     </div>
     <button class="btn-secondary" onclick="grRemoveSnippet(${i})" style="flex-shrink:0">✕</button>
