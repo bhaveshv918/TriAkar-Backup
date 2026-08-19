@@ -10877,6 +10877,63 @@ function resolveColorHex(name, explicitHex){
   }
   return null;
 }
+// ── Spool Catalogue: hex → HSL + hue-family grouping ──────────
+// Goal: instead of a flat alphabetical list, related shades (all the
+// blues, all the reds, …) visually flow together like a real paint
+// deck. We convert each color's resolved hex to HSL, bucket it into a
+// hue family, then sort families in a fixed rainbow-ish order and sort
+// within a family by hue then lightness (dark → light) for a smooth
+// gradient read. Neutrals (near-zero saturation, or extreme light/dark
+// where hue is meaningless, e.g. black/white/gray) get their own family
+// since bucketing them by a near-random hue would look broken.
+function hexToHsl(hex){
+  let c=String(hex||'').replace('#','');
+  if(c.length===3) c=c.split('').map(ch=>ch+ch).join('');
+  if(c.length!==6) return {h:0,s:0,l:50};
+  const r=parseInt(c.substr(0,2),16)/255, g=parseInt(c.substr(2,2),16)/255, b=parseInt(c.substr(4,2),16)/255;
+  const max=Math.max(r,g,b), min=Math.min(r,g,b);
+  let h=0,s=0; const l=(max+min)/2;
+  if(max!==min){
+    const d=max-min;
+    s=l>0.5?d/(2-max-min):d/(max+min);
+    if(max===r) h=(g-b)/d+(g<b?6:0);
+    else if(max===g) h=(b-r)/d+2;
+    else h=(r-g)/d+4;
+    h*=60;
+  }
+  return {h,s:s*100,l:l*100};
+}
+// Ordered rainbow sweep: neutrals lead (grays are the natural "start of
+// the shelf" in a physical color deck), then red round to pink/magenta.
+// Red/pink boundary sits at 350° rather than a round 345° because several
+// named "pink" shades in our real vendor range (sakura pink, pink, pink
+// glitter) resolve to hue ~348-350, and grouping those under "Reds" read
+// wrong next to a customer, pink is the more honest bucket for them.
+const CAT_HUE_FAMILIES=[
+  {key:'red',   label:'Reds',               from:350, to:15},
+  {key:'orange',label:'Oranges & Coppers',   from:15,  to:42},
+  {key:'yellow',label:'Yellows & Golds',     from:42,  to:68},
+  {key:'green', label:'Greens',              from:68,  to:170},
+  {key:'blue',  label:'Blues & Teals',       from:170, to:255},
+  {key:'purple',label:'Purples & Violets',   from:255, to:305},
+  {key:'pink',  label:'Pinks & Magentas',    from:305, to:350},
+];
+const CAT_FAMILY_ORDER=['neutral','red','orange','yellow','green','blue','purple','pink'];
+// name is optional but important: some named "white"/"black"/"gray"/"silver" shades carry
+// a slight warm or cool tint in their real hex (e.g. "Pure White" is a warm ivory, "Ivory
+// White" more so) that would otherwise place them under Oranges by hue math alone. A
+// customer looking for "white" should still find it under Neutrals, so the name wins.
+function catHueFamily(hsl,name){
+  const nm=String(name||'').toLowerCase();
+  if(/\b(white|black|gray|grey|silver|charcoal)\b/.test(nm)) return {key:'neutral',label:'Neutrals: Black, White & Gray'};
+  if(hsl.s<10||hsl.l>94||hsl.l<6) return {key:'neutral',label:'Neutrals: Black, White & Gray'};
+  const h=((hsl.h%360)+360)%360;
+  for(const f of CAT_HUE_FAMILIES){
+    if(f.from<f.to){ if(h>=f.from&&h<f.to) return f; }
+    else if(h>=f.from||h<f.to) return f; // wraps past 360 back to 0 (red)
+  }
+  return CAT_HUE_FAMILIES[0];
+}
 function syncSpoolColorName(name){
   const picker=document.getElementById('spa_color_hex'); if(!picker||!name) return;
   const hex=resolveColorHex(name);
@@ -11008,17 +11065,54 @@ function renderSpoolTracker(){
 }
 // Catalogue view, colors currently in physical stock only, no prices/notes/internal fields.
 // Meant for the admin to pull up on a screen and show a walk-in/on-call customer what's available right now.
+// A genuinely separate customer-facing experience from Spool Tracker (internal inventory
+// management, see panelSpooltracker) rather than a variant screen of it, both in code
+// structure (top-level sibling) and in what it shows/labels itself as.
+let _catActiveFinishes=new Set(); // empty = no finish filter applied
+let _catSelectedColor=null;       // color name currently open in the preview drawer
+function catFinishKey(f){ return String(f||'').trim().toLowerCase(); }
+function catShinyMatch(s){ return /silk|shiny|gloss|metallic|glitter|sparkle/i.test(s||''); }
 function showSpoolCatalogue(){
+  const inStock=_spoolRows.filter(r=>r.status!=='Finsh'&&spoolRemaining(r)>0);
   const sel=document.getElementById('catFilterMaterial');
   if(sel){
-    const mats=[...new Set(_spoolRows.filter(r=>r.status!=='Finsh'&&spoolRemaining(r)>0).map(r=>(r.filament_type||'').trim()).filter(Boolean))].sort();
+    const mats=[...new Set(inStock.map(r=>(r.filament_type||'').trim()).filter(Boolean))].sort();
+    sel.value='all';
     sel.innerHTML='<option value="all">All Materials</option>'+mats.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
   }
+  _catActiveFinishes=new Set();
+  const finishBox=document.getElementById('catFilterFinishPills');
+  if(finishBox){
+    const finishMap=new Map();
+    inStock.forEach(r=>{ const f=(r.finish||'').trim(); if(f) finishMap.set(catFinishKey(f),f); });
+    const finishes=[...finishMap.entries()].sort((a,b)=>a[1].localeCompare(b[1]));
+    finishBox.innerHTML=finishes.map(([key,label])=>`<button type="button" class="spool-cat-pill" data-finish="${esc(key)}">${esc(label)}</button>`).join('');
+    if(!finishBox.dataset.catBound){
+      finishBox.addEventListener('click',e=>{
+        const pill=e.target.closest('.spool-cat-pill'); if(!pill) return;
+        const key=pill.dataset.finish;
+        if(_catActiveFinishes.has(key)) _catActiveFinishes.delete(key); else _catActiveFinishes.add(key);
+        pill.classList.toggle('is-active');
+        renderSpoolCatalogue();
+      });
+      finishBox.dataset.catBound='1';
+    }
+  }
+  const grid=document.getElementById('spoolCatalogueGrid');
+  if(grid && !grid.dataset.catBound){
+    grid.addEventListener('click',e=>{
+      const btn=e.target.closest('.spool-cat-swatch'); if(btn) openSpoolCatPreview(btn.dataset.color);
+    });
+    grid.dataset.catBound='1';
+  }
+  const searchEl=document.getElementById('catFilterSearch'); if(searchEl) searchEl.value='';
+  const lowEl=document.getElementById('catFilterLowStock'); if(lowEl) lowEl.checked=false;
+  closeSpoolCatPreview();
   renderSpoolCatalogue();
   renderColorReference();
   document.getElementById('spoolCatalogueModal').style.display='block';
 }
-function closeSpoolCatalogue(){ document.getElementById('spoolCatalogueModal').style.display='none'; }
+function closeSpoolCatalogue(){ document.getElementById('spoolCatalogueModal').style.display='none'; closeSpoolCatPreview(); }
 // Opened from Today's Tasks (Filament Arrived), where Spool Tracker's own data may not be
 // loaded yet, so refresh _spoolRows first rather than showing whatever was last cached.
 async function openSpoolCatalogueFromTask(){ await loadSpoolTracker(); showSpoolCatalogue(); }
@@ -11029,39 +11123,146 @@ function renderColorReference(){
   const box=document.getElementById('spoolColorRefList');
   if(!box) return;
   const q=(document.getElementById('spoolColorRefSearch')?.value||'').trim().toLowerCase();
-  const names=Object.keys(NUMAKERS_COLOR_MAP).sort();
-  const filtered=q?names.filter(n=>n.includes(q)):names;
-  box.innerHTML=filtered.map(n=>`
+  const names=Object.keys(NUMAKERS_COLOR_MAP)
+    .filter(n=>!q||n.includes(q)||NUMAKERS_COLOR_MAP[n].toLowerCase().includes(q))
+    .sort((a,b)=>{
+      const ha=catHueFamily(hexToHsl(NUMAKERS_COLOR_MAP[a]),a), hb=catHueFamily(hexToHsl(NUMAKERS_COLOR_MAP[b]),b);
+      const oa=CAT_FAMILY_ORDER.indexOf(ha.key), ob=CAT_FAMILY_ORDER.indexOf(hb.key);
+      if(oa!==ob) return oa-ob;
+      return hexToHsl(NUMAKERS_COLOR_MAP[a]).h-hexToHsl(NUMAKERS_COLOR_MAP[b]).h;
+    });
+  box.innerHTML=names.map(n=>`
     <div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-radius:8px;cursor:default" title="${esc(NUMAKERS_COLOR_MAP[n])}">
       <span style="display:inline-block;width:20px;height:20px;border-radius:50%;flex:none;background:${esc(NUMAKERS_COLOR_MAP[n])};border:1px solid rgba(0,0,0,.15)"></span>
       <span style="font-size:12px;text-transform:capitalize">${esc(n)}</span>
-      <span style="margin-left:auto;font-size:10px;color:var(--text-3);font-family:monospace">${esc(NUMAKERS_COLOR_MAP[n])}</span>
+      <span style="margin-left:auto;font-size:10px;color:var(--text-3);font-family:monospace">${esc(NUMAKERS_COLOR_MAP[n].toUpperCase())}</span>
     </div>`).join('')||'<div style="padding:12px 4px;color:var(--text-3);font-size:12px">No match</div>';
 }
+// Main grid: filters by material + finish pills + search + stock level, groups the result
+// by hue family (see catHueFamily above) so related shades flow together like a paint deck,
+// then renders swatch buttons that self-animate in with a staggered entrance.
 function renderSpoolCatalogue(){
   const grid=document.getElementById('spoolCatalogueGrid'); if(!grid) return;
   const matFilter=document.getElementById('catFilterMaterial')?.value||'all';
-  const available=_spoolRows.filter(r=>r.status!=='Finsh'&&spoolRemaining(r)>0&&(matFilter==='all'||(r.filament_type||'').trim()===matFilter));
-  if(!available.length){ grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-3)">No colors in stock right now</div>'; return; }
+  const q=(document.getElementById('catFilterSearch')?.value||'').trim().toLowerCase();
+  const includeLow=!!document.getElementById('catFilterLowStock')?.checked;
+  const available=_spoolRows.filter(r=>{
+    if(r.status==='Finsh') return false;
+    if(spoolRemaining(r)<=0) return false;
+    if(matFilter!=='all'&&(r.filament_type||'').trim()!==matFilter) return false;
+    if(_catActiveFinishes.size&&!_catActiveFinishes.has(catFinishKey(r.finish))) return false;
+    return true;
+  });
   const byColor={};
   available.forEach(r=>{
     const color=(r.color||'').trim()||'Unspecified';
     (byColor[color]=byColor[color]||[]).push(r);
   });
-  grid.innerHTML=Object.keys(byColor).sort().map(color=>{
+  let groups=Object.keys(byColor).map(color=>{
     const rows=byColor[color];
-    const hex=resolveColorHex(color, rows.find(r=>r.color_hex)?.color_hex)||'#ccc';
+    const hex=resolveColorHex(color, rows.find(r=>r.color_hex)?.color_hex)||'#cccccc';
+    const hsl=hexToHsl(hex);
+    const fam=catHueFamily(hsl,color);
     const materials=[...new Set(rows.map(r=>(r.filament_type||'').trim()).filter(Boolean))];
+    const finishes=[...new Set(rows.map(r=>(r.finish||'').trim()).filter(Boolean))];
     const kgLeft=rows.reduce((s,r)=>s+spoolRemaining(r),0)/1000;
-    const level=kgLeft>0.5?{label:'Plenty',c:'var(--green)'}:kgLeft>0.15?{label:'Limited',c:'var(--yellow)'}:{label:'Low',c:'var(--red)'};
-    const shiny=rows.some(r=>/silk|shiny|gloss|metallic|glitter|sparkle/i.test(r.finish||'')||/silk|shiny|gloss|metallic|glitter|sparkle/i.test(r.color||''));
-    return `<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:16px;padding:18px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.04)">
-      <div style="width:64px;height:64px;border-radius:50%;margin:0 auto 12px;background:${esc(hex)};border:1px solid rgba(0,0,0,.15);${shiny?'background-image:linear-gradient(135deg,rgba(255,255,255,.6),rgba(255,255,255,0) 40%,rgba(255,255,255,.35) 60%,rgba(255,255,255,0));':''}"></div>
-      <div style="font-size:14px;font-weight:700">${esc(color)}</div>
-      <div style="font-size:11px;color:var(--text-3);margin-top:4px">${materials.map(esc).join(' · ')||'N/A'}</div>
-      <div style="margin-top:10px;display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:3px 10px;border-radius:20px;background:${level.c};color:#fff">${level.label}</div>
+    const level=kgLeft>0.5?{key:'plenty',label:'Plenty',c:'var(--green)'}:kgLeft>0.15?{key:'limited',label:'Limited',c:'var(--yellow)'}:{key:'low',label:'Low',c:'var(--red)'};
+    return {color,hex,hsl,fam,materials,finishes,kgLeft,level};
+  });
+  if(!includeLow) groups=groups.filter(g=>g.level.key!=='low');
+  if(q) groups=groups.filter(g=>g.color.toLowerCase().includes(q)||g.hex.toLowerCase().includes(q)||g.materials.some(m=>m.toLowerCase().includes(q)));
+
+  const countEl=document.getElementById('spoolCatalogueCount');
+  if(countEl) countEl.textContent=groups.length?`${groups.length} color${groups.length===1?'':'s'} available`:'';
+
+  if(!groups.length){
+    grid.innerHTML='<div class="spool-cat-empty">No colors match these filters right now</div>';
+    closeSpoolCatPreview();
+    return;
+  }
+  groups.sort((a,b)=>{
+    const oa=CAT_FAMILY_ORDER.indexOf(a.fam.key), ob=CAT_FAMILY_ORDER.indexOf(b.fam.key);
+    if(oa!==ob) return oa-ob;
+    if(Math.abs(a.hsl.h-b.hsl.h)>0.5) return a.hsl.h-b.hsl.h;
+    return a.hsl.l-b.hsl.l;
+  });
+  let html='', lastFam=null, idx=0;
+  groups.forEach(g=>{
+    if(g.fam.key!==lastFam){
+      html+=`<div class="spool-cat-fam-header">${esc(g.fam.label)}</div>`;
+      lastFam=g.fam.key;
+    }
+    const shiny=g.finishes.some(catShinyMatch)||catShinyMatch(g.color);
+    html+=`<button type="button" class="spool-cat-swatch" style="animation-delay:${Math.min(idx*22,480)}ms" data-color="${esc(g.color)}">
+      <span class="spool-cat-disc" style="background:${esc(g.hex)};${shiny?'background-image:linear-gradient(135deg,rgba(255,255,255,.65),rgba(255,255,255,0) 40%,rgba(255,255,255,.4) 60%,rgba(255,255,255,0));':''}"></span>
+      <span class="spool-cat-name">${esc(g.color)}</span><br>
+      <span class="spool-cat-hex">${esc(g.hex.toUpperCase())}</span><br>
+      <span class="spool-cat-level" style="--lvl:${g.level.c}">${g.level.label}</span>
+    </button>`;
+    idx++;
+  });
+  grid.innerHTML=html;
+  if(_catSelectedColor&&byColor[_catSelectedColor]) openSpoolCatPreview(_catSelectedColor);
+  else closeSpoolCatPreview();
+}
+// Preview drawer: tap/click a swatch to blow it up big, with a copyable hex tag, its
+// materials/finishes, and a live stock read. This is the "hero" state a customer actually
+// looks at while deciding, so it gets the most visual weight of anything in the catalogue.
+function openSpoolCatPreview(color){
+  const rows=_spoolRows.filter(r=>r.status!=='Finsh'&&spoolRemaining(r)>0&&((r.color||'').trim()||'Unspecified')===color);
+  const panel=document.getElementById('spoolCatPreview');
+  if(!rows.length||!panel){ closeSpoolCatPreview(); return; }
+  _catSelectedColor=color;
+  const hex=resolveColorHex(color, rows.find(r=>r.color_hex)?.color_hex)||'#cccccc';
+  const materials=[...new Set(rows.map(r=>(r.filament_type||'').trim()).filter(Boolean))];
+  const finishes=[...new Set(rows.map(r=>(r.finish||'').trim()).filter(Boolean))];
+  const kgLeft=rows.reduce((s,r)=>s+spoolRemaining(r),0)/1000;
+  const level=kgLeft>0.5?{label:'Plenty in stock',c:'var(--green)'}:kgLeft>0.15?{label:'Limited stock',c:'var(--yellow)'}:{label:'Running low',c:'var(--red)'};
+  const shiny=finishes.some(catShinyMatch)||catShinyMatch(color);
+  panel.innerHTML=`
+    <div class="spool-cat-preview-card">
+      <button type="button" class="spool-cat-preview-close" onclick="closeSpoolCatPreview()" aria-label="Close preview">✕</button>
+      <div class="spool-cat-preview-disc" style="background:${esc(hex)};${shiny?'background-image:linear-gradient(135deg,rgba(255,255,255,.7),rgba(255,255,255,0) 40%,rgba(255,255,255,.45) 60%,rgba(255,255,255,0));':''}"></div>
+      <div class="spool-cat-preview-name">${esc(color)}</div>
+      <button type="button" class="spool-cat-preview-hex" id="spoolCatCopyHexBtn" data-hex="${esc(hex)}" onclick="copySpoolCatHex(this.dataset.hex)">
+        <span>${esc(hex.toUpperCase())}</span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      </button>
+      <div class="spool-cat-preview-row"><span>Materials</span><strong>${materials.map(esc).join(' · ')||'N/A'}</strong></div>
+      <div class="spool-cat-preview-row"><span>Finish</span><strong>${finishes.map(esc).join(' · ')||'Standard'}</strong></div>
+      <div class="spool-cat-preview-stock" style="--lvl:${level.c}"><span class="dot"></span>${level.label} · ${kgLeft.toFixed(2)} kg on hand</div>
     </div>`;
-  }).join('');
+  panel.classList.add('is-open');
+  panel.setAttribute('aria-hidden','false');
+  document.querySelectorAll('#spoolCatalogueGrid .spool-cat-swatch').forEach(b=>b.classList.toggle('is-selected',b.dataset.color===color));
+}
+function closeSpoolCatPreview(){
+  _catSelectedColor=null;
+  const panel=document.getElementById('spoolCatPreview');
+  if(panel){ panel.classList.remove('is-open'); panel.setAttribute('aria-hidden','true'); panel.innerHTML=''; }
+  document.querySelectorAll('#spoolCatalogueGrid .spool-cat-swatch.is-selected').forEach(b=>b.classList.remove('is-selected'));
+}
+function copySpoolCatHex(hex){
+  const upper=String(hex||'').toUpperCase();
+  const done=()=>{
+    const btn=document.getElementById('spoolCatCopyHexBtn');
+    if(btn){
+      const span=btn.querySelector('span'); const prev=span?span.textContent:'';
+      btn.classList.add('copied'); if(span) span.textContent='Copied';
+      setTimeout(()=>{ btn.classList.remove('copied'); if(span) span.textContent=prev; },1100);
+    }
+    toast('Copied '+upper,'success');
+  };
+  if(navigator.clipboard?.writeText) navigator.clipboard.writeText(upper).then(done).catch(()=>catFallbackCopy(upper,done));
+  else catFallbackCopy(upper,done);
+}
+function catFallbackCopy(text,cb){
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    cb&&cb();
+  }catch(e){ toast('Could not copy','error'); }
 }
 function getSelectedSpoolIds(){
   return [...document.querySelectorAll('.spool-cb:checked')].map(c=>c.dataset.id);
