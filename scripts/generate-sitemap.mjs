@@ -67,13 +67,20 @@ async function main() {
   const products = Array.isArray(productsRaw) ? productsRaw : (productsRaw.products || productsRaw.data || []);
   const stories = Array.isArray(storiesRaw) ? storiesRaw : (storiesRaw.stories || storiesRaw.data || []);
 
+  // NOTE: /products/:slug and /stories/:slug exist as vercel.json rewrites but
+  // currently 404 in production for any client without the PWA service worker already
+  // caching them (confirmed via curl and on the raw triakar.vercel.app domain,
+  // 2026-08-20 audit). /product-detail?slug=X and /story?slug=X (no .html, cleanUrls
+  // strips it) are the URLs that actually resolve 200 with no redirect for Googlebot
+  // and fresh visitors, so those are what the sitemap lists until the rewrite is fixed.
+  // Switch the `loc` back to the clean path once verified live.
   const productEntries = products
     .filter(p => p.slug)
-    .map(p => urlEntry({ loc: `/products/${p.slug}`, lastmod: today, changefreq: 'weekly', priority: '0.7' }));
+    .map(p => urlEntry({ loc: `/product-detail?slug=${encodeURIComponent(p.slug)}`, lastmod: today, changefreq: 'weekly', priority: '0.7' }));
 
   const storyEntries = stories
     .filter(s => s.slug)
-    .map(s => urlEntry({ loc: `/stories/${s.slug}`, lastmod: today, changefreq: 'monthly', priority: '0.6' }));
+    .map(s => urlEntry({ loc: `/story?slug=${encodeURIComponent(s.slug)}`, lastmod: today, changefreq: 'monthly', priority: '0.6' }));
 
   const staticEntries = STATIC_PAGES.map(urlEntry);
 

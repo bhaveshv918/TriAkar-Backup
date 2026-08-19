@@ -341,7 +341,13 @@
 
   function render(s, related, allStories){
     const base='https://www.triakar.com';
-    const url=base+'/stories/'+encodeURIComponent(s.slug);
+    // NOTE: /stories/:slug is a vercel.json rewrite that currently 404s in production
+    // for any client without the PWA service worker already caching it (confirmed via
+    // curl and on the raw triakar.vercel.app domain, 2026-08-20 audit). /story?slug=X
+    // (no .html, cleanUrls strips it) is the URL that actually resolves 200 with no
+    // redirect for Googlebot and fresh visitors, so that's canonical until the rewrite
+    // is fixed. Switch back to base+'/stories/'+encodeURIComponent(s.slug) once verified live.
+    const url=base+'/story?slug='+encodeURIComponent(s.slug);
     const monthLabel=(MONTH_NAMES[s.month]||'')+(s.year?' '+s.year:'');
     document.getElementById('postMonth').textContent=monthLabel;
     document.getElementById('postTag').textContent=s.tag;

@@ -745,7 +745,14 @@ function setNoindex(){
    Built from live product data; replaces any previous block on re-render. */
 function injectProductSchema(ap,p,id){
   var base='https://www.triakar.com';
-  var url=base+'/products/'+encodeURIComponent(id);
+  // NOTE: /products/:slug exists as a vercel.json rewrite but currently 404s in
+  // production for any client without the PWA service worker already caching it
+  // (confirmed via curl and on the raw triakar.vercel.app domain, 2026-08-20 audit —
+  // same pre-existing bug affects /stories/:slug). /product-detail?slug=X (no .html,
+  // cleanUrls strips it) is the URL that actually resolves 200 with no redirect for
+  // Googlebot and fresh visitors, so that's canonical until the rewrite is fixed.
+  // Switch back to '/products/'+encodeURIComponent(id) once verified live.
+  var url=base+'/product-detail?slug='+encodeURIComponent(id);
   var imgs=(p.images||[]).map(function(im){
     return (typeof im==='string'?im:(im&&im.url)||'')||'';
   }).filter(Boolean).map(function(u){return u.indexOf('http')===0?u:base+'/'+u.replace(/^\//,'');});
