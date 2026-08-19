@@ -1262,6 +1262,12 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
       <button type="button" class="qa-btn" onclick="switchTab('orders')"><span class="qa-btn-icon">◈</span>View Orders</button>
       <button type="button" class="qa-btn" onclick="switchTab('reviews')"><span class="qa-btn-icon">★</span>Moderate Reviews</button>
     </div>
+
+    <!-- Needs Attention, Business-OS-style: the same feed as the header notification
+         bell (buildNotifications()), surfaced directly on the Dashboard so nothing
+         needs a click to discover, new inbox items, pending reviews, low stock etc. -->
+    <div class="dash-widget" id="dashNeedsAttention" style="margin-bottom:16px"></div>
+
     <div class="dash-grid" id="dashGrid"><div style="grid-column:1/-1;padding:44px;text-align:center;color:var(--text-3)">Loading dashboard…</div></div>
   </div>
 
@@ -2775,6 +2781,18 @@ function buildNotifications(){
 function refreshNotifBadge(){
   const items=buildNotifications(); const b=document.getElementById('notifBadge');
   if(b){ if(items.length){b.style.display='block';b.textContent=items.length;} else b.style.display='none'; }
+  renderDashNeedsAttention(items);
+}
+// Dashboard-embedded twin of the header notification bell, same buildNotifications()
+// feed, no click required to see what's pending (new inbox items, low stock, reviews).
+function renderDashNeedsAttention(items){
+  const el=document.getElementById('dashNeedsAttention'); if(!el)return;
+  items=items||buildNotifications();
+  el.innerHTML='<div class="notif-title" style="padding:0 0 10px">Needs Attention</div>'
+    +(items.length?'<div style="display:flex;flex-direction:column;gap:2px">'+items.map(it=>
+        '<div class="notif-item" style="border-radius:8px" onclick="switchTab(&quot;'+it.tab+'&quot;)"><span class="notif-icon">'+it.icon+'</span><span class="notif-text">'+esc(it.text)+'</span></div>'
+      ).join('')+'</div>'
+    :'<div class="notif-empty">All clear ✓</div>');
 }
 function toggleNotifications(ev){
   if(ev)ev.stopPropagation();
@@ -3331,6 +3349,7 @@ async function loadDashboard(){
 
 function dashRender(){
   const grid=document.getElementById('dashGrid'); if(!grid||!_dashData)return;
+  renderDashNeedsAttention();
   const layout=dashGetLayout(),byKey={}; DASH_WIDGETS.forEach(w=>byKey[w.key]=w);
   const visible=dashOrderedKeys().filter(k=>!layout.hidden.includes(k));
   let html=visible.map(k=>{const w=byKey[k]; if(!w)return'';
