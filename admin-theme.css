@@ -684,12 +684,43 @@ html[data-theme="dark"] .cmdk-box{background:rgba(22,22,20,.96);border-color:rgb
 .qchip[data-s="cancelled"].active{background:var(--status-cancelled);border-color:var(--status-cancelled);color:#fff}
 .qchip[data-s].active::before{background:#fff;opacity:.9}
 
-/* Lead source + fulfillment chips, quiet orange selection */
+/* Lead source + fulfillment chips, quiet orange selection (default, for
+   sources with no recognizable platform brand: Studio Walk-in, Existing
+   Customer, Referral, Other) */
 .qchip[data-v].active{
   background:var(--tri-orange-dim);border-color:rgba(196,98,42,.4);
   color:var(--tri-orange);box-shadow:none;
 }
 .qchip[data-v].active::before{background:var(--tri-orange);opacity:1}
+
+/* ── 40a · LEAD-SOURCE PLATFORM COLORS ────────────────────────────
+   Recognizable platforms get their own tonal treatment (tint background +
+   soft border + colored text/dot, same formula as the orange default above,
+   just a different hue) instead of every source reading identically once
+   picked. Placed after §40's generic .qchip[data-v].active on purpose: same
+   selector specificity, later in file order wins, so these actually apply.
+   A near-duplicate set of these rules used to live in admin-biz.html's own
+   <style> block at equal specificity but earlier in load order, so the
+   generic orange rule always won and silently ate the platform colors,
+   fixed by consolidating here. */
+.qchip[data-v="whatsapp"]::before{background:#25D366;opacity:.55}
+.qchip[data-v="google"]::before{background:#4285F4;opacity:.55}
+.qchip[data-v="instagram"]::before{background:#F0653C;opacity:.55}
+.qchip[data-v="whatsapp"].active{
+  background:rgba(37,211,102,.14);border-color:rgba(37,211,102,.4);color:#1B7F44;
+}
+.qchip[data-v="google"].active{
+  background:rgba(66,133,244,.14);border-color:rgba(66,133,244,.4);color:#2A5DB0;
+}
+.qchip[data-v="instagram"].active{
+  background:rgba(240,101,60,.14);border-color:rgba(240,101,60,.4);color:#C6491F;
+}
+.qchip[data-v="whatsapp"].active::before,
+.qchip[data-v="google"].active::before,
+.qchip[data-v="instagram"].active::before{opacity:1}
+html[data-theme="dark"] .qchip[data-v="whatsapp"].active{color:#4ADE80}
+html[data-theme="dark"] .qchip[data-v="google"].active{color:#7FA8F5}
+html[data-theme="dark"] .qchip[data-v="instagram"].active{color:#F0895F}
 
 /* Inputs */
 .form-group label{
