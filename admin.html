@@ -1050,7 +1050,7 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
    the "keep both files self-contained" rule).
    ═══════════════════════════════════════════════════════════ */
 .biz-tb-hamburger{display:none;font-size:18px}
-.biz-topbar{position:sticky;top:0;z-index:100;padding:0 20px;gap:12px}
+.biz-topbar{display:flex;align-items:center;position:sticky;top:0;z-index:100;padding:0 20px;gap:12px}
 .admin-body{display:flex;min-height:calc(100vh - 52px)}
 .main-area{flex:1;min-width:0;width:100%}
 .biz-tb-search{flex:1;max-width:440px;position:relative}
@@ -1262,10 +1262,6 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
       <button type="button" class="qa-btn" onclick="switchTab('orders')"><span class="qa-btn-icon">◈</span>View Orders</button>
       <button type="button" class="qa-btn" onclick="switchTab('reviews')"><span class="qa-btn-icon">★</span>Moderate Reviews</button>
     </div>
-    <!-- Stat-tile row, reuses the exact same numbers dashWKpis() below already
-         computes for the "Key metrics" widget, just surfaced above the fold too. -->
-    <div class="stat-kpi-row" id="dashStatRow"></div>
-
     <div class="dash-grid" id="dashGrid"><div style="grid-column:1/-1;padding:44px;text-align:center;color:var(--text-3)">Loading dashboard…</div></div>
   </div>
 
@@ -3325,25 +3321,8 @@ async function loadDashboard(){
   }catch(e){ grid.innerHTML='<div style="grid-column:1/-1;padding:30px;color:#B91C1C">Error loading dashboard: '+esc(e.message)+'</div>'; }
 }
 
-// Stat-tile row above the dashboard grid (Business-OS-style), reuses the exact
-// same figures dashWKpis() below already computes, just surfaced above the fold
-// as clickable tiles that jump straight to the relevant tab.
-function renderDashStatRow(){
-  const row=document.getElementById('dashStatRow'); if(!row||!_dashData) return;
-  const d=_dashData, lowStock=(_products||[]).filter(p=>p.is_active&&(p.stock_qty??0)<=5).length;
-  const open=d.orders.filter(o=>DASH_OPEN_STATUSES.includes(o.status)||DASH_OPEN_STATUSES.includes(o.order_status)).length;
-  const pending=_dashPending();
-  const tiles=[
-    {color:'var(--green)',bg:'var(--green-bg)',icon:'₹',label:'Revenue · 30d',val:'₹'+d.monthRevenue.toLocaleString('en-IN'),tab:'dashboard'},
-    {color:'var(--accent)',bg:'var(--accent-bg)',icon:'◈',label:'Open Orders',val:open,tab:'orders',urgent:open>0},
-    {color:'var(--red)',bg:'var(--red-bg)',icon:'▦',label:'Low / Out of Stock',val:lowStock,tab:'products',urgent:lowStock>0},
-    {color:'var(--purple)',bg:'var(--purple-bg)',icon:'★',label:'Pending Reviews',val:pending,tab:'reviews',urgent:pending>0},
-  ];
-  row.innerHTML=tiles.map(t=>`<div class="stat-kpi${t.urgent?' stat-kpi-urgent':''}" style="--pill-color:${t.color};--pill-color-bg:${t.bg}" onclick="switchTab('${t.tab}')"><div class="stat-kpi-icon">${t.icon}</div><div class="stat-kpi-body"><div class="stat-kpi-val">${t.val}</div><div class="stat-kpi-label">${esc(t.label)}</div></div></div>`).join('');
-}
 function dashRender(){
   const grid=document.getElementById('dashGrid'); if(!grid||!_dashData)return;
-  renderDashStatRow();
   const layout=dashGetLayout(),byKey={}; DASH_WIDGETS.forEach(w=>byKey[w.key]=w);
   const visible=dashOrderedKeys().filter(k=>!layout.hidden.includes(k));
   let html=visible.map(k=>{const w=byKey[k]; if(!w)return'';
