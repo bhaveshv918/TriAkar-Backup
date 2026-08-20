@@ -169,6 +169,7 @@ window._FOOTER_HTML = `<footer>
           <li><a href="/products.html?cat=home">Home</a></li>
           <li><a href="/products.html?cat=gifting">Gifting</a></li>
           <li><a href="/instant-quote.html">Instant Quote</a></li>
+          <li><a href="/prototyping.html">Prototyping</a></li>
           <li><a href="/order.html">Customization</a></li>
           <li><a href="/stories.html">Stories</a></li>
           <li><a href="/services/replacement-parts.html">Replacement Parts</a></li>
