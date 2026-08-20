@@ -4433,6 +4433,7 @@ const DOC_FIELD_GROUPS=[
     ] },
   { key:'record', label:'Order Acknowledgement', containerId:'bizDocRecordFields', settingsKey:'doc_record_fields', groups:[
       ['Customer & Product',[['customer','Customer info'],['hsn','HSN'],['material','Material']]],
+      ['Tax',[['gst_details','GST details (your GSTIN + CGST/SGST/IGST breakup)']]],
       ['Cost & Production',[['cost_price','Cost price'],['margin','Margin'],['designer_maker','Designer / maker'],['production_status','Production status'],['printer','Printer used'],['priority_flag','Priority flag']]],
       ['Shipping & Notes',[['courier_tracking','Courier + tracking'],['special_instructions','Special instructions'],['internal_notes','Internal notes']]],
       ['Signature & Payment',[['signature','Signature / stamp'],['bank_details','Bank account details'],['upi_qr','UPI / bank QR'],['terms_notes','Terms & Conditions']]],
@@ -14030,8 +14031,9 @@ async function printInvoice(d, type, docKind, win){
   const hsnSummary={};
   // Quotation always shows the itemized GST breakdown; a plain Invoice does too once
   // GST actually applies (a non-GST invoice keeps the simple 4-column table). Order
-  // Record stays internal-only and never shows this customer-facing breakdown.
-  const showGstCols=isQuote||(!isRecord&&type==='gst');
+  // Acknowledgement stays internal-only, only shows this breakdown when GST details
+  // is explicitly toggled on (Document Settings → Order Acknowledgement → Tax).
+  const showGstCols=isQuote||(type==='gst'&&(!isRecord||docRec('gst_details')));
   const rowsHtml=items.map((it,idx)=>{
     const iqty=parseInt(it.qty)||1;
     const idisc=parseFloat(it.discount_amount)||0;
@@ -14114,7 +14116,7 @@ async function printInvoice(d, type, docKind, win){
   // (used to be quotation-only, with Invoice/Record stuck on an older separate
   // full-width seller-strip card below the header instead).
   const showHdrIdentity=isQuote?docQuo('business_identity'):(SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE||SELLER_WEB);
-  const hdrShowGstin=isQuote?docQuo('gstin'):(isRecord||docInv('gstin'));
+  const hdrShowGstin=isQuote?docQuo('gstin'):(isRecord?docRec('gst_details'):docInv('gstin'));
   const hdrShowAddr=isQuote?true:(isRecord||docInv('business_address'));
   const docDate=d.order_date||today();
   const docNo=isRecord?(d.order_id||nextDocNumber()):isQuote?(d.quotation_number||await genQuotationNumber()):await allocateInvoiceNumber(d.id||d.sale_id||null, d.order_id||null, docKind||'invoice', (d.invoice_no||'').trim()||null, docDate);
