@@ -14356,10 +14356,37 @@ tbody tr:last-child td{border-bottom:none}
 .doc-actions-top .da-outline{background:#fff;color:#C4622A;border:1.5px solid #C4622A}
 .doc-actions-top .da-solid{background:#C4622A;color:#fff;border:none}
 @media print{.doc-actions-top{display:none!important}}
+/* Color / B&W toggle, a live preview switch: whichever mode is active is exactly
+   what Print and Download PDF capture, no separate export-only code path. B&W
+   doesn't just desaturate (a CSS grayscale filter can render inconsistently
+   across browsers/printers), it swaps every orange color-only cue for an
+   explicit black border/bold/fill so nothing that relied on the TRI orange to
+   stand out goes flat or unreadable on a black-and-white printer. */
+.da-mode-toggle{display:flex;border:1.5px solid #C4622A;border-radius:6px;overflow:hidden}
+.da-mode-btn{padding:6px 9px;border:none;background:#fff;color:#C4622A;font-size:10.5px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.02em}
+.da-mode-btn.active{background:#C4622A;color:#fff}
+@media print{.da-mode-toggle{display:none!important}}
+.doc-bw .b-tri,.doc-bw .brand-hi,.doc-bw .doc-title-big,.doc-bw .doc-type,.doc-bw .section-lbl,
+.doc-bw .info-lbl,.doc-bw .footer-brand,.doc-bw .brand-line,.doc-bw .words-row{color:#111!important}
+.doc-bw .hdr{border-bottom-color:#111!important}
+.doc-bw .seller-strip{border-left-color:#111!important;background:#eee!important}
+.doc-bw .doc-meta-box{border-color:#111!important}
+.doc-bw .doc-meta-box .dmb-k{background:#e5e5e5!important;color:#111!important}
+.doc-bw .doc-badge,.doc-bw .order-badge{background:#e5e5e5!important;color:#111!important;border-color:#111!important;font-weight:800!important}
+.doc-bw .tbl-wrap{border-left-color:#111!important}
+.doc-bw .total-row td{border-top-color:#111!important}
+.doc-bw .words-row{background:#eee!important;border-top-color:#111!important;font-weight:700!important}
+.doc-bw .chip{background:#e5e5e5!important;border-color:#111!important}
+.doc-bw .discount-row td{color:#111!important;font-weight:700!important;text-decoration:underline}
+.doc-bw .info-card{border-color:#111!important}
 </style></head><body>
 
 <div class="print-btn doc-actions-top" id="docActions">
   <span id="shareStatus" style="font-size:10px;color:#999"></span>
+  <div class="da-mode-toggle" id="docModeToggle">
+    <button type="button" class="da-mode-btn active" data-mode="color" onclick="setDocColorMode('color')">Color</button>
+    <button type="button" class="da-mode-btn" data-mode="bw" onclick="setDocColorMode('bw')">B&amp;W</button>
+  </div>
   <button id="btnDownloadPdf" class="da-outline" onclick="downloadDoc()" disabled style="opacity:.5">⬇</button>
   <button id="btnSharePdf" class="da-outline" onclick="shareDoc()" disabled style="opacity:.5">⤴</button>
   <button class="da-solid" onclick="window.print()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print</button>
@@ -14578,6 +14605,10 @@ var _safeDocName=${JSON.stringify('TriAkar_'+docTitle.replace(/\s+/g,'')+'_'+Str
 // 6-8 item order doesn't shrink the whole page just to fit; the final
 // width-preserving scale-down only fires if that alone still isn't enough.
 var A4_PX_W=794, A4_PX_H=1123;
+function setDocColorMode(mode){
+  document.body.classList.toggle('doc-bw', mode==='bw');
+  document.querySelectorAll('#docModeToggle .da-mode-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.mode===mode); });
+}
 // html2canvas/jsPDF load fresh (deferred) into this popup every time, no caching across
 // tabs, so Download/Share used to be clickable before they'd actually arrived, especially
 // on slow mobile connections, only to alert() and force a second manual attempt. Poll
