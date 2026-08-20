@@ -362,35 +362,6 @@ html.low-power nav.main-nav.scrolled.nav-distort{
    no permanent chip, just present enough to notice. */
 .nav-links a.nav-highlight{text-decoration:underline;text-decoration-color:rgba(196,98,42,.55);text-underline-offset:5px;text-decoration-thickness:1.5px}
 
-/* "More" dropdown, collapses About/Contact/Track Order out of the main row */
-.nav-more{position:relative;display:flex;align-items:center}
-.nav-more-trigger{
-  font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--charcoal);
-  background:transparent;border:1px solid transparent;border-radius:999px;padding:7px 8px;margin:-7px -8px;
-  display:flex;align-items:center;gap:4px;cursor:pointer;font-family:inherit;
-  transition:color .3s cubic-bezier(.22,1,.36,1),background .35s cubic-bezier(.22,1,.36,1),border-color .35s cubic-bezier(.22,1,.36,1);
-}
-.nav-more-trigger:hover,.nav-more.open .nav-more-trigger{
-  color:var(--accent);background:linear-gradient(180deg,rgba(196,98,42,.09),rgba(196,98,42,.04));border-color:rgba(196,98,42,.14);
-}
-.nav-more-caret{transition:transform .25s cubic-bezier(.22,1,.36,1)}
-.nav-more.open .nav-more-caret{transform:rotate(180deg)}
-.nav-more-menu{
-  position:absolute;top:calc(100% + 10px);left:50%;transform:translateX(-50%) translateY(-6px);
-  min-width:150px;background:rgba(250,250,248,.97);-webkit-backdrop-filter:blur(14px) saturate(150%);backdrop-filter:blur(14px) saturate(150%);
-  border:1px solid rgba(255,255,255,.6);border-radius:14px;box-shadow:0 14px 36px rgba(0,0,0,.14);
-  padding:8px;display:flex;flex-direction:column;gap:2px;opacity:0;pointer-events:none;
-  transition:opacity .22s cubic-bezier(.22,1,.36,1),transform .22s cubic-bezier(.22,1,.36,1);
-  z-index:20;
-}
-.nav-more.open .nav-more-menu{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
-.nav-more-menu a{
-  font-size:12px;letter-spacing:.04em;text-transform:none;font-weight:600;color:var(--charcoal);
-  padding:9px 12px;margin:0;border-radius:9px;white-space:nowrap;background:transparent;border:none;
-  transition:background .2s,color .2s;
-}
-.nav-more-menu a:hover,.nav-more-menu a.nav-active{color:var(--accent);background:rgba(196,98,42,.08);box-shadow:none;transform:none}
-
 .nav-right{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;justify-content:flex-end}
 .cart-btn{
   display:flex;align-items:center;gap:6px;position:relative;
@@ -446,7 +417,7 @@ html.low-power nav.main-nav.scrolled.nav-distort{
   box-shadow:0 7px 20px rgba(196,98,42,.44),inset 0 1px 0 rgba(255,255,255,.32)}
 
 /* NAV SEARCH, desktop pill in the nav bar */
-.nav-search{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.55);-webkit-backdrop-filter:blur(10px) saturate(140%);backdrop-filter:blur(10px) saturate(140%);border:1px solid rgba(255,255,255,.6);border-radius:999px;padding:7px 14px;box-shadow:0 1px 2px rgba(22,22,20,.04),inset 0 1px 0 rgba(255,255,255,.75);transition:border-color .25s,background .25s,box-shadow .25s;order:0}
+.nav-search{display:none;align-items:center;gap:7px;background:rgba(255,255,255,.55);-webkit-backdrop-filter:blur(10px) saturate(140%);backdrop-filter:blur(10px) saturate(140%);border:1px solid rgba(255,255,255,.6);border-radius:999px;padding:7px 14px;box-shadow:0 1px 2px rgba(22,22,20,.04),inset 0 1px 0 rgba(255,255,255,.75);transition:border-color .25s,background .25s,box-shadow .25s;order:0}
 .nav-search:focus-within{border-color:var(--accent);background:rgba(255,255,255,.82);box-shadow:0 0 0 3px rgba(196,98,42,.12)}
 .nav-search input{border:none;background:transparent;outline:none;font-family:var(--font-b);font-size:12.5px;color:var(--charcoal);width:110px}
 .nav-search input::placeholder{color:var(--stone)}
@@ -456,11 +427,11 @@ html.low-power nav.main-nav.scrolled.nav-distort{
 @media(max-width:980px){.nav-search input{width:118px}}
 .nav-search-close{display:none}
 
-/* Icon-only search trigger, shown only in the compact/mobile header where
-   a full search box would crowd out cart + wishlist. Expands .nav-search
-   in place over the row when tapped (see html.nav-search-open below). */
+/* Icon-only search trigger, shown at every width, the full search box only
+   appears once tapped (see html.nav-search-open below), so it never sits
+   in the header taking up space by default. */
 .nav-search-toggle{
-  display:none;align-items:center;justify-content:center;background:none;border:none;
+  display:flex;align-items:center;justify-content:center;background:none;border:none;
   padding:0;width:22px;height:22px;cursor:pointer;color:var(--charcoal);flex-shrink:0;
   transition:color .2s;
 }
@@ -921,8 +892,19 @@ html[data-menu-style="4"] .drawer-login{margin-top:12px}
 .ci-cust span{font-size:10px;color:var(--charcoal);line-height:1.5}
 .ci-cust b{font-weight:600;color:var(--accent)}
 .ci-material{margin-bottom:6px}
-.ci-material label{font-size:10.5px;color:var(--stone);display:flex;align-items:center;gap:5px}
-.ci-material select{font-size:11px;font-family:var(--font-m);border:1px solid rgba(22,22,20,.16);border-radius:5px;padding:2px 5px;background:#fff;color:var(--charcoal)}
+.ci-material label{font-size:10.5px;color:var(--stone);display:flex;align-items:center;gap:6px}
+.ci-material select{
+  appearance:none;-webkit-appearance:none;-moz-appearance:none;
+  font-size:11.5px;font-weight:600;font-family:var(--font-m);color:var(--charcoal);
+  border:1.5px solid rgba(22,22,20,.16);border-radius:999px;background:#fff;
+  padding:4px 24px 4px 10px;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9' viewBox='0 0 24 24' fill='none' stroke='%23888476' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;
+  transition:border-color .2s,box-shadow .2s;
+}
+.ci-material select:hover{border-color:rgba(196,98,42,.4)}
+.ci-material select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(196,98,42,.1)}
+.ci-material select option{color:var(--charcoal);background:#fff}
 .ci-qty{display:flex;align-items:center;gap:7px}
 .ci-qbtn{width:22px;height:22px;border:1px solid var(--stone-p);background:none;font-size:14px;color:var(--charcoal);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s}
 .ci-qbtn:hover{background:var(--charcoal);color:var(--ivory);border-color:var(--charcoal)}
@@ -1045,6 +1027,8 @@ html.nav-search-open .nav-search-toggle,
 html.nav-search-open .wishlist-btn,
 html.nav-search-open .cart-btn,
 html.nav-search-open .nav-toggle,
+html.nav-search-open .nav-corp,
+html.nav-search-open .nav-profile-btn,
 html.nav-search-open .nav-shop{display:none!important}
 
 /* ── RESPONSIVE FOOTER ──────────────────────────────── */

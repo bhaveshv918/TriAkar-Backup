@@ -115,14 +115,9 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
       <li><a href="/prototyping.html" class="nav-highlight">Prototyping</a></li>
       <li><a href="/order.html">Custom</a></li>
       <li><a href="/stories.html">Stories</a></li>
-      <li class="nav-more">
-        <button type="button" class="nav-more-trigger" aria-haspopup="true" aria-expanded="false">More<svg class="nav-more-caret" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
-        <div class="nav-more-menu">
-          <a href="/about.html">About</a>
-          <a href="/contact.html">Contact</a>
-          <a href="/track-order.html">Track</a>
-        </div>
-      </li>
+      <li><a href="/about.html">About</a></li>
+      <li><a href="/contact.html">Contact</a></li>
+      <li><a href="/track-order.html">Track</a></li>
     </ul>
     <div class="nav-right">
       <form class="nav-search" role="search" onsubmit="return window.taSearch(this);">
@@ -172,32 +167,6 @@ window.toggleNavSearch = function(force){
 };
 document.addEventListener('keydown', function(e){
   if(e.key === 'Escape' && document.documentElement.classList.contains('nav-search-open')) window.toggleNavSearch(false);
-});
-
-/* Nav "More" dropdown (About/Contact/Track Order) — delegated so it works
-   regardless of when the nav gets injected into #nav-root. */
-document.addEventListener('click', function(e){
-  var trigger = e.target.closest('.nav-more-trigger');
-  var openLi = document.querySelector('.nav-more.open');
-  if(trigger){
-    var li = trigger.closest('.nav-more');
-    var wasOpen = li.classList.contains('open');
-    if(openLi) { openLi.classList.remove('open'); var ot = openLi.querySelector('.nav-more-trigger'); if(ot) ot.setAttribute('aria-expanded','false'); }
-    if(!wasOpen){ li.classList.add('open'); trigger.setAttribute('aria-expanded','true'); }
-    return;
-  }
-  if(openLi && !e.target.closest('.nav-more')){
-    openLi.classList.remove('open');
-    var t = openLi.querySelector('.nav-more-trigger'); if(t) t.setAttribute('aria-expanded','false');
-  }
-});
-document.addEventListener('keydown', function(e){
-  if(e.key !== 'Escape') return;
-  var openLi = document.querySelector('.nav-more.open');
-  if(!openLi) return;
-  openLi.classList.remove('open');
-  var t = openLi.querySelector('.nav-more-trigger');
-  if(t){ t.setAttribute('aria-expanded','false'); t.focus(); }
 });
 
 window._FOOTER_HTML = `<footer>
