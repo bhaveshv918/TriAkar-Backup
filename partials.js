@@ -109,12 +109,30 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
       <span class="logo-en"><span style="color:var(--accent)">TRI</span>AKAR</span>
       <span class="logo-hi"><span style="color:var(--accent)">त्रि</span>आकार</span>
     </a>
-    <ul class="nav-links"><li><a href="/products.html">Shop</a></li><li><a href="/instant-quote.html">Instant Quote</a></li><li><a href="/order.html">Customization</a></li><li><a href="/stories.html">Our Stories</a></li><li><a href="/about.html">About</a></li><li><a href="/contact.html">Contact</a></li><li><a href="/track-order.html">Track Order</a></li></ul>
+    <ul class="nav-links">
+      <li><a href="/products.html">Shop</a></li>
+      <li><a href="/instant-quote.html" class="nav-highlight">Instant Quote</a></li>
+      <li><a href="/prototyping.html" class="nav-highlight">Prototyping</a></li>
+      <li><a href="/order.html">Customization</a></li>
+      <li><a href="/stories.html">Our Stories</a></li>
+      <li class="nav-more">
+        <button type="button" class="nav-more-trigger" aria-haspopup="true" aria-expanded="false">More<svg class="nav-more-caret" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+        <div class="nav-more-menu">
+          <a href="/about.html">About</a>
+          <a href="/contact.html">Contact</a>
+          <a href="/track-order.html">Track Order</a>
+        </div>
+      </li>
+    </ul>
     <div class="nav-right">
       <form class="nav-search" role="search" onsubmit="return window.taSearch(this);">
         <input type="search" id="navSearchInput" name="q" placeholder="Search products…" aria-label="Search products" autocomplete="off">
         <button type="submit" aria-label="Search"><svg width="15" height="15" viewBox="0 0 18 18" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M12.4 12.4L16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+        <button type="button" class="nav-search-close" aria-label="Close search" onclick="window.toggleNavSearch(false)">&times;</button>
       </form>
+      <button type="button" class="nav-search-toggle" aria-label="Search" onclick="window.toggleNavSearch()">
+        <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M12.4 12.4L16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
       <a href="/wishlist.html" class="wishlist-btn" aria-label="Wishlist">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
         <span class="wishlist-badge" id="wishlistBadge">0</span>
@@ -122,14 +140,14 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
       <a href="/order.html" class="nav-corp" aria-label="Corporate or bulk order">Corporate Order →</a>
       <a href="#" class="cart-btn" onclick="openCart();return false;">
         <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M1 1h2.5l1.6 8h8.4l1.5-5.5H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="14.5" r="1.2" fill="currentColor"/><circle cx="13" cy="14.5" r="1.2" fill="currentColor"/></svg>
-        Cart <span class="cart-badge" id="cartBadge">0</span>
+        <span class="cart-btn-label">Cart</span> <span class="cart-badge" id="cartBadge">0</span>
       </a>
       <a href="/account.html" class="nav-shop">Login</a>
     </div>
   </div>
 </nav>`;
 
-window._DRAWER_HTML = `<nav class="nav-drawer"><a href="/instant-quote.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v14M12 2l-5 5M12 2l5 5"/><path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"/></svg>Instant Quote</a><a href="/order.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Customization</a><a href="/wishlist.html" class="drawer-link" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>Wishlist</a><a href="/stories.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg>Our Stories</a><a href="/products.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>Shop</a><a href="/about.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>About</a><a href="/contact.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Contact</a><a href="/track-order.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>Track Order</a><a href="/account.html" class="drawer-login drawer-auth">Login</a></nav>`;
+window._DRAWER_HTML = `<nav class="nav-drawer"><a href="/instant-quote.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v14M12 2l-5 5M12 2l5 5"/><path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"/></svg>Instant Quote</a><a href="/prototyping.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 21 7.5v9L12 21.5 3 16.5v-9z"/><path d="M12 2.5v9M12 11.5 3 7.5M12 11.5l9-4"/></svg>Prototyping</a><a href="/order.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Customization</a><a href="/wishlist.html" class="drawer-link" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>Wishlist</a><a href="/stories.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg>Our Stories</a><a href="/products.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>Shop</a><a href="/about.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>About</a><a href="/contact.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Contact</a><a href="/track-order.html" class="drawer-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>Track Order</a><a href="/account.html" class="drawer-login drawer-auth">Login</a></nav>`;
 
 /* Site-wide product search, used by nav + drawer search forms */
 window.taSearch = function(form){
@@ -139,6 +157,48 @@ window.taSearch = function(form){
   window.location.href = '/products.html?search=' + encodeURIComponent(q);
   return false;
 };
+
+/* Compact/mobile header: the search box collapses to an icon button
+   (.nav-search-toggle) and expands in place over the other icons when
+   tapped, closing again on submit, Escape, or the × button. */
+window.toggleNavSearch = function(force){
+  var root = document.documentElement;
+  var open = force === undefined ? !root.classList.contains('nav-search-open') : !!force;
+  root.classList.toggle('nav-search-open', open);
+  if(open){
+    var inp = document.getElementById('navSearchInput');
+    if(inp) setTimeout(function(){ inp.focus(); }, 60);
+  }
+};
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape' && document.documentElement.classList.contains('nav-search-open')) window.toggleNavSearch(false);
+});
+
+/* Nav "More" dropdown (About/Contact/Track Order) — delegated so it works
+   regardless of when the nav gets injected into #nav-root. */
+document.addEventListener('click', function(e){
+  var trigger = e.target.closest('.nav-more-trigger');
+  var openLi = document.querySelector('.nav-more.open');
+  if(trigger){
+    var li = trigger.closest('.nav-more');
+    var wasOpen = li.classList.contains('open');
+    if(openLi) { openLi.classList.remove('open'); var ot = openLi.querySelector('.nav-more-trigger'); if(ot) ot.setAttribute('aria-expanded','false'); }
+    if(!wasOpen){ li.classList.add('open'); trigger.setAttribute('aria-expanded','true'); }
+    return;
+  }
+  if(openLi && !e.target.closest('.nav-more')){
+    openLi.classList.remove('open');
+    var t = openLi.querySelector('.nav-more-trigger'); if(t) t.setAttribute('aria-expanded','false');
+  }
+});
+document.addEventListener('keydown', function(e){
+  if(e.key !== 'Escape') return;
+  var openLi = document.querySelector('.nav-more.open');
+  if(!openLi) return;
+  openLi.classList.remove('open');
+  var t = openLi.querySelector('.nav-more-trigger');
+  if(t){ t.setAttribute('aria-expanded','false'); t.focus(); }
+});
 
 window._FOOTER_HTML = `<footer>
   <div class="mw">
@@ -381,6 +441,7 @@ window._FOOTER_HTML = `<footer>
     var isHome=(seg===''||seg==='index');
     var isShop=(seg==='products'||seg==='product-detail');
     var isQuote=(seg==='instant-quote');
+    var isProto=(seg==='prototyping');
     var isAcct=(seg==='account');
 
     /* Real glass refraction (feDisplacementMap) for actual Safari, shared by
@@ -477,10 +538,9 @@ window._FOOTER_HTML = `<footer>
         '<span class="tabn-ico-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 2.5L4 13.5h6l-1 8 8.5-11H11l1.5-8z"/></svg>'+
         '<span class="tabn-quote-dot" aria-hidden="true"></span></span>'+
         '<span>Quote</span></a>'+
-      '<a href="#" class="tabn-item" aria-label="Cart" onclick="if(window.openCart){openCart();}return false;">'+
-        '<span class="tabn-ico-wrap"><svg viewBox="0 0 18 18" fill="none"><path d="M1 1h2.5l1.6 8h8.4l1.5-5.5H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="14.5" r="1.2" fill="currentColor"/><circle cx="13" cy="14.5" r="1.2" fill="currentColor"/></svg>'+
-        '<span class="cart-badge tabn-badge" id="tabnCartBadge">0</span></span>'+
-        '<span>Cart</span></a>'+
+      '<a href="/prototyping.html" class="tabn-item'+(isProto?' active':'')+'" aria-label="Prototyping">'+
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 21 7.5v9L12 21.5 3 16.5v-9z"/><path d="M12 2.5v9M12 11.5 3 7.5M12 11.5l9-4"/></svg>'+
+        '<span>Prototype</span></a>'+
       '<a href="/account.html#orders" class="tabn-item'+(isAcct?' active':'')+'" aria-label="Account">'+
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>'+
         '<span>Account</span></a>';

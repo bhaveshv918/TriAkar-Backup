@@ -374,7 +374,9 @@ function applyNavActiveState(){
     'stories':'stories.html',
     'about':'about.html',
     'contact':'contact.html',
-    'track-order':'track-order.html'
+    'track-order':'track-order.html',
+    'instant-quote':'instant-quote.html',
+    'prototyping':'prototyping.html'
   };
   const match=PAGES[file]||'';   // '' for index / home → no active item
 
