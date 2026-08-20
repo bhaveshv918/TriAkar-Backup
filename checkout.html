@@ -119,6 +119,9 @@
 .ck-item-name{font-size:13px;font-weight:500;color:var(--charcoal)}
 .ck-item-qty{font-size:11px;color:var(--stone);margin-top:2px}
 .ck-item-price{font-size:13px;font-weight:700;color:var(--charcoal);white-space:nowrap}
+.ck-item-mat{margin-top:4px}
+.ck-item-mat label{font-size:10.5px;color:var(--stone);display:flex;align-items:center;gap:5px}
+.ck-item-mat select{font-size:11px;border:1px solid var(--stone-p);border-radius:5px;padding:2px 5px;background:#fff;color:var(--charcoal)}
 
 .ck-summary{border-top:2px solid var(--charcoal);padding-top:14px;margin-bottom:20px}
 .ck-summary-row{display:flex;justify-content:space-between;font-size:12px;color:var(--warm);padding:3px 0}
@@ -611,6 +614,11 @@ async function submitAddress() {
   renderReview();
 }
 
+function ckMaterialChange(sel, id, color) {
+  Cart.setPrototypeMaterial(id, color, undefined, sel.value);
+  renderReview();
+}
+
 /* ── Render review step ─────────────────────────────────── */
 function renderReview() {
   var items    = Cart.getItems();
@@ -629,9 +637,20 @@ function renderReview() {
   var total    = Math.max(0, subtotal + shipping - discount);
 
   document.getElementById('ckItems').innerHTML = items.map(function(i) {
+    var protoOpts = Cart.PROTO_MATERIAL_MAP && Cart.PROTO_MATERIAL_MAP[i.id];
+    var curMaterial = (i.customization && i.customization.Material) || (i.id.indexOf('-abs') > -1 ? 'ABS' : 'PLA+');
+    var matHtml = '';
+    if (protoOpts) {
+      var optsHtml = Object.keys(protoOpts).map(function(m) {
+        var priceNote = protoOpts[m].price !== protoOpts[curMaterial].price ? ' (₹' + protoOpts[m].price.toLocaleString('en-IN') + ')' : '';
+        return '<option value="' + m + '"' + (m === curMaterial ? ' selected' : '') + '>' + m + priceNote + '</option>';
+      }).join('');
+      matHtml = '<div class="ck-item-mat"><label>Material: <select onchange="ckMaterialChange(this,\'' + i.id.replace(/'/g,"\\'") + '\',\'' + (i.color||'').replace(/'/g,"\\'") + '\')">' + optsHtml + '</select></label></div>';
+    }
     return '<div class="ck-item">'
       + '<div><div class="ck-item-name">' + i.name + '</div>'
-      + '<div class="ck-item-qty">Qty ' + i.quantity + (i.color ? ' · ' + i.color : '') + '</div></div>'
+      + '<div class="ck-item-qty">Qty ' + i.quantity + (i.color ? ' · ' + i.color : '') + '</div>'
+      + matHtml + '</div>'
       + '<div class="ck-item-price">₹' + (i.price * i.quantity).toLocaleString('en-IN') + '</div>'
       + '</div>';
   }).join('');

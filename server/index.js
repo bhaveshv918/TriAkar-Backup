@@ -27,6 +27,7 @@ import wishlistRoutes    from './routes/wishlist.js';
 import webhookRoutes     from './routes/webhooks.js';
 import newsletterRoutes  from './routes/newsletter.js';
 import instantQuoteRoutes from './routes/instantQuote.js';
+import prototypingGalleryRoutes from './routes/prototypingGallery.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import supabase from './db/supabaseClient.js';
 
@@ -254,6 +255,7 @@ app.use('/api/site-settings', siteSettingsRoutes); // Public presentation values
 app.use('/api/wishlist',   wishlistRoutes);  // Saved items — per-user, auth required
 app.use('/api/newsletter', newsletterRoutes); // Footer email signup — public
 app.use('/api/instant-quote', instantQuoteRoutes); // STL/OBJ upload, heuristic pricing, quote lookup
+app.use('/api/prototyping-gallery', prototypingGalleryRoutes); // Public read of admin-managed prototyping example photos
 
 /* /api/profile — see server/routes/auth.js handlers; also accessible at /api/auth/profile */
 

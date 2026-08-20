@@ -2148,6 +2148,16 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
         </table>
       </div>
     </div>
+
+    <!-- Prototyping Gallery (prototyping.html), admin-managed example photos -->
+    <div style="max-width:900px;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-weight:700;font-size:14px">Prototyping Gallery <span style="font-weight:400;color:var(--text-3);font-size:11px">· powers the gallery on /prototyping.html, drag to reorder</span></div>
+        <label class="btn-primary" style="cursor:pointer;margin:0">+ Add Images<input type="file" accept="image/jpeg,image/png,image/webp" multiple style="display:none" onchange="uploadProtoGalleryImages(this)"></label>
+      </div>
+      <div id="protoGalleryStatus" style="font-size:11px;color:var(--text-3);margin-bottom:10px"></div>
+      <div id="protoGalleryGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px"></div>
+    </div>
   </div>
 
   <!-- ── PRODUCT STUDIO PANEL ──────────────────────── -->
@@ -3216,7 +3226,7 @@ function switchTab(tab){
   if(tab==='promo')loadPromoCodes();
   if(tab==='reviews'){loadReviewsAdmin();loadGoogleSettings();}
   if(tab==='activity')loadActivity();
-  if(tab==='content'){loadContentSettings();loadStoriesAdmin();}   /* Document Settings moved to Business OS (Round-2 #6) */
+  if(tab==='content'){loadContentSettings();loadStoriesAdmin();loadProtoGallery();}   /* Document Settings moved to Business OS (Round-2 #6) */
   if(tab==='inbox')loadInbox();
   if(tab==='appearance')loadMenuStyleSetting();
   if(tab==='productstudio')loadProductStudio();
@@ -7028,6 +7038,81 @@ async function uploadStoryImage(input){
   }
   input.value='';
 }
+
+// ── Prototyping Gallery (prototyping.html) ──────────────
+let _protoGalleryCache=[];
+async function loadProtoGallery(){
+  const grid=document.getElementById('protoGalleryGrid'); if(!grid) return;
+  try{
+    const {images}=await adminApi('/api/admin/prototyping-gallery');
+    _protoGalleryCache=images||[];
+    renderProtoGalleryGrid();
+  }catch(e){ grid.innerHTML='<span style="font-size:12px;color:#fca5a5">Error: '+esc(e.message)+'</span>'; }
+}
+function renderProtoGalleryGrid(){
+  const grid=document.getElementById('protoGalleryGrid'); if(!grid) return;
+  grid.innerHTML=_protoGalleryCache.map(function(img,i){
+    return '<div draggable="true" ondragstart="protoGalleryDragStart(event,'+i+')" ondragover="event.preventDefault();this.style.opacity=0.5" ondragleave="this.style.opacity=1" ondrop="protoGalleryDropReorder(event,'+i+')" style="position:relative;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--bg-2);cursor:grab">'
+      +'<img src="'+esc(img.image_url)+'" style="width:100%;height:110px;object-fit:cover;display:block">'
+      +'<input value="'+esc(img.caption||'')+'" placeholder="Caption (optional)" onchange="updateProtoGalleryCaption(\''+img.id+'\',this.value)" style="width:100%;box-sizing:border-box;border:none;border-top:1px solid var(--border);padding:6px 8px;font-size:11px;background:transparent;color:inherit">'
+      +(img.is_active===false?'<span style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,.65);color:#fff;font-size:9px;padding:1px 5px;border-radius:4px">Hidden</span>':'')
+      +'<button type="button" onclick="toggleProtoGalleryActive(\''+img.id+'\','+(img.is_active===false?'true':'false')+')" title="'+(img.is_active===false?'Show':'Hide')+'" style="position:absolute;top:4px;right:26px;width:20px;height:20px;border-radius:50%;background:#111;color:#fff;border:1px solid var(--border);cursor:pointer;font-size:11px;line-height:1">'+(img.is_active===false?'○':'●')+'</button>'
+      +'<button type="button" onclick="deleteProtoGalleryImage(\''+img.id+'\')" style="position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:#111;color:#fff;border:1px solid var(--border);cursor:pointer;font-size:12px;line-height:1">×</button>'
+      +'</div>';
+  }).join('') || '<span style="font-size:12px;color:var(--text-3)">No images yet, add some above</span>';
+}
+let _dragProtoGalleryIdx=null;
+function protoGalleryDragStart(event,i){ _dragProtoGalleryIdx=i; event.dataTransfer.effectAllowed='move'; }
+async function protoGalleryDropReorder(event,i){
+  event.preventDefault();
+  event.currentTarget.style.opacity=1;
+  if(_dragProtoGalleryIdx===null || _dragProtoGalleryIdx===i){ _dragProtoGalleryIdx=null; return; }
+  const [moved]=_protoGalleryCache.splice(_dragProtoGalleryIdx,1);
+  _protoGalleryCache.splice(i,0,moved);
+  _dragProtoGalleryIdx=null;
+  renderProtoGalleryGrid();
+  try{
+    await Promise.all(_protoGalleryCache.map((img,idx)=>adminApi('/api/admin/prototyping-gallery/'+img.id,{method:'PUT',body:JSON.stringify({sort_order:idx})})));
+    toast('Reordered ✓','success');
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+async function uploadProtoGalleryImages(input){
+  const files=input.files?Array.from(input.files):[];
+  if(!files.length) return;
+  const status=document.getElementById('protoGalleryStatus');
+  try{
+    const{data:sess}=await sb.auth.getSession();
+    const token=sess&&sess.session&&sess.session.access_token;
+    let nextOrder=_protoGalleryCache.length;
+    for(let idx=0;idx<files.length;idx++){
+      status.textContent='Uploading '+(idx+1)+'/'+files.length+'…'; status.style.color='var(--text-3)';
+      const fd=new FormData(); fd.append('image',files[idx]);
+      const r=await fetch(API+'/api/admin/upload-image?folder=triakar/prototyping',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+      if(!r.ok) throw new Error((await r.json()).error||'Upload failed');
+      const{url}=await r.json();
+      await adminApi('/api/admin/prototyping-gallery',{method:'POST',body:JSON.stringify({image_url:url,sort_order:nextOrder++})});
+    }
+    status.textContent='Uploaded ✓'; status.style.color='var(--green)';
+    loadProtoGallery();
+  }catch(err){
+    status.textContent='Failed: '+err.message; status.style.color='#fca5a5';
+  }
+  input.value='';
+}
+async function updateProtoGalleryCaption(id,caption){
+  try{ await adminApi('/api/admin/prototyping-gallery/'+id,{method:'PUT',body:JSON.stringify({caption:caption})}); toast('Saved ✓','success'); }
+  catch(e){ toast('Error: '+e.message,'error'); }
+}
+async function toggleProtoGalleryActive(id,nextVal){
+  try{ await adminApi('/api/admin/prototyping-gallery/'+id,{method:'PUT',body:JSON.stringify({is_active:nextVal==='true'})}); loadProtoGallery(); }
+  catch(e){ toast('Error: '+e.message,'error'); }
+}
+async function deleteProtoGalleryImage(id){
+  if(!confirm('Remove this image?')) return;
+  try{ await adminApi('/api/admin/prototyping-gallery/'+id,{method:'DELETE'}); loadProtoGallery(); }
+  catch(e){ toast('Error: '+e.message,'error'); }
+}
+
 async function saveStory(){
   const id=document.getElementById('stId').value;
   const payload={

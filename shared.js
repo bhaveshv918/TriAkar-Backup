@@ -422,6 +422,39 @@ const Cart=(function(){
     fetch(_API+'/api/cart',{method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({items})}).catch(()=>{});
   }
 
+  /* Prototyping plans (see /prototyping.html and supabase/migrations/
+     20260820_prototyping_products_and_gallery.sql): Starter and Enclosed Box
+     have a real PLA+/ABS price difference so switching material swaps the
+     cart line to the sibling SKU; Multi-Part/Full Development already include
+     either material at the same price, so switching just relabels the
+     existing line's customization. These values must stay in sync with the
+     product rows created by that migration. The server always re-derives the
+     charged price from the product record at checkout, so this is display
+     only, never the source of truth for what gets charged. */
+  const PROTO_MATERIAL_MAP={
+    'prototyping-starter-pla': {'PLA+':{slug:'prototyping-starter-pla',name:'Prototyping — Starter (PLA+)',price:2999},'ABS':{slug:'prototyping-starter-abs',name:'Prototyping — Starter (ABS)',price:3698}},
+    'prototyping-starter-abs': {'PLA+':{slug:'prototyping-starter-pla',name:'Prototyping — Starter (PLA+)',price:2999},'ABS':{slug:'prototyping-starter-abs',name:'Prototyping — Starter (ABS)',price:3698}},
+    'prototyping-enclosed-pla':{'PLA+':{slug:'prototyping-enclosed-pla',name:'Prototyping — Enclosed Box (PLA+)',price:4999},'ABS':{slug:'prototyping-enclosed-abs',name:'Prototyping — Enclosed Box (ABS)',price:5698}},
+    'prototyping-enclosed-abs':{'PLA+':{slug:'prototyping-enclosed-pla',name:'Prototyping — Enclosed Box (PLA+)',price:4999},'ABS':{slug:'prototyping-enclosed-abs',name:'Prototyping — Enclosed Box (ABS)',price:5698}},
+    'prototyping-multipart':   {'PLA+':{slug:'prototyping-multipart',name:'Prototyping — Multi-Part',price:8999},'ABS':{slug:'prototyping-multipart',name:'Prototyping — Multi-Part',price:8999}},
+    'prototyping-fulldev':     {'PLA+':{slug:'prototyping-fulldev',name:'Prototyping — Full Development',price:14999},'ABS':{slug:'prototyping-fulldev',name:'Prototyping — Full Development',price:14999}},
+  };
+  function setPrototypeMaterial(id,color,ck,material){
+    const nc=color||'';
+    const idx=items.findIndex(i=>i.id===id&&(i.color||'')===nc&&(ck===undefined||ck===''||_custKey(i.customization||null)===ck));
+    if(idx<0)return;
+    const opts=PROTO_MATERIAL_MAP[items[idx].id];
+    const target=opts&&opts[material];
+    if(!target)return;
+    items[idx].id=target.slug;
+    items[idx].name=target.name;
+    items[idx].price=target.price;
+    if(items[idx].customization&&('Material' in items[idx].customization)){
+      items[idx].customization=Object.assign({},items[idx].customization,{Material:material});
+    }
+    save();render();
+  }
+
   function save(){try{localStorage.setItem(CART_KEY,JSON.stringify(items))}catch(e){}badge();_syncServer();}
   function badge(){const n=items.reduce((s,i)=>s+i.quantity,0);document.querySelectorAll('.cart-badge').forEach(b=>{b.textContent=n;b.classList.toggle('on',n>0)})}
   // Build a stable match key from id + color + customization values
@@ -544,11 +577,24 @@ const Cart=(function(){
         else if(act==='plus') changeQty(id,col,1,ck);
         else if(act==='remove') remove(id,col,ck);
       });
+      el.addEventListener('change',function(e){
+        var sel=e.target.closest('[data-material-for]');
+        if(!sel)return;
+        setPrototypeMaterial(sel.dataset.materialFor,sel.dataset.color||'',sel.dataset.ck||'',sel.value);
+      });
     }
     el.innerHTML=items.map(item=>{
       const ckRaw=_custKey(item.customization||null);
-      const custHtml=item.customization&&Object.keys(item.customization).length
-        ?'<div class="ci-cust">'+Object.entries(item.customization).map(([k,v])=>`<span><b>${_esc(k)}:</b> ${_esc(v)}</span>`).join('')+'</div>'
+      const custEntries=item.customization?Object.entries(item.customization):[];
+      const custHtml=custEntries.length
+        ?'<div class="ci-cust">'+custEntries.filter(([k])=>k!=='Material').map(([k,v])=>`<span><b>${_esc(k)}:</b> ${_esc(v)}</span>`).join('')+'</div>'
+        :'';
+      const protoOpts=PROTO_MATERIAL_MAP[item.id];
+      const curMaterial=(item.customization&&item.customization.Material)||(item.id.indexOf('-abs')>-1?'ABS':'PLA+');
+      const materialHtml=protoOpts
+        ?'<div class="ci-material"><label>Material: <select data-material-for="'+_esc(item.id)+'" data-color="'+_esc(item.color||'')+'" data-ck="'+_esc(ckRaw)+'">'
+          +Object.keys(protoOpts).map(m=>'<option value="'+_esc(m)+'"'+(m===curMaterial?' selected':'')+'>'+_esc(m)+(protoOpts[m].price!==protoOpts[curMaterial].price?' (₹'+protoOpts[m].price.toLocaleString('en-IN')+')':'')+'</option>').join('')
+          +'</select></label></div>'
         :'';
       /* data-* stores id/color/ck safely, no JS quoting inside HTML attributes */
       const da=`data-id="${_esc(item.id)}" data-color="${_esc(item.color||'')}" data-ck="${_esc(ckRaw)}"`;
@@ -563,6 +609,7 @@ const Cart=(function(){
           ?`<img src="${_esc(taImg(item.image,{w:120}))}" alt="${_esc(item.name)}" width="56" height="56" loading="eager" decoding="sync" style="width:56px;height:56px;object-fit:cover;border-radius:3px;display:block">`
           :`<svg viewBox="0 0 56 56" fill="none" style="width:32px"><rect x="6" y="6" width="44" height="44" rx="3" fill="#E8E4DC"/></svg>`}</div>
         <div style="flex:1;min-width:0"><div class="ci-name">${_esc(item.name)}</div><div class="ci-var">${_esc(item.color||'')}</div>
+          ${materialHtml}
           ${custHtml}
           <div class="ci-qty">
             <button class="ci-qbtn" data-action="minus" ${da} aria-label="Decrease quantity">−</button>
@@ -628,7 +675,7 @@ const Cart=(function(){
       _enrichImages().then(changed=>{if(changed)_renderCartItems(el);});
     }
   }
-  return{add,addInstantQuote,changeQty,remove,total,getItems,clear,render,badge,loadFromServer,mergeOnLogin,_enrichImages};
+  return{add,addInstantQuote,changeQty,remove,total,getItems,clear,render,badge,loadFromServer,mergeOnLogin,_enrichImages,setPrototypeMaterial,PROTO_MATERIAL_MAP};
 })();
 
 /* ══ WISHLIST ════════════════════════════════════════════════

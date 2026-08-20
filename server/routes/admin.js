@@ -31,6 +31,9 @@ import {
 import {
   listNewsletterSubscribers, broadcastToSubscribers, deleteSubscriber,
 } from '../controllers/newsletterController.js';
+import {
+  getAdminGallery, createGalleryImage, updateGalleryImage, deleteGalleryImage,
+} from '../controllers/prototypingGalleryController.js';
 
 const router = Router();
 
@@ -50,6 +53,12 @@ router.get('/newsletter',            listNewsletterSubscribers);
 router.post('/newsletter/broadcast', broadcastToSubscribers);
 router.delete('/newsletter/:id',     deleteSubscriber);
 
+// ── Prototyping page gallery (admin-managed example photos) ──
+router.get('/prototyping-gallery',           getAdminGallery);
+router.post('/prototyping-gallery',          createGalleryImage);
+router.put('/prototyping-gallery/:id',       updateGalleryImage);
+router.delete('/prototyping-gallery/:id',    deleteGalleryImage);
+
 // ── Product Studio: dynamic custom fields + AI image-prompt generator ──
 router.get('/custom-fields',              listCustomFields);
 router.post('/custom-fields',             createCustomField);
@@ -63,7 +72,7 @@ router.get('/products/:id/prompt-history',     getProductPromptHistory);
 // Optional ?folder= lets callers (e.g. the Stories editor) route into their own
 // Cloudinary folder instead of the default product one; only a small fixed allowlist
 // is accepted so this can't be used to write arbitrary paths into the Cloudinary account.
-const UPLOAD_FOLDERS = ['triakar/products', 'triakar/stories', 'triakar/business'];
+const UPLOAD_FOLDERS = ['triakar/products', 'triakar/stories', 'triakar/business', 'triakar/prototyping'];
 router.post('/upload-image', upload.single('image'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No image file provided' });
