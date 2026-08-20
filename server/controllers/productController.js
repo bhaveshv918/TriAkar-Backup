@@ -32,8 +32,9 @@ function cacheSet(key, data) {
 
 export async function getAllProducts(req, res, next) {
   try {
-    const { category, customizable } = req.query;
-    const cacheKey = getCacheKey({ category, customizable });
+    const { category, customizable, include_hidden } = req.query;
+    const includeHidden = include_hidden === 'true';
+    const cacheKey = getCacheKey({ category, customizable, includeHidden });
     const cached = cacheGet(cacheKey);
     if (cached) {
       res.setHeader('Cache-Control', 'public, max-age=120, stale-while-revalidate=60');
@@ -47,6 +48,12 @@ export async function getAllProducts(req, res, next) {
       .eq('is_active', true)
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
+
+    // hidden_from_shop products (e.g. the fixed-price prototyping plan SKUs,
+    // meant to be added to cart only from /prototyping.html, not browsed)
+    // are excluded from the general storefront listing by default. Pages
+    // that specifically need them pass include_hidden=true.
+    if (!includeHidden) query = query.eq('hidden_from_shop', false);
 
     if (category) query = query.eq('category', category);
     if (customizable === 'true') query = query.eq('is_customizable', true);
