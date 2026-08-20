@@ -1,4 +1,27 @@
 import supabase from '../db/supabaseClient.js';
+import { compressImage } from '../middleware/uploadMiddleware.js';
+import { uploadBufferToCloudinary } from '../services/cloudinaryService.js';
+
+/* ─────────────────────────────────────────────────────────────────────────
+   PUBLIC — POST /api/prototyping-gallery/upload-reference
+   Lets a shopper attach reference photos to their prototyping cart item
+   before checkout (e.g. a sketch or a photo of the part). Rate-limited in
+   index.js. Returns only the hosted URL, never touches the gallery table
+   (that stays admin-only) or any DB row — the frontend puts the URL into
+   the cart item's customization notes, same as any other text field.
+───────────────────────────────────────────────────────────────────────── */
+export async function uploadReferenceImage(req, res, next) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No image file provided' });
+    const compressed = await compressImage(req.file.buffer);
+    const result = await uploadBufferToCloudinary(compressed, {
+      folder: 'triakar/prototyping-references',
+      fetch_format: 'auto',
+      quality:      'auto',
+    });
+    res.json({ url: result.secure_url });
+  } catch (err) { next(err); }
+}
 
 /* ─────────────────────────────────────────────────────────────────────────
    PUBLIC — GET /api/prototyping-gallery

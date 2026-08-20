@@ -204,6 +204,17 @@ const instantQuoteLimiter = rateLimit({
 });
 app.use('/api/instant-quote/analyze', instantQuoteLimiter);
 
+// Reference-photo uploads on the prototyping page — same shape of abuse risk
+// as the Instant Quote uploader (public, unauthenticated, file I/O), same limit.
+const protoRefUploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many image uploads. Try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/prototyping-gallery/upload-reference', protoRefUploadLimiter);
+
 // Promo validation is unauthenticated — keep it tight so codes can't be enumerated
 const promoLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
