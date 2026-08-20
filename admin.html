@@ -2322,8 +2322,14 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
 <div class="toast" id="toast"></div>
 
 <script src="/pricing.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.js" crossorigin="anonymous"></script>
-<script>if(!window.supabase){document.write('<scr'+'ipt src="https://unpkg.com/@supabase/supabase-js@2.39.0/dist/umd/supabase.js"><\/scr'+'ipt>');}</script>
+<!-- Self-hosted, not CDN: jsdelivr and unpkg both returning 503 at the same time
+     took the whole admin panel down (window.supabase never defined, every sb.*
+     call, including sign-in, threw ReferenceError). The old fallback here only
+     checked `if(!window.supabase)` synchronously right after the first script
+     tag, which doesn't reliably catch "loaded a 503 error page as if it were the
+     script" the way it needs to, only a true network failure. One less external
+     dependency for something this critical to be down. -->
+<script src="/js/supabase.js"></script>
 <script defer src="/products-data.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════
@@ -2454,7 +2460,13 @@ function checkDescSQL(el,errId){
 }
 let _failedAttempts=0;
 let _lockedUntil=0;
-let _formLoadTime=Date.now();
+// var, not let: a browser autofill/extension can trigger the Sign In button's
+// onclick (doLogin) before this line's own script block has finished running,
+// hitting `let`'s temporal dead zone and throwing before Sign In does anything
+// at all. var is hoisted AND initialized immediately, so a too-early read is
+// just NaN (timeTaken is only ever used for a bot-timing heuristic/log line,
+// never a hard gate), not a crash that silently kills the whole login flow.
+var _formLoadTime=Date.now();
 
 // Check lockout state from Supabase (IP-based, survives cookie clear)
 // Uses SECURITY DEFINER RPC so anon users can check their own lockout
