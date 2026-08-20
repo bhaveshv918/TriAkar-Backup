@@ -113,14 +113,14 @@ window._NAV_HTML = `<nav class="main-nav" id="mainNav">
       <li><a href="/products.html">Shop</a></li>
       <li><a href="/instant-quote.html" class="nav-highlight">Instant Quote</a></li>
       <li><a href="/prototyping.html" class="nav-highlight">Prototyping</a></li>
-      <li><a href="/order.html">Customization</a></li>
-      <li><a href="/stories.html">Our Stories</a></li>
+      <li><a href="/order.html">Custom</a></li>
+      <li><a href="/stories.html">Stories</a></li>
       <li class="nav-more">
         <button type="button" class="nav-more-trigger" aria-haspopup="true" aria-expanded="false">More<svg class="nav-more-caret" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
         <div class="nav-more-menu">
           <a href="/about.html">About</a>
           <a href="/contact.html">Contact</a>
-          <a href="/track-order.html">Track Order</a>
+          <a href="/track-order.html">Track</a>
         </div>
       </li>
     </ul>
