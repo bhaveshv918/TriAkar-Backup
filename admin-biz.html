@@ -2109,7 +2109,7 @@ html[data-theme="dark"] .biz-login{
       <!-- Phase 10 Group 1: All Orders gets its own stat cards (it had none before,
            just a text subtitle), unfiltered, every status including cancelled/returned.
            Hidden by default (view toggle above), only Today's Tasks keeps stats always on. -->
-      <div id="allOrdersKpi" style="display:none;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
+      <div id="allOrdersKpi" data-shown-display="grid" style="display:none;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
       <!-- Cost/profit is customer-unsafe data, so this stays hidden behind an explicit
            click (same convention as the per-row "Show cost & profit"), never shown by
            default even though the numbers are ready as soon as the tab loads. -->
@@ -2334,8 +2334,8 @@ html[data-theme="dark"] .biz-login{
           View Stats
         </button>
       </div>
-      <div id="salesviewKpi" style="display:none;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
-      <div id="salesviewCompare" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;flex-wrap:wrap;gap:24px"></div>
+      <div id="salesviewKpi" data-shown-display="grid" style="display:none;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
+      <div id="salesviewCompare" data-shown-display="flex" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;flex-wrap:wrap;gap:24px"></div>
       <!-- Same filter set as All Orders, plus a one-click "not done yet" view: orders
            that are neither in a completed/delivered state NOR locked (marked paid), i.e.
            the ones that still need work or a payment follow-up. -->
@@ -9873,7 +9873,14 @@ function renderSfChannelBtns(){
 // Stats/KPI strips on report-style tabs (All Orders, Sales) are hidden by default,
 // one click reveals them, Today's Tasks is the only page that keeps stats always on.
 function toggleStatsView(...ids){
-  ids.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=el.style.display==='none'?'':'none'; });
+  // Toggling to '' (browser default block) instead of each element's real
+  // display type silently dropped every one of these back to plain stacked
+  // full-width bars, grid-template-columns/flex-wrap do nothing unless
+  // display is actually grid/flex. data-shown-display carries the real value.
+  ids.forEach(id=>{
+    const el=document.getElementById(id); if(!el) return;
+    el.style.display=el.style.display==='none'?(el.dataset.shownDisplay||'grid'):'none';
+  });
 }
 function setSfChannel(c){ const el=document.getElementById('sfChannel'); if(el) el.value=c; renderSfChannelBtns(); loadSales(); }
 // Phase 10 Group 1: always unfiltered (every status, including cancelled/returned),
