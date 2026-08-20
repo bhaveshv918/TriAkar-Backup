@@ -15,7 +15,7 @@
 <script>window.addEventListener("load",function(){setTimeout(function(){var s=document.createElement("script");s.src="https://js-de.sentry-cdn.com/4f9ce894558c957a725b20eee4dd58eb.min.js";s.crossOrigin="anonymous";document.head.appendChild(s);},4000);},{once:true});</script>
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>Order & Payment Received | TriAkar</title>
+<title>Order Confirmed | TriAkar</title>
 <meta name="description" content="Your TriAkar order has been confirmed. Track your order or contact us for support.">
 <meta name="keywords" content="order confirmed, TriAkar">
 <link rel="canonical" href="https://www.triakar.com/order-confirmation">
@@ -165,10 +165,10 @@ function renderOrder(order) {
       + '<svg viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
       + '</div>';
 
-  const title = isWA ? 'Order Sent via WhatsApp' : 'Order & Payment Received';
+  const title = isWA ? 'Order Sent via WhatsApp' : 'Order Confirmed';
   const subtitle = isWA
     ? 'Your order has been sent to our WhatsApp. We\'ll confirm details and share payment info shortly.<br>Save your order ID <strong>' + orderId + '</strong> for reference.'
-    : 'Thank you! Your order and payment have both been received.<br>Use your order ID <strong>' + orderId + '</strong> to <a href="track-order.html?id=' + encodeURIComponent(orderId) + '" style="color:var(--accent)">track your order</a>.';
+    : 'Thank you! We\'ll start making your items right away.<br>Use your order ID <strong>' + orderId + '</strong> to <a href="track-order.html?id=' + encodeURIComponent(orderId) + '" style="color:var(--accent)">track your order</a>.';
 
   const statusBadge = isWA
     ? '<span class="status-badge status-badge-wa">Partially Confirmed</span>'
@@ -181,12 +181,7 @@ function renderOrder(order) {
       + '<div class="wa-note-title">Payment Pending, Order Partially Confirmed</div>'
       + '<div class="wa-note-text">We\'ve received your order details. Our team will message you on WhatsApp at <strong>' + (order.customer_phone || 'your number') + '</strong> to confirm the order and share payment details. Production begins after payment is received.</div>'
       + '</div></div>'
-    : '<div class="wa-note">'
-      + '<div class="wa-note-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>'
-      + '<div class="wa-note-body">'
-      + '<div class="wa-note-title">Order Acknowledged</div>'
-      + '<div class="wa-note-text">This confirms we\'ve received both your order and your payment of <strong>₹' + Number(order.total_amount || 0).toLocaleString('en-IN') + '</strong>. We\'ll begin work on your order shortly' + (order.is_customizable ? ', and reach out to confirm your customization before production starts' : '') + '.</div>'
-      + '</div></div>';
+    : '';
 
   document.getElementById('confirmContent').innerHTML =
     checkIcon
@@ -197,7 +192,7 @@ function renderOrder(order) {
     + '<div class="confirm-meta-item"><div class="confirm-meta-label">Order ID</div><div class="confirm-meta-value" style="display:flex;align-items:center;gap:8px;">' + orderId + '<button id="copyIdBtn" onclick="copyOrderId(\'' + orderId + '\',this)" title="Copy order ID" style="background:none;border:1px solid var(--stone-p);padding:3px 9px;cursor:pointer;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;color:var(--stone);font-family:var(--font-b);flex-shrink:0;transition:all .2s">COPY</button></div></div>'
     + '<div class="confirm-meta-item"><div class="confirm-meta-label">Date</div><div class="confirm-meta-value">' + fmtDate(order.created_at || new Date().toISOString()) + '</div></div>'
     + '<div class="confirm-meta-item"><div class="confirm-meta-label">Status</div><div class="confirm-meta-value">' + statusBadge + '</div></div>'
-    + '<div class="confirm-meta-item"><div class="confirm-meta-label">Payment</div><div class="confirm-meta-value" style="color:#1a6e35;font-weight:700">' + (isWA ? 'Pending' : 'Received') + '</div></div>'
+    + (isWA ? '<div class="confirm-meta-item"><div class="confirm-meta-label">Payment</div><div class="confirm-meta-value" style="color:#1a6e35;font-weight:700">Pending</div></div>' : '')
     + '</div>'
 
     + waBlock
