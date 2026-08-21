@@ -2274,12 +2274,13 @@ html[data-theme="dark"] .biz-login{
             <th class="td-num">Qty</th>
             <th class="td-num">Price</th>
             <th>Status</th>
+            <th>Invoice</th>
             <th style="width:44px;text-align:center">Lock</th>
           </tr></thead>
           <tbody id="salesBody">
-            <tr class="skel-row"><td colspan="10"><div style="display:flex;gap:16px;align-items:center"><span class="skel-bar" style="width:20px"></span><span class="skel-bar" style="width:60px"></span><span class="skel-bar" style="width:70px"></span><span class="skel-bar" style="width:100px"></span><span class="skel-bar" style="width:120px"></span><span class="skel-bar" style="width:50px"></span></div></td></tr>
-            <tr class="skel-row"><td colspan="10"><div style="display:flex;gap:16px;align-items:center"><span class="skel-bar" style="width:20px"></span><span class="skel-bar" style="width:60px"></span><span class="skel-bar" style="width:70px"></span><span class="skel-bar" style="width:100px"></span><span class="skel-bar" style="width:120px"></span><span class="skel-bar" style="width:50px"></span></div></td></tr>
-            <tr class="skel-row"><td colspan="10"><div style="display:flex;gap:16px;align-items:center"><span class="skel-bar" style="width:20px"></span><span class="skel-bar" style="width:60px"></span><span class="skel-bar" style="width:70px"></span><span class="skel-bar" style="width:100px"></span><span class="skel-bar" style="width:120px"></span><span class="skel-bar" style="width:50px"></span></div></td></tr>
+            <tr class="skel-row"><td colspan="11"><div style="display:flex;gap:16px;align-items:center"><span class="skel-bar" style="width:20px"></span><span class="skel-bar" style="width:60px"></span><span class="skel-bar" style="width:70px"></span><span class="skel-bar" style="width:100px"></span><span class="skel-bar" style="width:120px"></span><span class="skel-bar" style="width:50px"></span></div></td></tr>
+            <tr class="skel-row"><td colspan="11"><div style="display:flex;gap:16px;align-items:center"><span class="skel-bar" style="width:20px"></span><span class="skel-bar" style="width:60px"></span><span class="skel-bar" style="width:70px"></span><span class="skel-bar" style="width:100px"></span><span class="skel-bar" style="width:120px"></span><span class="skel-bar" style="width:50px"></span></div></td></tr>
+            <tr class="skel-row"><td colspan="11"><div style="display:flex;gap:16px;align-items:center"><span class="skel-bar" style="width:20px"></span><span class="skel-bar" style="width:60px"></span><span class="skel-bar" style="width:70px"></span><span class="skel-bar" style="width:100px"></span><span class="skel-bar" style="width:120px"></span><span class="skel-bar" style="width:50px"></span></div></td></tr>
           </tbody>
         </table>
       </div>
@@ -10010,7 +10011,16 @@ async function loadSales(){
   document.getElementById('salesSubtitle').textContent=`${groups.length} order${groups.length!==1?'s':''} · ${rows.length} item${rows.length!==1?'s':''}`;
   _orderKeys=groups.map(g=>g.items[0].id);
   const tbody=document.getElementById('salesBody');
-  if(!groups.length){ tbody.innerHTML=`<tr><td colspan="10"><div class="empty"><div class="em-icon">◈</div><div class="em-text">No sales found</div></div></td></tr>`; return; }
+  if(!groups.length){ tbody.innerHTML=`<tr><td colspan="11"><div class="empty"><div class="em-icon">◈</div><div class="em-text">No sales found</div></div></td></tr>`; return; }
+  // Invoice numbers already generated for these orders, looked up so the Invoice
+  // column can link straight to the same document viewLoggedInvoice opens from the
+  // Invoicing tab, instead of the operator having to switch tabs and search for it.
+  const invOrderIds=[...new Set(groups.map(g=>g.items[0].order_id).filter(Boolean))];
+  const invByOrder={};
+  if(invOrderIds.length){
+    const {data:invRows}=await sb.from('biz_invoices').select('order_id,sale_id,invoice_number,doc_kind').in('order_id',invOrderIds);
+    (invRows||[]).forEach(r=>{ if(!r.order_id) return; const cur=invByOrder[r.order_id]; if(!cur||(cur.doc_kind!=='invoice'&&r.doc_kind==='invoice')) invByOrder[r.order_id]=r; });
+  }
   tbody.innerHTML=groups.map((g,idx)=>{
     const items=g.items, f=items[0];
     const key=f.id;                                   // DOM-safe handle (first item id)
@@ -10025,7 +10035,7 @@ async function loadSales(){
     const prodImg=f.product_id?(_products.find(p=>p.id===f.product_id)||{}).image_url:null;
     const thumb=prodImg
       ? `<img src="${esc(prodImg)}" alt="" style="width:28px;height:28px;border-radius:5px;object-fit:cover;flex-shrink:0;vertical-align:middle;margin-right:7px" onerror="this.style.display='none'">`
-      : `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:5px;background:var(--bg-3);flex-shrink:0;vertical-align:middle;margin-right:7px"></span>`;
+      : '';
     // Show SKU as the primary label (products are recognised by SKU day-to-day) with the
     // full description underneath in muted text; falls back to the name if no SKU is set.
     const skuLine=f.sku
@@ -10037,6 +10047,10 @@ async function loadSales(){
     const giftBadge=f.is_gift?` <span title="Gift, ₹0 revenue, cost logged as a Marketing expense"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4"/><path d="M12 8v13M3 12v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M12 8c-1.5 0-4-1-4-3.5A2.5 2.5 0 0 1 10.5 2C12 2 12 5 12 8ZM12 8c1.5 0 4-1 4-3.5A2.5 2.5 0 0 0 13.5 2C12 2 12 5 12 8Z"/></svg></span>`:'';
     const itemCol=thumb+`<span style="display:inline-block;vertical-align:middle">${skuLine}${giftBadge}${orderIdLine}${items.length>1?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">+${items.length-1} more</span>`:''}${orderAlertBadge(f)}</span>`;
     const breached=daysPastPromiseNotCompleted(f)!=null;
+    const inv=f.order_id?invByOrder[f.order_id]:null;
+    const invCell=inv
+      ?`<button onclick="event.stopPropagation();viewLoggedInvoice('${inv.order_id||''}','${inv.sale_id||''}','${inv.doc_kind||'invoice'}')" title="Open the invoice" style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--accent,#C4622A);background:none;border:none;padding:0;cursor:pointer;text-decoration:underline">${esc(inv.invoice_number)}</button>`
+      :`<span style="color:var(--text-3);font-size:11px">N/A</span>`;
     return `<tr class="sale-row${breached?' row-breached':''}" onclick="rowSelectOrAction(event,'sale-cb',()=>openOrderDetail('${key}',event))" style="cursor:pointer;${allPaid?'opacity:.78':''}">
       <td><input type="checkbox" class="sale-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateBulkBar()"></td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${idx+1}</td>
@@ -10047,6 +10061,7 @@ async function loadSales(){
       <td class="td-num">${totalQty}</td>
       <td class="td-num" style="font-weight:700">${fmt(totalPrice)}</td>
       <td onclick="event.stopPropagation()"><select onchange="updateOrderStatus('${key}',this.value)" ${allPaid?'disabled title="Locked, unlock to change status"':''} class="badge-select badge-${status==='mixed'?'pending':status}">${status==='mixed'?'<option value="" selected disabled>Mixed</option>':''}${UNIFIED_STATUSES.map(x=>`<option value="${x}"${status===x?' selected':''}>${STATUS_LABEL[x]}</option>`).join('')}</select></td>
+      <td onclick="event.stopPropagation()">${invCell}</td>
       <td style="text-align:center" onclick="event.stopPropagation()">
         <button class="btn btn-icon-tint ${allPaid?'btn-icon-order':'btn-icon-muted'} btn-sm" title="${allPaid?'Locked, click to unlock for editing':'Unlocked, click to lock'}" onclick="togglePaidOrder('${key}',${allPaid})" style="padding:3px 6px">${allPaid?ICO_LOCK:ICO_UNLOCK}</button>
       </td>
