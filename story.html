@@ -13,7 +13,7 @@
 </script>
 <!-- Sentry Error Monitoring -->
 <script>window.addEventListener("load",function(){setTimeout(function(){var s=document.createElement("script");s.src="https://js-de.sentry-cdn.com/4f9ce894558c957a725b20eee4dd58eb.min.js";s.crossOrigin="anonymous";document.head.appendChild(s);},4000);},{once:true});</script>
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" id="metaViewport" content="width=device-width,initial-scale=1.0">
 <title>TriAkar Story</title>
 <meta name="description" content="A real TriAkar customer story: real orders, real people, real problems solved by 3D printing.">
 <link rel="canonical" id="metaCanonical" href="https://www.triakar.com/stories">
@@ -97,8 +97,8 @@
 <div id="nav-root"></div><script>if(window._NAV_HTML)document.getElementById("nav-root").outerHTML=window._NAV_HTML;</script>
 <div id="drawer-root"></div><script>if(window._DRAWER_HTML)document.getElementById("drawer-root").outerHTML=window._DRAWER_HTML;</script>
 
-<div class="story-lightbox" id="storyLightbox" onclick="closeLightbox()">
-  <button type="button" class="story-lightbox-close" aria-label="Close" onclick="closeLightbox()">×</button>
+<div class="story-lightbox" id="storyLightbox">
+  <button type="button" class="story-lightbox-close" aria-label="Close">×</button>
   <img id="storyLightboxImg" src="" alt="">
 </div>
 
@@ -291,17 +291,29 @@
     return {list:sameTag.concat(otherTag).slice(0,15), allRead:false};
   }
 
+  /* Pinch-zooming the page (native browser zoom) while the lightbox is open
+     is a known mobile bug: fixed-position elements like the close button
+     stop lining up with where taps land once the page is zoomed, so the
+     button appears unresponsive. Locking zoom while the lightbox is open
+     avoids that; the lightbox already shows the image at near-full size. */
   function openLightbox(src,alt){
     const img=document.getElementById('storyLightboxImg');
     img.src=src; img.alt=alt||'';
     document.getElementById('storyLightbox').classList.add('open');
     document.body.style.overflow='hidden';
+    const vp=document.getElementById('metaViewport');
+    if(vp) vp.dataset.prevContent=vp.getAttribute('content');
+    if(vp) vp.setAttribute('content','width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no');
   }
   function closeLightbox(){
     document.getElementById('storyLightbox').classList.remove('open');
     document.body.style.overflow='';
+    const vp=document.getElementById('metaViewport');
+    if(vp && vp.dataset.prevContent) vp.setAttribute('content',vp.dataset.prevContent);
   }
   document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeLightbox(); });
+  document.getElementById('storyLightbox').addEventListener('click',closeLightbox);
+  document.querySelector('.story-lightbox-close').addEventListener('click',e=>{ e.stopPropagation(); closeLightbox(); });
 
   /* Click-to-zoom on the gallery photo. Distinguishes a tap from a
      swipe by comparing scroll position at pointerdown vs click, so
