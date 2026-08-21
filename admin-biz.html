@@ -14292,7 +14292,19 @@ body{font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:12.5px;color:
 .doc-type{font-size:9px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#C4622A;margin-bottom:3px}
 .doc-no{font-size:18px;font-weight:800;color:#111;letter-spacing:.02em;font-family:'Inter','Segoe UI',system-ui,sans-serif}
 .doc-meta{font-size:11px;color:#444;margin-top:4px;line-height:1.6}
-.doc-meta-box{border:1.5px solid #C4622A;border-radius:8px;overflow:hidden;margin-top:5px;display:inline-block;background:#fff}
+/* display:block + width:fit-content, NOT inline-block, and this is load-bearing:
+   html2canvas 1.4.1 (the downloaded-PDF renderer, see _buildDocPdfBlob below)
+   paints the border of an inline-block element but skips every descendant of it
+   when that descendant is a <table>, which is why the date box came out as an
+   empty orange rectangle in downloaded PDFs while looking correct on screen and
+   in Print / PDF. Verified by rendering this exact header through html2canvas
+   and counting painted pixels inside the box: inline-block = 0 painted pixels,
+   block + fit-content = fully painted, at the identical position and size
+   (575,78 193x45 either way, so nothing about the layout changes). The
+   border-radius and overflow:hidden are innocent, both were tested and neither
+   triggers it. margin-left:auto keeps it flush right, which inline-block used
+   to get for free from .hdr-doc's text-align:right. */
+.doc-meta-box{border:1.5px solid #C4622A;border-radius:8px;overflow:hidden;margin-top:5px;display:block;width:fit-content;margin-left:auto;background:#fff}
 .doc-meta-box table{width:100%;border-collapse:collapse}
 .doc-meta-box td{padding:4px 11px;border-bottom:1px solid #ddd;font-size:10.5px}
 .doc-meta-box tr:last-child td{border-bottom:none}
