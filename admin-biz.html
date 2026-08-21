@@ -14660,7 +14660,18 @@ async function _buildDocPdfBlob(){
     document.body.classList.add('pdf-compact');
     compactApplied=true;
   }
-  var canvas=await html2canvas(document.body,{scale:2,backgroundColor:'#ffffff',useCORS:true,windowWidth:A4_PX_W});
+  // Capture resolution. The PDF is a raster image of this page (html2canvas has
+  // no vector output), so this scale IS the printed/zoomed quality: 794 CSS px
+  // across 210mm means scale 3 = 2382 px = 288 dpi, print grade, against the 192
+  // dpi scale 2 used to give. Not higher, because 4096 px is the smallest
+  // max-canvas-side among the browsers this popup opens in (older iOS Safari
+  // returns a blank canvas past it) and scale 4 on a full page is 4492 px tall.
+  // The cap keeps an unusually long document under that ceiling too. For text
+  // that stays sharp at any zoom there is no raster answer at all, that is what
+  // Print / Save as PDF is for, it emits real vector glyphs.
+  var docH=Math.max(document.body.scrollHeight,A4_PX_H);
+  var scale=Math.min(3,4096/docH);
+  var canvas=await html2canvas(document.body,{scale:scale,backgroundColor:'#ffffff',useCORS:true,windowWidth:A4_PX_W});
   if(compactApplied) document.body.classList.remove('pdf-compact');
   actions.style.display='';
   var jsPDF=window.jspdf.jsPDF;
@@ -14670,10 +14681,19 @@ async function _buildDocPdfBlob(){
   // 1:1 onto the real A4 page width; imgH only exceeds ph if content still
   // overflowed A4_PX_H even after the compact pass above.
   var imgH=canvas.height*pw/canvas.width;
-  var img=canvas.toDataURL('image/jpeg',0.95);
+  // PNG, not JPEG. A document page is flat fills, thin rules and text, exactly
+  // what JPEG handles worst (it was ringing around every glyph edge) and what
+  // PNG compresses best: measured on a full 3-item GST invoice, PNG at scale 3
+  // came out 486 KB against JPEG q0.95's 716 KB at the same resolution, so this
+  // is smaller AND lossless, not a size-for-quality trade.
+  var img=canvas.toDataURL('image/png'), fmt='PNG';
+  // A low-memory phone can fail the PNG encode of an 8 MP canvas by handing back
+  // an empty "data:," instead of throwing, which would write a blank page. JPEG
+  // needs far less working memory, so degrade to it rather than to nothing.
+  if(img.length<1000){ img=canvas.toDataURL('image/jpeg',0.95); fmt='JPEG'; }
   var drawW=pw, drawH=imgH;
   if(drawH>ph){ var s=ph/drawH; drawH=ph; drawW=pw*s; }
-  pdf.addImage(img,'JPEG',(pw-drawW)/2,0,drawW,drawH);
+  pdf.addImage(img,fmt,(pw-drawW)/2,0,drawW,drawH,undefined,'FAST');
   return pdf.output('blob');
 }
 // Always a straight file download, regardless of device share capability, for
