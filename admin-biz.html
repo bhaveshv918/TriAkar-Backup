@@ -3721,7 +3721,7 @@ html[data-theme="dark"] .biz-login{
       </div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th style="width:20px"></th><th>Invoice No</th><th>Order</th><th>Kind</th><th>Doc Date</th><th>Generated</th><th class="td-actions"></th></tr></thead>
+          <thead><tr><th style="width:20px"></th><th>Doc Date</th><th>Invoice No</th><th>Order</th><th>Kind</th><th>Customer</th><th class="td-actions"></th></tr></thead>
           <tbody id="invoicingBody"><tr><td colspan="7" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
@@ -12478,6 +12478,18 @@ async function loadInvoicing(){
   const {data,error}=await q;
   const tbody=document.getElementById('invoicingBody'); if(!tbody) return;
   if(error){ tbody.innerHTML=`<tr><td colspan="7" class="empty"><div class="em-text">Error loading, has 20260709_biz_invoicing.sql been run?</div></td></tr>`; return; }
+  // Customer names aren't stored on biz_invoices itself, look them up from biz_sales
+  // via sale_id (precise) falling back to order_id (covers multi-line orders where the
+  // exact sale_id link is missing).
+  const saleIds=[...new Set((data||[]).map(r=>r.sale_id).filter(Boolean))];
+  const orderIds=[...new Set((data||[]).map(r=>r.order_id).filter(Boolean))];
+  const custBySale={}, custByOrder={};
+  const [bySaleRes,byOrderRes]=await Promise.all([
+    saleIds.length?sb.from('biz_sales').select('id,customer_name').in('id',saleIds):Promise.resolve({data:[]}),
+    orderIds.length?sb.from('biz_sales').select('order_id,customer_name').in('order_id',orderIds).not('customer_name','is',null):Promise.resolve({data:[]})
+  ]);
+  (bySaleRes.data||[]).forEach(s=>{ if(s.customer_name) custBySale[s.id]=s.customer_name; });
+  (byOrderRes.data||[]).forEach(s=>{ if(s.customer_name&&!custByOrder[s.order_id]) custByOrder[s.order_id]=s.customer_name; });
   // Sorting is always by invoice number (newest FY, then highest sequence, first),
   // not by generated_at, so a bill cut earlier in the series always sits below one
   // cut later, regardless of which order they were printed/reprinted in.
@@ -12489,17 +12501,20 @@ async function loadInvoicing(){
     if(seqDiff) return seqDiff;
     return (b.generated_at||'').localeCompare(a.generated_at||'');
   });
-  tbody.innerHTML=rows.length?rows.map(r=>`<tr draggable="true" data-id="${r.id}"
+  tbody.innerHTML=rows.length?rows.map(r=>{
+    const custName=custBySale[r.sale_id]||custByOrder[r.order_id]||'N/A';
+    return `<tr draggable="true" data-id="${r.id}"
        ondragstart="invDragStart(event,'${r.id}')" ondragend="invDragEnd(event)"
        ondragover="invDragOver(event)" ondragleave="invDragLeave(event)" ondrop="invDrop(event,'${r.id}')">
     <td class="srl" draggable="true" title="Drag onto another row to move here" style="cursor:grab;color:var(--text-3);text-align:center">⠿</td>
+    <td style="font-family:var(--mono);font-size:11px">${r.doc_date?fmtDay(r.doc_date):'N/A'}</td>
     <td style="font-family:var(--mono);font-weight:600">${esc(r.invoice_number)}</td>
     <td style="font-family:var(--mono);font-size:11px">${r.order_id?orderIdTag(r.order_id,{size:'11px'}):'N/A'}</td>
     <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${r.doc_kind==='record'?'Ack':'Invoice'}</span></td>
-    <td style="font-family:var(--mono);font-size:11px">${r.doc_date?fmtDay(r.doc_date):'N/A'}</td>
-    <td style="font-family:var(--mono);font-size:11px">${fmtDay(r.generated_at)}</td>
+    <td style="white-space:nowrap">${esc(custName)}</td>
     <td class="td-actions" style="white-space:nowrap"><button class="btn btn-icon-tint btn-icon-doc btn-sm" onclick="viewLoggedInvoice('${r.order_id||''}','${r.sale_id||''}','${r.doc_kind||'invoice'}')" title="Open the actual invoice/record document" style="padding:3px 6px">${ICO_VIEW}</button> ${r.order_id?`<button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${esc(r.order_id)}';loadSales();}},300)" title="Jump to order" style="padding:3px 6px">${ICO_EXTERNAL}</button>`:''} <button class="btn btn-icon-tint btn-icon-duplicate btn-sm" onclick="duplicateInvoiceLog('${r.id}')" title="Duplicate onto a new sequential number, same order/kind" style="padding:3px 6px">${ICO_DUPLICATE}</button> <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editInvoiceLog('${r.id}','${esc(r.invoice_number)}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deleteInvoiceLog('${r.id}','${esc(r.invoice_number)}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
-  </tr>`).join(''):`<tr><td colspan="7" class="empty"><div class="em-text">No invoices generated yet</div></td></tr>`;
+  </tr>`;
+  }).join(''):`<tr><td colspan="7" class="empty"><div class="em-text">No invoices generated yet</div></td></tr>`;
 }
 // Renumber a logged invoice directly, e.g. to fix a typo or align with a paper series.
 // Two independent, bypassable warnings can show: a duplicate/gap check on the number
@@ -12590,19 +12605,23 @@ async function deleteInvoiceLog(id,num){
   loadInvoicing();
 }
 // Replays the original document through the same printInvoice() every other print
-// button already uses. Reads straight from biz_sales (sale_id if this doc was tied
-// to one specific line item, otherwise every row sharing order_id) instead of
-// _salesCache, which may be empty if the Invoicing tab is opened before Sales ever
-// loads.
+// button already uses. Reads straight from biz_sales (every row sharing order_id,
+// falling back to just the one sale_id row for legacy sales logged before order_id
+// existed) instead of _salesCache, which may be empty if the Invoicing tab is opened
+// before Sales ever loads.
+// order_id must be checked first, not sale_id: allocateInvoiceNumber logs sale_id
+// alongside order_id for every multi-item order too (it's just whichever line item
+// was items[0] at print time, see allocateInvoiceNumber's comment), so checking
+// sale_id first was pulling back only that one line item instead of the whole order.
 async function viewLoggedInvoice(orderId, saleId, docKind){
   const win=window.open('','_blank');   // opened synchronously so mobile still treats it as user-initiated
   let items=[];
   try{
-    if(saleId){
-      const {data}=await sb.from('biz_sales').select('*').eq('id',saleId).limit(1);
-      items=data||[];
-    } else if(orderId){
+    if(orderId){
       const {data}=await sb.from('biz_sales').select('*').eq('order_id',orderId).eq('is_deleted',false).order('created_at');
+      items=data||[];
+    } else if(saleId){
+      const {data}=await sb.from('biz_sales').select('*').eq('id',saleId).limit(1);
       items=data||[];
     }
   }catch(_){}
