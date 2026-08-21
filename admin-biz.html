@@ -2619,8 +2619,8 @@ html[data-theme="dark"] .biz-login{
       </div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Name</th><th>Group</th><th>Limited colors</th><th>Density (g/cm³)</th><th>₹/gram</th><th>Default</th><th>Active</th><th>Edit</th></tr></thead>
-          <tbody id="iqMaterialsBody"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+          <thead><tr><th>Name</th><th>Group</th><th>Limited colors</th><th>Density (g/cm³)</th><th>₹/gram</th><th>Default</th><th>Popular</th><th>Active</th><th>Edit</th></tr></thead>
+          <tbody id="iqMaterialsBody"><tr><td colspan="9" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
 
@@ -8933,7 +8933,7 @@ const _iqSaveCancelBtns=(onSave,onCancel)=>'<span style="display:inline-flex;gap
 
 async function loadIqMaterials(){
   const{data,error}=await sb.from('instant_quote_materials').select('*').order('sort_order');
-  if(error){document.getElementById('iqMaterialsBody').innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">Error loading materials</div></td></tr>';return}
+  if(error){document.getElementById('iqMaterialsBody').innerHTML='<tr><td colspan="9" class="empty"><div class="em-text">Error loading materials</div></td></tr>';return}
   _iqMaterials=data||[];
   renderIqMaterialsRows();
   renderIqKpi();
@@ -8948,10 +8948,11 @@ function renderIqMaterialsRows(){
     +'<td data-label="Density">'+Number(m.density_g_cm3).toFixed(2)+'</td>'
     +'<td data-label="₹/gram">₹'+Number(m.cost_per_gram_public).toFixed(2)+'</td>'
     +'<td data-label="Default"><button class="btn btn-ghost btn-sm" onclick="setIqDefault(\'instant_quote_materials\',\''+m.id+'\',\'loadIqMaterials\')">'+(m.is_default?'★ Default':'Set default')+'</button></td>'
+    +'<td data-label="Popular"><button class="btn btn-ghost btn-sm" onclick="toggleIqPopular(\''+m.id+'\','+(!m.is_popular)+',\'loadIqMaterials\')">'+(m.is_popular?'★ Popular':'Set popular')+'</button></td>'
     +'<td data-label="Active"><button class="btn btn-ghost btn-sm" onclick="toggleIqActive(\'instant_quote_materials\',\''+m.id+'\','+(!m.active)+',\'loadIqMaterials\')">'+(m.active?'Active':'Inactive')+'</button></td>'
     +'<td data-label="Edit">'+_iqRowActionBtns("startEditIqMaterial('"+m.id+"')")+'</td>'
     +'</tr>'
-  ).join('')||'<tr><td colspan="8" class="empty"><div class="em-text">No materials yet.</div></td></tr>';
+  ).join('')||'<tr><td colspan="9" class="empty"><div class="em-text">No materials yet.</div></td></tr>';
 }
 function _iqMaterialEditRow(m){
   return '<tr>'
@@ -8961,6 +8962,7 @@ function _iqMaterialEditRow(m){
     +'<td data-label="Density"><input type="number" class="iq-edit-input" id="iqmEditDensity" value="'+m.density_g_cm3+'" step="0.01" style="width:80px"></td>'
     +'<td data-label="₹/gram"><input type="number" class="iq-edit-input" id="iqmEditPrice" value="'+m.cost_per_gram_public+'" step="0.01" style="width:80px"></td>'
     +'<td data-label="Default"><button class="btn btn-ghost btn-sm" onclick="setIqDefault(\'instant_quote_materials\',\''+m.id+'\',\'loadIqMaterials\')">'+(m.is_default?'★ Default':'Set default')+'</button></td>'
+    +'<td data-label="Popular"><button class="btn btn-ghost btn-sm" onclick="toggleIqPopular(\''+m.id+'\','+(!m.is_popular)+',\'loadIqMaterials\')">'+(m.is_popular?'★ Popular':'Set popular')+'</button></td>'
     +'<td data-label="Active"><button class="btn btn-ghost btn-sm" onclick="toggleIqActive(\'instant_quote_materials\',\''+m.id+'\','+(!m.active)+',\'loadIqMaterials\')">'+(m.active?'Active':'Inactive')+'</button></td>'
     +'<td data-label="Edit">'+_iqSaveCancelBtns("saveEditIqMaterial('"+m.id+"')","cancelEditIqMaterial()")+'</td>'
     +'</tr>';
@@ -9067,6 +9069,16 @@ async function toggleIqActive(table,id,newVal,reload){
   const{error}=await sb.from(table).update({active:newVal}).eq('id',id);
   if(error){toast('Error: '+error.message,'error');return}
   toast(newVal?'Marked active':'Marked inactive','success');
+  (window[reload]||function(){})();
+}
+
+// Unlike is_default (exactly one row, enforced by setIqDefault below), "Popular"
+// is just a merchandising badge shown on the customer-facing material buttons, so
+// any number of materials can carry it at once, no clearing other rows.
+async function toggleIqPopular(id,newVal,reload){
+  const{error}=await sb.from('instant_quote_materials').update({is_popular:newVal}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return}
+  toast(newVal?'Marked popular':'Popular badge removed','success');
   (window[reload]||function(){})();
 }
 

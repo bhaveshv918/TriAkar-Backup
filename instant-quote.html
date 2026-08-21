@@ -65,7 +65,14 @@
 @media(min-width:1001px){
   .iq-layout{align-items:stretch}
   .iq-col-left{display:flex;flex-direction:column}
-  .iq-viewer-shell{flex:1 1 auto}
+  /* Capped, not left to grow all the way to the right column's height: on a
+     wide desktop screen the config card (multiple option rows) plus the
+     finalize card together can run well past 1000px tall, which used to
+     stretch this into a huge near-empty square before a model is uploaded.
+     Capped it stays a sensible preview size and the sticky column is
+     shorter, so scrolling doesn't leave a giant dashed box pinned on screen
+     with nothing under it. */
+  .iq-viewer-shell{flex:1 1 auto;max-height:min(60vh,640px)}
 }
 @media(max-width:1000px){
   .iq-layout{grid-template-columns:1fr;padding-bottom:90px}
@@ -769,7 +776,7 @@ const IQ = (function(){
       <div class="iq-mat-group">
         <div class="iq-mat-group-tag">${escapeHtml(g)}</div>
         <div class="iq-mat-group-row">${groups[g].map(m =>
-          `<button type="button" class="iq-choice" data-id="${m.id}" onclick="IQ.selectMaterial('${m.id}')">${m.is_default ? '<span class="iq-popular-badge">Popular</span>' : ''}${escapeHtml(m.name)}</button>`).join('')}</div>
+          `<button type="button" class="iq-choice" data-id="${m.id}" onclick="IQ.selectMaterial('${m.id}')">${(m.is_default || m.is_popular) ? '<span class="iq-popular-badge">Popular</span>' : ''}${escapeHtml(m.name)}</button>`).join('')}</div>
       </div>`).join('')
       + `<div class="iq-mat-group"><div class="iq-mat-group-row">${otherButtonHtml('material', 'Other material')}</div></div>`;
   }
