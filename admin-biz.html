@@ -5675,7 +5675,7 @@ function spoolOptions(selected){
     return {...r,rem};
   }).filter(r=>r.rem>0||String(selected)===String(r.id));  // keep the already-selected spool visible even if now empty
   const optRow=r=>{
-    const label=(r.color+' '+(r.filament_type||'')).trim()+', '+Math.round(r.rem)+'g left';
+    const label=(r.color+' '+(r.filament_type||'')).trim()+', '+Math.round(r.rem)+'g';
     return `<option value="${r.id}" data-rate="${r.cost_per_gram||0}"${String(selected)===String(r.id)?' selected':''}>${esc(label)}</option>`;
   };
   const curMaterial=selected?(_addSaleSpools.find(r=>String(r.id)===String(selected))||{}).filament_type:null;
@@ -5708,7 +5708,7 @@ function spoolSaleOptions(selected){
     return {...r,rem};
   });
   const optRow=r=>{
-    const label=[r.brand,r.filament_type,r.color].filter(Boolean).join(' ')+', ~'+Math.round(r.rem)+'g left';
+    const label=[r.brand,r.filament_type,r.color].filter(Boolean).join(' ')+', ~'+Math.round(r.rem)+'g';
     return `<option value="${r.id}"${String(selected)===String(r.id)?' selected':''}>${esc(label)}</option>`;
   };
   const byBrand={};
@@ -5721,7 +5721,7 @@ function onItemSpoolSale(i,v){
   const s=_addSaleSpools.find(r=>String(r.id)===String(v));
   if(s){
     const rem=Math.max(0,(parseFloat(s.total_grams)||0)-(parseFloat(s.grams_used)||0)-(parseFloat(s.waste_grams)||0));
-    _items[i].name=[s.brand,s.filament_type,s.color].filter(Boolean).join(' ')+', ~'+Math.round(rem)+'g left';
+    _items[i].name=[s.brand,s.filament_type,s.color].filter(Boolean).join(' ');
     if(!_items[i].rate) _items[i].rate=Math.round(parseFloat(s.price)||0);
   }
   renderItems();
