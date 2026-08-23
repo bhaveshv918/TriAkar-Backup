@@ -315,6 +315,32 @@ tr:hover td{background:var(--bg-2)}
 .iq-edit-input{background:var(--bg-2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--sans);font-size:12px;padding:5px 8px;outline:none;transition:border-color .15s;box-sizing:border-box}
 .iq-edit-input:focus{border-color:var(--accent)}
 .iq-edit-input[type="color"]{padding:2px;width:28px;height:28px;vertical-align:middle;cursor:pointer}
+/* Instant Quotes, the two wide tables (Orders Pending Confirmation, All Uploads).
+   These used to be flat 15- and 14-column tables. At the panel's 1400px cap that
+   left roughly 90px per column, the rows ran past the wrapper, and .tbl-wrap
+   clips rather than scrolls, so the right-hand columns (including the Confirm
+   button, the only action on the page) were simply unreachable. Both are rebuilt
+   as 7 percentage-width composite columns that group related fields into one
+   cell, with table-layout:fixed so the table can never exceed its container at
+   any viewport width. Below 768px the shared .tbl-wrap card reflow takes over. */
+#panelInstantquotes .iq-tbl{table-layout:fixed;width:100%}
+#panelInstantquotes .iq-tbl td{vertical-align:top;overflow-wrap:anywhere;font-size:11.5px}
+.iq-stack{display:flex;flex-direction:column;gap:3px;min-width:0}
+.iq-lead{font-weight:600;font-size:12px;color:var(--text);line-height:1.3}
+.iq-sub{font-size:10.5px;color:var(--text-3);line-height:1.4}
+.iq-mono{font-family:var(--mono)}
+.iq-dim{color:var(--text-3);font-weight:500}
+.iq-file{font-size:11.5px;font-weight:600;line-height:1.3;overflow-wrap:anywhere}
+.iq-chips{display:flex;flex-wrap:wrap;gap:4px}
+.iq-chip{display:inline-flex;align-items:center;gap:4px;background:var(--bg-2);border:1px solid var(--border);
+  border-radius:999px;padding:1.5px 8px;font-size:10px;font-weight:600;color:var(--text-2);white-space:nowrap}
+.iq-swatch{display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0;border:1px solid rgba(0,0,0,.2)}
+/* Customer notes ride along inside the Model cell instead of owning a column of
+   their own. Clamped to two lines with the full text on hover/long-press. */
+.iq-note{font-size:10.5px;font-style:italic;color:var(--text-2);line-height:1.35;
+  border-left:2px solid var(--accent);padding-left:6px;margin-top:1px;
+  display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.iq-price{font-family:var(--mono);font-size:13px;font-weight:700;white-space:nowrap}
 .calc-row{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
 .calc-item label{font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);display:block;margin-bottom:3px}
 .calc-item span{font-family:var(--mono);font-size:14px;font-weight:700}
@@ -915,7 +941,12 @@ html[data-theme="dark"] .kpi:hover{
 html[data-theme="dark"] .chart-box:hover{box-shadow:0 10px 26px rgba(0,0,0,.26)}
 
 /* ── Tables, premium header + sweep hover ─── */
-.tbl-wrap{border-radius:14px;border:1px solid var(--border);overflow:hidden;background:var(--bg-1);box-shadow:0 2px 10px rgba(22,22,20,.05)}
+/* overflow-x stays auto (the base rule's intent, and what the tall scrollbar
+   further down assumes). The shorthand `overflow:hidden` that used to be here
+   silently killed it, so every table wider than its wrapper was cut off at the
+   right edge with no scrollbar and no way to reach the hidden columns. Only the
+   y axis is clipped, which is all the rounded corners actually need. */
+.tbl-wrap{border-radius:14px;border:1px solid var(--border);overflow-x:auto;overflow-y:hidden;background:var(--bg-1);box-shadow:0 2px 10px rgba(22,22,20,.05)}
 th{
   font-size:9.5px;letter-spacing:.16em;font-weight:700;color:var(--text-3);
   padding:11px 12px;border-bottom:1px solid var(--border-h);
@@ -2592,28 +2623,32 @@ html[data-theme="dark"] .biz-login{
         </div>
       </div>
 
-      <div class="p-head" style="margin-top:8px">
-        <div><div class="p-title" style="font-size:15px">Orders Pending Confirmation</div></div>
+      <div class="p-head" id="iqOrdersSection" style="margin-top:8px;scroll-margin-top:70px">
+        <div><div class="p-title" style="font-size:15px">Orders Pending Confirmation</div><div class="p-sub">Paid, but held out of production until you have confirmed the customization with the customer</div></div>
       </div>
       <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Order</th><th>Model</th><th>Build</th><th>Material</th><th>Color</th><th>Nozzle</th><th>Layer</th><th>Infill</th><th>Est. weight/time</th><th>Price</th><th>Customer</th><th>Lead contact</th><th>Notes</th><th>Date</th><th>Action</th></tr></thead>
-          <tbody id="iqOrdersBody"><tr><td colspan="15" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        <table class="iq-tbl">
+          <colgroup><col style="width:13%"><col style="width:22%"><col style="width:21%"><col style="width:11%"><col style="width:9%"><col style="width:15%"><col style="width:9%"></colgroup>
+          <thead><tr><th>Order</th><th>Model &amp; notes</th><th>Print spec</th><th>Estimate</th><th>Price</th><th>Customer</th><th>Action</th></tr></thead>
+          <tbody id="iqOrdersBody"><tr><td colspan="7" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
 
-      <div class="p-head" style="margin-top:32px">
-        <div><div class="p-title" style="font-size:15px">All Uploads</div><div class="p-sub">Every model uploaded and quoted, not just ones that became orders</div></div>
-        <input type="text" id="iqUploadSearch" placeholder="Search name, phone, file, lead…" oninput="filterIqUploads()" style="min-width:200px">
+      <div class="p-head" id="iqUploadsSection" style="margin-top:32px;scroll-margin-top:70px">
+        <div><div class="p-title" style="font-size:15px">All Uploads</div><div class="p-sub">Every model uploaded and quoted, not just ones that became orders. <span id="iqUploadCount"></span></div></div>
+        <div class="filter-bar" style="margin:0">
+          <input type="text" id="iqUploadSearch" placeholder="Search name, phone, file, status…" oninput="filterIqUploads()" style="min-width:220px">
+        </div>
       </div>
       <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Date</th><th>Model</th><th>Account</th><th>Lead contact</th><th>Build</th><th>Material</th><th>Color</th><th>Nozzle</th><th>Layer</th><th>Infill</th><th>Weight/Time</th><th>Price</th><th>Notes</th><th>Status</th></tr></thead>
-          <tbody id="iqUploadsBody"><tr><td colspan="14" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        <table class="iq-tbl">
+          <colgroup><col style="width:12%"><col style="width:21%"><col style="width:19%"><col style="width:21%"><col style="width:11%"><col style="width:8%"><col style="width:8%"></colgroup>
+          <thead><tr><th>Date</th><th>Model &amp; notes</th><th>Customer</th><th>Print spec</th><th>Estimate</th><th>Price</th><th>Status</th></tr></thead>
+          <tbody id="iqUploadsBody"><tr><td colspan="7" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
 
-      <div class="p-head" style="margin-top:32px">
+      <div class="p-head" id="iqMaterialsSection" style="margin-top:32px;scroll-margin-top:70px">
         <div><div class="p-title" style="font-size:15px">Materials Catalog</div></div>
         <button class="btn btn-ghost btn-sm" onclick="addIqMaterial()">+ Add material</button>
       </div>
@@ -8773,7 +8808,14 @@ async function toggleReviewReceived(id,current){
 // estimate: an order stays order_status='quote_pending_confirmation' even after
 // payment clears until an admin reviews it here and confirms, via the same
 // order-status endpoint every other order confirmation uses.
-function fmtDateTimeIST(iso){return new Date(iso).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true})}
+// Guarded, a null/garbage created_at used to render the literal string
+// "Invalid Date" straight into the Date column.
+function fmtDateTimeIST(iso){
+  if(!iso) return 'N/A';
+  const d=new Date(iso);
+  if(isNaN(d.getTime())) return 'N/A';
+  return d.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
+}
 let _iqOrders=[],_iqMaterials=[],_iqPrinters=[],_iqColors=[],_iqUploads=[],_iqProfiles={};
 
 async function loadInstantQuotes(){
@@ -8787,14 +8829,21 @@ async function loadInstantQuotes(){
   renderIqKpi();
 }
 
+// .stat-kpi carries cursor:pointer everywhere it is used, so these three had to
+// actually do something: each one jumps to the section it counts.
+function iqJumpTo(id,focusSearch){
+  const el=document.getElementById(id); if(!el) return;
+  el.scrollIntoView({behavior:'smooth',block:'start'});
+  if(focusSearch){const s=document.getElementById('iqUploadSearch'); if(s) setTimeout(()=>s.focus(),350);}
+}
 function renderIqKpi(){
   const kpi=document.getElementById('iqKpi'); if(!kpi) return;
   const activeMaterials=_iqMaterials.filter(m=>m.active).length;
-  const card=(color,bg,icon,label,val)=>`<div class="stat-kpi" style="--pill-color:${color};--pill-color-bg:${bg}"><div class="stat-kpi-icon">${icon}</div><div class="stat-kpi-body"><div class="stat-kpi-val">${val}</div><div class="stat-kpi-label">${label}</div></div></div>`;
+  const card=(color,bg,icon,label,val,onclick)=>`<div class="stat-kpi" onclick="${onclick}" style="--pill-color:${color};--pill-color-bg:${bg}"><div class="stat-kpi-icon">${icon}</div><div class="stat-kpi-body"><div class="stat-kpi-val">${val}</div><div class="stat-kpi-label">${label}</div></div></div>`;
   kpi.innerHTML=
-    card('var(--yellow)','var(--yellow-bg)','⧉','Pending',_iqOrders.length)
-    +card('var(--blue)','var(--blue-bg)','⇧','Uploads',_iqUploads.length)
-    +card('var(--green)','var(--green-bg)','✓','Materials',activeMaterials);
+    card('var(--yellow)','var(--yellow-bg)','⧉','Pending',_iqOrders.length,"iqJumpTo('iqOrdersSection')")
+    +card('var(--blue)','var(--blue-bg)','⇧','Uploads',_iqUploads.length,"iqJumpTo('iqUploadsSection',true)")
+    +card('var(--green)','var(--green-bg)','✓','Materials',activeMaterials,"iqJumpTo('iqMaterialsSection')");
 }
 
 /* Pricing Formula (site_settings keys read by instantQuotePricingService.js).
@@ -8833,12 +8882,16 @@ async function saveIqPricingSettings(){
    order, a standing record for the business, not just an order sub-view. */
 async function loadIqUploads(){
   const{data,error}=await sb.from('instant_quote_requests').select('*').order('created_at',{ascending:false}).limit(500);
-  if(error){document.getElementById('iqUploadsBody').innerHTML='<tr><td colspan="14" class="empty"><div class="em-text">Error loading uploads</div></td></tr>';return}
+  if(error){document.getElementById('iqUploadsBody').innerHTML='<tr><td colspan="7" class="empty"><div class="em-text">Error loading uploads</div></td></tr>';return}
   _iqUploads=data||[];
+  _iqBuildAttemptMap();
+  // Reset unconditionally. Scoping this inside `if(userIds.length)` left the
+  // previous load's profiles in place when a reload came back with only
+  // anonymous uploads, so rows showed a name that belonged to nobody on screen.
+  _iqProfiles={};
   const userIds=[...new Set(_iqUploads.map(q=>q.user_id).filter(Boolean))];
   if(userIds.length){
     const{data:profiles}=await sb.from('profiles').select('id,full_name,phone').in('id',userIds);
-    _iqProfiles={};
     (profiles||[]).forEach(p=>{_iqProfiles[p.id]=p;});
   }
   renderIqKpi();
@@ -8848,46 +8901,102 @@ async function loadIqUploads(){
 // How many times this same customer has generated a quote (matched by account,
 // or by the lead phone number for anonymous/pre-login quotes), a signal of
 // genuine interest worth a follow-up, distinct from the pending-confirmation
-// task count shown on the Today's Tasks tile.
-function _iqAttemptCount(q){
-  const key=q.user_id||q.contact_phone;
-  if(!key) return 1;
-  return _iqUploads.filter(u=>(u.user_id||u.contact_phone)===key).length;
+// task count shown on the Today's Tasks tile. Counted once per load into a map,
+// the old version re-scanned all 500 uploads for every row it rendered.
+let _iqAttemptMap={};
+function _iqAttemptKey(q){return q.user_id?('u:'+q.user_id):(q.contact_phone?('p:'+q.contact_phone):'');}
+function _iqBuildAttemptMap(){
+  _iqAttemptMap={};
+  _iqUploads.forEach(u=>{const k=_iqAttemptKey(u); if(k)_iqAttemptMap[k]=(_iqAttemptMap[k]||0)+1;});
 }
-function _iqAttemptChip(q){
+function _iqAttemptCount(q){const k=_iqAttemptKey(q); return k?(_iqAttemptMap[k]||1):1;}
+function _iqAttemptLine(q){
   const n=_iqAttemptCount(q);
   if(n<2) return '';
-  return ' <span class="badge" style="background:var(--accent-bg);color:var(--accent);margin-left:4px">Tried '+n+'×</span>';
+  return '<div><span class="badge" style="background:var(--accent-bg);color:var(--accent)">Tried '+n+'×</span></div>';
 }
 
-function _iqLeadCell(q){
-  if(!q.contact_name&&!q.contact_phone)return '<span style="color:var(--text-3)">Skipped</span>';
-  return esc(q.contact_name||'N/A')+_iqAttemptChip(q)+'<br>'+esc(q.contact_phone||'');
+/* ── Composite cell builders, shared by both Instant Quote tables ──
+   Each one folds what used to be three to five separate columns into a single
+   cell, which is what lets both tables fit inside the panel without scrolling. */
+function _iqColorRow(id){return (_iqColors||[]).find(x=>x.id===id)||null;}
+
+function _iqModelCell(q){
+  const name=q.file_name||'model';
+  const link=q.model_file_url
+    ? '<a class="iq-file" href="'+esc(q.model_file_url)+'" target="_blank" rel="noopener" download="'+esc(name)+'" title="'+esc(name)+'">'+esc(name)+' ↓</a>'
+    : '<span class="iq-file">'+esc(name)+'</span>';
+  let html='<div class="iq-stack">'+link
+    +'<div class="iq-sub">Build '+esc(_iqPrinterDims(q.printer_id))+'</div>';
+  if(q.custom_notes) html+='<div class="iq-note" title="'+esc(q.custom_notes)+'">'+esc(q.custom_notes)+'</div>';
+  return html+'</div>';
+}
+
+function _iqSpecCell(q){
+  const c=_iqColorRow(q.color_id);
+  const infill=(q.infill_percent!=null&&q.infill_percent!=='')?q.infill_percent+'% infill':'infill N/A';
+  return '<div class="iq-chips">'
+    +'<span class="iq-chip">'+esc(_iqMaterialName(q.material_id))+'</span>'
+    +'<span class="iq-chip">'+(c&&c.hex?'<span class="iq-swatch" style="background:'+esc(c.hex)+'"></span>':'')+esc(c?c.name:_iqColorName(q.color_id))+'</span>'
+    +'<span class="iq-chip">'+esc(String(q.nozzle_mm||'0.4'))+'mm nozzle</span>'
+    +'<span class="iq-chip">'+esc(String(q.layer_height_mm||'0.2'))+'mm layer</span>'
+    +'<span class="iq-chip">'+esc(String(infill))+'</span>'
+    +'</div>';
+}
+
+function _iqEstCell(q){
+  const w=q.estimated_weight_g,t=q.estimated_print_time_hours;
+  return '<div class="iq-stack">'
+    +'<div class="iq-mono" style="font-size:11.5px;font-weight:600">'+(w!=null&&w!==''?Number(w).toFixed(2)+' g':'N/A')+'</div>'
+    +'<div class="iq-sub iq-mono">'+(t!=null&&t!==''?Number(t).toFixed(2)+' h print':'time N/A')+'</div>'
+    +'</div>';
+}
+
+// Order side: the order's own customer fields are the truth, the lead contact
+// captured at upload time is only worth a line when it says something different.
+function _iqOrderCustomerCell(o,q){
+  const name=o.customer_name||(o.shipping_address&&o.shipping_address.full_name)||'N/A';
+  const phone=o.customer_phone||'';
+  let html='<div class="iq-stack"><div class="iq-lead">'+esc(name)+'</div>';
+  if(phone) html+='<div class="iq-sub iq-mono">'+esc(phone)+'</div>';
+  const ln=q.contact_name||'',lp=q.contact_phone||'';
+  if((ln&&ln!==name)||(lp&&lp!==phone)) html+='<div class="iq-sub">Lead: '+esc(ln||'N/A')+(lp?' · '+esc(lp):'')+'</div>';
+  return html+_iqAttemptLine(q)+'</div>';
+}
+
+// Uploads side: an upload may have an account, a lead form, both, or neither.
+function _iqUploadCustomerCell(q){
+  const prof=_iqProfiles[q.user_id]||{};
+  const acct=prof.full_name||'',ln=q.contact_name||'',lp=q.contact_phone||'';
+  let html='<div class="iq-stack">';
+  if(acct){
+    html+='<div class="iq-lead">'+esc(acct)+'</div>';
+    if(prof.phone) html+='<div class="iq-sub iq-mono">'+esc(prof.phone)+'</div>';
+  }else{
+    html+='<div class="iq-lead iq-dim">Not signed in</div>';
+  }
+  // Same rule as the orders table: the lead line only earns its space when it
+  // says something the account line above it does not already say.
+  if(!ln&&!lp) html+='<div class="iq-sub iq-dim">Lead form skipped</div>';
+  else if((ln&&ln!==acct)||(lp&&lp!==(prof.phone||''))) html+='<div class="iq-sub">Lead: '+esc(ln||'N/A')+(lp?' · '+esc(lp):'')+'</div>';
+  return html+_iqAttemptLine(q)+'</div>';
 }
 
 function renderIqUploads(list){
-  const tbody=document.getElementById('iqUploadsBody');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="14" class="empty"><div class="em-text">No uploads yet.</div></td></tr>';return}
+  const tbody=document.getElementById('iqUploadsBody'); if(!tbody) return;
+  const countEl=document.getElementById('iqUploadCount');
+  if(countEl) countEl.textContent=_iqUploads.length?('Showing '+list.length+' of '+_iqUploads.length+'.'):'';
+  if(!list.length){tbody.innerHTML='<tr><td colspan="7" class="empty"><div class="em-text">'+(_iqUploads.length?'No upload matches that search.':'No uploads yet.')+'</div></td></tr>';return}
   const statusBadge={quoted:'badge-pending',in_cart:'badge-pending',ordered:'badge-completed',expired:'badge-returned'};
-  tbody.innerHTML=list.map(q=>{
-    const prof=_iqProfiles[q.user_id]||{};
-    return '<tr>'
-      +'<td data-label="Date" style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(q.created_at)+'</td>'
-      +'<td data-label="Model">'+(q.model_file_url?'<a href="'+esc(q.model_file_url)+'" target="_blank" rel="noopener" download="'+esc(q.file_name||'model')+'">'+esc(q.file_name||'model')+' ↓</a>':esc(q.file_name||'N/A'))+'</td>'
-      +'<td data-label="Account" style="font-size:11px">'+esc(prof.full_name||'N/A')+'<br>'+esc(prof.phone||'')+'</td>'
-      +'<td data-label="Lead contact" style="font-size:11px">'+_iqLeadCell(q)+'</td>'
-      +'<td data-label="Build" style="font-size:11px;white-space:nowrap">'+esc(_iqPrinterDims(q.printer_id))+'</td>'
-      +'<td data-label="Material">'+esc(_iqMaterialName(q.material_id))+'</td>'
-      +'<td data-label="Color">'+esc(_iqColorName(q.color_id))+'</td>'
-      +'<td data-label="Nozzle">'+esc(String(q.nozzle_mm||'0.4'))+'mm</td>'
-      +'<td data-label="Layer">'+esc(String(q.layer_height_mm||'0.2'))+'mm</td>'
-      +'<td data-label="Infill">'+esc(String(q.infill_percent||''))+'%</td>'
-      +'<td data-label="Weight/Time" style="font-size:11px">'+esc(String(q.estimated_weight_g||'N/A'))+'g / '+esc(String(q.estimated_print_time_hours||'N/A'))+'h</td>'
-      +'<td data-label="Price">₹'+Number(q.final_price||0).toLocaleString('en-IN')+'</td>'
-      +'<td data-label="Notes" style="font-size:11px;max-width:160px">'+esc(q.custom_notes||'')+'</td>'
-      +'<td data-label="Status"><span class="badge '+(statusBadge[q.status]||'badge-pending')+'">'+esc(q.status||'N/A')+'</span></td>'
-      +'</tr>';
-  }).join('');
+  tbody.innerHTML=list.map(q=>'<tr>'
+    +'<td data-label="Date"><span class="iq-sub">'+fmtDateTimeIST(q.created_at)+'</span></td>'
+    +'<td data-label="Model &amp; notes">'+_iqModelCell(q)+'</td>'
+    +'<td data-label="Customer">'+_iqUploadCustomerCell(q)+'</td>'
+    +'<td data-label="Print spec">'+_iqSpecCell(q)+'</td>'
+    +'<td data-label="Estimate">'+_iqEstCell(q)+'</td>'
+    +'<td data-label="Price"><span class="iq-price">₹'+Number(q.final_price||0).toLocaleString('en-IN')+'</span></td>'
+    +'<td data-label="Status"><span class="badge '+(statusBadge[q.status]||'badge-pending')+'">'+esc(q.status||'N/A')+'</span></td>'
+    +'</tr>').join('');
 }
 
 function filterIqUploads(){
@@ -8910,7 +9019,7 @@ async function loadIqOrders(){
     .eq('order_status','quote_pending_confirmation')
     .is('deleted_at',null)
     .order('created_at',{ascending:false});
-  if(error){ const b=document.getElementById('iqOrdersBody'); if(b) b.innerHTML='<tr><td colspan="15" class="empty"><div class="em-text">Error loading Instant Quote orders</div></td></tr>'; return}
+  if(error){ const b=document.getElementById('iqOrdersBody'); if(b) b.innerHTML='<tr><td colspan="7" class="empty"><div class="em-text">Error loading Instant Quote orders</div></td></tr>'; return}
   _iqOrders=data||[];
   const cEl=document.getElementById('iqCount_hdr'); if(cEl)cEl.textContent=_iqOrders.length;
   checkNewIqEntry(_iqOrders.length);
@@ -8924,30 +9033,31 @@ function _iqColorName(id){const c=(_iqColors||[]).find(x=>x.id===id);return c?c.
 
 function renderIqOrders(){
   const tbody=document.getElementById('iqOrdersBody'); if(!tbody) return;
-  if(!_iqOrders.length){tbody.innerHTML='<tr><td colspan="15" class="empty"><div class="em-text">No Instant Quote orders awaiting confirmation.</div></td></tr>';return}
-  tbody.innerHTML=_iqOrders.map(o=>{
-    const rows=(o.order_items||[]).filter(it=>it.instant_quote_requests);
-    if(!rows.length)return '';
-    return rows.map(it=>{
-      const q=it.instant_quote_requests;
-      return '<tr>'
-        +'<td data-label="Order" style="font-family:var(--mono);font-size:11px;white-space:nowrap">'+esc(o.invoice_number||o.order_id||o.id)+'</td>'
-        +'<td data-label="Model">'+(q.model_file_url?'<a href="'+esc(q.model_file_url)+'" target="_blank" rel="noopener" download="'+esc(q.file_name||'model')+'">'+esc(q.file_name||'model')+' ↓</a>':esc(q.file_name||'N/A'))+'</td>'
-        +'<td data-label="Build" style="font-size:11px;white-space:nowrap">'+esc(_iqPrinterDims(q.printer_id))+'</td>'
-        +'<td data-label="Material">'+esc(_iqMaterialName(q.material_id))+'</td>'
-        +'<td data-label="Color">'+esc(_iqColorName(q.color_id))+'</td>'
-        +'<td data-label="Nozzle">'+esc(String(q.nozzle_mm||'0.4'))+'mm</td>'
-        +'<td data-label="Layer">'+esc(String(q.layer_height_mm||'0.2'))+'mm</td>'
-        +'<td data-label="Infill">'+esc(String(q.infill_percent||''))+'%</td>'
-        +'<td data-label="Est. weight/time" style="font-size:11px">'+esc(String(q.estimated_weight_g||'N/A'))+'g / '+esc(String(q.estimated_print_time_hours||'N/A'))+'h</td>'
-        +'<td data-label="Price">₹'+Number(it.unit_price||0).toLocaleString('en-IN')+'</td>'
-        +'<td data-label="Customer" style="font-size:11px">'+esc(o.customer_name||o.shipping_address?.full_name||'N/A')+'<br>'+esc(o.customer_phone||'')+'</td>'
-        +'<td data-label="Lead contact" style="font-size:11px">'+_iqLeadCell(q)+'</td>'
-        +'<td data-label="Notes" style="font-size:11px;max-width:160px">'+esc(q.custom_notes||'')+'</td>'
-        +'<td data-label="Date" style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(o.created_at)+'</td>'
-        +'<td data-label="Action"><button class="btn btn-primary btn-sm" onclick="confirmIqOrder(\''+o.id+'\')">Confirm →</button></td>'
-        +'</tr>';
-    }).join('');
+  // Flattened first, then checked. An order can sit in quote_pending_confirmation
+  // with no instant-quote line item on it (mixed cart, or the item was removed),
+  // and the old per-order map returned '' for those, so a non-zero pending count
+  // could paint a completely blank table body with no empty state at all.
+  const rows=[];
+  _iqOrders.forEach(o=>{
+    (o.order_items||[]).filter(it=>it.instant_quote_requests).forEach((it,i)=>rows.push({o:o,it:it,first:i===0}));
+  });
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="7" class="empty"><div class="em-text">No Instant Quote orders awaiting confirmation.</div></td></tr>';return}
+  tbody.innerHTML=rows.map(function(r){
+    const o=r.o,q=r.it.instant_quote_requests;
+    return '<tr>'
+      +'<td data-label="Order"><div class="iq-stack"><span class="iq-mono" style="font-size:11px;font-weight:600">'+esc(o.invoice_number||o.order_id||o.id)+'</span><span class="iq-sub">'+fmtDateTimeIST(o.created_at)+'</span></div></td>'
+      +'<td data-label="Model &amp; notes">'+_iqModelCell(q)+'</td>'
+      +'<td data-label="Print spec">'+_iqSpecCell(q)+'</td>'
+      +'<td data-label="Estimate">'+_iqEstCell(q)+'</td>'
+      +'<td data-label="Price"><span class="iq-price">₹'+Number(r.it.unit_price||0).toLocaleString('en-IN')+'</span></td>'
+      +'<td data-label="Customer">'+_iqOrderCustomerCell(o,q)+'</td>'
+      // Confirmation is an order-level status change, so a multi-model order gets
+      // one button on its first row instead of N identical buttons that all fire
+      // the same call on the same order id.
+      +'<td data-label="Action">'+(r.first
+          ?'<button class="btn btn-primary btn-sm" onclick="confirmIqOrder(\''+o.id+'\')">Confirm →</button>'
+          :'<span class="iq-sub">Same order ↑</span>')+'</td>'
+      +'</tr>';
   }).join('');
 }
 
