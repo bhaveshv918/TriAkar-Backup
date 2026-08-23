@@ -3234,11 +3234,15 @@ html[data-theme="dark"] .biz-login{
           <input type="file" id="spoolBulkInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="spoolBulkUpload(event)">
           <button class="btn btn-ghost btn-sm" onclick="toggleSpoolCustomize()" title="Show / hide / reorder KPI tiles">⚙ Widgets</button>
           <button class="btn btn-ghost btn-sm" id="spoolViewToggleBtn" onclick="toggleSpoolViewMode()" title="Switch between grouped (Color → Material → Company) and a flat list">☰ Flat list</button>
+          <input type="text" id="spoolSearch" placeholder="Search brand / color / vendor…" oninput="renderSpoolTracker()" style="min-width:180px;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;padding:7px 11px;outline:none">
           <span style="width:1px;height:20px;background:var(--border);flex:none" aria-hidden="true"></span>
           <button class="btn btn-sm" onclick="showSpoolCatalogue()" title="Opens a separate, full-screen color picker meant to be shown to the customer, not an inventory view" style="background:var(--accent-bg);color:var(--accent);border:1px solid rgba(196,98,42,.25);font-weight:700"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4a3.6 3.6 0 0 0 3.6-3.6C21 6.6 17.1 2 12 2Z"/><circle cx="7" cy="10" r="1"/><circle cx="11" cy="7" r="1"/><circle cx="16" cy="9" r="1"/></svg> Show Customer Catalogue</button>
           <select id="spoolFilterStatus" onchange="renderSpoolTracker()" style="border-radius:6px;border:1px solid var(--border);font-size:12px;padding:6px 8px;background:var(--bg-1);color:var(--text-1)">
             <option value="all">All Spools</option>
             <option value="available">Available</option>
+            <option value="packed">Packed (sealed, unopened)</option>
+            <option value="opened">Opened (in use)</option>
+            <option value="tbr">TBR (not yet received)</option>
             <option value="used">Used (Finsh)</option>
             <option value="resold">Resold</option>
           </select>
@@ -3247,6 +3251,7 @@ html[data-theme="dark"] .biz-login{
       </div>
       <div id="spoolCustomize" style="display:none;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:12px"></div>
       <div id="spoolKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
+      <div id="spoolReorderAlert" style="display:none;margin-bottom:12px"></div>
 
       <div id="spoolAddForm" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.style.display='none'">
 <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto">
@@ -3277,6 +3282,7 @@ html[data-theme="dark"] .biz-login{
         <div style="font-size:13px;font-weight:700;margin-bottom:12px" id="spoolFormTitle">Edit Spool</div>
         <div class="form-grid">
           <div class="form-group"><label>Color</label><div style="display:flex;gap:6px;align-items:center"><input type="text" id="sp_color" style="flex:1;min-width:0"><input type="color" id="sp_color_hex" title="Pick the exact shade" style="width:36px;height:32px;padding:2px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--bg-2)"></div></div>
+          <div class="form-group"><label>Total Grams <span style="color:var(--text-3);font-weight:400;text-transform:none">top up here if more of this exact spool arrived</span></label><input type="number" id="sp_total" step="1" min="0"></div>
           <div class="form-group"><label>Grams Used</label><input type="number" id="sp_used" step="1" min="0"></div>
           <div class="form-group"><label>Waste Grams</label><input type="number" id="sp_waste" step="1" min="0"></div>
           <div class="form-group"><label>Cost ₹/gram</label><input type="number" id="sp_costpergram" step="0.001"></div>
@@ -3325,7 +3331,7 @@ html[data-theme="dark"] .biz-login{
       <div class="tbl-wrap">
         <table>
           <thead><tr><th style="width:30px"><input type="checkbox" onclick="toggleSelectAllSpools(this)"></th><th>#</th><th>Brand / Type</th><th>Color</th><th>Vendor</th><th>Status</th><th style="min-width:120px">Remaining</th><th class="td-num">₹/g</th><th>Opened</th><th>Finished</th><th class="td-actions"></th></tr></thead>
-          <tbody id="spoolBody"><tr><td colspan="10" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+          <tbody id="spoolBody"><tr><td colspan="11" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
     </div><!-- /spooltracker -->
@@ -3357,13 +3363,17 @@ html[data-theme="dark"] .biz-login{
         <button class="btn btn-ghost btn-sm" onclick="closeSpoolCatalogue()">✕ Close</button>
       </div>
       <div class="spool-cat-body">
-        <!-- Reference palette, Numakers' full real color range, not tied to physical stock -->
-        <div class="spool-cat-refrail">
+        <!-- Reference palette, Numakers' full real color range, not tied to physical stock.
+             Kept visually distinct from the in-stock grid (own background tint + warning
+             note) so it never reads as "these are available now". -->
+        <div class="spool-cat-refrail" style="background:var(--bg-2)">
           <div class="spool-cat-refrail-title">Reference Palette</div>
+          <div style="font-size:10.5px;color:var(--text-3);margin:-4px 0 10px;line-height:1.4">Every color our vendor offers, not what's in stock. For discussing custom orders only, not for sale right now.</div>
           <input type="text" id="spoolColorRefSearch" oninput="renderColorReference()" placeholder="Search colors…">
           <div id="spoolColorRefList"></div>
         </div>
         <div class="spool-cat-grid-wrap">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--green);margin-bottom:6px">✓ In Stock Now</div>
           <div id="spoolCatalogueCount" class="spool-cat-count"></div>
           <div id="spoolCatalogueGrid" class="spool-cat-grid"></div>
         </div>
@@ -5681,13 +5691,16 @@ function ensureSpools(){
 // the same material is sitting right there.
 function spoolOptions(selected){
   // Round 3: only offer spools that still have grams left (0g/finished rolls were showing
-  // up as if they were still usable), grouped by company/brand so a long list is scannable.
+  // up as if they were still usable). Grouped by color, not brand, because when picking a
+  // spool for an order you're thinking "which red do I have", not "which WOL3D spool" —
+  // color is also what native <select> typeahead (typing "r" jumps to the next "red…"
+  // option) actually needs leading the label to be useful as a search shortcut.
   const rows=_addSaleSpools.map(r=>{
     const rem=Math.max(0,(parseFloat(r.total_grams)||0)-(parseFloat(r.grams_used)||0)-(parseFloat(r.waste_grams)||0));
     return {...r,rem};
   }).filter(r=>r.rem>0||String(selected)===String(r.id));  // keep the already-selected spool visible even if now empty
   const optRow=r=>{
-    const label=(r.color+' '+(r.filament_type||'')).trim()+', '+Math.round(r.rem)+'g';
+    const label=(r.color+' '+(r.filament_type||'')).trim()+', '+(r.brand||'')+', '+Math.round(r.rem)+'g';
     return `<option value="${r.id}" data-rate="${r.cost_per_gram||0}"${String(selected)===String(r.id)?' selected':''}>${esc(label)}</option>`;
   };
   const curMaterial=selected?(_addSaleSpools.find(r=>String(r.id)===String(selected))||{}).filament_type:null;
@@ -5703,11 +5716,11 @@ function spoolOptions(selected){
     matchHtml=mats.map(m=>`<optgroup label="Already open, ${esc(m)}">`+byMat[m].map(optRow).join('')+'</optgroup>').join('');
   }
   const openedIds=new Set(openedAll.map(r=>String(r.id)));
-  const byBrand={};
-  rows.forEach(r=>{ if(openedIds.has(String(r.id))) return; const b=(r.brand||'Other').trim()||'Other'; (byBrand[b]=byBrand[b]||[]).push(r); });
-  const brands=Object.keys(byBrand).sort((a,b)=>a.localeCompare(b));
+  const byColor={};
+  rows.forEach(r=>{ if(openedIds.has(String(r.id))) return; const c=(r.color||'Unspecified').trim()||'Unspecified'; (byColor[c]=byColor[c]||[]).push(r); });
+  const colors=Object.keys(byColor).sort((a,b)=>a.localeCompare(b));
   return '<option value="">Spool (optional, deducts stock)</option>'+matchHtml+
-    brands.map(b=>`<optgroup label="${esc(b)}">`+byBrand[b].map(optRow).join('')+'</optgroup>').join('');
+    colors.map(c=>`<optgroup label="${esc(c)}">`+byColor[c].map(optRow).join('')+'</optgroup>').join('');
 }
 function spoolRate(id){ const s=_addSaleSpools.find(r=>String(r.id)===String(id)); return s?(parseFloat(s.cost_per_gram)||0):0; }
 // ── Spool Sale (selling a whole spool as merchandise, not consuming it) ──
@@ -5719,14 +5732,16 @@ function spoolSaleOptions(selected){
     const rem=Math.max(0,(parseFloat(r.total_grams)||0)-(parseFloat(r.grams_used)||0)-(parseFloat(r.waste_grams)||0));
     return {...r,rem};
   });
+  // Status leads the label (Packed = still sealed, most sellable) so a call with a
+  // customer asking "what do you have spare" is one glance, not opening every option.
   const optRow=r=>{
-    const label=[r.brand,r.filament_type,r.color].filter(Boolean).join(' ')+', ~'+Math.round(r.rem)+'g';
+    const label=(r.status||'N/A')+' · '+[r.color,r.filament_type,r.brand].filter(Boolean).join(' ')+', ~'+Math.round(r.rem)+'g';
     return `<option value="${r.id}"${String(selected)===String(r.id)?' selected':''}>${esc(label)}</option>`;
   };
-  const byBrand={};
-  rows.forEach(r=>{ const b=(r.brand||'Other').trim()||'Other'; (byBrand[b]=byBrand[b]||[]).push(r); });
-  const brands=Object.keys(byBrand).sort((a,b)=>a.localeCompare(b));
-  return '<option value="">Select spool to sell</option>'+brands.map(b=>`<optgroup label="${esc(b)}">`+byBrand[b].map(optRow).join('')+'</optgroup>').join('');
+  const byColor={};
+  rows.forEach(r=>{ const c=(r.color||'Unspecified').trim()||'Unspecified'; (byColor[c]=byColor[c]||[]).push(r); });
+  const colors=Object.keys(byColor).sort((a,b)=>a.localeCompare(b));
+  return '<option value="">Select spool to sell</option>'+colors.map(c=>`<optgroup label="${esc(c)}">`+byColor[c].map(optRow).join('')+'</optgroup>').join('');
 }
 function onItemSpoolSale(i,v){
   _items[i].spoolSaleId=v||null;
@@ -5763,8 +5778,17 @@ async function applySpoolDelta(spoolId, deltaGrams, deltaWaste){
     const remaining=tot-nextUsed-nextWaste;
     const patch={grams_used:nextUsed, waste_grams:nextWaste};
     if(!sp.opened_date && (deltaGrams>0||deltaWaste>0)) patch.opened_date=today();
-    if(remaining<=0 && sp.status!=='Finsh'){ patch.status='Finsh'; patch.finished_date=today(); }
-    else if(remaining>0 && sp.status==='Finsh'){ patch.status='Opened'; patch.finished_date=null; }
+    if(remaining<=0 && sp.status!=='Finsh'){
+      patch.status='Finsh'; patch.finished_date=today();
+    } else if(remaining>0){
+      if(sp.status==='Finsh'){ patch.status='Opened'; patch.finished_date=null; }
+      // Packed/TBR spools weren't flipping to Opened the moment they actually
+      // started getting used (an order consumed grams from a still-"Packed" roll
+      // while it silently stayed Packed forever), so Spool Tracker's status never
+      // matched reality for a spool cracked open via Add Order rather than the
+      // Edit Spool form.
+      else if((deltaGrams>0||deltaWaste>0) && sp.status!=='Opened'){ patch.status='Opened'; }
+    }
     await sb.from('filament_inventory').update(patch).eq('id',spoolId);
   }catch(_){}
 }
@@ -5783,18 +5807,28 @@ async function sellSpoolsForRows(rows){
   for(const r of (rows||[])){
     if(r.item_type!=='spool' || !r.spool_sale_id) continue;
     try{
-      const {data:sp}=await sb.from('filament_inventory').select('total_grams,price').eq('id',r.spool_sale_id).single();
+      const {data:sp}=await sb.from('filament_inventory').select('total_grams,price,grams_used,waste_grams,status,opened_date,finished_date').eq('id',r.spool_sale_id).single();
       if(!sp) continue;
       await sb.from('filament_inventory').update({
         grams_used: parseFloat(sp.total_grams)||0, waste_grams:0,
         status:'Finsh', finish_reason:'resold', finished_date:today()
       }).eq('id', r.spool_sale_id);
-      await sb.from('biz_filament_resales').insert({
+      // order_ref links this resale to the order, so deleting the order (restoreSpoolsForIds)
+      // can find and revert it; pre_* snapshots the spool's exact state before this sale so
+      // Undo Resell restores it instead of guessing Packed/0g. Falls back to the plain insert
+      // if 20260824_spool_resale_undo.sql hasn't been run yet.
+      const resaleRow={
         spool_id:r.spool_sale_id, buyer_name:r.customer_name||'Walk-in',
         cost_price: parseFloat(sp.price)||0, sale_price: parseFloat(r.selling_price)||0,
         date: r.order_date||today(), payment_mode:r.payment_mode||null,
         notes:'Sold via order '+(r.order_id||'')
+      };
+      const {error:re1}=await sb.from('biz_filament_resales').insert({
+        ...resaleRow, order_ref:r.order_id||null,
+        pre_grams_used:sp.grams_used||0, pre_waste_grams:sp.waste_grams||0, pre_status:sp.status||'Packed',
+        pre_opened_date:sp.opened_date||null, pre_finished_date:sp.finished_date||null,
       });
+      if(re1) await sb.from('biz_filament_resales').insert(resaleRow);
     }catch(_){}
   }
 }
@@ -5851,10 +5885,17 @@ function assignSpoolsToRows(rows, spoolIds){
 async function restoreSpoolsForIds(ids){
   if(!ids||!ids.length) return;
   try{
-    const {data}=await sb.from('biz_sales').select('spool_id,grams_used,spool_waste_grams,extra_spool_usage').in('id',ids);
+    const {data}=await sb.from('biz_sales').select('spool_id,grams_used,spool_waste_grams,extra_spool_usage,item_type,spool_sale_id,order_id').in('id',ids);
     for(const r of (data||[])){
       if(r.spool_id) await applySpoolDelta(r.spool_id, -(parseFloat(r.grams_used)||0), -(parseFloat(r.spool_waste_grams)||0));
       if(Array.isArray(r.extra_spool_usage)){ for(const es of r.extra_spool_usage){ if(es.spool_id) await applySpoolDelta(es.spool_id, -(parseFloat(es.grams)||0), -(parseFloat(es.waste)||0)); } }
+      // A "Spool" line (whole roll sold as merchandise, see sellSpoolsForRows) doesn't
+      // consume grams, it marks the spool Finsh/resold instead, so undoing its order
+      // has to revert that resale (and the spool itself), not just restore grams.
+      if(r.item_type==='spool' && r.spool_sale_id){
+        const resale=await _findActiveResale(x=>String(x.spool_id)===String(r.spool_sale_id)&&x.order_ref===r.order_id);
+        if(resale) await _revertResaleRow(resale);
+      }
     }
   }catch(_){}
 }
@@ -9201,24 +9242,40 @@ async function saveQuickFilament(){
   const vendor=g('ql_fil_vendor').trim()||null;
   if(!item){ toast('Enter what arrived','error'); return; }
   if(!(total>0)){ toast('Enter a total amount','error'); return; }
-  let madeSpool=false;
+  let madeSpool=false, toppedUp=false;
   if(document.getElementById('ql_fil_makespool')?.checked){
-    const {data:last}=await sb.from('filament_inventory').select('s_no').order('s_no',{ascending:false}).limit(1);
-    const nextSNo=((last&&last[0]&&last[0].s_no)||0)+1;
-    const {error:spoolErr}=await sb.from('filament_inventory').insert({
-      s_no:nextSNo, vendor, brand:item, filament_type:'PLA+', color:item,
-      total_grams:1000, grams_used:0, waste_grams:0, price:total, cost_per_gram:Math.round((total/1000)*1000)/1000,
-      status:'Packed', purchased_via:'Purchase log',
-    });
-    if(spoolErr){ toast('Purchase saved, but spool creation failed: '+spoolErr.message,'error'); }
-    else madeSpool=true;
+    // Same color already sitting in stock with spare capacity? Top it up instead of
+    // creating a confusing duplicate row for what's really the same filament, don't
+    // just always insert a brand new spool.
+    const {data:existingMatches}=await sb.from('filament_inventory').select('*')
+      .neq('status','Finsh').ilike('color',item).eq('filament_type','PLA+').limit(1);
+    const existing=existingMatches&&existingMatches[0];
+    if(existing){
+      const newTotal=(parseFloat(existing.total_grams)||0)+1000;
+      const newPrice=(parseFloat(existing.price)||0)+total;
+      const {error:topErr}=await sb.from('filament_inventory').update({
+        total_grams:newTotal, price:newPrice, cost_per_gram:Math.round((newPrice/newTotal)*1000)/1000,
+      }).eq('id',existing.id);
+      if(topErr){ toast('Purchase saved, but topping up spool #'+existing.s_no+' failed: '+topErr.message,'error'); }
+      else { madeSpool=true; toppedUp=true; }
+    } else {
+      const {data:last}=await sb.from('filament_inventory').select('s_no').order('s_no',{ascending:false}).limit(1);
+      const nextSNo=((last&&last[0]&&last[0].s_no)||0)+1;
+      const {error:spoolErr}=await sb.from('filament_inventory').insert({
+        s_no:nextSNo, vendor, brand:item, filament_type:'PLA+', color:item,
+        total_grams:1000, grams_used:0, waste_grams:0, price:total, cost_per_gram:Math.round((total/1000)*1000)/1000,
+        status:'Packed', purchased_via:'Purchase log',
+      });
+      if(spoolErr){ toast('Purchase saved, but spool creation failed: '+spoolErr.message,'error'); }
+      else madeSpool=true;
+    }
   }
   const payload={date:today(),category:'raw_material',vendor,item,
     qty:parseFloat(g('ql_fil_qty'))||1,total_amount:total};
   const {error}=await sb.from('biz_purchases').insert(payload);
   if(error){ toast('Error: '+error.message,'error'); return; }
   logBizActivity('create','purchase',null,item+' ₹'+total);
-  toast(madeSpool?'Filament logged + added to Spool Tracker':'Filament purchase logged');
+  toast(toppedUp?'Filament logged + topped up existing spool':madeSpool?'Filament logged + added to Spool Tracker':'Filament purchase logged');
   document.getElementById('qlFilament').style.display='none';
   ['ql_fil_vendor','ql_fil_item','ql_fil_total'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('ql_fil_qty').value='1';
@@ -10920,14 +10977,31 @@ const NUMAKERS_COLOR_MAP={
   "transparent":"#f5f5f5","arctic":"#7cb7a5","arctic glitter":"#7cb7a5","burnished copper":"#774548","midnight":"#424379",
 };
 function normColorKey(name){ return String(name||'').trim().toLowerCase(); }
+// A custom color name (not in NUMAKERS_COLOR_MAP) that the admin has already picked a
+// hex for on some other spool should always resolve to that same hex from then on,
+// instead of the color picker silently resetting to grey every time it's re-typed.
+// Most-recently-added match wins, so a later correction sticks.
+function learnedColorHex(name){
+  const key=normColorKey(name);
+  if(!key || !Array.isArray(_spoolRows)) return null;
+  for(let i=_spoolRows.length-1;i>=0;i--){
+    const r=_spoolRows[i];
+    if(r.color_hex && normColorKey(r.color)===key) return r.color_hex;
+  }
+  return null;
+}
 // Single source of truth for "what hex should this color name render as": admin-picked
-// color_hex wins if set, then an exact/substring match against our vendor's real color
-// range (NUMAKERS_COLOR_MAP), then a last-resort guess via CSS-recognized color-name
-// strings (gold, silver, black…), else null (caller decides the neutral placeholder).
+// color_hex wins if set, then a hex already used elsewhere in Spool Tracker for this
+// same color name (learnedColorHex, keeps a custom color consistent forever), then an
+// exact/substring match against our vendor's real color range (NUMAKERS_COLOR_MAP),
+// then a last-resort guess via CSS-recognized color-name strings (gold, silver,
+// black…), else null (caller decides the neutral placeholder).
 function resolveColorHex(name, explicitHex){
   if(explicitHex) return explicitHex;
   const key=normColorKey(name);
   if(!key) return null;
+  const learned=learnedColorHex(name);
+  if(learned) return learned;
   if(NUMAKERS_COLOR_MAP[key]) return NUMAKERS_COLOR_MAP[key];
   const partial=Object.keys(NUMAKERS_COLOR_MAP).find(k=>key.includes(k)||k.includes(key));
   if(partial) return NUMAKERS_COLOR_MAP[partial];
@@ -11012,12 +11086,18 @@ async function loadSpoolTracker(){
   const {data,error}=await sb.from('filament_inventory').select('*').order('s_no',{ascending:true});
   if(error){ toast('Error: '+error.message,'error'); return; }
   _spoolRows=data||[];
-  const {data:resales}=await sb.from('biz_filament_resales').select('profit');
-  _resaleProfitTotal=(resales||[]).reduce((s,x)=>s+(Number(x.profit)||0),0);
+  // .eq('reverted',...) needs 20260824_spool_resale_undo.sql; fall back to the
+  // unfiltered total if that migration hasn't been run yet in this environment.
+  let resalesQ=await sb.from('biz_filament_resales').select('profit').eq('reverted',false);
+  if(resalesQ.error) resalesQ=await sb.from('biz_filament_resales').select('profit');
+  _resaleProfitTotal=(resalesQ.data||[]).reduce((s,x)=>s+(Number(x.profit)||0),0);
   renderSpoolTracker();
 }
 function spoolMatchesFilter(r,filter){
   if(filter==='available') return r.status!=='Finsh';
+  if(filter==='packed') return r.status==='Packed';
+  if(filter==='opened') return r.status==='Opened';
+  if(filter==='tbr') return r.status==='TBR';
   if(filter==='used') return r.status==='Finsh' && r.finish_reason!=='resold';
   if(filter==='resold') return r.status==='Finsh' && r.finish_reason==='resold';
   return true;
@@ -11035,7 +11115,8 @@ function renderSpoolTracker(){
   // finished spools sort to the bottom, otherwise by s_no
   const rows=[..._spoolRows].sort((a,b)=>(a.status==='Finsh'?1:0)-(b.status==='Finsh'?1:0)||a.s_no-b.s_no);
   const filterVal=document.getElementById('spoolFilterStatus')?.value||'all';
-  const filteredRows=rows.filter(r=>spoolMatchesFilter(r,filterVal));
+  const q=(document.getElementById('spoolSearch')?.value||'').trim().toLowerCase();
+  const filteredRows=rows.filter(r=>spoolMatchesFilter(r,filterVal)&&(!q||[r.brand,r.color,r.vendor,r.filament_type,r.finish].some(v=>String(v||'').toLowerCase().includes(q))));
   const kpi=document.getElementById('spoolKpi');
   if(kpi){
     const total=rows.length;
@@ -11059,6 +11140,25 @@ function renderSpoolTracker(){
       const w=SPOOL_WIDGETS.find(x=>x.k===k); if(!w) return '';
       return `<div class="kpi" data-w="${k}" style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px"><div class="kpi-label" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3)">${esc(w.name)}</div><div class="kpi-val" style="font-size:20px;font-weight:700;margin-top:4px">${vals[k]}</div></div>`;
     }).join('');
+  }
+  // "Which color should I reorder" (no system for this before): any color whose total
+  // remaining across all its non-Finsh spools is under 150g, same low-stock threshold
+  // the customer catalogue already uses (catShinyMatch/level in renderSpoolCatalogue),
+  // so the two views agree on what "running low" means.
+  const alertBox=document.getElementById('spoolReorderAlert');
+  if(alertBox){
+    const byColorStock={};
+    rows.filter(r=>r.status!=='Finsh').forEach(r=>{
+      const c=(r.color||'').trim()||'Unspecified';
+      byColorStock[c]=(byColorStock[c]||0)+spoolRemaining(r);
+    });
+    const low=Object.entries(byColorStock).filter(([,g])=>g<150).sort((a,b)=>a[1]-b[1]);
+    if(low.length){
+      alertBox.style.display='block';
+      alertBox.innerHTML=`<div style="background:var(--red-bg,rgba(220,50,50,.08));border:1px solid var(--red);border-radius:var(--radius);padding:10px 14px;font-size:12px;color:var(--text-2)">
+        <strong style="color:var(--red)">⚠ Reorder soon</strong> · ${low.map(([c,g])=>esc(c)+' ('+Math.round(g)+'g left)').join(', ')}
+      </div>`;
+    } else { alertBox.style.display='none'; alertBox.innerHTML=''; }
   }
   const tbody=document.getElementById('spoolBody');
   if(!tbody) return;
@@ -11090,6 +11190,8 @@ function renderSpoolTracker(){
       <td class="td-actions">
         <button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="showSpoolEdit('${r.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button>
         ${r.status!=='Finsh'?`<button class="btn btn-icon-tint btn-icon-order btn-sm" title="Mark resold" onclick="showResellSpool('${r.id}')" style="padding:3px 6px">${ICO_RECYCLE}</button>`:''}
+        ${isResold?`<button class="btn btn-icon-tint btn-icon-order btn-sm" title="Undo resell, restore this spool back into inventory" onclick="undoSpoolResaleForSpool('${r.id}')" style="padding:3px 6px">↺</button>`:''}
+        <button class="btn btn-danger btn-sm" onclick="deleteSpool('${r.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button>
       </td>
     </tr>`;
   };
@@ -11109,10 +11211,22 @@ function renderSpoolTracker(){
     (byColor[color][mat][brand]=byColor[color][mat][brand]||[]).push(r);
   });
   let html='';
-  Object.keys(byColor).sort().forEach(color=>{
+  // Colors with stock still active sort first (alphabetically among themselves); a
+  // color that's entirely Finsh sinks to the bottom as its own alphabetical block,
+  // since current/sellable stock is what actually matters when scanning this table.
+  const colorNames=Object.keys(byColor).sort((a,b)=>{
+    const aActive=Object.values(byColor[a]).some(m=>Object.values(m).some(list=>list.some(r=>r.status!=='Finsh')));
+    const bActive=Object.values(byColor[b]).some(m=>Object.values(m).some(list=>list.some(r=>r.status!=='Finsh')));
+    if(aActive!==bActive) return aActive?-1:1;
+    return a.localeCompare(b);
+  });
+  colorNames.forEach(color=>{
     const colorRows=Object.values(byColor[color]).flatMap(m=>Object.values(m).flat());
     const hex=colorRows.find(r=>r.color_hex)?.color_hex||'#ccc';
-    html+=`<tr class="spool-group-header spool-group-color"><td colspan="11" style="background:var(--bg-2);font-weight:700;font-size:12px;padding:8px 10px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${esc(hex)};border:1px solid var(--border);margin-right:6px;vertical-align:middle"></span>${esc(color)} <span style="font-weight:400;color:var(--text-3);font-size:11px">(${colorRows.length})</span></td></tr>`;
+    const activeRows=colorRows.filter(r=>r.status!=='Finsh');
+    const kgLeft=activeRows.reduce((s,r)=>s+spoolRemaining(r),0)/1000;
+    const allFinished=!activeRows.length;
+    html+=`<tr class="spool-group-header spool-group-color"><td colspan="11" style="background:var(--bg-2);font-weight:700;font-size:12px;padding:8px 10px${allFinished?';opacity:.6':''}"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${esc(hex)};border:1px solid var(--border);margin-right:6px;vertical-align:middle"></span>${esc(color)} <span style="font-weight:400;color:var(--text-3);font-size:11px">(${colorRows.length})${allFinished?' · all finished':' · '+kgLeft.toFixed(2)+' kg left'}</span></td></tr>`;
     Object.keys(byColor[color]).sort().forEach(mat=>{
       const matRows=Object.values(byColor[color][mat]).flat();
       html+=`<tr class="spool-group-header spool-group-material"><td colspan="11" style="padding:5px 10px 5px 26px;font-size:11px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.4px">${esc(mat)} <span style="font-weight:400;color:var(--text-3)">(${matRows.length})</span></td></tr>`;
@@ -11135,7 +11249,7 @@ let _catSelectedColor=null;       // color name currently open in the preview dr
 function catFinishKey(f){ return String(f||'').trim().toLowerCase(); }
 function catShinyMatch(s){ return /silk|shiny|gloss|metallic|glitter|sparkle/i.test(s||''); }
 function showSpoolCatalogue(){
-  const inStock=_spoolRows.filter(r=>r.status!=='Finsh'&&spoolRemaining(r)>0);
+  const inStock=_spoolRows.filter(r=>r.status!=='Finsh'&&r.status!=='TBR'&&spoolRemaining(r)>0);
   const sel=document.getElementById('catFilterMaterial');
   if(sel){
     const mats=[...new Set(inStock.map(r=>(r.filament_type||'').trim()).filter(Boolean))].sort();
@@ -11209,7 +11323,7 @@ function renderSpoolCatalogue(){
   const q=(document.getElementById('catFilterSearch')?.value||'').trim().toLowerCase();
   const includeLow=!!document.getElementById('catFilterLowStock')?.checked;
   const available=_spoolRows.filter(r=>{
-    if(r.status==='Finsh') return false;
+    if(r.status==='Finsh'||r.status==='TBR') return false;
     if(spoolRemaining(r)<=0) return false;
     if(matFilter!=='all'&&(r.filament_type||'').trim()!==matFilter) return false;
     if(_catActiveFinishes.size&&!_catActiveFinishes.has(catFinishKey(r.finish))) return false;
@@ -11271,7 +11385,7 @@ function renderSpoolCatalogue(){
 // materials/finishes, and a live stock read. This is the "hero" state a customer actually
 // looks at while deciding, so it gets the most visual weight of anything in the catalogue.
 function openSpoolCatPreview(color){
-  const rows=_spoolRows.filter(r=>r.status!=='Finsh'&&spoolRemaining(r)>0&&((r.color||'').trim()||'Unspecified')===color);
+  const rows=_spoolRows.filter(r=>r.status!=='Finsh'&&r.status!=='TBR'&&spoolRemaining(r)>0&&((r.color||'').trim()||'Unspecified')===color);
   const panel=document.getElementById('spoolCatPreview');
   if(!rows.length||!panel){ closeSpoolCatPreview(); return; }
   _catSelectedColor=color;
@@ -11347,6 +11461,15 @@ async function bulkSetSpoolStatus(){
   logBizActivity('edit','spool',null,ids.length+' spool(s) set to '+status);
   toast(ids.length+' spool(s) updated'); loadSpoolTracker();
 }
+async function deleteSpool(id){
+  const r=_spoolRows.find(x=>String(x.id)===String(id));
+  if(!r) return;
+  if(!confirm('Delete spool #'+r.s_no+', '+(r.brand||'')+' '+(r.color||'')+'? Sales already linked to it keep their grams-used history, just lose the spool link.')) return;
+  const {error}=await sb.from('filament_inventory').delete().eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  logBizActivity('delete','spool',id,'Deleted #'+r.s_no+' '+(r.brand||'')+' '+(r.color||''));
+  toast('Spool deleted'); loadSpoolTracker();
+}
 async function bulkDeleteSpools(){
   const ids=getSelectedSpoolIds(); if(!ids.length) return;
   if(!confirm('Delete '+ids.length+' spool(s)? Sales already linked to them keep their grams-used history, just lose the spool link.')) return;
@@ -11371,11 +11494,17 @@ function showAddSpool(){
 async function saveNewSpool(){
   const g=id=>document.getElementById(id)?.value||'';
   const brand=g('spa_brand').trim(); if(!brand){ toast('Brand is required','error'); return; }
+  const type=g('spa_type').trim()||'PLA', color=g('spa_color').trim()||null;
+  // Same brand+type+color already sitting in stock, not finished? Flag it instead of
+  // silently letting a duplicate row pile up, admin can still choose "add anyway" (a
+  // second physical spool of the exact same filament is a normal, real thing).
+  const dupe=(_spoolRows||[]).find(r=>r.status!=='Finsh' && normColorKey(r.brand)===normColorKey(brand) && normColorKey(r.filament_type)===normColorKey(type) && normColorKey(r.color)===normColorKey(color));
+  if(dupe && !confirm('Spool #'+dupe.s_no+' ('+dupe.brand+' '+type+' '+(dupe.color||'')+') already has '+Math.round(spoolRemaining(dupe))+'g left.\n\nOK = add this as a separate new spool anyway.\nCancel = go top up spool #'+dupe.s_no+' instead (Edit that row and increase its grams).')) return;
   const {data:last}=await sb.from('filament_inventory').select('s_no').order('s_no',{ascending:false}).limit(1);
   const nextSNo=((last&&last[0]&&last[0].s_no)||0)+1;
   const payload={
-    s_no:nextSNo, brand, filament_type:g('spa_type').trim()||'PLA', finish:g('spa_finish').trim()||null,
-    color:g('spa_color').trim()||null, color_hex:g('spa_color_hex')||null, vendor:g('spa_vendor').trim()||null,
+    s_no:nextSNo, brand, filament_type:type, finish:g('spa_finish').trim()||null,
+    color, color_hex:g('spa_color_hex')||null, vendor:g('spa_vendor').trim()||null,
     total_grams:parseFloat(g('spa_grams'))||1000, grams_used:0, waste_grams:0,
     price:parseFloat(g('spa_price'))||0, cost_per_gram:parseFloat(g('spa_costpergram'))||null,
     status:g('spa_status')||'Packed', purchased_via:g('spa_via').trim()||null, notes:g('spa_notes').trim()||null,
@@ -11457,11 +11586,21 @@ async function saveResellSpool(){
     notes:'Filament resale to '+buyer+', spool #'+r.s_no+' ('+(r.brand||'')+' '+(r.color||'')+'). Cost ₹'+cost.toFixed(2)+', profit ₹'+profit.toFixed(2)+(extraNotes?'. '+extraNotes:'')
   }).select().single();
   if(incErr){ toast('Error recording income: '+incErr.message,'error'); return; }
-  // 2) Resale ledger, traceable both ways (spool <-> income)
-  const {error:resErr}=await sb.from('biz_filament_resales').insert({
+  // 2) Resale ledger, traceable both ways (spool <-> income). Snapshots the spool's
+  // pre-resale state (pre_*) so an accidental resell can be undone exactly, not
+  // just reset to a guessed Packed/0g. Falls back to the plain insert if
+  // 20260824_spool_resale_undo.sql hasn't been run yet in this environment
+  // (Undo Resell just won't have a snapshot to restore for rows made meanwhile).
+  const resaleRow={
     spool_id:r.id, buyer_name:buyer, cost_price:cost, sale_price:price,
-    date, payment_mode:paymode, income_id:incRow.id, notes:extraNotes||null
+    date, payment_mode:paymode, income_id:incRow.id, notes:extraNotes||null,
+  };
+  let {error:resErr}=await sb.from('biz_filament_resales').insert({
+    ...resaleRow,
+    pre_grams_used:r.grams_used||0, pre_waste_grams:r.waste_grams||0, pre_status:r.status||'Packed',
+    pre_opened_date:r.opened_date||null, pre_finished_date:r.finished_date||null,
   });
+  if(resErr) ({error:resErr}=await sb.from('biz_filament_resales').insert(resaleRow));
   if(resErr){ toast('Error recording resale: '+resErr.message,'error'); return; }
   // 3) Mark the spool itself Finsh/resold so it drops out of available stock
   //    without polluting in-house consumption stats (grams_used stays 0, it
@@ -11476,12 +11615,46 @@ async function saveResellSpool(){
   document.getElementById('resellSpoolForm').style.display='none';
   loadSpoolTracker();
 }
+// Undo Resell: reverses an accidental "Mark resold" (or a whole-spool-as-merchandise
+// order line, see restoreSpoolsForIds) by restoring the spool to its exact pre-resale
+// state (pre_* snapshot taken at resale time) and removing the Money In it created,
+// so the resale doesn't keep counting toward income/resale-profit after being undone.
+// Pre-migration resale rows have no snapshot, falls back to Packed/0g in that case.
+async function _revertResaleRow(resale){
+  if(!resale||resale.reverted) return;
+  const hasSnapshot=resale.pre_status!=null;
+  const patch=hasSnapshot
+    ? { status:resale.pre_status, grams_used:resale.pre_grams_used||0, waste_grams:resale.pre_waste_grams||0,
+        opened_date:resale.pre_opened_date||null, finished_date:resale.pre_finished_date||null, finish_reason:null }
+    : { status:'Packed', grams_used:0, waste_grams:0, opened_date:null, finished_date:null, finish_reason:null };
+  if(resale.spool_id) await sb.from('filament_inventory').update(patch).eq('id',resale.spool_id);
+  if(resale.income_id) await sb.from('biz_income').delete().eq('id',resale.income_id);
+  const {error}=await sb.from('biz_filament_resales').update({reverted:true,reverted_at:new Date().toISOString()}).eq('id',resale.id);
+  if(error) await sb.from('biz_filament_resales').delete().eq('id',resale.id);   // pre-migration: no reverted column, just remove the ledger row instead
+}
+// spool_id -> most recent not-yet-reverted resale row, falls back to "no reverted
+// column at all" (pre-migration) by treating every row found as active.
+async function _findActiveResale(filterFn){
+  let q=await sb.from('biz_filament_resales').select('*').eq('reverted',false).order('created_at',{ascending:false});
+  if(q.error) q=await sb.from('biz_filament_resales').select('*').order('created_at',{ascending:false});
+  return (q.data||[]).find(filterFn)||null;
+}
+async function undoSpoolResaleForSpool(spoolId){
+  if(!confirm('Undo this resale and restore the spool back into inventory? This also removes the Money In entry it created.')) return;
+  const resale=await _findActiveResale(x=>String(x.spool_id)===String(spoolId));
+  if(!resale){ toast('No resale record found for this spool','error'); return; }
+  await _revertResaleRow(resale);
+  logBizActivity('edit','spool',spoolId,'Undid resale to '+(resale.buyer_name||''));
+  toast('Resell undone, spool restored to inventory');
+  loadSpoolTracker();
+}
 function showSpoolEdit(id){
   const r=_spoolRows.find(x=>String(x.id)===String(id));
   if(!r) return;
   document.getElementById('sp_id').value=r.id;
   document.getElementById('sp_color').value=r.color||'';
   document.getElementById('sp_color_hex').value=r.color_hex||'#cccccc';
+  document.getElementById('sp_total').value=r.total_grams!=null?r.total_grams:'';
   document.getElementById('sp_used').value=r.grams_used!=null?r.grams_used:'';
   document.getElementById('sp_waste').value=r.waste_grams!=null?r.waste_grams:'';
   document.getElementById('sp_costpergram').value=r.cost_per_gram!=null?r.cost_per_gram:'';
@@ -11498,6 +11671,7 @@ async function saveSpool(){
   const payload={
     color:document.getElementById('sp_color').value.trim()||null,
     color_hex:document.getElementById('sp_color_hex').value||null,
+    total_grams:document.getElementById('sp_total').value===''?undefined:Number(document.getElementById('sp_total').value),
     grams_used:document.getElementById('sp_used').value===''?0:Number(document.getElementById('sp_used').value),
     waste_grams:document.getElementById('sp_waste').value===''?0:Number(document.getElementById('sp_waste').value),
     cost_per_gram:document.getElementById('sp_costpergram').value===''?null:Number(document.getElementById('sp_costpergram').value),
