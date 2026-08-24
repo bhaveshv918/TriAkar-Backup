@@ -523,20 +523,48 @@ window._FOOTER_HTML = `<footer>
        since the icon tab bar has no on-page anchor to watch. Always shown
        near the top of the page regardless of direction. */
     (function initScrollHide(){
-      var lastY=window.scrollY,hidden=false,ticking=false;
-      var THRESHOLD=6,TOP_GUARD=40;
+      var lastY=window.scrollY,hidden=false,ticking=false,travel=0;
+      /* Accumulated travel, not per-frame delta. The old version hid the bar the
+         moment any single frame moved more than 6px, which on a momentum flick
+         is the very first frame, and re-showed it on any 6px of jitter in the
+         other direction, so the bar strobed during ordinary reading. Now it
+         takes a deliberate amount of scrolling in one direction, and the
+         accumulator resets whenever the direction flips, so a wobble never
+         reaches either threshold. */
+      var HIDE_AFTER=56,SHOW_AFTER=22,TOP_GUARD=40,BOTTOM_GUARD=80;
+      /* scrollHeight is a layout read, so it is cached rather than measured on
+         every scroll frame; refreshed on resize and whenever the page turns out
+         to be taller than the cached value (lazy-loaded content, filters, etc). */
+      var cachedMax=-1;
+      function measureMax(){
+        var d=document.documentElement,b=document.body;
+        cachedMax=Math.max(d.scrollHeight,b?b.scrollHeight:0)-window.innerHeight;
+        return cachedMax;
+      }
+      window.addEventListener('resize',function(){cachedMax=-1;},{passive:true});
+      function maxScroll(y){
+        if(cachedMax<0||y>cachedMax)return measureMax();
+        return cachedMax;
+      }
+      function show(){ if(hidden){hidden=false;nav.classList.remove('tabn-peek-hidden');} }
+      function hide(){ if(!hidden){hidden=true;nav.classList.add('tabn-peek-hidden');} }
       function update(){
         ticking=false;
-        var y=window.scrollY;
+        var y=window.scrollY,max=maxScroll(y);
+        /* iOS rubber-band: scrollY goes negative past the top and beyond max at
+           the bottom, then springs back. Both legs of that bounce used to read
+           as real scrolling and flapped the bar. Ignore anything outside the
+           real range, and keep the bar out on the last screenful so it can't
+           hide right where the footer actions are. */
+        if(y<0||y>max){lastY=y;return;}
         var dy=y-lastY;
-        if(y<=TOP_GUARD){
-          if(hidden){hidden=false;nav.classList.remove('tabn-peek-hidden');}
-        }else if(dy>THRESHOLD&&!hidden){
-          hidden=true;nav.classList.add('tabn-peek-hidden');
-        }else if(dy<-THRESHOLD&&hidden){
-          hidden=false;nav.classList.remove('tabn-peek-hidden');
-        }
         lastY=y;
+        if(y<=TOP_GUARD||y>=max-BOTTOM_GUARD){travel=0;show();return;}
+        if(!dy)return;
+        if((dy>0)!==(travel>0))travel=0;   /* direction flipped, start counting again */
+        travel+=dy;
+        if(travel>HIDE_AFTER){hide();travel=0;}
+        else if(travel<-SHOW_AFTER){show();travel=0;}
       }
       window.addEventListener('scroll',function(){
         if(!ticking){ticking=true;requestAnimationFrame(update);}
@@ -609,6 +637,25 @@ window._FOOTER_HTML = `<footer>
           if(fringeRight)fringeRight.style.opacity=0;
         };
         var fxFrame=function(x){applyFringe(velocityAt(x));};
+
+        /* Haptics. Android Chrome only (iOS Safari has no Vibration API at all),
+           and only on the drag gesture, not on plain taps: a tap navigates
+           immediately and the unload cuts the buzz off mid-pulse anyway. The
+           long-press promoting into a drag is the moment that most needs to
+           announce itself, since nothing visual has moved yet at that point. */
+        var haptic=function(ms){
+          try{ if(!reduceMotion()&&navigator.vibrate) navigator.vibrate(ms); }catch(_){}
+        };
+
+        /* One-shot icon pop on the tab that just became selected. Self-removing
+           so the class can't accumulate or replay on a later re-render. */
+        var popIcon=function(el){
+          if(!el||reduceMotion())return;
+          el.classList.remove('tabn-item--arrived');
+          void el.offsetWidth;
+          el.classList.add('tabn-item--arrived');
+          setTimeout(function(){el.classList.remove('tabn-item--arrived');},480);
+        };
         var currentIndTransformX=function(){
           try{
             var t=getComputedStyle(ind).transform;
@@ -647,6 +694,9 @@ window._FOOTER_HTML = `<footer>
           requestAnimationFrame(function(){
             ind.classList.remove('tabn-indicator--noanim');
             place(endEl,true); /* squeeze/stretch pop on arrival, the "liquid" morph */
+            /* Only when we actually came from another tab. On a plain reload of
+               the same page the tab was already selected, nothing "arrived". */
+            if(isRealSlide)popIcon(endEl);
             /* The fringe/squeeze rAF loop reads computed styles every frame
                for 520ms, only worth paying for when the pill is actually
                travelling between two different tabs. A fresh load or direct
@@ -705,11 +755,13 @@ window._FOOTER_HTML = `<footer>
           clearTimeout(rt);
           rt=setTimeout(function(){
             ind.classList.add('tabn-indicator--noanim');
-            if(place(activeEl)){
-              ind.classList.add('on');
-              void ind.offsetWidth;
-              requestAnimationFrame(function(){ind.classList.remove('tabn-indicator--noanim');});
-            }
+            /* The removal used to live inside the success branch, so whenever
+               place() failed (nav not laid out yet, e.g. account.html while the
+               session check still has the bar display:none) the pill was left
+               permanently non-animating with no path back. Always unwind it. */
+            if(place(activeEl)) ind.classList.add('on');
+            void ind.offsetWidth;
+            requestAnimationFrame(function(){ind.classList.remove('tabn-indicator--noanim');});
           },150);
         },{passive:true});
 
@@ -723,7 +775,7 @@ window._FOOTER_HTML = `<footer>
         (function initPillDrag(){
           var LONG_PRESS_MS=140;
           var timer=null,dragging=false,justDragged=false;
-          var startX=0,startLeft=0,pillW=0;
+          var startX=0,startLeft=0,pillW=0,lastHover=-1;
 
           function centerOf(el){return el.offsetLeft+el.offsetWidth/2;}
           function nearestIndexForCenter(cx){
@@ -733,6 +785,16 @@ window._FOOTER_HTML = `<footer>
               if(d<bd){bd=d;best=i;}
             });
             return best;
+          }
+          /* Travel limits are the first and last tab's own offsets, not the
+             nav's inner box. The bar carries 6px of horizontal padding, so
+             clamping to (clientWidth - pillW) let the pill be dragged 6px past
+             the last tab (and to 0, 6px before the first), parking it visibly
+             out of register with every tab. */
+          function clampLeft(x){
+            var min=items[0].offsetLeft;
+            var max=items[items.length-1].offsetLeft;
+            return Math.max(min,Math.min(max,x));
           }
 
           activeEl.classList.add('tabn-item--pillhost');
@@ -745,20 +807,25 @@ window._FOOTER_HTML = `<footer>
             clearTimeout(timer);
             timer=setTimeout(function(){
               dragging=true;
+              lastHover=curIdx;
               try{activeEl.setPointerCapture(e.pointerId);}catch(_){}
               ind.classList.add('tabn-indicator--dragging','tabn-indicator--noanim');
               lastFxX=null;lastFxT=null;
+              haptic(14);   /* the gesture has been promoted, nothing has moved yet */
             },LONG_PRESS_MS);
           });
 
           activeEl.addEventListener('pointermove',function(e){
             if(!dragging)return;
             e.preventDefault();
-            var maxX=Math.max(0,nav.clientWidth-pillW);
-            var left=Math.max(0,Math.min(maxX,startLeft+(e.clientX-startX)));
+            var left=clampLeft(startLeft+(e.clientX-startX));
             ind.style.transform='translateX('+left+'px)';
             var hoverIdx=nearestIndexForCenter(left+pillW/2);
-            items.forEach(function(it,i){it.classList.toggle('active',i===hoverIdx);});
+            if(hoverIdx!==lastHover){
+              lastHover=hoverIdx;
+              items.forEach(function(it,i){it.classList.toggle('active',i===hoverIdx);});
+              haptic(7);  /* detent tick as the pill crosses into the next tab */
+            }
             fxFrame(left); /* continuous drag-through: fringe, live every move */
           });
 
@@ -769,22 +836,26 @@ window._FOOTER_HTML = `<footer>
             justDragged=true;
             setTimeout(function(){justDragged=false;},0);
             ind.classList.remove('tabn-indicator--dragging');
+            lastHover=-1;
 
-            var maxX=Math.max(0,nav.clientWidth-pillW);
-            var left=Math.max(0,Math.min(maxX,startLeft+(e.clientX-startX)));
+            var left=clampLeft(startLeft+(e.clientX-startX));
             var snapIdx=nearestIndexForCenter(left+pillW/2);
             var targetEl=items[snapIdx];
-            var isCartTab=(targetEl.getAttribute('href')==='#');
 
             items.forEach(function(it,i){it.classList.toggle('active',i===curIdx);});
 
-            if(snapIdx===curIdx||isCartTab){
+            /* Dropped back on the tab we started from: spring home, no navigation.
+               (There used to be a second arm here for a cart tab whose href was
+               "#". No tab in this bar has ever had that href, so it could not
+               run; removed rather than left as a decoy.) */
+            if(snapIdx===curIdx){
               if(!reduceMotion())ind.classList.remove('tabn-indicator--noanim');
               place(activeEl,true);
               runFxDuring(420);
-              if(isCartTab&&snapIdx!==curIdx&&window.openCart)window.openCart();
+              haptic(10);
               return;
             }
+            haptic(10);   /* committed to a different tab */
 
             /* real tab: persist so the destination page's arrival slide
                continues from here, then hand off to real navigation */

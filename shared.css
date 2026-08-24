@@ -1345,18 +1345,35 @@ body.has-buy-bar .a11y-fab{bottom:84px}
     border:1px solid rgba(22,22,20,.07);border-radius:999px;
     padding:3px 6px;
     box-shadow:0 6px 22px rgba(22,22,20,.10);
-    transition:transform .38s cubic-bezier(.4,0,.2,1),opacity .3s ease
+    /* Pure slide, no fade. A tab bar that dissolves while it leaves reads as a
+       glitch, not a dismissal; every native tab bar just translates off. The
+       old opacity .3s also finished ahead of the .38s transform, so the bar was
+       already invisible for the last 80ms of its own travel. */
+    transition:transform .34s cubic-bezier(.32,.72,0,1)
   }
   /* Slide nav below screen when buy buttons are visible on page */
   .ta-bottomnav.tabn-peek-hidden{
     transform:translateY(calc(100% + 24px));
-    opacity:0;
     pointer-events:none
   }
+  /* 42px tall fell under both platform minimums (iOS HIG 44pt, Material 48dp),
+     which is the whole reason the outer tabs felt fiddly to hit with a thumb. */
   .tabn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
-    padding:5px 2px 4px;text-decoration:none;color:var(--warm);font-size:10px;letter-spacing:.02em;font-weight:600;
-    -webkit-tap-highlight-color:transparent;transition:color .15s;position:relative;z-index:1}
-  .tabn-item svg{width:20px;height:20px;display:block}
+    padding:8px 2px 7px;text-decoration:none;color:var(--warm);font-size:10px;letter-spacing:.02em;font-weight:600;
+    -webkit-tap-highlight-color:transparent;transition:color .18s;position:relative;z-index:1}
+  /* Icon carries the press and the selected state, not the whole tab. A native
+     tab bar answers a touch on the glyph itself; the old whole-item
+     translateY(1px) had no transition at all, so it snapped down and snapped
+     back with no motion between the two. */
+  .tabn-item svg{width:20px;height:20px;display:block;
+    transition:transform .24s cubic-bezier(.34,1.4,.64,1)}
+  .tabn-item.active svg{transform:scale(1.08)}
+  .tabn-item:active svg{transform:scale(.86);transition-duration:.09s}
+  /* One-shot pop when a tab becomes the selected one after arriving from a
+     different tab. Not played on a plain reload of the same tab, that would
+     fire on every single page view. */
+  .tabn-item--arrived svg{animation:tabnIcoPop .42s cubic-bezier(.34,1.5,.64,1)}
+  @keyframes tabnIcoPop{0%{transform:scale(1)}42%{transform:scale(1.26)}100%{transform:scale(1.08)}}
   .tabn-item span:last-child{line-height:1}
   .tabn-item.active{color:var(--accent)}
   /* Sliding glass highlight behind the active tab (positioned by partials.js).
@@ -1366,14 +1383,20 @@ body.has-buy-bar .a11y-fab{bottom:84px}
        treatment Google Photos uses behind its active tab. */
     border-radius:999px;background:rgba(196,98,42,.13);
     opacity:0;transform-origin:center;
-    transition:transform .5s cubic-bezier(.34,1.56,.64,1),width .38s cubic-bezier(.34,1.56,.64,1),opacity .25s ease}
+    /* transform + opacity only. `width` used to be animated on the same spring
+       curve, which meant a layout pass every frame of every tab change AND a
+       width that visibly overshot its target before settling (the 1.56 control
+       point). The tabs are flex:1 siblings so they are all the same width
+       anyway: width now snaps, position and squeeze ride the compositor. */
+    will-change:transform;
+    transition:transform .46s cubic-bezier(.34,1.42,.64,1),opacity .25s ease}
   .tabn-indicator.on{opacity:1}
   .tabn-indicator.tabn-indicator--noanim{transition:none}
   /* Press-and-hold drag: pill grows a touch and drops its transition so it
      follows the finger 1:1; the active tab (its actual pointer target, see
      partials.js) gets touch-action:none so the page doesn't scroll mid-drag. */
   .tabn-indicator--dragging{
-    transition:width .12s ease,opacity .12s ease!important;
+    transition:opacity .12s ease!important;
     background:rgba(196,98,42,.20)
   }
   .tabn-item--pillhost{touch-action:none;cursor:grab}
@@ -1398,22 +1421,36 @@ body.has-buy-bar .a11y-fab{bottom:84px}
      flat/opaque now (see .ta-bottomnav above) so there's nothing behind it
      left to blur or refract. The class stays in the markup purely to gate
      the chromatic fringe effect below, which is unrelated to this filter. */
-  .tabn-item:active{transform:translateY(1px)}
   .tabn-ico-wrap{position:relative;display:inline-flex}
   .tabn-badge{position:absolute;top:-6px;right:-9px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;
     background:var(--accent);color:#fff;font-size:9px;font-weight:700;
     display:none;align-items:center;justify-content:center;line-height:1}
   .tabn-badge.on{display:inline-flex}
-  /* Slow blink on the Instant Quote tab dot, draws the eye without being a
-     notification-count badge (there's nothing to count here). */
+  /* Marker on the Instant Quote tab, draws the eye without being a
+     notification-count badge (there's nothing to count here). Pulses three
+     times on arrival and then rests lit. It used to blink forever: a dot that
+     never stops reads as a nag rather than a hint, and it kept the compositor
+     awake for the entire time the page was open. */
   .tabn-quote-dot{position:absolute;top:-2px;right:-4px;width:7px;height:7px;border-radius:50%;
-    background:var(--accent);animation:tabnQuoteDotBlink 2.4s ease-in-out infinite}
+    background:var(--accent);animation:tabnQuoteDotBlink 2.4s ease-in-out 3}
   @keyframes tabnQuoteDotBlink{0%,100%{opacity:1}50%{opacity:.22}}
-  @media(prefers-reduced-motion:reduce){.tabn-quote-dot{animation:none}}
-  body.has-bottomnav{padding-bottom:calc(78px + env(safe-area-inset-bottom,0px))}
-  body.has-bottomnav .a11y-fab{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
-  body.has-bottomnav .scroll-top{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
-  body.has-bottomnav .a11y-panel{bottom:calc(128px + env(safe-area-inset-bottom,0px))}
+  /* OS-level reduced motion. The a11y widget's own html.a11y-reduce-motion is
+     already handled by a blanket rule further down this file, but the system
+     setting had no equivalent here, so the pill's spring and the tab bar's
+     slide still ran for someone who had asked the OS for neither. */
+  @media(prefers-reduced-motion:reduce){
+    .tabn-quote-dot{animation:none}
+    .ta-bottomnav,.ta-bottomnav--pdp{transition:none}
+    .tabn-indicator{transition:opacity .2s ease}
+    .tabn-item svg{transition:none}
+    .tabn-item--arrived svg{animation:none}
+  }
+  /* Bar is 7px taller now that the tab rows clear 48px, everything that parks
+     above it moves with it. */
+  body.has-bottomnav{padding-bottom:calc(85px + env(safe-area-inset-bottom,0px))}
+  body.has-bottomnav .a11y-fab{bottom:calc(83px + env(safe-area-inset-bottom,0px))}
+  body.has-bottomnav .scroll-top{bottom:calc(83px + env(safe-area-inset-bottom,0px))}
+  body.has-bottomnav .a11y-panel{bottom:calc(135px + env(safe-area-inset-bottom,0px))}
 }
 
 /* ── Product detail buy bar, centered floating pill, same on every
