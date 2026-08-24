@@ -10,7 +10,7 @@ import supabase from '../db/supabaseClient.js';
 async function confirmOrderByRazorpayId(razorpay_order_id, razorpay_payment_id) {
   const { data: order, error: fErr } = await supabase
     .from('orders')
-    .select('id, status')
+    .select('id, status, order_status')
     .eq('razorpay_order_id', razorpay_order_id)
     .single();
 
@@ -19,9 +19,16 @@ async function confirmOrderByRazorpayId(razorpay_order_id, razorpay_payment_id) 
   if (!order) return;
   if (order.status === 'confirmed') return; // already processed
 
+  // Rule 10: an Instant Quote order stays in quote_pending_confirmation until a
+  // human confirms the customization, even once payment clears. Only the payment
+  // side (status/payment_status) flips here. Mirrors verifyPayment. The webhook
+  // routinely lands before (or instead of) the browser's /api/payments/verify call,
+  // so confirming order_status here would silently skip the confirmation queue.
+  const isPendingQuoteConfirmation = order.order_status === 'quote_pending_confirmation';
+
   const update = {
     status:           'confirmed',
-    order_status:     'confirmed',
+    order_status:     isPendingQuoteConfirmation ? 'quote_pending_confirmation' : 'confirmed',
     payment_received: true,
     payment_status:   'paid',
     paid_at:          new Date().toISOString(),
@@ -48,7 +55,11 @@ async function confirmOrderByRazorpayId(razorpay_order_id, razorpay_payment_id) 
     .select('product_id, quantity')
     .eq('order_id', order.id);
 
-  for (const item of orderItems ?? []) {
+  // Instant Quote line items have no catalog product_id (made-to-order, not
+  // stocked), the same filter verifyPayment applies. Without it this fires a
+  // decrement_stock(null, qty) per quote item, which the RPC answers with
+  // `false` (no such product) and this path silently discards.
+  for (const item of (orderItems ?? []).filter(i => i.product_id)) {
     await supabase.rpc('decrement_stock', {
       p_product_id: item.product_id,
       p_qty:        item.quantity,
