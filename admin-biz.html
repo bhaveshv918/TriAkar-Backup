@@ -126,6 +126,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .btn-ghost:hover{border-color:var(--border-h);color:var(--text)}
 .btn-ghost.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .btn-danger{background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,.2)}
+/* Same tinted shape as .btn-danger, for a pause/park action (Hold): deliberate,
+   but nothing is destroyed, so it must not read as red. */
+.btn-warn{background:var(--yellow-bg);color:var(--yellow);border:1px solid rgba(234,179,8,.22)}
+.btn-warn:hover{filter:brightness(1.06)}
 .btn-sm{padding:5px 10px;font-size:11px}
 /* Save-button loading state (runSave()), spinning ring replaces the label while an
    edit/create request is in flight, so there's always visible feedback instead of a
@@ -1033,7 +1037,7 @@ tr:hover td{background:var(--accent-bg)!important}
 .btn-primary:active{transform:translateY(0)}
 .btn-ghost{border-radius:8px;background:var(--bg-2);border:1px solid var(--border)}
 .btn-ghost:hover{background:var(--bg-3);border-color:var(--border-h);color:var(--text)}
-.btn-danger{border-radius:8px}
+.btn-danger,.btn-warn{border-radius:8px}
 .btn-sm{border-radius:6px}
 
 /* ── Status badges, premium pill with glow ring ─── */
@@ -1348,7 +1352,7 @@ html[data-theme="dark"] .biz-login{
     </button>
     <div title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="display:flex;flex-direction:column;line-height:1.05;white-space:nowrap">
       <span style="font-family:'Glorida','Inter',sans-serif;font-size:15px;font-weight:800;letter-spacing:.04em"><span style="color:var(--accent)">TRI</span><span style="color:var(--text)">AKAR</span></span>
-      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.08</span></span>
+      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.85</span></span>
     </div>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
@@ -2725,29 +2729,33 @@ html[data-theme="dark"] .biz-login{
         </table>
       </div>
 
-      <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:24px;max-width:680px;box-shadow:var(--shadow)">
-        <div style="font-weight:700;font-size:13px;margin-bottom:4px">Pricing Formula <span style="font-weight:400;color:var(--text-3);font-size:11px">controls every Instant Quote price site-wide</span></div>
-        <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">final_price = max((material_cost + machine_cost + failure_buffer) × (1 + markup%), minimum charge)</div>
-        <div class="form-grid">
-          <div class="form-group"><label>Machine rate (₹/hour)</label><input type="number" step="1" id="iqRateHourly" placeholder="60"></div>
-          <div class="form-group"><label>Markup (%)</label><input type="number" step="1" id="iqRateMarkup" placeholder="35"></div>
-          <div class="form-group"><label>Minimum charge (₹)</label><input type="number" step="1" id="iqRateMinCharge" placeholder="249"></div>
-          <div class="form-group"><label>Failure/reprint buffer (%)</label><input type="number" step="1" id="iqRateFailBuf" placeholder="5"></div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
-          <button class="btn btn-primary btn-sm" onclick="saveIqPricingSettings()">Save pricing</button>
-          <span id="iqRateStatus" style="font-size:12px;color:var(--text-3)"></span>
-        </div>
-      </div>
+      <!-- Pricing Formula, Materials, Colors and Printer Build Sizes moved to Settings.
+           This tab is for what comes IN (requests, pending orders, on hold, uploads); the
+           knobs that decide how a quote is priced are configuration and belong with the
+           rest of it. -->
 
       <div class="p-head" id="iqOrdersSection" style="margin-top:8px;scroll-margin-top:70px">
-        <div><div class="p-title" style="font-size:15px">Orders Pending Confirmation</div><div class="p-sub">Paid, but held out of production until you have confirmed the customization with the customer</div></div>
+        <div><div class="p-title" style="font-size:15px">Orders Pending Confirmation</div><div class="p-sub">Held out of production until you have confirmed the customization with the customer</div></div>
       </div>
       <div class="tbl-wrap">
         <table class="iq-tbl">
           <colgroup><col style="width:12%"><col style="width:20%"><col style="width:16%"><col style="width:9%"><col style="width:7%"><col style="width:12%"><col style="width:12%"><col style="width:12%"></colgroup>
           <thead><tr><th>Order</th><th>Model &amp; notes</th><th>Print spec</th><th>Estimate</th><th>Price</th><th>Payment</th><th>Customer</th><th>Action</th></tr></thead>
           <tbody id="iqOrdersBody"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+
+      <!-- On Hold. Its own box on purpose: an order waiting on the customer should
+           not sit in the same list as the ones actually waiting on you, but it must
+           stay one click away, never archived out of sight. -->
+      <div class="p-head" id="iqHoldSection" style="margin-top:32px;scroll-margin-top:70px">
+        <div><div class="p-title" style="font-size:15px">On Hold</div><div class="p-sub">Parked waiting on the customer. Anything still unpaid <span id="iqHoldDaysLabel">7</span> days after it was placed lands here on its own. Bring it back whenever they reply.</div></div>
+      </div>
+      <div class="tbl-wrap">
+        <table class="iq-tbl">
+          <colgroup><col style="width:12%"><col style="width:20%"><col style="width:16%"><col style="width:9%"><col style="width:7%"><col style="width:12%"><col style="width:12%"><col style="width:12%"></colgroup>
+          <thead><tr><th>Order</th><th>Model &amp; notes</th><th>Print spec</th><th>Estimate</th><th>Price</th><th>Payment</th><th>On hold</th><th>Action</th></tr></thead>
+          <tbody id="iqHoldBody"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
 
@@ -2790,38 +2798,6 @@ html[data-theme="dark"] .biz-login{
         </table>
       </div>
 
-      <div class="p-head" id="iqMaterialsSection" style="margin-top:32px;scroll-margin-top:70px">
-        <div><div class="p-title" style="font-size:15px">Materials Catalog</div></div>
-        <button class="btn btn-ghost btn-sm" onclick="addIqMaterial()">+ Add material</button>
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Name</th><th>Group</th><th>Limited colors</th><th>Density (g/cm³)</th><th>₹/gram</th><th>Default</th><th>Popular</th><th>Active</th><th>Edit</th></tr></thead>
-          <tbody id="iqMaterialsBody"><tr><td colspan="9" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
-        </table>
-      </div>
-
-      <div class="p-head" style="margin-top:32px">
-        <div><div class="p-title" style="font-size:15px">Colors Catalog</div></div>
-        <button class="btn btn-ghost btn-sm" onclick="addIqColor()">+ Add color</button>
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Color</th><th>Hex</th><th>Default</th><th>Active</th><th>Edit</th></tr></thead>
-          <tbody id="iqColorsBody"><tr><td colspan="5" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
-        </table>
-      </div>
-
-      <div class="p-head" style="margin-top:32px">
-        <div><div class="p-title" style="font-size:15px">Printer Build Sizes</div><div class="p-sub">Names are for your reference only, customers only ever see the dimensions</div></div>
-        <button class="btn btn-ghost btn-sm" onclick="addIqPrinter()">+ Add build size</button>
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Name (admin only)</th><th>Build volume (mm)</th><th>Default</th><th>Active</th><th>Edit</th></tr></thead>
-          <tbody id="iqPrintersBody"><tr><td colspan="5" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
-        </table>
-      </div>
     </div><!-- /instantquotes -->
 
     <!-- ══════════════════════════════════════════════════════
@@ -4476,6 +4452,62 @@ html[data-theme="dark"] .biz-login{
         </div>
       </div>
 
+      <!-- ══ Instant Quote configuration ══
+           Moved here from the Instant Quotes tab. That tab is for the queries coming in;
+           these four are configuration, and configuration lives in Settings with everything
+           else. Ids are unchanged, so every existing loader, save handler and edit-row
+           renderer keeps working untouched. -->
+      <div class="p-head" id="iqPricingSection" style="margin-top:40px;scroll-margin-top:70px">
+        <div><div class="p-title">Instant Quote</div><div class="p-sub">What the customer-facing STL/OBJ quoter charges and what it offers. Changes apply to every new quote immediately.</div></div>
+      </div>
+
+      <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:24px;max-width:680px;box-shadow:var(--shadow)">
+        <div style="font-weight:700;font-size:13px;margin-bottom:4px">Pricing Formula <span style="font-weight:400;color:var(--text-3);font-size:11px">controls every Instant Quote price site-wide</span></div>
+        <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">final_price = max((material_cost + machine_cost + failure_buffer) × (1 + markup%), minimum charge)</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Machine rate (₹/hour)</label><input type="number" step="1" id="iqRateHourly" placeholder="60"></div>
+          <div class="form-group"><label>Markup (%)</label><input type="number" step="1" id="iqRateMarkup" placeholder="35"></div>
+          <div class="form-group"><label>Minimum charge (₹)</label><input type="number" step="1" id="iqRateMinCharge" placeholder="249"></div>
+          <div class="form-group"><label>Failure/reprint buffer (%)</label><input type="number" step="1" id="iqRateFailBuf" placeholder="5"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+          <button class="btn btn-primary btn-sm" onclick="saveIqPricingSettings()">Save pricing</button>
+          <span id="iqRateStatus" style="font-size:12px;color:var(--text-3)"></span>
+        </div>
+      </div>
+
+      <div class="p-head" id="iqMaterialsSection" style="margin-top:32px;scroll-margin-top:70px">
+        <div><div class="p-title" style="font-size:15px">Materials Catalog</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="addIqMaterial()">+ Add material</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Group</th><th>Limited colors</th><th>Density (g/cm³)</th><th>₹/gram</th><th>Default</th><th>Popular</th><th>Active</th><th>Edit</th></tr></thead>
+          <tbody id="iqMaterialsBody"><tr><td colspan="9" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="p-head" style="margin-top:32px">
+        <div><div class="p-title" style="font-size:15px">Colors Catalog</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="addIqColor()">+ Add color</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Color</th><th>Hex</th><th>Default</th><th>Active</th><th>Edit</th></tr></thead>
+          <tbody id="iqColorsBody"><tr><td colspan="5" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="p-head" style="margin-top:32px">
+        <div><div class="p-title" style="font-size:15px">Printer Build Sizes</div><div class="p-sub">Names are for your reference only, customers only ever see the dimensions</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="addIqPrinter()">+ Add build size</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Name (admin only)</th><th>Build volume (mm)</th><th>Default</th><th>Active</th><th>Edit</th></tr></thead>
+          <tbody id="iqPrintersBody"><tr><td colspan="5" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
     </div><!-- /settings -->
 
   </div><!-- /main-area -->
@@ -4541,6 +4573,10 @@ function _populateBizSettingsForm(cfg){
   });
 }
 async function loadBizSettings(){
+  // Instant Quote configuration lives on this panel now, so opening Settings has to fill it
+  // in. Fire and forget alongside the document settings below, the two are independent and
+  // a failure in either must not blank the other.
+  loadIqPricingSettings(); loadIqMaterials(); loadIqColors(); loadIqPrinters();
   const qrEl=document.getElementById('bizCommonQr'); if(qrEl&&!qrEl.innerHTML) qrEl.innerHTML=_qrBlockHtml('bizCommonQr');
   const stEl=document.getElementById('bizCommonStamp'); if(stEl&&!stEl.innerHTML) stEl.innerHTML=_stampBlockHtml();
   _populateBizSettingsForm(getBizSettings());   // instant paint from local cache
@@ -9107,7 +9143,10 @@ let _iqOrderByQuote={};
 async function loadInstantQuotes(){
   // Catalog lookups (materials/printers/colors) must land before the two tables
   // that render names/dims from them, or those columns show "N/A" until a manual refresh.
+  // Their editable tables now live in Settings, but the DATA is still needed here to turn
+  // a quote's material/color/printer id into a readable name, so these stay.
   await Promise.all([loadIqMaterials(),loadIqPrinters(),loadIqColors(),loadIqPricingSettings()]);
+  const dl=document.getElementById('iqHoldDaysLabel'); if(dl) dl.textContent=IQ_HOLD_DAYS;
   await Promise.all([loadIqOrders(),loadIqUploads(),loadIqMonthly()]);
   // Opening the tab is "the admin looked", stop the Today's Tasks blink here.
   try{ localStorage.setItem('biz_iq_last_seen_count', String(_iqOrders.length)); }catch(e){}
@@ -9137,12 +9176,22 @@ function renderIqKpi(){
     delta={up:pct>=0,text:(pct>=0?'▲ ':'▼ ')+Math.abs(pct)+'%'};
   }
   const orderedCount=_iqUploads.filter(q=>q.status==='ordered').length;
+  const held=_iqOrders.filter(o=>_iqHoldState(o).held).length;
   kpi.innerHTML=
     card('var(--accent)','var(--accent-bg)','◷','This month',thisMonth,"iqJumpTo('iqMonthlySection')",delta)
-    +card('var(--yellow)','var(--yellow-bg)','⧉','Pending',_iqOrders.length,"iqJumpTo('iqOrdersSection')")
+    +card('var(--yellow)','var(--yellow-bg)','⧉','Pending',_iqOrders.length-held,"iqJumpTo('iqOrdersSection')")
+    +card('var(--red)','var(--red-bg)','❚❚','On hold',held,"iqJumpTo('iqHoldSection')")
     +card('var(--blue)','var(--blue-bg)','⇧','Uploads',_iqUploads.length,"iqJumpTo('iqUploadsSection',true)")
     +card('var(--green)','var(--green-bg)','▤','Ordered',orderedCount,"iqFilterUploadsByStatus('ordered')")
-    +card('var(--green)','var(--green-bg)','✓','Materials',activeMaterials,"iqJumpTo('iqMaterialsSection')");
+    // Materials Catalog now lives on the Settings panel, so this has to switch tabs first.
+    // Scrolling to it from here would silently do nothing, the element is in a hidden panel.
+    +card('var(--green)','var(--green-bg)','✓','Materials',activeMaterials,"iqOpenSettingsSection('iqMaterialsSection')");
+}
+// Jump straight to an Instant Quote configuration section on the Settings panel. The panel
+// has to be switched to and painted before scrollIntoView can find a laid-out element.
+function iqOpenSettingsSection(id){
+  switchTab('settings');
+  setTimeout(()=>{ const el=document.getElementById(id); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); },120);
 }
 
 /* ── Month on month ──────────────────────────────────────────
@@ -9590,9 +9639,17 @@ async function iqSendToOrders(quoteId){
   set('qa_city',a.city||'');
   set('qa_pin',a.pincode||a.postal_code||'');
   set('qa_country',a.country||'India');
-  // qa_state is a fixed <select> of Indian states, an unrecognized value would just
-  // blank it out, so only a real match replaces the default.
-  if(a.state){ const stEl=document.getElementById('qa_state'); if(stEl&&[...stEl.options].some(op=>op.value===a.state)) stEl.value=a.state; }
+  // qa_state is a fixed <select> of Indian states, assigning a value that isn't in
+  // the list silently blanks it, and a dropped state is a wrong place-of-supply on
+  // the GST side, so anything unrecognized is added as an option rather than lost.
+  if(a.state){
+    if(typeof populateStateSelects==='function') populateStateSelects();
+    const stEl=document.getElementById('qa_state');
+    if(stEl){
+      if(![...stEl.options].some(op=>op.value===a.state)) stEl.add(new Option(a.state,a.state));
+      stEl.value=a.state;
+    }
+  }
   setLeadSource((o&&o.payment_method==='whatsapp')?'whatsapp':'');
   setFulfillment('delivery');
   setQaStatus(o?(IQ_WEB_STATUS_TO_QA[String(o.order_status||o.status||'').toLowerCase()]||'order_received'):'order_received');
@@ -9653,33 +9710,92 @@ async function loadIqOrders(){
     .eq('order_status','quote_pending_confirmation')
     .is('deleted_at',null)
     .order('created_at',{ascending:false});
-  if(error){ const b=document.getElementById('iqOrdersBody'); if(b) b.innerHTML='<tr><td colspan="7" class="empty"><div class="em-text">Error loading Instant Quote orders</div></td></tr>'; return}
+  if(error){ const b=document.getElementById('iqOrdersBody'); if(b) b.innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">Error loading Instant Quote orders</div></td></tr>'; return}
   _iqOrders=data||[];
-  const cEl=document.getElementById('iqCount_hdr'); if(cEl)cEl.textContent=_iqOrders.length;
-  checkNewIqEntry(_iqOrders.length);
+  // Today's Tasks counts what is actually waiting on you. An order parked waiting
+  // on the customer is not your task, so it does not inflate that badge.
+  const active=_iqOrders.filter(o=>!_iqHoldState(o).held).length;
+  const cEl=document.getElementById('iqCount_hdr'); if(cEl)cEl.textContent=active;
+  checkNewIqEntry(active);
   renderIqOrders();
   renderIqKpi();
+}
+
+/* ── Hold ────────────────────────────────────────────────────
+   Two ways an order ends up parked, and they behave differently:
+
+   manual  the admin pressed Hold (orders.hold_at), stays until brought back
+   auto    still unpaid IQ_HOLD_DAYS days after it was placed. Derived, not
+           written: no cron job, nothing to backfill, and it applies to orders
+           that already exist. Once the admin explicitly brings one back
+           (hold_released_at) the rule stops applying to it, otherwise a released
+           order would bounce straight back on the next reload.
+
+   Pre-migration (hold_at column missing) every field reads undefined, so only the
+   automatic rule runs and nothing breaks. */
+const IQ_HOLD_DAYS=7;
+function _iqDaysSince(iso){ if(!iso) return null; const t=new Date(iso).getTime(); if(isNaN(t)) return null; return Math.floor((Date.now()-t)/86400000); }
+function _iqHoldState(o){
+  if(o&&o.hold_at) return {held:true,auto:false,since:o.hold_at,reason:o.hold_reason||'Put on hold manually'};
+  const unpaid=_iqPayState(o).label==='Unpaid';
+  const age=_iqDaysSince(o&&o.created_at);
+  if(unpaid&&age!=null&&age>=IQ_HOLD_DAYS&&!(o&&o.hold_released_at))
+    return {held:true,auto:true,since:o.created_at,reason:'No payment '+age+' days after the order was placed'};
+  return {held:false,auto:false,since:null,reason:''};
+}
+// Manual hold and auto hold are released the same way: the endpoint stamps
+// hold_released_at, which is what switches the automatic rule off for this order.
+async function holdIqOrder(orderId){
+  const o=_iqOrders.find(x=>x.id===orderId);
+  const oid=o?(o.invoice_number||o.order_id||o.id):orderId;
+  const reason=prompt('Put order '+oid+' on hold, waiting on the customer.\n\nReason (optional, shown in the On Hold list):','Waiting on the customer');
+  if(reason===null) return;   // Cancel on the prompt means cancel the hold, not hold with a blank reason
+  try{
+    await bizApiFetch('/api/admin/orders/'+orderId+'/hold',{method:'PUT',body:JSON.stringify({hold:true,reason:reason||null})});
+    toast('Moved to On Hold','success');
+    closeIqPayModal();
+    loadIqOrders();
+  }catch(e){toast('Error: '+(e.message||e)+'. If this mentions hold_at, run the 20260826_orders_hold.sql migration in Supabase first.','error');}
+}
+async function releaseIqOrder(orderId){
+  const o=_iqOrders.find(x=>x.id===orderId);
+  const oid=o?(o.invoice_number||o.order_id||o.id):orderId;
+  if(!confirm('Bring order '+oid+' back into Orders Pending Confirmation?\n\nIt goes back to waiting on you, and the automatic unpaid hold will not pull it out again.')) return;
+  try{
+    await bizApiFetch('/api/admin/orders/'+orderId+'/hold',{method:'PUT',body:JSON.stringify({hold:false})});
+    toast('Back in the pending queue','success');
+    closeIqPayModal();
+    loadIqOrders();
+  }catch(e){toast('Error: '+(e.message||e)+'. If this mentions hold_at, run the 20260826_orders_hold.sql migration in Supabase first.','error');}
 }
 
 function _iqPrinterDims(id){const p=(_iqPrinters||[]).find(x=>x.id===id);return p?(p.build_x_mm+'×'+p.build_y_mm+'×'+p.build_z_mm+'mm'):'N/A';}
 function _iqMaterialName(id){const m=(_iqMaterials||[]).find(x=>x.id===id);return m?m.name:'N/A';}
 function _iqColorName(id){const c=(_iqColors||[]).find(x=>x.id===id);return c?c.name:'N/A';}
 
-function renderIqOrders(){
-  const tbody=document.getElementById('iqOrdersBody'); if(!tbody) return;
-  // Flattened first, then checked. An order can sit in quote_pending_confirmation
-  // with no instant-quote line item on it (mixed cart, or the item was removed),
-  // and the old per-order map returned '' for those, so a non-zero pending count
-  // could paint a completely blank table body with no empty state at all.
+// Flattened first, then checked. An order can sit in quote_pending_confirmation
+// with no instant-quote line item on it (mixed cart, or the item was removed),
+// and the old per-order map returned '' for those, so a non-zero pending count
+// could paint a completely blank table body with no empty state at all.
+function _iqOrderRows(orders){
   const rows=[];
-  _iqOrders.forEach(o=>{
+  orders.forEach(o=>{
     (o.order_items||[]).filter(it=>it.instant_quote_requests).forEach((it,i)=>rows.push({o:o,it:it,first:i===0}));
   });
-  if(!rows.length){tbody.innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">No Instant Quote orders awaiting confirmation.</div></td></tr>';return}
-  tbody.innerHTML=rows.map(function(r){
+  return rows;
+}
+function renderIqOrders(){
+  const tbody=document.getElementById('iqOrdersBody'), holdBody=document.getElementById('iqHoldBody');
+  if(!tbody) return;
+  const pending=[],held=[];
+  _iqOrders.forEach(o=>(_iqHoldState(o).held?held:pending).push(o));
+
+  const rows=_iqOrderRows(pending);
+  if(!rows.length) tbody.innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">No Instant Quote orders awaiting confirmation.</div></td></tr>';
+  else tbody.innerHTML=rows.map(function(r){
     const o=r.o,q=r.it.instant_quote_requests;
     return '<tr>'
-      +'<td data-label="Order"><div class="iq-stack"><span class="iq-mono" style="font-size:11px;font-weight:600">'+esc(o.invoice_number||o.order_id||o.id)+'</span><span class="iq-sub">'+fmtDateTimeIST(o.created_at)+'</span></div></td>'
+      +'<td data-label="Order"><div class="iq-stack"><span class="iq-mono" style="font-size:11px;font-weight:600">'+esc(o.invoice_number||o.order_id||o.id)+'</span><span class="iq-sub">'+fmtDateTimeIST(o.created_at)+'</span>'+_iqHoldWarnLine(o)+'</div></td>'
       +'<td data-label="Model &amp; notes">'+_iqModelCell(q)+'</td>'
       +'<td data-label="Print spec">'+_iqSpecCell(q)+'</td>'
       +'<td data-label="Estimate">'+_iqEstCell(q)+'</td>'
@@ -9691,11 +9807,48 @@ function renderIqOrders(){
       +'<td data-label="Action">'+(r.first
           ?'<div class="iq-actions">'
             +'<button class="btn btn-primary btn-sm" onclick="confirmIqOrder(\''+o.id+'\')">Confirm</button>'
+            +'<button class="btn btn-warn btn-sm" onclick="holdIqOrder(\''+o.id+'\')" title="Park it waiting on the customer, it moves to On Hold below">❚❚ Hold</button>'
             +'<button class="btn btn-danger btn-sm" onclick="cancelIqOrder(\''+o.id+'\')">Cancel</button>'
             +'</div>'
           :'<span class="iq-sub">Same order ↑</span>')+'</td>'
       +'</tr>';
   }).join('');
+
+  if(!holdBody) return;
+  const hRows=_iqOrderRows(held);
+  if(!hRows.length){ holdBody.innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">Nothing on hold.</div></td></tr>'; return}
+  holdBody.innerHTML=hRows.map(function(r){
+    const o=r.o,q=r.it.instant_quote_requests,h=_iqHoldState(o);
+    const days=_iqDaysSince(h.since);
+    return '<tr>'
+      +'<td data-label="Order"><div class="iq-stack"><span class="iq-mono" style="font-size:11px;font-weight:600">'+esc(o.invoice_number||o.order_id||o.id)+'</span><span class="iq-sub">'+fmtDateTimeIST(o.created_at)+'</span></div></td>'
+      +'<td data-label="Model &amp; notes">'+_iqModelCell(q)+'</td>'
+      +'<td data-label="Print spec">'+_iqSpecCell(q)+'</td>'
+      +'<td data-label="Estimate">'+_iqEstCell(q)+'</td>'
+      +'<td data-label="Price"><span class="iq-price">₹'+Number(r.it.unit_price||0).toLocaleString('en-IN')+'</span></td>'
+      +'<td data-label="Payment">'+(r.first?_iqPaymentCell(o):'<span class="iq-sub">See above</span>')+'</td>'
+      +'<td data-label="On hold"><div class="iq-stack">'
+        +'<div><span class="badge '+(h.auto?'badge-returned':'badge-pending')+'">'+(h.auto?'Auto':'Manual')+'</span></div>'
+        +'<div class="iq-sub">'+esc(h.reason)+'</div>'
+        +(days!=null?'<div class="iq-sub iq-mono">'+days+'d</div>':'')
+        +'</div></td>'
+      +'<td data-label="Action">'+(r.first
+          ?'<div class="iq-actions">'
+            +'<button class="btn btn-primary btn-sm" onclick="releaseIqOrder(\''+o.id+'\')" title="Move it back into Orders Pending Confirmation">↩ Bring back</button>'
+            +'<button class="btn btn-danger btn-sm" onclick="cancelIqOrder(\''+o.id+'\')">Cancel</button>'
+            +'</div>'
+          :'<span class="iq-sub">Same order ↑</span>')+'</td>'
+      +'</tr>';
+  }).join('');
+}
+// An unpaid order in the pending queue that is close to the automatic hold gets a
+// heads-up on the row, so the move is never a surprise.
+function _iqHoldWarnLine(o){
+  if(_iqPayState(o).label!=='Unpaid') return '';
+  const age=_iqDaysSince(o.created_at); if(age==null) return '';
+  const left=IQ_HOLD_DAYS-age;
+  if(left>2||left<0) return '';
+  return '<div class="iq-sub" style="color:var(--yellow);font-weight:600">Unpaid '+age+'d, auto-hold '+(left<=0?'today':'in '+left+'d')+'</div>';
 }
 
 async function confirmIqOrder(orderId){
