@@ -213,6 +213,37 @@ export async function getAdminOrders(req, res, next) {
 
 const STOCK_RESTORING_STATUSES = ['cancelled', 'returned', 'refunded'];
 
+/* ── PUT /api/admin/orders/:id/hold — park an order, or bring it back ──
+   Hold is deliberately NOT a status: an order waiting on the customer has not
+   moved anywhere in its lifecycle, and it has to return to exactly the status it
+   already had (for an Instant Quote, quote_pending_confirmation, which this
+   endpoint's sibling updateOrderStatus does not even accept as a target). So it
+   is a flag alongside the status, never a replacement for it, and nothing about
+   payment, stock or production is touched here. Requires the
+   20260826_orders_hold.sql migration. */
+export async function setOrderHold(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { hold, reason } = req.body;
+    if (typeof hold !== 'boolean') return res.status(400).json({ error: '`hold` must be true or false' });
+
+    const patch = hold
+      ? { hold_at: new Date().toISOString(), hold_reason: (reason ? String(reason).slice(0, 300) : null) }
+      // hold_released_at is what keeps the automatic "unpaid for 7 days" rule from
+      // putting a deliberately released order straight back on hold.
+      : { hold_at: null, hold_released_at: new Date().toISOString(), hold_reason: null };
+
+    const { data, error } = await supabase
+      .from('orders').update(patch).eq('id', id).select().single();
+    if (error) throw error;
+
+    logActivity(req.user?.email, hold ? 'order.hold' : 'order.hold_released', 'order', id, reason || '');
+    res.json({ order: data });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function updateOrderStatus(req, res, next) {
   try {
     const { id } = req.params;

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   getAdminProducts, createProduct, updateProduct, deleteProduct, bulkUpdateProducts,
-  getAdminOrders, updateOrderStatus, updateOrderPayment, updateOrderFields, sendOrderEmail, getActivity,
+  getAdminOrders, updateOrderStatus, setOrderHold, updateOrderPayment, updateOrderFields, sendOrderEmail, getActivity,
 } from '../controllers/adminController.js';
 import {
   listUsers, getUser, updateUser, setUserDisabled, setUserRole,
@@ -91,6 +91,7 @@ router.post('/upload-image', upload.single('image'), async (req, res, next) => {
 
 router.get('/orders',                  getAdminOrders);
 router.put('/orders/:id/status',       updateOrderStatus);
+router.put('/orders/:id/hold',         setOrderHold);   // park waiting on the customer, or bring it back
 router.put('/orders/:id/payment',      updateOrderPayment);
 router.put('/orders/:id',              updateOrderFields);   // tracking + admin notes
 router.post('/orders/:id/send-email',  sendOrderEmail);
