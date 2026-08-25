@@ -12,7 +12,7 @@ import { logActivity } from '../services/activityLog.js';
 // generic "write anything to biz_sales" endpoint.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const STATUS_PAYLOAD_KEYS = ['status', 'completed_at', 'delivered_at'];
+const STATUS_PAYLOAD_KEYS = ['status', 'completed_at', 'delivered_at', 'packed_at'];
 
 // ── PATCH /api/admin/biz/sales/status — bulk status update for one order's line items ──
 export async function updateBizSalesStatus(req, res, next) {

@@ -243,6 +243,10 @@ tr:hover td{background:var(--bg-2)}
 .row-due-today:hover td{background:var(--green-bg)}
 .row-upcoming td{background:var(--blue-bg)}
 .row-upcoming:hover td{background:var(--blue-bg)}
+/* Packed and ready, but the customer still hasn't collected it. Deliberately NOT
+   red: this is a "ring the customer" row, not a TriAkar SLA failure. */
+.row-waiting td{background:var(--yellow-bg)}
+.row-waiting:hover td{background:var(--yellow-bg)}
 .td-num{font-family:var(--mono);font-size:11px;text-align:right}
 .td-actions{white-space:nowrap;text-align:right}
 /* GST reconciliation import table, target/category selects had no styling at
@@ -1709,7 +1713,7 @@ html[data-theme="dark"] .biz-login{
           <option value="processing" style="color:#111">Processing</option>
           <option value="printing" style="color:#111">Printing</option>
           <option value="packed" style="color:#111">Packed</option>
-          <option value="dispatched" style="color:#111">Dispatched</option>
+          <option value="dispatched" style="color:#111">In Transit</option>
           <option value="delivered" style="color:#111">Delivered</option>
           <option value="completed" style="color:#111">Completed</option>
           <option value="delayed" style="color:#111">Delayed</option>
@@ -1743,7 +1747,7 @@ html[data-theme="dark"] .biz-login{
       </details>
 
       <details id="packDetails" style="margin-bottom:20px">
-        <summary style="cursor:pointer;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">Packed <span style="text-transform:none;font-weight:400;color:var(--text-3)">(ready to dispatch)</span></summary>
+        <summary style="cursor:pointer;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">Packed <span style="text-transform:none;font-weight:400;color:var(--text-3)">(SLA met, ready to dispatch or collect)</span></summary>
         <div class="tbl-wrap" style="margin-top:8px">
           <table>
             <thead><tr><th style="width:32px"><input type="checkbox" id="selectAllOpenPack" onchange="toggleSelectAllOpen(this,'pack')"></th><th>Promised</th><th>SLA</th><th>Customer</th><th>Item</th><th>Channel</th><th>Status</th><th class="td-actions"></th></tr></thead>
@@ -1755,10 +1759,10 @@ html[data-theme="dark"] .biz-login{
       </details>
 
       <details id="dispatchDetails">
-        <summary style="cursor:pointer;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">Dispatched <span style="text-transform:none;font-weight:400;color:var(--text-3)">(until return window closes &amp; review is in)</span></summary>
+        <summary style="cursor:pointer;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3);margin-bottom:8px">In Transit <span style="text-transform:none;font-weight:400;color:var(--text-3)">(until return window closes &amp; review is in)</span></summary>
         <div class="tbl-wrap" style="margin-top:8px">
           <table>
-            <thead><tr><th style="width:32px"><input type="checkbox" id="selectAllOpenTrack" onchange="toggleSelectAllOpen(this,'track')"></th><th>Dispatched</th><th>Customer</th><th>Item</th><th>Channel</th><th>Return Window</th><th>Review</th><th>Status</th></tr></thead>
+            <thead><tr><th style="width:32px"><input type="checkbox" id="selectAllOpenTrack" onchange="toggleSelectAllOpen(this,'track')"></th><th>Dispatched On</th><th>Customer</th><th>Item</th><th>Channel</th><th>Return Window</th><th>Review</th><th>Status</th></tr></thead>
             <tbody id="trackOrdersBody">
               <tr class="skel-row"><td colspan="8"><div style="display:flex;gap:16px;align-items:center"><span class="skel-bar" style="width:60px"></span><span class="skel-bar" style="width:110px"></span><span class="skel-bar" style="width:70px"></span><span class="skel-bar" style="width:50px"></span></div></td></tr>
               <tr class="skel-row"><td colspan="8"><div style="display:flex;gap:16px;align-items:center"><span class="skel-bar" style="width:60px"></span><span class="skel-bar" style="width:110px"></span><span class="skel-bar" style="width:70px"></span><span class="skel-bar" style="width:50px"></span></div></td></tr>
@@ -1879,6 +1883,7 @@ html[data-theme="dark"] .biz-login{
         <div class="qchips" id="qaLeadChips" style="margin-top:12px">
           <button type="button" class="qchip" data-v="existing" onclick="setLeadSource('existing')" title="Auto-picked when the typed name/phone matches a known customer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/></svg> Existing Customer</button>
           <button type="button" class="qchip" data-v="studio_walkin" onclick="setLeadSource('studio_walkin')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg> Studio Walk-in</button>
+          <button type="button" class="qchip" data-v="website" onclick="setLeadSource('website')" title="Auto-picked when the Channel is set to Website"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/></svg> Website</button>
           <button type="button" class="qchip" data-v="whatsapp" onclick="setLeadSource('whatsapp')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/></svg> WhatsApp</button>
           <button type="button" class="qchip" data-v="google" onclick="setLeadSource('google')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Google</button>
           <button type="button" class="qchip" data-v="instagram" onclick="setLeadSource('instagram')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M8 6l1.5-2h5L16 6"/><circle cx="12" cy="13" r="3.5"/></svg> Instagram</button>
@@ -1957,11 +1962,14 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group"><label>Amount</label><input type="number" id="qaPayAmount" step="0.01" oninput="onQaPayAmountInput()"></div>
             <div class="form-group"><label>Date</label><input type="date" id="qaPayDate"></div>
             <div class="form-group"><label>Source / Mode</label>
+              <!-- GPay first and pre-selected: it's what the overwhelming majority of studio
+                   payments actually come in on, so the common case should need zero clicks. -->
               <select id="qaPaySource">
+                <option value="gpay" selected>GPay</option>
                 <option value="upi">UPI</option><option value="bharatpe">BharatPe</option>
                 <option value="cash">Cash</option><option value="card">Card</option>
                 <option value="bank_transfer">Bank Transfer</option><option value="ca_sbi">C/A, SBI</option>
-                <option value="ca_karur">C/A, Karur Vysya</option><option value="gpay">GPay</option>
+                <option value="ca_karur">C/A, Karur Vysya</option>
                 <option value="paytm">Paytm</option><option value="razorpay">Razorpay</option>
                 <option value="online">Online / Prepaid</option><option value="other">Other</option>
               </select>
@@ -1979,18 +1987,82 @@ html[data-theme="dark"] .biz-login{
           </div>
         </div>
 
-        <!-- ── Pickup or Delivery ── -->
+        <!-- ── Pickup or Delivery ──
+             Nothing here is mandatory. The studio routinely takes the order first and works
+             out how it goes home later, so "nothing picked" is a real, saveable state, and
+             clicking the chip that's already on turns it back off.
+             Courier and tracking used to sit in the collapsed Shipping & Tracking block
+             below, two sections away from the choice that makes them relevant. They live
+             here now and only appear once Delivery is picked. Same input ids and same save
+             path, just moved. The date moved up with them for the same reason: on a pickup
+             it IS the handover date, so it belongs beside the pickup choice. -->
 <div class="qa-card qa-order-only">
-          <div class="qa-sec-title">Delivery / Pickup</div>
+          <div class="qa-sec-title">Delivery / Pickup<span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-3)">: optional, can be set later</span></div>
           <div class="qchips" id="qaFulfilChips">
-            <button type="button" class="qchip active" data-v="delivery" onclick="setFulfillment('delivery')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="14" height="11" rx="1"/><path d="M15 9h4l3 3v5h-7Z"/><circle cx="6" cy="19" r="2"/><circle cx="17.5" cy="19" r="2"/></svg> Delivery</button>
-            <button type="button" class="qchip" data-v="pickup_self" onclick="setFulfillment('pickup_self')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg> Pickup, Self</button>
-            <button type="button" class="qchip" data-v="pickup_by_us" onclick="setFulfillment('pickup_by_us')" title="We go pick it up"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l2-5a2 2 0 0 1 2-1h10a2 2 0 0 1 2 1l2 5"/><path d="M3 13h18v4a1 1 0 0 1-1 1h-1a2 2 0 1 1-4 0H9a2 2 0 1 1-4 0H4a1 1 0 0 1-1-1Z"/></svg> Pickup (by us)</button>
-            <button type="button" class="qchip" data-v="pickup_porter" onclick="setFulfillment('pickup_porter')" title="Customer arranges Porter to collect it"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M5 19h6l2-8h4M13 11l2-4h3"/></svg> Porter (by them)</button>
-            <button type="button" class="qchip" data-v="pickup_other" onclick="setFulfillment('pickup_other')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg> Pickup, Other</button>
+            <button type="button" class="qchip" data-v="delivery" onclick="setFulfillment('delivery')" title="Goes out by courier"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="14" height="11" rx="1"/><path d="M15 9h4l3 3v5h-7Z"/><circle cx="6" cy="19" r="2"/><circle cx="17.5" cy="19" r="2"/></svg> Delivery</button>
+            <button type="button" class="qchip" data-v="pickup_self" onclick="setFulfillment('pickup_self')" title="Customer comes to the studio and collects it in person"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg> Self Pickup</button>
+            <button type="button" class="qchip" data-v="porter_by_us" onclick="setFulfillment('porter_by_us')" title="We book the Porter and pay for it"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l2-5a2 2 0 0 1 2-1h10a2 2 0 0 1 2 1l2 5"/><path d="M3 13h18v4a1 1 0 0 1-1 1h-1a2 2 0 1 1-4 0H9a2 2 0 1 1-4 0H4a1 1 0 0 1-1-1Z"/></svg> Porter (by us)</button>
+            <button type="button" class="qchip" data-v="porter_by_buyer" onclick="setFulfillment('porter_by_buyer')" title="Customer books their own Porter to collect it"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M5 19h6l2-8h4M13 11l2-4h3"/></svg> Porter (by buyer)</button>
+            <button type="button" class="qchip" data-v="rapido" onclick="setFulfillment('rapido')" title="Rapido, used when no Porter is available. Nothing else to pick for this one"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6h3l1.5 4M5.5 17.5 9 9h5l4.5 8.5"/></svg> Rapido</button>
+            <button type="button" class="qchip" data-v="pickup_other" onclick="setFulfillment('pickup_other')" title="Anything else, type it in"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg> Other</button>
             <input type="text" id="qa_fulfil_other" placeholder="specify…" oninput="onFulfilOther(this.value)" style="display:none;max-width:150px;padding:6px 12px;background:var(--bg-2);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:12px">
           </div>
-          <input type="hidden" id="qa_fulfillment" value="delivery">
+          <!-- Delivery only. Rapido is deliberately bare, it's the fallback for when no
+               Porter is free, there is no courier or tracking to choose. -->
+          <div class="form-grid" id="qaCourierRow" style="display:none;margin-top:14px">
+            <div class="form-group">
+              <label>Courier Service</label>
+              <select id="qa_courier" onchange="onCourierChange()">
+                <option value="">Select courier</option>
+                <option value="delhivery">Delhivery</option>
+                <option value="bluedart">BlueDart</option>
+                <option value="dtdc">DTDC</option>
+                <option value="ekart">Ekart (Flipkart)</option>
+                <option value="amazon_logistics">Amazon Logistics</option>
+                <option value="xpressbees">XpressBees</option>
+                <option value="ecom_express">Ecom Express</option>
+                <option value="shadowfax">Shadowfax</option>
+                <option value="india_post">India Post</option>
+                <option value="professional">Professional Couriers</option>
+                <option value="trackon">Trackon</option>
+                <option value="gati">Gati</option>
+                <option value="safexpress">Safexpress</option>
+                <option value="spoton">SpotOn</option>
+                <option value="tci_express">TCI Express</option>
+                <option value="smartr">SMARTR</option>
+                <option value="fedex">FedEx</option>
+                <option value="dhl">DHL</option>
+                <option value="ups">UPS</option>
+                <option value="aramex">Aramex</option>
+                <option value="shiprocket">Shiprocket</option>
+                <option value="self">Self / Hand Delivery</option>
+                <!-- Retained so orders saved before this list was rebuilt still load into
+                     their own option instead of falling through to Other. -->
+                <option value="porter">Porter</option>
+                <option value="pickup_studio">Pickup from Studio</option>
+                <option value="other">Other, type the name</option>
+              </select>
+            </div>
+            <div class="form-group" id="qaCourierOtherWrap" style="display:none">
+              <label>Courier Name</label>
+              <input type="text" id="qa_courier_other" placeholder="courier name" oninput="onCourierOther()">
+            </div>
+            <div class="form-group">
+              <label>Courier Tracking ID</label>
+              <input type="text" id="qa_tracking" placeholder="Tracking ID">
+            </div>
+          </div>
+          <!-- One date field for every option. Dispatch date on a delivery, handover date
+               on a pickup, same dispatch_date column either way, so only the label moves.
+               Prefilled with today the moment an option is picked, since that is almost
+               always the answer when this is being filled in. -->
+          <div class="form-grid" id="qaFulfilDateRow" style="display:none;margin-top:14px">
+            <div class="form-group">
+              <label id="qaFulfilDateLabel">Pickup / Handover Date</label>
+              <input type="date" id="qa_dispatch_date">
+            </div>
+          </div>
+          <input type="hidden" id="qa_fulfillment" value="">
           <input type="hidden" id="qa_fulfillment_detail" value="">
         </div>
 
@@ -2016,11 +2088,10 @@ html[data-theme="dark"] .biz-login{
         <!-- ── Shipping & Tracking (collapsible) ── -->
         <details class="qa-order-only" style="margin-bottom:12px">
           <summary style="cursor:pointer;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);padding:6px 0;user-select:none">Shipping & Tracking</summary>
+          <!-- Dispatch date, courier and tracking moved up into Delivery / Pickup, next to
+               the choice that decides whether they apply at all. What's left here is the
+               paperwork that has nothing to do with how the parcel travels. -->
           <div class="form-grid" style="margin-top:10px">
-            <div class="form-group">
-              <label>Dispatch Date</label>
-              <input type="date" id="qa_dispatch_date">
-            </div>
             <div class="form-group">
               <label>Invoice No (platform)</label>
               <input type="text" id="qa_invoiceno" placeholder="e.g. Flipkart invoice no.">
@@ -2028,29 +2099,6 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group">
               <label>Packet Size</label>
               <input type="text" id="qa_packet" placeholder="e.g. 15×15×15 cm">
-            </div>
-            <div class="form-group">
-              <label>Tracking Number</label>
-              <input type="text" id="qa_tracking" placeholder="Tracking ID">
-            </div>
-            <div class="form-group">
-              <label>Courier Partner</label>
-              <select id="qa_courier">
-                <option value="">Select</option>
-                <option value="delhivery">Delhivery</option>
-                <option value="shiprocket">Shiprocket</option>
-                <option value="amazon_logistics">Amazon Logistics</option>
-                <option value="ekart">Ekart (Flipkart)</option>
-                <option value="india_post">India Post</option>
-                <option value="dtdc">DTDC</option>
-                <option value="bluedart">BlueDart</option>
-                <option value="xpressbees">XpressBees</option>
-                <option value="shadowfax">Shadowfax</option>
-                <option value="porter">Porter</option>
-                <option value="pickup_studio">Pickup from Studio</option>
-                <option value="self">Self / Hand Delivery</option>
-                <option value="other">Other</option>
-              </select>
             </div>
           </div>
         </details>
@@ -2118,7 +2166,7 @@ html[data-theme="dark"] .biz-login{
             <button type="button" class="qchip" data-s="processing" onclick="setQaStatus('processing')">Processing</button>
             <button type="button" class="qchip" data-s="printing"  onclick="setQaStatus('printing')">Printing</button>
             <button type="button" class="qchip" data-s="packed"    onclick="setQaStatus('packed')">Packed</button>
-            <button type="button" class="qchip" data-s="dispatched" onclick="setQaStatus('dispatched')">Dispatched</button>
+            <button type="button" class="qchip" data-s="dispatched" onclick="setQaStatus('dispatched')">In Transit</button>
             <button type="button" class="qchip" data-s="delivered"  onclick="setQaStatus('delivered')">Delivered</button>
             <button type="button" class="qchip" data-s="delayed"   onclick="setQaStatus('delayed')">Delayed</button>
             <button type="button" class="qchip" data-s="delaying"  onclick="setQaStatus('delaying')">Delaying</button>
@@ -2256,7 +2304,7 @@ html[data-theme="dark"] .biz-login{
                 <option value="processing">Processing</option>
                 <option value="printing">Printing</option>
                 <option value="packed">Packed</option>
-                <option value="dispatched">Dispatched</option>
+                <option value="dispatched">In Transit</option>
                 <option value="delivered">Delivered</option>
                 <option value="delaying">Delaying</option>
                 <option value="delayed">Delayed</option>
@@ -2341,7 +2389,7 @@ html[data-theme="dark"] .biz-login{
           <option value="processing" style="color:#111">Processing</option>
           <option value="printing" style="color:#111">Printing</option>
           <option value="packed" style="color:#111">Packed</option>
-          <option value="dispatched" style="color:#111">Dispatched</option>
+          <option value="dispatched" style="color:#111">In Transit</option>
           <option value="delivered" style="color:#111">Delivered</option>
           <option value="delaying" style="color:#111">Delaying</option>
           <option value="completed" style="color:#111">Completed</option>
@@ -2472,7 +2520,7 @@ html[data-theme="dark"] .biz-login{
               <option value="processing">Processing</option>
               <option value="printing">Printing</option>
               <option value="packed">Packed</option>
-              <option value="dispatched">Dispatched</option>
+              <option value="dispatched">In Transit</option>
               <option value="delivered">Delivered</option>
               <option value="delaying">Delaying</option>
               <option value="delayed">Delayed</option>
@@ -2662,6 +2710,21 @@ html[data-theme="dark"] .biz-login{
 
       <div id="iqKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:18px"></div>
 
+      <!-- Month on month. Every figure here is derived from instant_quote_requests
+           and the orders those requests turned into, so "requests" counts demand
+           (what people asked us to price) and "ordered" counts what actually
+           converted, the two numbers a pricing formula should be judged on. -->
+      <div class="p-head" id="iqMonthlySection" style="margin-top:8px;scroll-margin-top:70px">
+        <div><div class="p-title" style="font-size:15px">Month on Month</div><div class="p-sub">Requests, conversion and value per month. Current month is still in progress.</div></div>
+      </div>
+      <div class="tbl-wrap" style="margin-bottom:24px">
+        <table class="iq-tbl">
+          <colgroup><col style="width:5%"><col style="width:15%"><col style="width:12%"><col style="width:14%"><col style="width:12%"><col style="width:12%"><col style="width:15%"><col style="width:15%"></colgroup>
+          <thead><tr><th>#</th><th>Month</th><th>Requests</th><th>vs last month</th><th>People</th><th>Ordered</th><th>Conversion</th><th>Ordered value</th></tr></thead>
+          <tbody id="iqMonthlyBody"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+
       <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:24px;max-width:680px;box-shadow:var(--shadow)">
         <div style="font-weight:700;font-size:13px;margin-bottom:4px">Pricing Formula <span style="font-weight:400;color:var(--text-3);font-size:11px">controls every Instant Quote price site-wide</span></div>
         <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">final_price = max((material_cost + machine_cost + failure_buffer) × (1 + markup%), minimum charge)</div>
@@ -2702,16 +2765,28 @@ html[data-theme="dark"] .biz-login{
       </div>
 
       <div class="p-head" id="iqUploadsSection" style="margin-top:32px;scroll-margin-top:70px">
-        <div><div class="p-title" style="font-size:15px">All Uploads</div><div class="p-sub">Every model uploaded and quoted, not just ones that became orders. <span id="iqUploadCount"></span></div></div>
+        <div><div class="p-title" style="font-size:15px">All Uploads</div><div class="p-sub">Every model uploaded and quoted, not just ones that became orders. Ordered ones sort to the top. <span id="iqUploadCount"></span></div></div>
         <div class="filter-bar" style="margin:0">
-          <input type="text" id="iqUploadSearch" placeholder="Search name, phone, file, status…" oninput="filterIqUploads()" style="min-width:220px">
+          <input type="text" id="iqUploadSearch" placeholder="Search name, phone, file, quote no…" oninput="filterIqUploads()" style="min-width:220px">
+          <select id="iqUploadStatus" onchange="filterIqUploads()" title="Filter by what happened to the quote">
+            <option value="">All statuses</option>
+            <option value="ordered">Ordered</option>
+            <option value="in_cart">In cart</option>
+            <option value="quoted">Quoted only</option>
+            <option value="expired">Expired</option>
+          </select>
+          <select id="iqUploadSort" onchange="filterIqUploads()" title="Row order">
+            <option value="action">Ordered first</option>
+            <option value="newest">Newest first</option>
+            <option value="value">Highest price first</option>
+          </select>
         </div>
       </div>
       <div class="tbl-wrap">
         <table class="iq-tbl">
-          <colgroup><col style="width:12%"><col style="width:21%"><col style="width:19%"><col style="width:21%"><col style="width:11%"><col style="width:8%"><col style="width:8%"></colgroup>
-          <thead><tr><th>Date</th><th>Model &amp; notes</th><th>Customer</th><th>Print spec</th><th>Estimate</th><th>Price</th><th>Status</th></tr></thead>
-          <tbody id="iqUploadsBody"><tr><td colspan="7" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+          <colgroup><col style="width:7%"><col style="width:10%"><col style="width:17%"><col style="width:15%"><col style="width:16%"><col style="width:8%"><col style="width:7%"><col style="width:20%"></colgroup>
+          <thead><tr><th>#</th><th>Date</th><th>Model &amp; notes</th><th>Customer</th><th>Print spec</th><th>Estimate</th><th>Price</th><th>Status &amp; order</th></tr></thead>
+          <tbody id="iqUploadsBody"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
 
@@ -6046,10 +6121,20 @@ function onChannelChange(){
   const fulfil=document.getElementById('qa_fulfillment')?.value;
   if(ch==='shop'){
     if(!lead&&typeof setLeadSource==='function') setLeadSource('studio_walkin');
-  } else if(lead==='studio_walkin'||fulfil==='pickup'){
-    if(typeof setLeadSource==='function') setLeadSource('');
-    if(typeof setFulfillment==='function') setFulfillment('delivery');
+    return;
   }
+  if(lead==='studio_walkin'||fulfil==='pickup'){
+    if(typeof setLeadSource==='function') setLeadSource('');
+    // Clear rather than force Delivery: how a marketplace order actually travels is decided
+    // later, and pre-picking it would stamp a dispatch date nobody asked for.
+    if(typeof setFulfillment==='function') setFulfillment('',{prefillDate:false});
+  }
+  // A Website order's lead source is known the moment the channel is picked, so fill it
+  // in instead of making it a second click every time. Read the hidden field again rather
+  // than reusing `lead`, since the branch above may have just cleared it. Only fills a
+  // blank, so a deliberate choice (say a WhatsApp lead that ended up ordering on site)
+  // is never overwritten.
+  if(ch==='website'&&typeof setLeadSource==='function'&&!document.getElementById('qa_lead_source')?.value) setLeadSource('website');
 }
 
 function renderItems(){
@@ -6373,6 +6458,7 @@ async function applyPorterExpenseIfAny(rows){
 async function getOrderFields(){
   const g=id=>{const el=document.getElementById(id);return el?el.value.trim()||null:null;};
   const manualOrderId=g('qa_orderid');
+  const status=g('qa_status')||'pending';
   return {
     is_gift:_qaIsGift,
     channel_id:g('qa_channel'),
@@ -6383,13 +6469,19 @@ async function getOrderFields(){
     order_id:manualOrderId||await ensureUniqueOrderId(),
     // Payment Mode used to be its own top-of-form dropdown, duplicating the Source/Mode
     // picked lower down in the Payment section, now it's just read from there directly.
-    payment_mode:g('qaPaySource')||'upi',
-    status:g('qa_status')||'pending',
+    payment_mode:g('qaPaySource')||'gpay',
+    status,
+    // Backdated entry: an order logged straight in as Packed or later was already ready
+    // before it was typed up, so stamp the ready date now rather than leaving packed_at
+    // null and having it read as "pack date unknown" in the SLA column forever. Dispatch
+    // date is used when given, since that is the closest real signal, same rule as the
+    // backfill in 20260826_biz_sales_packed_at.sql.
+    packed_at:PACKED_OR_BEYOND_STATUSES.includes(status)?(g('qa_dispatch_date')||today()):null,
     lead_source:g('qa_lead_source'),
     fulfillment_type:g('qa_fulfillment'),
     fulfillment_detail:g('qa_fulfillment_detail'),
     tracking_number:g('qa_tracking'),
-    courier_partner:g('qa_courier'),
+    courier_partner:currentCourier(),
     invoice_no:g('qa_invoiceno'),
     package_size:g('qa_packet'),
     customer_name:g('qa_cname'),
@@ -6482,7 +6574,11 @@ function resetQuickAdd(){
   // Studio (the default channel) walks in and picks up in person far more often than it
   // ships, default to those instead of a blank lead source / Delivery every time.
   if(typeof setLeadSource==='function') setLeadSource('studio_walkin');
-  if(typeof setFulfillment==='function') setFulfillment('pickup_self');
+  // Delivery / Pickup starts blank on a fresh form. It is genuinely optional now (often
+  // decided days after the order is taken), and defaulting it would auto-stamp a handover
+  // date on every order whether or not anyone had thought about it.
+  if(typeof setFulfillment==='function') setFulfillment('',{prefillDate:false});
+  if(typeof setCourier==='function') setCourier('');
   _items=[blankItem()];
   renderItems();
   resetQaPayment();
@@ -6511,7 +6607,7 @@ function resetQaPayment(){
   document.getElementById('qa_pay_status').value='full_advance';
   document.querySelectorAll('#qaPayStatusGroup button').forEach(b=>b.classList.toggle('active',b.dataset.v==='full_advance'));
   const amt=document.getElementById('qaPayAmount'); if(amt) amt.value='';
-  const src=document.getElementById('qaPaySource'); if(src) src.value='upi';
+  const src=document.getElementById('qaPaySource'); if(src) src.value='gpay';
   const dt=document.getElementById('qaPayDate'); if(dt) dt.value=today();
   _qaNewPayments=[]; if(typeof renderQaNewPayments==='function') renderQaNewPayments();
 }
@@ -6540,6 +6636,9 @@ function onQaPayAmountInput(){
 // the whole multi-item order can be edited at once, not just one line), and
 // 'fromQuotation' (a new order, pre-filled from an accepted quotation).
 let _qaMode='new', _qaEditOrderId=null, _qaEditRowIds=[], _qaSourceQuotationId=null, _qaSourceQuotationNumber=null, _qaSourceRackItemId=null, _qaEditOrigStatus=null;
+// 'fromInstantQuote': a new order pre-filled from an Instant Quote upload
+// (Instant Quotes tab, "Send to Orders"). Behaves exactly like 'new' on save.
+let _qaSourceQuoteId=null;
 
 function updateAddOrderModeUI(){
   const title=document.querySelector('#panelQuickadd .p-title');
@@ -6571,7 +6670,7 @@ function updateAddOrderModeUI(){
     if(payHint) payHint.style.display='none';
   } else {
     if(title) title.textContent='Add Order';
-    if(sub) sub.textContent=_qaSourceRackItemId ? 'New order, completing a Rack sale' : _qaMode==='fromQuotation' ? 'New order, pre-filled from quotation' : 'Log an order, channel auto-fills costs';
+    if(sub) sub.textContent=_qaSourceRackItemId ? 'New order, completing a Rack sale' : _qaMode==='fromQuotation' ? 'New order, pre-filled from quotation' : _qaMode==='fromInstantQuote' ? 'New order, pre-filled from an Instant Quote. Check the address and price, then Save.' : 'Log an order, channel auto-fills costs';
     if(payCard) payCard.style.display='';
     if(returnBtn) returnBtn.style.display='none';
     // New order has no order_id yet, so multiple installments logged here are held
@@ -6725,7 +6824,7 @@ function confirmClearQuickAdd(){
   toast('Form cleared');
 }
 function exitAddOrderEditMode(){
-  _qaMode='new'; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceQuotationId=null; _qaSourceQuotationNumber=null; _qaSourceRackItemId=null;
+  _qaMode='new'; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceQuotationId=null; _qaSourceQuotationNumber=null; _qaSourceRackItemId=null; _qaSourceQuoteId=null;
   resetQuickAdd();
   updateAddOrderModeUI();
 }
@@ -6738,7 +6837,7 @@ function openAddOrderEdit(firstId){
   if(!items.length) return;
   const f=items[0];
   _qaMode='edit'; _qaEditOrderId=f.order_id||null; _qaEditRowIds=items.map(s=>s.id);
-  _qaSourceQuotationId=null; _qaSourceQuotationNumber=null; _qaSourceRackItemId=null;
+  _qaSourceQuotationId=null; _qaSourceQuotationNumber=null; _qaSourceRackItemId=null; _qaSourceQuoteId=null;
   _qaEditOrigStatus=f.status||null;   // so saveEditedOrder only logs a status change, not every save
   switchTab('quickadd');
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
@@ -6747,11 +6846,13 @@ function openAddOrderEdit(firstId){
   set('qaPayDueDate',f.payment_due_date);
   if(typeof setQaStatus==='function') setQaStatus(f.status||'pending');
   if(typeof setLeadSource==='function') setLeadSource(f.lead_source||'');
-  let fulfilChip='delivery';
-  if(f.fulfillment_type==='pickup'){ fulfilChip=f.fulfillment_detail==='self'?'pickup_self':f.fulfillment_detail==='by_us'?'pickup_by_us':f.fulfillment_detail==='porter'?'pickup_porter':'pickup_other'; }
-  if(typeof setFulfillment==='function') setFulfillment(fulfilChip);
+  // Blank stays blank: an order saved without a fulfillment choice must not load as Delivery.
+  let fulfilChip='';
+  if(f.fulfillment_type==='delivery') fulfilChip='delivery';
+  else if(f.fulfillment_type==='pickup') fulfilChip=FULFIL_CHIP_BY_DETAIL[f.fulfillment_detail]||'pickup_other';
   if(fulfilChip==='pickup_other'){ const fo=document.getElementById('qa_fulfil_other'); if(fo) fo.value=f.fulfillment_detail||''; }
-  set('qa_tracking',f.tracking_number); set('qa_courier',f.courier_partner); set('qa_invoiceno',f.invoice_no);
+  if(typeof setFulfillment==='function') setFulfillment(fulfilChip,{toggle:false,prefillDate:false,focus:false});
+  set('qa_tracking',f.tracking_number); setCourier(f.courier_partner); set('qa_invoiceno',f.invoice_no);
   set('qa_refdoc',f.reference_document);
   set('qa_packet',f.package_size); set('qa_cname',f.customer_name); set('qa_phone',f.customer_phone);
   set('qa_address',f.customer_address); set('qa_city',f.customer_city); set('qa_state',f.customer_state);
@@ -6796,7 +6897,7 @@ function openAddOrderEdit(firstId){
 async function openAddOrderFromQuotation(quotationId){
   const {data,error}=await sb.from('biz_quotations').select('*').eq('id',quotationId).single();
   if(error||!data){ toast('Could not load quotation','error'); return; }
-  _qaMode='fromQuotation'; _qaSourceQuotationId=quotationId; _qaSourceQuotationNumber=data.quotation_number||null; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceRackItemId=null;
+  _qaMode='fromQuotation'; _qaSourceQuotationId=quotationId; _qaSourceQuotationNumber=data.quotation_number||null; _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceRackItemId=null; _qaSourceQuoteId=null;
   switchTab('quickadd');
   resetQuickAdd();
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
@@ -6964,19 +7065,61 @@ function setLeadSource(v){
   const h=document.getElementById('qa_lead_source'); if(h) h.value=v;
   document.querySelectorAll('#qaLeadChips .qchip').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
 }
-function setFulfillment(v){
+// Chip value to the fulfillment_detail actually stored. The legacy strings are kept on
+// purpose: 'by_us' (our Porter) and 'porter' (the buyer's Porter) are already written on
+// live rows, so relabelling the chips to "Porter (by us)" / "Porter (by buyer)" needs no
+// migration and no backfill. Only 'rapido' is new.
+const FULFIL_DETAIL={pickup_self:'self',porter_by_us:'by_us',porter_by_buyer:'porter',rapido:'rapido'};
+const FULFIL_CHIP_BY_DETAIL={self:'pickup_self',by_us:'porter_by_us',porter:'porter_by_buyer',rapido:'rapido'};
+// opts.toggle:false   loading a saved order, re-applying the stored value must not switch it off
+// opts.prefillDate:false  ditto, a saved order with no dispatch date must stay blank, not become today
+// opts.focus:false    don't steal focus while populating the form
+function setFulfillment(v,opts){
+  const cur=document.querySelector('#qaFulfilChips .qchip.active')?.dataset.v||'';
+  // Clicking the chip that's already on clears it. "Not decided yet" has to stay reachable
+  // after the first click, not only as the form's initial state.
+  if(v&&v===cur&&(!opts||opts.toggle!==false)) v='';
   document.querySelectorAll('#qaFulfilChips .qchip').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
   const otherInp=document.getElementById('qa_fulfil_other');
-  let type='delivery', detail='';
-  if(v==='pickup_self'){ type='pickup'; detail='self'; }
-  else if(v==='pickup_by_us'){ type='pickup'; detail='by_us'; }
-  else if(v==='pickup_porter'){ type='pickup'; detail='porter'; }
+  let type='', detail='';
+  if(v==='delivery'){ type='delivery'; }
   else if(v==='pickup_other'){ type='pickup'; detail=(otherInp?.value||'').trim(); }
-  if(otherInp){ const show=(v==='pickup_other'); otherInp.style.display=show?'':'none'; if(show) otherInp.focus(); }
+  else if(FULFIL_DETAIL[v]){ type='pickup'; detail=FULFIL_DETAIL[v]; }
+  if(otherInp){ const show=(v==='pickup_other'); otherInp.style.display=show?'':'none'; if(show&&(!opts||opts.focus!==false)) otherInp.focus(); }
+  const cr=document.getElementById('qaCourierRow'); if(cr) cr.style.display=(v==='delivery')?'':'none';
+  const dr=document.getElementById('qaFulfilDateRow'); if(dr) dr.style.display=v?'':'none';
+  const dl=document.getElementById('qaFulfilDateLabel'); if(dl) dl.textContent=(v==='delivery')?'Dispatch Date':'Pickup / Handover Date';
+  const dd=document.getElementById('qa_dispatch_date');
+  if(dd&&v&&!dd.value&&(!opts||opts.prefillDate!==false)) dd.value=today();
   const ht=document.getElementById('qa_fulfillment'); if(ht) ht.value=type;
   const hd=document.getElementById('qa_fulfillment_detail'); if(hd) hd.value=detail;
 }
 function onFulfilOther(v){ const hd=document.getElementById('qa_fulfillment_detail'); if(hd) hd.value=(v||'').trim(); }
+function onCourierChange(){
+  const sel=document.getElementById('qa_courier');
+  const wrap=document.getElementById('qaCourierOtherWrap');
+  const show=!!sel&&sel.value==='other';
+  if(wrap) wrap.style.display=show?'':'none';
+}
+function onCourierOther(){ /* value is read at save time by currentCourier() */ }
+// courier_partner stores the courier's actual name, so an "Other" courier saves as what was
+// typed rather than the literal string "other", which would be useless in a report later.
+function currentCourier(){
+  const sel=document.getElementById('qa_courier'); if(!sel||!sel.value) return null;
+  if(sel.value!=='other') return sel.value;
+  return (document.getElementById('qa_courier_other')?.value||'').trim()||null;
+}
+// Loading a saved order: a courier_partner that isn't one of the options (a typed-in Other
+// name) selects Other and keeps the text, instead of the select silently snapping to blank
+// and wiping the stored courier on the next save.
+function setCourier(val){
+  const sel=document.getElementById('qa_courier'); if(!sel) return;
+  const v=(val||'').trim();
+  const known=Array.prototype.some.call(sel.options,o=>o.value===v);
+  sel.value=v?(known?v:'other'):'';
+  const oth=document.getElementById('qa_courier_other'); if(oth) oth.value=(v&&!known)?v:'';
+  onCourierChange();
+}
 
 // Insert sales, stripping any column the DB doesn't have yet (e.g. spool_id
 // before its migration runs) so a pending migration never blocks saving a sale.
@@ -7791,7 +7934,7 @@ async function quotationSaleRows(q){
     const taxable=gross-disc;
     return {
       order_id:orderId, is_gift:false, channel_id:null, order_date:orderDate, delivery_date:q.promised_date||null,
-      dispatch_date:null, payment_mode:'upi', status:'pending', lead_source:null, fulfillment_type:null,
+      dispatch_date:null, payment_mode:'gpay', status:'pending', lead_source:null, fulfillment_type:null,
       fulfillment_detail:null, tracking_number:null, courier_partner:null, invoice_no:null, package_size:null,
       customer_name:q.customer_name||null, customer_phone:q.customer_phone||null, customer_address:q.customer_address||null,
       customer_city:q.customer_city||null, customer_state:q.customer_state||null, customer_pincode:q.customer_pincode||null,
@@ -8377,7 +8520,10 @@ async function syncWebsiteOrders(opts){
         return;
       }
       const a=o.shipping_address||{};
-      const addr=[a.line1,a.line2].filter(Boolean).join(', ');
+      // Both order paths write address_line1/address_line2 (paymentController and
+      // orderController normalize to that shape). This read line1/line2, keys that
+      // are never stored, so every website order synced in with a blank address.
+      const addr=[a.address_line1||a.line1,a.address_line2||a.line2].filter(Boolean).join(', ');
       const items=(o.order_items&&o.order_items.length)?o.order_items:[{quantity:1,unit_price:o.total_amount,products:null}];
       items.forEach(it=>{
         batch.push({
@@ -8442,10 +8588,56 @@ function dispatchSlaText(f){
 }
 // §2.2, actual SLA performance: promised (delivery_date) vs. when it was truly marked
 // Completed (completed_at), independent of today() so it stays correct in reports later.
+// The promise TriAkar actually makes is "ready by this date", not "in the customer's hands
+// by this date". Once an order is packed the customer is told it's ready, and however long
+// they then take to collect it (or the courier takes to deliver it) is not a TriAkar breach.
+// So the SLA clock stops the moment an order first reaches packed-or-beyond. packed_at
+// records when that happened (migration 20260826_biz_sales_packed_at.sql); it is stamped
+// once and never overwritten, because the first time it was ready is what SLA is judged on.
+// This used to measure against completed_at, which meant collection lag, courier transit
+// and simply forgetting to close an order in the books all counted as SLA breaches.
+const PACKED_OR_BEYOND_STATUSES=['packed','dispatched','delivered','return_initiated','return_picked_up','returned','claim_filed','completed','claimed'];
+function isPackedOrBeyond(f){ return PACKED_OR_BEYOND_STATUSES.includes(f.status); }
 function slaBreachDays(f){
-  if(!f.delivery_date||!f.completed_at) return null;
-  const d=Math.round((new Date(f.completed_at.slice(0,10)+'T00:00:00')-new Date(f.delivery_date+'T00:00:00'))/86400000);
+  if(!f.delivery_date||!f.packed_at) return null;
+  const d=Math.round((new Date(f.packed_at.slice(0,10)+'T00:00:00')-new Date(f.delivery_date+'T00:00:00'))/86400000);
   return d>0?d:0;
+}
+// A LIVE breach: not packed yet AND the promised date has already gone. This is the only
+// thing the SLA Breached KPI counts, deliberately, so that number stays an act-on-it-today
+// list. An order packed late is still a real breach, but it is no longer actionable, so it
+// leaves the KPI the moment it's packed and is reported through slaBreachDays() instead
+// (order detail, and the SLA sheet in the Excel export).
+function isLiveBreach(f,td){ return !!f.delivery_date && f.delivery_date<(td||today()) && !isPackedOrBeyond(f); }
+// Packed and just sitting there. Not an SLA problem, a "ring the customer" problem, so it
+// gets its own reminder tile instead of being folded into the breach count. Orders packed
+// before packed_at existed (and with no dispatch_date to backfill from) are skipped rather
+// than guessed at, same rule as everywhere else that reads packed_at.
+const PACKED_PICKUP_ALERT_DAYS=3;
+function daysWaitingPickup(f){
+  if(f.status!=='packed'||!f.packed_at) return null;
+  const d=Math.round((new Date(today()+'T00:00:00')-new Date(f.packed_at.slice(0,10)+'T00:00:00'))/86400000);
+  return d>=PACKED_PICKUP_ALERT_DAYS ? d : null;
+}
+// SLA column for the Open Orders tables. Before packing it's a live countdown; once packed
+// it freezes into the verdict, since nothing after packing can change it any more.
+function slaCell(f){
+  if(!f.delivery_date) return '<span style="color:var(--text-3)">N/A</span>';
+  if(!isPackedOrBeyond(f)) return slaText(f.delivery_date);
+  if(!f.packed_at) return '<span style="color:var(--text-3)" title="Packed before pack dates were tracked, SLA cannot be judged">packed</span>';
+  const late=slaBreachDays(f);
+  return late
+    ? `<span style="color:var(--red);font-weight:700" title="Packed ${late} day(s) after the promised date">${late}d late to pack</span>`
+    : '<span style="color:var(--green);font-weight:700">packed on time</span>';
+}
+// Stamp packed_at the first time an order reaches packed-or-beyond, including when it skips
+// the Packed step entirely and jumps straight to Dispatched/Completed. Returns null when the
+// order already carries a stamp, so the original ready date is never overwritten by a later
+// status change.
+function packedStampFor(status,ids){
+  if(!PACKED_OR_BEYOND_STATUSES.includes(status)) return null;
+  const already=(_salesCache||[]).some(s=>ids.includes(s.id)&&s.packed_at);
+  return already?null:today();
 }
 // Two operational reminders, requested directly, both computed client-side off columns
 // that already exist (delivery_date, completed_at, is_paid), so they apply to every
@@ -8500,8 +8692,8 @@ function scrollToOpenTable(bodyId){
 // SLA Breached / Due Today have no table of their own on this panel, so these get
 // a lightweight drawer (not the Dashboard's #dashDrilldown, that's tied to
 // _dashCache, a different data source entirely).
-let _openOrderKpiGroups={breached:[],dueToday:[],notCompleted:[],notLocked:[],production:[],packed:[],dispatched:[]};
-const OPEN_ORDER_DRAWER_TITLES={breached:'SLA Breached',dueToday:'Due Today',notCompleted:'Not Completed, 15d+ past promise',notLocked:'Completed, Not Locked 10d+',production:'In Production',packed:'Packed',dispatched:'Dispatched'};
+let _openOrderKpiGroups={breached:[],dueToday:[],notCompleted:[],notLocked:[],production:[],packed:[],dispatched:[],awaitingPickup:[]};
+const OPEN_ORDER_DRAWER_TITLES={breached:'SLA Breached, not packed by the promised date',dueToday:'Due Today',notCompleted:'Not Completed, 15d+ past promise',notLocked:'Completed, Not Locked 10d+',production:'In Production',packed:'Packed',dispatched:'In Transit',awaitingPickup:'Packed '+PACKED_PICKUP_ALERT_DAYS+'d+, awaiting pickup'};
 function openOpenOrdersDrawer(kind){
   const groups=_openOrderKpiGroups[kind]||[];
   const title=OPEN_ORDER_DRAWER_TITLES[kind]||kind;
@@ -8573,7 +8765,7 @@ function setOoChannel(c){ _ooChannel=c; loadOpenOrders(); }
 // tables, so any failure or exception anywhere earlier in that function (a flaky
 // fetch, a bad row) silently skipped this block too, with no error shown, "GST
 // reminders just don't show up." Now it can't be taken down by anything else on the page.
-let _openReminders={gst:0,gstColor:null,filament:0,notCompleted:0,notLocked:0,iq:0,iqIsNew:false};
+let _openReminders={gst:0,gstColor:null,filament:0,notCompleted:0,notLocked:0,iq:0,iqIsNew:false,awaitingPickup:0};
 // Blinks the Instant Quotes tile only when the pending-confirmation count has grown
 // since it was last looked at (localStorage), not just whenever it's non-zero, a
 // backlog that's been sitting there isn't "new". Cleared when loadInstantQuotes()
@@ -8617,15 +8809,19 @@ function gstReminderSummary(){
   });
   return {count,color};
 }
-// One row, up to 4 tiles (GST/Filament/Not Completed/Not Locked), each fed by a
-// different loader (loadOpenGstReminder, loadFilamentLowStockAlert, loadOpenOrders),
-// re-rendered from the shared _openReminders state whenever any of them updates.
+// One row of small tiles (GST/Filament/Not Completed/Not Locked/Awaiting Pickup/Instant
+// Quotes), each fed by a different loader (loadOpenGstReminder, loadFilamentLowStockAlert,
+// loadOpenOrders, checkNewIqEntry), re-rendered from the shared _openReminders state
+// whenever any of them updates.
 const REMINDER_TILE_META={
   gst:{icon:'▤',label:'GST Filing'},
   filament:{icon:'◉',label:'Filament Low'},
   notCompleted:{icon:'◷',label:'Not Completed'},
   notLocked:{icon:'⊘',label:'Not Locked'},
   iq:{icon:'⧉',label:'Instant Quotes'},
+  // Packed, customer told it's ready, still not collected. Split out of the SLA breach
+  // count on purpose: the studio has done its job here, this is a follow-up call to make.
+  awaitingPickup:{icon:'▣',label:'Awaiting Pickup'},
 };
 function renderOpenRemindersRow(){
   const row=document.getElementById('openRemindersRow'); if(!row) return;
@@ -8635,6 +8831,7 @@ function renderOpenRemindersRow(){
     {key:'filament', count:r.filament, color:'var(--red)', action:"toggleOpenReminderDetail('openFilamentAlert')"},
     {key:'notCompleted', count:r.notCompleted, color:'var(--red)', action:"openOpenOrdersDrawer('notCompleted')"},
     {key:'notLocked', count:r.notLocked, color:'var(--yellow)', action:"openOpenOrdersDrawer('notLocked')"},
+    {key:'awaitingPickup', count:r.awaitingPickup, color:'var(--yellow)', action:"openOpenOrdersDrawer('awaitingPickup')"},
     {key:'iq', count:r.iq, color:r.iqIsNew?'var(--red)':'var(--blue)', action:"switchTab('instantquotes')"},
   ];
   row.style.display='flex';
@@ -8697,8 +8894,20 @@ async function loadOpenOrders(){
   const trackGroups=groups.filter(g=>TRACK_LANE_STATUSES.includes(g.items[0].status));
 
   const td=today(); let breached=0,dueToday=0,inTransit=0;
-  const breachedGroups=[], dueTodayGroups=[];
-  groups.forEach(g=>{ const f=g.items[0]; if(f.delivery_date){ if(f.delivery_date<td){breached++;breachedGroups.push(g);} else if(f.delivery_date===td){dueToday++;dueTodayGroups.push(g);} } if(f.status==='dispatched')inTransit++; });
+  const breachedGroups=[], dueTodayGroups=[], pickupGroups=[];
+  // SLA is measured to Packed, not to Completed, see isLiveBreach(). An order that IS
+  // packed has met the promise no matter how long it then sits, so it is neither breached
+  // nor due today, it's done as far as this KPI row is concerned; if it's sitting
+  // uncollected it surfaces in the Awaiting Pickup tile instead.
+  groups.forEach(g=>{
+    const f=g.items[0];
+    if(daysWaitingPickup(f)!=null) pickupGroups.push(g);
+    if(isPackedOrBeyond(f)){ if(f.status==='dispatched')inTransit++; return; }
+    if(f.delivery_date){
+      if(f.delivery_date<td){breached++;breachedGroups.push(g);}
+      else if(f.delivery_date===td){dueToday++;dueTodayGroups.push(g);}
+    }
+  });
   // Two more reminders, requested directly: promised 15d+ ago and still not Completed
   // (grouped from the same open-orders set), and Completed 10d+ ago but never locked
   // (grouped from the separate unlockedRows fetch above).
@@ -8708,10 +8917,11 @@ async function loadOpenOrders(){
   const notLockedGroups=uGroups.filter(g=>daysCompletedNotLocked(g.items[0])!=null);
   // Phase 10 Group 3 (G): kept for the four drawer-opening KPIs (SLA Breached, Due
   // Today, Not Completed, Not Locked), which have no dedicated table on this panel to scroll to.
-  _openOrderKpiGroups={breached:breachedGroups,dueToday:dueTodayGroups,notCompleted:notCompletedGroups,notLocked:notLockedGroups,production:prodGroups,packed:packGroups,dispatched:trackGroups};
+  _openOrderKpiGroups={breached:breachedGroups,dueToday:dueTodayGroups,notCompleted:notCompletedGroups,notLocked:notLockedGroups,production:prodGroups,packed:packGroups,dispatched:trackGroups,awaitingPickup:pickupGroups};
   // Not Completed / Not Locked are now tiles in #openRemindersRow (with GST/Filament),
   // not their own always-visible box; clicking either opens the same drawer as before.
   _openReminders.notCompleted=notCompletedGroups.length; _openReminders.notLocked=notLockedGroups.length;
+  _openReminders.awaitingPickup=pickupGroups.length;
   renderOpenRemindersRow();
   const badge=document.getElementById('openCount_hdr'); if(badge) badge.textContent=groups.length;
   const kpi=document.getElementById('openKpi');
@@ -8724,9 +8934,9 @@ async function loadOpenOrders(){
     kpiCard('var(--green)','var(--green-bg)','◷','Upcoming Orders',esc(upcomingOrders),'Manual entry, click to edit. Not counted in any total','editUpcomingOrders()')
     +kpiCard('var(--blue)','var(--blue-bg)','⚙','In Production',prodGroups.length,'Show all in-production orders',"openOpenOrdersDrawer('production')")
     +kpiCard('var(--teal,#0d9488)','var(--teal-bg,rgba(13,148,136,.12))','▩','Packed',packGroups.length,'Show all packed, ready-to-dispatch orders',"openOpenOrdersDrawer('packed')")
-    +kpiCard('var(--purple)','var(--purple-bg)','➤','Dispatched',trackGroups.length,'Show all dispatched orders',"openOpenOrdersDrawer('dispatched')")
-    +kpiCard('var(--red)','var(--red-bg)','⚠','SLA Breached',breached,'Show breached orders',"openOpenOrdersDrawer('breached')",breached>0)
-    +kpiCard('var(--yellow)','var(--yellow-bg)','◷','Due Today',dueToday,'Show orders due today',"openOpenOrdersDrawer('dueToday')",dueToday>0);
+    +kpiCard('var(--purple)','var(--purple-bg)','➤','In Transit',trackGroups.length,'Show all dispatched orders, tracked until the return window closes',"openOpenOrdersDrawer('dispatched')")
+    +kpiCard('var(--red)','var(--red-bg)','⚠','SLA Breached',breached,'Promised date has passed and the order still is not packed. Once packed it leaves this count, however long the customer then takes to collect it',"openOpenOrdersDrawer('breached')",breached>0)
+    +kpiCard('var(--yellow)','var(--yellow-bg)','◷','Due Today',dueToday,'Promised today and not packed yet',"openOpenOrdersDrawer('dueToday')",dueToday>0);
   loadFilamentLowStockAlert();
   loadShopPunchStatus();
 
@@ -8741,12 +8951,11 @@ async function loadOpenOrders(){
     if(!prodGroups.length){ prodBody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="em-icon">✓</div><div class="em-text">Nothing waiting on the studio</div></div></td></tr>`; }
     else prodBody.innerHTML=prodGroups.map(g=>{ const f=g.items[0]; const ids=g.items.map(s=>s.id).join(',');
       const more=g.items.length>1?`+${g.items.length-1} more`:'';
-      const breached=f.delivery_date&&f.delivery_date<td;
-      const rowCls=breached?' row-breached':(f.delivery_date===td?' row-due-today':(f.delivery_date?' row-upcoming':''));
+      const rowCls=isLiveBreach(f,td)?' row-breached':(f.delivery_date===td?' row-due-today':(f.delivery_date?' row-upcoming':''));
       return `<tr class="sale-row${rowCls}" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>jumpToOrderDetail('${f.id}'))">
         <td onclick="event.stopPropagation()"><input type="checkbox" class="open-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateOpenBulkBar()"></td>
         <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.delivery_date?fmtDay(f.delivery_date):'N/A'}</td>
-        <td style="white-space:nowrap">${slaText(f.delivery_date)}</td>
+        <td style="white-space:nowrap">${slaCell(f)}</td>
         <td style="white-space:nowrap">${esc(f.customer_name||'N/A')}</td>
         <td>${skuItemCol(f,more)}</td>
         <td>${chHtml(f.channel_id)}</td>
@@ -8761,12 +8970,15 @@ async function loadOpenOrders(){
     if(!packGroups.length){ packBody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="em-icon">✓</div><div class="em-text">Nothing packed and waiting to dispatch</div></div></td></tr>`; }
     else packBody.innerHTML=packGroups.map(g=>{ const f=g.items[0]; const ids=g.items.map(s=>s.id).join(',');
       const more=g.items.length>1?`+${g.items.length-1} more`:'';
-      const breached=f.delivery_date&&f.delivery_date<td;
-      const rowCls=breached?' row-breached':(f.delivery_date===td?' row-due-today':(f.delivery_date?' row-upcoming':''));
+      // Packed rows can never be a live SLA breach (the clock stopped when they were
+      // packed), so red here would be wrong. What matters on this lane instead is how
+      // long the finished order has been sitting waiting to be collected.
+      const waiting=daysWaitingPickup(f);
+      const rowCls=waiting!=null?' row-waiting':'';
       return `<tr class="sale-row${rowCls}" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>jumpToOrderDetail('${f.id}'))">
         <td onclick="event.stopPropagation()"><input type="checkbox" class="open-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateOpenBulkBar()"></td>
         <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.delivery_date?fmtDay(f.delivery_date):'N/A'}</td>
-        <td style="white-space:nowrap">${slaText(f.delivery_date)}</td>
+        <td style="white-space:nowrap">${slaCell(f)}${waiting!=null?`<div style="font-size:10px;color:var(--yellow);font-weight:600" title="Packed and ready, not collected yet. Not an SLA breach">${waiting}d awaiting pickup</div>`:''}</td>
         <td style="white-space:nowrap">${esc(f.customer_name||'N/A')}</td>
         <td>${skuItemCol(f,more)}</td>
         <td>${chHtml(f.channel_id)}</td>
@@ -8783,8 +8995,10 @@ async function loadOpenOrders(){
       const more=g.items.length>1?`+${g.items.length-1} more`:'';
       const dispatchInfo=dispatchSlaText(f);
       const rw=returnWindowInfo(f)||'<span style="color:var(--text-3)">N/A</span>';
-      const breached=f.delivery_date&&f.delivery_date<td;
-      return `<tr class="sale-row${breached?' row-breached':''}" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>jumpToOrderDetail('${f.id}'))">
+      // Post-dispatch rows are packed-or-beyond by definition, so they can never be a live
+      // SLA breach. This lane used to go red purely because the promised date had passed,
+      // which flagged orders the studio had already shipped on time.
+      return `<tr class="sale-row${isLiveBreach(f,td)?' row-breached':''}" style="cursor:pointer" onclick="rowSelectOrAction(event,'open-cb',()=>jumpToOrderDetail('${f.id}'))">
         <td onclick="event.stopPropagation()"><input type="checkbox" class="open-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateOpenBulkBar()"></td>
         <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.dispatch_date?fmtDay(f.dispatch_date):'N/A'}${dispatchInfo?'<br>'+dispatchInfo:''}</td>
         <td style="white-space:nowrap">${esc(f.customer_name||'N/A')}</td>
@@ -8842,6 +9056,7 @@ async function bulkMarkStatusOpen(status){
   if(!confirm('Mark '+ids.length+' order(s) as '+label+'?')) return;
   const payload={status}; if(status==='completed') payload.completed_at=today();
   if(status==='delivered') payload.delivered_at=today();
+  const packedStamp=packedStampFor(status,ids); if(packedStamp) payload.packed_at=packedStamp;
   const {error}=await sb.from('biz_sales').update(payload).in('id',ids);
   if(error){ toast('Error: '+error.message,'error'); return; }
   if(['return_initiated','returned'].includes(status)){
@@ -8884,12 +9099,16 @@ function fmtDateTimeIST(iso){
   return d.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
 }
 let _iqOrders=[],_iqMaterials=[],_iqPrinters=[],_iqColors=[],_iqUploads=[],_iqProfiles={};
+// quote id -> {order, qty, unitPrice, notes} for every upload that actually became
+// an order, standard checkout or WhatsApp. Without this the All Uploads table could
+// only say "ordered" and nothing about whether the money ever arrived.
+let _iqOrderByQuote={};
 
 async function loadInstantQuotes(){
   // Catalog lookups (materials/printers/colors) must land before the two tables
   // that render names/dims from them, or those columns show "N/A" until a manual refresh.
   await Promise.all([loadIqMaterials(),loadIqPrinters(),loadIqColors(),loadIqPricingSettings()]);
-  await Promise.all([loadIqOrders(),loadIqUploads()]);
+  await Promise.all([loadIqOrders(),loadIqUploads(),loadIqMonthly()]);
   // Opening the tab is "the admin looked", stop the Today's Tasks blink here.
   try{ localStorage.setItem('biz_iq_last_seen_count', String(_iqOrders.length)); }catch(e){}
   _openReminders.iqIsNew=false; renderOpenRemindersRow();
@@ -8906,11 +9125,87 @@ function iqJumpTo(id,focusSearch){
 function renderIqKpi(){
   const kpi=document.getElementById('iqKpi'); if(!kpi) return;
   const activeMaterials=_iqMaterials.filter(m=>m.active).length;
-  const card=(color,bg,icon,label,val,onclick)=>`<div class="stat-kpi" onclick="${onclick}" style="--pill-color:${color};--pill-color-bg:${bg}"><div class="stat-kpi-icon">${icon}</div><div class="stat-kpi-body"><div class="stat-kpi-val">${val}</div><div class="stat-kpi-label">${label}</div></div></div>`;
+  const card=(color,bg,icon,label,val,onclick,sub)=>`<div class="stat-kpi" onclick="${onclick}" style="--pill-color:${color};--pill-color-bg:${bg}"><div class="stat-kpi-icon">${icon}</div><div class="stat-kpi-body"><div class="stat-kpi-val">${val}</div><div class="stat-kpi-label">${label}${sub?' <span style="color:'+(sub.up?'var(--green)':'var(--red)')+'">'+sub.text+'</span>':''}</div></div></div>`;
+  // "This month" reads off the monthly aggregate (which covers every request ever,
+  // not just the 500 most recent uploads the table below is capped at), so the
+  // headline number can't quietly under-count on a busy month.
+  const m=_iqMonthly[0]||null, prev=_iqMonthly[1]||null;
+  const thisMonth=m?m.count:0;
+  let delta=null;
+  if(m&&prev&&prev.count>0){
+    const pct=Math.round((m.count-prev.count)/prev.count*100);
+    delta={up:pct>=0,text:(pct>=0?'▲ ':'▼ ')+Math.abs(pct)+'%'};
+  }
+  const orderedCount=_iqUploads.filter(q=>q.status==='ordered').length;
   kpi.innerHTML=
-    card('var(--yellow)','var(--yellow-bg)','⧉','Pending',_iqOrders.length,"iqJumpTo('iqOrdersSection')")
+    card('var(--accent)','var(--accent-bg)','◷','This month',thisMonth,"iqJumpTo('iqMonthlySection')",delta)
+    +card('var(--yellow)','var(--yellow-bg)','⧉','Pending',_iqOrders.length,"iqJumpTo('iqOrdersSection')")
     +card('var(--blue)','var(--blue-bg)','⇧','Uploads',_iqUploads.length,"iqJumpTo('iqUploadsSection',true)")
+    +card('var(--green)','var(--green-bg)','▤','Ordered',orderedCount,"iqFilterUploadsByStatus('ordered')")
     +card('var(--green)','var(--green-bg)','✓','Materials',activeMaterials,"iqJumpTo('iqMaterialsSection')");
+}
+
+/* ── Month on month ──────────────────────────────────────────
+   Its own slim query rather than a group-by over _iqUploads: the uploads table is
+   deliberately capped at the 500 most recent rows, so aggregating from it would
+   silently truncate older months the moment the business crosses that many quotes.
+   Only the four columns the aggregate needs are pulled. */
+let _iqMonthly=[];
+function _iqMonthKey(iso){ const d=new Date(iso); return isNaN(d.getTime())?null:(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); }
+const IQ_MONTH_NAMES=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function _iqMonthLabel(key){ const p=key.split('-'); return IQ_MONTH_NAMES[parseInt(p[1],10)-1]+' '+p[0]; }
+async function loadIqMonthly(){
+  const{data,error}=await sb.from('instant_quote_requests')
+    .select('created_at,final_price,status,user_id,contact_phone')
+    .order('created_at',{ascending:false}).limit(5000);
+  const tbody=document.getElementById('iqMonthlyBody');
+  if(error){ if(tbody) tbody.innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">Error loading monthly figures</div></td></tr>'; return}
+  const map=new Map();
+  (data||[]).forEach(q=>{
+    const key=_iqMonthKey(q.created_at); if(!key) return;
+    let m=map.get(key);
+    if(!m){ m={key,count:0,ordered:0,quotedValue:0,orderedValue:0,people:new Set()}; map.set(key,m); }
+    m.count++;
+    m.quotedValue+=Number(q.final_price)||0;
+    if(q.status==='ordered'){ m.ordered++; m.orderedValue+=Number(q.final_price)||0; }
+    // Same identity rule as the "Tried N×" badge: account first, lead phone for
+    // anonymous uploads, anything with neither is one anonymous visitor we can't
+    // tell apart from the next, so it doesn't count towards distinct people.
+    const who=q.user_id?('u:'+q.user_id):(q.contact_phone?('p:'+q.contact_phone):'');
+    if(who) m.people.add(who);
+  });
+  _iqMonthly=[...map.values()].sort((a,b)=>b.key<a.key?-1:1);
+  renderIqMonthly();
+  renderIqKpi();
+}
+function renderIqMonthly(){
+  const tbody=document.getElementById('iqMonthlyBody'); if(!tbody) return;
+  if(!_iqMonthly.length){ tbody.innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">No quotes yet, so there is nothing to trend.</div></td></tr>'; return}
+  const thisKey=_iqMonthKey(new Date().toISOString());
+  const peak=Math.max(..._iqMonthly.map(m=>m.count),1);
+  tbody.innerHTML=_iqMonthly.map((m,i)=>{
+    const prev=_iqMonthly[i+1];
+    let delta='<span class="iq-dim">N/A</span>';
+    if(prev){
+      const diff=m.count-prev.count;
+      const pct=prev.count>0?Math.round(diff/prev.count*100):null;
+      const color=diff>0?'var(--green)':diff<0?'var(--red)':'var(--text-3)';
+      delta='<span style="color:'+color+';font-weight:600">'+(diff>0?'+':'')+diff+(pct!=null?' ('+(pct>0?'+':'')+pct+'%)':'')+'</span>';
+    }
+    const conv=m.count?Math.round(m.ordered/m.count*100):0;
+    // Bar behind the count, so the trend reads at a glance without a chart library.
+    const bar='<div style="position:relative"><div style="position:absolute;inset:0;width:'+Math.round(m.count/peak*100)+'%;background:var(--accent-bg);border-radius:3px"></div><span style="position:relative;font-weight:700">'+m.count+'</span></div>';
+    return '<tr>'
+      +'<td data-label="#"><span class="iq-sub iq-mono">'+(i+1)+'</span></td>'
+      +'<td data-label="Month"><span style="font-weight:600">'+esc(_iqMonthLabel(m.key))+'</span>'+(m.key===thisKey?' <span class="badge badge-pending">so far</span>':'')+'</td>'
+      +'<td data-label="Requests">'+bar+'</td>'
+      +'<td data-label="vs last month">'+delta+'</td>'
+      +'<td data-label="People">'+m.people.size+'</td>'
+      +'<td data-label="Ordered">'+m.ordered+'</td>'
+      +'<td data-label="Conversion"><span style="font-weight:600;color:'+(conv>=20?'var(--green)':conv>0?'var(--yellow)':'var(--text-3)')+'">'+conv+'%</span></td>'
+      +'<td data-label="Ordered value"><span class="iq-price">₹'+Math.round(m.orderedValue).toLocaleString('en-IN')+'</span><div class="iq-sub">₹'+Math.round(m.quotedValue).toLocaleString('en-IN')+' quoted</div></td>'
+      +'</tr>';
+  }).join('');
 }
 
 /* Pricing Formula (site_settings keys read by instantQuotePricingService.js).
@@ -8949,7 +9244,7 @@ async function saveIqPricingSettings(){
    order, a standing record for the business, not just an order sub-view. */
 async function loadIqUploads(){
   const{data,error}=await sb.from('instant_quote_requests').select('*').order('created_at',{ascending:false}).limit(500);
-  if(error){document.getElementById('iqUploadsBody').innerHTML='<tr><td colspan="7" class="empty"><div class="em-text">Error loading uploads</div></td></tr>';return}
+  if(error){document.getElementById('iqUploadsBody').innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">Error loading uploads</div></td></tr>';return}
   _iqUploads=data||[];
   _iqBuildAttemptMap();
   // Reset unconditionally. Scoping this inside `if(userIds.length)` left the
@@ -8961,8 +9256,32 @@ async function loadIqUploads(){
     const{data:profiles}=await sb.from('profiles').select('id,full_name,phone').in('id',userIds);
     (profiles||[]).forEach(p=>{_iqProfiles[p.id]=p;});
   }
+  await loadIqUploadOrders();
   renderIqKpi();
-  renderIqUploads(_iqUploads);
+  filterIqUploads();
+}
+
+/* An upload's own `status` column only ever says 'ordered', never whose order it
+   became or whether the money arrived, which is the first thing you want to know
+   when a quote converts. Both order shapes have to be read, they are genuinely
+   different: standard checkout writes real order_items rows (each carrying
+   instant_quote_id), WhatsApp orders (business rule 9) write the line items into
+   the orders.items JSONB column instead and never touch order_items at all, so
+   matching only on order_items would leave every WhatsApp order looking unordered. */
+const IQ_ORDER_COLS='id,order_id,invoice_number,customer_name,customer_phone,customer_email,shipping_address,special_instructions,subtotal,shipping_charge,discount_amount,total_amount,status,order_status,payment_status,payment_method,payment_received,advance_received,advance_amount,razorpay_payment_id,razorpay_order_id,paid_at,created_at,items';
+async function loadIqUploadOrders(){
+  _iqOrderByQuote={};
+  if(!_iqUploads.length) return;
+  const{data,error}=await sb.from('orders')
+    .select(IQ_ORDER_COLS+', order_items(instant_quote_id,quantity,unit_price,customization_notes)')
+    .is('deleted_at',null)
+    .order('created_at',{ascending:false}).limit(400);
+  if(error) return;   // the table still renders, just without the order/payment line
+  (data||[]).forEach(o=>{
+    const link=(qid,qty,price,notes)=>{ if(qid&&!_iqOrderByQuote[qid]) _iqOrderByQuote[qid]={order:o,qty:qty||1,unitPrice:price,notes:notes||null}; };
+    (o.order_items||[]).forEach(it=>link(it.instant_quote_id,it.quantity,it.unit_price,it.customization_notes));
+    (Array.isArray(o.items)?o.items:[]).forEach(it=>link(it&&it.instant_quote_id,it&&it.quantity,it&&it.unit_price,it&&it.customization_notes));
+  });
 }
 
 // How many times this same customer has generated a quote (matched by account,
@@ -9072,7 +9391,10 @@ function iqCopy(text,label,ev){
   else fallback();
 }
 function openIqPayModal(orderId){
-  const o=_iqOrders.find(x=>x.id===orderId);
+  // Both tables open this modal, and they hold different order sets: the pending
+  // queue (_iqOrders) and whatever orders the All Uploads rows resolved to.
+  let o=_iqOrders.find(x=>x.id===orderId);
+  if(!o){ const hit=Object.values(_iqOrderByQuote).find(l=>l.order.id===orderId); if(hit) o=hit.order; }
   if(!o){toast('Order not loaded, refresh the tab','error');return}
   _iqPayModalId=orderId;
   const st=_iqPayState(o),paid=_iqPaidAmount(o),total=Number(o.total_amount)||0;
@@ -9144,35 +9466,185 @@ function _iqUploadCustomerCell(q){
   return html+_iqAttemptLine(q)+'</div>';
 }
 
+/* Status + linked order, the one cell that answers "did this actually become a
+   sale, and did the money come in". A quote that converted is the only row on
+   this table anyone needs to act on, so the action button lives here too. */
+const IQ_UPLOAD_STATUS_LABELS={quoted:'Quoted',in_cart:'In cart',ordered:'Ordered',expired:'Expired'};
+function _iqUploadStatusCell(q){
+  const statusBadge={quoted:'badge-pending',in_cart:'badge-pending',ordered:'badge-completed',expired:'badge-returned'};
+  const label=IQ_UPLOAD_STATUS_LABELS[q.status]||q.status||'N/A';
+  let html='<div class="iq-stack"><div><span class="badge '+(statusBadge[q.status]||'badge-pending')+'">'+esc(label)+'</span></div>';
+  const link=_iqOrderByQuote[q.id];
+  if(link){
+    const o=link.order, st=_iqPayState(o), method=_iqPayMethod(o);
+    const oid=o.invoice_number||o.order_id||o.id;
+    html+='<div class="iq-mono" style="font-size:11px;font-weight:600">'+esc(oid)+'</div>'
+      +'<div><span class="badge '+st.cls+'">'+st.label+'</span>'+(method?' <span class="iq-sub">'+esc(method)+'</span>':'')+'</div>'
+      +'<button type="button" class="iq-link" onclick="openIqPayModal(\''+o.id+'\')">Payment details</button>';
+  }else if(q.status==='ordered'){
+    // status says ordered but no order row carries this quote: either the order is
+    // older than the 400 pulled above, or it was deleted. Say so instead of
+    // silently showing nothing.
+    html+='<div class="iq-sub iq-dim">Order not found in the recent list</div>';
+  }
+  html+='<button type="button" class="btn btn-ghost btn-sm" style="margin-top:2px" onclick="iqSendToOrders(\''+q.id+'\')" title="Open Add Order pre-filled from this quote, review it, then save it into All Orders">→ Send to Orders</button>';
+  return html+'</div>';
+}
+
 function renderIqUploads(list){
   const tbody=document.getElementById('iqUploadsBody'); if(!tbody) return;
   const countEl=document.getElementById('iqUploadCount');
   if(countEl) countEl.textContent=_iqUploads.length?('Showing '+list.length+' of '+_iqUploads.length+'.'):'';
-  if(!list.length){tbody.innerHTML='<tr><td colspan="7" class="empty"><div class="em-text">'+(_iqUploads.length?'No upload matches that search.':'No uploads yet.')+'</div></td></tr>';return}
-  const statusBadge={quoted:'badge-pending',in_cart:'badge-pending',ordered:'badge-completed',expired:'badge-returned'};
-  tbody.innerHTML=list.map(q=>'<tr>'
+  if(!list.length){tbody.innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">'+(_iqUploads.length?'No upload matches that filter.':'No uploads yet.')+'</div></td></tr>';return}
+  tbody.innerHTML=list.map((q,i)=>'<tr>'
+    +'<td data-label="#"><div class="iq-stack"><span style="font-weight:700;font-size:12px">'+(i+1)+'</span>'
+      +(q.quote_number?'<span class="iq-sub iq-mono" title="Quote reference the customer sees">'+esc(q.quote_number)+'</span>':'')+'</div></td>'
     +'<td data-label="Date"><span class="iq-sub">'+fmtDateTimeIST(q.created_at)+'</span></td>'
     +'<td data-label="Model &amp; notes">'+_iqModelCell(q)+'</td>'
     +'<td data-label="Customer">'+_iqUploadCustomerCell(q)+'</td>'
     +'<td data-label="Print spec">'+_iqSpecCell(q)+'</td>'
     +'<td data-label="Estimate">'+_iqEstCell(q)+'</td>'
     +'<td data-label="Price"><span class="iq-price">₹'+Number(q.final_price||0).toLocaleString('en-IN')+'</span></td>'
-    +'<td data-label="Status"><span class="badge '+(statusBadge[q.status]||'badge-pending')+'">'+esc(q.status||'N/A')+'</span></td>'
+    +'<td data-label="Status &amp; order">'+_iqUploadStatusCell(q)+'</td>'
     +'</tr>').join('');
 }
 
+// Strict created_at DESC put a converted quote wherever its upload date happened to
+// fall, so a real order could sit below a page of throwaway test quotes. Default
+// order is now "what needs looking at first": ordered, then in cart, then plain
+// quotes, newest within each group. Chronological is still one dropdown away.
+const IQ_STATUS_RANK={ordered:0,in_cart:1,quoted:2,expired:3};
+function iqFilterUploadsByStatus(status){
+  const sel=document.getElementById('iqUploadStatus'); if(sel) sel.value=status||'';
+  filterIqUploads();
+  iqJumpTo('iqUploadsSection');
+}
 function filterIqUploads(){
-  const term=(document.getElementById('iqUploadSearch').value||'').toLowerCase();
-  if(!term){renderIqUploads(_iqUploads);return}
-  renderIqUploads(_iqUploads.filter(q=>{
+  const term=(document.getElementById('iqUploadSearch')?.value||'').toLowerCase();
+  const status=document.getElementById('iqUploadStatus')?.value||'';
+  const sort=document.getElementById('iqUploadSort')?.value||'action';
+  let list=_iqUploads.filter(q=>{
+    if(status&&q.status!==status) return false;
+    if(!term) return true;
     const prof=_iqProfiles[q.user_id]||{};
+    const link=_iqOrderByQuote[q.id];
+    const ord=link?(link.order.invoice_number||link.order.order_id||''):'';
     return (q.file_name||'').toLowerCase().includes(term)
+      ||(q.quote_number||'').toLowerCase().includes(term)
       ||(prof.full_name||'').toLowerCase().includes(term)
       ||(prof.phone||'').toLowerCase().includes(term)
       ||(q.contact_name||'').toLowerCase().includes(term)
       ||(q.contact_phone||'').toLowerCase().includes(term)
-      ||(q.status||'').toLowerCase().includes(term);
-  }));
+      ||(q.status||'').toLowerCase().includes(term)
+      ||String(ord).toLowerCase().includes(term);
+  });
+  const byDate=(a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0);
+  if(sort==='newest') list=list.slice().sort(byDate);
+  else if(sort==='value') list=list.slice().sort((a,b)=>(Number(b.final_price)||0)-(Number(a.final_price)||0)||byDate(a,b));
+  else list=list.slice().sort((a,b)=>{
+    const ra=IQ_STATUS_RANK[a.status]!=null?IQ_STATUS_RANK[a.status]:9;
+    const rb=IQ_STATUS_RANK[b.status]!=null?IQ_STATUS_RANK[b.status]:9;
+    return ra-rb||byDate(a,b);
+  });
+  renderIqUploads(list);
+}
+
+/* ── Send to Orders ──────────────────────────────────────────
+   An Instant Quote (and the website/WhatsApp order it became) lives in the
+   customer-facing `orders` tables; Business OS runs on biz_sales. Nothing used to
+   carry one into the other by hand, the only bridge was syncWebsiteOrders(), which
+   is bulk, automatic, and names every line "Website order". This opens the normal
+   Add Order form pre-filled from the quote instead, so the operator sees the
+   address, spec, price and payment state, corrects anything, and saves it as a
+   real order. Deliberately NOT a silent insert: business rule 10 means a human has
+   to look at a customization before it becomes production work. */
+const IQ_WEB_STATUS_TO_QA={whatsapp_pending:'pending',quote_pending_confirmation:'pending',pending:'pending',placed:'order_received',confirmed:'order_received',processing:'processing',shipped:'dispatched',delivered:'delivered',cancelled:'cancelled',returned:'returned',refunded:'returned'};
+async function iqSendToOrders(quoteId){
+  const q=_iqUploads.find(x=>x.id===quoteId);
+  if(!q){toast('Quote not loaded, refresh the tab','error');return}
+  const link=_iqOrderByQuote[quoteId]||null;
+  const o=link?link.order:null;
+  const oid=o?(o.order_id||o.invoice_number||''):'';
+  // Same order_id twice in biz_sales would double-count the revenue, and website
+  // orders can also arrive here through the automatic sync, so always check first.
+  if(oid){
+    const{data:dupe}=await sb.from('biz_sales').select('id').eq('order_id',oid).limit(1);
+    if(dupe&&dupe.length&&!confirm('Order '+oid+' is already in All Orders.\n\nOpen a pre-filled new order anyway? Saving it would log the same sale twice.')) return;
+  }
+  _qaMode='fromInstantQuote'; _qaSourceQuoteId=quoteId;
+  _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceQuotationId=null; _qaSourceQuotationNumber=null; _qaSourceRackItemId=null;
+  switchTab('quickadd');
+  resetQuickAdd();
+  const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
+  const prof=_iqProfiles[q.user_id]||{};
+  // Every website/WhatsApp order stores the same normalized address shape
+  // (address_line1/2, city, state, pincode, country), written server-side.
+  const a=(o&&o.shipping_address)||{};
+  set('qa_channel','website');
+  set('qa_date',String((o&&o.created_at)||q.created_at||'').slice(0,10)||today());
+  set('qa_orderid',oid);                       // blank leaves the auto-generated ID on save
+  set('qa_refdoc',q.quote_number||'');
+  set('qa_cname',(o&&o.customer_name)||a.full_name||q.contact_name||prof.full_name||'');
+  set('qa_phone',(o&&o.customer_phone)||a.phone||a.mobile||q.contact_phone||prof.phone||'');
+  set('qa_address',[a.address_line1,a.address_line2].filter(Boolean).join(', '));
+  set('qa_city',a.city||'');
+  set('qa_pin',a.pincode||a.postal_code||'');
+  set('qa_country',a.country||'India');
+  // qa_state is a fixed <select> of Indian states, an unrecognized value would just
+  // blank it out, so only a real match replaces the default.
+  if(a.state){ const stEl=document.getElementById('qa_state'); if(stEl&&[...stEl.options].some(op=>op.value===a.state)) stEl.value=a.state; }
+  setLeadSource((o&&o.payment_method==='whatsapp')?'whatsapp':'');
+  setFulfillment('delivery');
+  setQaStatus(o?(IQ_WEB_STATUS_TO_QA[String(o.order_status||o.status||'').toLowerCase()]||'order_received'):'order_received');
+
+  const gst=(_bizDefaults&&_bizDefaults.gst)||0;
+  // The quoted price is what the customer was actually shown and charged, GST is
+  // never added on top of it (see instantQuotePricingService), so it is treated as
+  // the GST-inclusive line total and the taxable rate is worked back out of it.
+  const price=Number((link&&link.unitPrice!=null)?link.unitPrice:q.final_price)||0;
+  const qty=(link&&link.qty)||1;
+  const rate=gst?Math.round((price/(1+gst/100))*100)/100:price;
+  const spec=[_iqMaterialName(q.material_id),_iqColorName(q.color_id),
+    (q.nozzle_mm||'0.4')+'mm nozzle',(q.layer_height_mm||'0.2')+'mm layer',
+    (q.infill_percent!=null&&q.infill_percent!==''?q.infill_percent+'% infill':'')]
+    .filter(x=>x&&x!=='N/A').join(' · ');
+  _items=[Object.assign(blankItem(),{
+    name:'Instant Quote, '+(q.file_name||'model'),
+    variant:spec,
+    remarks:q.custom_notes||(link&&link.notes)||'',
+    qty, rate, gst, inclTotal:gst?price:'',
+    grams:Math.round(Number(q.estimated_weight_g)||0),
+    disc:(o&&Number(o.discount_amount)>0)?Number(o.discount_amount):0,
+  })];
+  // Shipping the customer paid is revenue on the order, not our outward-shipping
+  // cost (that's the Order Charges field), so it belongs on its own line.
+  if(o&&Number(o.shipping_charge)>0)
+    _items.push(Object.assign(blankItem(),{name:'Shipping',qty:1,rate:Number(o.shipping_charge),gst:0,itemType:'product'}));
+  renderItems();
+
+  const notes=['Instant Quote'+(q.quote_number?' '+q.quote_number:'')+', model '+(q.file_name||'model')];
+  if(q.model_file_url) notes.push(q.model_file_url);
+  if(q.estimated_print_time_hours!=null) notes.push('Estimate: '+Number(q.estimated_print_time_hours).toFixed(2)+' h print, '+Number(q.estimated_weight_g||0).toFixed(2)+' g');
+  if(o&&o.special_instructions) notes.push('Customer note: '+o.special_instructions);
+  notes.push('Confirm the customization with the customer before this goes into production.');
+  set('qa_notes',notes.join('\n'));
+
+  // Payment mirrors what the website already recorded, so a paid order does not
+  // land here looking unpaid (and an unpaid WhatsApp order does not look paid).
+  const paid=o?_iqPaidAmount(o):0;
+  const state=o?_iqPayState(o).label:'Unpaid';
+  if(paid>0){
+    setQaPayStatus(state==='Advance'?'partial_advance':'full_advance');
+    set('qaPayAmount',paid);
+    set('qaPaySource',o.razorpay_payment_id?'razorpay':(o.payment_method==='whatsapp'?'upi':'online'));
+    set('qaPayDate',String(o.paid_at||o.created_at||'').slice(0,10)||today());
+  }else{
+    setQaPayStatus('no_payment_yet');
+    set('qaPayAmount','');
+  }
+  updateAddOrderModeUI();
+  window.scrollTo({top:0,behavior:'smooth'});
+  toast(o?('Pre-filled from '+(oid||'the linked order')+', review and Save'):'Pre-filled from the quote, no order exists for it yet');
 }
 
 async function loadIqOrders(){
@@ -10559,8 +11031,9 @@ function renderOrderDetail(items){
       ${F('Courier',f.courier_partner?esc(f.courier_partner):'')}
       ${F('Dispatch',f.dispatch_date?fmtDay(f.dispatch_date):'')}
       ${F('Promised',f.delivery_date?fmtDay(f.delivery_date):'')}
+      ${F('Packed On',f.packed_at?fmtDay(f.packed_at.slice(0,10))+(slaBreachDays(f)?' <span style="color:var(--red)">· '+slaBreachDays(f)+'d SLA breach</span>':(f.delivery_date?' <span style="color:var(--green)">· on time</span>':'')):'')}
       ${F('Delivered On',f.delivered_at?fmtDay(f.delivered_at):'')}
-      ${F('Completed',f.completed_at?fmtDay(f.completed_at.slice(0,10))+(slaBreachDays(f)?' <span style="color:var(--red)">· '+slaBreachDays(f)+'d SLA breach</span>':' <span style="color:var(--green)">· on time</span>'):'')}
+      ${F('Completed',f.completed_at?fmtDay(f.completed_at.slice(0,10)):'')}
       ${F('Packet',f.package_size?esc(f.package_size):'')}
       ${F('Settlement',f.settlement_amount!=null?fmt(f.settlement_amount)+(f.settlement_fees?' · fees '+fmt(f.settlement_fees):'')+(f.settlement_date?' · '+fmtDay(f.settlement_date):''):'')}
       ${F('Fees & Costs',fees?fmt(fees)+' <span style="color:var(--text-3);font-size:10px">(ship '+fmt(shipF)+' · pack/other '+fmt(othF)+(platF?' · plat '+fmt(platF):'')+')</span>':'')}
@@ -10632,7 +11105,7 @@ function duplicateOrder(firstId){
     updateAddOrderModeUI();
     const set=(id,v)=>{const e=document.getElementById(id); if(e) e.value=(v==null?'':v);};
     set('qa_channel',f.channel_id||'shop'); onChannelChange();
-    set('qaPaySource',f.payment_mode||'upi');
+    set('qaPaySource',f.payment_mode||'gpay');
     set('qa_cname',f.customer_name);
     set('qa_phone',f.customer_phone);
     set('qa_address',f.customer_address);
@@ -10640,13 +11113,19 @@ function duplicateOrder(firstId){
     set('qa_state',f.customer_state);
     set('qa_pin',f.customer_pincode);
     set('qa_gstin',f.customer_gstin);
-    set('qa_courier',f.courier_partner);
+    setCourier(f.courier_partner);
     set('qa_packet',f.package_size);
     if(typeof setLeadSource==='function') setLeadSource(f.lead_source||'');
-    if(f.fulfillment_type==='pickup'){
+    // Date prefill is left ON here, unlike the edit-an-existing-order path: this is a brand
+    // new order that resetQuickAdd() just blanked, so today is the right starting answer.
+    if(f.fulfillment_type==='delivery'){
+      setFulfillment('delivery',{toggle:false,focus:false});
+    } else if(f.fulfillment_type==='pickup'){
       const d=f.fulfillment_detail;
-      setFulfillment(d==='self'?'pickup_self':d==='porter'?'pickup_porter':'pickup_other');
-      if(d&&d!=='self'&&d!=='porter'){ set('qa_fulfil_other',d); onFulfilOther(d); }
+      const chip=FULFIL_CHIP_BY_DETAIL[d]||'pickup_other';
+      if(chip==='pickup_other'&&d){ set('qa_fulfil_other',d); }
+      setFulfillment(chip,{toggle:false,focus:false});
+      if(chip==='pickup_other'&&d) onFulfilOther(d);
     }
     _items=items.map(s=>{
       const mode=s.pricing_mode==='gram'?'gram':'piece';
@@ -10718,7 +11197,7 @@ const UNIFIED_STATUSES=['pending','order_received','processing','printing','pack
 // cancellations outright, and returned/claimed orders (which show up as a loss via Returns
 // instead of as revenue).
 const NON_REVENUE_STATUSES=['cancelled','cancelled_before_dispatch','cancelled_before_delivery','returned','claimed'];
-const STATUS_LABEL={pending:'Pending',order_received:'Order Received',processing:'Processing',printing:'Printing',packed:'Packed',dispatched:'Dispatched',delivered:'Delivered',delaying:'Delaying',return_initiated:'Return Initiated',return_picked_up:'Return Picked Up',returned:'Returned',claim_filed:'Claim Filed',completed:'Completed',delayed:'Delayed',cancelled_before_dispatch:'Cancelled (Before Dispatch)',cancelled_before_delivery:'Cancelled (Before Delivery)',cancelled:'Cancelled',claimed:'Claimed'};
+const STATUS_LABEL={pending:'Pending',order_received:'Order Received',processing:'Processing',printing:'Printing',packed:'Packed',dispatched:'In Transit',delivered:'Delivered',delaying:'Delaying',return_initiated:'Return Initiated',return_picked_up:'Return Picked Up',returned:'Returned',claim_filed:'Claim Filed',completed:'Completed',delayed:'Delayed',cancelled_before_dispatch:'Cancelled (Before Dispatch)',cancelled_before_delivery:'Cancelled (Before Delivery)',cancelled:'Cancelled',claimed:'Claimed'};
 // Same colors as the badge-* classes each status already renders with on every
 // order row (badge-completed=green, badge-pending=yellow, etc.), reused here so
 // the Status filter dropdown's options/trigger match instead of introducing a
@@ -10838,6 +11317,9 @@ async function updateOrderStatus(firstId,status){
   // PROMISED delivery date set at Add Sale time, not when the order truly arrived. Stamp the
   // real arrival date here, same pattern as completed_at, and use THIS for the return window.
   if(status==='delivered') payload.delivered_at=today();
+  // Same idea again for SLA: the promise is "ready by", so stamp the day the order first
+  // becomes ready. See packedStampFor() for why it is never re-stamped.
+  const packedStamp=packedStampFor(status,ids); if(packedStamp) payload.packed_at=packedStamp;
   try{ await bizApiFetch('/api/admin/biz/sales/status',{method:'PATCH',body:JSON.stringify({ids,payload})}); }
   catch(e){ toast('Error: '+e.message,'error'); return; }
   if(status!==prevStatus) await logOrderStatusChange(f.order_id||firstId,status);
@@ -10883,6 +11365,7 @@ async function bulkMarkStatus(status){
   const payload={status};
   if(status==='completed') payload.completed_at=today();
   if(status==='delivered') payload.delivered_at=today();
+  const packedStamp=packedStampFor(status,ids); if(packedStamp) payload.packed_at=packedStamp;
   const {error}=await sb.from('biz_sales').update(payload).in('id',ids);
   if(error){toast('Error: '+error.message,'error');return;}
   const sales=_salesCache.filter(s=>ids.includes(s.id));
@@ -13510,10 +13993,14 @@ async function loadDashboard(){
       <div style="font-size:18px;font-weight:700;margin-top:4px">${h.toFixed(1)}h</div>
     </div>`).join('');
 
-  // SLA met/not-met %, promised delivery_date vs. actual completed_at, this month's completed orders
+  // SLA met/not-met %, promised delivery_date vs. when the order was actually ready
+  // (packed_at). Measured to packed, matching the Open Orders KPI and the Excel SLA sheet:
+  // the promise is "ready by this date", so collection lag and courier transit are not
+  // breaches. This used to read completed_at, which scored an order as late whenever the
+  // customer took their time collecting it, or whenever closing it in the books slipped.
   const smn=document.getElementById('slaMonthName'); if(smn) smn.textContent=label;
-  const withSla=completed.filter(s=>s.delivery_date&&s.completed_at);
-  const met=withSla.filter(s=>new Date(s.completed_at.slice(0,10)+'T00:00:00')<=new Date(s.delivery_date+'T00:00:00')).length;
+  const withSla=completed.filter(s=>s.delivery_date&&s.packed_at);
+  const met=withSla.filter(s=>!slaBreachDays(s)).length;
   const notMet=withSla.length-met;
   const slaPct=withSla.length?(met/withSla.length*100):null;
   const slaEl=document.getElementById('slaCards');
@@ -14155,10 +14642,16 @@ async function exportPLReport(){
     {Metric:'Repeat-customer rate %',Value:repeatRate},
     {Metric:'Customers',Value:custs.length},
   ];
-  // §2.2, SLA breach history: promised (delivery_date) vs. actual completion (completed_at)
-  const slaRows=(sales||[]).filter(s=>s.delivery_date&&s.completed_at).map(s=>({
+  // SLA breach history: promised (delivery_date) vs. when the order was actually ready
+  // (packed_at). Measured to packed, not to completed, for the same reason the dashboard
+  // KPI is: the promise is "ready by this date", so collection lag, courier transit and
+  // late bookkeeping are not TriAkar breaches. Rows with no packed_at (packed before that
+  // column existed and never dispatched, so nothing to backfill from) are left out rather
+  // than reported as a breach on missing data.
+  const slaRows=(sales||[]).filter(s=>s.delivery_date&&s.packed_at).map(s=>({
     'Order ID':s.order_id||'', Channel:CH_NAMES[s.channel_id]||s.channel_id, Product:s.product_name,
-    'Promised Date':s.delivery_date, 'Dispatch Date':s.dispatch_date||'', 'Completed Date':s.completed_at.slice(0,10),
+    'Promised Date':s.delivery_date, 'Packed Date':s.packed_at.slice(0,10),
+    'Dispatch Date':s.dispatch_date||'', 'Completed Date':s.completed_at?s.completed_at.slice(0,10):'',
     'SLA Breach (days)':slaBreachDays(s)||0, 'On Time':slaBreachDays(s)?'No':'Yes',
   }));
   const wb=XLSX.utils.book_new();
