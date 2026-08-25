@@ -206,6 +206,14 @@
    where a ring alone is easy to miss. */
 .iq-color-choice.selected .iq-color-dot{border-color:transparent;box-shadow:0 0 0 2px #fff,0 0 0 4px var(--charcoal)}
 .iq-color-choice.selected .iq-color-dot::after{content:'';position:absolute;top:50%;left:50%;width:10px;height:6px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:translate(-50%,-65%) rotate(-45deg);filter:drop-shadow(0 0 1.5px rgba(0,0,0,.6))}
+/* Custom colour, PLA+ only. The native colour input is stretched over the swatch at zero
+   opacity so the swatch itself is the trigger: one tap opens the OS picker, no separate
+   "choose" control cluttering the row. Until a colour is picked the dot shows a spectrum
+   so it reads as "any colour" rather than as another fixed option. */
+.iq-color-custom{margin:0}
+.iq-color-custom .iq-color-dot{position:relative;overflow:hidden}
+.iq-color-input{position:absolute;inset:0;width:100%;height:100%;padding:0;border:none;opacity:0;cursor:pointer;background:none}
+.iq-color-custom span{font-variant-numeric:tabular-nums}
 .iq-color-choice span{font-size:10px;color:var(--stone);font-weight:600}
 
 .iq-price-box{background:var(--charcoal);border-radius:14px;padding:24px 22px;color:var(--ivory)}
@@ -513,7 +521,7 @@ const IQ = (function(){
   let scene, camera, renderer, controls, mesh;
   let options = { printers: [], materials: [], colors: [] };
   let state = { file: null, format: null, quoteToken: null, geometry: null,
-                printerId: null, materialId: null, colorId: null, nozzle: 0.4, layerHeight: 0.2, infill: 15,
+                printerId: null, materialId: null, colorId: null, customHex: null, nozzle: 0.4, layerHeight: 0.2, infill: 15,
                 quote: null, contactName: '', contactPhone: '', leadShown: false,
                 other: { printer: '', material: '', color: '', nozzle: '', layerHeight: '', infill: '' } };
 
@@ -544,13 +552,38 @@ const IQ = (function(){
     (function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
   }
 
+  /* ── Viewer colour follows the customer's colour choice ─────────
+     The preview used to be TRI orange no matter what was picked, which made the
+     colour row feel like a form field rather than something you can see. It now
+     shows the selected catalog colour, or the custom hex on PLA. Falls back to
+     TRI orange only while nothing is chosen yet.
+     White prints get nudged slightly off-white: a pure #FFFFFF mesh against the
+     ivory viewer background loses all its edges and reads as a flat silhouette. */
+  const VIEWER_FALLBACK_HEX = 0xC4622A;
+  function selectedColorHex(){
+    if (state.customHex) return state.customHex;
+    const c = (options.colors || []).find(x => x.id === state.colorId);
+    return (c && c.hex) ? c.hex : null;
+  }
+  function applyViewerColor(){
+    if (!mesh || !mesh.material) return;
+    const hex = selectedColorHex();
+    if (!hex) { mesh.material.color.set(VIEWER_FALLBACK_HEX); return; }
+    const c = new THREE.Color(hex);
+    if (c.r > 0.93 && c.g > 0.93 && c.b > 0.93) c.multiplyScalar(0.92);
+    mesh.material.color.copy(c);
+  }
+
   function showMesh(threeGeometry){
     if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); }
     threeGeometry.computeVertexNormals();
     threeGeometry.center();
-    const material = new THREE.MeshStandardMaterial({ color: 0xC4622A, metalness: 0.1, roughness: 0.55 });
+    const material = new THREE.MeshStandardMaterial({ color: VIEWER_FALLBACK_HEX, metalness: 0.1, roughness: 0.55 });
     mesh = new THREE.Mesh(threeGeometry, material);
     scene.add(mesh);
+    // A color may already be picked before the file lands (defaults auto-select on load),
+    // so paint the fresh mesh rather than leaving it orange until the next color click.
+    applyViewerColor();
     threeGeometry.computeBoundingSphere();
     const r = threeGeometry.boundingSphere.radius || 50;
     camera.position.set(r * 1.8, r * 1.4, r * 1.8);
@@ -716,7 +749,7 @@ const IQ = (function(){
   }
 
   function resetModel(){
-    state = Object.assign(state, { file: null, format: null, quoteToken: null, geometry: null, printerId: null, materialId: null, colorId: null, quote: null, leadShown: false,
+    state = Object.assign(state, { file: null, format: null, quoteToken: null, geometry: null, printerId: null, materialId: null, colorId: null, customHex: null, quote: null, leadShown: false,
       other: { printer: '', material: '', color: '', nozzle: '', layerHeight: '', infill: '' } });
     document.getElementById('iqCanvas').style.display = 'none';
     document.getElementById('iqDropzone').style.display = 'flex';
@@ -788,16 +821,36 @@ const IQ = (function(){
     if (!m || !m.limited_colors || !m.limited_colors.length) return options.colors || [];
     return (options.colors || []).filter(c => m.limited_colors.includes(c.name));
   }
+  // Custom colour is PLA+ only: it's the one filament stocked in enough shades that an
+  // arbitrary hex can realistically be matched. Everything else stays on the catalog.
+  // Matched exactly rather than with a /pla/ pattern, which would also catch PLA-CF (a
+  // carbon-fibre filament that only comes in black).
+  function supportsCustomColor(m){
+    if (!m) return false;
+    return String(m.filament_type || m.name || '').trim().toUpperCase() === 'PLA+';
+  }
   function renderColorRow(){
     const allowed = state.materialId ? allowedColorsForMaterial(state.materialId) : (options.colors || []);
+    const m = (options.materials || []).find(x => x.id === state.materialId);
+    const pla = supportsCustomColor(m);
+    // The swatch doubles as the trigger: the <input type="color"> sits on top of the dot at
+    // zero opacity, so a tap opens the OS picker without a second "choose" step.
+    const customChip = pla
+      ? `<label class="iq-color-choice iq-color-custom${state.customHex ? ' selected' : ''}" data-custom="1" title="Pick any colour, we will match it as closely as PLA allows">
+           <div class="iq-color-dot" style="background:${state.customHex || 'conic-gradient(#ef4444,#eab308,#22c55e,#3b82f6,#a855f7,#ef4444)'}">
+             <input type="color" class="iq-color-input" value="${state.customHex || '#C4622A'}" oninput="IQ.selectCustomColor(this.value)">
+           </div><span>${state.customHex ? escapeHtml(state.customHex.toUpperCase()) : 'Custom'}</span>
+         </label>`
+      : '';
     document.getElementById('iqColorRow').innerHTML = allowed.map(c =>
-      `<div class="iq-color-choice" data-id="${c.id}" onclick="IQ.selectColor('${c.id}')">
+      `<div class="iq-color-choice${(!state.customHex && c.id === state.colorId) ? ' selected' : ''}" data-id="${c.id}" onclick="IQ.selectColor('${c.id}')">
          <div class="iq-color-dot" style="background:${c.hex}"></div><span>${escapeHtml(c.name)}</span>
        </div>`).join('')
+      + customChip
       + `<div class="iq-color-choice" onclick="IQ.toggleOther('color')"><div class="iq-color-dot" style="background:#fff;border-style:dashed"></div><span>Other</span></div>`;
-    const m = (options.materials || []).find(x => x.id === state.materialId);
-    document.getElementById('iqColorHint').textContent = (m && m.limited_colors && m.limited_colors.length)
-      ? `${m.name} comes in ${m.limited_colors.join(' / ')} only` : '';
+    document.getElementById('iqColorHint').textContent =
+      (m && m.limited_colors && m.limited_colors.length) ? `${m.name} comes in ${m.limited_colors.join(' / ')} only`
+      : pla ? 'PLA can be matched to any custom colour, pick one with Custom' : '';
     return allowed;
   }
 
@@ -835,10 +888,15 @@ const IQ = (function(){
   function selectMaterial(id){
     state.materialId = id;
     document.querySelectorAll('#iqMaterialRow .iq-choice').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
+    // Custom colour is PLA only, so moving off PLA has to drop it, otherwise the order
+    // would carry a hex we cannot actually print in that material.
+    if (state.customHex && !supportsCustomColor((options.materials || []).find(x => x.id === id))) {
+      state.customHex = null; state.other.color = '';
+    }
     // Switching material can narrow the color list (ABS/ASA), if the current
     // color falls outside the new allowlist, swap to one that's still valid.
     const allowed = renderColorRow();
-    const stillValid = state.colorId && allowed.find(c => c.id === state.colorId);
+    const stillValid = !state.customHex && state.colorId && allowed.find(c => c.id === state.colorId);
     if (!stillValid && allowed.length) {
       const preferred = allowed.find(c => c.is_default) || allowed[0];
       state.colorId = null;
@@ -849,7 +907,27 @@ const IQ = (function(){
   }
   function selectColor(id){
     state.colorId = id;
+    // Picking a catalog colour drops any custom hex, they are mutually exclusive, and the
+    // note has to go too or the admin would see a stale "Custom #xxxxxx" on the order.
+    if (state.customHex) { state.customHex = null; state.other.color = ''; renderColorRow(); }
     document.querySelectorAll('#iqColorRow .iq-color-choice').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
+    applyViewerColor();
+    maybePrice();
+  }
+  // Custom hex has no row in instant_quote_colors, so color_id goes null (the price endpoint
+  // already treats it as optional) and the hex travels to admin through custom_notes, which
+  // is the same channel every other "Other" answer uses. No schema change needed.
+  function selectCustomColor(hex){
+    if (!/^#[0-9a-f]{6}$/i.test(hex || '')) return;
+    state.customHex = hex.toLowerCase();
+    state.colorId = null;
+    state.other.color = 'Custom ' + state.customHex.toUpperCase();
+    document.querySelectorAll('#iqColorRow .iq-color-choice').forEach(el => el.classList.toggle('selected', el.dataset.custom === '1'));
+    const lbl = document.querySelector('#iqColorRow .iq-color-custom span');
+    if (lbl) lbl.textContent = state.customHex.toUpperCase();
+    const dot = document.querySelector('#iqColorRow .iq-color-custom .iq-color-dot');
+    if (dot) dot.style.background = state.customHex;
+    applyViewerColor();
     maybePrice();
   }
   function selectNozzle(mm){
@@ -1010,7 +1088,7 @@ const IQ = (function(){
   });
 
   return { resetModel, selectPrinter, selectMaterial, selectColor, selectNozzle, selectLayerHeight, selectInfill,
-           addToCart, submitLead, skipLead, toggleOther, setOther, useRecommended };
+           addToCart, submitLead, skipLead, toggleOther, setOther, selectCustomColor, useRecommended };
 })();
 window.IQ = IQ;
 </script>
