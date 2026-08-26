@@ -156,6 +156,24 @@
 .iq-sub-label{font-size:10px;color:var(--stone);font-weight:600;margin-bottom:8px}
 .iq-config-hint{font-size:10.5px;color:var(--stone);text-transform:none;letter-spacing:0;font-weight:400}
 
+/* Advanced Settings, collapsed by default. Layer height, strength and walls all have
+   sensible defaults already applied, and every one of them is a way to make a print worse
+   if changed without knowing why, so they are folded away rather than presented as part of
+   the normal path. The summary row is styled as a quiet control, not a heading, so it reads
+   as "there is more here if you want it" instead of "you have skipped a step". */
+.iq-advanced{border-top:1px solid rgba(22,22,20,.08);padding:6px 0 0}
+.iq-advanced>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:16px 0;font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:var(--stone);transition:color .18s}
+.iq-advanced>summary::-webkit-details-marker{display:none}
+.iq-advanced>summary:hover{color:var(--accent)}
+.iq-advanced>summary .iq-adv-caret{display:inline-block;transition:transform .2s;font-size:9px;color:var(--accent)}
+.iq-advanced[open]>summary .iq-adv-caret{transform:rotate(90deg)}
+.iq-advanced>summary .iq-adv-sub{margin-left:auto;font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--stone)}
+.iq-adv-body{padding-bottom:6px}
+.iq-adv-warn{display:flex;gap:9px;align-items:flex-start;background:rgba(196,98,42,.06);border:1px solid rgba(196,98,42,.2);border-radius:10px;padding:11px 13px;margin-bottom:22px;font-size:11.5px;line-height:1.55;color:var(--charcoal)}
+.iq-adv-warn strong{font-weight:700}
+.iq-adv-warn-ico{flex:none;font-size:13px;line-height:1.35;color:var(--accent)}
+.iq-adv-group+.iq-adv-group{margin-top:22px}
+
 /* Button-style option rows (material / nozzle / infill), compact, scale to
    many options (9 materials) without turning into a huge card grid. */
 .iq-btn-row{display:flex;flex-wrap:wrap;gap:10px;row-gap:16px}
@@ -339,20 +357,45 @@
       </div>
 
       <div class="iq-config-section">
-        <div class="iq-config-label">Nozzle &amp; Layer Height <span class="iq-config-hint">Larger nozzle = faster, less fine detail. Layer height options depend on the nozzle.</span></div>
-        <div class="iq-sub-label">Nozzle</div>
+        <div class="iq-config-label">Nozzle <span class="iq-config-hint">Larger nozzle = faster, less fine detail</span></div>
         <div class="iq-btn-row" id="iqNozzleRow"></div>
         <input type="text" class="iq-other-input" id="iqOtherNozzle" style="display:none" placeholder="Tell us more" oninput="IQ.setOther('nozzle', this.value)">
-        <div class="iq-sub-label" style="margin-top:18px">Layer height</div>
-        <div class="iq-btn-row" id="iqLayerHeightRow"></div>
-        <input type="text" class="iq-other-input" id="iqOtherLayerHeight" style="display:none" placeholder="Tell us more" oninput="IQ.setOther('layerHeight', this.value)">
       </div>
 
-      <div class="iq-config-section">
-        <div class="iq-config-label">Strength <span class="iq-config-hint">How solid the print is inside</span></div>
-        <div class="iq-btn-row" id="iqInfillRow"></div>
-        <input type="text" class="iq-other-input" id="iqOtherInfill" style="display:none" placeholder="Tell us more" oninput="IQ.setOther('infill', this.value)">
-      </div>
+      <!-- Layer height, strength and walls all arrive pre-set to the values we would pick
+           anyway, and each is a way to make a print slower, weaker or uglier if moved
+           without a reason. Folded away so the normal path stays four decisions long. -->
+      <details class="iq-advanced" id="iqAdvanced">
+        <summary>
+          <span class="iq-adv-caret">▶</span>
+          More / Advanced settings
+          <span class="iq-adv-sub" id="iqAdvancedSummary"></span>
+        </summary>
+        <div class="iq-adv-body">
+          <div class="iq-adv-warn">
+            <span class="iq-adv-warn-ico">⚠</span>
+            <span><strong>Only change these if you know what they do.</strong> The defaults are what we would print your model at anyway. Changing them can make the print slower, weaker or rougher, and it will change your price. If you are unsure, leave this closed, or tell us what you need in the notes and we will set it for you.</span>
+          </div>
+
+          <div class="iq-adv-group">
+            <div class="iq-sub-label">Layer height <span class="iq-config-hint">Thinner layers = smoother finish, longer print. Options depend on the nozzle you picked.</span></div>
+            <div class="iq-btn-row" id="iqLayerHeightRow"></div>
+            <input type="text" class="iq-other-input" id="iqOtherLayerHeight" style="display:none" placeholder="Tell us more" oninput="IQ.setOther('layerHeight', this.value)">
+          </div>
+
+          <div class="iq-adv-group">
+            <div class="iq-sub-label">Strength <span class="iq-config-hint">How solid the print is inside</span></div>
+            <div class="iq-btn-row" id="iqInfillRow"></div>
+            <input type="text" class="iq-other-input" id="iqOtherInfill" style="display:none" placeholder="Tell us more" oninput="IQ.setOther('infill', this.value)">
+          </div>
+
+          <div class="iq-adv-group">
+            <div class="iq-sub-label">Walls <span class="iq-config-hint">Outer shell passes. More walls make a part stiffer and tougher at the edges, and use more material than extra infill would.</span></div>
+            <div class="iq-btn-row" id="iqWallsRow"></div>
+            <input type="text" class="iq-other-input" id="iqOtherWalls" style="display:none" placeholder="Tell us more" oninput="IQ.setOther('walls', this.value)">
+          </div>
+        </div>
+      </details>
 
       <button type="button" class="iq-recommend-btn" onclick="IQ.useRecommended()">⚡ Use recommended settings</button>
     </div>
@@ -402,7 +445,7 @@
       </div>
       <div class="iq-about-card">
         <h3>Choosing a material</h3>
-        <p><strong>Regular</strong> (PLA / PLA+) suits everyday desk and home objects. <strong>Good Strength</strong> (PETG) handles more mechanical load and light outdoor use. <strong>Outdoor &amp; Durable</strong> (ABS / ASA) resists heat and UV, best for parts that live outside or in a car, currently offered in Black and White only. <strong>Top Strength</strong> (PLA-CF / PETG-HF / PETG-CF) is carbon-fibre reinforced for the stiffest, most load-bearing parts. <strong>Flexible</strong> (TPU) bends and compresses, used for grips, seals and wearable pieces.</p>
+        <p><strong>Regular</strong> (PLA / PLA+) suits everyday desk and home objects. <strong>Good Strength</strong> (PETG) handles more mechanical load and light outdoor use. <strong>Outdoor &amp; Durable</strong> (ABS / ASA) resists heat and UV, best for parts that live outside or in a car. <strong>Top Strength</strong> (PLA-CF / PETG-HF / PETG-CF) is carbon-fibre reinforced for the stiffest, most load-bearing parts. <strong>Flexible</strong> (TPU) bends and compresses, used for grips, seals and wearable pieces. On colour: PLA+ is stocked in the full range and can be matched to any custom shade, every other material is stocked in Black, White and Grey, and TPU in White only.</p>
       </div>
       <div class="iq-about-card">
         <h3>Confirmation before production</h3>
@@ -478,6 +521,18 @@ const INFILL_TIERS = [
   { pct: 15, label: 'High Strength', popular: true },
   { pct: 20, label: 'Extreme Strength' },
 ];
+// Wall (perimeter) count. 2 is both the studio's normal setting and the count the pricing
+// model on the server is calibrated against, so leaving it alone prices exactly as before.
+// Capped at 6 here rather than the API's 8: past this, extra walls stop buying useful
+// strength on the sizes we actually print and just cost material.
+const WALL_TIERS = [
+  { n: 1, label: '1 wall',  sub: 'Thin shell' },
+  { n: 2, label: '2 walls', sub: 'Standard', popular: true },
+  { n: 3, label: '3 walls', sub: 'Sturdier' },
+  { n: 4, label: '4 walls', sub: 'Tough' },
+  { n: 6, label: '6 walls', sub: 'Near solid edges' },
+];
+const DEFAULT_WALLS = 2;
 const NOZZLE_TIERS = [
   { mm: 0.2, label: '0.2mm', sub: 'Fine detail' },
   { mm: 0.4, label: '0.4mm', sub: 'Standard', popular: true },
@@ -522,8 +577,9 @@ const IQ = (function(){
   let options = { printers: [], materials: [], colors: [] };
   let state = { file: null, format: null, quoteToken: null, geometry: null,
                 printerId: null, materialId: null, colorId: null, customHex: null, nozzle: 0.4, layerHeight: 0.2, infill: 15,
+                walls: DEFAULT_WALLS,
                 quote: null, contactName: '', contactPhone: '', leadShown: false,
-                other: { printer: '', material: '', color: '', nozzle: '', layerHeight: '', infill: '' } };
+                other: { printer: '', material: '', color: '', nozzle: '', layerHeight: '', infill: '', walls: '' } };
 
   function showError(msg){
     const el = document.getElementById('iqError');
@@ -850,7 +906,7 @@ const IQ = (function(){
       + `<div class="iq-color-choice" onclick="IQ.toggleOther('color')"><div class="iq-color-dot" style="background:#fff;border-style:dashed"></div><span>Other</span></div>`;
     document.getElementById('iqColorHint').textContent =
       (m && m.limited_colors && m.limited_colors.length) ? `${m.name} comes in ${m.limited_colors.join(' / ')} only`
-      : pla ? 'PLA can be matched to any custom colour, pick one with Custom' : '';
+      : pla ? 'PLA+ can be matched to any custom colour, pick one with Custom' : '';
     return allowed;
   }
 
@@ -873,6 +929,21 @@ const IQ = (function(){
     document.getElementById('iqInfillRow').innerHTML = INFILL_TIERS.map(t =>
       `<button type="button" class="iq-choice" data-pct="${t.pct}" onclick="IQ.selectInfill(${t.pct})">${t.popular ? '<span class="iq-popular-badge">Popular</span>' : ''}${t.label}<span class="iq-choice-sub">${t.pct}% infill</span></button>`).join('')
       + otherButtonHtml('infill');
+  }
+  function renderWallsRow(){
+    document.getElementById('iqWallsRow').innerHTML = WALL_TIERS.map(t =>
+      `<button type="button" class="iq-choice" data-walls="${t.n}" onclick="IQ.selectWalls(${t.n})">${t.popular ? '<span class="iq-popular-badge">Popular</span>' : ''}${t.label}<span class="iq-choice-sub">${t.sub}</span></button>`).join('')
+      + otherButtonHtml('walls');
+  }
+
+  // The collapsed summary carries the current advanced values, so someone who never opens
+  // the section can still see what their model is being priced at, and someone who did
+  // change something is reminded of it after collapsing it again.
+  function refreshAdvancedSummary(){
+    const el = document.getElementById('iqAdvancedSummary');
+    if (!el) return;
+    const parts = [`${state.layerHeight}mm layers`, `${state.infill}% infill`, `${state.walls} wall${state.walls === 1 ? '' : 's'}`];
+    el.textContent = parts.join(' · ');
   }
 
   // Printer/build-size is never a customer choice, only ever set by
@@ -948,11 +1019,19 @@ const IQ = (function(){
   function selectLayerHeight(mm){
     state.layerHeight = mm;
     document.querySelectorAll('#iqLayerHeightRow .iq-choice[data-mm]').forEach(el => el.classList.toggle('selected', Number(el.dataset.mm) === mm));
+    refreshAdvancedSummary();
     maybePrice();
   }
   function selectInfill(pct){
     state.infill = pct;
     document.querySelectorAll('#iqInfillRow .iq-choice[data-pct]').forEach(el => el.classList.toggle('selected', Number(el.dataset.pct) === pct));
+    refreshAdvancedSummary();
+    maybePrice();
+  }
+  function selectWalls(n){
+    state.walls = n;
+    document.querySelectorAll('#iqWallsRow .iq-choice[data-walls]').forEach(el => el.classList.toggle('selected', Number(el.dataset.walls) === n));
+    refreshAdvancedSummary();
     maybePrice();
   }
 
@@ -960,11 +1039,15 @@ const IQ = (function(){
   // "Other" note is cleared, undoing any manual customization in one go.
   function useRecommended(){
     document.querySelectorAll('.iq-other-input').forEach(el => { el.value = ''; el.style.display = 'none'; });
-    state.other = { printer: '', material: '', color: '', nozzle: '', layerHeight: '', infill: '' };
+    state.other = { printer: '', material: '', color: '', nozzle: '', layerHeight: '', infill: '', walls: '' };
     if (options.printers && options.printers.length) selectPrinter(pickFittingPrinter().id);
     if (options.materials && options.materials.length) selectMaterial((options.materials.find(x => x.is_default) || options.materials[0]).id);
     selectNozzle((NOZZLE_TIERS.find(t => t.popular) || NOZZLE_TIERS[0]).mm); // cascades a matching layer-height pick too
     selectInfill((INFILL_TIERS.find(t => t.popular) || INFILL_TIERS[0]).pct);
+    selectWalls(DEFAULT_WALLS);
+    // Advanced is collapsed again too: this button means "put everything back", and leaving
+    // it hanging open on defaults reads as though something is still customised.
+    const adv = document.getElementById('iqAdvanced'); if (adv) adv.open = false;
   }
 
   /* ── Pricing ─────────────────────────────────── */
@@ -992,7 +1075,7 @@ const IQ = (function(){
   // "Build size: extra-tall box | Color: rose gold", sent to the backend
   // and shown to admin, never used in the price math itself.
   function combinedOtherNotes(){
-    const labels = { printer: 'Build size', material: 'Material', color: 'Color', nozzle: 'Nozzle', layerHeight: 'Layer height', infill: 'Strength' };
+    const labels = { printer: 'Build size', material: 'Material', color: 'Color', nozzle: 'Nozzle', layerHeight: 'Layer height', infill: 'Strength', walls: 'Walls' };
     return Object.entries(state.other).filter(([, v]) => v && v.trim())
       .map(([k, v]) => `${labels[k] || k}: ${v.trim()}`).join(' | ');
   }
@@ -1006,6 +1089,7 @@ const IQ = (function(){
           quote_token: state.quoteToken, printer_id: state.printerId,
           material_id: state.materialId, color_id: state.colorId,
           nozzle_mm: state.nozzle, layer_height_mm: state.layerHeight, infill_percent: state.infill,
+          wall_count: state.walls,
           contact_name: state.contactName || null, contact_phone: state.contactPhone || null,
           custom_notes: combinedOtherNotes() || null,
         }),
@@ -1063,6 +1147,7 @@ const IQ = (function(){
         nozzle: state.nozzle + 'mm',
         layerHeight: state.layerHeight + 'mm',
         infill: state.infill,
+        walls: state.walls,
         otherNotes: combinedOtherNotes(),
       });
       showError('');
@@ -1082,12 +1167,14 @@ const IQ = (function(){
     initViewer();
     renderNozzleRow();
     renderInfillRow();
+    renderWallsRow();
     selectNozzle(0.4); // cascades renderLayerHeightRow() + a matching layer-height pick
     selectInfill(15);
+    selectWalls(DEFAULT_WALLS);
     loadOptions();
   });
 
-  return { resetModel, selectPrinter, selectMaterial, selectColor, selectNozzle, selectLayerHeight, selectInfill,
+  return { resetModel, selectPrinter, selectMaterial, selectColor, selectNozzle, selectLayerHeight, selectInfill, selectWalls,
            addToCart, submitLead, skipLead, toggleOther, setOther, selectCustomColor, useRecommended };
 })();
 window.IQ = IQ;

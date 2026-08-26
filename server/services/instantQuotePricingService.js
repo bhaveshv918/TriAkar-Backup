@@ -62,6 +62,17 @@ const SHELL_VOLUME_FRACTION    = 0.12; // floor, used when surface_area isn't av
 const SHELL_SKIN_THICKNESS_CM  = 0.1;  // ~1mm forced-solid skin per unit of surface area (top/bottom shell layers dominate for thin/relief shapes, wall loops for chunkier ones)
 const CALIBRATION_CORRECTION   = 1.15; // small buffer for travel/retraction overhead pure volume math misses
 
+// Wall loops are part of the forced-solid skin SHELL_SKIN_THICKNESS_CM stands for, and that
+// constant was back-solved from a 2-wall slice (see the header block), so 2 walls is the
+// baseline this whole model is calibrated at. Rather than bolt on a separate, uncalibrated
+// wall model, each wall above or below the baseline adds or removes one nozzle-width of
+// skin, which is physically what one more perimeter is. The point of expressing it this way
+// is that it is exactly neutral at WALLS_BASELINE: every quote priced before walls became
+// selectable keeps the price it already had, and only a customer who deliberately moves the
+// slider sees a difference.
+const WALLS_BASELINE = 2;
+const WALLS_MIN = 1, WALLS_MAX = 8;
+
 // A larger nozzle lays down more plastic per pass (thicker lines/layers), so the same
 // volume prints faster; a finer nozzle is slower and used for detail work. Weight is
 // unaffected, same material either way, just deposited faster or slower.
@@ -105,7 +116,7 @@ const round2 = n => Math.round(n * 100) / 100;
  * @param {number} [surface_area_cm2]  from meshAnalysisService; drives the geometry-aware
  *   shell term below. Falls back to the flat SHELL_VOLUME_FRACTION floor if omitted.
  */
-export async function computeInstantQuotePrice({ volume_cm3, infill_percent, material, nozzle_mm = 0.4, layer_height_mm = 0.2, surface_area_cm2 = null }) {
+export async function computeInstantQuotePrice({ volume_cm3, infill_percent, material, nozzle_mm = 0.4, layer_height_mm = 0.2, surface_area_cm2 = null, wall_count = WALLS_BASELINE }) {
   if (!(volume_cm3 > 0)) throw Object.assign(new Error('Invalid model volume'), { status: 400 });
   if (!material) throw Object.assign(new Error('Material is required'), { status: 400 });
 
@@ -117,8 +128,14 @@ export async function computeInstantQuotePrice({ volume_cm3, infill_percent, mat
   // the same flat allowance for every shape — see the comment block at the top of this
   // file. Never goes below the old flat constant, so chunky/low-surface-area parts keep
   // the original (already order-validated) behavior.
+  // See WALLS_BASELINE: one extra perimeter is one more nozzle-width of solid skin. Clamped
+  // rather than rejected because this is a price estimate, not a slicer, and a nonsense wall
+  // count should degrade to the nearest sane one instead of failing someone's quote.
+  const walls = Math.min(WALLS_MAX, Math.max(WALLS_MIN, Math.round(Number(wall_count) || WALLS_BASELINE)));
+  const nozzleWidthCm = (Number(nozzle_mm) || 0.4) / 10;
+  const skinThicknessCm = Math.max(0.02, SHELL_SKIN_THICKNESS_CM + (walls - WALLS_BASELINE) * nozzleWidthCm);
   const skinShellFraction = (surface_area_cm2 > 0)
-    ? Math.min(1, (surface_area_cm2 * SHELL_SKIN_THICKNESS_CM) / volume_cm3)
+    ? Math.min(1, (surface_area_cm2 * skinThicknessCm) / volume_cm3)
     : SHELL_VOLUME_FRACTION;
   const weightFillFraction = Math.min(1, infillFraction + Math.max(SHELL_VOLUME_FRACTION, skinShellFraction));
   // Print time deliberately keeps the flat SHELL_VOLUME_FRACTION model rather than
@@ -128,6 +145,10 @@ export async function computeInstantQuotePrice({ volume_cm3, infill_percent, mat
   // reference point we have (2026-08-16, see file header), the flat model's time estimate
   // was already close to the real slice (1.28h vs ~1.43h actual), reusing weightFillFraction
   // here instead would have overshot to ~3.7h. Revisit if real order data says otherwise.
+  // Wall count is deliberately left out of this one for the same reason: it feeds the
+  // weight side (more perimeters is straightforwardly more plastic) but putting it into the
+  // time side too would be a second uncalibrated guess stacked on a model that is already
+  // flat by design. Revisit together with the note above once real order data exists.
   const timeFillFraction = Math.min(1, infillFraction + SHELL_VOLUME_FRACTION);
   const nozzleMultiplier = NOZZLE_TIME_MULTIPLIER[nozzle_mm] || 1.0;
   const layerHeightMultiplier = LAYER_HEIGHT_TIME_MULTIPLIER[layer_height_mm] || 1.0;

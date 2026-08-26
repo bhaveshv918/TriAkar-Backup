@@ -130,7 +130,7 @@ const VALID_LAYER_HEIGHTS_BY_NOZZLE = {
 
 router.post('/price', optionalAuth, async (req, res, next) => {
   try {
-    const { quote_token, printer_id, material_id, color_id, infill_percent, nozzle_mm, layer_height_mm, contact_name, contact_phone, custom_notes } = req.body;
+    const { quote_token, printer_id, material_id, color_id, infill_percent, nozzle_mm, layer_height_mm, wall_count, contact_name, contact_phone, custom_notes } = req.body;
     if (!quote_token) return res.status(400).json({ error: 'quote_token is required' });
 
     const geometry = verifyQuoteToken(quote_token);
@@ -153,6 +153,12 @@ router.post('/price', optionalAuth, async (req, res, next) => {
     if (!validLayerHeights.includes(layerHeight)) {
       return res.status(400).json({ error: `layer_height_mm for a ${nozzle}mm nozzle must be one of ${validLayerHeights.join(', ')}` });
     }
+    // Walls default to 2, the count the pricing model is calibrated against, so an older
+    // client that doesn't send the field at all still prices exactly as it did before.
+    const walls = wall_count == null ? 2 : Number(wall_count);
+    if (!Number.isInteger(walls) || walls < 1 || walls > 8) {
+      return res.status(400).json({ error: 'wall_count must be a whole number between 1 and 8' });
+    }
 
     const [{ data: printer }, { data: material }, { data: color }] = await Promise.all([
       supabase.from('instant_quote_printers').select('*').eq('id', printer_id).eq('active', true).maybeSingle(),
@@ -172,7 +178,7 @@ router.post('/price', optionalAuth, async (req, res, next) => {
     // volume, same reasoning as /analyze, an oversized model still gets priced
     // and ordered; production handles sizing/splitting as a human judgment call.
 
-    const priced = await computeInstantQuotePrice({ volume_cm3: geometry.volume_cm3, infill_percent: infill, material, nozzle_mm: nozzle, layer_height_mm: layerHeight, surface_area_cm2: geometry.surface_area_cm2 });
+    const priced = await computeInstantQuotePrice({ volume_cm3: geometry.volume_cm3, infill_percent: infill, material, nozzle_mm: nozzle, layer_height_mm: layerHeight, surface_area_cm2: geometry.surface_area_cm2, wall_count: walls });
 
     const row = {
       user_id: req.user?.id || null,
@@ -200,6 +206,7 @@ router.post('/price', optionalAuth, async (req, res, next) => {
       contact_phone: contact_phone ? String(contact_phone).trim().slice(0, 20)  : null,
       custom_notes:  custom_notes  ? String(custom_notes).trim().slice(0, 500)  : null,
       layer_height_mm: layerHeight,
+      wall_count: walls,
     };
 
     // quote_number is DB-unique but collision-checked here too, on the rare
