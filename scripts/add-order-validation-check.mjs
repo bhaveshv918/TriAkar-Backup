@@ -12,17 +12,38 @@ const ok = (label, cond, extra = '') => {
 };
 
 // ── 1. Shortcuts ──────────────────────────────────────────────────────────────────
+// NAV_CONFIG is not the whole story: Task is unshifted into the list at runtime and holds
+// its own key. Scanning only NAV_CONFIG is what let Products and Task both claim T, so the
+// scan covers every `shortcut:` in the file, wherever it is declared.
 const a = src.indexOf('const NAV_CONFIG = [');
 const b = src.indexOf('\n];', a);
 const NAV_CONFIG = new Function(src.slice(a, b + 3) + '\nreturn NAV_CONFIG;')();
+
 const keys = {};
-for (const sec of NAV_CONFIG) for (const it of sec.items)
-  if (it.shortcut) for (const k of it.shortcut.split('/')) (keys[k] ||= []).push(it.id);
+const claim = (id, shortcut) => {
+  if (!shortcut) return;
+  for (const k of shortcut.split('/')) (keys[k] ||= []).push(id);
+};
+for (const sec of NAV_CONFIG) for (const it of sec.items) claim(it.id, it.shortcut);
+
+// Anything declaring a shortcut outside NAV_CONFIG, e.g. the injected Task entry.
+for (const m of src.matchAll(/\{\s*id:\s*'([a-z]+)'\s*,[^}]*?shortcut:\s*'([^']+)'/g)) {
+  const [, id, key] = m;
+  if (NAV_CONFIG.some(sec => sec.items.some(it => it.id === id && it.shortcut))) continue;
+  claim(id, key);
+}
+
+// R drives the header refresh button, so no destination may take it.
+const RESERVED = { r: 'refresh' };
 
 console.log('shortcuts');
-ok('Website Orders is W', keys['w']?.length === 1 && keys['w'][0] === 'weborders');
-ok('Products moved to T', keys['t']?.length === 1 && keys['t'][0] === 'products');
-ok('R is free for refresh', !keys['r']);
+ok('Website Orders is W', keys['w']?.length === 1 && keys['w'][0] === 'weborders',
+   JSON.stringify(keys['w'] || null));
+ok('Task keeps T', keys['t']?.length === 1 && keys['t'][0] === 'openorders',
+   JSON.stringify(keys['t'] || null));
+ok('Products claims no key', !Object.values(keys).some(v => v.includes('products')));
+ok('R stays free for refresh', !keys['r']);
+ok('nothing claims a reserved key', !Object.keys(RESERVED).some(k => keys[k]));
 ok('no key claimed twice', Object.values(keys).every(v => v.length === 1),
    JSON.stringify(Object.entries(keys).filter(([, v]) => v.length > 1)));
 
