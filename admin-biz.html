@@ -1352,7 +1352,7 @@ html[data-theme="dark"] .biz-login{
     </button>
     <div title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="display:flex;flex-direction:column;line-height:1.05;white-space:nowrap">
       <span style="font-family:'Glorida','Inter',sans-serif;font-size:15px;font-weight:800;letter-spacing:.04em"><span style="color:var(--accent)">TRI</span><span style="color:var(--text)">AKAR</span></span>
-      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.91</span></span>
+      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.92</span></span>
     </div>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
@@ -5751,7 +5751,21 @@ async function startApp(){
   loadFeeRules();        // load fee/return-cost rules (used when marking returns)
   syncWebsiteOrders();   // auto-pull any new website orders
   enhanceSelectsIn('salesFilters');   // theme-matched dropdowns, see renderFilterChips/enhanceSelectsIn
+  openBizTabFromHash();
 }
+
+/* #weborders in the URL opens that tab directly. Needed once admin.html stopped carrying
+   its own Orders panel: its dashboard tiles and search results link here instead, and
+   landing on the default tab and making the operator hunt for the order would be a worse
+   answer than the panel they used to have. Any tab id works, not just this one. */
+function openBizTabFromHash(){
+  const id=(location.hash||'').replace(/^#/,'').trim();
+  if(!id) return;
+  // Only ids that really exist, so a stale bookmark cannot blank the panel area.
+  if(!NAV_CONFIG.some(sec=>sec.items.some(it=>it.id===id))) return;
+  switchTab(id);
+}
+window.addEventListener('hashchange',openBizTabFromHash);
 
 // ── Tab switching ───────────────────────────────────────────
 let _curBizTab='openorders';

@@ -1271,7 +1271,7 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
       <button type="button" class="qa-btn" onclick="switchTab('products');openProductForm()"><span class="qa-btn-icon">＋</span>Add Product</button>
       <button type="button" class="qa-btn" onclick="switchTab('promo');openPromoModal()"><span class="qa-btn-icon">◊</span>Add Promo Code</button>
       <button type="button" class="qa-btn" onclick="switchTab('makerworld')"><span class="qa-btn-icon">⇲</span>Import from MakerWorld</button>
-      <button type="button" class="qa-btn" onclick="switchTab('orders')"><span class="qa-btn-icon">◈</span>View Orders</button>
+      <a class="qa-btn" href="/admin-biz#weborders"><span class="qa-btn-icon">◈</span>View Orders</a>
       <button type="button" class="qa-btn" onclick="switchTab('reviews')"><span class="qa-btn-icon">★</span>Moderate Reviews</button>
     </div>
 
@@ -1283,52 +1283,11 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
     <div class="dash-grid" id="dashGrid"><div style="grid-column:1/-1;padding:44px;text-align:center;color:var(--text-3)">Loading dashboard…</div></div>
   </div>
 
-  <div class="panel" id="panelOrders">
-    <div class="p-head">
-      <div class="p-title">Orders</div>
-      <div class="p-actions">
-        <select id="bulkOrderStatus" style="color:var(--text);font-size:12px">
-          <option value="">Bulk status…</option>
-          <option value="confirmed">Confirmed</option><option value="processing">Processing</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option>
-        </select>
-        <button class="btn-secondary" onclick="bulkOrderStatusApply()">Apply</button>
-        <button class="btn-secondary" onclick="bulkSoftDelete('orders','ordersBody','loadOrders')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Delete selected</button>
-      </div>
-    </div>
-    <div class="filter-bar">
-      <select id="filterStatus" onchange="filterOrders()">
-        <option value="">All Status</option>
-        <option value="whatsapp_pending">WhatsApp Orders</option>
-        <option value="pending">Pending</option>
-        <option value="confirmed">Confirmed</option>
-        <option value="processing">Processing</option>
-        <option value="shipped">Shipped</option>
-        <option value="delivered">Delivered</option>
-        <option value="cancelled">Cancelled</option>
-        <option value="returned">Returned</option>
-        <option value="refunded">Refunded</option>
-      </select>
-      <select id="filterTime" onchange="filterOrders()">
-        <option value="">All Time</option>
-        <option value="today">Today</option>
-        <option value="week">This Week</option>
-        <option value="month">This Month</option>
-        <option value="3months">Last 3 Months</option>
-      </select>
-      <div class="filter-sep"></div>
-      <input type="text" id="filterSearch" placeholder="Search customer, order#, tracking..." oninput="filterOrders()" style="min-width:180px">
-    </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr>
-          <th style="width:34px"><input type="checkbox" onclick="toggleAllChecks('ordersBody',this.checked)"></th><th style="width:30px"></th><th>Invoice #</th><th>Date</th><th>Customer</th><th>Location</th><th>Product(s)</th><th>Total</th><th>Status</th>
-        </tr></thead>
-        <tbody id="ordersBody"><tr><td colspan="9" class="tbl-msg">Loading orders…</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- ── UNIFIED INBOX (A8) ───────────────── -->
+  <!-- Orders lived here as its own panel with a per-row status dropdown. Website order
+       status now has exactly one home, the Business OS "Website Orders" tab, because two
+       places to set it meant two vocabularies and no history. Everything that used to
+       open this panel links there instead. The read-only surfaces that reference orders
+       (dashboard tiles, global search, Recycle Bin) are untouched and still work here. -->
   <div class="panel" id="panelInbox">
     <div class="p-head">
       <div class="p-title">Inbox <span style="font-weight:400;color:var(--text-3);font-size:12px">· <span id="inboxCount2">0</span> items</span></div>
@@ -2791,7 +2750,7 @@ function globalSearchRun(){
     out.push({type:'Customer',label:c.full_name||c.email||'N/A',sub:c.email||c.mobile||'',act:"switchTab('customers');openUserModal('"+c.id+"')"});
   });
   (_orders||[]).filter(o=>String(o.invoice_number||'').toLowerCase().includes(q)||String(o.order_id||'').toLowerCase().includes(q)||String(o.customer_name||'').toLowerCase().includes(q)||String(o.customer_email||'').toLowerCase().includes(q)).slice(0,6).forEach(o=>{
-    out.push({type:'Order',label:(o.invoice_number||o.order_id||o.id),sub:(o.customer_name||'')+' · ₹'+(o.total_amount||0),act:"switchTab('orders')"});
+    out.push({type:'Order',label:(o.invoice_number||o.order_id||o.id),sub:(o.customer_name||'')+' · ₹'+(o.total_amount||0),act:"location.href='/admin-biz#weborders'"});
   });
   if(!out.length){ box.innerHTML='<div class="gs-empty">No matches</div>'; box.style.display='block'; return; }
   box.innerHTML=out.map(r=>'<div class="gs-item" onclick="'+r.act+';closeGlobalSearch()">'
@@ -2808,7 +2767,7 @@ function markOrderRead(id){ if(!id||_readOrders.has(id))return; _readOrders.add(
 function buildNotifications(){
   const items=[];
   const pendOrders=(_orders||[]).filter(o=>(o.status==='pending'||o.order_status==='whatsapp_pending')&&!_readOrders.has(o.id)).length;
-  if(pendOrders) items.push({icon:'◈',text:pendOrders+' order'+(pendOrders>1?'s':'')+' awaiting action',tab:'orders'});
+  if(pendOrders) items.push({icon:'◈',text:pendOrders+' order'+(pendOrders>1?'s':'')+' awaiting action',href:'/admin-biz#weborders'});
   const lowStock=(_products||[]).filter(p=>p.is_active&&(p.stock_qty??0)<=5).length;
   if(lowStock) items.push({icon:'▦',text:lowStock+' product'+(lowStock>1?'s':'')+' low / out of stock',tab:'products'});
   if(_pendingReviews) items.push({icon:'★',text:_pendingReviews+' review'+(_pendingReviews>1?'s':'')+' pending',tab:'reviews'});
@@ -2817,6 +2776,11 @@ function buildNotifications(){
   if(n('enquiryCount'))  items.push({icon:'✎',text:n('enquiryCount')+' enquir'+(n('enquiryCount')>1?'ies':'y'),tab:'enquiries'});
   if(n('callbackCount')) items.push({icon:'↩',text:n('callbackCount')+' callback'+(n('callbackCount')>1?'s':''),tab:'callbacks'});
   return items;
+}
+// A reminder either switches tab here or navigates to another admin page; Website Orders
+// moved to the Business OS, so both shapes have to work.
+function notifGo(it){
+  return it.href ? 'location.href=&quot;'+it.href+'&quot;' : 'switchTab(&quot;'+it.tab+'&quot;)';
 }
 function refreshNotifBadge(){
   const items=buildNotifications(); const b=document.getElementById('notifBadge');
@@ -2830,7 +2794,7 @@ function renderDashNeedsAttention(items){
   items=items||buildNotifications();
   el.innerHTML='<div class="notif-title" style="padding:0 0 10px">Needs Attention</div>'
     +(items.length?'<div style="display:flex;flex-direction:column;gap:2px">'+items.map(it=>
-        '<div class="notif-item" style="border-radius:8px" onclick="switchTab(&quot;'+it.tab+'&quot;)"><span class="notif-icon">'+it.icon+'</span><span class="notif-text">'+esc(it.text)+'</span></div>'
+        '<div class="notif-item" style="border-radius:8px" onclick="'+notifGo(it)+'"><span class="notif-icon">'+it.icon+'</span><span class="notif-text">'+esc(it.text)+'</span></div>'
       ).join('')+'</div>'
     :'<div class="notif-empty">All clear ✓</div>');
 }
@@ -2840,7 +2804,7 @@ function toggleNotifications(ev){
   if(dd.style.display==='block'){ dd.style.display='none'; return; }
   const items=buildNotifications();
   dd.innerHTML='<div class="notif-title">Needs attention</div>'
-    +(items.length?items.map(it=>'<div class="notif-item" onclick="switchTab(&quot;'+it.tab+'&quot;);document.getElementById(&quot;notifDropdown&quot;).style.display=&quot;none&quot;"><span class="notif-icon">'+it.icon+'</span><span class="notif-text">'+esc(it.text)+'</span></div>').join('')
+    +(items.length?items.map(it=>'<div class="notif-item" onclick="'+notifGo(it)+';document.getElementById(&quot;notifDropdown&quot;).style.display=&quot;none&quot;"><span class="notif-icon">'+it.icon+'</span><span class="notif-text">'+esc(it.text)+'</span></div>').join('')
     :'<div class="notif-empty">All clear ✓</div>');
   dd.style.display='block';
 }
@@ -2885,7 +2849,6 @@ const NAV_CONFIG = [
     id: 'operations', label: 'Operations', color: 'var(--accent)',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: '▥', shortcut: 'd' },
-      { id: 'orders',    label: 'Orders',    icon: '◈', shortcut: 'o', badge: 'orderCount',    dot: 'dotOrders' },
       { id: 'customers', label: 'Customers', icon: '◯', shortcut: 'c', badge: 'customerCount', dot: 'dotCustomers' },
     ]
   },
@@ -3181,7 +3144,7 @@ setInterval(refreshNotifBadge, 20000);
 
 let _curAdminTab='dashboard';
 function refreshCurrentAdminTab(){
-  const m={dashboard:loadDashboard,orders:loadOrders,customers:loadCustomers,products:loadProducts,messages:loadMessages,enquiries:loadCustomEnquiries,callbacks:loadCallbacks,inbox:loadInbox,reviews:()=>{loadReviewsAdmin();if(typeof loadGoogleSettings==='function')loadGoogleSettings();},recyclebin:loadRecycleBin,analytics:()=>{loadAnalytics();if(typeof loadGa4==='function')loadGa4();},promo:loadPromoCodes,activity:loadActivity,content:()=>{loadContentSettings();loadStoriesAdmin();},appearance:(typeof loadMenuStyleSetting==='function'?loadMenuStyleSetting:function(){}),categories:loadCategories,logs:loadLogs};
+  const m={dashboard:loadDashboard,customers:loadCustomers,products:loadProducts,messages:loadMessages,enquiries:loadCustomEnquiries,callbacks:loadCallbacks,inbox:loadInbox,reviews:()=>{loadReviewsAdmin();if(typeof loadGoogleSettings==='function')loadGoogleSettings();},recyclebin:loadRecycleBin,analytics:()=>{loadAnalytics();if(typeof loadGa4==='function')loadGa4();},promo:loadPromoCodes,activity:loadActivity,content:()=>{loadContentSettings();loadStoriesAdmin();},appearance:(typeof loadMenuStyleSetting==='function'?loadMenuStyleSetting:function(){}),categories:loadCategories,logs:loadLogs};
   const btn=document.getElementById('adminRefreshBtn');
   if(btn){ btn.classList.add('spinning'); setTimeout(()=>btn.classList.remove('spinning'),600); }
   if(typeof m[_curAdminTab]==='function'){ try{ m[_curAdminTab](); toast('Refreshed','success'); }catch(e){} }
@@ -3455,8 +3418,8 @@ function dashWOpenOrders(){
       +`<span style="font-family:var(--mono);font-size:11px;color:var(--text-2)">${esc(id)}</span>`
       +`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${esc(o.customer_name||'N/A')}</span>`
       +`<span style="font-family:var(--mono);font-weight:600;font-size:12px">₹${Number(o.total_amount||0).toLocaleString('en-IN')}</span>`
-      +`<span style="display:flex;gap:6px;align-items:center">${dashPill(st)}<button class="btn-sm" onclick="switchTab('orders')">Open</button></span></div>`;
-  }).join('')+`<div style="margin-top:10px"><button class="btn-secondary" onclick="switchTab('orders')">View all orders →</button></div>`;
+      +`<span style="display:flex;gap:6px;align-items:center">${dashPill(st)}<a class="btn-sm" href="/admin-biz#weborders" style="text-decoration:none">Open</a></span></div>`;
+  }).join('')+`<div style="margin-top:10px"><a class="btn-secondary" href="/admin-biz#weborders" style="text-decoration:none">View all orders →</a></div>`;
 }
 function dashWRevTrend(){
   const days={}; for(let i=29;i>=0;i--){const d=new Date(Date.now()-i*864e5);days[d.toISOString().slice(0,10)]=0;}
@@ -3697,11 +3660,14 @@ async function loadOrders(){
     .select('*,profiles!fk_orders_profiles(email,full_name,phone,user_code),order_items(*,products(name,images)),user_addresses(*)')
     .is('deleted_at',null)
     .order('created_at',{ascending:false});
-  if(error){document.getElementById('ordersBody').innerHTML='<tr><td colspan="9" class="tbl-msg">Error: '+error.message+'</td></tr>';return}
+  // The Orders panel is gone; this still runs because _orders backs global search and the
+  // reminder counts. Every DOM touch is guarded rather than removed, so nothing here breaks
+  // if a surface that reads it comes back.
+  if(error){ console.error('[orders] load failed', error.message); return; }
   _orders=data||[];
-  document.getElementById('orderCount').textContent=_orders.length;
+  const c=document.getElementById('orderCount'); if(c) c.textContent=_orders.length;
   checkNewItems('orders','dotOrders',_orders.length);
-  filterOrders();
+  if(document.getElementById('ordersBody')&&typeof filterOrders==='function') filterOrders();
 }
 
 function filterOrders(){
