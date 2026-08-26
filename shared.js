@@ -1577,11 +1577,21 @@ function updateNavAuth(){
       });
       drawer.appendChild(btn);
     }else{
-      const a=document.createElement('a');
-      a.className='drawer-auth drawer-login';
-      a.href='/account.html';
-      a.textContent='Login';
-      drawer.appendChild(a);
+      // Login and Create Account side by side in one pinned row. Signing up used
+      // to be invisible from the drawer: the only button was Login, and it sat at
+      // the very bottom of a scrolling panel where the floating tab bar covered it.
+      const row=document.createElement('div');
+      row.className='drawer-auth drawer-auth-row';
+      const login=document.createElement('a');
+      login.className='drawer-login';
+      login.href='/account.html';
+      login.textContent='Login';
+      const signup=document.createElement('a');
+      signup.className='drawer-signup';
+      signup.href='/account.html?tab=signup';
+      signup.textContent='Create Account';
+      row.appendChild(login); row.appendChild(signup);
+      drawer.appendChild(row);
     }
   });
 

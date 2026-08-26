@@ -623,25 +623,49 @@ html.drawer-open .nav-drawer{top:var(--nav-h)!important}
   background:var(--accent);color:#fff;font-size:10px;font-weight:800;
   display:inline-flex;align-items:center;justify-content:center;padding:0 5px;
 }
+/* Login + Create Account, one pinned row at the foot of the drawer.
+   Sticky rather than "last child", so a signed-out visitor can always see both
+   entry points no matter how far the link list is scrolled, and padded clear of
+   the floating tab bar, which used to sit right on top of the login button. */
+.drawer-auth-row{
+  /* minmax(0,…), not a bare 1fr: 1fr floors at min-content, so the longer
+     "Create Account" label claimed a wider column than Login and the pair
+     looked accidentally lopsided. */
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:stretch;
+  grid-column:1/-1;
+  position:sticky;bottom:0;z-index:2;
+  padding-bottom:var(--tabbar-clear,0px);
+  background:rgba(248,246,240,.97);
+}
+.drawer-login,.drawer-signup{
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  border-radius:12px!important;
+  padding:13px 6px!important;
+  font-size:11px!important;font-weight:700!important;letter-spacing:.04em!important;
+  text-transform:uppercase;
+  text-decoration:none;white-space:nowrap;
+  transition:background-position .4s,box-shadow .2s,border-color .2s,color .2s!important;
+}
 /* Login button matches nav-shop */
 .drawer-login{
-  display:block;text-align:center;
   color:#fff!important;
   background:linear-gradient(135deg,var(--accent),var(--accent-l),var(--accent))!important;
   background-size:200% auto!important;
-  border-radius:12px!important;
-  padding:14px 0!important;
-  font-size:13px!important;font-weight:700!important;letter-spacing:.1em!important;
   box-shadow:0 4px 14px rgba(196,98,42,.34),inset 0 1px 0 rgba(255,255,255,.28)!important;
   border:none!important;
-  grid-column:1/-1;
-  margin-top:4px;
-  transition:background-position .4s,box-shadow .2s!important;
-  text-decoration:none;
 }
 .drawer-login:hover{background-position:right center!important;box-shadow:0 6px 20px rgba(196,98,42,.45),inset 0 1px 0 rgba(255,255,255,.28)!important}
-/* Sign Out button in mobile drawer, small, tucked at bottom */
-.drawer-signout{display:block;width:100%;grid-column:1/-1;background:none;border:none;text-align:center;padding:8px 4px 0;font-family:var(--font-b);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--stone);cursor:pointer;transition:color .2s}
+/* Secondary of the pair, outlined so the two never read as the same action */
+.drawer-signup{
+  color:var(--charcoal)!important;
+  background:rgba(255,255,255,.9)!important;
+  border:1px solid rgba(22,22,20,.16)!important;
+  box-shadow:0 1px 3px rgba(22,22,20,.05)!important;
+}
+.drawer-signup:hover{color:var(--accent)!important;border-color:rgba(196,98,42,.4)!important}
+/* Sign Out button in mobile drawer, small, tucked at bottom. Pinned and padded
+   clear of the tab bar for the same reason as the signed-out row above. */
+.drawer-signout{display:block;width:100%;grid-column:1/-1;background:rgba(248,246,240,.97);border:none;text-align:center;padding:8px 4px var(--tabbar-clear,0px);position:sticky;bottom:0;z-index:2;font-family:var(--font-b);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--stone);cursor:pointer;transition:color .2s}
 .drawer-signout:hover{color:#991B1B}
 
 /* ═══ MENU STYLE 6, LEFT FULL-HEIGHT SLIDE DRAWER ═══════════════════ */
@@ -669,7 +693,8 @@ html[data-menu-style="6"] .drawer-link{border-radius:10px;padding:13px 12px}
 html[data-menu-style="6"] .drawer-link:hover,
 html[data-menu-style="6"] .drawer-link:active{background:rgba(196,98,42,.07);transform:none;box-shadow:none}
 html[data-menu-style="6"] .drawer-link.nav-active{background:rgba(196,98,42,.1)}
-html[data-menu-style="6"] .drawer-login{margin-top:auto}
+html[data-menu-style="6"] .drawer-auth-row,
+html[data-menu-style="6"] .drawer-signout{margin-top:auto}
 
 /* ═══ MENU STYLE 4, BOTTOM SHEET (slides up) ═══════════════════════ */
 html[data-menu-style="4"] .nav-drawer{
@@ -691,7 +716,7 @@ html[data-menu-style="4"] .drawer-link{
 }
 html[data-menu-style="4"] .drawer-link:hover,
 html[data-menu-style="4"] .drawer-link:active{color:var(--accent);padding-left:8px;transform:none;box-shadow:none}
-html[data-menu-style="4"] .drawer-login{margin-top:12px}
+html[data-menu-style="4"] .drawer-auth-row{margin-top:12px}
 
 
 /* ── CONTAINER ──────────────────────────────────────── */
@@ -1334,6 +1359,13 @@ body.has-buy-bar .a11y-fab{bottom:84px}
 @media(max-width:600px){.a11y-fab{left:14px;bottom:14px}}
 
 /* ── MOBILE BOTTOM NAV (app-style tab bar) ── */
+/* How much of the viewport bottom the floating tab bar covers (56px tall, held
+   10px off the bottom). Anything anchored to the bottom of the screen, like the
+   drawer's Login/Create Account row, pads itself by this instead of hard-coding
+   the number and drifting when the bar is resized. Zero above the mobile
+   breakpoint, where the bar is display:none. */
+:root{--tabbar-clear:0px}
+@media(max-width:768px){:root{--tabbar-clear:calc(66px + env(safe-area-inset-bottom,0px))}}
 .ta-bottomnav{display:none}
 @media(max-width:768px){
   .ta-bottomnav{
