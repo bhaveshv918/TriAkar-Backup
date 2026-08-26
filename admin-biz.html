@@ -1372,7 +1372,7 @@ html[data-theme="dark"] .biz-login{
     </button>
     <div title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="display:flex;flex-direction:column;line-height:1.05;white-space:nowrap">
       <span style="font-family:'Glorida','Inter',sans-serif;font-size:15px;font-weight:800;letter-spacing:.04em"><span style="color:var(--accent)">TRI</span><span style="color:var(--text)">AKAR</span></span>
-      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.96</span></span>
+      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.97</span></span>
     </div>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
@@ -5110,6 +5110,55 @@ function orderIdTag(oid,opts){
 // Rack, Spool Tracker, Expenses, Purchases, Returns, …) instead of every panel
 // drawing its own. Stroke-based, currentColor, sized per-button via the wrapping
 // .btn-icon-tint-* class; pair with a real `title=""` for the hover tooltip.
+/* ── Nav & stat icons ──────────────────────────────────────────
+   One icon language across the whole panel. The nav used to mix bare text glyphs
+   with full-colour emoji, so a single dropdown
+   showed two different visual systems and the emoji ignored the theme entirely,
+   staying bright in dark mode and refusing to take the section's accent colour.
+   These are paths only, in the same language as the ICO_* constants above: 24x24,
+   no fill, currentColor stroke, round caps. navIcon() wraps them so one call site
+   controls size and every icon inherits whatever colour it sits in. */
+const NAV_ICON_PATHS={
+  add:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  check:'<polyline points="20 6 9 17 4 12"/>',
+  orders:'<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+  sold:'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+  quotation:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="14" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/>',
+  instant:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+  globe:'<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/>',
+  import:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+  customers:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  products:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  stock:'<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+  spool:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="3" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="21"/>',
+  printer:'<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/>',
+  tag:'<path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24L3 3v6.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.59-4.59a2 2 0 0 0 0-2.83Z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',
+  rack:'<rect x="3" y="3" width="18" height="6" rx="1"/><rect x="3" y="11" width="18" height="6" rx="1"/><line x1="7" y1="6" x2="7.01" y2="6"/><line x1="7" y1="14" x2="7.01" y2="14"/><line x1="3" y1="21" x2="21" y2="21"/>',
+  dashboard:'<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10Z"/>',
+  percent:'<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+  portal:'<path d="M16 16l-4-4-4 4"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>',
+  autofile:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/>',
+  invoice:'<path d="M6 2h12a1 1 0 0 1 1 1v18l-3-2-2 2-2-2-2 2-2-2-3 2V3a1 1 0 0 1 1-1Z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/>',
+  rupee:'<path d="M7 4h10"/><path d="M7 9h10"/><path d="M14.5 4a4.5 4.5 0 0 1 0 9H9l7 8"/>',
+  expenses:'<path d="M4 4h16a1 1 0 0 1 1 1v16l-3-2-2 2-2-2-2 2-2-2-2 2-3-2V5a1 1 0 0 1 1-1Z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/>',
+  ledger:'<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+  purchases:'<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  balance:'<line x1="12" y1="3" x2="12" y2="21"/><line x1="7" y1="21" x2="17" y2="21"/><line x1="4" y1="7" x2="20" y2="7"/><path d="M4 7 1.5 13a3.5 3.5 0 0 0 5 0Z"/><path d="M20 7l-2.5 6a3.5 3.5 0 0 0 5 0Z"/>',
+  returns:'<polyline points="9 14 4 9 9 4"/><path d="M4 9h11a5 5 0 0 1 5 5v1"/>',
+  reports:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/>',
+  flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1Z"/><line x1="4" y1="22" x2="4" y2="15"/>',
+  filament:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/>',
+  unlocked:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',
+  package:'<line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+};
+function navIcon(name,size){
+  const d=NAV_ICON_PATHS[name];
+  if(!d) return '';
+  const s=size||15;
+  return '<svg width="'+s+'" height="'+s+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+d+'</svg>';
+}
 const ICO_VIEW='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7-10.5-7-10.5-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
 const ICO_ORDER='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1.4"/><circle cx="19" cy="21" r="1.4"/><path d="M1 1h3.2l2.68 13.39a2 2 0 0 0 2 1.61h9.24a2 2 0 0 0 2-1.61L22 6H6"/></svg>';
 const ICO_ACCEPT='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -5457,30 +5506,30 @@ const NAV_CONFIG = [
       // Orders" are label-only renames (id/panel/loader/badge stay quickadd/sales so
       // the hundreds of existing references to them don't ripple). salesview and
       // quotations are genuinely new tabs, not renames.
-      { id: 'quickadd',   label: 'Add Order',    icon: '＋', shortcut: 'a' },
-      { id: 'sales',      label: 'All Orders',   icon: '≡', shortcut: 'o/z', badge: 'salesCount' },
-      { id: 'salesview',  label: 'Sales',        icon: '✓', shortcut: 's', badge: 'salesviewCount' },
-      { id: 'quotations', label: 'Quotations',   icon: '⎘', shortcut: 'q' },
-      { id: 'instantquotes', label: 'Instant Quotes', icon: '⧉', shortcut: 'y', badge: 'iqCount' },
+      { id: 'quickadd',   label: 'Add Order',    icon: navIcon('add'), shortcut: 'a' },
+      { id: 'sales',      label: 'All Orders',   icon: navIcon('orders'), shortcut: 'o/z', badge: 'salesCount' },
+      { id: 'salesview',  label: 'Sales',        icon: navIcon('sold'), shortcut: 's', badge: 'salesviewCount' },
+      { id: 'quotations', label: 'Quotations',   icon: navIcon('quotation'), shortcut: 'q' },
+      { id: 'instantquotes', label: 'Instant Quotes', icon: navIcon('instant'), shortcut: 'y', badge: 'iqCount' },
       // triakar.com orders. Separate destination from All Orders (biz_sales, the money
       // ledger): this one is the customer's view of their own order, and moving a status
       // here is what they see and get emailed about.
-      { id: 'weborders',  label: 'Website Orders', icon: '🌐', shortcut: 'w', badge: 'webOrdersCount' },
-      { id: 'import',     label: 'Import & Labels', icon: '⇲', shortcut: 'l' },
-      { id: 'customers',  label: 'Customers',    icon: '☺', shortcut: 'c', badge: 'custCount' },
+      { id: 'weborders',  label: 'Website Orders', icon: navIcon('globe'), shortcut: 'w', badge: 'webOrdersCount' },
+      { id: 'import',     label: 'Import & Labels', icon: navIcon('import'), shortcut: 'l' },
+      { id: 'customers',  label: 'Customers',    icon: navIcon('customers'), shortcut: 'c', badge: 'custCount' },
     ]
   },
   {
     id: 'products', label: 'Products', color: 'var(--ch-amazon)',
     items: [
-      { id: 'products',     label: 'Products',      icon: '▦', badge: 'prodCount' }, // no shortcut: W went to Website Orders, T is Task's
-      { id: 'stock',        label: 'Stock',          icon: '◫', shortcut: 'k' },
-      { id: 'spooltracker', label: 'Spool Tracker',  icon: '🧵', shortcut: 'f' },
-      { id: 'machinery',    label: 'Machinery',      icon: '🖨', shortcut: 'n' },
+      { id: 'products',     label: 'Products',      icon: navIcon('products'), badge: 'prodCount' }, // no shortcut: W went to Website Orders, T is Task's
+      { id: 'stock',        label: 'Stock',          icon: navIcon('stock'), shortcut: 'k' },
+      { id: 'spooltracker', label: 'Spool Tracker',  icon: navIcon('spool'), shortcut: 'f' },
+      { id: 'machinery',    label: 'Machinery',      icon: navIcon('printer'), shortcut: 'n' },
       // Machines TriAkar sells, not the ones it prints on. Separate destination from
       // Machinery on purpose: one is an asset on the Balance Sheet, this is a price list.
-      { id: 'machinecat',   label: 'Machine Catalogue', icon: '🏷' }, // no shortcut assigned
-      { id: 'rack',         label: 'Rack / Shelf',   icon: '🗄' }, // no shortcut assigned
+      { id: 'machinecat',   label: 'Machine Catalogue', icon: navIcon('tag') }, // no shortcut assigned
+      { id: 'rack',         label: 'Rack / Shelf',   icon: navIcon('rack') }, // no shortcut assigned
     ]
   },
   {
@@ -5491,19 +5540,19 @@ const NAV_CONFIG = [
     // width budget (@media(max-width:1080px) below hands off to the hamburger).
     id: 'finance', label: 'Finance', color: 'var(--ch-website)',
     items: [
-      { id: 'dashboard', label: 'Dashboard',        icon: '◈', shortcut: 'd', group: 'Overview' },
-      { id: 'gst',       label: 'GST Summary',       icon: '◊', group: 'Tax & Filing' },
-      { id: 'gstportal', label: 'GST Portal',        icon: '⏷', group: 'Tax & Filing' },
-      { id: 'gstauto',   label: 'GSTR-1 Auto-File',  icon: '⚙', shortcut: 'g', group: 'Tax & Filing' },
-      { id: 'invoicing', label: 'Invoicing',         icon: '▤', shortcut: 'i', group: 'Tax & Filing' },
-      { id: 'fees',      label: 'Fees & Costs',      icon: '₹', shortcut: 'u', group: 'Money' },
-      { id: 'expenses',  label: 'Expenses',          icon: '▤', shortcut: 'e', group: 'Money' },
-      { id: 'ledger',    label: 'Money In/Out',      icon: '⇄', shortcut: 'm', group: 'Money' },
-      { id: 'purchases', label: 'Purchases',         icon: '▣', shortcut: 'p', group: 'Money' },
-      { id: 'balance',   label: 'Balance Sheet',     icon: '⚖', shortcut: 'b', group: 'Money' },
-      { id: 'returns',   label: 'Returns & Claims',  icon: '↩', shortcut: 'v', badge: 'returnCount', group: 'Operations' },
-      { id: 'reports',   label: 'Reports & Export',  icon: '↗', shortcut: 'x', group: 'Operations' },
-      { id: 'shoplog',   label: 'Studio Hours',      icon: '🕒', shortcut: 'h', group: 'Operations' },
+      { id: 'dashboard', label: 'Dashboard',        icon: navIcon('dashboard'), shortcut: 'd', group: 'Overview' },
+      { id: 'gst',       label: 'GST Summary',       icon: navIcon('percent'), group: 'Tax & Filing' },
+      { id: 'gstportal', label: 'GST Portal',        icon: navIcon('portal'), group: 'Tax & Filing' },
+      { id: 'gstauto',   label: 'GSTR-1 Auto-File',  icon: navIcon('autofile'), shortcut: 'g', group: 'Tax & Filing' },
+      { id: 'invoicing', label: 'Invoicing',         icon: navIcon('invoice'), shortcut: 'i', group: 'Tax & Filing' },
+      { id: 'fees',      label: 'Fees & Costs',      icon: navIcon('rupee'), shortcut: 'u', group: 'Money' },
+      { id: 'expenses',  label: 'Expenses',          icon: navIcon('expenses'), shortcut: 'e', group: 'Money' },
+      { id: 'ledger',    label: 'Money In/Out',      icon: navIcon('ledger'), shortcut: 'm', group: 'Money' },
+      { id: 'purchases', label: 'Purchases',         icon: navIcon('purchases'), shortcut: 'p', group: 'Money' },
+      { id: 'balance',   label: 'Balance Sheet',     icon: navIcon('balance'), shortcut: 'b', group: 'Money' },
+      { id: 'returns',   label: 'Returns & Claims',  icon: navIcon('returns'), shortcut: 'v', badge: 'returnCount', group: 'Operations' },
+      { id: 'reports',   label: 'Reports & Export',  icon: navIcon('reports'), shortcut: 'x', group: 'Operations' },
+      { id: 'shoplog',   label: 'Studio Hours',      icon: navIcon('clock'), shortcut: 'h', group: 'Operations' },
     ]
   },
   {
@@ -5513,7 +5562,7 @@ const NAV_CONFIG = [
     // renderBizHeaderNav()/visibleNavConfig() below.
     id: 'system', label: 'System', color: '#6B7280',
     items: [
-      { id: 'settings', label: 'Settings', icon: '⚙', shortcut: 'j' },
+      { id: 'settings', label: 'Settings', icon: navIcon('settings'), shortcut: 'j' },
     ]
   },
 ];
@@ -5606,7 +5655,7 @@ function getCmdkItems(){
   // Today's Tasks lives outside NAV_CONFIG (direct header button), add it back in
   // manually so it's still reachable from the command palette / search.
   if(!_isStaffUser||!_staffTabs||_staffTabs.includes('openorders')){
-    items.unshift({id:'openorders',label:"Task",icon:'⚑',shortcut:'t',color:'var(--accent)',section:'Overview'});
+    items.unshift({id:'openorders',label:"Task",icon:navIcon('flag'),shortcut:'t',color:'var(--accent)',section:'Overview'});
   }
   return items;
 }
@@ -9385,14 +9434,14 @@ function gstReminderSummary(){
 // loadOpenOrders, checkNewIqEntry), re-rendered from the shared _openReminders state
 // whenever any of them updates.
 const REMINDER_TILE_META={
-  gst:{icon:'▤',label:'GST Filing'},
-  filament:{icon:'◉',label:'Filament Low'},
-  notCompleted:{icon:'◷',label:'Not Completed'},
-  notLocked:{icon:'⊘',label:'Not Locked'},
-  iq:{icon:'⧉',label:'Instant Quotes'},
+  gst:{icon:navIcon('invoice',16),label:'GST Filing'},
+  filament:{icon:navIcon('filament',16),label:'Filament Low'},
+  notCompleted:{icon:navIcon('clock',16),label:'Not Completed'},
+  notLocked:{icon:navIcon('unlocked',16),label:'Not Locked'},
+  iq:{icon:navIcon('instant',16),label:'Instant Quotes'},
   // Packed, customer told it's ready, still not collected. Split out of the SLA breach
   // count on purpose: the studio has done its job here, this is a follow-up call to make.
-  awaitingPickup:{icon:'▣',label:'Awaiting Pickup'},
+  awaitingPickup:{icon:navIcon('package',16),label:'Awaiting Pickup'},
 };
 function renderOpenRemindersRow(){
   const row=document.getElementById('openRemindersRow'); if(!row) return;
@@ -9411,7 +9460,7 @@ function renderOpenRemindersRow(){
     const active=t.count>0;
     if(!active){
       return `<div class="stat-pill stat-pill-clear" style="--pill-color:var(--green);--pill-color-bg:var(--green-bg)">
-        <div class="stat-pill-icon">✓</div>
+        <div class="stat-pill-icon">${navIcon('check',16)}</div>
         <div class="stat-pill-body"><span class="stat-pill-val">clear</span><span class="stat-pill-label">${meta.label}</span></div>
       </div>`;
     }

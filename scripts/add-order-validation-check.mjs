@@ -17,7 +17,12 @@ const ok = (label, cond, extra = '') => {
 // scan covers every `shortcut:` in the file, wherever it is declared.
 const a = src.indexOf('const NAV_CONFIG = [');
 const b = src.indexOf('\n];', a);
-const NAV_CONFIG = new Function(src.slice(a, b + 3) + '\nreturn NAV_CONFIG;')();
+// Nav items build their icon by calling navIcon(), so the icon set has to come along or
+// evaluating NAV_CONFIG throws. Pulled from the same file, never a second copy.
+const ia = src.indexOf('const NAV_ICON_PATHS={');
+const ib = src.indexOf('const ICO_VIEW=', ia);
+const NAV_CONFIG = new Function(
+  src.slice(ia, ib) + '\n' + src.slice(a, b + 3) + '\nreturn NAV_CONFIG;')();
 
 const keys = {};
 const claim = (id, shortcut) => {
