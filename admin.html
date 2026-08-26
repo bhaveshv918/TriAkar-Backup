@@ -2342,6 +2342,10 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
      script" the way it needs to, only a true network failure. One less external
      dependency for something this critical to be down. -->
 <script src="/js/supabase.js"></script>
+<!-- bizConfirm / bizPrompt / bizAlert / bizForm. Nothing in this panel may call
+     the browser's own confirm/prompt/alert, they paint browser chrome that reads
+     as the site breaking. Styling is in admin-theme.css. -->
+<script src="/js/admin-dialog.js"></script>
 <script defer src="/products-data.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════
@@ -3676,7 +3680,7 @@ async function updateCat(id,fields){
 }
 
 async function deleteCat(id,name){
-  if(!confirm('Delete category "'+name+'"?'))return;
+  if(!await bizConfirm('Delete category "'+name+'"?'))return;
   try{ await adminApi('/api/categories/'+id,{method:'DELETE'}); }
   catch(err){toast('Error: '+err.message,'error');return}
   toast('Deleted','success');loadCategories();
@@ -4035,7 +4039,7 @@ async function bulkOrderStatusApply(){
   if(!status){toast('Pick a status first','error');return;}
   const ids=Array.from(document.querySelectorAll('#ordersBody input.row-check:checked')).map(c=>c.dataset.id);
   if(!ids.length){toast('Select one or more orders first','error');return;}
-  if(!confirm('Set '+ids.length+' order(s) to "'+status+'"?'))return;
+  if(!await bizConfirm('Set '+ids.length+' order(s) to "'+status+'"?'))return;
   let ok=0;
   for(const id of ids){
     try{
@@ -4210,7 +4214,7 @@ function clearProdSelection(){
 async function bulkProducts(action,value){
   const ids=selectedProductIds();
   if(!ids.length){toast('Select products first','error');return;}
-  if(action==='delete' && !confirm('Move '+ids.length+' product(s) to the Recycle Bin?'))return;
+  if(action==='delete' && !await bizConfirm('Move '+ids.length+' product(s) to the Recycle Bin?'))return;
   try{
     await adminApi('/api/admin/products/bulk',{method:'POST',body:JSON.stringify({ids,action,value})});
     toast(ids.length+' product(s) updated','success');
@@ -4218,8 +4222,8 @@ async function bulkProducts(action,value){
     if(action==='delete' && typeof loadRecycleBin==='function') loadRecycleBin();
   }catch(e){ toast('Error: '+e.message,'error'); }
 }
-function bulkProductsPrice(){ const v=prompt('Set price (₹) for the selected products:'); if(v===null)return; const n=Number(v); if(!(n>=0)){toast('Enter a valid price','error');return;} bulkProducts('price_set',n); }
-function bulkProductsPct(){ const v=prompt('Adjust price by percent (e.g. 10 to raise 10%, -10 to cut 10%):'); if(v===null)return; const n=Number(v); if(!n){toast('Enter a valid percent','error');return;} bulkProducts('price_pct',n); }
+async function bulkProductsPrice(){ const v=await bizPrompt('Set price (₹) for the selected products:'); if(v===null)return; const n=Number(v); if(!(n>=0)){toast('Enter a valid price','error');return;} bulkProducts('price_set',n); }
+async function bulkProductsPct(){ const v=await bizPrompt('Adjust price by percent (e.g. 10 to raise 10%, -10 to cut 10%):'); if(v===null)return; const n=Number(v); if(!n){toast('Enter a valid percent','error');return;} bulkProducts('price_pct',n); }
 function bulkExportProducts(){
   const ids=new Set(selectedProductIds());
   const list=ids.size?_products.filter(p=>ids.has(p.id)):_products;
@@ -4467,8 +4471,8 @@ function _syncSaveDirty(){
   if(b){ b.textContent=(_prodDirty?'● ':'')+_saveBtnLabel; b.style.opacity=_prodDirty?'1':''; }
   const h=document.getElementById('prodDirtyHint'); if(h) h.style.display=_prodDirty?'inline':'none';
 }
-function closeProductForm(){
-  if(_prodDirty && !confirm('You have unsaved changes. Discard them?')) return;
+async function closeProductForm(){
+  if(_prodDirty && !await bizConfirm('You have unsaved changes. Discard them?')) return;
   _prodDirty=false; _syncSaveDirty();
   document.getElementById('productFormWrap').classList.remove('open');
 }
@@ -4530,7 +4534,7 @@ async function prodReviewSet(id,status){
   }catch(e){ toast('Error: '+e.message,'error'); }
 }
 async function prodReviewDelete(id){
-  if(!confirm('Move this review to the Recycle Bin?')) return;
+  if(!await bizConfirm('Move this review to the Recycle Bin?')) return;
   try{
     await adminApi('/api/reviews/'+id,{method:'DELETE'});
     _prodReviews=_prodReviews.filter(x=>x.id!==id); renderProductReviews();
@@ -4690,7 +4694,7 @@ async function submitProductForm(){
 }
 
 async function deleteProduct(id,name){
-  if(!confirm('Move "'+name+'" to the Recycle Bin? It can be restored within 30 days.'))return;
+  if(!await bizConfirm('Move "'+name+'" to the Recycle Bin? It can be restored within 30 days.'))return;
   try{
     // Soft-delete via the service-role backend (RLS-safe) → moves to Recycle Bin.
     await adminApi('/api/admin/products/'+id,{method:'DELETE'});
@@ -4862,7 +4866,7 @@ async function mwSave(){
 async function importLocalProducts(){
   if(typeof PRODUCTS==='undefined'){ toast('products-data.js not loaded','error'); return; }
 
-  if(!confirm('Import new products from local data?\n\nThis is safe, existing products will NOT be changed.\nOnly products missing from the database will be added.')) return;
+  if(!await bizConfirm('Import new products from local data?\n\nThis is safe, existing products will NOT be changed.\nOnly products missing from the database will be added.')) return;
 
   const { data: sess } = await sb.auth.getSession();
   const token = sess && sess.session && sess.session.access_token;
@@ -5052,7 +5056,7 @@ const _EXCEL_PRODUCTS = [
 ];
 
 async function replaceAllFromExcel(){
-  if(!confirm('This will ADD the 10 Excel products to your database.\n\nExisting products are NOT changed or deleted.\nIf a product with the same slug already exists, it will be updated.\n\nContinue?'))return;
+  if(!await bizConfirm('This will ADD the 10 Excel products to your database.\n\nExisting products are NOT changed or deleted.\nIf a product with the same slug already exists, it will be updated.\n\nContinue?'))return;
 
   const statusEl=document.getElementById('importStatus');
   statusEl.textContent='Starting import…';
@@ -5757,7 +5761,7 @@ async function psAddFieldDef(){
   }catch(err){toast('Error: '+err.message,'error');}
 }
 async function psDeleteFieldDef(id){
-  if(!confirm('Remove this custom field? Existing product data for it is kept but hidden.'))return;
+  if(!await bizConfirm('Remove this custom field? Existing product data for it is kept but hidden.'))return;
   try{
     await adminApi('/api/admin/custom-fields/'+id,{method:'DELETE'});
     await psLoadFieldDefsList();
@@ -5949,7 +5953,7 @@ async function saveUser(){
 }
 async function toggleUserDisabled(disabled){
   if(!_editingUserId)return;
-  if(disabled&&!confirm('Disable this account? They will be unable to log in (data is kept).'))return;
+  if(disabled&&!await bizConfirm('Disable this account? They will be unable to log in (data is kept).'))return;
   try{
     await adminApi('/api/admin/users/'+_editingUserId+'/'+(disabled?'disable':'enable'),{method:'POST'});
     toast(disabled?'Account disabled':'Account enabled','success');
@@ -5980,7 +5984,7 @@ async function saveUserRole(){
 }
 async function softDeleteUserAdmin(){
   if(!_editingUserId)return;
-  if(!confirm('Move this user to the Recycle Bin? They can be restored within 30 days.'))return;
+  if(!await bizConfirm('Move this user to the Recycle Bin? They can be restored within 30 days.'))return;
   try{
     await adminApi('/api/admin/users/'+_editingUserId,{method:'DELETE'});
     toast('User moved to Recycle Bin','success'); closeUserModal();
@@ -6246,7 +6250,7 @@ function _checkedIds(tbodyId){ return Array.from(document.querySelectorAll('#'+t
 async function bulkSoftDelete(table, tbodyId, loadFnName){
   const ids=_checkedIds(tbodyId);
   if(!ids.length){ toast('Select at least one row first','error'); return; }
-  if(!confirm('Move '+ids.length+' item(s) to the Recycle Bin?')) return;
+  if(!await bizConfirm('Move '+ids.length+' item(s) to the Recycle Bin?')) return;
   const by=await _adminEmail();
   const {data,error}=await sb.from(table).update({deleted_at:new Date().toISOString(), deleted_by:by}).in('id',ids).select('id');
   if(error){ toast('Error: '+error.message,'error'); return; }
@@ -6257,7 +6261,7 @@ async function bulkSoftDelete(table, tbodyId, loadFnName){
 }
 
 async function softDeleteOne(table, id, loadFnName){
-  if(!confirm('Move this item to the Recycle Bin?')) return;
+  if(!await bizConfirm('Move this item to the Recycle Bin?')) return;
   const by=await _adminEmail();
   const {data,error}=await sb.from(table).update({deleted_at:new Date().toISOString(), deleted_by:by}).eq('id',id).select('id');
   if(error){ toast('Error: '+error.message,'error'); return; }
@@ -6345,7 +6349,7 @@ async function restoreOne(key,id){
   }catch(e){ toast('Error: '+e.message,'error'); }
 }
 async function hardDeleteOne(key,id){
-  if(!confirm('Permanently delete this item? This cannot be undone.')) return;
+  if(!await bizConfirm('Permanently delete this item? This cannot be undone.')) return;
   try{
     if(key.indexOf('api:')===0){ await adminApi('/api/admin/recycle-bin/purge',{method:'POST',body:JSON.stringify({type:key.slice(4),id})}); }
     else if(key==='orders'){ await adminApi('/api/admin/recycle-bin/purge',{method:'POST',body:JSON.stringify({type:'order',id})}); }
@@ -6375,7 +6379,7 @@ async function bulkRestore(){
 async function bulkDeleteForever(){
   const items=Array.from(document.querySelectorAll('#recycleBody input.bin-check:checked')).map(c=>c.dataset.cid);
   if(!items.length){toast('Select at least one row first','error');return;}
-  if(!confirm('Permanently delete '+items.length+' item(s)? This cannot be undone.')) return;
+  if(!await bizConfirm('Permanently delete '+items.length+' item(s)? This cannot be undone.')) return;
   let ok=0,kept=0;
   for(const cid of items){ const i=cid.indexOf('|'); const key=cid.slice(0,i), id=cid.slice(i+1);
     try{
@@ -6389,7 +6393,7 @@ async function bulkDeleteForever(){
 async function emptyRecycleBin(){
   if(!_binItems.length){toast('Recycle bin is already empty','error');return;}
   let msg='Permanently delete ALL '+_binItems.length+' item(s) in the recycle bin? This cannot be undone.\n\n(Any product or user still linked to an order is kept to preserve order history.)';
-  if(!confirm(msg)) return;
+  if(!await bizConfirm(msg)) return;
   let ok=0;
   for(const {src,row} of _binItems){
     try{
@@ -6458,7 +6462,7 @@ function updateSubSelectionUi(){
 }
 
 async function deleteSubscriber(id){
-  if(!confirm('Remove this subscriber from the list?'))return;
+  if(!await bizConfirm('Remove this subscriber from the list?'))return;
   try{
     await adminApi('/api/admin/newsletter/'+id,{method:'DELETE'});
     toast('Subscriber removed','success');
@@ -6469,7 +6473,7 @@ async function deleteSubscriber(id){
 async function deleteSelectedSubscribers(){
   const ids=Array.from(_subSelected);
   if(!ids.length)return;
-  if(!confirm('Remove '+ids.length+' selected subscriber(s)?'))return;
+  if(!await bizConfirm('Remove '+ids.length+' selected subscriber(s)?'))return;
   const btn=document.getElementById('subDeleteSelectedBtn');
   btn.disabled=true;btn.textContent='Removing…';
   try{
@@ -6495,7 +6499,7 @@ async function sendSubscriberBroadcast(){
     return;
   }
   const who=ids.length?(ids.length+' selected subscriber(s)'):('all '+targetCount+' subscriber(s)');
-  if(!confirm('Send this email to '+who+' right now? This cannot be undone.'))return;
+  if(!await bizConfirm('Send this email to '+who+' right now? This cannot be undone.'))return;
   btn.disabled=true;btn.textContent='Sending…';
   msgEl.textContent='';
   try{
@@ -6613,7 +6617,7 @@ async function savePromoCode(){
 }
 
 async function deletePromoCode(id){
-  if(!confirm('Delete this promo code?')) return;
+  if(!await bizConfirm('Delete this promo code?')) return;
   try{
     const{error}=await sb.from('promo_codes').delete().eq('id',id);
     if(error)throw error;
@@ -6850,7 +6854,7 @@ async function setReviewStatus(id,status){
 }
 
 async function deleteReviewAdmin(id){
-  if(!confirm('Delete this review permanently?'))return;
+  if(!await bizConfirm('Delete this review permanently?'))return;
   try{
     const token=await getToken();
     const res=await fetch(API+'/api/reviews/'+id,{
@@ -6961,7 +6965,7 @@ function handleStoryPhotoPick(event,id){
 }
 async function removeStoryPhotoAt(id,idx){
   const s=_storiesCache.find(x=>x.id===id); if(!s) return;
-  if(!confirm('Remove this photo?')) return;
+  if(!await bizConfirm('Remove this photo?')) return;
   const all=[s.image_url,...((s.images)||[])].filter(Boolean);
   all.splice(idx,1);
   try{
@@ -7108,7 +7112,7 @@ async function toggleProtoGalleryActive(id,nextVal){
   catch(e){ toast('Error: '+e.message,'error'); }
 }
 async function deleteProtoGalleryImage(id){
-  if(!confirm('Remove this image?')) return;
+  if(!await bizConfirm('Remove this image?')) return;
   try{ await adminApi('/api/admin/prototyping-gallery/'+id,{method:'DELETE'}); loadProtoGallery(); }
   catch(e){ toast('Error: '+e.message,'error'); }
 }
@@ -7139,7 +7143,7 @@ async function saveStory(){
   }catch(e){ toast('Error: '+e.message,'error'); }
 }
 async function deleteStoryAdmin(id){
-  if(!confirm('Delete this story? This cannot be undone.')) return;
+  if(!await bizConfirm('Delete this story? This cannot be undone.')) return;
   try{ await adminApi('/api/stories/'+id,{method:'DELETE'}); toast('Story deleted','success'); loadStoriesAdmin(); }
   catch(e){ toast('Error: '+e.message,'error'); }
 }

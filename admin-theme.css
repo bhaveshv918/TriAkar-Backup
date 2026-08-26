@@ -1137,3 +1137,55 @@ html[data-theme="dark"] #reviewsBody td:nth-child(4){color:#FACC15!important}
   .notif-item{padding:12px 10px}
   .notif-item .notif-text{font-size:13px}
 }
+
+/* ── 60 · IN-APP DIALOGS ────────────────────────────────────────
+   Styling for bizConfirm/bizPrompt/bizAlert/bizForm (js/admin-dialog.js), the
+   replacement for the browser's own confirm/prompt/alert in both admin panels.
+   Lives here because admin.html and admin-biz.html both already load this file.
+   Buttons carry their own classes rather than reusing .btn-primary/.btn-ghost,
+   so the component looks identical in both panels regardless of what each one
+   does to its own button styles. */
+.biz-dlg-ov{
+  position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:rgba(16,22,20,.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  opacity:0;transition:opacity .16s ease;
+}
+.biz-dlg-ov.show{opacity:1}
+.biz-dlg{
+  width:100%;max-width:440px;max-height:calc(100vh - 40px);overflow-y:auto;
+  background:var(--bg-1);border:1px solid var(--border-h);border-radius:14px;padding:20px 22px 18px;
+  box-shadow:0 18px 48px rgba(16,32,24,.22),0 3px 10px rgba(16,32,24,.10);
+  transform:translateY(10px) scale(.98);transition:transform .18s cubic-bezier(.34,1.3,.64,1);
+}
+.biz-dlg-ov.show .biz-dlg{transform:translateY(0) scale(1)}
+.biz-dlg-title{font-size:14.5px;font-weight:700;color:var(--text);margin-bottom:8px;letter-spacing:-.01em}
+.biz-dlg-body p{font-size:12.5px;line-height:1.55;color:var(--text-2);margin:0 0 8px}
+.biz-dlg-body p:last-child{margin-bottom:0}
+.biz-dlg-fields{margin-top:14px;display:flex;flex-direction:column;gap:11px}
+.biz-dlg-field{display:block}
+.biz-dlg-field>span{display:block;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-3);margin-bottom:5px}
+.biz-dlg-field input,.biz-dlg-field textarea{
+  width:100%;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;
+  padding:9px 11px;font-family:inherit;font-size:13px;color:var(--text);resize:vertical;
+}
+.biz-dlg-field input:focus,.biz-dlg-field textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+.biz-dlg-invalid{border-color:var(--red)!important;box-shadow:0 0 0 3px var(--red-bg)!important}
+.biz-dlg-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.biz-dlg-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:9px 16px;
+  border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;
+  background:var(--bg-2);color:var(--text-2);border:1px solid var(--border);transition:all .15s;
+}
+.biz-dlg-btn:hover{border-color:var(--border-h);color:var(--text)}
+.biz-dlg-btn-primary{background:var(--accent);color:#fff;border-color:transparent;box-shadow:0 2px 8px rgba(196,98,42,.22)}
+.biz-dlg-btn-primary:hover{background:var(--accent-h);color:#fff;border-color:transparent}
+.biz-dlg-btn-danger{background:var(--red);color:#fff;border-color:transparent;box-shadow:0 2px 8px rgba(185,28,28,.22)}
+.biz-dlg-btn-danger:hover{filter:brightness(1.07);color:#fff;border-color:transparent}
+body.biz-dlg-open{overflow:hidden}
+/* Thumb-reachable on a phone: sheet from the bottom, full-width buttons. */
+@media(max-width:640px){
+  .biz-dlg-ov{align-items:flex-end;padding:0}
+  .biz-dlg{max-width:none;border-radius:16px 16px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));transform:translateY(24px)}
+  .biz-dlg-actions{flex-direction:column-reverse}
+  .biz-dlg-btn{width:100%;padding:13px 16px;font-size:13.5px}
+}

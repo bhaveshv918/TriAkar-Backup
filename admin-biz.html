@@ -1352,7 +1352,7 @@ html[data-theme="dark"] .biz-login{
     </button>
     <div title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="display:flex;flex-direction:column;line-height:1.05;white-space:nowrap">
       <span style="font-family:'Glorida','Inter',sans-serif;font-size:15px;font-weight:800;letter-spacing:.04em"><span style="color:var(--accent)">TRI</span><span style="color:var(--text)">AKAR</span></span>
-      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.87</span></span>
+      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.88</span></span>
     </div>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
@@ -3606,6 +3606,85 @@ html[data-theme="dark"] .biz-login{
     </div><!-- /machinery -->
 
     <!-- ══════════════════════════════════════════════════════
+         MACHINE CATALOGUE, machines TriAkar resells
+         The price list behind Add Order's "Machine" line type.
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelMachinecat">
+      <div class="p-head">
+        <div>
+          <div class="p-title">Machine Catalogue</div>
+          <div class="p-sub">Printers &amp; add-ons you sell. Picking one in Add Order fills the price, GST and HSN together</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="showAddMachineCat()">+ Add Machine</button>
+      </div>
+
+      <div id="mcKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
+
+      <div id="machineCatForm" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.style.display='none'">
+<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;max-width:680px;width:100%;max-height:90vh;overflow-y:auto">
+        <input type="hidden" id="mc_id">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px" id="machineCatFormTitle">Add Machine</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Brand *</label><input type="text" id="mc_brand" placeholder="Bambu Lab" value="Bambu Lab"></div>
+          <div class="form-group"><label>Model *</label><input type="text" id="mc_model" placeholder="e.g. X1 Carbon"></div>
+          <div class="form-group"><label>Variant <span style="color:var(--text-3);font-weight:400;text-transform:none">blank for the base unit</span></label><input type="text" id="mc_variant" placeholder="e.g. Combo (with AMS 2 Pro)"></div>
+          <div class="form-group"><label>Category</label><select id="mc_category">
+            <option value="printer">Printer</option>
+            <option value="ams">AMS / feeder</option>
+            <option value="accessory">Accessory</option>
+            <option value="spare">Spare part</option>
+          </select></div>
+          <div class="form-group"><label>SKU</label><input type="text" id="mc_sku" placeholder="your SKU or the supplier part number"></div>
+          <div class="form-group"><label>Sort Order</label><input type="number" id="mc_sort" step="1" placeholder="10"></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Specs <span style="color:var(--text-3);font-weight:400;text-transform:none">one line, shown while quoting</span></label><input type="text" id="mc_specs" placeholder="e.g. 256×256×256mm, enclosed, 4 colour via AMS"></div>
+          <div class="form-group"><label>Purchase Cost ₹ <span style="color:var(--text-3);font-weight:400;text-transform:none">what you pay</span></label><input type="number" id="mc_purchase_cost" step="0.01" oninput="mcRecalcHint()"></div>
+          <div class="form-group"><label>Selling Rate ₹ <span style="color:var(--text-3);font-weight:400;text-transform:none">GST excluded</span></label><input type="number" id="mc_selling_price" step="0.01" oninput="mcSyncFromTaxable()"></div>
+          <div class="form-group"><label>or Price ₹ incl. GST <span style="color:var(--text-3);font-weight:400;text-transform:none">converts for you</span></label><input type="number" id="mc_incl_price" step="0.01" placeholder="type the figure on the price list" oninput="mcSyncFromIncl()"></div>
+          <div class="form-group"><label>MRP ₹ <span style="color:var(--text-3);font-weight:400;text-transform:none">list price, optional</span></label><input type="number" id="mc_mrp" step="0.01"></div>
+          <div class="form-group"><label>GST %</label><select id="mc_gst" onchange="mcSyncFromTaxable()">
+            <option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18" selected>18%</option><option value="28">28%</option>
+          </select></div>
+          <div class="form-group"><label>HSN Code</label><input type="text" id="mc_hsn" placeholder="8485" value="8485"></div>
+          <div class="form-group"><label>Status</label><select id="mc_active"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="mc_notes" placeholder="supplier, warranty terms, lead time…"></div>
+        </div>
+        <div id="mcMarginHint" style="font-size:11px;color:var(--text-3);margin-top:10px"></div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary btn-sm" onclick="runSave(this,saveMachineCat)">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('machineCatForm').style.display='none'">Cancel</button>
+        </div>
+      </div>
+</div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <input type="text" id="mcSearch" placeholder="Search brand, model, SKU…" oninput="renderMachineCat()" style="flex:1;min-width:180px;padding:7px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px">
+        <select id="mcCategoryFilter" onchange="renderMachineCat()" style="padding:7px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px">
+          <option value="">All categories</option>
+          <option value="printer">Printers</option>
+          <option value="ams">AMS / feeders</option>
+          <option value="accessory">Accessories</option>
+          <option value="spare">Spare parts</option>
+        </select>
+        <select id="mcStatusFilter" onchange="renderMachineCat()" style="padding:7px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px">
+          <option value="active">Active only</option>
+          <option value="">Active + inactive</option>
+          <option value="nopricing">Missing a price</option>
+        </select>
+      </div>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Machine</th><th>Category</th><th>SKU</th>
+            <th class="td-num">Cost</th><th class="td-num">Rate excl. GST</th><th class="td-num">Incl. GST</th><th class="td-num">Margin</th>
+            <th class="td-num">GST</th><th>HSN</th><th>Status</th><th class="td-actions"></th>
+          </tr></thead>
+          <tbody id="machineCatBody"><tr><td colspan="11" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+    </div><!-- /machinecat -->
+
+    <!-- ══════════════════════════════════════════════════════
          RACK / SHELF INVENTORY (Phase 10 Group 3)
     ═══════════════════════════════════════════════════════ -->
     <div class="panel" id="panelRack">
@@ -4261,6 +4340,7 @@ html[data-theme="dark"] .biz-login{
           <button type="button" class="doc-tab-btn" data-t="invoice" onclick="setDocSettingsTab('invoice')">Invoice</button>
           <button type="button" class="doc-tab-btn" data-t="quotation" onclick="setDocSettingsTab('quotation')">Quotation</button>
           <button type="button" class="doc-tab-btn" data-t="record" onclick="setDocSettingsTab('record')">Order Acknowledgement</button>
+          <button type="button" class="doc-tab-btn" data-t="instantquote" onclick="setDocSettingsTab('instantquote')">Instant Quote</button>
           <button type="button" class="doc-tab-btn" data-t="activity" onclick="setDocSettingsTab('activity')">Activity Log</button>
         </div>
       </div>
@@ -4456,8 +4536,13 @@ html[data-theme="dark"] .biz-login{
            Moved here from the Instant Quotes tab. That tab is for the queries coming in;
            these four are configuration, and configuration lives in Settings with everything
            else. Ids are unchanged, so every existing loader, save handler and edit-row
-           renderer keeps working untouched. -->
-      <div class="p-head" id="iqPricingSection" style="margin-top:40px;scroll-margin-top:70px">
+           renderer keeps working untouched.
+
+           Its own tab in the row above rather than a section stapled to the bottom of every
+           other one: it was showing under Invoice, Quotation and Order Acknowledgement alike,
+           which read as if it belonged to whichever document you happened to be looking at. -->
+      <div data-doc-tab="instantquote" style="display:none">
+      <div class="p-head" id="iqPricingSection" style="scroll-margin-top:70px">
         <div><div class="p-title">Instant Quote</div><div class="p-sub">What the customer-facing STL/OBJ quoter charges and what it offers. Changes apply to every new quote immediately.</div></div>
       </div>
 
@@ -4508,6 +4593,7 @@ html[data-theme="dark"] .biz-login{
           <tbody id="iqPrintersBody"><tr><td colspan="5" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
         </table>
       </div>
+      </div><!-- /doc-tab instantquote -->
     </div><!-- /settings -->
 
   </div><!-- /main-area -->
@@ -4523,6 +4609,10 @@ html[data-theme="dark"] .biz-login{
      authentication…" forever with no visible error. One less external
      dependency for something this critical to be down. -->
 <script src="/js/supabase.js"></script>
+<!-- bizConfirm / bizPrompt / bizAlert / bizForm. Nothing in this panel may call
+     the browser's own confirm/prompt/alert, they paint browser chrome that reads
+     as the site breaking. Styling is in admin-theme.css. -->
+<script src="/js/admin-dialog.js"></script>
 <script>
 // ── Config ─────────────────────────────────────────────────
 const SUPA_URL = 'https://qarjbmogersuaerkhlcu.supabase.co';
@@ -4604,8 +4694,13 @@ async function loadBizSettings(){
   }
   await loadTncPresetsCache(); loadTncPresets(); renderAllTncPresetDropdowns();
   collapseSecondarySettingsCards();
-  if(typeof setDocSettingsTab==='function') setDocSettingsTab('common');
+  // Settings always opens on Common Settings, unless something asked for a specific tab on
+  // the way in (iqOpenSettingsSection). This runs after several awaits, so a tab selected
+  // synchronously by the caller would otherwise be reset out from under it.
+  if(typeof setDocSettingsTab==='function') setDocSettingsTab(_pendingDocTab||'common');
+  _pendingDocTab=null;
 }
+let _pendingDocTab=null;
 // First visit only (not every tab-switch, that would re-collapse a card the
 // operator just opened back up), and mobile only: the less-frequently-touched
 // cards (Document Settings, Contact, Bank, Footer Note, Defaults) start
@@ -5266,6 +5361,9 @@ const NAV_CONFIG = [
       { id: 'stock',        label: 'Stock',          icon: '◫', shortcut: 'k' },
       { id: 'spooltracker', label: 'Spool Tracker',  icon: '🧵', shortcut: 'f' },
       { id: 'machinery',    label: 'Machinery',      icon: '🖨', shortcut: 'n' },
+      // Machines TriAkar sells, not the ones it prints on. Separate destination from
+      // Machinery on purpose: one is an asset on the Balance Sheet, this is a price list.
+      { id: 'machinecat',   label: 'Machine Catalogue', icon: '🏷' }, // no shortcut assigned
       { id: 'rack',         label: 'Rack / Shelf',   icon: '🗄' }, // no shortcut assigned
     ]
   },
@@ -5601,6 +5699,7 @@ function switchTab(name){
     import:initImportPanel, settings:loadBizSettings,
     customers:loadCustomers, fees:loadFeesTab, returns:loadReturns, spooltracker:loadSpoolTracker, openorders:loadOpenOrders, expenses:loadExpenses,
     ledger:loadLedger, purchases:loadPurchases, balance:loadBalanceSheet, shoplog:loadShopLog, machinery:loadMachinery,
+    machinecat:loadMachineCatalog,
     gstportal:loadGstPortal, invoicing:loadInvoicing, gstauto:loadGstAuto,
     salesview:loadSalesview, quotations:loadQuotations, rack:loadRackItems, instantquotes:loadInstantQuotes,
     // Notes/T&C preset dropdowns only ever got populated inside setQaFormMode(),
@@ -5732,7 +5831,7 @@ async function bulkSetProductCategory(){
 }
 async function bulkArchiveProducts(){
   const ids=getSelectedProductIds(); if(!ids.length) return;
-  if(!confirm('Archive '+ids.length+' product(s)? They stop showing here but historical sales keep referencing them.')) return;
+  if(!await bizConfirm('Archive '+ids.length+' product(s)? They stop showing here but historical sales keep referencing them.')) return;
   const {error}=await sb.from('biz_products').update({is_active:false}).in('id',ids);
   if(error){ toast('Error: '+error.message,'error'); return; }
   toast(ids.length+' products archived'); loadProducts();
@@ -5842,7 +5941,7 @@ let _items=[];
 // Round Off auto-calculates every recalcTotals() unless the operator has typed into
 // qa_roundoff themselves this order, see recalcTotals().
 let _qaRoundoffManual=false;
-function blankItem(){ return {rowId:null,productId:null,name:'',variant:'',pricingMode:'piece',qty:1,rate:12,disc:0,discType:'amount',discPct:0,gst:0,cost:0,grams:0,waste:0,hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:'',spool:'',extraSpools:[],remarks:'',itemType:'product',spoolSaleId:null,inclTotal:''}; }
+function blankItem(){ return {rowId:null,productId:null,machineId:null,name:'',variant:'',pricingMode:'piece',qty:1,rate:12,disc:0,discType:'amount',discPct:0,gst:0,cost:0,grams:0,waste:0,hsn:(_bizDefaults&&_bizDefaults.hsn)||'3926',sku:'',spool:'',extraSpools:[],remarks:'',itemType:'product',spoolSaleId:null,inclTotal:''}; }
 // Amount for one line: per-piece is qty × rate (unchanged); per-gram is
 // qty × totalGrams × rate, where totalGrams is this piece's own grams plus
 // every part's grams (parts live in extraSpools, each carrying its own label).
@@ -5896,6 +5995,81 @@ function ensureSpools(){
   _spoolsTried=true;
   _spoolsPromise=loadAddSaleSpools(true);
   return _spoolsPromise;
+}
+
+// ── Machine catalogue ────────────────────────────────────────
+// The price list behind the Machine line type. Before this, selling a printer meant typing
+// the model name and remembering both the price and that a printer is HSN 8485 at 18%, not
+// the 3926 default that fits printed goods. Picking a model now fills name, rate, cost, GST
+// and HSN in one go, in Add Order and Quotation mode alike (one shared items grid).
+// Loaded lazily, same in-flight-promise pattern as ensureSpools(): an order with no machine
+// line never pays for the query.
+let _machineCat=[], _machineCatTried=false, _machineCatPromise=null;
+async function loadMachineCatRows(rerender){
+  try{
+    const {data}=await sb.from('biz_machine_catalog').select('*').order('sort_order').order('model');
+    _machineCat=data||[];
+  }catch(_){ _machineCat=[]; }
+  if(rerender && typeof renderItems==='function') renderItems();
+}
+function ensureMachineCat(){
+  if(_machineCatTried) return _machineCatPromise||Promise.resolve();
+  _machineCatTried=true;
+  _machineCatPromise=loadMachineCatRows(true);
+  return _machineCatPromise;
+}
+function machineLabel(m){ return [m.brand,m.model,m.variant].filter(Boolean).join(' '); }
+// Price the customer sees. Stored rate is taxable (GST excluded) to match the Rate column,
+// so anywhere a "what they actually pay" figure is shown it is derived, never a second
+// stored number that can drift out of step with the first.
+function machineInclPrice(m){
+  const rate=parseFloat(m&&m.selling_price); if(!isFinite(rate)) return null;
+  return Math.round(rate*(1+((parseFloat(m.gst_rate)||0)/100))*100)/100;
+}
+const MC_CAT_LABELS={printer:'Printer',ams:'AMS / feeder',accessory:'Accessory',spare:'Spare part'};
+// Grouped by brand, then by category within the brand, so a 40-model list stays scannable.
+// An inactive model still renders when it is the one already picked on this row, otherwise
+// re-opening an old order would silently blank its own selection.
+function machineOptions(selectedId){
+  const rows=(_machineCat||[]).filter(m=>m.active||m.id===selectedId);
+  if(!rows.length){
+    return `<option value="">${_machineCatTried?'Catalogue is empty, add machines under Products':'Loading catalogue…'}</option>`;
+  }
+  let html=`<option value=""${selectedId?'':' selected'}>Pick from catalogue…</option>`;
+  const brands=[...new Set(rows.map(m=>m.brand||'Other'))];
+  brands.forEach(b=>{
+    const inBrand=rows.filter(m=>(m.brand||'Other')===b);
+    const cats=[...new Set(inBrand.map(m=>m.category||'printer'))];
+    cats.forEach(c=>{
+      html+=`<optgroup label="${esc(b)} · ${esc(MC_CAT_LABELS[c]||c)}">`;
+      inBrand.filter(m=>(m.category||'printer')===c).forEach(m=>{
+        const incl=machineInclPrice(m);
+        const price=incl==null?'price not set':fmt(incl)+' incl GST';
+        html+=`<option value="${m.id}"${m.id===selectedId?' selected':''}>${esc([m.model,m.variant].filter(Boolean).join(' '))} · ${esc(price)}</option>`;
+      });
+      html+='</optgroup>';
+    });
+  });
+  return html;
+}
+// Picking a model overwrites the line, including a rate already typed: the point of the
+// catalogue is that the catalogue price wins. Everything stays editable afterwards, and a
+// model with no price set leaves the rate alone rather than zeroing a number you typed.
+function onItemMachine(i,id){
+  const it=_items[i]; if(!it) return;
+  it.machineId=id||null;
+  const m=(_machineCat||[]).find(x=>x.id===id);
+  if(!m){ renderItems(); return; }
+  it.name=machineLabel(m);
+  it.productId=null;
+  it.sku=m.sku||'';
+  it.gst=parseFloat(m.gst_rate); if(!isFinite(it.gst)) it.gst=18;
+  it.hsn=m.hsn_code||'8485';
+  if(m.specs&&!it.variant) it.variant=m.specs;
+  const rate=parseFloat(m.selling_price); if(isFinite(rate)) it.rate=rate;
+  const cost=parseFloat(m.purchase_cost); if(isFinite(cost)) it.cost=cost;
+  it.inclTotal='';   // stale once the rate is replaced, and recalcTotals reads it
+  renderItems();
 }
 // Phase 10 Group 3 (J): already-opened/partial spools matching the current row's
 // material (the material of whatever spool is already picked on this row, if any)
@@ -5976,6 +6150,8 @@ function setItemType(i,type){
   if(type!=='product'){ it.pricingMode='piece'; it.grams=0; it.waste=0; it.spool=''; it.extraSpools=[]; }
   if(type!=='spool'){ it.spoolSaleId=null; }
   else { it.name=''; }
+  if(type!=='machine'){ it.machineId=null; }
+  else { ensureMachineCat(); }   // resolves into a re-render once the list is in
   renderItems();
 }
 // delta>0 consumes, delta<0 restores; clamped to [0, total]. Also flips
@@ -6177,6 +6353,9 @@ function renderItems(){
   const wrap=document.getElementById('itemRows');
   if(!wrap) return;
   ensureSpools();
+  // Covers rows that arrive already set to Machine (editing, duplicating, or loading an
+  // order from a quotation), where setItemType() never runs to trigger the fetch.
+  if(_items.some(it=>it&&it.itemType==='machine')) ensureMachineCat();
   if(!_items.length) _items=[blankItem()];
   wrap.innerHTML=_items.map((it,i)=>`
     <div class="items-grid item-row" data-idx="${i}"
@@ -6191,7 +6370,13 @@ function renderItems(){
         </div>
         ${it.itemType==='spool'
           ? `<select onchange="onItemSpoolSale(${i},this.value)">${spoolSaleOptions(it.spoolSaleId)}</select>`
-          : `<input list="catalogList" value="${esc(it.name)}" placeholder="${it.itemType==='machine'?'Machine / printer name & model':'Item name / type to search'}" oninput="onItemName(${i},this.value);itemSuggest(${i},this.value)" autocomplete="off">`}
+          : it.itemType==='machine'
+          // Catalogue picker plus a free-text name, not one or the other: the picker fills
+          // price/GST/HSN for the models you stock, the box below stays editable so a
+          // one-off machine or a reworded invoice line never needs a catalogue entry first.
+          ? `<select style="cursor:pointer" title="Pick a machine, fills price, GST and HSN together" onchange="onItemMachine(${i},this.value)">${machineOptions(it.machineId)}</select>
+             <input value="${esc(it.name)}" placeholder="Machine / printer name & model" title="What prints on the invoice, edit freely" oninput="_items[${i}].name=this.value">`
+          : `<input list="catalogList" value="${esc(it.name)}" placeholder="Item name / type to search" oninput="onItemName(${i},this.value);itemSuggest(${i},this.value)" autocomplete="off">`}
         <input class="variant" value="${esc(it.variant)}" placeholder="size / colour / customisation (optional)" oninput="_items[${i}].variant=this.value">
         <input class="variant" style="font-style:italic" value="${esc(it.remarks||'')}" placeholder="remarks (shown italic on invoice)" oninput="_items[${i}].remarks=this.value">
         ${it.itemType==='product'?`<select class="variant" style="cursor:pointer" title="Spool, logging grams+waste deducts from this spool's stock" onchange="onItemSpool(${i},this.value)">${spoolOptions(it.spool)}</select>`:''}
@@ -6561,6 +6746,7 @@ async function buildSaleRowsWithIds(){
       spool_id:it.spool||null,
       item_type:it.itemType||'product',
       spool_sale_id:it.itemType==='spool'?(it.spoolSaleId||null):null,
+      machine_id:it.itemType==='machine'?(it.machineId||null):null,
       product_name:(it.name&&it.name.trim())||'N/A',
       variant:it.variant||null,
       sku:it.sku||null,
@@ -6854,8 +7040,8 @@ async function submitQuickAddAsQuotation(){
   setQaFormMode('order');
   if(typeof loadQuotations==='function') loadQuotations();
 }
-function confirmClearQuickAdd(){
-  if(!confirm('Clear the whole form? Everything typed so far will be lost.')) return;
+async function confirmClearQuickAdd(){
+  if(!await bizConfirm('Clear the whole form? Everything typed so far will be lost.')) return;
   resetQuickAdd();
   toast('Form cleared');
 }
@@ -6921,6 +7107,7 @@ function openAddOrderEdit(firstId){
       hsn:s.hsn_code||'', sku:s.sku||'', spool:s.spool_id||'',
       extraSpools, remarks:s.remarks||'',
       itemType:s.item_type||'product', spoolSaleId:s.spool_sale_id||null,
+      machineId:s.machine_id||null,
     };
   });
   renderItems();
@@ -7077,7 +7264,7 @@ async function addPaymentInstallment(){
   await loadOrderPayments(_qaEditOrderId);
 }
 async function deletePaymentInstallment(id){
-  if(!confirm('Remove this payment entry?')) return;
+  if(!await bizConfirm('Remove this payment entry?')) return;
   try{ await bizApiFetch('/api/admin/biz/sales/payments/'+encodeURIComponent(id),{method:'DELETE'}); }
   catch(e){ toast('Error: '+e.message,'error'); }
   await loadOrderPayments(_qaEditOrderId);
@@ -7557,7 +7744,7 @@ function updateQtBulkBar(){
 async function bulkDeleteQuotations(){
   if(!_qtSelected.size) return;
   const ids=[..._qtSelected];
-  if(!confirm(`Delete ${ids.length} selected quotation${ids.length===1?'':'s'}? This cannot be undone.`)) return;
+  if(!await bizConfirm(`Delete ${ids.length} selected quotation${ids.length===1?'':'s'}? This cannot be undone.`)) return;
   const {error}=await sb.from('biz_quotations').delete().in('id',ids);
   if(error){ toast('Error: '+error.message,'error'); return; }
   toast(`${ids.length} quotation${ids.length===1?'':'s'} deleted`);
@@ -7890,7 +8077,7 @@ async function saveQuotation(){
   loadQuotations();
 }
 async function acceptQuotation(id){
-  if(!confirm('Accept this quotation and start a new order from it?')) return;
+  if(!await bizConfirm('Accept this quotation and start a new order from it?')) return;
   await openAddOrderFromQuotation(id);
 }
 // Direct status change, independent of the Accept/Order/Invoice flow. Status used
@@ -7995,7 +8182,7 @@ async function quotationSaleRows(q){
 // quotation (same as Accept) AND opens its invoice immediately, instead of making
 // the operator go through the Add Order form and then a separate Invoice click.
 async function makeInvoiceFromQuotation(id){
-  if(!confirm('Create an order from this quotation and generate its invoice now?')) return;
+  if(!await bizConfirm('Create an order from this quotation and generate its invoice now?')) return;
   const win=window.open('','_blank');   // opened synchronously so mobile browsers still count it as user-initiated
   const {data:q,error}=await sb.from('biz_quotations').select('*').eq('id',id).single();
   if(error||!q){ if(win) win.close(); toast('Could not load quotation','error'); return; }
@@ -8085,7 +8272,7 @@ async function saveRackItem(){
   toast('Saved'); closeRackForm(); loadRackItems();
 }
 async function deleteRackItem(id){
-  if(!confirm('Remove this from the rack?')) return;
+  if(!await bizConfirm('Remove this from the rack?')) return;
   await sb.from('biz_rack_items').delete().eq('id',id);
   loadRackItems();
 }
@@ -8418,7 +8605,7 @@ async function saveCustomer(){
 }
 async function deleteCustomer(){
   const id=document.getElementById('cm_id').value; if(!id) return;
-  if(!confirm('Delete this saved customer record? Order history is kept.')) return;
+  if(!await bizConfirm('Delete this saved customer record? Order history is kept.')) return;
   const {error}=await sb.from('biz_customers').delete().eq('id',id);
   if(error){ toast('Error: '+error.message,'error'); return; }
   logBizActivity('delete','customer',id,''); toast('Customer deleted'); closeCustomerModal(); loadCustomers();
@@ -8489,7 +8676,7 @@ async function ingestSettlement(e){
     const have=new Set((existing||[]).map(r=>r.order_id));
     const matched=oids.filter(o=>have.has(o)); const unmatched=oids.length-matched.length;
     if(!matched.length){ toast('No matching orders ('+oids.length+' rows in file)','error'); e.target.value=''; return; }
-    if(!confirm(`Settlement: ${matched.length} order(s) matched, ${unmatched} not found.\nApply payout + fees to the matched orders?`)){ e.target.value=''; return; }
+    if(!await bizConfirm(`Settlement: ${matched.length} order(s) matched, ${unmatched} not found.\nApply payout + fees to the matched orders?`)){ e.target.value=''; return; }
     const src=/amazon/i.test(file.name)?'amazon':/flipkart/i.test(file.name)?'flipkart':'marketplace';
     let ok=0;
     for(const oid of matched){
@@ -9061,7 +9248,7 @@ async function decrementUpcomingOrders(){
 async function editUpcomingOrders(){
   const {data}=await sb.from('site_settings').select('value').eq('key','biz_upcoming_orders').maybeSingle();
   const cur=data&&data.value?data.value:'0';
-  const val=prompt('Upcoming orders (manual count, not tied to any order data):',cur);
+  const val=await bizPrompt('Upcoming orders (manual count, not tied to any order data):',cur);
   if(val==null) return;
   const num=parseInt(val,10); if(isNaN(num)||num<0){ toast('Enter a valid number','error'); return; }
   const {error}=await sb.from('site_settings').upsert({key:'biz_upcoming_orders',value:String(num),updated_at:new Date().toISOString()},{onConflict:'key'});
@@ -9089,7 +9276,7 @@ function getSelectedOpenIds(){
 async function bulkMarkStatusOpen(status){
   const ids=getSelectedOpenIds(); if(!ids.length) return;
   const label=STATUS_LABEL[status]||status;
-  if(!confirm('Mark '+ids.length+' order(s) as '+label+'?')) return;
+  if(!await bizConfirm('Mark '+ids.length+' order(s) as '+label+'?')) return;
   const payload={status}; if(status==='completed') payload.completed_at=today();
   if(status==='delivered') payload.delivered_at=today();
   const packedStamp=packedStampFor(status,ids); if(packedStamp) payload.packed_at=packedStamp;
@@ -9106,7 +9293,7 @@ async function bulkDeleteOpen(){
   const ids=getSelectedOpenIds(); if(!ids.length) return;
   const locked=ids.filter(id=>_salesCache.find(s=>s.id===id&&s.is_paid));
   if(locked.length){ toast(locked.length+' paid order(s) cannot be deleted, unmark paid first','error'); return; }
-  if(!confirm('Move '+ids.length+' order(s) to Recycle Bin?')) return;
+  if(!await bizConfirm('Move '+ids.length+' order(s) to Recycle Bin?')) return;
   const {error}=await sb.from('biz_sales').update({is_deleted:true,deleted_at:new Date().toISOString()}).in('id',ids);
   if(error){ toast('Error: '+error.message,'error'); return; }
   await restoreSpoolsForIds(ids);
@@ -9190,7 +9377,12 @@ function renderIqKpi(){
 // Jump straight to an Instant Quote configuration section on the Settings panel. The panel
 // has to be switched to and painted before scrollIntoView can find a laid-out element.
 function iqOpenSettingsSection(id){
+  // Instant Quote config is a Settings tab of its own now, so reaching it takes selecting
+  // that tab first: scrolling to an element inside a display:none block does nothing.
+  // Set before switchTab, loadBizSettings picks it up instead of defaulting to Common.
+  _pendingDocTab='instantquote';
   switchTab('settings');
+  if(typeof setDocSettingsTab==='function') setDocSettingsTab('instantquote');
   setTimeout(()=>{ const el=document.getElementById(id); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); },120);
 }
 
@@ -9618,7 +9810,7 @@ async function iqSendToOrders(quoteId){
   // orders can also arrive here through the automatic sync, so always check first.
   if(oid){
     const{data:dupe}=await sb.from('biz_sales').select('id').eq('order_id',oid).limit(1);
-    if(dupe&&dupe.length&&!confirm('Order '+oid+' is already in All Orders.\n\nOpen a pre-filled new order anyway? Saving it would log the same sale twice.')) return;
+    if(dupe&&dupe.length&&!await bizConfirm('Order '+oid+' is already in All Orders.\n\nOpen a pre-filled new order anyway? Saving it would log the same sale twice.')) return;
   }
   _qaMode='fromInstantQuote'; _qaSourceQuoteId=quoteId;
   _qaEditOrderId=null; _qaEditRowIds=[]; _qaSourceQuotationId=null; _qaSourceQuotationNumber=null; _qaSourceRackItemId=null;
@@ -9748,7 +9940,12 @@ function _iqHoldState(o){
 async function holdIqOrder(orderId){
   const o=_iqOrders.find(x=>x.id===orderId);
   const oid=o?(o.invoice_number||o.order_id||o.id):orderId;
-  const reason=prompt('Put order '+oid+' on hold, waiting on the customer.\n\nReason (optional, shown in the On Hold list):','Waiting on the customer');
+  const reason=await bizPrompt('Reason','Waiting on the customer',{
+    title:'Put '+oid+' on hold',
+    message:'It moves out of the pending queue and into On Hold, waiting on the customer. Nothing about payment or production changes.',
+    placeholder:'optional, shown in the On Hold list',
+    confirmLabel:'Put on hold',
+  });
   if(reason===null) return;   // Cancel on the prompt means cancel the hold, not hold with a blank reason
   try{
     await bizApiFetch('/api/admin/orders/'+orderId+'/hold',{method:'PUT',body:JSON.stringify({hold:true,reason:reason||null})});
@@ -9760,7 +9957,8 @@ async function holdIqOrder(orderId){
 async function releaseIqOrder(orderId){
   const o=_iqOrders.find(x=>x.id===orderId);
   const oid=o?(o.invoice_number||o.order_id||o.id):orderId;
-  if(!confirm('Bring order '+oid+' back into Orders Pending Confirmation?\n\nIt goes back to waiting on you, and the automatic unpaid hold will not pull it out again.')) return;
+  if(!await bizConfirm('It goes back to waiting on you, and the automatic unpaid hold will not pull it out again.',
+    {title:'Bring '+oid+' back?',confirmLabel:'Bring back'})) return;
   try{
     await bizApiFetch('/api/admin/orders/'+orderId+'/hold',{method:'PUT',body:JSON.stringify({hold:false})});
     toast('Back in the pending queue','success');
@@ -9853,12 +10051,12 @@ function _iqHoldWarnLine(o){
 
 async function confirmIqOrder(orderId){
   const o=_iqOrders.find(x=>x.id===orderId);
-  let msg='Confirm this Instant Quote order for production? Only do this after verifying the customization details with the customer.';
+  let msg='Only do this after verifying the customization details with the customer.';
   // Rule 10 gates on the customization conversation, not on money, so an unpaid
   // order can legitimately be confirmed. It is still worth saying out loud,
   // because the common case is that payment cleared first.
-  if(o&&_iqPayState(o).label==='Unpaid') msg+='\n\nHeads up: no payment is recorded against this order yet.';
-  if(!confirm(msg))return;
+  if(o&&_iqPayState(o).label==='Unpaid') msg+='\nHeads up: no payment is recorded against this order yet.';
+  if(!await bizConfirm(msg,{title:'Send this order into production?',confirmLabel:'Confirm order'}))return;
   try{
     await bizApiFetch('/api/admin/orders/'+orderId+'/status',{method:'PUT',body:JSON.stringify({status:'confirmed'})});
     toast('Order confirmed for production','success');
@@ -9876,10 +10074,10 @@ async function cancelIqOrder(orderId){
   const o=_iqOrders.find(x=>x.id===orderId);
   const paid=o?_iqPayState(o):null;
   const oid=o?(o.invoice_number||o.order_id||o.id):orderId;
-  let msg='Cancel Instant Quote order '+oid+'?\n\nIt leaves the pending-confirmation queue and will not go into production.';
+  let msg='It leaves the pending-confirmation queue and will not go into production.';
   if(paid&&(paid.label==='Paid'||paid.label==='Advance'))
-    msg+='\n\nThis order has money against it (₹'+_iqPaidAmount(o).toLocaleString('en-IN')+'). Cancelling here does NOT refund the customer, you have to issue that refund in the Razorpay dashboard yourself.';
-  if(!confirm(msg))return;
+    msg+='\nThis order has money against it (₹'+_iqPaidAmount(o).toLocaleString('en-IN')+'). Cancelling here does NOT refund the customer, you have to issue that refund in the Razorpay dashboard yourself.';
+  if(!await bizConfirm(msg,{title:'Cancel order '+oid+'?',confirmLabel:'Cancel order',cancelLabel:'Keep it',danger:true}))return;
   try{
     await bizApiFetch('/api/admin/orders/'+orderId+'/status',{method:'PUT',body:JSON.stringify({status:'cancelled'})});
     toast('Order cancelled'+((paid&&paid.label!=='Unpaid')?', refund it in Razorpay if due':''),'success');
@@ -10062,37 +10260,54 @@ async function setIqDefault(table,id,reload){
   (window[reload]||function(){})();
 }
 
+// One form per catalog entry. These used to fire four to six dialogs back to
+// back, so a typo in field two meant cancelling out and starting the whole
+// chain again with no way to look back at what had already been entered.
 async function addIqMaterial(){
-  const name=prompt('Material name (e.g. "PETG-CF"):'); if(!name)return;
-  const filament_type=prompt('Filament type label:',name)||name;
-  const material_group=prompt('Group shown to customers (Regular / Good Strength / Outdoor & Durable / Top Strength / Flexible):','Regular')||'Regular';
-  const density_g_cm3=parseFloat(prompt('Density g/cm³:','1.24'))||1.24;
-  const cost_per_gram_public=parseFloat(prompt('Public price per gram (₹):','1.80'));
+  const r=await bizForm({title:'Add material',fields:[
+    {id:'name',label:'Material name',placeholder:'e.g. PETG-CF',required:true},
+    {id:'filament_type',label:'Filament type label',placeholder:'defaults to the material name'},
+    {id:'material_group',label:'Group shown to customers',value:'Regular',placeholder:'Regular / Good Strength / Outdoor & Durable / Top Strength / Flexible'},
+    {id:'density',label:'Density (g/cm³)',value:'1.24',type:'number'},
+    {id:'cost',label:'Public price per gram (₹)',value:'1.80',type:'number',required:true},
+    {id:'limited',label:'Limit to specific colors',placeholder:'comma separated, blank means every color'},
+  ]});
+  if(!r) return;
+  const cost_per_gram_public=parseFloat(r.cost);
   if(!cost_per_gram_public){toast('Price per gram is required','error');return}
-  const limitedRaw=prompt('Limit to specific colors? Comma-separated names, or leave blank for all colors:','');
-  const limited_colors=limitedRaw&&limitedRaw.trim()?limitedRaw.split(',').map(s=>s.trim()).filter(Boolean):null;
-  const{error}=await sb.from('instant_quote_materials').insert({name,filament_type,material_group,density_g_cm3,cost_per_gram_public,limited_colors});
+  const limited_colors=r.limited&&r.limited.trim()?r.limited.split(',').map(s=>s.trim()).filter(Boolean):null;
+  const{error}=await sb.from('instant_quote_materials').insert({
+    name:r.name.trim(), filament_type:(r.filament_type||'').trim()||r.name.trim(),
+    material_group:(r.material_group||'').trim()||'Regular',
+    density_g_cm3:parseFloat(r.density)||1.24, cost_per_gram_public, limited_colors});
   if(error){toast('Error: '+error.message,'error');return}
   toast('Material added','success');
   loadIqMaterials();
 }
 
 async function addIqColor(){
-  const name=prompt('Color name:'); if(!name)return;
-  const hex=prompt('Hex code (e.g. #C4622A):','#0F0F0D'); if(!hex)return;
-  const{error}=await sb.from('instant_quote_colors').insert({name,hex});
+  const r=await bizForm({title:'Add color',fields:[
+    {id:'name',label:'Color name',placeholder:'e.g. Sky Blue',required:true},
+    {id:'hex',label:'Hex code',value:'#0F0F0D',placeholder:'#C4622A',required:true},
+  ]});
+  if(!r) return;
+  const{error}=await sb.from('instant_quote_colors').insert({name:r.name.trim(),hex:r.hex.trim()});
   if(error){toast('Error: '+error.message,'error');return}
   toast('Color added','success');
   loadIqColors();
 }
 
 async function addIqPrinter(){
-  const name=prompt('Reference name (not shown to customers), e.g. "Snapmaker U1":'); if(!name)return;
-  const build_x_mm=parseFloat(prompt('Build X (mm):','220'));
-  const build_y_mm=parseFloat(prompt('Build Y (mm):','220'));
-  const build_z_mm=parseFloat(prompt('Build Z (mm):','250'));
+  const r=await bizForm({title:'Add build size',message:'The name is for your reference only, customers only ever see the dimensions.',fields:[
+    {id:'name',label:'Reference name (admin only)',placeholder:'e.g. Snapmaker U1',required:true},
+    {id:'x',label:'Build X (mm)',value:'220',type:'number',required:true},
+    {id:'y',label:'Build Y (mm)',value:'220',type:'number',required:true},
+    {id:'z',label:'Build Z (mm)',value:'250',type:'number',required:true},
+  ]});
+  if(!r) return;
+  const build_x_mm=parseFloat(r.x),build_y_mm=parseFloat(r.y),build_z_mm=parseFloat(r.z);
   if(!build_x_mm||!build_y_mm||!build_z_mm){toast('All build dimensions are required','error');return}
-  const{error}=await sb.from('instant_quote_printers').insert({name,build_x_mm,build_y_mm,build_z_mm});
+  const{error}=await sb.from('instant_quote_printers').insert({name:r.name.trim(),build_x_mm,build_y_mm,build_z_mm});
   if(error){toast('Error: '+error.message,'error');return}
   toast('Build size added','success');
   loadIqPrinters();
@@ -10376,7 +10591,7 @@ async function openInvoice(url){
   window.open(data.signedUrl,'_blank');
 }
 async function deleteExpense(id){
-  if(!confirm('Delete this expense?')) return;
+  if(!await bizConfirm('Delete this expense?')) return;
   const r=_expensesCache.find(x=>x.id===id);
   const {error}=await sb.from('biz_expenses').delete().eq('id',id);
   if(error){toast('Error: '+error.message,'error');return;}
@@ -10536,7 +10751,7 @@ function renderLedgerRows(){
   </tr>`).join('');
 }
 async function deleteLedgerPayment(id){
-  if(!confirm('Remove this payment entry? It only removes the payment record, not the order itself.')) return;
+  if(!await bizConfirm('Remove this payment entry? It only removes the payment record, not the order itself.')) return;
   const {error}=await sb.from('biz_sale_payments').delete().eq('id',id);
   if(error){ toast('Error: '+error.message,'error'); return; }
   toast('Payment removed'); loadLedger();
@@ -10560,7 +10775,7 @@ async function saveLedgerPayment(){
   toast('Payment updated'); document.getElementById('paymentEditForm').style.display='none'; loadLedger();
 }
 async function deleteLedgerExpense(id){
-  if(!confirm('Remove this expense entry?')) return;
+  if(!await bizConfirm('Remove this expense entry?')) return;
   const r=_expensesCache.find(x=>x.id===id);
   const {error}=await sb.from('biz_expenses').delete().eq('id',id);
   if(error){ toast('Error: '+error.message,'error'); return; }
@@ -10594,7 +10809,7 @@ async function saveIncome(){
   logBizActivity(id?'edit':'create','income',id,INCOME_LABEL[payload.category]+' ₹'+payload.amount);
   toast(id?'Income updated':'Income logged'); document.getElementById('incomeForm').style.display='none'; loadLedger();
 }
-async function deleteIncome(id){ if(!confirm('Delete this income entry?')) return; const {error}=await sb.from('biz_income').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} logBizActivity('delete','income',id,''); toast('Deleted'); loadLedger(); }
+async function deleteIncome(id){ if(!await bizConfirm('Delete this income entry?')) return; const {error}=await sb.from('biz_income').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} logBizActivity('delete','income',id,''); toast('Deleted'); loadLedger(); }
 
 // ══════════════ PURCHASES (§2.5) ══════════════
 let _purchasesCache=[];
@@ -10688,13 +10903,13 @@ async function savePurchase(){
   document.getElementById('purchaseForm').style.display='none'; loadPurchases();
   if(madeSpool&&typeof loadSpoolTracker==='function') loadSpoolTracker();
 }
-async function deletePurchase(id){ if(!confirm('Delete this purchase?')) return; const {error}=await sb.from('biz_purchases').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} logBizActivity('delete','purchase',id,''); toast('Deleted'); loadPurchases(); }
+async function deletePurchase(id){ if(!await bizConfirm('Delete this purchase?')) return; const {error}=await sb.from('biz_purchases').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} logBizActivity('delete','purchase',id,''); toast('Deleted'); loadPurchases(); }
 
 // ══════════════ BALANCE SHEET (§2.4) ══════════════
 async function editOpeningBalance(){
   const {data}=await sb.from('site_settings').select('value').eq('key','biz_opening_balance').single();
   const cur=data&&data.value?data.value:'0';
-  const val=prompt('Opening bank balance (₹), the balance BEFORE any income/expense logged in this system:',cur);
+  const val=await bizPrompt('Opening bank balance (₹), the balance BEFORE any income/expense logged in this system:',cur);
   if(val==null) return;
   const num=parseFloat(val); if(isNaN(num)){ toast('Enter a valid number','error'); return; }
   const {error}=await sb.from('site_settings').upsert({key:'biz_opening_balance',value:String(num),updated_at:new Date().toISOString()},{onConflict:'key'});
@@ -10838,7 +11053,7 @@ async function saveShopLog(){
   logBizActivity('edit','shoplog',date,closed?'Closed':'Open '+(g('sl_open')||'')+'-'+(g('sl_close')||''));
   toast('Saved'); document.getElementById('shopLogForm').style.display='none'; loadShopLog();
 }
-async function deleteShopLog(date){ if(!confirm("Delete this day's log?")) return; const {error}=await sb.from('biz_shop_log').delete().eq('date',date); if(error){toast('Error: '+error.message,'error');return;} toast('Deleted'); loadShopLog(); }
+async function deleteShopLog(date){ if(!await bizConfirm("Delete this day's log?")) return; const {error}=await sb.from('biz_shop_log').delete().eq('date',date); if(error){toast('Error: '+error.message,'error');return;} toast('Deleted'); loadShopLog(); }
 
 async function loadSalesBadge(){
   // Round 3, cancelled orders shouldn't inflate the All Sales tab count.
@@ -11314,6 +11529,7 @@ function duplicateOrder(firstId){
         // toggle, spool picker and Grams/Waste columns when itemType==='product', so a
         // duplicated row (itemType left undefined) silently lost all of those options.
         itemType:s.item_type||'product',
+        machineId:s.machine_id||null,
         remarks:s.remarks||'',
         spoolSaleId:null,
       };
@@ -11330,7 +11546,7 @@ function duplicateOrder(firstId){
 async function deleteOrder(firstId){
   const items=_orderGroup(firstId), ids=items.map(s=>s.id);
   if(items.some(s=>s.is_paid)){ toast('Order locked, unlock first','error'); return; }
-  if(!confirm(`Move this order (${ids.length} item${ids.length>1?'s':''}) to Recycle Bin?`)) return;
+  if(!await bizConfirm(`Move this order (${ids.length} item${ids.length>1?'s':''}) to Recycle Bin?`)) return;
   const {error}=await sb.from('biz_sales').update({is_deleted:true,deleted_at:new Date().toISOString()}).in('id',ids);
   if(error){ toast('Error: '+error.message,'error'); return; }
   await restoreSpoolsForIds(ids);   // give grams back to the spools after binning
@@ -11338,7 +11554,7 @@ async function deleteOrder(firstId){
 }
 async function togglePaidOrder(firstId,allPaid){
   const items=_orderGroup(firstId), ids=items.map(s=>s.id);
-  if(!allPaid && !confirm('Lock this order? No further changes will be allowed until unlocked.')) return;
+  if(!allPaid && !await bizConfirm('Lock this order? No further changes will be allowed until unlocked.')) return;
   try{ await bizApiFetch('/api/admin/biz/sales/paid',{method:'PATCH',body:JSON.stringify({ids,is_paid:!allPaid})}); }
   catch(e){ toast('Error: '+e.message,'error'); return; }
   loadSales();
@@ -11499,14 +11715,14 @@ function getSelectedIds(){
 }
 async function bulkMarkPaid(){
   const ids=getSelectedIds(); if(!ids.length) return;
-  if(!confirm('Lock '+ids.length+' order(s)? No further changes will be allowed until unlocked.')) return;
+  if(!await bizConfirm('Lock '+ids.length+' order(s)? No further changes will be allowed until unlocked.')) return;
   const {error}=await sb.from('biz_sales').update({is_paid:true}).in('id',ids);
   if(error){toast('Error: '+error.message,'error');return;}
   toast(ids.length+' orders locked'); loadSales();
 }
 async function bulkUnlock(){
   const ids=getSelectedIds(); if(!ids.length) return;
-  if(!confirm('Unlock '+ids.length+' order(s) for editing?')) return;
+  if(!await bizConfirm('Unlock '+ids.length+' order(s) for editing?')) return;
   const {error}=await sb.from('biz_sales').update({is_paid:false}).in('id',ids);
   if(error){toast('Error: '+error.message,'error');return;}
   toast(ids.length+' orders unlocked'); loadSales();
@@ -11514,7 +11730,7 @@ async function bulkUnlock(){
 async function bulkMarkStatus(status){
   const ids=getSelectedIds(); if(!ids.length) return;
   const label=STATUS_LABEL[status]||status;
-  if(!confirm('Mark '+ids.length+' order(s) as '+label+'?')) return;
+  if(!await bizConfirm('Mark '+ids.length+' order(s) as '+label+'?')) return;
   const payload={status};
   if(status==='completed') payload.completed_at=today();
   if(status==='delivered') payload.delivered_at=today();
@@ -11534,7 +11750,7 @@ async function bulkDelete(){
   const ids=getSelectedIds(); if(!ids.length) return;
   const locked=ids.filter(id=>_salesCache.find(s=>s.id===id&&s.is_paid));
   if(locked.length){toast(locked.length+' paid order(s) cannot be deleted, unmark paid first','error');return;}
-  if(!confirm('Move '+ids.length+' order(s) to Recycle Bin?')) return;
+  if(!await bizConfirm('Move '+ids.length+' order(s) to Recycle Bin?')) return;
   const {error}=await sb.from('biz_sales').update({is_deleted:true,deleted_at:new Date().toISOString()}).in('id',ids);
   if(error){toast('Error: '+error.message,'error');return;}
   await restoreSpoolsForIds(ids);
@@ -11591,7 +11807,7 @@ async function restoreSalesFromFile(event){
   try{ payload=JSON.parse(await file.text()); }catch(_){ toast('Not a valid backup file','error'); return; }
   const rows=Array.isArray(payload)?payload:(payload.rows||[]);
   if(!rows.length){ toast('No orders found in file','error'); return; }
-  if(!confirm('Add '+rows.length+' order(s) back into All Sales? Orders matching an existing ID are updated in place, the rest are restored fresh.')) return;
+  if(!await bizConfirm('Add '+rows.length+' order(s) back into All Sales? Orders matching an existing ID are updated in place, the rest are restored fresh.')) return;
   const {error}=await upsertSalesResilient(rows);
   if(error){ toast('Error: '+error.message,'error'); return; }
   logBizActivity('restore','sale','',rows.length+' order(s) from a Selected Data file');
@@ -11719,7 +11935,7 @@ function updateSalesFilterBadge(){
 async function markReturn(id){
   id=id||(_qaEditRowIds&&_qaEditRowIds[0]);
   const s=_salesCache.find(x=>x.id===id); if(!s) return;
-  if(!confirm('Mark this order as Returned and log in Returns?')) return;
+  if(!await bizConfirm('Mark this order as Returned and log in Returns?')) return;
   try{ await bizApiFetch('/api/admin/biz/sales/status',{method:'PATCH',body:JSON.stringify({ids:[id],payload:{status:'returned'}})}); }
   catch(e1){ toast('Error: '+e1.message,'error'); return; }
   // Insert return record. Also snapshot the sale's real cost breakdown (not just the
@@ -11809,14 +12025,14 @@ async function restoreSale(id){
   toast('Restored'); openRecycleBin(); loadSales(); loadSalesBadge();
 }
 async function permDeleteSale(id){
-  if(!confirm('Permanently delete? Cannot be undone.')) return;
+  if(!await bizConfirm('This row goes for good. It cannot be undone.',{title:'Permanently delete this order?',confirmLabel:'Delete forever',cancelLabel:'Keep it',danger:true})) return;
   const {error}=await sb.from('biz_sales').delete().eq('id',id);
   if(error){toast('Error: '+error.message,'error');return;}
   logBizActivity('purge','sale',id,'permanently deleted from Recycle Bin');
   toast('Permanently deleted'); openRecycleBin(); loadSalesBadge();
 }
 async function emptyRecycleBin(){
-  if(!confirm('Permanently delete ALL items in Recycle Bin? Cannot be undone.')) return;
+  if(!await bizConfirm('Everything in the Recycle Bin goes for good. It cannot be undone.',{title:'Empty the Recycle Bin?',confirmLabel:'Delete everything',cancelLabel:'Keep them',danger:true})) return;
   const {data:toPurge}=await sb.from('biz_sales').select('id').eq('is_deleted',true);
   const {error}=await sb.from('biz_sales').delete().eq('is_deleted',true);
   if(error){toast('Error: '+error.message,'error');return;}
@@ -11825,7 +12041,7 @@ async function emptyRecycleBin(){
 }
 
 async function deleteSale(id){
-  if(!confirm('Move to Recycle Bin?')) return;
+  if(!await bizConfirm('Move to Recycle Bin?')) return;
   const {error}=await sb.from('biz_sales').update({is_deleted:true,deleted_at:new Date().toISOString()}).eq('id',id);
   if(error){ toast('Error: '+error.message,'error'); return; }
   await restoreSpoolsForIds([id]);
@@ -12403,7 +12619,7 @@ async function bulkSetSpoolStatus(){
 async function deleteSpool(id){
   const r=_spoolRows.find(x=>String(x.id)===String(id));
   if(!r) return;
-  if(!confirm('Delete spool #'+r.s_no+', '+(r.brand||'')+' '+(r.color||'')+'? Sales already linked to it keep their grams-used history, just lose the spool link.')) return;
+  if(!await bizConfirm('Delete spool #'+r.s_no+', '+(r.brand||'')+' '+(r.color||'')+'? Sales already linked to it keep their grams-used history, just lose the spool link.')) return;
   const {error}=await sb.from('filament_inventory').delete().eq('id',id);
   if(error){ toast('Error: '+error.message,'error'); return; }
   logBizActivity('delete','spool',id,'Deleted #'+r.s_no+' '+(r.brand||'')+' '+(r.color||''));
@@ -12411,7 +12627,7 @@ async function deleteSpool(id){
 }
 async function bulkDeleteSpools(){
   const ids=getSelectedSpoolIds(); if(!ids.length) return;
-  if(!confirm('Delete '+ids.length+' spool(s)? Sales already linked to them keep their grams-used history, just lose the spool link.')) return;
+  if(!await bizConfirm('Delete '+ids.length+' spool(s)? Sales already linked to them keep their grams-used history, just lose the spool link.')) return;
   const {error}=await sb.from('filament_inventory').delete().in('id',ids);
   if(error){ toast('Error: '+error.message,'error'); return; }
   logBizActivity('delete','spool',null,ids.length+' spool(s) bulk deleted');
@@ -12438,7 +12654,7 @@ async function saveNewSpool(){
   // silently letting a duplicate row pile up, admin can still choose "add anyway" (a
   // second physical spool of the exact same filament is a normal, real thing).
   const dupe=(_spoolRows||[]).find(r=>r.status!=='Finsh' && normColorKey(r.brand)===normColorKey(brand) && normColorKey(r.filament_type)===normColorKey(type) && normColorKey(r.color)===normColorKey(color));
-  if(dupe && !confirm('Spool #'+dupe.s_no+' ('+dupe.brand+' '+type+' '+(dupe.color||'')+') already has '+Math.round(spoolRemaining(dupe))+'g left.\n\nOK = add this as a separate new spool anyway.\nCancel = go top up spool #'+dupe.s_no+' instead (Edit that row and increase its grams).')) return;
+  if(dupe && !await bizConfirm('Spool #'+dupe.s_no+' ('+dupe.brand+' '+type+' '+(dupe.color||'')+') already has '+Math.round(spoolRemaining(dupe))+'g left.\n\nOK = add this as a separate new spool anyway.\nCancel = go top up spool #'+dupe.s_no+' instead (Edit that row and increase its grams).')) return;
   const {data:last}=await sb.from('filament_inventory').select('s_no').order('s_no',{ascending:false}).limit(1);
   const nextSNo=((last&&last[0]&&last[0].s_no)||0)+1;
   const payload={
@@ -12579,7 +12795,7 @@ async function _findActiveResale(filterFn){
   return (q.data||[]).find(filterFn)||null;
 }
 async function undoSpoolResaleForSpool(spoolId){
-  if(!confirm('Undo this resale and restore the spool back into inventory? This also removes the Money In entry it created.')) return;
+  if(!await bizConfirm('Undo this resale and restore the spool back into inventory? This also removes the Money In entry it created.')) return;
   const resale=await _findActiveResale(x=>String(x.spool_id)===String(spoolId));
   if(!resale){ toast('No resale record found for this spool','error'); return; }
   await _revertResaleRow(resale);
@@ -12726,10 +12942,183 @@ async function savePrinter(){
   toast('Saved'); document.getElementById('printerForm').style.display='none'; loadMachinery();
 }
 async function deletePrinter(id){
-  if(!confirm('Delete this machine? Logged print attempts against it are kept.')) return;
+  if(!await bizConfirm('Delete this machine? Logged print attempts against it are kept.')) return;
   const {error}=await sb.from('biz_printers').delete().eq('id',id);
   if(error){ toast('Error: '+error.message,'error'); return; }
   toast('Machine deleted'); loadMachinery();
+}
+
+// ── Machine Catalogue tab ────────────────────────────────────
+// Manages the price list that Add Order's Machine picker reads (see machineOptions /
+// onItemMachine). Writes here never touch orders already saved: the line copies the price
+// onto the sale at save time, so correcting a price today cannot rewrite last month's
+// invoice.
+async function loadMachineCatalog(){
+  const body=document.getElementById('machineCatBody');
+  try{
+    const {data,error}=await sb.from('biz_machine_catalog').select('*').order('sort_order').order('model');
+    if(error) throw error;
+    _machineCat=data||[];
+    _machineCatTried=true; _machineCatPromise=Promise.resolve();   // the picker can reuse this fetch
+  }catch(e){
+    if(body) body.innerHTML=`<tr><td colspan="11" class="empty"><div class="em-text">Could not load the catalogue. If this is the first time, run the 20260826_biz_machine_catalog migration in Supabase.</div></td></tr>`;
+    return;
+  }
+  renderMachineCat();
+}
+function renderMachineCat(){
+  const body=document.getElementById('machineCatBody'); if(!body) return;
+  const q=(document.getElementById('mcSearch')?.value||'').trim().toLowerCase();
+  const cat=document.getElementById('mcCategoryFilter')?.value||'';
+  const status=document.getElementById('mcStatusFilter')?.value ?? 'active';
+  const rows=(_machineCat||[]).filter(m=>{
+    if(cat&&(m.category||'printer')!==cat) return false;
+    if(status==='active'&&!m.active) return false;
+    if(status==='nopricing'&&m.selling_price!=null) return false;
+    if(!q) return true;
+    return [m.brand,m.model,m.variant,m.sku,m.specs].filter(Boolean).join(' ').toLowerCase().includes(q);
+  });
+
+  const kpi=document.getElementById('mcKpi');
+  if(kpi){
+    const all=_machineCat||[];
+    const activeRows=all.filter(m=>m.active);
+    const priced=activeRows.filter(m=>m.selling_price!=null);
+    const margins=activeRows.filter(m=>m.selling_price!=null&&m.purchase_cost!=null&&parseFloat(m.selling_price)>0)
+      .map(m=>((parseFloat(m.selling_price)-parseFloat(m.purchase_cost))/parseFloat(m.selling_price))*100);
+    const avgMargin=margins.length?margins.reduce((s,v)=>s+v,0)/margins.length:null;
+    kpi.innerHTML=`
+      <div class="kpi"><div class="kpi-label">Machines Listed</div><div class="kpi-val">${activeRows.length}</div></div>
+      <div class="kpi"><div class="kpi-label">Priced &amp; Ready to Quote</div><div class="kpi-val">${priced.length}<span style="font-size:12px;color:var(--text-3)"> / ${activeRows.length}</span></div></div>
+      <div class="kpi"><div class="kpi-label">Avg Margin</div><div class="kpi-val">${avgMargin==null?'N/A':avgMargin.toFixed(1)+'%'}</div></div>
+      <div class="kpi"><div class="kpi-label">Brands</div><div class="kpi-val">${new Set(activeRows.map(m=>m.brand||'Other')).size}</div></div>`;
+  }
+
+  if(!rows.length){
+    body.innerHTML=`<tr><td colspan="11" class="empty"><div class="em-text">${(_machineCat||[]).length?'Nothing matches those filters':'No machines yet. Add one, or run the catalogue migration to load the Bambu Lab line-up.'}</div></td></tr>`;
+    return;
+  }
+  body.innerHTML=rows.map(m=>{
+    const rate=m.selling_price==null?null:parseFloat(m.selling_price);
+    const cost=m.purchase_cost==null?null:parseFloat(m.purchase_cost);
+    const incl=machineInclPrice(m);
+    const margin=(rate!=null&&cost!=null&&rate>0)?((rate-cost)/rate)*100:null;
+    // A model with no price still sells, it just needs the rate typed by hand, so the gap
+    // is called out here rather than left as a blank cell nobody notices until quoting.
+    const dash='<span style="color:var(--text-3)">not set</span>';
+    return `<tr>
+      <td>
+        <div style="font-weight:600">${esc([m.brand,m.model].filter(Boolean).join(' '))}</div>
+        ${m.variant?`<div style="font-size:11px;color:var(--accent)">${esc(m.variant)}</div>`:''}
+        ${m.specs?`<div style="font-size:11px;color:var(--text-3)">${esc(m.specs)}</div>`:''}
+      </td>
+      <td style="font-size:11px;color:var(--text-2)">${esc(MC_CAT_LABELS[m.category]||m.category||'')}</td>
+      <td style="font-family:var(--mono);font-size:11px">${esc(m.sku||'N/A')}</td>
+      <td class="td-num pmask">${cost==null?dash:fmt(cost)}</td>
+      <td class="td-num pmask" style="font-weight:600">${rate==null?dash:fmt(rate)}</td>
+      <td class="td-num pmask" style="color:var(--text-2)">${incl==null?dash:fmt(incl)}</td>
+      <td class="td-num pmask">${margin==null?dash:`<span style="color:${margin<10?'var(--red)':'var(--text)'}">${margin.toFixed(1)}%</span>`}</td>
+      <td class="td-num">${m.gst_rate==null?'':m.gst_rate+'%'}</td>
+      <td style="font-family:var(--mono);font-size:11px">${esc(m.hsn_code||'N/A')}</td>
+      <td>${m.active?'<span style="color:var(--green);font-size:11px">Active</span>':'<span style="color:var(--text-3);font-size:11px">Inactive</span>'}</td>
+      <td class="td-actions"><button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editMachineCat('${m.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deleteMachineCat('${m.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
+    </tr>`;
+  }).join('');
+}
+// The two price boxes are one number shown two ways. Typing in either updates the other so
+// a supplier list quoted incl GST goes straight in without a calculator, and the stored
+// value stays the taxable rate the Rate column expects.
+function mcTaxMultiplier(){ return 1+((parseFloat(document.getElementById('mc_gst')?.value)||0)/100); }
+function mcSyncFromIncl(){
+  const incl=parseFloat(document.getElementById('mc_incl_price')?.value);
+  const el=document.getElementById('mc_selling_price'); if(!el) return;
+  el.value=isFinite(incl)?String(Math.round((incl/mcTaxMultiplier())*100)/100):'';
+  mcRecalcHint();
+}
+function mcSyncFromTaxable(){
+  const rate=parseFloat(document.getElementById('mc_selling_price')?.value);
+  const el=document.getElementById('mc_incl_price'); if(!el) return;
+  el.value=isFinite(rate)?String(Math.round(rate*mcTaxMultiplier()*100)/100):'';
+  mcRecalcHint();
+}
+function mcRecalcHint(){
+  const hint=document.getElementById('mcMarginHint'); if(!hint) return;
+  const rate=parseFloat(document.getElementById('mc_selling_price')?.value);
+  const cost=parseFloat(document.getElementById('mc_purchase_cost')?.value);
+  if(!isFinite(rate)||!isFinite(cost)||rate<=0){ hint.textContent=''; return; }
+  const profit=rate-cost;
+  hint.innerHTML=`Margin on this machine: <strong>${fmt(profit)}</strong> per unit, ${((profit/rate)*100).toFixed(1)}% of the taxable rate.`;
+}
+function mcFillForm(m){
+  const s=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v; };
+  s('mc_id',m.id||'');
+  s('mc_brand',m.brand||'Bambu Lab'); s('mc_model',m.model||''); s('mc_variant',m.variant||'');
+  s('mc_category',m.category||'printer'); s('mc_sku',m.sku||''); s('mc_specs',m.specs||'');
+  s('mc_sort',m.sort_order==null?'':m.sort_order);
+  s('mc_purchase_cost',m.purchase_cost==null?'':m.purchase_cost);
+  s('mc_selling_price',m.selling_price==null?'':m.selling_price);
+  s('mc_mrp',m.mrp==null?'':m.mrp);
+  s('mc_gst',String(m.gst_rate==null?18:parseFloat(m.gst_rate)));
+  s('mc_hsn',m.hsn_code||'8485');
+  s('mc_active',String(m.active!==false));
+  s('mc_notes',m.notes||'');
+  mcSyncFromTaxable();
+  document.getElementById('machineCatForm').style.display='flex';
+}
+function showAddMachineCat(){
+  document.getElementById('machineCatFormTitle').textContent='Add Machine';
+  mcFillForm({});
+}
+function editMachineCat(id){
+  const m=(_machineCat||[]).find(x=>x.id===id); if(!m) return;
+  document.getElementById('machineCatFormTitle').textContent='Edit '+machineLabel(m);
+  mcFillForm(m);
+}
+async function saveMachineCat(){
+  const g=id=>document.getElementById(id)?.value||'';
+  const brand=g('mc_brand').trim(), model=g('mc_model').trim();
+  if(!brand){ toast('Brand is required','error'); return; }
+  if(!model){ toast('Model is required','error'); return; }
+  const id=g('mc_id');
+  // Blank stays NULL rather than becoming 0: "price not entered yet" and "this machine is
+  // free" are different states, and only the first should show as not set while quoting.
+  const numOrNull=v=>{ const n=parseFloat(v); return isFinite(n)?n:null; };
+  const payload={
+    brand, model,
+    variant:g('mc_variant').trim()||null,
+    category:g('mc_category')||'printer',
+    sku:g('mc_sku').trim()||null,
+    specs:g('mc_specs').trim()||null,
+    purchase_cost:numOrNull(g('mc_purchase_cost')),
+    selling_price:numOrNull(g('mc_selling_price')),
+    mrp:numOrNull(g('mc_mrp')),
+    gst_rate:parseFloat(g('mc_gst'))||0,
+    hsn_code:g('mc_hsn').trim()||'8485',
+    active:g('mc_active')==='true',
+    sort_order:parseInt(g('mc_sort'),10)||0,
+    notes:g('mc_notes').trim()||null,
+    updated_at:new Date().toISOString(),
+  };
+  const {error}=id?await updateRowResilient('biz_machine_catalog',id,payload):await sb.from('biz_machine_catalog').insert(payload);
+  if(error){
+    // The unique index on brand+model+variant is the likely failure, and "duplicate key
+    // value violates..." tells the operator nothing actionable.
+    const dupe=/duplicate key|unique/i.test(error.message||'');
+    toast(dupe?'That brand, model and variant is already in the catalogue':'Error: '+error.message,'error');
+    return;
+  }
+  if(typeof logBizActivity==='function') logBizActivity(id?'edit':'create','machine_catalog',id||model,[brand,model,g('mc_variant').trim()].filter(Boolean).join(' '));
+  toast('Saved');
+  document.getElementById('machineCatForm').style.display='none';
+  loadMachineCatalog();
+}
+async function deleteMachineCat(id){
+  const m=(_machineCat||[]).find(x=>x.id===id);
+  if(!await bizConfirm('Remove '+(m?machineLabel(m):'this machine')+' from the catalogue? Orders that already sold it keep their price and HSN, they just lose the link back to this row.',{danger:true,confirmLabel:'Remove'})) return;
+  const {error}=await sb.from('biz_machine_catalog').delete().eq('id',id);
+  if(error){ toast('Error: '+error.message,'error'); return; }
+  if(typeof logBizActivity==='function') logBizActivity('delete','machine_catalog',id,m?machineLabel(m):'');
+  toast('Removed from catalogue'); loadMachineCatalog();
 }
 function showAddAttempt(){
   ['pa_orderid','pa_note'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
@@ -12745,7 +13134,7 @@ async function saveAttempt(){
   toast('Attempt logged'); document.getElementById('attemptForm').style.display='none'; loadMachinery();
 }
 async function deleteAttempt(id){
-  if(!confirm('Delete this logged attempt?')) return;
+  if(!await bizConfirm('Delete this logged attempt?')) return;
   const {error}=await sb.from('biz_print_attempts').delete().eq('id',id);
   if(error){ toast('Error: '+error.message,'error'); return; }
   toast('Deleted'); loadMachinery();
@@ -12935,7 +13324,7 @@ async function fetchReturnOrderCosts(){
   document.getElementById('rf_channel').value=rows[0].channel_id||'shop';
   recalcReturn(); toast('Pulled costs from sale');
 }
-async function deleteReturn(id){ if(!confirm('Delete this return record?')) return; const {error}=await sb.from('biz_returns').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} logBizActivity('delete','return',id,''); toast('Deleted'); loadReturns(); loadReturnsBadge(); }
+async function deleteReturn(id){ if(!await bizConfirm('Delete this return record?')) return; const {error}=await sb.from('biz_returns').delete().eq('id',id); if(error){toast('Error: '+error.message,'error');return;} logBizActivity('delete','return',id,''); toast('Deleted'); loadReturns(); loadReturnsBadge(); }
 async function saveReturn(){
   recalcReturn();
   const id=document.getElementById('rf_id').value;
@@ -13161,7 +13550,7 @@ function renderFilamentLowStockPopupBody(material){
 }
 function closeFilamentLowStockPopup(){ document.getElementById('filamentLowStockModal').style.display='none'; }
 async function markSpoolFinishedFromAlert(id,material){
-  if(!confirm('Mark this spool as finished? This cannot be undone from here.')) return;
+  if(!await bizConfirm('Mark this spool as finished? This cannot be undone from here.')) return;
   const {error}=await sb.from('filament_inventory').update({status:'Finsh',finish_reason:'used',finished_date:today()}).eq('id',id);
   if(error){ toast('Error: '+error.message,'error'); return; }
   toast('Marked finished');
@@ -13211,7 +13600,7 @@ async function openGstFile(url){
   window.open(data.signedUrl,'_blank');
 }
 async function deleteGstFiling(id){
-  if(!confirm('Delete this filing record?')) return;
+  if(!await bizConfirm('Delete this filing record?')) return;
   const {error}=await sb.from('biz_gst_filings').delete().eq('id',id);
   if(error){ toast('Error: '+error.message,'error'); return; }
   toast('Deleted'); loadGstPortal();
@@ -13359,7 +13748,7 @@ async function gstaSave(confirmRefile){
       // Period is already marked filed on the portal; re-saving would silently downgrade
       // that status, so ask before doing it instead of just failing or just doing it.
       if(res.status===409 && data.requiresConfirmRefile){
-        if(confirm(data.error+'\n\nProceed and reset status to "reviewed"?')){ return gstaSave(true); }
+        if(await bizConfirm(data.error+'\n\nProceed and reset status to "reviewed"?')){ return gstaSave(true); }
         return;
       }
       throw new Error(data.error||'Save failed');
@@ -13401,7 +13790,7 @@ async function gstaDownloadAll(){
 
 async function gstaMarkFiled(){
   if(!_gstaSavedPeriodId) return;
-  if(!confirm('Mark this period as filed on the GST portal?')) return;
+  if(!await bizConfirm('Mark this period as filed on the GST portal?')) return;
   const token=await getBizToken(); if(!token) return;
   const res=await fetch(API+`/api/admin/gst/${_gstaSavedPeriodId}/mark-filed`,{method:'POST',headers:{'Authorization':'Bearer '+token}});
   const data=await res.json().catch(()=>({}));
@@ -13410,7 +13799,7 @@ async function gstaMarkFiled(){
 }
 
 async function gstaMarkFiledFromHistory(periodId){
-  if(!confirm('Mark this period as filed on the GST portal?')) return;
+  if(!await bizConfirm('Mark this period as filed on the GST portal?')) return;
   const token=await getBizToken(); if(!token) return;
   const res=await fetch(API+`/api/admin/gst/${periodId}/mark-filed`,{method:'POST',headers:{'Authorization':'Bearer '+token}});
   const data=await res.json().catch(()=>({}));
@@ -13450,7 +13839,7 @@ async function gstaLoadHistory(){
 }
 
 async function gstaUnmarkFiled(periodId){
-  if(!confirm('Revert this period from "filed" back to "exported"? Use this if Mark as Filed was clicked by mistake.')) return;
+  if(!await bizConfirm('Revert this period from "filed" back to "exported"? Use this if Mark as Filed was clicked by mistake.')) return;
   const token=await getBizToken(); if(!token) return;
   const res=await fetch(API+`/api/admin/gst/${periodId}/unmark-filed`,{method:'POST',headers:{'Authorization':'Bearer '+token}});
   const data=await res.json().catch(()=>({}));
@@ -13459,7 +13848,7 @@ async function gstaUnmarkFiled(periodId){
 }
 
 async function gstaDeletePeriod(periodId,period){
-  if(!confirm(`Delete the calculated GSTR-1 for ${fmtPeriod(period)}? This removes the saved tables, flags and filing-history entry. You can always re-upload the source files and recalculate. This cannot be undone.`)) return;
+  if(!await bizConfirm(`Delete the calculated GSTR-1 for ${fmtPeriod(period)}? This removes the saved tables, flags and filing-history entry. You can always re-upload the source files and recalculate. This cannot be undone.`)) return;
   const token=await getBizToken(); if(!token) return;
   const res=await fetch(API+'/api/admin/gst/'+periodId,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
   const data=await res.json().catch(()=>({}));
@@ -13672,7 +14061,7 @@ async function loadInvoicing(){
 // itself, and a date-vs-series check (an invoice can never end up dated earlier than
 // a lower number, or later than a higher one, already in the log).
 async function editInvoiceLog(id,cur){
-  const val=prompt('Invoice number:',cur);
+  const val=await bizPrompt('Invoice number:',cur);
   if(val==null) return;
   const num=val.trim();
   if(!num||num===cur) return;
@@ -13680,12 +14069,12 @@ async function editInvoiceLog(id,cur){
   const period=row?(row.period||row.financial_year):null;   // older rows predate the 'period' column, fall back to FY-wide check
   if(period){
     const {isDup,gapMsg}=await checkInvoiceNumberIssues(num,period,id);
-    if(isDup&&!confirm(`"${num}" is already used by another invoice this financial year. Use it anyway?`)) return;
-    if(gapMsg&&!isDup&&!confirm('Invoice number: '+gapMsg+' Continue anyway?')) return;
+    if(isDup&&!await bizConfirm(`"${num}" is already used by another invoice this financial year. Use it anyway?`)) return;
+    if(gapMsg&&!isDup&&!await bizConfirm('Invoice number: '+gapMsg+' Continue anyway?')) return;
     const m=num.match(/(\d+)\s*$/);
     if(m&&row.doc_date){
       const dateMsg=await checkDateSequenceIssue(row.doc_date,period,parseInt(m[1],10),id);
-      if(dateMsg&&!confirm('Invoice date vs series order: '+dateMsg+' Continue anyway?')) return;
+      if(dateMsg&&!await bizConfirm('Invoice date vs series order: '+dateMsg+' Continue anyway?')) return;
     }
   }
   const {error}=await sb.from('biz_invoices').update({invoice_number:num}).eq('id',id);
@@ -13732,13 +14121,13 @@ async function invDrop(e,targetId){
   if(error||!rows||rows.length<2){ toast('Could not load rows','error'); return; }
   const dragged=rows.find(r=>r.id===draggedId), target=rows.find(r=>r.id===targetId);
   if(!dragged||!target) return;
-  if(!confirm(`Move "${dragged.invoice_number}" to take "${target.invoice_number}"'s position? Both rows will briefly share the number "${target.invoice_number}", delete/renumber one after.`)) return;
+  if(!await bizConfirm(`Move "${dragged.invoice_number}" to take "${target.invoice_number}"'s position? Both rows will briefly share the number "${target.invoice_number}", delete/renumber one after.`)) return;
   const period=dragged.period||dragged.financial_year;
   const m=(target.invoice_number||'').match(/(\d+)\s*$/);
   const candidateSeq=m?parseInt(m[1],10):null;
   if(candidateSeq&&dragged.doc_date){
     const dateMsg=await checkDateSequenceIssue(dragged.doc_date,period,candidateSeq,dragged.id);
-    if(dateMsg&&!confirm('Invoice date vs series order: '+dateMsg+' Continue anyway?')) return;
+    if(dateMsg&&!await bizConfirm('Invoice date vs series order: '+dateMsg+' Continue anyway?')) return;
   }
   const {error:updErr}=await sb.from('biz_invoices').update({invoice_number:target.invoice_number}).eq('id',draggedId);
   if(updErr){ toast('Move failed: '+updErr.message,'error'); return; }
@@ -13749,7 +14138,7 @@ async function invDrop(e,targetId){
 // does not touch the underlying sale/order. Reprinting the same sale afterward allocates
 // a fresh sequential number, unless its "Invoice No" field manually pins one.
 async function deleteInvoiceLog(id,num){
-  if(!confirm(`Delete invoice number "${num}" from the log? The sale/order itself is not affected.`)) return;
+  if(!await bizConfirm(`Delete invoice number "${num}" from the log? The sale/order itself is not affected.`)) return;
   const {error}=await sb.from('biz_invoices').delete().eq('id',id);
   if(error){ toast('Delete failed: '+error.message,'error'); return; }
   toast('Invoice log entry deleted','success');
@@ -15064,12 +15453,12 @@ async function allocateInvoiceNumber(saleId, orderId, docKind, manualNumber, doc
     let useManual=!!manualNumber;
     if(manualNumber){
       const {isDup,gapMsg}=await checkInvoiceNumberIssues(manualNumber,period,null);
-      if(isDup&&!confirm(`"${manualNumber}" is already used by another invoice this financial year. Use it anyway?`)) useManual=false;   // fall through to the sequential number instead
+      if(isDup&&!await bizConfirm(`"${manualNumber}" is already used by another invoice this financial year. Use it anyway?`)) useManual=false;   // fall through to the sequential number instead
       else if(gapMsg) toast('Invoice number: '+gapMsg,'error');
       const m=String(manualNumber||'').match(/(\d+)\s*$/);
       if(useManual&&m){
         const dateMsg=await checkDateSequenceIssue(docDate,period,parseInt(m[1],10),null);
-        if(dateMsg&&!confirm('Invoice date vs series order: '+dateMsg+' Use this number anyway?')) useManual=false;
+        if(dateMsg&&!await bizConfirm('Invoice date vs series order: '+dateMsg+' Use this number anyway?')) useManual=false;
       }
     }
     if(useManual){
@@ -15816,7 +16205,7 @@ function setDocColorMode(mode){
 }
 // html2canvas/jsPDF load fresh (deferred) into this popup every time, no caching across
 // tabs, so Download/Share used to be clickable before they'd actually arrived, especially
-// on slow mobile connections, only to alert() and force a second manual attempt. Poll
+// on slow mobile connections, only to show an error and force a second manual attempt. Poll
 // instead, and keep the buttons visibly disabled until both are ready.
 (function _pollPdfLibsReady(){
   var dl=document.getElementById('btnDownloadPdf'), sh=document.getElementById('btnSharePdf');
@@ -15831,7 +16220,7 @@ function setDocColorMode(mode){
 async function _buildDocPdfBlob(){
   var actions=document.getElementById('docActions');
   var status=document.getElementById('shareStatus');
-  if(!window.html2canvas||!window.jspdf){ alert('Still loading the PDF tools, try again in a moment, or use Print / PDF.'); return null; }
+  if(!window.html2canvas||!window.jspdf){ await bizAlert('Still loading the PDF tools, try again in a moment, or use Print / PDF.'); return null; }
   status.textContent='Preparing PDF…';
   if(document.fonts&&document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
   actions.style.display='none';
@@ -15889,7 +16278,7 @@ async function downloadDoc(){
     status.textContent='Downloaded ✓'; setTimeout(function(){status.textContent='';},2500);
   }catch(e){
     status.textContent='';
-    alert('Could not generate PDF ('+((e&&e.message)||e)+'). Please use Print / PDF instead.');
+    await bizAlert('Could not generate PDF ('+((e&&e.message)||e)+'). Please use Print / PDF instead.');
   }
 }
 async function shareDoc(){
@@ -15909,7 +16298,7 @@ async function shareDoc(){
     }
   }catch(e){
     status.textContent='';
-    alert('Could not generate PDF ('+((e&&e.message)||e)+'). Please use Print / PDF instead.');
+    await bizAlert('Could not generate PDF ('+((e&&e.message)||e)+'). Please use Print / PDF instead.');
   }
 }
 <\/script>
@@ -16355,6 +16744,7 @@ const BIZ_ADD_NEW={
   openorders:()=>switchTab('quickadd'), customers:openCustomerEdit, products:showAddProduct,
   stock:showAddStock, returns:showAddReturn, spooltracker:showAddSpool, expenses:showAddExpense,
   ledger:showAddIncome, purchases:showAddPurchase, shoplog:showAddShopLog,
+  machinecat:showAddMachineCat,
 };
 document.addEventListener('keydown',function(ev){
   if(ev.key!=='n'&&ev.key!=='N') return;
