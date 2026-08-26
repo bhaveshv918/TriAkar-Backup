@@ -141,6 +141,16 @@
 .status-shipped{background:#E0E7FF;color:#312E81}
 .status-delivered{background:#F0FDF4;color:#166534}
 .status-cancelled{background:#FEE2E2;color:#991B1B}
+/* returned/refunded had no class at all, so both fell through to status-pending and a
+   refunded order sat in a customer's list looking like it was still being worked on. */
+.status-printing{background:#DBEAFE;color:#1E3A5F}
+.status-quality{background:#EDE9FE;color:#4C1D95}
+.status-packed{background:#CFFAFE;color:#155E75}
+.status-dispatched{background:#E0E7FF;color:#312E81}
+.status-transit{background:#E0E7FF;color:#312E81}
+.status-returned{background:#FEE2E2;color:#991B1B}
+.status-refunded{background:#F3F4F6;color:#374151}
+.status-hold{background:#FFEDD5;color:#9A3412}
 .order-items-preview{margin-top:10px;font-size:12px;color:var(--warm);border-top:1px solid var(--stone-p);padding-top:10px}
 .order-track{margin-top:8px;font-size:11px}
 .order-track a{color:var(--accent);font-weight:600;text-decoration:none}
@@ -613,7 +623,22 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 let sb;
 try{sb=window.supabase.createClient(SB_URL,SB_KEY)}catch(e){sb=null}
 
-const STATUS_CLASS={pending:'status-pending',placed:'status-placed',confirmed:'status-confirmed',processing:'status-processing',shipped:'status-shipped',delivered:'status-delivered',cancelled:'status-cancelled'};
+/* Must stay in step with ORDER_STATUSES (server/controllers/adminController.js). Legacy
+   wording is kept so an order last touched before 20260827 still renders. */
+const STATUS_CLASS={
+  pending:'status-pending',placed:'status-placed',confirmed:'status-confirmed',
+  printing:'status-printing',processing:'status-printing',quality_check:'status-quality',
+  packed:'status-packed',dispatched:'status-dispatched',shipped:'status-dispatched',
+  in_transit:'status-transit',delivered:'status-delivered',
+  cancelled:'status-cancelled',returned:'status-returned',refunded:'status-refunded'
+};
+const STATUS_TEXT={
+  pending:'Order Placed',placed:'Confirmed',confirmed:'Confirmed',printing:'Printing',
+  processing:'Printing',quality_check:'Quality Check',packed:'Packed',
+  dispatched:'Dispatched',shipped:'Dispatched',in_transit:'In Transit',
+  delivered:'Delivered',cancelled:'Cancelled',returned:'Returned',refunded:'Refunded',
+  whatsapp_pending:'Via WhatsApp'
+};
 
 /* ── Auth Tabs ── */
 function switchTab(tab){
@@ -1120,8 +1145,11 @@ function renderOrders(orders){
     const st=o.order_status||o.status||'placed';
     const isWA=o.payment_method==='whatsapp'||st==='whatsapp_pending';
     const isUnpaid=!isWA&&(st==='pending')&&o.payment_received!==true&&o.payment_status!=='paid';
-    const displayLabel=isWA?'Via WhatsApp':isUnpaid?'Payment Pending':st;
-    const sc=isWA?'status-whatsapp':isUnpaid?'status-payment-pending':(STATUS_CLASS[st]||'status-pending');
+    // On hold outranks the stage in the badge: the customer needs to know we are waiting
+    // on them, which "Printing" would actively hide.
+    const onHold=Boolean(o.hold_at);
+    const displayLabel=onHold?'On Hold':isWA?'Via WhatsApp':isUnpaid?'Payment Pending':(STATUS_TEXT[st]||st);
+    const sc=onHold?'status-hold':isWA?'status-whatsapp':isUnpaid?'status-payment-pending':(STATUS_CLASS[st]||'status-pending');
     // Normalise: prefer order_items (Razorpay) over JSONB items (WhatsApp); handle both
     const fromDB=(o.order_items||[]).map(function(i){return{name:(i.products&&i.products.name)||'Item',quantity:i.quantity,unit_price:i.unit_price};});
     const items=fromDB.length?fromDB:(o.items||[]);

@@ -293,6 +293,19 @@ app.get('/api/track/:id', async (req, res) => {
     if (!data) return res.json({ found: false });
     const displayId = data.order_id || data.invoice_number || id;
 
+    /* Dated timeline. Only customer_visible rows, and only the two fields the page draws,
+       so an internal correction or an admin's email address never reaches a public URL. */
+    let events = [];
+    try {
+      const ev = await supabase
+        .from('order_status_events')
+        .select('to_status, created_at')
+        .eq('order_id', data.id)
+        .eq('customer_visible', true)
+        .order('created_at', { ascending: true });
+      events = (ev.data || []).map(e => ({ status: e.to_status, at: e.created_at }));
+    } catch (_) { /* history is an enhancement, the page still renders without it */ }
+
     /* SECURITY: this endpoint is public and TRK ids are short/guessable, so return
        ONLY non-PII tracking fields. Never expose customer_email / customer_phone /
        customer_name or the street-level address — otherwise order ids could be
@@ -321,6 +334,13 @@ app.get('/api/track/:id', async (req, res) => {
       tracking_vendor:    data.tracking_vendor,
       estimated_delivery: data.estimated_delivery,
       expected_delivery:  data.expected_delivery,
+      eta_date:           data.eta_date,
+      // Parked waiting on the customer. The reason is written by the studio for the
+      // customer to read, so it is safe to show; hold_at alone would say "something is
+      // wrong" without saying what.
+      on_hold:            Boolean(data.hold_at),
+      hold_reason:        data.hold_at ? (data.hold_reason || null) : null,
+      events,
       items:              safeItems,
       // city/state/pincode only — enough to recognise the order, no street address
       shipping_address:   { city: addr.city || null, state: addr.state || null, pincode: addr.pincode || null },

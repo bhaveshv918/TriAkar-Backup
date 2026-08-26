@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   getAdminProducts, createProduct, updateProduct, deleteProduct, bulkUpdateProducts,
-  getAdminOrders, updateOrderStatus, setOrderHold, updateOrderPayment, updateOrderFields, sendOrderEmail, getActivity,
+  getAdminOrders, updateOrderStatus, setOrderHold, updateOrderPayment, updateOrderFields, sendOrderEmail, getOrderEvents, getActivity,
 } from '../controllers/adminController.js';
 import {
   listUsers, getUser, updateUser, setUserDisabled, setUserRole,
@@ -95,6 +95,7 @@ router.put('/orders/:id/hold',         setOrderHold);   // park waiting on the c
 router.put('/orders/:id/payment',      updateOrderPayment);
 router.put('/orders/:id',              updateOrderFields);   // tracking + admin notes
 router.post('/orders/:id/send-email',  sendOrderEmail);
+router.get('/orders/:id/events',       getOrderEvents);  // status history, feeds the Website Orders timeline
 
 // ── Users (Module 2) — service-role, RLS-bypass. NOTE: export.csv before :id ──
 router.get('/users/export.csv',     exportUsersCsv);

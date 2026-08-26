@@ -213,6 +213,129 @@ export async function getAdminOrders(req, res, next) {
 
 const STOCK_RESTORING_STATUSES = ['cancelled', 'returned', 'refunded'];
 
+/* ── Order status pipeline ──────────────────────────────────────────────
+   One vocabulary, shared by this controller, the admin panel and both customer-facing
+   pages. These are the studio's real stages: a website order can now say Packed, which
+   is where the SLA clock stops, instead of hiding behind a vague "processing".
+
+   On-hold is not in this list on purpose. It is the hold_at flag alongside a status
+   (see setOrderHold), so an order comes back off hold to the stage it was already at. */
+export const ORDER_STATUSES = [
+  'whatsapp_pending', 'pending', 'confirmed', 'printing', 'quality_check',
+  'packed', 'dispatched', 'in_transit', 'delivered',
+  'cancelled', 'returned', 'refunded',
+];
+
+/* Anything still sending the pre-20260827 wording keeps working, and is stored as the
+   new value so the two never coexist in the table. */
+const LEGACY_STATUS_MAP = { placed: 'confirmed', processing: 'printing', shipped: 'dispatched' };
+export function normalizeOrderStatus(s) {
+  return LEGACY_STATUS_MAP[s] || s;
+}
+
+/* Which email template, if any, speaks for each stage. Stages that map to nothing simply
+   do not email: inventing a template for "returned" silently would be worse than silence. */
+const STATUS_EMAIL_TYPE = {
+  confirmed: 'confirmation', printing: 'processing', quality_check: 'processing',
+  packed: 'processing', dispatched: 'dispatched', in_transit: 'dispatched',
+  delivered: 'delivered',
+};
+
+/* Records one transition. Never throws into the caller: a history row failing to write
+   must not fail the status change the operator just made, it is a record of the fact,
+   not the fact itself. */
+async function logOrderEvent({ orderId, from, to, note, by, customerVisible = true, notifiedAt = null }) {
+  try {
+    await supabase.from('order_status_events').insert({
+      order_id: orderId, from_status: from || null, to_status: to,
+      note: note || null, changed_by: by || 'system',
+      customer_visible: customerVisible, notified_at: notifiedAt,
+    });
+  } catch (err) {
+    console.error('[order-events] could not record transition', orderId, to, err?.message);
+  }
+}
+
+/* Reads the per-stage toggles saved by the admin panel. A missing/invalid setting falls
+   back to the three stages a customer actually wants to hear about, rather than to
+   "email on everything", which is the annoying failure direction. */
+const DEFAULT_NOTIFY = { confirmed: true, dispatched: true, delivered: true };
+async function shouldNotify(status) {
+  try {
+    const { data } = await supabase
+      .from('site_settings').select('value').eq('key', 'order_status_notify').single();
+    const cfg = data?.value ? JSON.parse(data.value) : null;
+    if (cfg && typeof cfg === 'object') return cfg[status] === true;
+  } catch (_) { /* fall through to the default */ }
+  return DEFAULT_NOTIFY[status] === true;
+}
+
+/* Shapes a raw orders row into what emailService templates expect. Extracted so the
+   manual "resend" button and the automatic status email cannot drift apart. */
+function buildOrderEmailData(ord) {
+  const emailItems = ord.order_items?.length
+    ? ord.order_items.map(it => ({ name: it.products?.name || 'Item', quantity: it.quantity, unit_price: it.unit_price }))
+    : (ord.items || []).map(it => ({ name: it.name || 'Item', quantity: it.quantity, unit_price: it.price || it.unit_price || 0 }));
+
+  return {
+    order_id:        ord.invoice_number || ord.order_id || ord.id,
+    customer_name:   ord.customer_name  || ord.shipping_address?.full_name || 'Customer',
+    customer_email:  ord.customer_email,
+    customer_phone:  ord.customer_phone || ord.shipping_address?.mobile || ord.shipping_address?.phone || '',
+    total_amount:    ord.total_amount,
+    subtotal:        ord.subtotal,
+    shipping_charge: ord.shipping_charge,
+    discount_amount: ord.discount_amount || 0,
+    promo_code:      ord.promo_code     || null,
+    payment_method:  ord.payment_method || 'online',
+    is_gift:         ord.is_gift        || false,
+    gift_message:    ord.gift_message   || null,
+    tracking_number: ord.tracking_number || null,
+    tracking_vendor: ord.tracking_vendor || null,
+    items:           emailItems,
+    shipping_address: ord.shipping_address || {},
+  };
+}
+
+/* Sends the status email if this stage is configured to send one. Returns the timestamp
+   it went out, or null. Swallows its own errors on purpose, for the same reason as
+   logOrderEvent: the status change already happened and is correct either way. */
+async function notifyOrderStatus(orderId, status) {
+  try {
+    const type = STATUS_EMAIL_TYPE[status];
+    if (!type) return null;
+    if (!await shouldNotify(status)) return null;
+
+    const { data: ord } = await supabase
+      .from('orders').select('*, order_items(quantity, unit_price, products(name))')
+      .eq('id', orderId).single();
+    if (!ord?.customer_email) return null;
+
+    const mod = await import('../services/emailService.js');
+    const send = { confirmation: mod.sendOrderConfirmation, processing: mod.sendOrderProcessingUpdate,
+                   dispatched: mod.sendOrderDispatchedUpdate, delivered: mod.sendOrderDeliveredUpdate }[type];
+    if (!send) return null;
+
+    await send(buildOrderEmailData(ord));
+    return new Date().toISOString();
+  } catch (err) {
+    console.error('[order-status] notify failed', orderId, status, err?.message);
+    return null;
+  }
+}
+
+/* ── GET /api/admin/orders/:id/events — the order's history ── */
+export async function getOrderEvents(req, res, next) {
+  try {
+    const { data, error } = await supabase
+      .from('order_status_events').select('*')
+      .eq('order_id', req.params.id)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    res.json({ events: data || [] });
+  } catch (err) { next(err); }
+}
+
 /* ── PUT /api/admin/orders/:id/hold — park an order, or bring it back ──
    Hold is deliberately NOT a status: an order waiting on the customer has not
    moved anywhere in its lifecycle, and it has to return to exactly the status it
@@ -247,17 +370,27 @@ export async function setOrderHold(req, res, next) {
 export async function updateOrderStatus(req, res, next) {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { note, silent } = req.body;
+    const status = normalizeOrderStatus(req.body.status);
 
-    const valid = ['whatsapp_pending', 'placed', 'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned', 'refunded'];
-    if (!valid.includes(status)) {
+    if (!ORDER_STATUSES.includes(status)) {
       return res.status(400).json({ error: 'Invalid status value' });
     }
 
     // Fetch first: whether stock was ever decremented (payment_received) and whether it
-    // was already restored, both decide if this transition should restock.
+    // was already restored, both decide if this transition should restock. The current
+    // status comes along too, so the history records what it moved from.
     const { data: existing } = await supabase
-      .from('orders').select('payment_received, stock_restored').eq('id', id).single();
+      .from('orders')
+      .select('payment_received, stock_restored, status, order_status, hold_at')
+      .eq('id', id).single();
+    const previous = existing?.order_status || existing?.status || null;
+
+    // Nothing to do, and re-firing the customer email for a status it is already on is
+    // exactly the kind of duplicate nobody can un-send.
+    if (previous === status) {
+      return res.json({ order: existing, unchanged: true });
+    }
 
     const { data, error } = await supabase
       .from('orders')
@@ -267,7 +400,24 @@ export async function updateOrderStatus(req, res, next) {
       .single();
 
     if (error) throw error;
-    logActivity(req.user?.email, 'order.status', 'order', id, '→ ' + status);
+    logActivity(req.user?.email, 'order.status', 'order', id, (previous || 'new') + ' → ' + status);
+
+    // Moving an order on means it is no longer parked, so hold is cleared rather than
+    // left to contradict the stage the customer is now being shown.
+    if (existing?.hold_at && !STOCK_RESTORING_STATUSES.includes(status)) {
+      await supabase.from('orders')
+        .update({ hold_at: null, hold_released_at: new Date().toISOString(), hold_reason: null })
+        .eq('id', id);
+      logActivity(req.user?.email, 'order.hold_released', 'order', id, 'auto, status moved to ' + status);
+    }
+
+    // `silent` is the escape hatch for a correction: fix a mis-click without emailing the
+    // customer about a stage they were never really at, and keep it out of their timeline.
+    const notifiedAt = silent ? null : await notifyOrderStatus(id, status);
+    await logOrderEvent({
+      orderId: id, from: previous, to: status, note,
+      by: req.user?.email || 'admin', customerVisible: !silent, notifiedAt,
+    });
 
     // Stock is only ever decremented once, in paymentController.verifyPayment, after
     // payment is confirmed. Restoring it here on cancel/return/refund closes the gap
@@ -285,7 +435,9 @@ export async function updateOrderStatus(req, res, next) {
       logActivity(req.user?.email, 'order.stock_restored', 'order', id, `${(items ?? []).length} line item(s) restocked on → ${status}`);
     }
 
-    res.json({ order: data });
+    // notified tells the panel whether to say "customer emailed", so the operator is never
+    // guessing whether the customer already knows.
+    res.json({ order: data, notified: Boolean(notifiedAt), previous_status: previous });
   } catch (err) {
     next(err);
   }
@@ -369,12 +521,15 @@ export async function updateOrderPayment(req, res, next) {
 export async function updateOrderFields(req, res, next) {
   try {
     const { id } = req.params;
-    const { tracking_number, tracking_vendor, admin_notes } = req.body;
+    const { tracking_number, tracking_vendor, admin_notes, eta_date } = req.body;
 
     const updates = { updated_at: new Date().toISOString() };
     if (tracking_number !== undefined) updates.tracking_number = tracking_number || null;
     if (tracking_vendor !== undefined) updates.tracking_vendor = tracking_vendor || null;
     if (admin_notes     !== undefined) updates.admin_notes     = admin_notes || null;
+    // The date the customer was promised, shown on track-order.html. Blank clears it
+    // rather than storing '', which would render as an invalid date on the tracking page.
+    if (eta_date        !== undefined) updates.eta_date        = eta_date || null;
     if (Object.keys(updates).length === 1) {
       return res.status(400).json({ error: 'No valid fields to update' });
     }

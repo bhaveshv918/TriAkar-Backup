@@ -1352,7 +1352,7 @@ html[data-theme="dark"] .biz-login{
     </button>
     <div title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="display:flex;flex-direction:column;line-height:1.05;white-space:nowrap">
       <span style="font-family:'Glorida','Inter',sans-serif;font-size:15px;font-weight:800;letter-spacing:.04em"><span style="color:var(--accent)">TRI</span><span style="color:var(--text)">AKAR</span></span>
-      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.90</span></span>
+      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.91</span></span>
     </div>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
@@ -2063,7 +2063,15 @@ html[data-theme="dark"] .biz-login{
           <div class="form-grid" id="qaFulfilDateRow" style="display:none;margin-top:14px">
             <div class="form-group">
               <label id="qaFulfilDateLabel">Pickup / Handover Date</label>
-              <input type="date" id="qa_dispatch_date">
+              <input type="date" id="qa_dispatch_date" onchange="onDispatchDateChange()">
+            </div>
+            <!-- What the customer is told, as opposed to when it left. Kept separate from
+                 dispatch date because "we sent it Tuesday" and "expect it Friday" are two
+                 different promises, and it is the second one support gets asked about. -->
+            <div class="form-group">
+              <label id="qaEtaLabel">Estimated Delivery Date <span style="color:var(--text-3);font-weight:400;text-transform:none">what the customer is promised</span></label>
+              <input type="date" id="qa_eta_date" onchange="onDispatchDateChange()">
+              <div id="qaEtaHint" style="font-size:10px;color:var(--text-3);margin-top:4px"></div>
             </div>
           </div>
           <input type="hidden" id="qa_fulfillment" value="">
@@ -2799,6 +2807,53 @@ html[data-theme="dark"] .biz-login{
       </div>
 
     </div><!-- /instantquotes -->
+
+    <!-- ══════════════════════════════════════════════════════
+         WEBSITE ORDERS
+         The one place a triakar.com order's status is moved. Whatever is set
+         here is exactly what the customer sees on track-order and in My
+         Orders, and what triggers their email. Reads/writes the `orders`
+         table through the service-role backend, never the anon client.
+    ═══════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelWeborders">
+      <div class="p-head">
+        <div>
+          <div class="p-title">Website Orders</div>
+          <div class="p-sub">Move an order along and the customer sees it the same moment, on tracking and in My Orders</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="loadWebOrders()">⟳ Refresh</button>
+      </div>
+
+      <div id="woKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
+
+      <div id="woStageBar" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+        <input type="text" id="woSearch" placeholder="Search order ID, customer, phone, tracking…" oninput="renderWebOrders()" style="flex:1;min-width:200px;padding:7px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px">
+        <select id="woPayFilter" onchange="renderWebOrders()" style="padding:7px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px">
+          <option value="">Any payment</option>
+          <option value="paid">Paid</option>
+          <option value="unpaid">Unpaid</option>
+        </select>
+        <select id="woSpecialFilter" onchange="renderWebOrders()" style="padding:7px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px">
+          <option value="">All orders</option>
+          <option value="hold">On hold only</option>
+          <option value="stale">Sitting 3+ days</option>
+          <option value="notracking">Dispatched, no tracking</option>
+          <option value="late">Past promised date</option>
+        </select>
+      </div>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Order</th><th>Customer</th><th>Items</th>
+            <th class="td-num">Amount</th><th>Payment</th><th>Status</th><th>Tracking</th><th class="td-num">Age</th>
+          </tr></thead>
+          <tbody id="webOrdersBody"><tr><td colspan="8" class="empty"><div class="em-text">Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+    </div><!-- /weborders -->
 
     <!-- ══════════════════════════════════════════════════════
          IMPORT CSV
@@ -5375,6 +5430,10 @@ const NAV_CONFIG = [
       { id: 'salesview',  label: 'Sales',        icon: '✓', shortcut: 's', badge: 'salesviewCount' },
       { id: 'quotations', label: 'Quotations',   icon: '⎘', shortcut: 'q' },
       { id: 'instantquotes', label: 'Instant Quotes', icon: '⧉', shortcut: 'y', badge: 'iqCount' },
+      // triakar.com orders. Separate destination from All Orders (biz_sales, the money
+      // ledger): this one is the customer's view of their own order, and moving a status
+      // here is what they see and get emailed about.
+      { id: 'weborders',  label: 'Website Orders', icon: '🌐', shortcut: 'r', badge: 'webOrdersCount' },
       { id: 'import',     label: 'Import & Labels', icon: '⇲', shortcut: 'l' },
       { id: 'customers',  label: 'Customers',    icon: '☺', shortcut: 'c', badge: 'custCount' },
     ]
@@ -5728,6 +5787,7 @@ function switchTab(name){
     machinecat:loadMachineCatalog,
     gstportal:loadGstPortal, invoicing:loadInvoicing, gstauto:loadGstAuto,
     salesview:loadSalesview, quotations:loadQuotations, rack:loadRackItems, instantquotes:loadInstantQuotes,
+    weborders:loadWebOrders,
     // Notes/T&C preset dropdowns only ever got populated inside setQaFormMode(),
     // which only runs on an explicit Order/Quotation toggle click, opening the tab
     // via "+ Add Order" (or edit/duplicate, none of which call setQaFormMode) left
@@ -6740,6 +6800,7 @@ async function getOrderFields(){
     order_date:g('qa_date')||today(),
     delivery_date:g('qa_delivery_date'),
     dispatch_date:g('qa_dispatch_date'),
+    eta_date:g('qa_eta_date')||null,
     payment_due_date:g('qaPayDueDate'),
     order_id:manualOrderId||await ensureUniqueOrderId(),
     // Payment Mode used to be its own top-of-form dropdown, duplicating the Source/Mode
@@ -7118,7 +7179,7 @@ function openAddOrderEdit(firstId){
   switchTab('quickadd');
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=(v==null?'':v);};
   set('qa_channel',f.channel_id||'shop'); set('qa_date',f.order_date); set('qa_delivery_date',f.delivery_date);
-  set('qa_dispatch_date',f.dispatch_date); set('qa_orderid',f.order_id); set('qaPaySource',f.payment_mode);
+  set('qa_dispatch_date',f.dispatch_date); set('qa_eta_date',f.eta_date); set('qa_orderid',f.order_id); set('qaPaySource',f.payment_mode);
   set('qaPayDueDate',f.payment_due_date);
   if(typeof setQaStatus==='function') setQaStatus(f.status||'pending');
   if(typeof setLeadSource==='function') setLeadSource(f.lead_source||'');
@@ -7368,9 +7429,40 @@ function setFulfillment(v,opts){
   const dl=document.getElementById('qaFulfilDateLabel'); if(dl) dl.textContent=(v==='delivery')?'Dispatch Date':'Pickup / Handover Date';
   const dd=document.getElementById('qa_dispatch_date');
   if(dd&&v&&!dd.value&&(!opts||opts.prefillDate!==false)) dd.value=today();
+  // A pickup is not delivered to anyone, so the same field asks the question that fits.
+  const el=document.getElementById('qaEtaLabel');
+  if(el) el.innerHTML=(v==='delivery')
+    ? 'Estimated Delivery Date <span style="color:var(--text-3);font-weight:400;text-transform:none">what the customer is promised</span>'
+    : 'Ready for Pickup By <span style="color:var(--text-3);font-weight:400;text-transform:none">what the customer is told</span>';
+  onDispatchDateChange();
   const ht=document.getElementById('qa_fulfillment'); if(ht) ht.value=type;
   const hd=document.getElementById('qa_fulfillment_detail'); if(hd) hd.value=detail;
 }
+/* Suggests a delivery date rather than dictating one: dispatch + the studio's usual transit
+   days, filled in only while the field is empty, so a date typed by hand is never moved by a
+   later change to the dispatch date. The hint underneath says how it was arrived at, so the
+   number is never mistaken for something the courier promised. */
+const ETA_TRANSIT_DAYS=4;
+function onDispatchDateChange(){
+  const dd=document.getElementById('qa_dispatch_date');
+  const eta=document.getElementById('qa_eta_date');
+  const hint=document.getElementById('qaEtaHint');
+  if(!dd||!eta) return;
+  if(dd.value&&!eta.value){
+    const d=new Date(dd.value+'T00:00:00');
+    if(!isNaN(d)){ d.setDate(d.getDate()+ETA_TRANSIT_DAYS); eta.value=d.toISOString().slice(0,10); }
+  }
+  if(hint){
+    if(!eta.value){ hint.textContent=''; return; }
+    const a=new Date((dd.value||today())+'T00:00:00'), c=new Date(eta.value+'T00:00:00');
+    const days=Math.round((c-a)/86400000);
+    hint.textContent = isFinite(days)
+      ? (days>=0 ? days+' day'+(days===1?'':'s')+' after dispatch' : 'Before the dispatch date, check this')
+      : '';
+    hint.style.color = (isFinite(days)&&days<0) ? 'var(--red)' : 'var(--text-3)';
+  }
+}
+
 function onFulfilOther(v){ const hd=document.getElementById('qa_fulfillment_detail'); if(hd) hd.value=(v||'').trim(); }
 function onCourierChange(){
   const sel=document.getElementById('qa_courier');
@@ -9360,6 +9452,292 @@ async function toggleReviewReceived(id,current){
   loadOpenOrders();
 }
 
+// ══════════════ WEBSITE ORDERS ══════════════
+/* The single place a triakar.com order's status moves. Everything the customer sees
+   (track-order.html's timeline, My Orders on account.html) reads the same two columns
+   this page writes, and the backend emails them off the same transition, so there is no
+   second version of the truth to keep in step.
+
+   Writes go through bizApiFetch → PUT /api/admin/orders/:id/status, never the anon
+   Supabase client: that endpoint also restocks on cancel/return, records the history
+   event and decides whether the customer gets an email. Doing it client-side would skip
+   all three. See admin-panel RLS pattern, same reason biz_sales money-writes are proxied. */
+
+// One vocabulary, mirroring ORDER_STATUSES in server/controllers/adminController.js.
+// `stage` is the customer-facing step index, -1 for anything off the happy path.
+const WEB_ORDER_STATUSES=[
+  {id:'whatsapp_pending',label:'WhatsApp, awaiting payment',short:'WA Pending',stage:-1,cls:'pending'},
+  {id:'pending',        label:'Payment pending',  short:'Pending',   stage:-1,cls:'pending'},
+  {id:'confirmed',      label:'Confirmed',        short:'Confirmed', stage:0, cls:'order-received'},
+  {id:'printing',       label:'Printing',         short:'Printing',  stage:1, cls:'printing'},
+  {id:'quality_check',  label:'Quality Check',    short:'QC',        stage:2, cls:'processing'},
+  {id:'packed',         label:'Packed',           short:'Packed',    stage:3, cls:'packed'},
+  {id:'dispatched',     label:'Dispatched',       short:'Dispatched',stage:4, cls:'dispatched'},
+  {id:'in_transit',     label:'In Transit',       short:'In Transit',stage:5, cls:'dispatched'},
+  {id:'delivered',      label:'Delivered',        short:'Delivered', stage:6, cls:'delivered'},
+  {id:'cancelled',      label:'Cancelled',        short:'Cancelled', stage:-1,cls:'cancelled'},
+  {id:'returned',       label:'Returned',         short:'Returned',  stage:-1,cls:'returned'},
+  {id:'refunded',       label:'Refunded',         short:'Refunded',  stage:-1,cls:'returned'},
+];
+const WO_BY_ID={}; WEB_ORDER_STATUSES.forEach(s=>{ WO_BY_ID[s.id]=s; });
+// Pre-20260827 wording, still readable if an old row or an old client turns up.
+const WO_LEGACY={placed:'confirmed',processing:'printing',shipped:'dispatched'};
+function woStatusOf(o){ return WO_LEGACY[o.order_status||o.status] || o.order_status || o.status || 'pending'; }
+function woMeta(id){ return WO_BY_ID[id] || {id,label:id,short:id,stage:-1,cls:'pending'}; }
+
+// The stage filter chips. Grouped the way the day actually runs, rather than one chip per
+// status, which would be twelve chips nobody scans.
+const WO_STAGE_GROUPS=[
+  {id:'',          label:'All'},
+  {id:'needs',     label:'Needs action', statuses:['whatsapp_pending','pending','confirmed']},
+  {id:'production',label:'In production',statuses:['printing','quality_check','packed']},
+  {id:'transit',   label:'On its way',   statuses:['dispatched','in_transit']},
+  {id:'done',      label:'Delivered',    statuses:['delivered']},
+  {id:'closed',    label:'Closed',       statuses:['cancelled','returned','refunded']},
+];
+let _webOrders=[], _woStage='', _woOpenId=null, _woEvents={};
+
+async function loadWebOrders(){
+  const body=document.getElementById('webOrdersBody');
+  try{
+    const d=await bizApiFetch('/api/admin/orders');
+    _webOrders=(d.orders||[]).filter(o=>!o.deleted_at);
+  }catch(e){
+    if(body) body.innerHTML=`<tr><td colspan="8" class="empty"><div class="em-text">Could not load orders. ${esc(e.message||'')}</div></td></tr>`;
+    return;
+  }
+  renderWebOrders();
+}
+
+function woAgeDays(o){
+  const t=new Date(o.status_changed_at||o.updated_at||o.created_at).getTime();
+  if(!isFinite(t)) return 0;
+  return Math.floor((Date.now()-t)/86400000);
+}
+function woIsPaid(o){ return o.payment_received===true || o.payment_status==='paid'; }
+
+function renderWebOrders(){
+  const body=document.getElementById('webOrdersBody'); if(!body) return;
+  const q=(document.getElementById('woSearch')?.value||'').trim().toLowerCase();
+  const pay=document.getElementById('woPayFilter')?.value||'';
+  const special=document.getElementById('woSpecialFilter')?.value||'';
+  const grp=WO_STAGE_GROUPS.find(g=>g.id===_woStage);
+
+  // Stage chips, each carrying its own live count so the queue is visible before clicking.
+  const bar=document.getElementById('woStageBar');
+  if(bar){
+    bar.innerHTML=WO_STAGE_GROUPS.map(g=>{
+      const n=g.statuses?_webOrders.filter(o=>g.statuses.includes(woStatusOf(o))).length:_webOrders.length;
+      const on=_woStage===g.id;
+      return `<button type="button" class="btn btn-sm ${on?'btn-primary':'btn-ghost'}" onclick="woSetStage('${g.id}')">${esc(g.label)} <span style="opacity:.7">${n}</span></button>`;
+    }).join('');
+  }
+
+  const rows=_webOrders.filter(o=>{
+    const st=woStatusOf(o);
+    if(grp&&grp.statuses&&!grp.statuses.includes(st)) return false;
+    if(pay==='paid'&&!woIsPaid(o)) return false;
+    if(pay==='unpaid'&&woIsPaid(o)) return false;
+    if(special==='hold'&&!o.hold_at) return false;
+    if(special==='stale'&&woAgeDays(o)<3) return false;
+    if(special==='notracking'&&!(['dispatched','in_transit'].includes(st)&&!o.tracking_number)) return false;
+    if(special==='late'&&!(o.eta_date&&String(o.eta_date).slice(0,10)<new Date().toISOString().slice(0,10)
+      &&!['delivered','cancelled','returned','refunded'].includes(st))) return false;
+    if(!q) return true;
+    return [o.order_id,o.invoice_number,o.customer_name,o.customer_phone,o.customer_email,o.tracking_number,
+            o.shipping_address&&o.shipping_address.full_name]
+      .filter(Boolean).join(' ').toLowerCase().includes(q);
+  });
+
+  const kpi=document.getElementById('woKpi');
+  if(kpi){
+    const cnt=ids=>_webOrders.filter(o=>ids.includes(woStatusOf(o))).length;
+    const held=_webOrders.filter(o=>o.hold_at).length;
+    // "Dispatched with no tracking number" is the one that generates support messages,
+    // so it gets a tile rather than being buried in a filter.
+    const noTrack=_webOrders.filter(o=>['dispatched','in_transit'].includes(woStatusOf(o))&&!o.tracking_number).length;
+    // The promise the customer is holding you to, so it is counted before they call.
+    const todayISO=new Date().toISOString().slice(0,10);
+    const late=_webOrders.filter(o=>o.eta_date&&String(o.eta_date).slice(0,10)<todayISO
+      &&!['delivered','cancelled','returned','refunded'].includes(woStatusOf(o))).length;
+    kpi.innerHTML=`
+      <div class="kpi"><div class="kpi-label">Needs Action</div><div class="kpi-val">${cnt(['whatsapp_pending','pending','confirmed'])}</div></div>
+      <div class="kpi"><div class="kpi-label">In Production</div><div class="kpi-val">${cnt(['printing','quality_check','packed'])}</div></div>
+      <div class="kpi"><div class="kpi-label">On Its Way</div><div class="kpi-val">${cnt(['dispatched','in_transit'])}</div></div>
+      <div class="kpi"><div class="kpi-label">On Hold</div><div class="kpi-val">${held}</div></div>
+      <div class="kpi"><div class="kpi-label">Missing Tracking</div><div class="kpi-val" style="${noTrack?'color:var(--red)':''}">${noTrack}</div></div>
+      <div class="kpi"><div class="kpi-label">Past Promised Date</div><div class="kpi-val" style="${late?'color:var(--red)':''}">${late}</div></div>`;
+  }
+
+  if(!rows.length){
+    body.innerHTML=`<tr><td colspan="8" class="empty"><div class="em-text">${_webOrders.length?'Nothing matches those filters':'No website orders yet'}</div></td></tr>`;
+    return;
+  }
+
+  body.innerHTML=rows.map(o=>{
+    const st=woStatusOf(o), meta=woMeta(st);
+    const oid=o.invoice_number||o.order_id||String(o.id).slice(0,8);
+    const addr=o.shipping_address||{};
+    const name=o.customer_name||addr.full_name||'N/A';
+    const phone=o.customer_phone||addr.mobile||addr.phone||'';
+    const items=(o.order_items&&o.order_items.length)
+      ? o.order_items.map(i=>`${esc((i.products||{}).name||'Item')} ×${i.quantity}`).join(', ')
+      : ((o.items||[]).map(i=>`${esc(i.name||'Item')} ×${i.quantity}`).join(', ')||'N/A');
+    const age=woAgeDays(o);
+    const paid=woIsPaid(o);
+    const isWA=o.payment_method==='whatsapp'||st==='whatsapp_pending';
+    const sel=WEB_ORDER_STATUSES.map(s=>`<option value="${s.id}"${s.id===st?' selected':''}>${esc(s.label)}</option>`).join('');
+    const open=_woOpenId===o.id;
+    return `<tr class="wo-row" style="cursor:pointer" onclick="woToggle('${o.id}',event)">
+      <td>
+        <div style="font-family:var(--mono);font-size:11px;font-weight:600">${esc(oid)}</div>
+        <div style="font-size:10px;color:var(--text-3)">${esc(new Date(o.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'}))}</div>
+        ${o.hold_at?`<div style="font-size:9px;font-weight:700;color:var(--red)">ON HOLD</div>`:''}
+      </td>
+      <td><div style="font-weight:600;font-size:12px">${esc(name)}</div>${phone?`<div style="font-size:10px;color:var(--text-3);font-family:var(--mono)">${esc(phone)}</div>`:''}</td>
+      <td style="font-size:11px;color:var(--text-2);max-width:220px">${items}</td>
+      <td class="td-num pmask" style="font-weight:600">${fmt(o.total_amount)}</td>
+      <td>${paid?'<span style="color:var(--green);font-size:11px;font-weight:600">Paid</span>'
+                :`<span style="color:${isWA?'#25D366':'var(--text-3)'};font-size:11px">${isWA?'WhatsApp':'Unpaid'}</span>`}</td>
+      <td onclick="event.stopPropagation()">
+        <select class="wo-status" data-id="${o.id}" onchange="woChangeStatus('${o.id}',this)"
+                style="padding:5px 7px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--bg-2);color:var(--text)">${sel}</select>
+      </td>
+      <td style="font-size:11px;font-family:var(--mono)">${o.tracking_number
+        ? `${esc(o.tracking_vendor||'')} ${esc(o.tracking_number)}`
+        : (['dispatched','in_transit'].includes(st)?'<span style="color:var(--red)">missing</span>':'<span style="color:var(--text-3)">N/A</span>')}</td>
+      <td class="td-num" style="font-size:11px;${age>=3&&meta.stage>=0&&meta.stage<6?'color:var(--red);font-weight:600':''}">${age}d</td>
+    </tr>
+    ${open?woDetailRow(o,st):''}`;
+  }).join('');
+}
+
+function woSetStage(id){ _woStage=id; renderWebOrders(); }
+
+// Row expands into the things you actually do next: see the history, set tracking, park it,
+// or re-send an email. Kept in the same table rather than a modal so the queue stays visible.
+function woDetailRow(o,st){
+  const ev=_woEvents[o.id];
+  const timeline=!ev ? '<div style="font-size:11px;color:var(--text-3)">Loading history…</div>'
+    : (!ev.length ? '<div style="font-size:11px;color:var(--text-3)">No history recorded yet. Events start from the first status change after the pipeline migration.</div>'
+    : ev.map(e=>`<div style="display:flex;gap:8px;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--text-3);font-family:var(--mono);white-space:nowrap">${esc(new Date(e.created_at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}))}</span>
+        <span style="font-weight:600">${esc(woMeta(e.to_status).label)}</span>
+        ${e.from_status?`<span style="color:var(--text-3)">from ${esc(woMeta(e.from_status).short)}</span>`:''}
+        ${e.notified_at?'<span style="color:var(--green)">emailed</span>':''}
+        ${e.customer_visible?'':'<span style="color:var(--text-3)">internal</span>'}
+        ${e.note?`<span style="color:var(--text-2)">${esc(e.note)}</span>`:''}
+        <span style="margin-left:auto;color:var(--text-3)">${esc(e.changed_by||'')}</span>
+      </div>`).join(''));
+
+  return `<tr><td colspan="8" style="background:var(--bg-2);padding:14px 16px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px" onclick="event.stopPropagation()">
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Status history</div>
+        ${timeline}
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Actions</div>
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <input type="text" id="woTrackVendor_${o.id}" value="${esc(o.tracking_vendor||'')}" placeholder="Courier" style="width:110px;padding:6px 8px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--bg-1);color:var(--text)">
+          <input type="text" id="woTrackNo_${o.id}" value="${esc(o.tracking_number||'')}" placeholder="Tracking number" style="flex:1;padding:6px 8px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--bg-1);color:var(--text)">
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px">
+          <label style="font-size:11px;color:var(--text-2);white-space:nowrap">Arriving by</label>
+          <input type="date" id="woEta_${o.id}" value="${esc((o.eta_date||'').slice(0,10))}" title="Shown to the customer on the tracking page" style="padding:6px 8px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--bg-1);color:var(--text)">
+          <button class="btn btn-primary btn-sm" onclick="woSaveTracking('${o.id}')">Save</button>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${o.hold_at
+            ? `<button class="btn btn-primary btn-sm" onclick="woHold('${o.id}',false)">↩ Bring back from hold</button>`
+            : `<button class="btn btn-ghost btn-sm" onclick="woHold('${o.id}',true)">⏸ Put on hold</button>`}
+          <button class="btn btn-ghost btn-sm" onclick="woResend('${o.id}','${esc(st)}')">✉ Re-send status email</button>
+        </div>
+        ${o.hold_at?`<div style="font-size:11px;color:var(--red);margin-top:8px">On hold since ${esc(new Date(o.hold_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'}))}${o.hold_reason?', '+esc(o.hold_reason):''}</div>`:''}
+        <div style="font-size:10px;color:var(--text-3);margin-top:10px">Moving the status forward clears a hold automatically, so the customer is never shown a stage that contradicts it.</div>
+      </div>
+    </div>
+  </td></tr>`;
+}
+
+async function woToggle(id,ev){
+  if(ev&&ev.target&&ev.target.closest('select,input,button')) return;
+  _woOpenId = _woOpenId===id ? null : id;
+  renderWebOrders();
+  if(_woOpenId && !_woEvents[id]){
+    try{ const d=await bizApiFetch('/api/admin/orders/'+id+'/events'); _woEvents[id]=d.events||[]; }
+    catch(_){ _woEvents[id]=[]; }
+    renderWebOrders();
+  }
+}
+
+async function woChangeStatus(id,sel){
+  const to=sel.value, o=_webOrders.find(x=>x.id===id);
+  const from=o?woStatusOf(o):null;
+  if(from===to) return;
+  const meta=woMeta(to);
+  // Cancel/return/refund restock and are the ones that cannot be quietly undone, so they
+  // ask. The ordinary forward moves do not, that would be a click on every single order.
+  if(['cancelled','returned','refunded'].includes(to)){
+    if(!await bizConfirm(`Set this order to ${meta.label}? Paid orders have their stock restored, and that only happens once.`,{danger:true,confirmLabel:meta.label})){
+      sel.value=from; return;
+    }
+  }
+  sel.disabled=true;
+  try{
+    const r=await bizApiFetch('/api/admin/orders/'+id+'/status',{method:'PUT',body:JSON.stringify({status:to})});
+    if(o){ o.status=to; o.order_status=to; o.status_changed_at=new Date().toISOString(); if(r.order&&r.order.hold_at===null) o.hold_at=null; }
+    delete _woEvents[id];   // history has a new entry, refetch it if the row is opened
+    toast(r.notified ? meta.label+', customer emailed' : 'Status set to '+meta.label);
+    if(_woOpenId===id){ try{ const d=await bizApiFetch('/api/admin/orders/'+id+'/events'); _woEvents[id]=d.events||[]; }catch(_){} }
+    renderWebOrders();
+  }catch(e){
+    toast('Error: '+e.message,'error');
+    sel.value=from;
+  }finally{ sel.disabled=false; }
+}
+
+async function woSaveTracking(id){
+  const vendor=document.getElementById('woTrackVendor_'+id)?.value.trim()||'';
+  const number=document.getElementById('woTrackNo_'+id)?.value.trim()||'';
+  const eta=document.getElementById('woEta_'+id)?.value||'';
+  try{
+    await bizApiFetch('/api/admin/orders/'+id,{method:'PUT',body:JSON.stringify({tracking_vendor:vendor,tracking_number:number,eta_date:eta})});
+    const o=_webOrders.find(x=>x.id===id); if(o){ o.tracking_vendor=vendor; o.tracking_number=number; o.eta_date=eta||null; }
+    toast('Saved'); renderWebOrders();
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+async function woHold(id,hold){
+  let reason=null;
+  if(hold){
+    reason=await bizPrompt('What is this order waiting on?','',{title:'Put on hold',placeholder:'e.g. waiting on the customer to confirm the colour'});
+    if(reason===null) return;   // cancelled the dialog
+  }
+  try{
+    const r=await bizApiFetch('/api/admin/orders/'+id+'/hold',{method:'PUT',body:JSON.stringify({hold,reason})});
+    const o=_webOrders.find(x=>x.id===id);
+    if(o&&r.order){ o.hold_at=r.order.hold_at; o.hold_reason=r.order.hold_reason; }
+    toast(hold?'Order put on hold':'Order brought back');
+    renderWebOrders();
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+// Re-send is for the case where the first one bounced or the customer deleted it. It maps
+// the current stage to the same template the automatic email uses, so they never receive
+// a different message than the one that was supposed to go out.
+const WO_EMAIL_TYPE={confirmed:'confirmation',printing:'processing',quality_check:'processing',
+  packed:'processing',dispatched:'dispatched',in_transit:'dispatched',delivered:'delivered'};
+async function woResend(id,st){
+  const type=WO_EMAIL_TYPE[st];
+  if(!type){ toast('No customer email exists for '+woMeta(st).label,'error'); return; }
+  if(!await bizConfirm('Send the '+woMeta(st).label+' email to this customer again?')) return;
+  try{
+    await bizApiFetch('/api/admin/orders/'+id+'/send-email',{method:'POST',body:JSON.stringify({type})});
+    toast('Email sent');
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
 // ══════════════ INSTANT QUOTES ══════════════
 // Ported from admin.html (moved into Business OS so it gets the same styling and
 // backend-access treatment as everything else here). Rule 10 (mandatory human
@@ -9537,10 +9915,19 @@ async function saveIqPricingSettings(){
 
 /* Every uploaded model + computed quote, regardless of whether it became an
    order, a standing record for the business, not just an order sub-view. */
+let _iqUploadsTotal=0;
 async function loadIqUploads(){
-  const{data,error}=await sb.from('instant_quote_requests').select('*').order('created_at',{ascending:false}).limit(500);
+  // head+exact count alongside the page of rows: the table is capped at the 500 newest,
+  // but the # column has to number from the true first upload, not from the top of the
+  // window, or the newest quote would be misnumbered the day uploads pass 500.
+  const[{data,error},{count}]=await Promise.all([
+    sb.from('instant_quote_requests').select('*').order('created_at',{ascending:false}).limit(500),
+    sb.from('instant_quote_requests').select('id',{count:'exact',head:true}),
+  ]);
   if(error){document.getElementById('iqUploadsBody').innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">Error loading uploads</div></td></tr>';return}
   _iqUploads=data||[];
+  _iqUploadsTotal=count||_iqUploads.length;
+  buildIqSeqNumbers();
   _iqBuildAttemptMap();
   // Reset unconditionally. Scoping this inside `if(userIds.length)` left the
   // previous load's profiles in place when a reload came back with only
@@ -9786,13 +10173,27 @@ function _iqUploadStatusCell(q){
   return html+'</div>';
 }
 
+/* The # column is the quote's own place in the sequence, not its position in whatever
+   is on screen. Sorting by "Ordered first" or filtering to one status used to renumber
+   every row from 1, so the newest of 111 quotes read as "1" and the number meant nothing
+   you could quote back to a customer. Oldest upload is 1, and a given quote keeps its
+   number for good. Only the 500 most recent uploads are fetched, so the count is offset
+   by however many sit below that window, keeping the newest row's number honest. */
+let _iqSeq={};
+function buildIqSeqNumbers(){
+  _iqSeq={};
+  const asc=[..._iqUploads].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+  const offset=Math.max(0,(_iqUploadsTotal||asc.length)-asc.length);
+  asc.forEach((q,i)=>{ _iqSeq[q.id]=offset+i+1; });
+}
+
 function renderIqUploads(list){
   const tbody=document.getElementById('iqUploadsBody'); if(!tbody) return;
   const countEl=document.getElementById('iqUploadCount');
   if(countEl) countEl.textContent=_iqUploads.length?('Showing '+list.length+' of '+_iqUploads.length+'.'):'';
   if(!list.length){tbody.innerHTML='<tr><td colspan="8" class="empty"><div class="em-text">'+(_iqUploads.length?'No upload matches that filter.':'No uploads yet.')+'</div></td></tr>';return}
   tbody.innerHTML=list.map((q,i)=>'<tr>'
-    +'<td data-label="#"><div class="iq-stack"><span style="font-weight:700;font-size:12px">'+(i+1)+'</span>'
+    +'<td data-label="#"><div class="iq-stack"><span style="font-weight:700;font-size:12px" title="Quote number in sequence, oldest is 1">'+(_iqSeq[q.id]||(i+1))+'</span>'
       +(q.quote_number?'<span class="iq-sub iq-mono" title="Quote reference the customer sees">'+esc(q.quote_number)+'</span>':'')+'</div></td>'
     +'<td data-label="Date"><span class="iq-sub">'+fmtDateTimeIST(q.created_at)+'</span></td>'
     +'<td data-label="Model &amp; notes">'+_iqModelCell(q)+'</td>'
