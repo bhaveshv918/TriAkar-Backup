@@ -1352,7 +1352,7 @@ html[data-theme="dark"] .biz-login{
     </button>
     <div title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="display:flex;flex-direction:column;line-height:1.05;white-space:nowrap">
       <span style="font-family:'Glorida','Inter',sans-serif;font-size:15px;font-weight:800;letter-spacing:.04em"><span style="color:var(--accent)">TRI</span><span style="color:var(--text)">AKAR</span></span>
-      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.89</span></span>
+      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.90</span></span>
     </div>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
@@ -4421,6 +4421,18 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group"><label>Default GST %</label><select id="def_gst"><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select></div>
             <div class="form-group"><label>Default Making Cost ₹</label><input type="number" id="def_cogs" step="0.01" placeholder="0"></div>
           </div>
+          <!-- A printed product, a machine and a spool of filament are three different
+               headings. One "default HSN" only ever fitted the first, so the other two
+               had to be corrected by hand on every line, or quietly went out wrong. Each
+               line type now carries its own preset, applied the moment the Product /
+               Machine / Spool toggle is switched. -->
+          <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-3);margin:16px 0 8px">Per line type, applied on the Add Order toggle</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="form-group"><label>Machine HSN</label><input type="text" id="def_hsn_machine" placeholder="84775900"></div>
+            <div class="form-group"><label>Machine GST %</label><select id="def_gst_machine"><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select></div>
+            <div class="form-group"><label>Spool HSN</label><input type="text" id="def_hsn_spool" placeholder="3916"></div>
+            <div class="form-group"><label>Spool GST %</label><select id="def_gst_spool"><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select></div>
+          </div>
           <div style="font-size:11px;color:var(--text-3);margin-top:10px">SKU category codes: HOM · WAL · FIG · PER · GFT · UTL · TEC · CUS &nbsp;·&nbsp; per-document-type field toggles live under the Invoice / Quotation / Order Acknowledgement tabs above.</div>
           <div style="display:flex;gap:10px;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
             <button class="btn btn-primary btn-sm" onclick="saveBizDefaults()">Save</button>
@@ -4927,14 +4939,23 @@ function setDocSettingsTab(tab){
 async function loadBizDefaults(){
   try{
     const settingsKeys=DOC_FIELD_GROUPS.map(g=>g.settingsKey);
-    const {data}=await sb.from('site_settings').select('key,value').in('key',['biz_default_hsn','biz_default_gst','biz_default_cogs',...settingsKeys]);
+    const {data}=await sb.from('site_settings').select('key,value').in('key',['biz_default_hsn','biz_default_gst','biz_default_cogs','biz_default_hsn_machine','biz_default_gst_machine','biz_default_hsn_spool','biz_default_gst_spool',...settingsKeys]);
     const m={}; (data||[]).forEach(r=>m[r.key]=r.value);
-    _bizDefaults={ hsn:m.biz_default_hsn||'3926', gst:parseFloat(m.biz_default_gst)||0, cogs:parseFloat(m.biz_default_cogs)||0 };
+    const numOr=(v,d)=>{ const n=parseFloat(v); return isFinite(n)?n:d; };
+    _bizDefaults={
+      hsn:m.biz_default_hsn||'3926', gst:parseFloat(m.biz_default_gst)||0, cogs:parseFloat(m.biz_default_cogs)||0,
+      // Per line type. Blank in Settings falls back to the codes the studio actually uses,
+      // so a fresh install is right without anyone configuring anything.
+      hsnMachine:m.biz_default_hsn_machine||'84775900', gstMachine:numOr(m.biz_default_gst_machine,18),
+      hsnSpool:m.biz_default_hsn_spool||'3916',         gstSpool:numOr(m.biz_default_gst_spool,18),
+    };
     _docCfg={};
     DOC_FIELD_GROUPS.forEach(g=>{ try{ _docCfg[g.key]=JSON.parse(m[g.settingsKey]||'{}')||{}; }catch(_){ _docCfg[g.key]={}; } });
     if(typeof renderDocSettings==='function') renderDocSettings();
     const set=(id,v)=>{const e=document.getElementById(id);if(e&&v!=null&&v!=='')e.value=v;};
     set('def_hsn',_bizDefaults.hsn); set('def_gst',String(_bizDefaults.gst)); set('def_cogs',_bizDefaults.cogs||'');
+    set('def_hsn_machine',_bizDefaults.hsnMachine); set('def_gst_machine',String(_bizDefaults.gstMachine));
+    set('def_hsn_spool',_bizDefaults.hsnSpool);     set('def_gst_spool',String(_bizDefaults.gstSpool));
     const imp=document.getElementById('importDefaultCogs'); if(imp&&(imp.value===''||imp.value==='0')&&_bizDefaults.cogs) imp.value=_bizDefaults.cogs;
   }catch(_){}
 }
@@ -4944,6 +4965,10 @@ async function saveBizDefaults(){
     {key:'biz_default_hsn',value:(g('def_hsn')||'3926').trim()},
     {key:'biz_default_gst',value:String(parseFloat(g('def_gst'))||0)},
     {key:'biz_default_cogs',value:String(parseFloat(g('def_cogs'))||0)},
+    {key:'biz_default_hsn_machine',value:(g('def_hsn_machine')||'84775900').trim()},
+    {key:'biz_default_gst_machine',value:String(parseFloat(g('def_gst_machine'))||0)},
+    {key:'biz_default_hsn_spool',  value:(g('def_hsn_spool')||'3916').trim()},
+    {key:'biz_default_gst_spool',  value:String(parseFloat(g('def_gst_spool'))||0)},
   ].map(r=>({...r,updated_at:new Date().toISOString()}));
   const {error}=await sb.from('site_settings').upsert(rows,{onConflict:'key'});
   if(error){ toast('Error: '+error.message,'error'); return; }
@@ -5661,6 +5686,7 @@ async function startApp(){
   loadOpenOrders();
   loadIqOrders();
   loadSalesBadge();
+  loadSalesviewBadge();   // header "Sales" badge, was only filled on opening the tab so it sat at N/A all session
   loadReturnsBadge();
   loadCustomers();
   loadFeeRules();        // load fee/return-cost rules (used when marking returns)
@@ -6018,11 +6044,18 @@ function ensureMachineCat(){
   _machineCatPromise=loadMachineCatRows(true);
   return _machineCatPromise;
 }
-// Per-line-type HSN. The biz default (3926, articles of plastic) fits printed goods and
-// nothing else: a machine and a spool of filament each sit under their own heading, and
-// getting it wrong here is what ends up in GSTR-1 Table 12.
+// Per-line-type tax preset. The biz default (3926, articles of plastic) fits printed goods
+// and nothing else: a machine and a spool of filament each sit under their own heading, and
+// getting it wrong here is what ends up in GSTR-1 Table 12. All three are editable under
+// Settings, Operational Defaults; these are only the fallbacks for a fresh install.
 const HSN_MACHINE='84775900';   // printers and AMS units, a catalogue row can override it
 const HSN_SPOOL='3916';         // filament sold on as a spool
+function itemTypePreset(type){
+  const d=_bizDefaults||{};
+  if(type==='machine') return { hsn:d.hsnMachine||HSN_MACHINE, gst:isFinite(d.gstMachine)?d.gstMachine:18 };
+  if(type==='spool')   return { hsn:d.hsnSpool  ||HSN_SPOOL,   gst:isFinite(d.gstSpool)  ?d.gstSpool  :18 };
+  return { hsn:d.hsn||'3926', gst:parseFloat(d.gst)||0 };
+}
 function machineLabel(m){ return [m.brand,m.model,m.variant].filter(Boolean).join(' '); }
 // Price the customer sees. Stored rate is taxable (GST excluded) to match the Rate column,
 // so anywhere a "what they actually pay" figure is shown it is derived, never a second
@@ -6032,7 +6065,10 @@ function machineInclPrice(m){
   return Math.round(rate*(1+((parseFloat(m.gst_rate)||0)/100))*100)/100;
 }
 const MC_CAT_LABELS={printer:'Printer',ams:'AMS / feeder',accessory:'Accessory',spare:'Spare part'};
-// Grouped by brand, then by category within the brand, so a 40-model list stays scannable.
+const MC_GROUP_LABELS={printer:'Printers',ams:'AMS & Feeders',accessory:'Accessories',spare:'Spare Parts'};
+// Grouped by category only. Grouping by brand as well doubled the headings while every
+// row said "Bambu Lab", which is noise, not structure; the brand is on the option text
+// where it is actually needed. Falls back to brand groups the day a second brand appears.
 // An inactive model still renders when it is the one already picked on this row, otherwise
 // re-opening an old order would silently blank its own selection.
 function machineOptions(selectedId){
@@ -6040,20 +6076,21 @@ function machineOptions(selectedId){
   if(!rows.length){
     return `<option value="">${_machineCatTried?'Catalogue is empty, add machines under Products':'Loading catalogue…'}</option>`;
   }
-  let html=`<option value=""${selectedId?'':' selected'}>Pick from catalogue…</option>`;
   const brands=[...new Set(rows.map(m=>m.brand||'Other'))];
-  brands.forEach(b=>{
-    const inBrand=rows.filter(m=>(m.brand||'Other')===b);
-    const cats=[...new Set(inBrand.map(m=>m.category||'printer'))];
-    cats.forEach(c=>{
-      html+=`<optgroup label="${esc(b)} · ${esc(MC_CAT_LABELS[c]||c)}">`;
-      inBrand.filter(m=>(m.category||'printer')===c).forEach(m=>{
-        const incl=machineInclPrice(m);
-        const price=incl==null?'price not set':fmt(incl)+' incl GST';
-        html+=`<option value="${m.id}"${m.id===selectedId?' selected':''}>${esc([m.model,m.variant].filter(Boolean).join(' '))} · ${esc(price)}</option>`;
-      });
-      html+='</optgroup>';
+  const oneBrand=brands.length===1;
+  let html=`<option value=""${selectedId?'':' selected'}>Pick from catalogue…</option>`;
+  const cats=[...new Set(rows.map(m=>m.category||'printer'))];
+  cats.forEach(c=>{
+    html+=`<optgroup label="${esc(MC_GROUP_LABELS[c]||MC_CAT_LABELS[c]||c)}">`;
+    rows.filter(m=>(m.category||'printer')===c).forEach(m=>{
+      const incl=machineInclPrice(m);
+      // One line, name then price. The rate/GST/HSN it fills in are all visible on the
+      // row the moment it is picked, so repeating them here only made the list harder
+      // to read past the first few words.
+      const label=oneBrand?[m.model,m.variant].filter(Boolean).join(' '):machineLabel(m);
+      html+=`<option value="${m.id}"${m.id===selectedId?' selected':''}>${esc(label)}${incl==null?'  (price not set)':'  '+esc(fmt(incl))}</option>`;
     });
+    html+='</optgroup>';
   });
   return html;
 }
@@ -6068,12 +6105,18 @@ function onItemMachine(i,id){
   it.name=machineLabel(m);
   it.productId=null;
   it.sku=m.sku||'';
-  it.gst=parseFloat(m.gst_rate); if(!isFinite(it.gst)) it.gst=18;
-  it.hsn=m.hsn_code||HSN_MACHINE;
+  it.gst=parseFloat(m.gst_rate); if(!isFinite(it.gst)) it.gst=itemTypePreset('machine').gst;
+  it.hsn=m.hsn_code||itemTypePreset('machine').hsn;
   if(m.specs&&!it.variant) it.variant=m.specs;
   const rate=parseFloat(m.selling_price); if(isFinite(rate)) it.rate=rate;
   const cost=parseFloat(m.purchase_cost); if(isFinite(cost)) it.cost=cost;
   it.inclTotal='';   // stale once the rate is replaced, and recalcTotals reads it
+  // The Rate column is the taxable figure, but a machine is quoted and remembered by its
+  // all-in price, so that goes in Remarks where it prints on the invoice line. Prefilled,
+  // not forced: it is an ordinary editable field, clear it on any line you would rather
+  // not show it on.
+  const incl=machineInclPrice(m);
+  if(incl!=null) it.remarks=fmt(incl)+' incl. GST';
   renderItems();
 }
 // Phase 10 Group 3 (J): already-opened/partial spools matching the current row's
@@ -6157,11 +6200,12 @@ function setItemType(i,type){
   else { it.name=''; }
   if(type!=='machine'){ it.machineId=null; }
   else { ensureMachineCat(); }   // resolves into a re-render once the list is in
-  // Switching type is a deliberate reset of what the line is, so the HSN follows it.
-  // Picking an actual machine overwrites this again from its catalogue row.
-  it.hsn = type==='spool' ? HSN_SPOOL
-         : type==='machine' ? HSN_MACHINE
-         : ((_bizDefaults&&_bizDefaults.hsn)||'3926');
+  // Switching type is a deliberate reset of what the line is, so the tax preset follows
+  // it. All three come from Settings, Operational Defaults. Picking an actual machine
+  // overwrites this again from its own catalogue row.
+  const preset = itemTypePreset(type);
+  it.hsn = preset.hsn;
+  it.gst = preset.gst;
   renderItems();
 }
 // delta>0 consumes, delta<0 restores; clamped to [0, total]. Also flips
@@ -9917,7 +9961,10 @@ async function loadIqOrders(){
   // Today's Tasks counts what is actually waiting on you. An order parked waiting
   // on the customer is not your task, so it does not inflate that badge.
   const active=_iqOrders.filter(o=>!_iqHoldState(o).held).length;
-  const cEl=document.getElementById('iqCount_hdr'); if(cEl)cEl.textContent=active;
+  // The header badge is a "how much is in this tab" count, like every other nav
+  // badge, so it uses the total. Feeding it `active` made it read 0 while the tab
+  // still had held orders sitting in it.
+  const cEl=document.getElementById('iqCount_hdr'); if(cEl)cEl.textContent=_iqOrders.length;
   checkNewIqEntry(active);
   renderIqOrders();
   renderIqKpi();
