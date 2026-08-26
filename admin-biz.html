@@ -786,7 +786,27 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
      one), so the toast container's clearance is a precise match, not a guess. */
   #toastContainer{top:64px;left:12px;right:12px;max-width:none}
 
-  /* Add Order's fixed bottom bar spans full width on mobile (sidebar is an
+  /* Save-blocked panel. Sits directly above the pinned action bar so it is next to the
+   button that just refused to do anything, not somewhere up the page. */
+.qa-problems{
+  margin:0 0 10px;padding:12px 14px;border-radius:10px;
+  background:var(--red-bg);border:1px solid var(--red);
+}
+.qa-problems-title{font-size:12px;font-weight:700;color:var(--red);margin-bottom:7px;display:flex;align-items:center;gap:6px}
+.qa-problems ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px}
+.qa-problems li{font-size:12px;color:var(--text-2);line-height:1.5}
+.qa-problems button.qa-problem-jump{
+  background:none;border:none;padding:0;font:inherit;color:var(--text-2);cursor:pointer;
+  text-align:left;text-decoration:underline;text-underline-offset:2px;
+}
+.qa-problems button.qa-problem-jump:hover{color:var(--red)}
+.qa-problems .qa-problem-db{font-family:var(--mono);font-size:11px;color:var(--red);word-break:break-word}
+/* The asterisk on a required field's label. Rendered from the required attribute itself
+   (see markRequiredLabels), so a field cannot claim to be optional while the validator
+   insists on it. */
+.req-star{color:var(--red);font-weight:700;margin-left:3px}
+
+/* Add Order's fixed bottom bar spans full width on mobile (sidebar is an
      overlay drawer here, not a layout column) and clears the home-bar safe area. */
   .qa-fixed-bottom-bar{left:0!important}
   .qa-fixed-bottom-btn{min-height:44px;font-size:13px!important}
@@ -1352,7 +1372,7 @@ html[data-theme="dark"] .biz-login{
     </button>
     <div title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="display:flex;flex-direction:column;line-height:1.05;white-space:nowrap">
       <span style="font-family:'Glorida','Inter',sans-serif;font-size:15px;font-weight:800;letter-spacing:.04em"><span style="color:var(--accent)">TRI</span><span style="color:var(--text)">AKAR</span></span>
-      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.93</span></span>
+      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.94</span></span>
     </div>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
@@ -1964,7 +1984,7 @@ html[data-theme="dark"] .biz-login{
           </div>
           <div class="form-grid" id="qaPayFieldsRow">
             <div class="form-group"><label>Amount</label><input type="number" id="qaPayAmount" step="0.01" oninput="onQaPayAmountInput()"></div>
-            <div class="form-group"><label>Date</label><input type="date" id="qaPayDate"></div>
+            <div class="form-group"><label>Date</label><input type="date" id="qaPayDate" required></div>
             <div class="form-group"><label>Source / Mode</label>
               <!-- GPay first and pre-selected: it's what the overwhelming majority of studio
                    payments actually come in on, so the common case should need zero clicks. -->
@@ -1978,7 +1998,7 @@ html[data-theme="dark"] .biz-login{
                 <option value="online">Online / Prepaid</option><option value="other">Other</option>
               </select>
             </div>
-            <div class="form-group"><label>Payment Due Date <span style="font-weight:400;color:var(--text-3);font-size:10px">when the balance is expected</span></label><input type="date" id="qaPayDueDate"></div>
+            <div class="form-group"><label>Payment Due Date <span style="font-weight:400;color:var(--text-3);font-size:10px">when the balance is expected</span></label><input type="date" id="qaPayDueDate"><div id="qaPayDueHint" style="font-size:10px;color:var(--text-3);margin-top:4px"></div></div>
           </div>
           <button type="button" class="btn btn-secondary btn-sm" id="qaAddPaymentBtn" onclick="addPaymentInstallment()" style="display:none">+ Add Payment</button>
           <div id="qaPayNewHint" style="font-size:11px;color:var(--text-3)">This payment logs automatically when you save the order.</div>
@@ -2204,6 +2224,13 @@ html[data-theme="dark"] .biz-login{
              whole scroll instead of only at the form's actual end. Merged from what
              used to be two separate rows (document actions above, Cancel/Save below)
              into one, left = document actions, right = shortcut hint + Clear/Cancel/Save. -->
+        <!-- Why a save did not go through. Toasts were the only signal before, and a
+             three-second toast saying "3 required fields are missing" does not say which
+             three, or where they are. This lists every problem by name, stays until they
+             are fixed, and each line scrolls to the field it is about. Also where a
+             database error lands, instead of vanishing. -->
+        <div id="qaProblems" class="qa-problems" style="display:none" role="alert" aria-live="polite"></div>
+
         <div class="qa-fixed-bottom-bar" id="qaFixedBottom">
           <div class="qa-doc-actions qa-order-only" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
             <button type="button" class="qa-doc-btn" onclick="saveOrderRecord()"><span class="qa-doc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1Z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="16" y2="15"/></svg></span>Order Acknowledgement</button>
@@ -2824,7 +2851,12 @@ html[data-theme="dark"] .biz-login{
         <button class="btn btn-ghost btn-sm" onclick="loadWebOrders()">⟳ Refresh</button>
       </div>
 
-      <div id="woKpi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
+      <!-- The six KPI tiles that used to sit here repeated the stage chips below them
+           number for number (Needs Action 9 above, Needs action 9 below), and gave a tile
+           reading 0 the same weight as one reading 9. The chips already are the count, so
+           they stay and the tiles go. What the tiles alone carried, the exceptions, is now
+           a single line that only appears when there is actually an exception. -->
+      <div id="woAlerts" style="margin-bottom:12px"></div>
 
       <div id="woStageBar" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
 
@@ -5433,7 +5465,7 @@ const NAV_CONFIG = [
       // triakar.com orders. Separate destination from All Orders (biz_sales, the money
       // ledger): this one is the customer's view of their own order, and moving a status
       // here is what they see and get emailed about.
-      { id: 'weborders',  label: 'Website Orders', icon: '🌐', shortcut: 'r', badge: 'webOrdersCount' },
+      { id: 'weborders',  label: 'Website Orders', icon: '🌐', shortcut: 'w', badge: 'webOrdersCount' },
       { id: 'import',     label: 'Import & Labels', icon: '⇲', shortcut: 'l' },
       { id: 'customers',  label: 'Customers',    icon: '☺', shortcut: 'c', badge: 'custCount' },
     ]
@@ -5441,7 +5473,7 @@ const NAV_CONFIG = [
   {
     id: 'products', label: 'Products', color: 'var(--ch-amazon)',
     items: [
-      { id: 'products',     label: 'Products',      icon: '▦', shortcut: 'w', badge: 'prodCount' },
+      { id: 'products',     label: 'Products',      icon: '▦', shortcut: 't', badge: 'prodCount' },
       { id: 'stock',        label: 'Stock',          icon: '◫', shortcut: 'k' },
       { id: 'spooltracker', label: 'Spool Tracker',  icon: '🧵', shortcut: 'f' },
       { id: 'machinery',    label: 'Machinery',      icon: '🖨', shortcut: 'n' },
@@ -5807,6 +5839,9 @@ function switchTab(name){
     // via "+ Add Order" (or edit/duplicate, none of which call setQaFormMode) left
     // them empty until the operator happened to flip to Quotation mode first.
     quickadd:()=>{
+      if(typeof markRequiredLabels==='function') markRequiredLabels();
+      if(typeof clearQaProblems==='function') clearQaProblems();
+      if(typeof prefillPayDueDate==='function') prefillPayDueDate();
       if(typeof renderQaNotesPresets==='function') renderQaNotesPresets();
       if(typeof renderQaInvTncPresets==='function') renderQaInvTncPresets();
       if(typeof renderQaRecTncPresets==='function') renderQaRecTncPresets();
@@ -6960,7 +6995,24 @@ function resetQaPayment(){
   const amt=document.getElementById('qaPayAmount'); if(amt) amt.value='';
   const src=document.getElementById('qaPaySource'); if(src) src.value='gpay';
   const dt=document.getElementById('qaPayDate'); if(dt) dt.value=today();
+  prefillPayDueDate();
   _qaNewPayments=[]; if(typeof renderQaNewPayments==='function') renderQaNewPayments();
+}
+/* Payment Due Date was left blank on every new order, so it was either never filled or
+   filled by hand each time. Today's date would be wrong here (it is when the balance is
+   *expected*, not when the order was taken), so it comes from the due-days already set
+   under Settings, Business Identity, which is the number that governs it everywhere else.
+   Only fills a blank, never overwrites a date that was chosen. */
+function prefillPayDueDate(){
+  const el=document.getElementById('qaPayDueDate');
+  const hint=document.getElementById('qaPayDueHint');
+  if(!el) return;
+  const days=parseInt((getBizSettings()||{}).dueDays,10)||7;
+  if(!el.value){
+    const d=new Date(); d.setDate(d.getDate()+days);
+    el.value=d.toISOString().slice(0,10);
+  }
+  if(hint) hint.textContent=days+' day'+(days===1?'':'s')+' from today, your default. Change it per order.';
 }
 function setQaPayStatus(v){
   _qaPayStatusManual=true;
@@ -7284,10 +7336,9 @@ async function saveEditedOrder(){
   const saveBtnOrig=saveBtn?saveBtn.innerHTML:'';
   if(saveBtn){ saveBtn.disabled=true; saveBtn.innerHTML='<span class="btn-spinner"></span> Saving…'; }
   try{
-  const invalid=flagInvalidFields('quickAddForm');
-  if(invalid.length){ reportInvalid(invalid); return; }
+  if(!qaValidate()) return;
   const withIds=await buildSaleRowsWithIds();
-  if(!withIds.length){ toast('Add at least one item','error'); return; }
+  if(!withIds.length){ showQaSaveError(new Error('Nothing to save, the item list came back empty')); return; }
   const keptIds=withIds.filter(x=>x.rowId).map(x=>x.rowId);
   const removedIds=(_qaEditRowIds||[]).filter(id=>!keptIds.includes(id));
   if(removedIds.length){
@@ -7571,6 +7622,121 @@ async function insertSalesResilient(rows){
 // instead of stopping at the first one, so the operator sees everything missing in one
 // pass rather than fixing fields one toast at a time. Returns the invalid elements
 // (empty array = form is valid); caller focuses/toasts off the first one.
+/* ── Why the save did not go through ─────────────────────────────
+   flagInvalidFields only ever knew about [required] inputs, so it could not see the two
+   things that actually stop a save: an item row with nothing in it, and the database
+   rejecting the insert. Both were reported, if at all, by a toast that was gone before it
+   could be read. Everything now collects into one list that stays on screen. */
+let _qaProblems=[];
+
+// Best available human name for a field, so the list reads "Customer Name", never "qa_cname".
+function qaFieldLabel(el){
+  if(!el) return 'this field';
+  if(el.dataset && el.dataset.shakeTarget){
+    const t=document.getElementById(el.dataset.shakeTarget);
+    const lbl=t&&t.closest('.form-group')?.querySelector('label');
+    if(lbl) return lbl.textContent.replace(/\*/g,'').trim();
+    return 'Payment Status';
+  }
+  const lbl=el.closest('.form-group')?.querySelector('label');
+  if(lbl) return lbl.childNodes[0]?.textContent?.trim()||lbl.textContent.replace(/\*/g,'').trim();
+  return el.getAttribute('placeholder')||el.id||'this field';
+}
+
+/* Item rows live outside the [required] world: they are rebuilt on every render and carry
+   no form fields the validator can see. These are the states that make a row unsaveable. */
+function qaItemProblems(){
+  const out=[];
+  (_items||[]).forEach((it,i)=>{
+    const n=i+1;
+    const isSpool=it.itemType==='spool';
+    if(isSpool){
+      if(!it.spoolSaleId) out.push({msg:'Item '+n+': pick which spool is being sold',idx:i});
+    } else if(!(it.name||'').trim()){
+      out.push({msg:'Item '+n+': needs a name',idx:i});
+    }
+    const qty=parseFloat(it.qty);
+    if(!isFinite(qty)||qty<1) out.push({msg:'Item '+n+': quantity must be at least 1',idx:i});
+    const rate=parseFloat(it.rate);
+    // A genuinely free line is legitimate (a replacement, a sample), so 0 is allowed and
+    // only a blank or negative rate is called out.
+    if(!isFinite(rate)||rate<0) out.push({msg:'Item '+n+': needs a rate',idx:i});
+  });
+  return out;
+}
+
+function renderQaProblems(){
+  const box=document.getElementById('qaProblems');
+  if(!box) return;
+  if(!_qaProblems.length){ box.style.display='none'; box.innerHTML=''; return; }
+  const n=_qaProblems.length;
+  box.innerHTML='<div class="qa-problems-title">'
+    +'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 7v6M12 16h.01"/></svg>'
+    +(n===1?'Not saved, one thing to fix':'Not saved, '+n+' things to fix')
+    +'</div><ul>'
+    +_qaProblems.map((p,i)=>p.db
+      ? '<li class="qa-problem-db">'+esc(p.msg)+'</li>'
+      : '<li><button type="button" class="qa-problem-jump" onclick="qaJumpToProblem('+i+')">'+esc(p.msg)+'</button></li>').join('')
+    +'</ul>';
+  box.style.display='';
+}
+
+function qaJumpToProblem(i){
+  const p=_qaProblems[i]; if(!p) return;
+  let target=null;
+  if(p.el) target=p.el.dataset&&p.el.dataset.shakeTarget?document.getElementById(p.el.dataset.shakeTarget):p.el;
+  else if(p.idx!=null) target=document.querySelector('.item-row[data-idx="'+p.idx+'"]');
+  if(!target) return;
+  target.scrollIntoView({behavior:'smooth',block:'center'});
+  if(target.focus&&target.tagName!=='DIV'){ try{ target.focus(); }catch(_){} }
+  target.classList.remove('field-shake'); void target.offsetWidth; target.classList.add('field-shake');
+}
+
+function clearQaProblems(){ _qaProblems=[]; renderQaProblems(); }
+
+/* Returns true when the form is good to send. Collects everything wrong in one pass, so
+   the operator fixes the lot once instead of discovering them one save at a time. */
+function qaValidate(){
+  _qaProblems=[];
+  flagInvalidFields('quickAddForm').forEach(el=>{
+    _qaProblems.push({msg:qaFieldLabel(el)+' is required',el});
+  });
+  qaItemProblems().forEach(p=>_qaProblems.push(p));
+  if(!(_items||[]).length) _qaProblems.push({msg:'Add at least one item'});
+  renderQaProblems();
+  if(_qaProblems.length){
+    const box=document.getElementById('qaProblems');
+    if(box) box.scrollIntoView({behavior:'smooth',block:'center'});
+  }
+  return _qaProblems.length===0;
+}
+
+/* A database rejection is the one failure the operator cannot do anything about without
+   seeing the actual message, so it is shown verbatim rather than summarised away. */
+function showQaSaveError(err){
+  const msg=(err&&err.message)||String(err||'Unknown error');
+  _qaProblems=[{msg:'The database rejected this order: '+msg,db:true}];
+  renderQaProblems();
+  const box=document.getElementById('qaProblems');
+  if(box) box.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+/* Renders the asterisk from the required attribute itself, so the marker and the rule can
+   never disagree. Runs whenever Add Order is shown, since the form's mode changes which
+   cards are on screen. */
+function markRequiredLabels(){
+  const form=document.getElementById('quickAddForm'); if(!form) return;
+  form.querySelectorAll('[required]').forEach(el=>{
+    const group=el.closest('.form-group');
+    const lbl=group?group.querySelector('label'):null;
+    if(!lbl||lbl.querySelector('.req-star')) return;
+    const star=document.createElement('span');
+    star.className='req-star'; star.textContent='*';
+    star.title='Required';
+    lbl.appendChild(star);
+  });
+}
+
 function flagInvalidFields(formId){
   const form=document.getElementById(formId);
   if(!form) return [];
@@ -7638,10 +7804,9 @@ async function submitQuickAdd(e){
   // Guards the "clicked 2-3 times because nothing seemed to happen" duplicate-entry bug.
   if(_qaSaving) return;
   if(_qaMode==='edit'){ await saveEditedOrder(); return; }
-  const invalid=flagInvalidFields('quickAddForm');
-  if(invalid.length){ reportInvalid(invalid); return; }
+  if(!qaValidate()) return;
   const rows=await buildSaleRows();
-  if(!rows.length){ toast('Add at least one item','error'); return; }
+  if(!rows.length){ showQaSaveError(new Error('Nothing to save, the item list came back empty')); return; }
   _qaSaving=true;
   const saveBtn=document.getElementById('qaSaveBtn');
   const saveBtnOrig=saveBtn?saveBtn.innerHTML:'';
@@ -7656,7 +7821,8 @@ async function submitQuickAdd(e){
     if(rid) rows.forEach(r=>r.record_id=rid);
   }catch(_){}
   const {error}=await insertSalesResilient(rows);
-  if(error){ toast('Error: '+error.message,'error'); return; }
+  if(error){ showQaSaveError(error); return; }
+  clearQaProblems();
   await logOrderStatusChange(rows[0].order_id, rows[0].status);
   await applyNewOrderPaymentIfAny(rows[0].order_id);
   await applyGiftExpenseIfAny(rows);
@@ -7688,8 +7854,7 @@ async function submitQuickAdd(e){
 // normal saveEditedOrder() save path instead of inserting a second copy.
 async function saveOrderRecord(){
   if(_qaMode==='edit'){ await saveAndPrintEdited('record'); return; }
-  const invalid=flagInvalidFields('quickAddForm');
-  if(invalid.length){ reportInvalid(invalid); return; }
+  if(!qaValidate()) return;
   const win=window.open('','_blank');   // opened synchronously, before any await, so mobile browsers still count it as user-initiated
   const rows=await buildSaleRows();
   if(!rows.length){ if(win) win.close(); toast('Add at least one item','error'); return; }
@@ -7715,8 +7880,7 @@ async function saveOrderRecord(){
 // UPDATEs kept rows and only INSERTs genuinely new ones) and then prints the
 // freshly-saved order, instead of the Insert-only path new orders use.
 async function saveAndPrintEdited(docKind){
-  const invalid=flagInvalidFields('quickAddForm');
-  if(invalid.length){ reportInvalid(invalid); return; }
+  if(!qaValidate()) return;
   const win=window.open('','_blank');
   const orderId=_qaEditOrderId;   // captured before saveEditedOrder() clears it via exitAddOrderEditMode()
   await saveEditedOrder();
@@ -9563,24 +9727,27 @@ function renderWebOrders(){
       .filter(Boolean).join(' ').toLowerCase().includes(q);
   });
 
-  const kpi=document.getElementById('woKpi');
-  if(kpi){
-    const cnt=ids=>_webOrders.filter(o=>ids.includes(woStatusOf(o))).length;
-    const held=_webOrders.filter(o=>o.hold_at).length;
-    // "Dispatched with no tracking number" is the one that generates support messages,
-    // so it gets a tile rather than being buried in a filter.
-    const noTrack=_webOrders.filter(o=>['dispatched','in_transit'].includes(woStatusOf(o))&&!o.tracking_number).length;
-    // The promise the customer is holding you to, so it is counted before they call.
+  /* Exceptions only. A tile reading 0 is a tile telling you nothing, so when there is
+     nothing wrong this whole strip is absent and the table starts higher up the page.
+     Each one sets the filter that shows exactly those orders, so it is a way in rather
+     than a number to look at. */
+  const alerts=document.getElementById('woAlerts');
+  if(alerts){
     const todayISO=new Date().toISOString().slice(0,10);
+    const noTrack=_webOrders.filter(o=>['dispatched','in_transit'].includes(woStatusOf(o))&&!o.tracking_number).length;
     const late=_webOrders.filter(o=>o.eta_date&&String(o.eta_date).slice(0,10)<todayISO
       &&!['delivered','cancelled','returned','refunded'].includes(woStatusOf(o))).length;
-    kpi.innerHTML=`
-      <div class="kpi"><div class="kpi-label">Needs Action</div><div class="kpi-val">${cnt(['whatsapp_pending','pending','confirmed'])}</div></div>
-      <div class="kpi"><div class="kpi-label">In Production</div><div class="kpi-val">${cnt(['printing','quality_check','packed'])}</div></div>
-      <div class="kpi"><div class="kpi-label">On Its Way</div><div class="kpi-val">${cnt(['dispatched','in_transit'])}</div></div>
-      <div class="kpi"><div class="kpi-label">On Hold</div><div class="kpi-val">${held}</div></div>
-      <div class="kpi"><div class="kpi-label">Missing Tracking</div><div class="kpi-val" style="${noTrack?'color:var(--red)':''}">${noTrack}</div></div>
-      <div class="kpi"><div class="kpi-label">Past Promised Date</div><div class="kpi-val" style="${late?'color:var(--red)':''}">${late}</div></div>`;
+    const held=_webOrders.filter(o=>o.hold_at).length;
+    const bits=[];
+    if(noTrack) bits.push({n:noTrack,label:noTrack===1?'dispatched with no tracking, email on hold':'dispatched with no tracking, emails on hold',f:'notracking',urgent:true});
+    if(late)    bits.push({n:late,label:late===1?'past its promised date':'past their promised date',f:'late',urgent:true});
+    if(held)    bits.push({n:held,label:'parked waiting on the customer',f:'hold',urgent:false});
+    alerts.innerHTML=bits.length?`<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:9px 13px;border-radius:9px;background:var(--bg-2);border:1px solid var(--border)">
+      ${bits.map(b=>`<button type="button" onclick="woJumpTo('${b.f}')" title="Show only these"
+          style="display:inline-flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:12px;color:${b.urgent?'var(--red)':'var(--text-2)'}">
+          <span style="font-weight:700">${b.n}</span><span style="text-decoration:underline;text-underline-offset:2px">${esc(b.label)}</span>
+        </button>`).join('<span style="color:var(--text-3)">·</span>')}
+    </div>`:'';
   }
 
   if(!rows.length){
@@ -9614,23 +9781,53 @@ function renderWebOrders(){
       <td>${paid?'<span style="color:var(--green);font-size:11px;font-weight:600">Paid</span>'
                 :`<span style="color:${isWA?'#25D366':'var(--text-3)'};font-size:11px">${isWA?'WhatsApp':'Unpaid'}</span>`}</td>
       <td onclick="event.stopPropagation()">
-        <select class="wo-status" data-id="${o.id}" onchange="woChangeStatus('${o.id}',this)"
-                style="padding:5px 7px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--bg-2);color:var(--text)">${sel}</select>
+        <div style="display:inline-flex;align-items:center;gap:6px">
+          <span style="width:7px;height:7px;border-radius:50%;background:var(--status-${meta.cls},var(--text-3));flex:0 0 auto"></span>
+          <select class="wo-status" data-id="${o.id}" onchange="woChangeStatus('${o.id}',this)"
+                  style="padding:5px 24px 5px 8px;font-size:11.5px;font-weight:600;border-radius:6px;border:1px solid var(--border);background:var(--bg-2);color:var(--text);cursor:pointer;appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--text-3) 50%),linear-gradient(135deg,var(--text-3) 50%,transparent 50%);background-position:calc(100% - 13px) 52%,calc(100% - 9px) 52%;background-size:4px 4px,4px 4px;background-repeat:no-repeat">${sel}</select>
+        </div>
       </td>
-      <td style="font-size:11px;font-family:var(--mono)">${o.tracking_number
-        ? `${esc(o.tracking_vendor||'')} ${esc(o.tracking_number)}`
+      <td style="font-size:11px">${o.tracking_number
+        ? `<div style="font-family:var(--sans)">${esc(woCourierLabel(o.tracking_vendor))}</div><div style="font-family:var(--mono);color:var(--text-2)">${esc(o.tracking_number)}</div>`
         : (['dispatched','in_transit'].includes(st)
             // Not just untidy: the dispatch email is held back until this is filled in,
             // so an empty cell here means the customer has not been told anything.
             ? '<span style="color:var(--red)" title="Dispatch email is waiting on this">missing, email on hold</span>'
             : '<span style="color:var(--text-3)">N/A</span>')}</td>
-      <td class="td-num" style="font-size:11px;${age>=3&&meta.stage>=0&&meta.stage<6?'color:var(--red);font-weight:600':''}">${age}d</td>
+      <td class="td-num" style="font-size:11px;${age>=3&&meta.stage>=0&&meta.stage<6?'color:var(--red);font-weight:600':''}"
+          title="Time since the status last moved">${age===0?'today':age===1?'1 day':age+' days'}</td>
     </tr>
     ${open?woDetailRow(o,st):''}`;
   }).join('');
 }
 
+// Courier slug to the name a person recognises. The picker stores 'ecom_express', which
+// was reaching the row as "Ecom_express". Mirrors COURIER_NAMES in
+// server/services/emailService.js and track-order.html.
+const WO_COURIER_NAMES={
+  delhivery:'Delhivery',bluedart:'BlueDart',dtdc:'DTDC',ekart:'Ekart',
+  amazon_logistics:'Amazon Logistics',xpressbees:'XpressBees',ecom_express:'Ecom Express',
+  shadowfax:'Shadowfax',india_post:'India Post',professional:'Professional Couriers',
+  trackon:'Trackon',gati:'Gati',safexpress:'Safexpress',spoton:'SpotOn',
+  tci_express:'TCI Express',smartr:'SMARTR',fedex:'FedEx',dhl:'DHL',ups:'UPS',
+  aramex:'Aramex',shiprocket:'Shiprocket',porter:'Porter',self:'Hand delivered'
+};
+function woCourierLabel(v){
+  if(!v) return '';
+  const k=String(v).trim().toLowerCase().replace(/[\s-]+/g,'_');
+  return WO_COURIER_NAMES[k]||String(v).replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+}
+
 function woSetStage(id){ _woStage=id; renderWebOrders(); }
+// Clearing the stage as well, otherwise "1 past its promised date" could filter down to
+// nothing because a stage chip elsewhere on the page was still narrowing the list.
+function woJumpTo(special){
+  _woStage='';
+  const sel=document.getElementById('woSpecialFilter'); if(sel) sel.value=special;
+  const pay=document.getElementById('woPayFilter'); if(pay) pay.value='';
+  const q=document.getElementById('woSearch'); if(q) q.value='';
+  renderWebOrders();
+}
 
 // Row expands into the things you actually do next: see the history, set tracking, park it,
 // or re-send an email. Kept in the same table rather than a modal so the queue stays visible.
