@@ -1352,7 +1352,7 @@ html[data-theme="dark"] .biz-login{
     </button>
     <div title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="display:flex;flex-direction:column;line-height:1.05;white-space:nowrap">
       <span style="font-family:'Glorida','Inter',sans-serif;font-size:15px;font-weight:800;letter-spacing:.04em"><span style="color:var(--accent)">TRI</span><span style="color:var(--text)">AKAR</span></span>
-      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.88</span></span>
+      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.89</span></span>
     </div>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
@@ -3644,7 +3644,7 @@ html[data-theme="dark"] .biz-login{
           <div class="form-group"><label>GST %</label><select id="mc_gst" onchange="mcSyncFromTaxable()">
             <option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18" selected>18%</option><option value="28">28%</option>
           </select></div>
-          <div class="form-group"><label>HSN Code</label><input type="text" id="mc_hsn" placeholder="8485" value="8485"></div>
+          <div class="form-group"><label>HSN Code</label><input type="text" id="mc_hsn" placeholder="84775900" value="84775900"></div>
           <div class="form-group"><label>Status</label><select id="mc_active"><option value="true">Active</option><option value="false">Inactive</option></select></div>
           <div class="form-group" style="grid-column:1/-1"><label>Notes</label><input type="text" id="mc_notes" placeholder="supplier, warranty terms, lead time…"></div>
         </div>
@@ -5999,7 +5999,7 @@ function ensureSpools(){
 
 // ── Machine catalogue ────────────────────────────────────────
 // The price list behind the Machine line type. Before this, selling a printer meant typing
-// the model name and remembering both the price and that a printer is HSN 8485 at 18%, not
+// the model name and remembering both the price and that a printer is HSN 84775900, not
 // the 3926 default that fits printed goods. Picking a model now fills name, rate, cost, GST
 // and HSN in one go, in Add Order and Quotation mode alike (one shared items grid).
 // Loaded lazily, same in-flight-promise pattern as ensureSpools(): an order with no machine
@@ -6018,6 +6018,11 @@ function ensureMachineCat(){
   _machineCatPromise=loadMachineCatRows(true);
   return _machineCatPromise;
 }
+// Per-line-type HSN. The biz default (3926, articles of plastic) fits printed goods and
+// nothing else: a machine and a spool of filament each sit under their own heading, and
+// getting it wrong here is what ends up in GSTR-1 Table 12.
+const HSN_MACHINE='84775900';   // printers and AMS units, a catalogue row can override it
+const HSN_SPOOL='3916';         // filament sold on as a spool
 function machineLabel(m){ return [m.brand,m.model,m.variant].filter(Boolean).join(' '); }
 // Price the customer sees. Stored rate is taxable (GST excluded) to match the Rate column,
 // so anywhere a "what they actually pay" figure is shown it is derived, never a second
@@ -6064,7 +6069,7 @@ function onItemMachine(i,id){
   it.productId=null;
   it.sku=m.sku||'';
   it.gst=parseFloat(m.gst_rate); if(!isFinite(it.gst)) it.gst=18;
-  it.hsn=m.hsn_code||'8485';
+  it.hsn=m.hsn_code||HSN_MACHINE;
   if(m.specs&&!it.variant) it.variant=m.specs;
   const rate=parseFloat(m.selling_price); if(isFinite(rate)) it.rate=rate;
   const cost=parseFloat(m.purchase_cost); if(isFinite(cost)) it.cost=cost;
@@ -6152,6 +6157,11 @@ function setItemType(i,type){
   else { it.name=''; }
   if(type!=='machine'){ it.machineId=null; }
   else { ensureMachineCat(); }   // resolves into a re-render once the list is in
+  // Switching type is a deliberate reset of what the line is, so the HSN follows it.
+  // Picking an actual machine overwrites this again from its catalogue row.
+  it.hsn = type==='spool' ? HSN_SPOOL
+         : type==='machine' ? HSN_MACHINE
+         : ((_bizDefaults&&_bizDefaults.hsn)||'3926');
   renderItems();
 }
 // delta>0 consumes, delta<0 restores; clamped to [0, total]. Also flips
@@ -13059,7 +13069,7 @@ function mcFillForm(m){
   s('mc_selling_price',m.selling_price==null?'':m.selling_price);
   s('mc_mrp',m.mrp==null?'':m.mrp);
   s('mc_gst',String(m.gst_rate==null?18:parseFloat(m.gst_rate)));
-  s('mc_hsn',m.hsn_code||'8485');
+  s('mc_hsn',m.hsn_code||HSN_MACHINE);
   s('mc_active',String(m.active!==false));
   s('mc_notes',m.notes||'');
   mcSyncFromTaxable();
@@ -13093,7 +13103,7 @@ async function saveMachineCat(){
     selling_price:numOrNull(g('mc_selling_price')),
     mrp:numOrNull(g('mc_mrp')),
     gst_rate:parseFloat(g('mc_gst'))||0,
-    hsn_code:g('mc_hsn').trim()||'8485',
+    hsn_code:g('mc_hsn').trim()||HSN_MACHINE,
     active:g('mc_active')==='true',
     sort_order:parseInt(g('mc_sort'),10)||0,
     notes:g('mc_notes').trim()||null,

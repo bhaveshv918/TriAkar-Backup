@@ -10,9 +10,16 @@
      await bizAlert('Could not generate the PDF.');
      const v = await bizForm({title:'Add color', fields:[…]}); // null = cancelled
 
-   All four are async, so the calling function has to be async too. Enter
-   confirms, Escape cancels, clicking the backdrop cancels, and focus returns
-   to wherever it came from.
+   All four are async, so the calling function has to be async too. Clicking the
+   backdrop cancels, and focus returns to wherever it came from.
+
+   Keyboard, shown on the buttons themselves so it is discoverable rather than
+   folklore:
+     Enter        confirm (Ctrl/Cmd+Enter too, the only way out of a textarea)
+     Esc          cancel
+     Y / N        confirm / cancel, on button-only dialogs (never when the
+                  dialog has a text field, "y" has to stay a letter there)
+     Tab          cycles inside the dialog only, it cannot reach the page behind
 
    Loaded by admin.html and admin-biz.html, styling lives in admin-theme.css
    (which both already load). Deliberately side-effect free: it defines four
@@ -38,6 +45,10 @@
       var prevFocus = document.activeElement;
       var fields = opts.fields || [];
       var lines = String(opts.message == null ? '' : opts.message).split('\n').filter(function (l) { return l !== ''; });
+      // Y/N only make sense where every keystroke is a command. With a text field on
+      // screen they would eat letters out of what the operator is typing.
+      var letterKeys = !fields.length;
+      var hasTextarea = fields.some(function (f) { return f.type === 'textarea'; });
 
       var ov = document.createElement('div');
       ov.className = 'biz-dlg-ov';
@@ -53,8 +64,8 @@
             }).join('') + '</div>' : '')
         + '<div class="biz-dlg-actions">'
           // An alert has nothing to cancel, so it gets one button, not a fake choice.
-          + (opts.cancelLabel === null ? '' : '<button type="button" class="biz-dlg-btn" data-act="cancel">' + esc(opts.cancelLabel || 'Cancel') + '</button>')
-          + '<button type="button" class="biz-dlg-btn ' + (opts.danger ? 'biz-dlg-btn-danger' : 'biz-dlg-btn-primary') + '" data-act="ok">' + esc(opts.confirmLabel || 'OK') + '</button>'
+          + (opts.cancelLabel === null ? '' : '<button type="button" class="biz-dlg-btn" data-act="cancel" title="' + (letterKeys ? 'Esc or N' : 'Esc') + '">' + esc(opts.cancelLabel || 'Cancel') + '<kbd class="biz-dlg-kbd">Esc</kbd></button>')
+          + '<button type="button" class="biz-dlg-btn ' + (opts.danger ? 'biz-dlg-btn-danger' : 'biz-dlg-btn-primary') + '" data-act="ok" title="' + (letterKeys ? 'Enter or Y' : 'Enter') + '">' + esc(opts.confirmLabel || 'OK') + '<kbd class="biz-dlg-kbd">' + (hasTextarea ? 'Ctrl ↵' : '↵') + '</kbd></button>'
         + '</div></div>';
 
       document.body.appendChild(ov);
@@ -90,9 +101,34 @@
       if (cancelBtn) cancelBtn.onclick = function () { done(null); };
       ov.onclick = function (e) { if (e.target === ov) done(null); };
 
+      function eat(e) { e.preventDefault(); e.stopPropagation(); }
+
       function onKey(e) {
-        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(null); }
-        else if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); e.stopPropagation(); submit(); }
+        if (e.key === 'Escape') { eat(e); return done(null); }
+
+        if (e.key === 'Enter') {
+          // Ctrl/Cmd+Enter works everywhere, including a textarea, where a bare Enter has
+          // to stay a newline. Without it a textarea dialog had no keyboard way out at all.
+          if (e.ctrlKey || e.metaKey) { eat(e); return submit(); }
+          if (e.target.tagName !== 'TEXTAREA') { eat(e); return submit(); }
+          return;
+        }
+
+        // Keep focus inside the dialog. It is modal, so tabbing onto the page behind it
+        // leaves the operator typing into a form they cannot see.
+        if (e.key === 'Tab') {
+          var focusable = [].slice.call(ov.querySelectorAll('input,textarea,button'));
+          if (!focusable.length) return;
+          var first = focusable[0], last = focusable[focusable.length - 1];
+          if (e.shiftKey && (document.activeElement === first || !ov.contains(document.activeElement))) { eat(e); last.focus(); }
+          else if (!e.shiftKey && document.activeElement === last) { eat(e); first.focus(); }
+          return;
+        }
+
+        if (!letterKeys || e.ctrlKey || e.metaKey || e.altKey) return;
+        var k = (e.key || '').toLowerCase();
+        if (k === 'y') { eat(e); submit(); }
+        else if (k === 'n' && cancelBtn) { eat(e); done(null); }
       }
       document.addEventListener('keydown', onKey, true);
 
