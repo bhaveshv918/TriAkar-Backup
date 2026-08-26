@@ -35,7 +35,7 @@ function formatAddress(addr = {}) {
   return parts.map(esc).join('<br>');
 }
 
-/* Branded shell — dark premium minimal */
+/* Branded shell, dark premium minimal */
 function shell(title, bodyHtml) {
   return `<!DOCTYPE html>
 <html>
@@ -67,7 +67,7 @@ function shell(title, bodyHtml) {
 }
 
 function btn(label, href) {
-  // FIX #24: href must NOT be HTML-escaped — URLs with & params become broken &amp; links
+  // FIX #24: href must NOT be HTML-escaped, URLs with & params become broken &amp; links
   // Only escape the label text, leave the URL raw (it's a trusted server-generated URL)
   return `<a href="${href}" style="display:inline-block;background:${ACCENT};color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">${esc(label)}</a>`;
 }
@@ -99,7 +99,7 @@ function itemsTable(items = []) {
 
 function itemsList(items = []) {
   return items.map(it =>
-    `<li style="margin:4px 0;color:#1a1a1a;font-size:14px;">${esc(it.name || 'Item')} &times; ${esc(it.quantity)} — ${inr(it.unit_price)}</li>`
+    `<li style="margin:4px 0;color:#1a1a1a;font-size:14px;">${esc(it.name || 'Item')} &times; ${esc(it.quantity)} · ${inr(it.unit_price)}</li>`
   ).join('');
 }
 
@@ -152,7 +152,7 @@ export async function sendOrderConfirmation(order) {
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
       ${row('Invoice No.', order.order_id)}
       ${row('Payment', paymentLabel)}
-      ${order.is_gift ? row('Gift Order', 'Yes — gift packaging included') : ''}
+      ${order.is_gift ? row('Gift Order', 'Yes, gift packaging included') : ''}
       ${order.is_gift && order.gift_message ? row('Gift Message', order.gift_message) : ''}
     </table>
     ${itemsTable(order.items)}
@@ -178,7 +178,7 @@ export async function sendOrderConfirmation(order) {
   `;
   return send({
     to: order.customer_email,
-    subject: `Order Confirmed — ${order.order_id} | TriAkar`,
+    subject: `Order Confirmed, ${order.order_id} | TriAkar`,
     html: shell('Your order is confirmed ✓', body),
   });
 }
@@ -188,11 +188,11 @@ export async function sendOrderProcessingUpdate(order) {
   const trackingUrl = `https://triakar.com/track-order.html?id=${encodeURIComponent(order.order_id || '')}`;
   const body = `
     <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 20px;">
-      Great news — your TriAkar order is now being processed. Our team has started crafting your pieces.
+      Great news, your TriAkar order is now being processed. Our team has started crafting your pieces.
     </p>
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
       ${row('Invoice No.', order.order_id)}
-      ${row('Items', (order.items || []).map(it => `${esc(it.name)} × ${esc(it.quantity)}`).join(', ') || '—')}
+      ${row('Items', (order.items || []).map(it => `${esc(it.name)} × ${esc(it.quantity)}`).join(', ') || 'N/A')}
       ${row('Total', inr(order.total_amount))}
     </table>
     <div style="background:#f8f8f8;border-left:3px solid ${ACCENT};padding:14px 18px;border-radius:0 8px 8px 0;margin:0 0 24px;">
@@ -211,19 +211,66 @@ export async function sendOrderProcessingUpdate(order) {
   `;
   return send({
     to: order.customer_email,
-    subject: `Your order is being processed — ${order.order_id} | TriAkar`,
+    subject: `Your order is being processed, ${order.order_id} | TriAkar`,
     html: shell('Your order is in progress ⚙', body),
   });
 }
 
 /* ── ORDER DISPATCHED UPDATE (to customer) ───────────────── */
+/* Direct tracking links, keyed by the courier value the admin panel stores. A number the
+   customer has to copy into a search engine is a worse answer than a link, but a WRONG
+   link is worse than both, so only couriers whose public tracking URL takes the AWB as a
+   plain query/path parameter are listed. Anything not here still shows the courier name
+   and number, just without a button.
+
+   These are best-effort and unverified against each carrier: click one of each once before
+   trusting them, and delete any that do not land on the shipment. */
+const COURIER_TRACK_URL = {
+  delhivery:    n => `https://www.delhivery.com/track/package/${encodeURIComponent(n)}`,
+  ekart:        n => `https://ekartlogistics.com/shipmenttrack/${encodeURIComponent(n)}`,
+  xpressbees:   n => `https://www.xpressbees.com/shipment/tracking?awbNo=${encodeURIComponent(n)}`,
+  ecom_express: n => `https://ecomexpress.in/tracking/?awb_field=${encodeURIComponent(n)}`,
+  shadowfax:    n => `https://tracker.shadowfax.in/#/tracking/${encodeURIComponent(n)}`,
+  bluedart:     n => `https://www.bluedart.com/web/guest/trackdartresult?trackFor=0&trackNo=${encodeURIComponent(n)}`,
+  fedex:        n => `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(n)}`,
+  dhl:          n => `https://www.dhl.com/in-en/home/tracking.html?tracking-id=${encodeURIComponent(n)}`,
+  ups:          n => `https://www.ups.com/track?tracknum=${encodeURIComponent(n)}`,
+  aramex:       n => `https://www.aramex.com/track/results?ShipmentNumber=${encodeURIComponent(n)}`,
+};
+/* The stored value is a slug for the picked couriers and free text for "Other", so it is
+   normalised before lookup and a free-text courier simply has no link. */
+function courierTrackUrl(vendor, number) {
+  if (!vendor || !number) return null;
+  const key = String(vendor).trim().toLowerCase().replace(/[\s-]+/g, '_');
+  const fn = COURIER_TRACK_URL[key];
+  return fn ? fn(number) : null;
+}
+/* Slug back to something a customer recognises. An unknown value is title-cased rather
+   than shown as "ecom_express". */
+const COURIER_NAMES = {
+  delhivery: 'Delhivery', bluedart: 'BlueDart', dtdc: 'DTDC', ekart: 'Ekart',
+  amazon_logistics: 'Amazon Logistics', xpressbees: 'XpressBees', ecom_express: 'Ecom Express',
+  shadowfax: 'Shadowfax', india_post: 'India Post', professional: 'Professional Couriers',
+  trackon: 'Trackon', gati: 'Gati', safexpress: 'Safexpress', spoton: 'SpotOn',
+  tci_express: 'TCI Express', smartr: 'SMARTR', fedex: 'FedEx', dhl: 'DHL', ups: 'UPS',
+  aramex: 'Aramex', shiprocket: 'Shiprocket', porter: 'Porter', self: 'Hand delivered by TriAkar',
+};
+function courierLabel(vendor) {
+  if (!vendor) return '';
+  const key = String(vendor).trim().toLowerCase().replace(/[\s-]+/g, '_');
+  return COURIER_NAMES[key] || String(vendor).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 export async function sendOrderDispatchedUpdate(order) {
   const trackingUrl = `https://triakar.com/track-order.html?id=${encodeURIComponent(order.order_id || '')}`;
+  const courierName = courierLabel(order.tracking_vendor);
+  const courierUrl  = courierTrackUrl(order.tracking_vendor, order.tracking_number);
   const trackingBlock = (order.tracking_number)
     ? `<div style="background:#f0f7f0;border:1px solid #b6e5b6;border-radius:8px;padding:16px 20px;margin:0 0 24px;">
-        <p style="margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#888;">Tracking Details</p>
-        ${order.tracking_vendor ? `<p style="margin:0 0 4px;font-size:14px;color:#1a1a1a;font-weight:600;">${esc(order.tracking_vendor)}</p>` : ''}
+        <p style="margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#888;">Courier &amp; Tracking</p>
+        ${courierName ? `<p style="margin:0 0 4px;font-size:14px;color:#1a1a1a;font-weight:600;">${esc(courierName)}</p>` : ''}
         <p style="margin:0;font-size:15px;font-family:monospace;color:#2a7a2a;font-weight:700;letter-spacing:1px;">${esc(order.tracking_number)}</p>
+        ${courierUrl ? `<p style="margin:12px 0 0;"><a href="${courierUrl}" style="display:inline-block;background:#2a7a2a;color:#ffffff;text-decoration:none;padding:9px 16px;border-radius:6px;font-size:13px;font-weight:600;">Track on ${esc(courierName || 'the courier site')}</a></p>` : ''}
       </div>`
     : '';
   const body = `
@@ -232,7 +279,7 @@ export async function sendOrderDispatchedUpdate(order) {
     </p>
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
       ${row('Invoice No.', order.order_id)}
-      ${row('Items', (order.items || []).map(it => `${esc(it.name)} × ${esc(it.quantity)}`).join(', ') || '—')}
+      ${row('Items', (order.items || []).map(it => `${esc(it.name)} × ${esc(it.quantity)}`).join(', ') || 'N/A')}
       ${row('Ship To', [order.shipping_address?.full_name, order.shipping_address?.city, order.shipping_address?.state].filter(Boolean).join(', '))}
     </table>
     ${trackingBlock}
@@ -247,7 +294,7 @@ export async function sendOrderDispatchedUpdate(order) {
   `;
   return send({
     to: order.customer_email,
-    subject: `Your order is dispatched — ${order.order_id} | TriAkar`,
+    subject: `Your order is dispatched, ${order.order_id} | TriAkar`,
     html: shell('Your order is on its way 🚚', body),
   });
 }
@@ -256,11 +303,11 @@ export async function sendOrderDispatchedUpdate(order) {
 export async function sendOrderDeliveredUpdate(order) {
   const body = `
     <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 20px;">
-      Your TriAkar order has been delivered. We hope you love every piece — designed globally, made responsibly in India.
+      Your TriAkar order has been delivered. We hope you love every piece, designed globally, made responsibly in India.
     </p>
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
       ${row('Invoice No.', order.order_id)}
-      ${row('Items', (order.items || []).map(it => `${esc(it.name)} × ${esc(it.quantity)}`).join(', ') || '—')}
+      ${row('Items', (order.items || []).map(it => `${esc(it.name)} × ${esc(it.quantity)}`).join(', ') || 'N/A')}
     </table>
     <div style="background:#f8f8f8;border-left:3px solid ${ACCENT};padding:14px 18px;border-radius:0 8px 8px 0;margin:0 0 24px;">
       <p style="margin:0;font-size:13px;color:#555;line-height:1.6;">
@@ -278,8 +325,8 @@ export async function sendOrderDeliveredUpdate(order) {
   `;
   return send({
     to: order.customer_email,
-    subject: `Your order has been delivered — ${order.order_id} | TriAkar`,
-    html: shell('Delivered — enjoy your TriAkar pieces ✓', body),
+    subject: `Your order has been delivered, ${order.order_id} | TriAkar`,
+    html: shell('Delivered, enjoy your TriAkar pieces ✓', body),
   });
 }
 
@@ -299,7 +346,7 @@ export async function sendAdminOrderAlert(order) {
     : '';
   const isWA = order.payment_method === 'whatsapp';
   const body = `
-    <p style="font-size:15px;color:#444;margin:0 0 20px;">${isWA ? 'A new WhatsApp order has been placed — payment to be collected.' : 'A new order has been placed and payment received.'}</p>
+    <p style="font-size:15px;color:#444;margin:0 0 20px;">${isWA ? 'A new WhatsApp order has been placed, payment to be collected.' : 'A new order has been placed and payment received.'}</p>
     <table role="presentation" cellpadding="0" cellspacing="0">
       ${row('Invoice No.', order.order_id)}
       ${row('Customer', order.customer_name)}
@@ -325,11 +372,11 @@ export async function sendAdminOrderAlert(order) {
     <p style="font-size:14px;color:#444;line-height:1.7;margin:0 0 24px;">${formatAddress(order.shipping_address)}</p>
     ${btn('Open Admin Panel', ADMIN_LINK)}
   `;
-  const subjectPrefix = isWA ? '📲 WA ORDER — ' : (order.is_gift ? '🎁 GIFT ORDER — ' : '');
+  const subjectPrefix = isWA ? '📲 WA ORDER: ' : (order.is_gift ? '🎁 GIFT ORDER: ' : '');
   const titleText     = isWA ? '📲 New WhatsApp order' : (order.is_gift ? '🎁 New gift order received' : 'New order received');
   return send({
     to: ADMIN_EMAIL,
-    subject: `${subjectPrefix}New Order ${order.order_id} — ${inr(order.total_amount)} | TriAkar`,
+    subject: `${subjectPrefix}New Order ${order.order_id}, ${inr(order.total_amount)} | TriAkar`,
     html: shell(titleText, body),
   });
 }
@@ -342,7 +389,7 @@ export async function sendPasswordReset({ email, reset_link, name }) {
     </p>
     <p style="margin:0 0 28px;">${btn('Reset My Password', reset_link)}</p>
     <p style="font-size:13px;color:#888;margin:0 0 16px;line-height:1.6;">
-      This link expires in 1 hour. If you did not request a password reset, you can safely ignore this email — your password will remain unchanged.
+      This link expires in 1 hour. If you did not request a password reset, you can safely ignore this email, your password will remain unchanged.
     </p>
     <p style="font-size:12px;color:#aaa;margin:0;line-height:1.6;">
       Questions? Email us at <a href="mailto:hello@triakar.com" style="color:${ACCENT};text-decoration:none;">hello@triakar.com</a>
@@ -398,7 +445,7 @@ export async function sendEnquiryConfirmation(enquiry) {
   `;
   return send({
     to: enquiry.email,
-    subject: `Enquiry Received: ${enquiry.reference_id} — TriAkar`,
+    subject: `Enquiry Received: ${enquiry.reference_id} | TriAkar`,
     html: shell('We received your enquiry', body),
   });
 }
@@ -441,7 +488,7 @@ export async function sendContactAlert(submission) {
   `;
   return send({
     to: ADMIN_EMAIL,
-    subject: `New Message: ${submission.subject} — ${submission.name}`,
+    subject: `New Message: ${submission.subject}, from ${submission.name}`,
     html: shell('New contact message', body),
   });
 }
@@ -518,7 +565,7 @@ export async function sendCorporateInquiryConfirmation(inq) {
   `;
   return send({
     to: inq.email,
-    subject: 'We received your corporate gifting inquiry — TriAkar',
+    subject: 'We received your corporate gifting inquiry | TriAkar',
     html: shell('We received your inquiry', body),
   });
 }

@@ -538,6 +538,43 @@ const STATUS_LABEL={
    and inventing two more pools would dilute the ones that already land. */
 const STEP_TO_CAPTION=[0,1,1,2,3,3,4];
 
+/* Courier slug -> display name and direct tracking URL. Kept in step with
+   COURIER_TRACK_URL / COURIER_NAMES in server/services/emailService.js, so the dispatch
+   email and this page never disagree. Only carriers whose public tracking page takes the
+   AWB as a plain query or path parameter get a link; a wrong link is worse than none.
+   Best-effort and unverified against each carrier, click one of each once. */
+const COURIER_TRACK_URL={
+  delhivery:n=>'https://www.delhivery.com/track/package/'+encodeURIComponent(n),
+  ekart:n=>'https://ekartlogistics.com/shipmenttrack/'+encodeURIComponent(n),
+  xpressbees:n=>'https://www.xpressbees.com/shipment/tracking?awbNo='+encodeURIComponent(n),
+  ecom_express:n=>'https://ecomexpress.in/tracking/?awb_field='+encodeURIComponent(n),
+  shadowfax:n=>'https://tracker.shadowfax.in/#/tracking/'+encodeURIComponent(n),
+  bluedart:n=>'https://www.bluedart.com/web/guest/trackdartresult?trackFor=0&trackNo='+encodeURIComponent(n),
+  fedex:n=>'https://www.fedex.com/fedextrack/?trknbr='+encodeURIComponent(n),
+  dhl:n=>'https://www.dhl.com/in-en/home/tracking.html?tracking-id='+encodeURIComponent(n),
+  ups:n=>'https://www.ups.com/track?tracknum='+encodeURIComponent(n),
+  aramex:n=>'https://www.aramex.com/track/results?ShipmentNumber='+encodeURIComponent(n)
+};
+const COURIER_NAMES={
+  delhivery:'Delhivery',bluedart:'BlueDart',dtdc:'DTDC',ekart:'Ekart',
+  amazon_logistics:'Amazon Logistics',xpressbees:'XpressBees',ecom_express:'Ecom Express',
+  shadowfax:'Shadowfax',india_post:'India Post',professional:'Professional Couriers',
+  trackon:'Trackon',gati:'Gati',safexpress:'Safexpress',spoton:'SpotOn',
+  tci_express:'TCI Express',smartr:'SMARTR',fedex:'FedEx',dhl:'DHL',ups:'UPS',
+  aramex:'Aramex',shiprocket:'Shiprocket',porter:'Porter',self:'Hand delivered by TriAkar'
+};
+function courierKey(v){return String(v||'').trim().toLowerCase().replace(/[\s-]+/g,'_');}
+function courierLabel(v){
+  if(!v)return '';
+  const k=courierKey(v);
+  return COURIER_NAMES[k]||String(v).replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+}
+function courierTrackUrl(vendor,number){
+  if(!vendor||!number)return null;
+  const fn=COURIER_TRACK_URL[courierKey(vendor)];
+  return fn?fn(number):null;
+}
+
 function fmtDate(iso){if(!iso)return'—';return new Date(iso).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'});}
 function fmtPrice(n){return'₹'+Number(n||0).toLocaleString('en-IN');}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -780,11 +817,16 @@ async function trackOrder(){
       if(addrLine)html+='<div class="td-row"><span class="td-l">Address</span><span class="td-v" style="text-align:right;max-width:68%;line-height:1.4">'+esc(addrLine)+'</span></div>';
     }
 
-    /* Courier tracking */
+    /* Courier tracking. The number alone means the customer has to go and find the
+       courier's own site, so where the carrier takes an AWB as a plain URL parameter we
+       link straight to it. Unknown couriers still show name and number, just no button. */
     if(order.tracking_vendor||order.tracking_number){
+      const courier=courierLabel(order.tracking_vendor);
+      const cUrl=courierTrackUrl(order.tracking_vendor,order.tracking_number);
       html+='<div style="margin:16px 0 8px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--stone)">Shipment</div>';
-      if(order.tracking_vendor)html+='<div class="td-row"><span class="td-l">Courier</span><span class="td-v">'+esc(order.tracking_vendor)+'</span></div>';
+      if(courier)html+='<div class="td-row"><span class="td-l">Courier</span><span class="td-v">'+esc(courier)+'</span></div>';
       if(order.tracking_number)html+='<div class="td-row"><span class="td-l">Tracking #</span><span class="td-v" style="font-family:monospace;letter-spacing:.05em;color:var(--accent)">'+esc(order.tracking_number)+'</span></div>';
+      if(cUrl)html+='<div style="margin:10px 0 4px"><a href="'+cUrl+'" target="_blank" rel="noopener" class="btn btn-dark" style="font-size:12px;padding:9px 16px;justify-content:center">Track on '+esc(courier)+' &#8599;</a></div>';
     }
 
     /* Estimated delivery */

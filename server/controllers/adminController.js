@@ -300,6 +300,11 @@ function buildOrderEmailData(ord) {
 /* Sends the status email if this stage is configured to send one. Returns the timestamp
    it went out, or null. Swallows its own errors on purpose, for the same reason as
    logOrderEvent: the status change already happened and is correct either way. */
+/* Stages whose whole message is the courier details. "Your order is on its way" with no
+   courier and no tracking number tells the customer nothing they can act on, and it is the
+   one email they will go looking for. */
+const NEEDS_TRACKING = ['dispatched', 'in_transit'];
+
 async function notifyOrderStatus(orderId, status) {
   try {
     const type = STATUS_EMAIL_TYPE[status];
@@ -310,6 +315,12 @@ async function notifyOrderStatus(orderId, status) {
       .from('orders').select('*, order_items(quantity, unit_price, products(name))')
       .eq('id', orderId).single();
     if (!ord?.customer_email) return null;
+
+    // Status is very often set to Dispatched before the AWB has been pasted in. Rather than
+    // send a tracking email with nothing to track, it is held here and sent the moment the
+    // tracking number is saved (see updateOrderFields). The status change itself still
+    // happens immediately, so nothing about the order is waiting on this.
+    if (NEEDS_TRACKING.includes(status) && !ord.tracking_number) return 'pending_tracking';
 
     const mod = await import('../services/emailService.js');
     const send = { confirmation: mod.sendOrderConfirmation, processing: mod.sendOrderProcessingUpdate,
@@ -413,9 +424,12 @@ export async function updateOrderStatus(req, res, next) {
 
     // `silent` is the escape hatch for a correction: fix a mis-click without emailing the
     // customer about a stage they were never really at, and keep it out of their timeline.
-    const notifiedAt = silent ? null : await notifyOrderStatus(id, status);
+    const notifyResult = silent ? null : await notifyOrderStatus(id, status);
+    const heldForTracking = notifyResult === 'pending_tracking';
+    const notifiedAt = heldForTracking ? null : notifyResult;
     await logOrderEvent({
-      orderId: id, from: previous, to: status, note,
+      orderId: id, from: previous, to: status,
+      note: note || (heldForTracking ? 'Customer email held until a tracking number is added' : null),
       by: req.user?.email || 'admin', customerVisible: !silent, notifiedAt,
     });
 
@@ -437,7 +451,9 @@ export async function updateOrderStatus(req, res, next) {
 
     // notified tells the panel whether to say "customer emailed", so the operator is never
     // guessing whether the customer already knows.
-    res.json({ order: data, notified: Boolean(notifiedAt), previous_status: previous });
+    // held_for_tracking is what lets the panel say "add the AWB and the customer gets told"
+    // instead of silently looking like the email simply did not go.
+    res.json({ order: data, notified: Boolean(notifiedAt), held_for_tracking: heldForTracking, previous_status: previous });
   } catch (err) {
     next(err);
   }
@@ -534,9 +550,34 @@ export async function updateOrderFields(req, res, next) {
       return res.status(400).json({ error: 'No valid fields to update' });
     }
 
+    // Was the order already dispatched with its email held back for want of an AWB?
+    const { data: before } = await supabase
+      .from('orders').select('tracking_number, status, order_status').eq('id', id).single();
+
     const { data, error } = await supabase
       .from('orders').update(updates).eq('id', id).select().single();
     if (error) throw error;
-    res.json({ order: data });
+
+    /* The other half of the held dispatch email. Status is very often set to Dispatched
+       before the AWB is pasted in, so notifyOrderStatus holds that email back; adding the
+       tracking number is what completes it, and the customer gets one email that actually
+       has a courier and a number in it. Only fires on the transition from no tracking to
+       tracking, so correcting a typo in an AWB does not email them a second time. */
+    let notified = false;
+    const nowStatus = normalizeOrderStatus(data.order_status || data.status);
+    if (!before?.tracking_number && data.tracking_number && NEEDS_TRACKING.includes(nowStatus)) {
+      const sentAt = await notifyOrderStatus(id, nowStatus);
+      notified = Boolean(sentAt) && sentAt !== 'pending_tracking';
+      if (notified) {
+        await logOrderEvent({
+          orderId: id, from: nowStatus, to: nowStatus,
+          note: 'Tracking added, dispatch email sent to the customer',
+          by: req.user?.email || 'admin', customerVisible: false, notifiedAt: sentAt,
+        });
+        logActivity(req.user?.email, 'order.tracking_email', 'order', id, data.tracking_number);
+      }
+    }
+
+    res.json({ order: data, notified });
   } catch (err) { next(err); }
 }

@@ -1352,7 +1352,7 @@ html[data-theme="dark"] .biz-login{
     </button>
     <div title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="display:flex;flex-direction:column;line-height:1.05;white-space:nowrap">
       <span style="font-family:'Glorida','Inter',sans-serif;font-size:15px;font-weight:800;letter-spacing:.04em"><span style="color:var(--accent)">TRI</span><span style="color:var(--text)">AKAR</span></span>
-      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.92</span></span>
+      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.93</span></span>
     </div>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
@@ -9619,7 +9619,11 @@ function renderWebOrders(){
       </td>
       <td style="font-size:11px;font-family:var(--mono)">${o.tracking_number
         ? `${esc(o.tracking_vendor||'')} ${esc(o.tracking_number)}`
-        : (['dispatched','in_transit'].includes(st)?'<span style="color:var(--red)">missing</span>':'<span style="color:var(--text-3)">N/A</span>')}</td>
+        : (['dispatched','in_transit'].includes(st)
+            // Not just untidy: the dispatch email is held back until this is filled in,
+            // so an empty cell here means the customer has not been told anything.
+            ? '<span style="color:var(--red)" title="Dispatch email is waiting on this">missing, email on hold</span>'
+            : '<span style="color:var(--text-3)">N/A</span>')}</td>
       <td class="td-num" style="font-size:11px;${age>=3&&meta.stage>=0&&meta.stage<6?'color:var(--red);font-weight:600':''}">${age}d</td>
     </tr>
     ${open?woDetailRow(o,st):''}`;
@@ -9702,7 +9706,10 @@ async function woChangeStatus(id,sel){
     const r=await bizApiFetch('/api/admin/orders/'+id+'/status',{method:'PUT',body:JSON.stringify({status:to})});
     if(o){ o.status=to; o.order_status=to; o.status_changed_at=new Date().toISOString(); if(r.order&&r.order.hold_at===null) o.hold_at=null; }
     delete _woEvents[id];   // history has a new entry, refetch it if the row is opened
-    toast(r.notified ? meta.label+', customer emailed' : 'Status set to '+meta.label);
+    toast(r.held_for_tracking ? meta.label+'. Add the tracking number and the customer gets emailed'
+        : r.notified ? meta.label+', customer emailed'
+        : 'Status set to '+meta.label,
+        r.held_for_tracking ? 'error' : 'success');
     if(_woOpenId===id){ try{ const d=await bizApiFetch('/api/admin/orders/'+id+'/events'); _woEvents[id]=d.events||[]; }catch(_){} }
     renderWebOrders();
   }catch(e){
@@ -9716,9 +9723,10 @@ async function woSaveTracking(id){
   const number=document.getElementById('woTrackNo_'+id)?.value.trim()||'';
   const eta=document.getElementById('woEta_'+id)?.value||'';
   try{
-    await bizApiFetch('/api/admin/orders/'+id,{method:'PUT',body:JSON.stringify({tracking_vendor:vendor,tracking_number:number,eta_date:eta})});
+    const r=await bizApiFetch('/api/admin/orders/'+id,{method:'PUT',body:JSON.stringify({tracking_vendor:vendor,tracking_number:number,eta_date:eta})});
     const o=_webOrders.find(x=>x.id===id); if(o){ o.tracking_vendor=vendor; o.tracking_number=number; o.eta_date=eta||null; }
-    toast('Saved'); renderWebOrders();
+    toast(r && r.notified ? 'Saved, dispatch email sent to the customer' : 'Saved');
+    renderWebOrders();
   }catch(e){ toast('Error: '+e.message,'error'); }
 }
 
