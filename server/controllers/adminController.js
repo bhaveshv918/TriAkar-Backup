@@ -221,7 +221,7 @@ const STOCK_RESTORING_STATUSES = ['cancelled', 'returned', 'refunded'];
    On-hold is not in this list on purpose. It is the hold_at flag alongside a status
    (see setOrderHold), so an order comes back off hold to the stage it was already at. */
 export const ORDER_STATUSES = [
-  'whatsapp_pending', 'pending', 'confirmed', 'printing', 'quality_check',
+  'whatsapp_pending', 'pending', 'quote_pending_confirmation', 'confirmed', 'printing', 'quality_check',
   'packed', 'dispatched', 'in_transit', 'delivered',
   'cancelled', 'returned', 'refunded',
 ];
@@ -236,6 +236,9 @@ export function normalizeOrderStatus(s) {
 /* Which email template, if any, speaks for each stage. Stages that map to nothing simply
    do not email: inventing a template for "returned" silently would be worse than silence. */
 const STATUS_EMAIL_TYPE = {
+  // quote_pending_confirmation deliberately sends nothing: that stage is a conversation
+  // the studio has with the customer, and an automated "confirmed" email in the middle of
+  // it would say the opposite of what is true.
   confirmed: 'confirmation', printing: 'processing', quality_check: 'processing',
   packed: 'processing', dispatched: 'dispatched', in_transit: 'dispatched',
   delivered: 'delivered',

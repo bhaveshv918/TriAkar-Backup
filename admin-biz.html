@@ -1372,7 +1372,7 @@ html[data-theme="dark"] .biz-login{
     </button>
     <div title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="display:flex;flex-direction:column;line-height:1.05;white-space:nowrap">
       <span style="font-family:'Glorida','Inter',sans-serif;font-size:15px;font-weight:800;letter-spacing:.04em"><span style="color:var(--accent)">TRI</span><span style="color:var(--text)">AKAR</span></span>
-      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.95</span></span>
+      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V3.96</span></span>
     </div>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
@@ -5842,6 +5842,7 @@ function switchTab(name){
       if(typeof markRequiredLabels==='function') markRequiredLabels();
       if(typeof clearQaProblems==='function') clearQaProblems();
       if(typeof prefillPayDueDate==='function') prefillPayDueDate();
+      if(typeof syncPayDueRequirement==='function') syncPayDueRequirement();
       if(typeof renderQaNotesPresets==='function') renderQaNotesPresets();
       if(typeof renderQaInvTncPresets==='function') renderQaInvTncPresets();
       if(typeof renderQaRecTncPresets==='function') renderQaRecTncPresets();
@@ -7014,10 +7015,33 @@ function prefillPayDueDate(){
   }
   if(hint) hint.textContent=days+' day'+(days===1?'':'s')+' from today, your default. Change it per order.';
 }
+/* Due date matters only when money is still owed. Full Payment and No Payment Yet have no
+   balance to be due, so the field is optional there and required (with its asterisk) on
+   Partial and After Work. Toggling the attribute rather than hardcoding it keeps the star,
+   which is rendered from that same attribute, honest in both directions. */
+function syncPayDueRequirement(){
+  const status=document.getElementById('qa_pay_status')?.value||'';
+  const el=document.getElementById('qaPayDueDate');
+  if(!el) return;
+  const needed=(status==='partial'||status==='after_work');
+  if(needed) el.setAttribute('required',''); else el.removeAttribute('required');
+  const lbl=el.closest('.form-group')?.querySelector('label');
+  const star=lbl?lbl.querySelector('.req-star'):null;
+  if(needed&&lbl&&!star){
+    const sp=document.createElement('span');
+    sp.className='req-star'; sp.textContent='*'; sp.title='Required while a balance is pending';
+    lbl.appendChild(sp);
+  } else if(!needed&&star){
+    star.remove();
+    el.classList.remove('field-invalid');
+  }
+}
+
 function setQaPayStatus(v){
   _qaPayStatusManual=true;
   document.getElementById('qa_pay_status').value=v;
   document.querySelectorAll('#qaPayStatusGroup button').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
+  syncPayDueRequirement();
   // The red border lives on the visible pill group (data-shake-target), not the hidden
   // input itself, clearing it off the hidden input was a no-op, leaving the border
   // stuck even after a valid pick.
@@ -9646,6 +9670,10 @@ async function toggleReviewReceived(id,current){
 const WEB_ORDER_STATUSES=[
   {id:'whatsapp_pending',label:'WhatsApp, awaiting payment',short:'WA Pending',stage:-1,cls:'pending'},
   {id:'pending',        label:'Payment pending',  short:'Pending',   stage:-1,cls:'pending'},
+  // Paid, but an Instant Quote line means the customisation has to be confirmed with the
+  // customer before anything is printed (rule 10). Its own stage, not a flavour of
+  // Confirmed, because the whole point is that it is not confirmed yet.
+  {id:'quote_pending_confirmation',label:'Quote, awaiting confirmation',short:'Awaiting confirm',stage:-1,cls:'pending'},
   {id:'confirmed',      label:'Confirmed',        short:'Confirmed', stage:0, cls:'order-received'},
   {id:'printing',       label:'Printing',         short:'Printing',  stage:1, cls:'printing'},
   {id:'quality_check',  label:'Quality Check',    short:'QC',        stage:2, cls:'processing'},
@@ -9812,6 +9840,39 @@ const WO_COURIER_NAMES={
   tci_express:'TCI Express',smartr:'SMARTR',fedex:'FedEx',dhl:'DHL',ups:'UPS',
   aramex:'Aramex',shiprocket:'Shiprocket',porter:'Porter',self:'Hand delivered'
 };
+// The courier list, taken from the same set Add Order offers, so both write the same slug
+// and a tracking link resolves either way. 'other' keeps a free-text box for a courier that
+// is not on the list, which simply gets no link.
+const WO_COURIER_OPTIONS=[['delhivery','Delhivery'],['bluedart','BlueDart'],['dtdc','DTDC'],['ekart','Ekart (Flipkart)'],['amazon_logistics','Amazon Logistics'],['xpressbees','XpressBees'],['ecom_express','Ecom Express'],['shadowfax','Shadowfax'],['india_post','India Post'],['professional','Professional Couriers'],['trackon','Trackon'],['gati','Gati'],['safexpress','Safexpress'],['spoton','SpotOn'],['tci_express','TCI Express'],['smartr','SMARTR'],['fedex','FedEx'],['dhl','DHL'],['ups','UPS'],['aramex','Aramex'],['shiprocket','Shiprocket'],['self','Self / Hand Delivery'],['porter','Porter'],['pickup_studio','Pickup from Studio']];
+function woCourierSelect(o){
+  const cur=(o.tracking_vendor||'').trim();
+  const known=WO_COURIER_OPTIONS.some(c=>c[0]===cur);
+  const isOther=Boolean(cur)&&!known;
+  return `<select id="woTrackVendor_${o.id}" onchange="woCourierChanged('${o.id}')"
+            style="width:130px;padding:6px 8px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--bg-1);color:var(--text);cursor:pointer">
+      <option value=""${cur?'':' selected'}>Courier…</option>
+      ${WO_COURIER_OPTIONS.map(c=>`<option value="${c[0]}"${c[0]===cur?' selected':''}>${esc(c[1])}</option>`).join('')}
+      <option value="__other"${isOther?' selected':''}>Other, type it</option>
+    </select>
+    <input type="text" id="woTrackVendorOther_${o.id}" value="${isOther?esc(cur):''}" placeholder="Courier name"
+           style="width:120px;padding:6px 8px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--bg-1);color:var(--text);display:${isOther?'':'none'}">`;
+}
+// Shows the free-text box only when Other is picked, without a full re-render, which would
+// throw away anything already typed into the tracking number next to it.
+function woCourierChanged(id){
+  const sel=document.getElementById('woTrackVendor_'+id);
+  const other=document.getElementById('woTrackVendorOther_'+id);
+  if(sel&&other) other.style.display=sel.value==='__other'?'':'none';
+  if(sel&&sel.value==='__other'&&other) other.focus();
+}
+// What actually gets saved: the slug, or whatever was typed under Other.
+function woCourierValue(id){
+  const sel=document.getElementById('woTrackVendor_'+id);
+  if(!sel) return '';
+  if(sel.value==='__other') return (document.getElementById('woTrackVendorOther_'+id)?.value||'').trim();
+  return sel.value;
+}
+
 function woCourierLabel(v){
   if(!v) return '';
   const k=String(v).trim().toLowerCase().replace(/[\s-]+/g,'_');
@@ -9854,7 +9915,7 @@ function woDetailRow(o,st){
       <div>
         <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Actions</div>
         <div style="display:flex;gap:6px;margin-bottom:10px">
-          <input type="text" id="woTrackVendor_${o.id}" value="${esc(o.tracking_vendor||'')}" placeholder="Courier" style="width:110px;padding:6px 8px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--bg-1);color:var(--text)">
+          ${woCourierSelect(o)}
           <input type="text" id="woTrackNo_${o.id}" value="${esc(o.tracking_number||'')}" placeholder="Tracking number" style="flex:1;padding:6px 8px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--bg-1);color:var(--text)">
         </div>
         <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px">
@@ -9916,7 +9977,7 @@ async function woChangeStatus(id,sel){
 }
 
 async function woSaveTracking(id){
-  const vendor=document.getElementById('woTrackVendor_'+id)?.value.trim()||'';
+  const vendor=woCourierValue(id);
   const number=document.getElementById('woTrackNo_'+id)?.value.trim()||'';
   const eta=document.getElementById('woEta_'+id)?.value||'';
   try{

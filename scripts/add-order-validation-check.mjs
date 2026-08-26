@@ -120,5 +120,50 @@ ok('exception strip added', src.includes('id="woAlerts"'));
 ok('strip hides when clean', src.includes('alerts.innerHTML=bits.length?'));
 ok('courier name normalised', src.includes('function woCourierLabel(v)'));
 
+// ── 5. Courier picker on Website Orders ───────────────────────────────────────────
+console.log('\ncourier picker');
+ok('is a select, not free text', src.includes('function woCourierSelect(o)') &&
+   !src.includes('id="woTrackVendor_${o.id}" value="${esc(o.tracking_vendor'));
+ok('saves the slug', src.includes('const vendor=woCourierValue(id);'));
+ok('Other keeps a free-text box', src.includes("sel.value==='__other'"));
+
+// The picker must offer the same slugs Add Order writes, or the two halves of the system
+// disagree about what a courier is called and the tracking link stops resolving.
+const addOrderOpts = [...src.matchAll(/<select id="qa_courier"[\s\S]*?<\/select>/g)][0][0];
+const addSlugs = [...addOrderOpts.matchAll(/<option value="([^"]*)"/g)]
+  .map(m => m[1]).filter(v => v && v !== 'other').sort();
+const woBlock = src.slice(src.indexOf('const WO_COURIER_OPTIONS=['));
+const woSlugs = [...woBlock.slice(0, woBlock.indexOf(']；'.replace('；', ';'))).matchAll(/\['([a-z_]+)',/g)]
+  .map(m => m[1]).sort();
+ok('offers the same couriers as Add Order',
+   JSON.stringify(addSlugs) === JSON.stringify(woSlugs),
+   addSlugs.length + ' vs ' + woSlugs.length);
+
+// ── 6. Instant Quote confirmation stage ───────────────────────────────────────────
+// Set by paymentController when an order has an Instant Quote line: rule 10, nothing is
+// printed until the customisation is confirmed by hand. It must exist as its own stage in
+// every layer, or one of them silently renders it as a raw slug or as "Confirmed".
+console.log('\nquote_pending_confirmation');
+const ctrl = await readFile('server/controllers/adminController.js', 'utf8');
+const track = await readFile('track-order.html', 'utf8');
+const account = await readFile('account.html', 'utf8');
+ok('in backend ORDER_STATUSES', /ORDER_STATUSES = \[[\s\S]*?'quote_pending_confirmation'/.test(ctrl));
+ok('in the admin status list', src.includes("{id:'quote_pending_confirmation'"));
+ok('sends no automated email', !/quote_pending_confirmation:\s*'/.test(
+   ctrl.slice(ctrl.indexOf('const STATUS_EMAIL_TYPE'), ctrl.indexOf('};', ctrl.indexOf('const STATUS_EMAIL_TYPE')))));
+ok('has a tracking-page step', /STATUS_STEP=\{[\s\S]*?quote_pending_confirmation:/.test(track));
+ok('has a customer-facing label', track.includes("quote_pending_confirmation:'Confirming Your Details'"));
+ok('has a My Orders class', account.includes('quote_pending_confirmation:\'status-pending\''));
+ok('has My Orders text', account.includes("quote_pending_confirmation:'Confirming Your Details'"));
+
+// ── 7. Payment due date ───────────────────────────────────────────────────────────
+console.log('\npayment due date');
+ok('required only where a balance is pending',
+   src.includes("const needed=(status==='partial'||status==='after_work');"));
+ok('star follows the requirement', src.includes('function syncPayDueRequirement()') &&
+   src.includes("sp.className='req-star'"));
+ok('re-syncs when the pill changes',
+   /function setQaPayStatus\(v\)\{[\s\S]{0,400}?syncPayDueRequirement\(\);/.test(src));
+
 console.log(fails ? '\n' + fails + ' FAILURES' : '\nall checks passed');
 process.exit(fails ? 1 : 0);
