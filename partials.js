@@ -187,51 +187,59 @@ window._FOOTER_HTML = `<footer>
         <div class="foot-hi"><span style="color:var(--accent)">त्रि</span>आकार</div>
         <p class="foot-desc">3D Printing Services, Delhi NCR</p>
         <div class="foot-phone"><a href="tel:+919217555833">+91 9217-555-833</a></div>
-        <div class="foot-hours">Open Mon–Sat · 11 AM – 8 PM</div>
-        <div class="foot-addr">Shop No. 25, Karan Singh Market<br>Chhoti Milak, Greater Noida West, UP – 201307</div>
+        <div class="foot-hours">Open Monday to Saturday · 11 AM to 8 PM</div>
+        <div class="foot-addr">Shop No. 25, Karan Singh Market<br>Chhoti Milak, Greater Noida West, UP 201307</div>
         <a href="https://maps.app.goo.gl/Ki2GXFgi6JUZMb7z6" class="foot-dir" target="_blank">Get Directions →</a>
       </div>
+      <!-- Internal links drop the .html: cleanUrls is on, so /products.html
+           308s to /products and every footer on every page was spending a
+           redirect hop per link. -->
       <div><div class="foot-col-t">Shop</div>
         <ul class="foot-links">
-          <li><a href="/products.html">All Products</a></li>
-          <li><a href="/products.html?cat=desk">Desk</a></li>
-          <li><a href="/products.html?cat=home">Home</a></li>
-          <li><a href="/products.html?cat=gifting">Gifting</a></li>
-          <li><a href="/instant-quote.html">Instant Quote</a></li>
-          <li><a href="/prototyping.html">Prototyping</a></li>
-          <li><a href="/order.html">Customization</a></li>
-          <li><a href="/stories.html">Stories</a></li>
-          <li><a href="/services/replacement-parts.html">Replacement Parts</a></li>
-          <li><a href="/services/personalized-gifts.html">Personalized Gifts</a></li>
+          <li><a href="/products">All Products</a></li>
+          <li><a href="/products?cat=desk">Desk</a></li>
+          <li><a href="/products?cat=home">Home</a></li>
+          <li><a href="/products?cat=gifting">Gifting</a></li>
+          <li><a href="/stories">Stories</a></li>
+          <li><a href="/reviews">Reviews</a></li>
         </ul>
       </div>
-      <!-- SEO: hidden from the visible footer but kept in the DOM (and in sitemap.xml) so search engines still crawl these local landing pages -->
-      <div style="display:none"><div class="foot-col-t">Services</div>
+      <div><div class="foot-col-t">Services</div>
         <ul class="foot-links">
+          <li><a href="/instant-quote">Instant Quote</a></li>
+          <li><a href="/prototyping">Prototyping</a></li>
+          <li><a href="/order">Customization</a></li>
+          <li><a href="/services/replacement-parts">Replacement Parts</a></li>
+          <li><a href="/services/personalized-gifts">Personalized Gifts</a></li>
           <li><a href="/services/corporate-gifting">Corporate Gifting</a></li>
-          <li><a href="/gifts/corporate-gifts-noida">Corporate Gifts Noida</a></li>
-          <li><a href="/gifts/birthday-gifts-noida">Birthday Gifts Noida</a></li>
-          <li><a href="/gifts/housewarming-gifts">Housewarming Gifts</a></li>
+        </ul>
+      </div>
+      <!-- These local landing pages used to sit in a display:none block "so
+           search engines still crawl them". Hidden links are discounted and
+           read as cloaking, so they are a real, visible column now. -->
+      <div><div class="foot-col-t">Areas We Serve</div>
+        <ul class="foot-links">
           <li><a href="/3d-printing-noida">3D Printing Noida</a></li>
           <li><a href="/3d-printing-greater-noida">3D Printing Greater Noida</a></li>
           <li><a href="/replacement-parts-noida">Replacement Parts Noida</a></li>
           <li><a href="/3d-printed-gifts-delhi">3D Printed Gifts Delhi</a></li>
+          <li><a href="/gifts/corporate-gifts-noida">Corporate Gifts Noida</a></li>
+          <li><a href="/gifts/birthday-gifts-noida">Birthday Gifts Noida</a></li>
+          <li><a href="/gifts/housewarming-gifts">Housewarming Gifts</a></li>
         </ul>
       </div>
       <div><div class="foot-col-t">Help</div>
         <ul class="foot-links">
-          <li><a href="/contact.html">Contact Us</a></li>
-          <li><a href="/reviews.html">Reviews</a></li>
-          <li><a href="/track-order.html">Track Order</a></li>
-          <li><a href="/refund-policy.html">Refund Policy</a></li>
-          <li><a href="/about.html">About</a></li>
-          <li><a href="/order.html">Customization</a></li>
-        </ul>
-      </div>
-      <div><div class="foot-col-t">Legal</div>
-        <ul class="foot-links">
-          <li><a href="/terms.html">Terms &amp; Conditions</a></li>
-          <li><a href="/privacy.html">Privacy Policy</a></li>
+          <li><a href="/contact">Contact Us</a></li>
+          <li><a href="/faq">FAQ</a></li>
+          <li><a href="/how-it-works">How It Works</a></li>
+          <li><a href="/materials">Materials</a></li>
+          <li><a href="/track-order">Track Order</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/refund-policy">Refund Policy</a></li>
+          <li><a href="/terms">Terms &amp; Conditions</a></li>
+          <li><a href="/privacy">Privacy Policy</a></li>
+          <li><a href="/credits">Design Credits</a></li>
         </ul>
       </div>
     </div>
