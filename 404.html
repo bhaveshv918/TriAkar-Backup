@@ -1,16 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- Vercel's /stories/:slug -> /story.html?slug=:slug rewrite (vercel.json) isn't being
-     honored in production for reasons that couldn't be diagnosed without dashboard access
-     to the deployment's routing manifest, even though /story.html?slug=... itself works
-     fine when hit directly. Every /stories/<slug> request lands here instead, so rescue it
-     client-side before anything paints: if the path matches, hand off to the real story
-     page immediately rather than showing "page not found" for a story that exists. -->
-<script>(function(){
-  var m = location.pathname.match(/^\/stories\/([^\/]+)\/?$/);
-  if (m && m[1]) { location.replace('/story?slug=' + encodeURIComponent(m[1]) + location.search); }
-})();</script>
+<!-- The client-side rescue that used to sit here is gone. /stories/:slug was
+     landing on this page because the vercel.json rewrite pointed at a .html
+     destination, and cleanUrls 308s any .html path, so the rewrite could never
+     resolve. The destination is /story?slug=:slug now and the clean URL serves
+     200 directly, so a story never reaches this page. Leaving the redirect in
+     would also fight the canonical, bouncing a clean URL back to the query
+     form. -->
 <meta charset="UTF-8">
 <!-- Google Analytics 4 -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-FDM00KSRD5"></script>

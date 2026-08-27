@@ -20,8 +20,8 @@
 /* Same reasoning as story.html: set the canonical from the slug before the
    product fetch, so a failed fetch cannot leave every product pointing at the
    bare /product-detail URL. updateMetaTags() overwrites this once data lands. */
-(function(){try{var s=new URLSearchParams(location.search).get('slug');
-if(s)document.getElementById('metaCanonical').href='https://www.triakar.com/product-detail?slug='+encodeURIComponent(s);}catch(e){}})();
+(function(){try{var s=new URLSearchParams(location.search).get('slug')||(location.pathname.match(/^\/products\/(.+)$/)||[])[1];
+if(s)document.getElementById('metaCanonical').href='https://www.triakar.com/products/'+encodeURIComponent(decodeURIComponent(s));}catch(e){}})();
 </script>
 <meta property="og:title" id="metaOgTitle" content="Product Details: TriAkar">
 <meta property="og:description" id="metaOgDesc" content="View product details, colors and pricing. Every TriAkar product is 3D printed fresh when you order using premium PLA+ corn starch material.">
@@ -677,9 +677,19 @@ function _showDetailError(slug,notFound){
       +'</div>';
   }
 }
+/* /products/:slug is a rewrite, not a redirect, so on that URL the browser
+   keeps the pretty path and there is no ?slug= to read. Take the slug from
+   whichever form the visitor arrived on. */
+function _slugFromUrl(){
+  const q=new URLSearchParams(window.location.search).get('slug');
+  if(q) return q;
+  const m=window.location.pathname.match(/^\/products\/([^/]+)\/?$/);
+  if(!m) return '';
+  try { return decodeURIComponent(m[1]); } catch(e){ return m[1]; }
+}
 function init(){
   const params=new URLSearchParams(window.location.search);
-  const slug=params.get('slug');
+  const slug=_slugFromUrl();
   const id=slug||params.get('id')||'';
 
   // Load reviews independently, works even if product API is slow/offline
@@ -745,14 +755,12 @@ function setNoindex(){
    Built from live product data; replaces any previous block on re-render. */
 function injectProductSchema(ap,p,id){
   var base='https://www.triakar.com';
-  // NOTE: /products/:slug exists as a vercel.json rewrite but currently 404s in
-  // production for any client without the PWA service worker already caching it
-  // (confirmed via curl and on the raw triakar.vercel.app domain, 2026-08-20 audit —
-  // same pre-existing bug affects /stories/:slug). /product-detail?slug=X (no .html,
-  // cleanUrls strips it) is the URL that actually resolves 200 with no redirect for
-  // Googlebot and fresh visitors, so that's canonical until the rewrite is fixed.
-  // Switch back to '/products/'+encodeURIComponent(id) once verified live.
-  var url=base+'/product-detail?slug='+encodeURIComponent(id);
+  // /products/:slug is live again as of 2026-08-27 and verified 200 in
+  // production. The old rewrite failed because cleanUrls 308s any .html path,
+  // so a rewrite whose destination ended in .html could never resolve; the
+  // destination is /product-detail?slug=:slug now. The query form still works
+  // and this canonical points it at the clean URL.
+  var url=base+'/products/'+encodeURIComponent(id);
   var imgs=(p.images||[]).map(function(im){
     return (typeof im==='string'?im:(im&&im.url)||'')||'';
   }).filter(Boolean).map(function(u){return u.indexOf('http')===0?u:base+'/'+u.replace(/^\//,'');});

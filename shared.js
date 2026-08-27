@@ -1229,7 +1229,7 @@ document.addEventListener('DOMContentLoaded',function(){
       const img = p.image
         ? '<img src="' + _esc(taImg(p.image, {w:96})) + '" alt="" loading="lazy" decoding="async">'
         : '<span class="ta-sr-noimg"></span>';
-      return '<a class="ta-search-item" data-i="' + i + '" href="product-detail?slug=' + encodeURIComponent(p.slug) + '">'
+      return '<a class="ta-search-item" data-i="' + i + '" href="/products/' + encodeURIComponent(p.slug) + '">'
         + '<span class="ta-sr-img">' + img + '</span>'
         + '<span class="ta-sr-txt"><span class="ta-sr-name">' + _esc(p.name) + '</span>'
         + '<span class="ta-sr-cat">' + _esc(p.category || '') + '</span></span>'
@@ -1245,7 +1245,7 @@ document.addEventListener('DOMContentLoaded',function(){
     else if (e.key === 'ArrowUp'){ e.preventDefault(); _activeIdx = Math.max(_activeIdx - 1, -1); _highlight(); }
     else if (e.key === 'Enter'){
       if (_activeIdx >= 0 && _results[_activeIdx]){
-        window.location.href = 'product-detail?slug=' + encodeURIComponent(_results[_activeIdx].slug);
+        window.location.href = '/products/' + encodeURIComponent(_results[_activeIdx].slug);
       } else {
         const v = e.target.value.trim();
         if (v) window.location.href = '/products.html?search=' + encodeURIComponent(v);

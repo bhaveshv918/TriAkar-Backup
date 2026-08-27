@@ -22,8 +22,8 @@
    render() sets it again once the story loads, but if that fetch ever fails
    the page must not sit there declaring itself a duplicate of /stories, which
    would collapse every story into one indexed URL. */
-(function(){try{var s=new URLSearchParams(location.search).get('slug');
-if(s)document.getElementById('metaCanonical').href='https://www.triakar.com/story?slug='+encodeURIComponent(s);}catch(e){}})();
+(function(){try{var s=new URLSearchParams(location.search).get('slug')||(location.pathname.match(/^\/stories\/(.+)$/)||[])[1];
+if(s)document.getElementById('metaCanonical').href='https://www.triakar.com/stories/'+encodeURIComponent(decodeURIComponent(s));}catch(e){}})();
 </script>
 <meta property="og:title" id="metaOgTitle" content="TriAkar Story">
 <meta property="og:description" id="metaOgDesc" content="A real TriAkar customer story: real orders, real people, real problems solved by 3D printing.">
@@ -354,13 +354,12 @@ if(s)document.getElementById('metaCanonical').href='https://www.triakar.com/stor
 
   function render(s, related, allStories){
     const base='https://www.triakar.com';
-    // NOTE: /stories/:slug is a vercel.json rewrite that currently 404s in production
-    // for any client without the PWA service worker already caching it (confirmed via
-    // curl and on the raw triakar.vercel.app domain, 2026-08-20 audit). /story?slug=X
-    // (no .html, cleanUrls strips it) is the URL that actually resolves 200 with no
-    // redirect for Googlebot and fresh visitors, so that's canonical until the rewrite
-    // is fixed. Switch back to base+'/stories/'+encodeURIComponent(s.slug) once verified live.
-    const url=base+'/story?slug='+encodeURIComponent(s.slug);
+    // /stories/:slug is live again as of 2026-08-27 and verified 200 in
+    // production. The old rewrite failed because cleanUrls 308s any .html
+    // path, so a rewrite whose destination ended in .html could never resolve;
+    // the destination is /story?slug=:slug now. The query form still works and
+    // this canonical points it at the clean URL.
+    const url=base+'/stories/'+encodeURIComponent(s.slug);
     const monthLabel=(MONTH_NAMES[s.month]||'')+(s.year?' '+s.year:'');
     document.getElementById('postMonth').textContent=monthLabel;
     document.getElementById('postTag').textContent=s.tag;
@@ -405,9 +404,17 @@ if(s)document.getElementById('metaCanonical').href='https://www.triakar.com/stor
     renderRelated(list, allRead);
   }
 
+  /* /stories/:slug is a rewrite, not a redirect, so on that URL there is no
+     ?slug= to read. Accept either form. */
+  function _slugFromUrl(){
+    const q=new URLSearchParams(window.location.search).get('slug');
+    if(q) return q;
+    const m=window.location.pathname.match(/^\/stories\/([^/]+)\/?$/);
+    if(!m) return '';
+    try { return decodeURIComponent(m[1]); } catch(e){ return m[1]; }
+  }
   function init(){
-    const params=new URLSearchParams(window.location.search);
-    const slug=params.get('slug');
+    const slug=_slugFromUrl();
     if(!slug){ setNoindex(); showNotFound(); return; }
     // The "all stories" fetch is only needed to filter the related-stories
     // rail down to unread ones; it shouldn't hold up rendering the story
