@@ -212,11 +212,25 @@
 .iq-other-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(196,98,42,.1)}
 
 /* "Use recommended settings", one click resets every step to its popular pick.
-   Sits after the Strength section, once the visitor has seen every option, so
-   the shortcut reads as "reset to popular" rather than a shortcut to skip past
-   the settings before seeing them. */
-.iq-recommend-btn{margin-top:20px;display:block;width:fit-content;background:rgba(255,255,255,.6);border:1.5px solid rgba(196,98,42,.3);color:var(--accent);font-size:11.5px;font-weight:700;padding:8px 16px;border-radius:999px;cursor:pointer;transition:all .18s;white-space:nowrap}
-.iq-recommend-btn:hover{background:rgba(196,98,42,.08);border-color:var(--accent)}
+   Lives in the step header, pushed to the right of "Configure your print", so it
+   reads as an action on the whole step instead of a stray button under the last
+   section. Glass pill to match .iq-step itself, quiet until hovered. */
+.iq-recommend-btn{margin-left:auto;display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.55);-webkit-backdrop-filter:blur(10px) saturate(160%);backdrop-filter:blur(10px) saturate(160%);border:1px solid rgba(196,98,42,.3);color:var(--accent);font-family:var(--font-b);font-size:11.5px;font-weight:700;padding:8px 15px;border-radius:999px;cursor:pointer;white-space:nowrap;box-shadow:0 1px 3px rgba(22,22,20,.06),inset 0 1px 0 rgba(255,255,255,.8);transition:background .18s,border-color .18s,box-shadow .18s,transform .18s}
+.iq-recommend-btn svg{width:13px;height:13px;flex-shrink:0;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+.iq-recommend-btn:hover{background:rgba(196,98,42,.1);border-color:var(--accent);box-shadow:0 3px 10px rgba(196,98,42,.16),inset 0 1px 0 rgba(255,255,255,.8)}
+.iq-recommend-btn:hover svg{transform:rotate(90deg) scale(1.1)}
+.iq-recommend-btn:active{transform:translateY(1px);box-shadow:0 1px 2px rgba(22,22,20,.08),inset 0 1px 0 rgba(255,255,255,.8)}
+.iq-recommend-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Phone: the title and a nowrap pill will not share one line at this width, so the
+   pill drops to its own full-width row and grows to a proper thumb target. */
+@media(max-width:680px){
+  .iq-step-head{flex-wrap:wrap}
+  .iq-recommend-btn{width:100%;margin-left:0;justify-content:center;min-height:42px;font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){
+  .iq-recommend-btn,.iq-recommend-btn svg{transition:none}
+  .iq-recommend-btn:hover svg{transform:none}
+}
 
 /* Color swatches */
 .iq-color-row{display:flex;flex-wrap:wrap;gap:16px}
@@ -349,7 +363,14 @@
     <div class="iq-error" id="iqError"></div>
 
     <div class="iq-step" id="iqStepConfig">
-      <div class="iq-step-head"><div class="iq-step-n">1</div><div class="iq-step-title">Configure your print</div></div>
+      <div class="iq-step-head">
+        <div class="iq-step-n">1</div>
+        <div class="iq-step-title">Configure your print</div>
+        <button type="button" class="iq-recommend-btn" onclick="IQ.useRecommended()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v3M12 18v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M3 12h3M18 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/><circle cx="12" cy="12" r="3.2"/></svg>
+          Use recommended settings
+        </button>
+      </div>
 
       <div class="iq-config-section">
         <div class="iq-config-label">Material</div>
@@ -403,8 +424,6 @@
           </div>
         </div>
       </details>
-
-      <button type="button" class="iq-recommend-btn" onclick="IQ.useRecommended()">⚡ Use recommended settings</button>
     </div>
 
     <div class="iq-step" id="iqStepFinalize">
