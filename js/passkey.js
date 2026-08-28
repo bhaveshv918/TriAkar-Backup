@@ -9,7 +9,16 @@
  */
 
 const Passkey = (function () {
-  const API = function () { return (window.Auth && Auth.API_BASE) || ''; };
+  /* typeof, not window.Auth: js/auth.js declares `const Auth`, and a top-level const in a
+     classic script lands in the global LEXICAL environment, never on window. Checking
+     window.Auth therefore always reads undefined, which silently turned every request
+     below into a relative URL and sent it to the site's own origin instead of the API. */
+  const API = function () {
+    if (typeof Auth === 'undefined' || !Auth.API_BASE) {
+      throw new Error('Sign-in is not ready yet. Please refresh and try again.');
+    }
+    return Auth.API_BASE;
+  };
 
   /* ── base64url <-> ArrayBuffer ────────────────────────────
      WebAuthn speaks ArrayBuffers, JSON does not. The server sends and expects base64url
