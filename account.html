@@ -337,6 +337,13 @@
 .pk-confirm{align-self:center;font-size:11.5px;font-weight:700;color:#B91C1C;margin-right:2px}
 .pk-empty{font-size:12.5px;color:var(--stone);line-height:1.6;padding:4px 0 2px}
 
+/* ── Post-login passkey offer ───────────────────────────── */
+.pk-hero{display:flex;align-items:center;justify-content:center;width:66px;height:66px;margin:4px auto 18px;border-radius:22px;background:rgba(196,98,42,.1);border:1px solid rgba(196,98,42,.22);color:var(--accent,#C4622A)}
+.pk-hero svg{width:32px;height:32px}
+.pk-why{list-style:none;padding:0;margin:20px 0 24px;display:flex;flex-direction:column;gap:9px}
+.pk-why li{position:relative;padding-left:24px;font-size:12.5px;line-height:1.55;color:var(--stone)}
+.pk-why li::before{content:'✓';position:absolute;left:0;top:0;color:var(--accent,#C4622A);font-weight:700;font-size:12px}
+
 /* Phone sizing. Kept here, after the base rules above, rather than in the older
    @media block further up: same specificity means the last rule wins, and from up
    there every one of these would have been silently overridden. */
@@ -466,6 +473,26 @@
           </div>
         </div><!-- /signupOtpStep -->
       </form>
+
+      <!-- Shown once, straight after a successful sign-in, when this account has no
+           passkey yet and the device can make one. This is the moment people actually
+           say yes: they have just proved who they are and have not started doing
+           anything else. Skippable, and never shown on the way into checkout. -->
+      <div class="auth-form" id="passkeySetupForm">
+        <div class="pk-hero">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 11a4 4 0 0 0-4 4c0 1.5-.3 3-1 4.3"/><path d="M12 3a8 8 0 0 0-8 8c0 1.2-.2 2.4-.6 3.5"/><path d="M8 11a4 4 0 0 1 7.5-1.9"/><path d="M16 15c0 2-.4 4-1.2 5.8"/><path d="M12 15v1c0 1.7-.2 3.4-.7 5"/><path d="M20 11c0 3-.5 6-1.5 8.7"/></svg>
+        </div>
+        <div class="auth-form-title" style="text-align:center">Skip the password next time</div>
+        <p class="auth-form-sub" style="text-align:center" id="pkSetupSub">Set up a passkey and sign in with your fingerprint, face or device PIN. Takes one tap.</p>
+        <ul class="pk-why">
+          <li>Nothing to remember and nothing to type</li>
+          <li>Only works on triakar.com, so a fake site cannot copy it</li>
+          <li>Your password and Google sign-in keep working as usual</li>
+        </ul>
+        <button type="button" class="btn btn-dark auth-submit" id="pkSetupBtn" onclick="setupPasskeyNow()">Set up passkey →</button>
+        <div class="auth-msg" id="pkSetupMsg"></div>
+        <div class="auth-switch-row"><button type="button" class="auth-link" onclick="skipPasskeySetup()">Not now</button></div>
+      </div>
 
       <form class="auth-form" id="forgotForm" onsubmit="handleForgot(event)">
         <div class="auth-form-title">Reset your password</div>
@@ -749,12 +776,17 @@ const STATUS_TEXT={
 
 /* ── Auth Tabs ── */
 function switchTab(tab){
-  // tab: 'quick' | 'login' | 'signup' | 'forgot' | 'reset'
+  // tab: 'quick' | 'login' | 'signup' | 'forgot' | 'reset' | 'passkeysetup'
   const tabsBar=document.querySelector('.auth-tabs');
-  const forms=['quickForm','loginForm','signupForm','forgotForm','resetForm'];
+  const forms=['quickForm','loginForm','signupForm','forgotForm','resetForm','passkeySetupForm'];
   forms.forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active')});
   document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('active'));
-  if(tab==='quick'){
+  if(tab==='passkeysetup'){
+    // No Sign In / Create Account switcher here: the customer is already signed in, this
+    // screen is a one-question detour on the way to wherever they were going.
+    if(tabsBar)tabsBar.style.display='none';
+    document.getElementById('passkeySetupForm').classList.add('active');
+  }else if(tab==='quick'){
     // Its own screen rather than a third tab: "Sign In / Create Account" stays a
     // two-way choice, and the picker is what you land on before either.
     if(tabsBar)tabsBar.style.display='none';
@@ -927,9 +959,9 @@ async function handleLogin(e){
   btn.textContent='Signing in...';btn.disabled=true;
   try{
     await Auth.login(document.getElementById('loginEmail').value.trim(),document.getElementById('loginPassword').value);
-    // Resume checkout, or go back to the page they came from, or land on the dashboard.
-    // Shared with the passkey path so both sign-ins end up in the same place.
-    _afterSignIn();
+    // Resume checkout, or go back to the page they came from, or land on the dashboard,
+    // offering a passkey on the way. Shared with every other sign-in route.
+    await _afterSignIn();
   }catch(err){showMsg('loginMsg',err.message,'err')}
   finally{btn.textContent='Sign In →';btn.disabled=false}
 }
@@ -1023,9 +1055,13 @@ async function verifySignupOtp(){
     const d=await res.json();
     if(!res.ok)throw new Error(d.error||'Invalid code');
     const dest=window._signupRedirect||'index.html';
-    if(dest==='checkout'){sessionStorage.removeItem('after_login');window.location.href='checkout.html';}
-    else if(dest&&!dest.includes('account.html')&&dest!=='index.html'){sessionStorage.removeItem('ta_return_url');window.location.href=dest;}
-    else window.location.href='index.html';
+    const target=(dest==='checkout')
+      ? 'checkout.html'
+      : ((dest&&!dest.includes('account.html')&&dest!=='index.html') ? dest : 'index.html');
+    // A brand new account is the best moment of all to offer a passkey: they have just
+    // invented a password they will not remember. Skipped when heading into checkout.
+    if(await _shouldOfferPasskey(target)){_showPasskeySetup(target);return;}
+    _goTo(target);
   }catch(err){
     showMsg('signupOtpMsg',err.message,'err');
     btn.textContent='Verify & Continue →';btn.disabled=false;
@@ -2027,25 +2063,119 @@ async function saveMobilePrompt(){
    All of it degrades to nothing on a browser without WebAuthn: the buttons stay hidden
    and password plus Google carry on exactly as before. */
 
-const PK_PROMPT_KEY='ta_pk_prompt_dismissed';
+/* Timestamp, not a boolean: "Not now" should mean not now, not never. Somebody who
+   skips once still gets asked again in a week, which is how a passkey eventually gets
+   set up on the devices people actually use. */
+const PK_OFFER_KEY='ta_pk_offer_until';
+const PK_SNOOZE_DAYS=7;
 
-/* Where a customer goes once they are in. Shared by every sign-in route so a passkey
-   lands them in the same place a password would, including mid-checkout. */
-function _afterSignIn(){
+function _passkeyOfferSnoozed(){
+  try{
+    const until=Number(localStorage.getItem(PK_OFFER_KEY)||0);
+    return !!until && Date.now() < until;
+  }catch(_){return false}
+}
+function _snoozePasskeyOffer(days){
+  try{localStorage.setItem(PK_OFFER_KEY,String(Date.now()+(days||PK_SNOOZE_DAYS)*86400000))}catch(_){}
+}
+
+/* Set when the sign-in itself used a passkey. Offering to create one to somebody who
+   just used one would be absurd. */
+let _skipPasskeyOffer=false;
+
+/* Where this sign-in was headed. null means "stay here and show the dashboard". */
+function _pendingDestination(){
   const params=new URLSearchParams(window.location.search);
-  if(sessionStorage.getItem('after_login')==='checkout'||params.get('next')==='checkout'){
+  if(sessionStorage.getItem('after_login')==='checkout'||params.get('next')==='checkout')return 'checkout.html';
+  const returnUrl=sessionStorage.getItem('ta_return_url');
+  if(returnUrl&&!returnUrl.includes('account.html'))return returnUrl;
+  return null;
+}
+
+function _goTo(dest){
+  if(dest==='checkout.html'){
     sessionStorage.removeItem('after_login');
     window.location.href='checkout.html';
     return true;
   }
-  const returnUrl=sessionStorage.getItem('ta_return_url');
-  if(returnUrl&&!returnUrl.includes('account.html')){
+  if(dest){
     sessionStorage.removeItem('ta_return_url');
-    window.location.href=returnUrl;
+    window.location.href=dest;
     return true;
   }
   showDashboard();
   return false;
+}
+
+/* Only offer when it can actually be accepted and is not an interruption. */
+async function _shouldOfferPasskey(dest){
+  try{
+    if(_skipPasskeyOffer)return false;
+    // Never in front of a payment. Somebody who came here to finish checking out wants
+    // to check out; the dashboard banner will catch them afterwards instead.
+    if(dest==='checkout.html')return false;
+    if(!Passkey.supported())return false;
+    if(_passkeyOfferSnoozed())return false;
+    // A desktop with no biometrics and no PIN would get an offer it cannot accept.
+    if(!await Passkey.platformAvailable())return false;
+    const keys=await _getPasskeys(true);
+    return keys.length===0;
+  }catch(_){ return false; }
+}
+
+function _showPasskeySetup(dest){
+  window._pkSetupDest=dest||null;
+  const authScreen=document.getElementById('authScreen');
+  const card=document.getElementById('authCard');
+  if(authScreen)authScreen.style.display='';
+  if(card)card.style.display='';
+  const dash=document.getElementById('dashboard');
+  if(dash)dash.classList.remove('active');
+  // This is an auth-card screen, so it hides the bottom tab bar like the others do.
+  // showDashboard() takes the class back off when the customer moves on.
+  document.body.classList.add('acct-auth');
+  const user=Auth.getUser();
+  const name=user&&(user.user_metadata&&(user.user_metadata.full_name||user.user_metadata.name));
+  const sub=document.getElementById('pkSetupSub');
+  if(sub&&name){
+    sub.textContent='You are signed in, '+String(name).split(' ')[0]+'. Set up a passkey and next time it is just your fingerprint, face or device PIN.';
+  }
+  switchTab('passkeysetup');
+}
+
+/* Where a customer goes once they are in. Shared by every sign-in route (password,
+   Google, passkey, new signup) so all four behave identically, including the one-time
+   passkey offer. */
+async function _afterSignIn(){
+  const dest=_pendingDestination();
+  if(await _shouldOfferPasskey(dest)){ _showPasskeySetup(dest); return true; }
+  return _goTo(dest);
+}
+
+async function setupPasskeyNow(){
+  const btn=document.getElementById('pkSetupBtn');
+  const original='Set up passkey →';
+  btn.disabled=true;btn.textContent='Waiting for your device…';
+  try{
+    await Passkey.register();
+    const u=Auth.getUser();
+    if(u)Auth.markAccountPasskey(u.id,true);
+    _pkCache=null;
+    showMsg('pkSetupMsg','Passkey saved. Next time, just your fingerprint or face.','ok');
+    btn.textContent='Done';
+    // Long enough to read the confirmation, short enough not to feel stuck.
+    setTimeout(function(){_goTo(window._pkSetupDest)},1500);
+  }catch(err){
+    btn.disabled=false;btn.textContent=original;
+    // Backing out of the OS prompt is a decision, not an error. Leave the screen up so
+    // they can try again or press Not now.
+    if(!Passkey.isCancel(err))showMsg('pkSetupMsg',err.message||'Could not set up a passkey on this device.','err');
+  }
+}
+
+function skipPasskeySetup(){
+  _snoozePasskeyOffer(PK_SNOOZE_DAYS);
+  _goTo(window._pkSetupDest);
 }
 
 /* Runs the passkey ceremony and reports whether it got the customer in. A cancelled
@@ -2057,7 +2187,8 @@ async function _tryPasskeySignIn(msgId){
   try{
     const data=await Passkey.login();
     if(data&&data.user)Auth.markAccountPasskey(data.user.id,true);
-    _afterSignIn();
+    _skipPasskeyOffer=true;   // they just used one
+    await _afterSignIn();
     return true;
   }catch(err){
     if(Passkey.isCancel(err))return false;
@@ -2093,7 +2224,8 @@ async function _maybeStartConditionalPasskey(){
     const data=await Passkey.login({conditional:true,signal:_pkCondAbort.signal});
     _pkCondAbort=null;
     if(data&&data.user)Auth.markAccountPasskey(data.user.id,true);
-    _afterSignIn();
+    _skipPasskeyOffer=true;
+    await _afterSignIn();
   }catch(_){ /* cancelled or unsupported, the buttons still work */ }
 }
 
@@ -2358,9 +2490,13 @@ async function addPasskey(fromBanner){
   }
 }
 
-/* ── The one-time nudge ──────────────────────────────────── */
+/* ── The dashboard nudge ─────────────────────────────────
+   Backstop for the post-login offer above. It catches the cases that never pass through
+   _afterSignIn: a returning visitor whose session is still valid, so the page loads
+   straight into the dashboard, and anyone who was skipped because they signed in on the
+   way to checkout. */
 function _dismissPasskeyPrompt(afterSuccess){
-  try{localStorage.setItem(PK_PROMPT_KEY,'1')}catch(_){}
+  _snoozePasskeyOffer(PK_SNOOZE_DAYS);
   const b=document.getElementById('passkeyPromptBanner');
   if(!b)return;
   // On success the banner lingers a moment so the confirmation is actually read.
@@ -2371,7 +2507,9 @@ function dismissPasskeyPrompt(){_dismissPasskeyPrompt(false)}
 
 async function _maybeShowPasskeyPrompt(){
   try{
-    if(localStorage.getItem(PK_PROMPT_KEY))return;
+    if(_skipPasskeyOffer)return;
+    if(!Passkey.supported())return;
+    if(_passkeyOfferSnoozed())return;
     // Only where it can actually be acted on: a desktop with no biometrics and no PIN
     // would get an offer it cannot accept.
     if(!await Passkey.platformAvailable())return;
@@ -2540,17 +2678,9 @@ document.addEventListener('DOMContentLoaded',function(){
       try{oauthApplied=await _handleOAuthReturn();}catch(_){}
     }
     if(oauthApplied){
-      // Resume checkout if that's where they were headed
-      if(sessionStorage.getItem('after_login')==='checkout'){
-        sessionStorage.removeItem('after_login');
-        window.location.href='checkout.html';return;
-      }
-      const returnUrl=sessionStorage.getItem('ta_return_url');
-      if(returnUrl&&!returnUrl.includes('account.html')){
-        sessionStorage.removeItem('ta_return_url');
-        window.location.href=returnUrl;return;
-      }
-      showDashboard();
+      // Same routing as every other sign-in, passkey offer included. Google users are
+      // the ones who benefit most: they have no password here at all.
+      await _afterSignIn();
       return;
     }
     if(Auth.isLoggedIn()){showDashboard();return}
