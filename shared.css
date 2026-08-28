@@ -16,8 +16,23 @@
 :root {
   --ivory:#F4F2EC; --ivory-2:#EAE7DF; --white:#F4F2EC;
   --charcoal:#0F0F0D; --char-2:#252522;
-  --stone:#88847E; --stone-l:#C0BCB4; --stone-p:#E2DED7;
-  --warm:#645F59;
+  /* Text greys, darkened site-wide for legibility (Aug 2026). The old values were
+     set for looks and failed WCAG AA badly on our ivory backgrounds: --stone was
+     3.3:1 and --stone-l 1.7:1, where body text needs 4.5:1. Every one of these is
+     now measured against --ivory (#F4F2EC), the lightest surface they sit on:
+       --stone   6.1:1   secondary text, the workhorse (~260 uses)
+       --stone-l 4.8:1   dimmer text, still passes, stays a step lighter than stone
+       --stone-p  n/a    hairlines and dividers only, never text, so left alone
+       --warm    8.0:1   body copy
+     If you add a new grey, run it through a contrast checker first, and do not
+     reintroduce anything above roughly #6E6A64 for text on a light background. */
+  --stone:#5E5A54; --stone-l:#6E6A64; --stone-p:#E2DED7;
+  --warm:#4E4943;
+  /* Secondary text inside an intentional dark section. --stone-l used to double as
+     both "dim on light" and "light on dark", which is why it could not be darkened
+     without wrecking the dark sections. This is the old --stone-l value, now with
+     one job: 10.1:1 on --charcoal. Never use it on a light background. */
+  --stone-on-dark:#C0BCB4;
   --accent:#C4622A; --accent-l:#D98B50; --accent-d:#A9521F; /* base / light / dark(hover), the only oranges */
   /* Part 4, simplified colour aliases (single canonical names) */
   --orange:#C4622A;     /* = --accent, every orange on site must use this */
@@ -179,7 +194,7 @@ img{display:block;max-width:100%;height:auto}
   position:fixed; top:0; left:0; right:0; z-index:1001;
   height:var(--notice-h);
   background:var(--charcoal);
-  color:var(--stone-l);
+  color:var(--stone-on-dark);
   display:flex; align-items:center; justify-content:center;
   font-size:11px; letter-spacing:.07em;
   padding:0 var(--pad);
@@ -945,10 +960,10 @@ html[data-menu-style="4"] .drawer-auth-row{margin-top:12px}
 footer{background:var(--char-2);color:var(--ivory);padding:64px 0 28px}
 .foot-news{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;padding-bottom:40px;margin-bottom:40px;border-bottom:1px solid rgba(255,255,255,.07)}
 .foot-news-t{font-family:var(--font-g);font-size:24px;font-weight:700;color:var(--ivory);letter-spacing:-.01em}
-.foot-news-d{font-size:13px;color:var(--stone);font-weight:300;margin-top:4px}
+.foot-news-d{font-size:13px;color:var(--stone-on-dark);font-weight:300;margin-top:4px}
 .foot-news-form{display:flex;gap:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:5px 5px 5px 20px;min-width:340px}
 .foot-news-form input{flex:1;min-width:0;border:none;background:transparent;outline:none;font-family:var(--font-b);font-size:13px;color:var(--ivory)}
-.foot-news-form input::placeholder{color:var(--stone)}
+.foot-news-form input::placeholder{color:var(--stone-on-dark)}
 .foot-news-form button{flex-shrink:0;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:#fff;border:none;border-radius:999px;padding:11px 22px;cursor:pointer;background:linear-gradient(135deg,var(--accent),var(--accent-l),var(--accent));background-size:200% auto;transition:background-position .3s}
 .foot-news-form button:hover{background-position:right center}
 .foot-news-form button:disabled{opacity:.7;cursor:default}
@@ -960,21 +975,21 @@ footer{background:var(--char-2);color:var(--ivory);padding:64px 0 28px}
 
 /* Payment-trust badges — text based, no third-party card-network logos */
 .pay-trust-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.pay-trust-badge{font-size:10px;letter-spacing:.06em;font-weight:600;color:var(--stone-l);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:5px 10px}
+.pay-trust-badge{font-size:10px;letter-spacing:.06em;font-weight:600;color:var(--stone-on-dark);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:5px 10px}
 .pay-trust-row.on-light .pay-trust-badge{color:var(--warm);background:rgba(22,22,20,.04);border-color:var(--stone-p)}
 
 /* 5 columns since the local landing pages came out of their display:none block */
 .foot-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr 1.15fr 1fr;gap:36px;padding-bottom:40px;border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:22px}
 @media(max-width:1300px){.foot-grid{grid-template-columns:1.6fr 1fr 1fr 1fr;gap:30px}}
 .foot-brand{font-family:var(--font-g);font-size:32px;font-weight:700;letter-spacing:.12em;margin-bottom:4px;line-height:1}
-.foot-hi{font-family:var(--font-h);font-size:22px;color:var(--stone-l);margin-bottom:14px;letter-spacing:0}
-.foot-desc{font-size:13px;color:var(--stone);font-weight:300;line-height:1.8;max-width:220px;margin-bottom:12px}
-.foot-mail a{color:var(--stone-l);font-size:13px;transition:color .2s}
+.foot-hi{font-family:var(--font-h);font-size:22px;color:var(--stone-on-dark);margin-bottom:14px;letter-spacing:0}
+.foot-desc{font-size:13px;color:var(--stone-on-dark);font-weight:300;line-height:1.8;max-width:220px;margin-bottom:12px}
+.foot-mail a{color:var(--stone-on-dark);font-size:13px;transition:color .2s}
 .foot-mail a:hover{color:var(--ivory);text-decoration:underline}
-.foot-reply{font-size:11px;color:var(--stone);margin-top:3px}
-.foot-col-t{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;font-weight:600;color:var(--stone);margin-bottom:16px}
+.foot-reply{font-size:11px;color:var(--stone-on-dark);margin-top:3px}
+.foot-col-t{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;font-weight:600;color:var(--stone-on-dark);margin-bottom:16px}
 .foot-links{display:flex;flex-direction:column;gap:8px}
-.foot-links a{font-size:13px;color:var(--stone-l);font-weight:300;transition:color .2s}
+.foot-links a{font-size:13px;color:var(--stone-on-dark);font-weight:300;transition:color .2s}
 .foot-links a:hover{color:var(--ivory)}
 .foot-bottom{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding-right:72px}
 .foot-copy{font-size:11px;color:#fff}
@@ -1126,7 +1141,7 @@ body.has-buy-bar .wa-float{display:none}
 .story-card:hover{box-shadow:0 8px 24px rgba(0,0,0,.08);transform:translateY(-2px)}
 .story-head{padding:16px 20px;border-bottom:1px solid var(--stone-p);display:flex;justify-content:space-between;align-items:center}
 .story-month{font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:var(--stone)}
-.story-tag{font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:4px 11px;border-radius:999px;border:1px solid rgba(196,98,42,.28);background:rgba(196,98,42,.1);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:var(--accent);white-space:nowrap}
+.story-tag{font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:4px 11px;border-radius:999px;border:1px solid rgba(196,98,42,.28);background:rgba(196,98,42,.1);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:var(--accent-d);white-space:nowrap}
 .story-body{padding:20px}
 .story-title{font-size:15px;font-weight:700;margin-bottom:8px;line-height:1.35}
 .story-excerpt{font-size:13px;color:var(--warm);font-weight:300;line-height:1.7}
@@ -1183,7 +1198,7 @@ body.has-buy-bar .wa-float{display:none}
 .contact-phone{font-size:22px;font-weight:700;color:var(--charcoal)}
 .contact-hours{font-size:13px;color:var(--warm);margin-top:4px}
 .contact-address{font-size:14px;color:var(--warm);line-height:1.8}
-.copy-btn{display:inline-flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:var(--accent);background:none;border:none;cursor:pointer;margin-top:8px;padding:0}
+.copy-btn{display:inline-flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:var(--accent-d);background:none;border:none;cursor:pointer;margin-top:8px;padding:0}
 .copy-btn:hover{text-decoration:underline}
 .map-wrap{border:1px solid var(--stone-p);overflow:hidden;margin-top:16px}
 .map-wrap iframe{display:block;width:100%;height:320px;border:0}
@@ -1200,8 +1215,8 @@ body.has-buy-bar .wa-float{display:none}
 /* ── FOOTER PHONE/ADDRESS ─── */
 .foot-phone{font-size:14px;color:var(--ivory);font-weight:500;margin-bottom:4px}
 .foot-phone a{color:var(--ivory)}
-.foot-hours{font-size:11px;color:var(--stone);margin-bottom:8px}
-.foot-addr{font-size:12px;color:var(--stone);line-height:1.7;margin-bottom:8px}
+.foot-hours{font-size:11px;color:var(--stone-on-dark);margin-bottom:8px}
+.foot-addr{font-size:12px;color:var(--stone-on-dark);line-height:1.7;margin-bottom:8px}
 .foot-dir{font-size:11px;color:var(--accent-l);text-decoration:none;transition:color .2s}
 .foot-dir:hover{color:var(--ivory)}
 .foot-eco{font-size:11px;color:var(--stone);margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07)}
@@ -1916,7 +1931,7 @@ html.a11y-reduce-motion *,html.a11y-reduce-motion *::before,html.a11y-reduce-mot
 .pwa-install-bar.show{transform:translateY(0)}
 .pwa-install-bar-text{flex:1;min-width:0}
 .pwa-install-bar-title{font-size:13px;font-weight:700;margin-bottom:1px}
-.pwa-install-bar-sub{font-size:11px;color:var(--stone-l)}
+.pwa-install-bar-sub{font-size:11px;color:var(--stone-on-dark)}
 .pwa-install-bar-btn{
   background:var(--orange);
   color:#fff;
@@ -2084,6 +2099,32 @@ nav.main-nav.scrolled{
 
 /* ── Selection colour ─── */
 ::selection{background:rgba(196,98,42,.18);color:var(--charcoal)}
+
+/* ══ Verified badge, one component for every review surface ══
+   Every review we publish is a real, confirmed customer or a real Google
+   review, so the badge is unconditional: product pages, the reviews page and
+   the homepage carousel all render it on every card rather than switching on a
+   per-row flag. Markup is just <span class="ta-verified">Verified</span>, the
+   seal (filled disc + tick) is drawn in CSS so no page repeats an SVG.
+   Green is 6.2:1 on the review card, and the tick is white on that green at
+   6.5:1. Every review surface on the site is a light card; if one ever lands on
+   a dark section this needs a light-green variant, it will not read as it is. */
+.ta-verified{
+  position:relative;display:inline-flex;align-items:center;
+  padding-left:16px;
+  font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:#1F6B3B;white-space:nowrap;
+}
+.ta-verified::before{
+  content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);
+  width:12px;height:12px;border-radius:50%;background:currentColor;
+}
+.ta-verified::after{
+  content:'';position:absolute;left:3.2px;top:50%;
+  width:5px;height:2.6px;
+  border-left:1.6px solid #fff;border-bottom:1.6px solid #fff;
+  transform:translateY(-72%) rotate(-45deg);
+}
 
 /* ══ TRIAKAR MINUTES, launch-teaser popup, shown once per day ══ */
 .tm-promo-ov{

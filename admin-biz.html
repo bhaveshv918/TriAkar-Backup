@@ -5489,6 +5489,12 @@ async function runSave(btn, fn){
 
 const CH_NAMES = {shop:'Studio',amazon:'Amazon',flipkart:'Flipkart',website:'Website'};
 const CH_COLORS= {shop:'#16A34A',amazon:'#FF9900',flipkart:'#2874F0',website:'#A78BFA'};
+// The order channels are read in: the studio's own orders first, then the marketplaces,
+// then Website. Used both for the channel filter buttons and for sorting the Open Orders
+// tables, so a table reads top-to-bottom in the same order the buttons read left-to-right.
+// Anything with an unknown or missing channel sorts last rather than silently first.
+const CH_ORDER = ['shop','amazon','flipkart','website'];
+function chRank(id){ const i=CH_ORDER.indexOf(id); return i<0?CH_ORDER.length:i; }
 
 function chHtml(id){
   return `<span class="ch ch-${esc(id)}"><span class="ch-dot"></span>${esc(CH_NAMES[id]||id)}</span>`;
@@ -9368,7 +9374,7 @@ function onProdDetailsToggle(){
 let _ooChannel='';
 function renderOoChannelBtns(){
   const box=document.getElementById('ooChannelBtns'); if(!box) return;
-  const channels=['','shop','amazon','flipkart','website'];
+  const channels=['',...CH_ORDER];
   box.innerHTML=channels.map(c=>{
     const active=_ooChannel===c;
     const label=c?CH_NAMES[c]:'All Channels';
@@ -9507,7 +9513,14 @@ async function loadOpenOrders(){
   const _cacheById={}; _salesCache.forEach(s=>_cacheById[s.id]=s); rows.forEach(s=>_cacheById[s.id]=s); unlockedRows.forEach(s=>_cacheById[s.id]=s); _salesCache=Object.values(_cacheById);
   const gmap={},groups=[];
   rows.forEach(s=>{ const k=s.order_id?('o:'+s.order_id):('r:'+s.id); if(!gmap[k]){gmap[k]={items:[]};groups.push(gmap[k]);} gmap[k].items.push(s); });
-  groups.sort((a,b)=>{ const da=a.items[0].delivery_date||'9999-99', db=b.items[0].delivery_date||'9999-99'; return da<db?-1:da>db?1:0; });
+  // Channel first (Studio, then Amazon, Flipkart, Website, see CH_ORDER), promised date
+  // second within each channel. Asked for directly: the studio works its own orders as one
+  // block instead of switching between channels row by row. Note this outranks urgency, so
+  // an overdue marketplace order now sits below every Studio row, the red SLA text and the
+  // row tint are what flag it, not its position.
+  groups.sort((a,b)=>{ const A=a.items[0], B=b.items[0];
+    const cr=chRank(A.channel_id)-chRank(B.channel_id); if(cr) return cr;
+    const da=A.delivery_date||'9999-99', db=B.delivery_date||'9999-99'; return da<db?-1:da>db?1:0; });
   const prodGroups=groups.filter(g=>PROD_LANE_STATUSES.includes(g.items[0].status));
   const packGroups=groups.filter(g=>PACK_LANE_STATUSES.includes(g.items[0].status));
   const trackGroups=groups.filter(g=>TRACK_LANE_STATUSES.includes(g.items[0].status));

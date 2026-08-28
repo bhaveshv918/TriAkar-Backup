@@ -302,7 +302,6 @@ select.prod-opt-field{appearance:none;-webkit-appearance:none;background-image:u
 .review-footer{display:flex;align-items:center;gap:9px}
 .review-avatar{width:32px;height:32px;border-radius:50%;background:rgba(45,138,78,.12);border:1.5px solid rgba(45,138,78,.3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#2D8A4E;flex-shrink:0}
 .review-author{font-size:12px;font-weight:600;color:var(--charcoal)}
-.review-verified{display:inline-flex;align-items:center;gap:3px;font-size:9px;color:#2D8A4E;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-left:6px}
 .review-date{font-size:10px;color:var(--stone);margin-top:1px}
 .review-imgs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
 .review-img{width:64px;height:64px;object-fit:cover;border-radius:6px;cursor:pointer}
@@ -1265,7 +1264,9 @@ function _renderReviewCards(reviews,section,grid,summary){
     const stars='★'.repeat(rScore)+'☆'.repeat(5-rScore);
     const imgs=(r.images||[]).map(img=>`<img loading="lazy" src="${img}" class="review-img" alt="">`).join('');
     const date=r.created_at?new Date(r.created_at).toLocaleDateString('en-IN',{month:'short',year:'numeric'}):'';
-    const verBadge=r.verified_purchase?`<span class="review-verified"><svg width="9" height="9" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Verified</span>`:'';
+    // Unconditional: nothing gets published here that is not a confirmed customer,
+    // so the badge is part of every review rather than a per-row flag.
+    const verBadge=`<span class="ta-verified" style="margin-left:8px">Verified</span>`;
     const reply=r.admin_reply?`<div style="margin-top:12px;padding:10px 12px;background:rgba(45,138,78,.06);border-left:3px solid #2D8A4E;border-radius:6px"><div style="font-size:11px;font-weight:700;color:#2D8A4E;margin-bottom:3px">TriAkar replied</div><div style="font-size:13px;color:#444;line-height:1.5">${_esc(r.admin_reply)}</div></div>`:'';
     return `<div class="review-card"><div class="review-stars">${stars}</div>${imgs?`<div class="review-imgs">${imgs}</div>`:''}<p class="review-text">"${_esc(r.review||r.content||'')}"</p><div class="review-footer"><div class="review-avatar">${initials}</div><div><div style="display:flex;align-items:center;flex-wrap:wrap"><span class="review-author">${_esc(n)}</span><span style="font-size:11px;color:var(--stone)">${city}</span>${verBadge}</div><div class="review-date">${date}</div></div></div>${reply}</div>`;
   }).join('');
