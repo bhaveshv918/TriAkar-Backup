@@ -2067,6 +2067,10 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
       <!-- A7 Document Customization moved to Business OS → Settings (Round-2 #6) -->
       <div style="padding:12px 16px;background:var(--bg-1);border:1px dashed var(--border);border-radius:var(--radius);margin-bottom:16px;font-size:12px;color:var(--text-3)">Document layout settings (what shows on invoices &amp; order records) now live in <b>Business OS → Settings → Document Settings</b>. Invoices generated here still use them automatically, it's one shared setting.</div>
 
+      <!-- Two-factor. Card contents are rendered by js/admin-mfa.js, mounted from
+           showDashboard() so it reflects live Supabase state rather than a stale flag. -->
+      <div id="mfaSettings" style="padding:14px 16px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;max-width:520px"></div>
+
       <!-- Round-3 §3, admin password change, current-password reverified before allowing -->
       <div style="padding:14px 16px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px">
         <div style="font-weight:700;font-size:13px;margin-bottom:10px">Change password</div>
@@ -2306,6 +2310,9 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
      as the site breaking. Styling is in admin-theme.css. -->
 <script src="/js/admin-dialog.js"></script>
 <script src="/js/admin-scrolltop.js"></script>
+<!-- AdminMFA.gate / mountSettings. TOTP second factor on top of the password login.
+     Inert until a factor is actually enrolled, see the header of the file. -->
+<script src="/js/admin-mfa.js"></script>
 <script defer src="/products-data.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════
@@ -2602,6 +2609,22 @@ async function doLogin(){
       return;
     }
 
+    // ── Second factor ──
+    // Runs only once a TOTP factor is enrolled and verified on the account, so this
+    // is a straight pass-through until 2FA is switched on in Settings. Closing the
+    // prompt without a code must not leave a half-authenticated aal1 session behind,
+    // hence the sign-out.
+    if(window.AdminMFA){
+      const mfaOk=await AdminMFA.gate(sb);
+      if(!mfaOk){
+        await sb.auth.signOut().catch(()=>{});
+        _log({action:'unauthorized_access',ip:_visitorData.ip,user_agent:_visitorData.userAgent,email_attempted:email,success:false,extra:{reason:'mfa_not_completed'}});
+        showLoginErr('Two-factor verification was not completed.');
+        btn.disabled=false;btn.textContent='Sign in';
+        return;
+      }
+    }
+
     _failedAttempts=0;_lockedUntil=0;
     _isLoggedIn=true;
     console.log('[login] success, loading dashboard');
@@ -2677,6 +2700,7 @@ function showDashboard(user){
   renderAdminHeaderNav();
   updateAdminHeaderNavActive('dashboard');
   loadCategories().then(()=>{loadProducts();loadOrders();loadDashboard();loadLogs();loadCustomers();loadMessages();loadCustomEnquiries();loadCallbacks();loadRecycleBin();loadReviewsAdmin();loadGoogleSettings();loadActivity();setTimeout(refreshNotifBadge,2500);});
+  if(window.AdminMFA) AdminMFA.mountSettings(sb,document.getElementById('mfaSettings'));
 }
 
 // Check existing session on load, must re-check the admin whitelist here too:
@@ -2689,6 +2713,12 @@ function showDashboard(user){
       _log({action:'unauthorized_access',ip:_visitorData.ip,user_agent:_visitorData.userAgent,email_attempted:session.user?.email||'',success:false,extra:{reason:'not_admin_email_session_restore'}});
       await sb.auth.signOut().catch(()=>{});
       return;
+    }
+    // A restored session can be an aal1 one from a tab that never finished the code
+    // step, so the second factor is re-checked here and not only in doLogin().
+    if(window.AdminMFA){
+      const mfaOk=await AdminMFA.gate(sb);
+      if(!mfaOk){ await sb.auth.signOut().catch(()=>{}); return; }
     }
     _isLoggedIn=true;
     document.getElementById('loginScreen').classList.add('hidden');

@@ -189,6 +189,22 @@ regular feature work:
   on triakar.com will not work on triakar.in. Password login, Google OAuth and email OTP
   are all unchanged. Not yet exercised against a real authenticator on production.
 
+- Admin two-factor (TOTP): Google Authenticator style 6-digit code on top of the admin
+  password login, on both `admin.html` and `admin-biz.html`. Client side in
+  `js/admin-mfa.js` (`AdminMFA.gate` at login and session restore, `AdminMFA.mountSettings`
+  for the enrol / turn off card in admin Settings), server side in
+  `server/middleware/requireAdmin.js`, which reads the `aal` claim off the access token and
+  rejects admin API calls from any session that has not passed the code. Uses Supabase's
+  built-in MFA, so there is no new table and no migration to run. Key facts: enforcement is
+  conditional, nothing changes until a factor is actually enrolled and verified, so turning
+  it on cannot lock the owner out midway; the customer-facing site is unaffected because
+  Supabase does not force MFA on other sign-in routes; both admin pages share one Supabase
+  session, so verifying in either satisfies both. **Not yet covered:** the admin panels also
+  read and write Supabase directly with the anon key, and those RLS policies still only check
+  `auth.email()`. Adding `AND (auth.jwt()->>'aal')='aal2'` to every admin policy is a separate
+  migration sweep. Also note Supabase issues no backup codes, so the TOTP secret must be kept
+  offline or the only way back in is the service role from the Supabase dashboard.
+
 **Before building something new, check if it already exists.** Grep/search the codebase first.
 
 **Note:** All of the above is functionally built and live. The current need is more likely

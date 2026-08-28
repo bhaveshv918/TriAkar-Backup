@@ -4903,6 +4903,10 @@ html[data-theme="dark"] .biz-login{
      as the site breaking. Styling is in admin-theme.css. -->
 <script src="/js/admin-dialog.js"></script>
 <script src="/js/admin-scrolltop.js"></script>
+<!-- AdminMFA.gate. Same second factor as admin.html, and the same Supabase session,
+     so verifying in either page satisfies both. Staff accounts have no factor
+     enrolled, so this is a no-op for them. -->
+<script src="/js/admin-mfa.js"></script>
 <script>
 // ── Config ─────────────────────────────────────────────────
 const SUPA_URL = 'https://qarjbmogersuaerkhlcu.supabase.co';
@@ -5956,6 +5960,12 @@ async function checkBizAccess(user){
 async function initAuth(){
   const { data:{ session } } = await sb.auth.getSession();
   if(session && await checkBizAccess(session.user)){
+    // A restored session can still be aal1 if the code step was never finished.
+    if(window.AdminMFA && !await AdminMFA.gate(sb)){
+      await sb.auth.signOut().catch(()=>{});
+      showBizLogin();
+      return;
+    }
     startApp();
   } else {
     showBizLogin();
@@ -5983,6 +5993,10 @@ async function bizLogin(e){
   if(error){ err.textContent=error.message; btn.disabled=false; btn.textContent='Sign in'; return; }
   if(!await checkBizAccess(data?.user)){
     err.textContent='This account is not authorised for Business OS.';
+    await sb.auth.signOut(); btn.disabled=false; btn.textContent='Sign in'; return;
+  }
+  if(window.AdminMFA && !await AdminMFA.gate(sb)){
+    err.textContent='Two-factor verification was not completed.';
     await sb.auth.signOut(); btn.disabled=false; btn.textContent='Sign in'; return;
   }
   document.getElementById('bizLoginForm').style.display='none';
