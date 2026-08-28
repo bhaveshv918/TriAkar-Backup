@@ -1115,14 +1115,14 @@ function checkout(){
     document.body.appendChild(msg);
     setTimeout(function(){
       msg.remove();
-      window.location.href='account.html?next=checkout';
+      window.location.href='/account?next=checkout';
     },500);
     return;
   }
 
   closeCart();
   gtagEvent('begin_checkout',{currency:'INR',value:Cart.total()});
-  window.location.href='checkout.html';
+  window.location.href='/checkout';
 }
 
 
@@ -1131,7 +1131,7 @@ document.addEventListener('DOMContentLoaded',function(){
   if(sessionStorage.getItem('after_login')==='checkout'){
     if(isLoggedInStrict()&&Cart.getItems().length){
       sessionStorage.removeItem('after_login');
-      window.location.href='checkout.html';
+      window.location.href='/checkout';
     }else{
       sessionStorage.removeItem('after_login');
     }
@@ -1539,8 +1539,8 @@ function updateNavAuth(){
       wrap.innerHTML=`
         <button class="nav-profile-btn" id="navProfileBtn">Hi, ${displayName} ▾</button>
         <div class="nav-profile-dropdown">
-          <a href="account.html#orders">My Orders</a>
-          <a href="account.html#profile">My Account</a>
+          <a href="/account#orders">My Orders</a>
+          <a href="/account#profile">My Account</a>
           <button class="nav-logout-btn" id="navLogoutBtn">Logout</button>
         </div>`;
       nr.insertBefore(wrap,cartBtn);
@@ -1552,7 +1552,7 @@ function updateNavAuth(){
       wrap.querySelector('#navLogoutBtn').addEventListener('click',function(){
         localStorage.removeItem('ta_profile');
         if(typeof Auth!=='undefined'&&Auth.logout)Auth.logout();
-        else{localStorage.removeItem('ta_token');localStorage.removeItem('ta_user');window.location.href='index.html';}
+        else{localStorage.removeItem('ta_token');localStorage.removeItem('ta_user');window.location.href='/';}
       });
 
       // Async refresh profile, updates name if nickname changed
@@ -1573,7 +1573,7 @@ function updateNavAuth(){
       btn.textContent='Sign Out';
       btn.addEventListener('click',function(){
         if(typeof Auth!=='undefined'&&Auth.logout)Auth.logout();
-        else{localStorage.removeItem('ta_token');localStorage.removeItem('ta_user');window.location.href='index.html';}
+        else{localStorage.removeItem('ta_token');localStorage.removeItem('ta_user');window.location.href='/';}
       });
       drawer.appendChild(btn);
     }else{
