@@ -2499,6 +2499,21 @@ html[data-theme="dark"] .biz-login{
                 <option value="online">Online / Prepaid</option>
               </select>
             </div>
+            <!-- Money in, not payment method. The Payment dropdown above filters by
+                 HOW an order was paid (UPI/Cash/…), and Locked? is an edit lock that
+                 only happens to be called is_paid in the table. Neither answers
+                 "who still owes me", which needs the payments logged against the
+                 order compared to its total. -->
+            <div class="form-group">
+              <label>Payment Received</label>
+              <select id="sfReceived" onchange="loadSales()" title="Compares payments logged against each order with the order total">
+                <option value="">Received &amp; Pending</option>
+                <option value="paid">Fully received</option>
+                <option value="partial">Partially received</option>
+                <option value="unpaid">Nothing received</option>
+                <option value="due">Anything outstanding</option>
+              </select>
+            </div>
             <div class="form-group">
               <label>Locked?</label>
               <select id="sfPaid" onchange="loadSales()" title="Locked = marked paid, no further changes; Unlocked = still editable">
@@ -12263,7 +12278,7 @@ async function loadSales(){
   // same way resolvePeriodRange does elsewhere, so it works however loadSales() first
   // gets called, not just when the operator manually touches the Period dropdown.
   if(v('sfView')==='month'&&!v('sfMonth')){ const mEl=document.getElementById('sfMonth'); if(mEl) mEl.value=thisMonth(); }
-  const ch=v('sfChannel'), st=v('sfStatus'), pay=v('sfPayment'), paid=v('sfPaid');
+  const ch=v('sfChannel'), st=v('sfStatus'), pay=v('sfPayment'), paid=v('sfPaid'), rec=v('sfReceived');
   const mo=v('sfMonth'), from=v('sfFrom'), to=v('sfTo'), sort=v('sfSort')||'date_desc', se=v('sfSearch').trim();
   let q=sb.from('biz_sales').select('*').eq('is_deleted',false).limit(2000);
   if(ch) q=q.eq('channel_id',ch);
@@ -12283,7 +12298,45 @@ async function loadSales(){
   // Group line items into a single order (same order_id), one entry, one document
   const gmap={}, groups=[];
   rows.forEach(s=>{ const key=s.order_id?('o:'+s.order_id):('r:'+s.id); if(!gmap[key]){ gmap[key]={items:[]}; groups.push(gmap[key]); } gmap[key].items.push(s); });
-  document.getElementById('salesSubtitle').textContent=`${groups.length} order${groups.length!==1?'s':''} · ${rows.length} item${rows.length!==1?'s':''}`;
+
+  /* How much has actually come in, per order. Payments live in their own table
+     (biz_sale_payments), one row per instalment, so this cannot be a column
+     filter on biz_sales and has to run after grouping. Two ways an order counts
+     as settled, and both are real:
+       · payments logged against its order_id that add up to the total
+       · every line marked is_paid, which is how a studio sale taken in full at
+         the counter is recorded, with no separate payment row to sum
+     Orders with no order_id (a one-off row) can only use the second. */
+  let paidByOrder={};
+  const oids=[...new Set(groups.map(g=>g.items[0].order_id).filter(Boolean))];
+  if(rec&&oids.length){
+    const {data:payRows}=await sb.from('biz_sale_payments').select('order_id,amount').in('order_id',oids);
+    (payRows||[]).forEach(r=>{ if(r.order_id) paidByOrder[r.order_id]=(paidByOrder[r.order_id]||0)+(parseFloat(r.amount)||0); });
+  }
+  if(rec){
+    const EPS=0.5;   // rupee rounding, not a real balance
+    let dropped=0;
+    const keep=groups.filter(g=>{
+      const items=g.items, f=items[0];
+      const total=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0)+(parseFloat(f.round_off)||0);
+      const locked=items.every(s=>s.is_paid);
+      const got=locked?total:(f.order_id?(paidByOrder[f.order_id]||0):0);
+      // A gift is ₹0 by design; it is settled, never "outstanding".
+      if(total<=EPS) return rec==='paid';
+      if(rec==='paid')    return got>=total-EPS;
+      if(rec==='unpaid')  return got<=EPS;
+      if(rec==='partial') return got>EPS&&got<total-EPS;
+      if(rec==='due')     return got<total-EPS;
+      return true;
+    });
+    dropped=groups.length-keep.length;
+    groups.length=0; keep.forEach(g=>groups.push(g));
+    // The row cache backs bulk actions and the detail modal, so it must not still
+    // hold orders the operator can no longer see in the list.
+    _salesCache=groups.flatMap(g=>g.items);
+    void dropped;
+  }
+  document.getElementById('salesSubtitle').textContent=`${groups.length} order${groups.length!==1?'s':''} · ${_salesCache.length} item${_salesCache.length!==1?'s':''}`;
   _orderKeys=groups.map(g=>g.items[0].id);
   const tbody=document.getElementById('salesBody');
   if(!groups.length){ tbody.innerHTML=`<tr><td colspan="11"><div class="empty"><div class="em-icon">◈</div><div class="em-text">No sales found</div></div></td></tr>`; return; }
@@ -12346,7 +12399,7 @@ async function loadSales(){
   const _sa=document.getElementById('selectAllSales'); if(_sa)_sa.checked=false;
   updateBulkBar();
   updateSalesFilterBadge();
-  renderSalesFilterChips({ch,st,pay,paid,mo,from,to,se,view:v('sfView')});
+  renderSalesFilterChips({ch,st,pay,paid,rec,mo,from,to,se,view:v('sfView')});
   if(typeof syncCustomSelects==='function') syncCustomSelects('salesFilters');
   if(typeof refreshOrderDetailModal==='function') refreshOrderDetailModal();
 }
@@ -12354,12 +12407,14 @@ async function loadSales(){
 // visible without opening the Filters panel. Each chip's X clears just that field.
 const SF_PAYMENT_LABELS={upi:'UPI',bharatpe:'BharatPe',ca_sbi:'C/A, SBI',ca_karur:'C/A, Karur Vysya',razorpay:'Razorpay',cash:'Cash',card:'Card',gpay:'GPay',paytm:'Paytm',cod:'COD',online:'Online / Prepaid'};
 const SF_CHANNEL_LABELS={shop:'Studio',amazon:'Amazon',flipkart:'Flipkart',website:'Website'};
-function renderSalesFilterChips({ch,st,pay,paid,mo,from,to,se,view}){
+const SF_RECEIVED_LABELS={paid:'Fully received',partial:'Partially received',unpaid:'Nothing received',due:'Anything outstanding'};
+function renderSalesFilterChips({ch,st,pay,paid,rec,mo,from,to,se,view}){
   const chips=[];
   if(ch) chips.push({label:'Channel: '+(SF_CHANNEL_LABELS[ch]||ch), clear:()=>clearSfField('sfChannel')});
   if(st) chips.push({label:'Status: '+(STATUS_LABEL?.[st]||st), clear:()=>clearSfField('sfStatus')});
   if(pay) chips.push({label:'Payment: '+(SF_PAYMENT_LABELS[pay]||pay), clear:()=>clearSfField('sfPayment')});
   if(paid!=='') chips.push({label:paid==='1'?'Locked only':'Unlocked only', clear:()=>clearSfField('sfPaid')});
+  if(rec) chips.push({label:'Payment: '+(SF_RECEIVED_LABELS[rec]||rec), clear:()=>clearSfField('sfReceived')});
   let periodLabel=null;
   if(view==='month'&&mo) periodLabel=new Date(mo+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long',year:'numeric'});
   else if(view==='fy'&&from){ const fyY=Number(from.slice(0,4)); periodLabel=`FY ${fyY}-${String((fyY+1)%100).padStart(2,'0')}`; }
@@ -12900,7 +12955,7 @@ async function jumpToOrderDetail(key,event){
   // always match and silently no-op the open.
   if(event) event.preventDefault && event.preventDefault();
   switchTab('sales');
-  ['sfChannel','sfStatus','sfPayment','sfPaid','sfMonth','sfFrom','sfTo','sfSearch'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['sfChannel','sfStatus','sfPayment','sfPaid','sfReceived','sfMonth','sfFrom','sfTo','sfSearch'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   const so=document.getElementById('sfSort'); if(so) so.value='date_desc';
   const sv=document.getElementById('sfView'); if(sv) sv.value='all';
   await loadSales();
@@ -12977,7 +13032,7 @@ document.addEventListener('click',e=>{
 });
 function updateSalesFilterBadge(){
   const b=document.getElementById('sfActiveCount'); if(!b) return;
-  let n=0; ['sfChannel','sfStatus','sfPayment','sfPaid','sfMonth','sfFrom','sfTo'].forEach(id=>{ const e=document.getElementById(id); if(e&&e.value) n++; });
+  let n=0; ['sfChannel','sfStatus','sfPayment','sfPaid','sfReceived','sfMonth','sfFrom','sfTo'].forEach(id=>{ const e=document.getElementById(id); if(e&&e.value) n++; });
   b.textContent=n; b.style.display=n?'inline-block':'none';
 }
 
@@ -13037,7 +13092,7 @@ function exportSalesExcel(){
   XLSX.writeFile(wb,filename+'.xlsx');
 }
 
-function clearSalesFilters(){ ['sfChannel','sfStatus','sfPayment','sfPaid','sfMonth','sfFrom','sfTo','sfSearch'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';}); const so=document.getElementById('sfSort'); if(so) so.value='date_desc'; const sv=document.getElementById('sfView'); if(sv) sv.value='all'; ['sfMonthWrap','sfFromWrap','sfToWrap'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';}); loadSales(); }
+function clearSalesFilters(){ ['sfChannel','sfStatus','sfPayment','sfPaid','sfReceived','sfMonth','sfFrom','sfTo','sfSearch'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';}); const so=document.getElementById('sfSort'); if(so) so.value='date_desc'; const sv=document.getElementById('sfView'); if(sv) sv.value='all'; ['sfMonthWrap','sfFromWrap','sfToWrap'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';}); loadSales(); }
 
 // ── Recycle Bin ────────────────────────────────────────────
 async function openRecycleBin(){
