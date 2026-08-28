@@ -1208,3 +1208,34 @@ body.biz-dlg-open{overflow:hidden}
   .biz-dlg-actions{flex-direction:column-reverse}
   .biz-dlg-btn{width:100%;padding:13px 16px;font-size:13.5px}
 }
+
+/* ══ §24 Back-to-top ═══════════════════════════════════════════════════════
+   Injected by js/admin-scrolltop.js on both admin.html and admin-biz.html.
+   Hidden until you are 400px down, so it never sits over a page you have not
+   scrolled. */
+.ta-scrolltop{
+  position:fixed;right:20px;bottom:20px;z-index:170;
+  width:44px;height:44px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bg-1,#fff);color:var(--text-2,#444);
+  border:1px solid var(--border,rgba(0,0,0,.12));
+  box-shadow:0 4px 14px rgba(16,32,24,.14);
+  cursor:pointer;padding:0;
+  /* Not just hidden: also non-interactive, or it would swallow clicks meant for
+     whatever is underneath it at the top of the page. */
+  opacity:0;visibility:hidden;pointer-events:none;
+  transform:translateY(8px);
+  transition:opacity .18s ease,transform .18s ease,visibility .18s,background .15s,color .15s,border-color .15s;
+}
+.ta-scrolltop.show{opacity:1;visibility:visible;pointer-events:auto;transform:none}
+.ta-scrolltop:hover{background:var(--accent,#C4622A);border-color:var(--accent,#C4622A);color:#fff}
+.ta-scrolltop:focus-visible{outline:2px solid var(--accent,#C4622A);outline-offset:2px}
+.ta-scrolltop:active{transform:translateY(1px)}
+/* Add Order pins an action bar to the bottom of the viewport; clear it rather
+   than covering the Save button. --ta-bar-h is set from the bar's real height. */
+.ta-scrolltop.above-bar{bottom:calc(var(--ta-bar-h,76px) + 16px)}
+@media(max-width:768px){
+  .ta-scrolltop{right:14px;bottom:14px;width:46px;height:46px}
+  .ta-scrolltop.above-bar{bottom:calc(var(--ta-bar-h,76px) + 12px + env(safe-area-inset-bottom,0px))}
+}
+@media(prefers-reduced-motion:reduce){ .ta-scrolltop{transition:opacity .18s ease,visibility .18s} }
