@@ -9372,18 +9372,40 @@ async function ingestSettlement(e){
   e.target.value='';
 }
 
+/* What to call a synced website line. A catalogue order carries its product
+   through the join, but an Instant Quote line has no product at all: since
+   20260815_instant_quote, order_items.product_id is nullable and the line points
+   at instant_quote_requests instead. The join therefore came back empty and every
+   one of those orders landed in Business OS called "Website order", with the
+   actual model name nowhere in the row.
+
+   Names it the way openAddOrderFromIq already does ("Instant Quote, <file>") so
+   the same order reads the same whether it arrived by bulk sync or by opening
+   the quote by hand. Falls back to the customer's own customisation note before
+   the generic label, so even a line with neither link says something. */
+function _webItemName(it){
+  const p=it&&it.products&&it.products.name;
+  if(p) return p;
+  const q=it&&it.instant_quote_requests;
+  if(q) return 'Instant Quote, '+(q.file_name||q.quote_number||'model');
+  const note=String((it&&it.customization_notes)||'').trim().replace(/\s+/g,' ');
+  return note?note.slice(0,80):'Website order';
+}
+
 // ── Auto-sync website orders into Business OS ───────────────
 async function syncWebsiteOrders(opts){
   opts=opts||{};
   try{
-    const {data:existing}=await sb.from('biz_sales').select('id,order_id,status').eq('import_source','website').limit(5000);
+    const {data:existing}=await sb.from('biz_sales').select('id,order_id,status,product_name,qty,selling_price').eq('import_source','website').limit(5000);
     const seen=new Set((existing||[]).map(r=>r.order_id).filter(Boolean));
     // order_id -> [row ids], so a terminal status change on the website side can be
     // pushed onto every line item biz_sales holds for that order.
     const existingRowsByOrder=new Map();
     (existing||[]).forEach(r=>{ if(!r.order_id) return; const arr=existingRowsByOrder.get(r.order_id)||[]; arr.push(r); existingRowsByOrder.set(r.order_id,arr); });
     const {data:orders,error}=await sb.from('orders')
-      .select('id,order_id,invoice_number,customer_name,customer_phone,shipping_address,total_amount,status,order_status,payment_method,created_at, order_items(quantity,unit_price,products(name))')
+      // instant_quote_requests is embedded alongside products because an Instant
+      // Quote line has no product row to join to; without it the name is lost.
+      .select('id,order_id,invoice_number,customer_name,customer_phone,shipping_address,total_amount,status,order_status,payment_method,created_at, order_items(quantity,unit_price,customization_notes,products(name),instant_quote_requests(file_name,quote_number))')
       .order('created_at',{ascending:false}).limit(300);
     if(error){ if(opts.manual) toast('Website sync: '+error.message,'error'); return 0; }
     // Map the website order's own status vocabulary onto the unified biz_sales lifecycle
@@ -9400,6 +9422,10 @@ async function syncWebsiteOrders(opts){
     // regress real fulfillment progress back to whatever the website last reported.
     const TERMINAL_WEB_STATUSES=new Set(['cancelled','returned']);
     const statusFixes=[];
+    const nameFixes=[];
+    // Names that must never become catalogue products: anything not backed by a
+    // real product row is a one-off for this customer, not something we stock.
+    const noCatalog=new Set();
     const batch=[];
     (orders||[]).forEach(o=>{
       const oid=o.order_id||o.invoice_number||o.id; if(!oid) return;
@@ -9411,6 +9437,33 @@ async function syncWebsiteOrders(opts){
             if(r.status!==status && !TERMINAL_WEB_STATUSES.has(r.status)) statusFixes.push(r.id);
           });
         }
+        /* An order is only ever INSERTed once, so every Instant Quote synced
+           before this is still sitting in Business OS called "Website order".
+           Repair those in place, but only where the right name is certain:
+
+           · only rows still carrying that exact placeholder, so a name anyone
+             has since edited by hand is never overwritten
+           · matched to the website line by qty and line total, not by position.
+             Neither list comes back in a guaranteed order, so pairing them by
+             index would happily swap the names of a two-part order
+           · and only when every line matching those numbers resolves to the
+             same name, otherwise which one this row is stays genuinely unknown
+             and a wrong name is worse than the placeholder */
+        const rows=existingRowsByOrder.get(oid)||[];
+        const lines=(o.order_items&&o.order_items.length)?o.order_items:[];
+        if(rows.length&&lines.length){
+          rows.forEach(r=>{
+            if(r.product_name!=='Website order') return;
+            const cands=lines.filter(l=>
+              (l.quantity||1)===(parseInt(r.qty)||1) &&
+              Math.abs(((parseFloat(l.unit_price)||0)*(l.quantity||1))-(parseFloat(r.selling_price)||0))<0.5
+            );
+            if(!cands.length) return;
+            const names=[...new Set(cands.map(_webItemName))];
+            if(names.length!==1) return;
+            if(names[0]&&names[0]!=='Website order') nameFixes.push({id:r.id,name:names[0]});
+          });
+        }
         return;
       }
       const a=o.shipping_address||{};
@@ -9420,10 +9473,12 @@ async function syncWebsiteOrders(opts){
       const addr=[a.address_line1||a.line1,a.address_line2||a.line2].filter(Boolean).join(', ');
       const items=(o.order_items&&o.order_items.length)?o.order_items:[{quantity:1,unit_price:o.total_amount,products:null}];
       items.forEach(it=>{
+        const nm=_webItemName(it);
+        if(!(it&&it.products&&it.products.name)) noCatalog.add(nm);
         batch.push({
           channel_id:'website', order_id:oid,
           order_date:String(o.created_at||'').slice(0,10)||today(),
-          product_name:(it.products&&it.products.name)||'Website order',
+          product_name:nm,
           qty:it.quantity||1,
           selling_price:(parseFloat(it.unit_price)||0)*(it.quantity||1),
           gst_rate:0, status, payment_mode:o.payment_method||'online',
@@ -9449,12 +9504,24 @@ async function syncWebsiteOrders(opts){
         if(ids.length) await sb.from('biz_sales').update({status}).in('id',ids);
       }
     }
-    if(!batch.length){
-      if(opts.manual) toast(statusFixes.length?('Synced '+statusFixes.length+' status update(s)'):'Website orders already up to date');
-      if(typeof loadSalesBadge==='function') loadSalesBadge();
-      return statusFixes.length;
+    // Backfill the placeholder names decided above. One update per row, since each
+    // carries its own name; the list only ever holds rows that were still literally
+    // called "Website order", so a repeat sync has nothing left to do.
+    for(const fx of nameFixes){
+      await sb.from('biz_sales').update({product_name:fx.name}).eq('id',fx.id);
     }
-    await autoCreateProducts(batch);
+    if(!batch.length){
+      if(opts.manual){
+        const bits=[];
+        if(statusFixes.length) bits.push(statusFixes.length+' status update(s)');
+        if(nameFixes.length) bits.push(nameFixes.length+' item name(s) recovered');
+        toast(bits.length?('Synced '+bits.join(' · ')):'Website orders already up to date');
+        if(nameFixes.length&&typeof loadSales==='function') loadSales();
+      }
+      if(typeof loadSalesBadge==='function') loadSalesBadge();
+      return statusFixes.length+nameFixes.length;
+    }
+    await autoCreateProducts(batch, noCatalog);
     for(let i=0;i<batch.length;i+=100){ const {error:e2}=await sb.from('biz_sales').insert(batch.slice(i,i+100)); if(e2){ if(opts.manual) toast('Sync insert: '+e2.message,'error'); break; } }
     if(opts.manual){ toast('Synced '+batch.length+' website item(s)'); if(typeof loadSales==='function') loadSales(); }
     if(typeof loadSalesBadge==='function') loadSalesBadge();
@@ -16040,10 +16107,15 @@ function applyPlatformFees(r){
 }
 
 // ── Auto-create catalog products for imported items not already present ──
-async function autoCreateProducts(rows){
+async function autoCreateProducts(rows, skipNames){
   const toCreate=new Map();
   rows.forEach(r=>{
     const name=(r.product_name||'').trim(); if(!name||name==='N/A') return;
+    // A one-off line (an Instant Quote upload, say) is not a catalogue product.
+    // Before names were recovered these all arrived as the single string
+    // "Website order", so this made one junk product; naming them properly would
+    // instead have added a new product per customer file.
+    if(skipNames&&skipNames.has(name)) return;
     const sku=(r.sku||'').trim(); const skuL=sku.toLowerCase(), nameL=name.toLowerCase();
     if(skuL && _catalogBySku[skuL]) return;        // already mapped by a platform SKU
     if(!skuL && _catalogByName[nameL]) return;      // already in catalog by name
