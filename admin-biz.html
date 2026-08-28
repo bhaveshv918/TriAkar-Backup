@@ -868,16 +868,28 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
      375px width, overflowing the screen. Fixed to the real container. Since the
      header (and its column meaning) is now hidden, each numeric field gets its own
      data-label so "12", "0", "3926" etc. don't show up as unlabeled mystery boxes. */
+  .items-wrap{overflow-x:visible;border:none;border-radius:0;background:transparent;box-shadow:none}
   .items-wrap .items-head{display:none}
-  #itemRows .items-grid{min-width:0;grid-template-columns:repeat(6,1fr);gap:6px 8px;padding:10px 12px}
-  #itemRows .item-row{border:1px solid var(--border);border-radius:8px;margin-bottom:8px}
-  #itemRows .item-row .srl{grid-column:1/-1;justify-content:flex-start;font-size:10px}
-  #itemRows .item-row .item-cell{grid-column:1/-1}
-  #itemRows .item-row>.r{grid-column:span 2;position:relative}
-  #itemRows .item-row>.r[data-label]::before{content:attr(data-label);display:block;font-size:9px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
-  #itemRows .item-row .amt{grid-column:1/-1;text-align:right;padding-top:2px}
+  #itemRows .items-grid{min-width:0;grid-template-columns:repeat(6,1fr);gap:8px;padding:12px}
+  #itemRows .item-row{border:1px solid var(--border);border-radius:12px;margin-bottom:10px;background:var(--bg-1);position:relative}
+  /* The desktop row pads itself out with blank cells so the 12 columns line up.
+     Stacked into 6 columns those blanks became columns of nothing, which is what
+     pushed the real fields into a ragged, half-empty grid. They carry no meaning
+     once the header is hidden, so on mobile they simply stop taking up space. */
+  #itemRows .item-row>div:empty{display:none}
+  /* Row number as a small badge in the corner, not a full-width line of its own */
+  #itemRows .item-row .srl{position:absolute;top:10px;left:12px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--text-3);background:var(--bg-2);border-radius:6px}
+  #itemRows .item-row .item-cell{grid-column:1/-1;padding-right:0;padding-left:28px;min-height:26px}
+  #itemRows .item-row>.r{grid-column:span 2;position:relative;min-width:0}
+  #itemRows .item-row>.r[data-label]::before{content:attr(data-label);display:block;font-size:9px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #itemRows .item-row .amt{grid-column:1/-1;text-align:right;padding-top:6px;border-top:1px solid var(--border);font-size:15px}
   #itemRows .item-row .amt[data-label]::before{content:attr(data-label);display:block;font-size:9px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px;text-align:right;margin-bottom:3px}
-  #itemRows .item-row .del{grid-column:1/-1;width:auto;text-align:right}
+  /* Delete moves to the top-right corner of the card, out of the tap path of the
+     fields, and gets a real 32px target instead of a 15px glyph. */
+  #itemRows .item-row .del{position:absolute;top:6px;right:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:17px;border-radius:8px}
+  /* Extra colour / part rows read as nested under their item, not as siblings */
+  #itemRows .item-row[style*="opacity"]{margin-left:14px;border-left:3px solid var(--accent);background:var(--bg-2)}
+  #itemRows .item-row[style*="opacity"] .item-cell{padding-left:0}
   .gst-summary{grid-template-columns:1fr 1fr;gap:8px}
   .gst-card{padding:10px 11px}
   .gst-card .val{font-size:14px;word-break:break-word}
@@ -929,6 +941,89 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
    separate row above it), so it can wrap to more than one line on narrower widths,
    reserve more room than the old two-button-only bar needed. */
 #quickAddForm{padding-bottom:110px}
+
+/* ══ Add Order, phone wizard ═══════════════════════════════════════════════
+   Desktop keeps the single long form, every section visible at once, which is
+   what a mouse and a wide screen are good at. Below 768px the same sections
+   become five steps. Everything here is inert above 768px: the rail and the
+   step buttons are display:none and no [data-qa-step] is ever hidden, so the
+   desktop form cannot be affected by a wizard bug. */
+.qa-steps{display:none}
+.qa-step-btn{display:none}
+@media(max-width:768px){
+  .qa-steps{
+    display:block;position:sticky;top:52px;z-index:120;
+    margin:0 -14px 14px;padding:10px 14px 8px;
+    background:var(--bg-1);border-bottom:1px solid var(--border);
+  }
+  .qa-steps-track{height:3px;border-radius:3px;background:var(--bg-2);overflow:hidden}
+  .qa-steps-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .28s cubic-bezier(.22,1,.36,1)}
+  .qa-steps-row{display:flex;gap:4px;margin-top:8px}
+  /* Each step is a tap target, so you can jump straight back to Items from
+     step 5 instead of pressing Back four times. */
+  .qa-step-chip{
+    flex:1;min-width:0;background:none;border:none;padding:4px 2px;cursor:pointer;
+    font-family:var(--sans);font-size:9.5px;font-weight:700;letter-spacing:.3px;
+    text-transform:uppercase;color:var(--text-3);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;
+  }
+  .qa-step-chip.done{color:var(--text-2)}
+  .qa-step-chip.active{color:var(--accent)}
+  /* A step holding a field that failed validation is flagged, so a save blocked
+     by something on step 2 is visible while you are standing on step 5. */
+  .qa-step-chip.has-error{color:var(--red)}
+  .qa-step-chip.has-error::after{content:' !';font-weight:800}
+
+  /* Only the active step is on screen. display:none, not removal: submitQuickAdd()
+     and saveOrderRecord() read every field by id and must still find them all.
+     Expressed as "hide everything that is NOT active" rather than a positive
+     display on the active one, because these sections are not all blocks: the
+     totals row is a grid and Shipping is a <details>. Forcing display:block on
+     the active step would flatten both. With no positive rule, a shown step
+     simply keeps its own display, and setQaFormMode()'s inline display:none
+     still wins for a card the current mode hides. */
+  #quickAddForm [data-qa-step]:not(.qa-step-on){display:none!important}
+
+  /* Bottom bar: Back · ⋯ · Next, thumb-sized, always on one line. */
+  .qa-fixed-bottom-bar{padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));gap:8px;flex-wrap:wrap}
+  .qa-step-btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:5px;
+    min-height:48px;border-radius:26px;cursor:pointer;
+    font-family:var(--sans);font-size:14px;font-weight:700;
+    background:var(--bg-2);border:1px solid var(--border);color:var(--text);
+  }
+  .qa-step-back{flex:0 0 auto;padding:0 18px}
+  .qa-step-more{flex:0 0 48px;width:48px;padding:0;font-size:20px;line-height:1}
+  .qa-step-next{flex:1;padding:0 20px;background:var(--accent);border-color:var(--accent);color:#fff}
+  .qa-step-next.is-save{background:var(--green,#2D8A4E);border-color:var(--green,#2D8A4E)}
+  .qa-step-btn:disabled{opacity:.4}
+  /* Back is pointless on step 1, but keeping it in the layout stops Next from
+     jumping sideways between steps. */
+  .qa-step-back[disabled]{visibility:hidden}
+
+  /* The six desktop actions (Order Acknowledgement / Invoice / Quotation / Gift /
+     Clear / Cancel / Save) wrapped onto three lines and ate the form. They live
+     behind ⋯ now, as a full-width stack. */
+  #qaFixedBottom .qa-doc-actions,
+  #qaFixedBottom>div:last-child{display:none!important}
+  #qaFixedBottom.sheet-open .qa-doc-actions.qa-order-only:not([hidden]),
+  #qaFixedBottom.sheet-open>div:last-child{
+    display:flex!important;flex-direction:column;align-items:stretch;gap:8px;
+    order:-1;flex-basis:100%;width:100%;
+    padding-bottom:10px;margin-bottom:2px;border-bottom:1px solid var(--border);
+  }
+  #qaFixedBottom.sheet-open .qa-doc-btn,
+  #qaFixedBottom.sheet-open>div:last-child .btn{width:100%;justify-content:center;min-height:44px}
+  /* The keyboard hint is desktop advice; there is no Ctrl key here. */
+  #qaFixedBottom .qa-shortcut-hint{display:none!important}
+  #qaFixedBottom.sheet-open #qaGiftToggle{width:100%;justify-content:center}
+
+  /* The rail is sticky under the 52px top bar, so an anchored field must clear
+     both or it scrolls up underneath them. */
+  #quickAddForm [data-qa-step] :target,
+  #quickAddForm .field-invalid{scroll-margin-top:130px}
+  #quickAddForm{padding-bottom:130px}
+}
 /* Round-2 Batch 5, interaction polish (premium TRI/AKAR feel) */
 .btn,button,.tab,input,select,textarea,.badge,.qchip{transition:background .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease,transform .1s ease}
 input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(196,98,42,.15)}
@@ -1831,8 +1926,20 @@ html[data-theme="dark"] .biz-login{
 
       <form id="quickAddForm" onsubmit="submitQuickAdd(event)" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();this.requestSubmit();}">
 
+        <!-- ── Mobile step rail ──────────────────────────────────────────────
+             On a phone this form is five screens of fields in one column, so
+             filling it meant scrolling past everything you were not doing yet.
+             Every section carries data-qa-step, and below 768px only the active
+             step is shown. Nothing is unmounted, just hidden, because save reads
+             the whole form by getElementById and must still see every field.
+             Desktop is untouched: this rail is display:none there. -->
+        <div class="qa-steps" id="qaSteps" aria-label="Order form steps">
+          <div class="qa-steps-track"><div class="qa-steps-fill" id="qaStepsFill"></div></div>
+          <div class="qa-steps-row" id="qaStepsRow"></div>
+        </div>
+
         <!-- ── Channel (quick, top) ───────────────── -->
-        <div class="qa-card">
+        <div data-qa-step="1" class="qa-card">
         <div class="qa-sec-title">Order</div>
         <div class="form-grid">
           <div class="form-group">
@@ -1866,7 +1973,7 @@ html[data-theme="dark"] .biz-login{
 
         <!-- ── Customer & Address, Lead Source lives right here (existing customer =
              auto-picked, new customer = asked, default Studio) ── -->
-        <div class="qa-card">
+        <div data-qa-step="1" class="qa-card">
         <div class="qa-sec-title">Customer &amp; Address</div>
         <div class="form-grid" style="margin-bottom:0">
           <div class="form-group">
@@ -1920,7 +2027,7 @@ html[data-theme="dark"] .biz-login{
         <div id="itemSuggestBox" style="display:none;position:fixed;z-index:2000;max-height:50vh;overflow:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-h)"></div>
 
         <!-- ── Items ────────────────────────────── -->
-        <div class="qa-card">
+        <div data-qa-step="2" class="qa-card">
         <div class="qa-sec-title">Items</div>
         <div class="items-wrap">
           <div class="items-grid items-head">
@@ -1943,7 +2050,7 @@ html[data-theme="dark"] .biz-login{
         <datalist id="catalogList"></datalist>
 
         <!-- ── Totals / profit ──────────────────── -->
-        <div class="calc-row" id="calcRow" style="grid-template-columns:repeat(auto-fill,minmax(115px,1fr))">
+        <div data-qa-step="2" class="calc-row" id="calcRow" style="grid-template-columns:repeat(auto-fill,minmax(115px,1fr))">
           <div class="calc-item"><label>Items</label><span id="t_count">0</span></div>
           <div class="calc-item"><label>Total Qty</label><span id="t_qty">0</span></div>
           <div class="calc-item revenue"><label>Subtotal (excl GST)</label><span id="t_sub">₹0</span></div>
@@ -1965,7 +2072,7 @@ html[data-theme="dark"] .biz-login{
         </div>
 
         <!-- ── Payment, how it's actually being paid ── -->
-<div class="qa-card qa-order-only" id="qaPaymentCard">
+<div data-qa-step="3" class="qa-card qa-order-only" id="qaPaymentCard">
           <div class="qa-sec-title">Payment</div>
           <div id="qaPaySummaryRow" style="display:none;gap:20px;flex-wrap:wrap;margin-bottom:12px">
             <div><div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Order Total</div><div style="font-size:18px;font-weight:700" id="qaPayTotal">₹0</div></div>
@@ -2022,7 +2129,7 @@ html[data-theme="dark"] .biz-login{
              here now and only appear once Delivery is picked. Same input ids and same save
              path, just moved. The date moved up with them for the same reason: on a pickup
              it IS the handover date, so it belongs beside the pickup choice. -->
-<div class="qa-card qa-order-only">
+<div data-qa-step="4" class="qa-card qa-order-only">
           <div class="qa-sec-title">Delivery / Pickup<span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-3)">: optional, can be set later</span></div>
           <div class="qchips" id="qaFulfilChips">
             <button type="button" class="qchip" data-v="delivery" onclick="setFulfillment('delivery')" title="Goes out by courier"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="14" height="11" rx="1"/><path d="M15 9h4l3 3v5h-7Z"/><circle cx="6" cy="19" r="2"/><circle cx="17.5" cy="19" r="2"/></svg> Delivery</button>
@@ -2101,7 +2208,7 @@ html[data-theme="dark"] .biz-login{
         </div>
 
         <!-- ── Order charges (our costs) ────────── -->
-<div class="qa-card qa-order-only">
+<div data-qa-step="4" class="qa-card qa-order-only">
         <div class="qa-sec-title">Order Charges<span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-3)">: deducted from profit (optional)</span></div>
         <div class="form-grid">
           <div class="form-group">
@@ -2120,7 +2227,7 @@ html[data-theme="dark"] .biz-login{
         </div>
 
         <!-- ── Shipping & Tracking (collapsible) ── -->
-        <details class="qa-order-only" style="margin-bottom:12px">
+        <details data-qa-step="4" class="qa-order-only" style="margin-bottom:12px">
           <summary style="cursor:pointer;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);padding:6px 0;user-select:none">Shipping & Tracking</summary>
           <!-- Dispatch date, courier and tracking moved up into Delivery / Pickup, next to
                the choice that decides whether they apply at all. What's left here is the
@@ -2138,7 +2245,7 @@ html[data-theme="dark"] .biz-login{
         </details>
 
         <!-- ── Quotation-only fields, hidden in Order mode ── -->
-        <div class="qa-card qa-quote-only" style="display:none">
+        <div data-qa-step="5" class="qa-card qa-quote-only" style="display:none">
           <div class="qa-sec-title">Quotation Details</div>
           <div class="form-grid">
             <div class="form-group"><label>Quotation No <span style="font-weight:400;color:var(--text-3);font-size:10px">auto, editable</span></label><input type="text" id="qa_qt_number" style="font-family:var(--mono)"></div>
@@ -2160,7 +2267,7 @@ html[data-theme="dark"] .biz-login{
              field. Preset dropdown here still pulls from every preset regardless of
              doc_type, it's just a quick-insert for internal notes, not one of the
              three per-document Terms & Conditions blocks below. -->
-        <div class="form-group" style="margin-bottom:16px">
+        <div data-qa-step="5" class="form-group" style="margin-bottom:16px">
           <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap">
             <label style="margin:0">Notes <span style="font-weight:400;color:var(--text-3);font-size:10px">prints on Order Acknowledgement, optionally Invoice too (Document Settings)</span></label>
             <select id="qa_notes_preset" onchange="applyQaNotesPreset()" style="max-width:180px;flex-shrink:0"><option value="">Insert a preset</option></select>
@@ -2171,7 +2278,7 @@ html[data-theme="dark"] .biz-login{
         <!-- ── Order Acknowledgement's own Terms & Conditions, distinct from Notes above and
              from Invoice/Quotation's T&C below, each of the three documents writes
              and prints its own text, from its own preset list (doc_type='record'). -->
-        <div class="form-group qa-order-only" style="margin-bottom:16px">
+        <div data-qa-step="5" class="form-group qa-order-only" style="margin-bottom:16px">
           <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap">
             <label style="margin:0">Terms &amp; Conditions <span style="font-weight:400;color:var(--text-3);font-size:10px">prints on Order Acknowledgement (Document Settings)</span></label>
             <select id="qa_rec_tnc_preset" onchange="applyQaRecTncPreset()" style="max-width:180px;flex-shrink:0"><option value="">Insert a preset</option></select>
@@ -2183,7 +2290,7 @@ html[data-theme="dark"] .biz-login{
              Quotation's Terms & Conditions above, just scoped to Invoice instead of
              Quotation. Kept separate from Notes so Invoice T&C content never has to
              live inside the internal Order Notes field. -->
-        <div class="form-group qa-order-only" style="margin-bottom:16px">
+        <div data-qa-step="5" class="form-group qa-order-only" style="margin-bottom:16px">
           <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap">
             <label style="margin:0">Terms &amp; Conditions <span style="font-weight:400;color:var(--text-3);font-size:10px">prints on Invoice (Document Settings)</span></label>
             <select id="qa_inv_tnc_preset" onchange="applyQaInvTncPreset()" style="max-width:180px;flex-shrink:0"><option value="">Insert a preset</option></select>
@@ -2192,7 +2299,7 @@ html[data-theme="dark"] .biz-login{
         </div>
 
         <!-- ── Order Status, very bottom, grouped by outcome ── -->
-<div class="qa-card qa-order-only">
+<div data-qa-step="5" class="qa-card qa-order-only">
           <div class="qa-sec-title">Order Status</div>
           <div class="qchips" id="qaStatusChips" style="margin-bottom:6px">
             <button type="button" class="qchip" data-s="pending"    onclick="setQaStatus('pending')">Pending</button>
@@ -2234,6 +2341,21 @@ html[data-theme="dark"] .biz-login{
         <div id="qaProblems" class="qa-problems" style="display:none" role="alert" aria-live="polite"></div>
 
         <div class="qa-fixed-bottom-bar" id="qaFixedBottom">
+          <!-- ── Mobile step controls ───────────────────────────────────────
+               Phone-only. Back/Next drive the wizard; on the last step Next is
+               replaced by Save so the primary action is always the fat button
+               under your thumb. The desktop button set below is hidden on
+               mobile and reachable from the ⋯ sheet instead, because six
+               buttons wrapping over three lines left no room for the form. -->
+          <button type="button" class="qa-step-btn qa-step-back" id="qaStepBack" onclick="qaWizard.back()" aria-label="Previous step">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Back
+          </button>
+          <button type="button" class="qa-step-btn qa-step-more" id="qaStepMore" onclick="qaWizard.toggleSheet()" aria-label="More actions" aria-haspopup="true" aria-expanded="false">⋯</button>
+          <button type="button" class="qa-step-btn qa-step-next" id="qaStepNext" onclick="qaWizard.next()">
+            Next
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
           <div class="qa-doc-actions qa-order-only" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
             <button type="button" class="qa-doc-btn" onclick="saveOrderRecord()"><span class="qa-doc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1Z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="16" y2="15"/></svg></span>Order Acknowledgement</button>
             <button type="button" class="qa-doc-btn qa-doc-btn-accent" onclick="saveAndPrint()"><span class="qa-doc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2h16v20l-2-1-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></svg></span>Invoice</button>
@@ -6630,9 +6752,13 @@ function renderItems(){
         <input value="${esc(es.label||'')}" placeholder="${it.pricingMode==='gram'?'Part name (e.g. Lid, Base)':'Colour '+(j+2)}" style="grid-column:1/-1;font-size:11px" oninput="onItemColorLabel(${i},${j},this.value)">
         <select class="variant" style="cursor:pointer" onchange="onItemColorSpool(${i},${j},this.value)">${spoolOptions(es.spool)}</select>
       </div>
-      <div class="r"></div><div class="r"></div><div class="r"></div><div class="r"></div>
-      <div class="r"><input type="number" step="1" min="0" value="${es.grams||''}" placeholder="0" title="grams used of this ${it.pricingMode==='gram'?'part':'colour'}" oninput="onItemColorGrams(${i},${j},'grams',this.value)"></div>
-      <div class="r"><input type="number" step="1" min="0" value="${es.waste||''}" placeholder="0" title="grams wasted of this ${it.pricingMode==='gram'?'part':'colour'}" oninput="onItemColorGrams(${i},${j},'waste',this.value)"></div>
+      <!-- Six spacers, not four: the grid has 12 columns (#, Item, Qty, Rate, Discount,
+           GST, HSN, Cost, Grams, Waste, Amount, ✕) and this row was rendering only ten
+           cells, so Grams and Waste landed two columns early, under the HSN and Cost
+           headings. Typing a colour's weight looked like typing into the cost box. -->
+      <div class="r"></div><div class="r"></div><div class="r"></div><div class="r"></div><div class="r"></div><div class="r"></div>
+      <div class="r" data-label="Grams"><input type="number" step="1" min="0" value="${es.grams||''}" placeholder="0" title="grams used of this ${it.pricingMode==='gram'?'part':'colour'}" oninput="onItemColorGrams(${i},${j},'grams',this.value)"></div>
+      <div class="r" data-label="Waste"><input type="number" step="1" min="0" value="${es.waste||''}" placeholder="0" title="grams wasted of this ${it.pricingMode==='gram'?'part':'colour'}" oninput="onItemColorGrams(${i},${j},'waste',this.value)"></div>
       <div></div>
       <div><button type="button" class="del" onclick="removeItemColor(${i},${j})">✕</button></div>
     </div>`).join('')}
@@ -7006,6 +7132,8 @@ async function buildSaleRows(){ return (await buildSaleRowsWithIds()).map(x=>x.r
 
 function resetQuickAdd(){
   document.getElementById('quickAddForm').reset();
+  // A fresh form starts at step 1 with no error flags left over from the last save.
+  if(typeof qaWizard!=='undefined') qaWizard.reset();
   document.getElementById('qa_date').value=today();
   document.getElementById('qa_delivery_date').value=today();
   document.getElementById('qa_state').value='Uttar Pradesh';
@@ -7196,6 +7324,9 @@ async function setQaFormMode(mode){
     _qaEditQuotationId=null;   // leaving Quotation mode abandons any in-progress edit
     if(saveBtn) saveBtn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
   }
+  // Mode decides which cards exist at all, so it decides which steps the phone
+  // rail should offer. Quotation mode has no Payment or Delivery step.
+  if(typeof qaWizard!=='undefined') qaWizard.refresh();
 }
 // Three separate Terms & Conditions preset lists (doc_type='record'/'invoice'/
 // 'quotation'), each dropdown only ever offers presets written for that exact
@@ -7765,12 +7896,124 @@ function qaJumpToProblem(i){
   if(p.el) target=p.el.dataset&&p.el.dataset.shakeTarget?document.getElementById(p.el.dataset.shakeTarget):p.el;
   else if(p.idx!=null) target=document.querySelector('.item-row[data-idx="'+p.idx+'"]');
   if(!target) return;
+  // On the phone the field being complained about is usually on a step that is
+  // not open, so scrolling to it alone would land on nothing. Switch first.
+  if(typeof qaWizard!=='undefined'&&qaWizard.isActive()){
+    const sec=target.closest('[data-qa-step]');
+    if(sec) qaWizard.go(+sec.dataset.qaStep);
+  }
   target.scrollIntoView({behavior:'smooth',block:'center'});
   if(target.focus&&target.tagName!=='DIV'){ try{ target.focus(); }catch(_){} }
   target.classList.remove('field-shake'); void target.offsetWidth; target.classList.add('field-shake');
 }
 
 function clearQaProblems(){ _qaProblems=[]; renderQaProblems(); }
+
+/* ══ Add Order phone wizard ════════════════════════════════════════════════
+   Drives the [data-qa-step] sections below 768px. Above it every method is a
+   no-op and the form is the plain long page it has always been, so nothing here
+   can change desktop behaviour.
+
+   Two rules this has to respect:
+   · Nothing is ever removed from the DOM. Save reads the form by id, so a field
+     on a step you never opened still has to exist and still has to be read.
+   · Order/Quotation mode owns visibility too (setQaFormMode sets inline
+     display), so a step with no section visible in the current mode is dropped
+     from the rail instead of showing up as an empty screen you must tap past. */
+const qaWizard=(function(){
+  const STEPS=[
+    {n:1,label:'Customer'},
+    {n:2,label:'Items'},
+    {n:3,label:'Payment'},
+    {n:4,label:'Delivery'},
+    {n:5,label:'Details'},
+  ];
+  let cur=1, sheetOpen=false, errSteps=new Set();
+  const isOn=()=>window.matchMedia('(max-width:768px)').matches;
+  const form=()=>document.getElementById('quickAddForm');
+  const secs=n=>form()?[...form().querySelectorAll('[data-qa-step="'+n+'"]')]:[];
+  // "Live" = has at least one section the current Order/Quotation mode still shows.
+  const live=()=>STEPS.filter(s=>secs(s.n).some(el=>el.style.display!=='none'));
+
+  function paint(){
+    const f=form(); if(!f) return;
+    const ls=live();
+    if(!ls.some(s=>s.n===cur)) cur=(ls[0]||{n:1}).n;
+    f.querySelectorAll('[data-qa-step]').forEach(el=>{
+      el.classList.toggle('qa-step-on', !isOn() || +el.dataset.qaStep===cur);
+    });
+    const row=document.getElementById('qaStepsRow');
+    if(row){
+      const pos=Math.max(0,ls.findIndex(s=>s.n===cur));
+      row.innerHTML=ls.map((s,i)=>'<button type="button" class="qa-step-chip'
+        +(s.n===cur?' active':(i<pos?' done':''))
+        +(errSteps.has(s.n)?' has-error':'')
+        +'" onclick="qaWizard.go('+s.n+')">'+(i+1)+'. '+s.label+'</button>').join('');
+      const fill=document.getElementById('qaStepsFill');
+      if(fill) fill.style.width=ls.length?(((pos+1)/ls.length)*100)+'%':'0%';
+    }
+    const isLast=ls.length?ls[ls.length-1].n===cur:true;
+    const back=document.getElementById('qaStepBack');
+    const next=document.getElementById('qaStepNext');
+    if(back) back.disabled=ls.length?ls[0].n===cur:true;
+    if(next){
+      next.classList.toggle('is-save',isLast);
+      // On the last step Next IS Save, so the primary action is always the wide
+      // button under the thumb rather than something hidden behind ⋯.
+      next.innerHTML=isLast
+        ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save'
+        : 'Next <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+    }
+  }
+
+  return {
+    refresh:paint,
+    isActive:isOn,
+    go(n){ cur=n; sheetOpen=false; document.getElementById('qaFixedBottom')?.classList.remove('sheet-open'); paint();
+      document.getElementById('panelQuickadd')?.scrollIntoView({block:'start',behavior:'smooth'}); },
+    next(){
+      const ls=live(), i=ls.findIndex(s=>s.n===cur);
+      if(i>=0&&i<ls.length-1){ this.go(ls[i+1].n); return; }
+      form()?.requestSubmit();          // last step: Next is Save
+    },
+    back(){ const ls=live(), i=ls.findIndex(s=>s.n===cur); if(i>0) this.go(ls[i-1].n); },
+    toggleSheet(){
+      sheetOpen=!sheetOpen;
+      const bar=document.getElementById('qaFixedBottom');
+      bar?.classList.toggle('sheet-open',sheetOpen);
+      document.getElementById('qaStepMore')?.setAttribute('aria-expanded',String(sheetOpen));
+    },
+    /* Temporarily un-hide every step so a caller can measure or validate fields
+       that the wizard has off screen. Returns the undo function. */
+    revealAll(){
+      if(!isOn()) return null;
+      const f=form(); if(!f) return null;
+      const hidden=[...f.querySelectorAll('[data-qa-step]:not(.qa-step-on)')];
+      hidden.forEach(el=>el.classList.add('qa-step-on'));
+      return ()=>hidden.forEach(el=>el.classList.remove('qa-step-on'));
+    },
+    /* Flags the rail so a save blocked by a field on step 2 is visible from
+       step 5, and jumps to the first step that actually has a problem. */
+    markErrors(invalid){
+      errSteps=new Set();
+      (invalid||[]).forEach(el=>{
+        const sec=el.closest('[data-qa-step]');
+        if(sec) errSteps.add(+sec.dataset.qaStep);
+      });
+      if(!isOn()){ paint(); return; }
+      const first=live().find(s=>errSteps.has(s.n));
+      if(first&&first.n!==cur) cur=first.n;
+      paint();
+    },
+    clearErrors(){ errSteps=new Set(); paint(); },
+    reset(){ cur=(live()[0]||{n:1}).n; errSteps=new Set(); sheetOpen=false;
+      document.getElementById('qaFixedBottom')?.classList.remove('sheet-open'); paint(); },
+  };
+})();
+// Crossing the breakpoint has to re-run paint(), otherwise rotating to landscape
+// leaves four steps hidden on a layout that is no longer a wizard.
+window.matchMedia('(max-width:768px)').addEventListener('change',()=>qaWizard.refresh());
+document.addEventListener('DOMContentLoaded',()=>qaWizard.refresh());
 
 /* Returns true when the form is good to send. Collects everything wrong in one pass, so
    the operator fixes the lot once instead of discovering them one save at a time. */
@@ -7819,6 +8062,14 @@ function flagInvalidFields(formId){
   const form=document.getElementById(formId);
   if(!form) return [];
   const invalid=[];
+  /* The offsetParent test below treats an off-screen field as "not fillable in
+     this mode" and skips it. On the phone wizard four of the five steps are
+     display:none at any moment, so without this every required field outside the
+     step you happen to be standing on would be skipped and the order would save
+     with them empty. Reveal all steps for the duration of the check, then put
+     them back. Nothing repaints in between, it is one synchronous pass. */
+  const unwrap=(typeof qaWizard!=='undefined'&&formId==='quickAddForm') ? qaWizard.revealAll() : null;
+  try{
   form.querySelectorAll('[required]').forEach(el=>{
     // type=hidden backs a custom control (e.g. the Payment Status pills) that has no
     // offsetParent of its own to check visibility on, use data-shake-target to flag the
@@ -7831,6 +8082,8 @@ function flagInvalidFields(formId){
     target.classList.add('field-invalid');
     target.classList.remove('field-shake'); void target.offsetWidth; target.classList.add('field-shake');
   });
+  }finally{ if(unwrap) unwrap(); }
+  if(typeof qaWizard!=='undefined'&&formId==='quickAddForm') qaWizard.markErrors(invalid);
   return invalid;
 }
 document.addEventListener('animationend', e=>{ if(e.animationName==='fieldShake') e.target.classList.remove('field-shake'); });
