@@ -11,6 +11,7 @@ import mongoSanitize from 'express-mongo-sanitize';
 import productRoutes  from './routes/products.js';
 import orderRoutes    from './routes/orders.js';
 import authRoutes     from './routes/auth.js';
+import passkeyRoutes  from './routes/passkeys.js';
 import paymentRoutes  from './routes/payments.js';
 import cartRoutes     from './routes/cart.js';
 import adminRoutes    from './routes/admin.js';
@@ -161,8 +162,26 @@ const authLimiter = rateLimit({
   message: { error: 'Too many login attempts. Wait 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
+  // Passkeys have their own budget below. A single passkey sign-in already costs two
+  // requests (options, then verify), and the same 10-per-15-minutes pool also carries
+  // /api/auth/profile on every dashboard load, so sharing it would lock people out of
+  // their own account for quarter-hours at a time.
+  // originalUrl, not path: inside a mounted limiter Express has already stripped the
+  // mount prefix off req.url, so req.path here would read '/passkeys/...' only by luck.
+  skip: (req) => req.originalUrl.startsWith('/api/auth/passkeys'),
 });
 app.use('/api/auth', authLimiter);
+
+// Still tight in absolute terms, just sized for a ceremony that is two round-trips and
+// may be retried when a customer cancels the Face ID prompt by accident.
+const passkeyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: { error: 'Too many passkey attempts. Wait 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/auth/passkeys', passkeyLimiter);
 
 const paymentLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -250,6 +269,7 @@ app.use(hpp());
 /* ── 9. ROUTES ────────────────────────────────────────────── */
 app.use('/api/products',   productRoutes);
 app.use('/api/orders',     orderRoutes);
+app.use('/api/auth/passkeys', passkeyRoutes); // WebAuthn: register a passkey, sign in with one
 app.use('/api/auth',       authRoutes);
 app.use('/api/payments',   paymentRoutes);
 app.use('/api/cart',       cartRoutes);

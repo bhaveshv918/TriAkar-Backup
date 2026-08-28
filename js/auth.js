@@ -9,6 +9,7 @@ const Auth = (function () {
   const USER_KEY    = 'ta_user';
   const REFRESH_KEY = 'ta_refresh';   // FIX #11: store refresh token
   const EXPIRY_KEY  = 'ta_expiry';    // FIX #11: store expiry timestamp
+  const ACCOUNTS_KEY = 'ta_accounts'; // remembered profiles for the sign-in picker
 
   const SUPABASE_URL = 'https://qarjbmogersuaerkhlcu.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
@@ -48,6 +49,68 @@ const Auth = (function () {
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(REFRESH_KEY);
     localStorage.removeItem(EXPIRY_KEY);
+    // ACCOUNTS_KEY deliberately survives a sign-out. That list is the whole point of the
+    // sign-in picker: "welcome back, tap your face" only works if signing out does not
+    // wipe the memory of who was here. It holds no credential of any kind (see below), so
+    // leaving it behind gives a later visitor nothing but a name they could already read
+    // off the browser's own autofill.
+  }
+
+  /* ── Remembered accounts, for the sign-in picker ───────────
+     A display-only list: name, email, avatar initial, when it was last used, and whether
+     that account has a passkey on file. Explicitly NOT stored: access tokens, refresh
+     tokens, passwords, anything that could restore a session. Tapping a remembered
+     profile still has to prove itself, either with the device's passkey prompt or with
+     the password, so a stolen phone gains nothing from this list.
+
+     That is the deliberate difference from the account switchers on some big sites, which
+     do keep a live token per profile and hand a shared or stolen device an instant way in. */
+  function getKnownAccounts() {
+    try {
+      const list = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || '[]');
+      if (!Array.isArray(list)) return [];
+      return list
+        .filter(a => a && a.id && a.email)
+        .sort((a, b) => (b.last_used || 0) - (a.last_used || 0));
+    } catch (_) { return []; }
+  }
+
+  function _saveAccounts(list) {
+    try { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(list.slice(0, 5))); } catch (_) {}
+  }
+
+  function rememberAccount(user) {
+    // Anonymous sessions (Instant Quote) have no email and are not a person, so they never
+    // land in the picker.
+    if (!user || !user.id || !user.email) return;
+    const meta = user.user_metadata || {};
+    const name = meta.full_name || meta.name || user.email.split('@')[0];
+    const all  = getKnownAccounts();
+    const prev = all.find(a => a.id === user.id);
+    const list = all.filter(a => a.id !== user.id);
+    list.unshift({
+      id: user.id,
+      email: user.email,
+      name: name,
+      avatar: (meta.avatar_url || meta.picture || '') || null,
+      // Sticky: a device that has signed in with a passkey once should keep offering it,
+      // even after a password sign-in on the same device.
+      has_passkey: prev ? !!prev.has_passkey : false,
+      last_used: Date.now(),
+    });
+    _saveAccounts(list);
+  }
+
+  function markAccountPasskey(userId, has) {
+    const list = getKnownAccounts();
+    const hit = list.find(a => a.id === userId);
+    if (!hit) return;
+    hit.has_passkey = !!has;
+    _saveAccounts(list);
+  }
+
+  function forgetAccount(userId) {
+    _saveAccounts(getKnownAccounts().filter(a => a.id !== userId));
   }
 
   // FIX #11: refresh the Supabase access token using the refresh token
@@ -114,6 +177,7 @@ const Auth = (function () {
     }
     const data = await res.json();
     _save(data.access_token, data.user, data.refresh_token, data.expires_in);
+    rememberAccount(data.user);
     _updateNav();
     // Merge any guest cart with the server cart so nothing added while
     // logged out is lost. Best-effort, never blocks the login result.
@@ -129,6 +193,7 @@ const Auth = (function () {
   // token and passes the server's requireAuth check.
   async function setSession(token, user, refresh, expiresIn) {
     _save(token, user, refresh, expiresIn);
+    rememberAccount(user);
     _updateNav();
     try { if (typeof Cart !== 'undefined' && Cart.mergeOnLogin) await Cart.mergeOnLogin(); } catch (_) {}
     try { if (typeof Wishlist !== 'undefined' && Wishlist.mergeOnLogin) await Wishlist.mergeOnLogin(); } catch (_) {}
@@ -242,5 +307,6 @@ const Auth = (function () {
     }
   }
 
-  return { signup, login, setSession, logout, getToken, getUser, isLoggedIn, authHeader, authHeaderAsync, apiFetch, isExpired, init, API_BASE, signInAnonymously, ensureSession };
+  return { signup, login, setSession, logout, getToken, getUser, isLoggedIn, authHeader, authHeaderAsync, apiFetch, isExpired, init, API_BASE, signInAnonymously, ensureSession,
+           getKnownAccounts, rememberAccount, markAccountPasskey, forgetAccount };
 })();

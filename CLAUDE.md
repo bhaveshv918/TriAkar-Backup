@@ -174,6 +174,21 @@ regular feature work:
   Offline Tool template); round-trip test against the actual tool before relying on it for
   a real filing. No automatic filing to the GST portal (by design, out of scope).
 
+- Passkey sign-in (WebAuthn): passwordless login with fingerprint, face or device PIN,
+  plus a "quick sign-in" account picker on `account.html`. Server verification via
+  `@simplewebauthn/server` in `server/services/webauthn.js` +
+  `server/controllers/passkeyController.js`, routes at `/api/auth/passkeys/*`
+  (`server/routes/passkeys.js`), browser side in `js/passkey.js` (no external
+  dependency) with remembered-profile helpers in `js/auth.js`. Tables `user_passkeys` /
+  `webauthn_challenges` (migration `supabase/migrations/20260829_passkeys.sql`, **must be
+  run in the Supabase SQL Editor before this feature works**). Key facts: sign-in is
+  discoverable-credential only (no email is ever sent up, so there is no account
+  enumeration surface); a verified passkey does NOT become the session, the server mints a
+  normal Supabase session from it, so RLS and `requireAuth` are untouched; the picker
+  stores display info only, never a token; a passkey is bound to one domain, so ones made
+  on triakar.com will not work on triakar.in. Password login, Google OAuth and email OTP
+  are all unchanged. Not yet exercised against a real authenticator on production.
+
 **Before building something new, check if it already exists.** Grep/search the codebase first.
 
 **Note:** All of the above is functionally built and live. The current need is more likely
