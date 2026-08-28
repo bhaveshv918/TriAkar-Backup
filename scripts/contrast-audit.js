@@ -20,19 +20,38 @@ window.__taContrast = function(){
     return s.length?s:null;
   }
   function bgOf(el){
-    var stack=[],n=el,grad=null;
+    var stack=[],n=el,bases=null;
     while(n&&n!==document.documentElement){
       var cs=getComputedStyle(n);
-      if(cs.backgroundImage&&cs.backgroundImage!=='none'){
-        grad=stopsOf(cs.backgroundImage);
-        if(!grad) return null;   // url(), a real image, backdrop unknown
-        break;
+      var bi=cs.backgroundImage;
+      if(bi&&bi!=='none'){
+        var st=stopsOf(bi);
+        if(!st) return null;   // url(), a real image, backdrop unknown
+        if(st.some(function(s){return s.a===1})){
+          bases=st.map(function(s){return {r:s.r,g:s.g,b:s.b,a:1}});
+          break;               // an opaque gradient is the backdrop
+        }
+        /* A gradient whose stops are all translucent is a tint over whatever is
+           behind it, not a backdrop. Treating it as one turned the glass panel on
+           the About hero into "white", and reported its white text as 1:1. Keep
+           the most opaque stop as another layer and carry on up the chain. */
+        st.sort(function(a,b){return b.a-a.a});
+        stack.push(st[0]);
       }
+      /* A glass card in normal flow sits over its own section, so blending it
+         down the ancestor chain is right and the whole liquid-glass UI stays in
+         scope. A *fixed* glass surface (cart drawer, modals) floats over
+         arbitrary page content instead, and reading the ancestors through it
+         reported the cart drawer's dark-on-light heading as 1:1. Only that case
+         is unmeasurable. */
+      if(cs.position==='fixed'&&
+         ((cs.backdropFilter&&cs.backdropFilter!=='none')||
+          (cs.webkitBackdropFilter&&cs.webkitBackdropFilter!=='none'))) return null;
       var c=parse(cs.backgroundColor);
       if(c&&c.a>0){stack.push(c); if(c.a===1)break;}
       n=n.parentElement;
     }
-    var bases=grad?grad.map(function(g){return {r:g.r,g:g.g,b:g.b,a:1}}):[{r:255,g:255,b:255,a:1}];
+    if(!bases) bases=[{r:255,g:255,b:255,a:1}];
     return bases.map(function(base){
       var b=base;
       for(var i=stack.length-1;i>=0;i--) b=blend(stack[i],b);
@@ -48,7 +67,10 @@ window.__taContrast = function(){
     if(cs.visibility==='hidden'||cs.display==='none'||parseFloat(cs.opacity)===0) return;
     if(cs.webkitTextFillColor==='rgba(0, 0, 0, 0)') return;  // gradient-clipped headings
     var r=el.getBoundingClientRect(); if(!r.width||!r.height) return;
-    var fgc=parse(cs.color); if(!fgc) return;
+    /* SVG text is painted with fill, not color. Reading color reported the ivory
+       label on the track-order illustration as dark-on-dark. */
+    var isSvgText=(el.ownerSVGElement||el.namespaceURI==='http://www.w3.org/2000/svg');
+    var fgc=parse(isSvgText?(cs.fill||cs.color):cs.color); if(!fgc) return;
     var bgs=bgOf(el); if(!bgs) return;
     /* Over a gradient the text has to hold up against every stop, so the worst
        one is the honest score. */
