@@ -2248,12 +2248,18 @@ function _renderQuickList(accounts){
     av.className='qs-avatar';
     // Only ever an https image. Names and emails go in through textContent, never
     // innerHTML, so a stored value can't become markup.
+    const initial=(a.name||a.email||'T').charAt(0).toUpperCase();
     if(a.avatar&&/^https:\/\//.test(a.avatar)){
       const img=document.createElement('img');
-      img.src=a.avatar;img.alt='';img.referrerPolicy='no-referrer';
+      img.alt='';img.referrerPolicy='no-referrer';
+      // Google profile URLs expire, and the picker is also the one screen people see
+      // while offline or behind a filter. Without this the row renders a broken-image
+      // icon; fall back to the initial, which is what a row with no avatar shows anyway.
+      img.addEventListener('error',function(){img.remove();av.textContent=initial},{once:true});
+      img.src=a.avatar;
       av.appendChild(img);
     }else{
-      av.textContent=(a.name||a.email||'T').charAt(0).toUpperCase();
+      av.textContent=initial;
     }
 
     const meta=document.createElement('span');
