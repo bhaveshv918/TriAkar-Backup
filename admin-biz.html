@@ -32,6 +32,14 @@
   --blue:#2563EB;--blue-bg:rgba(37,99,235,.10);
   --purple:#7C3AED;--purple-bg:rgba(124,58,237,.10);
   --orange:#EA580C;--orange-bg:rgba(234,88,12,.11);
+  /* Text-on-tint. The colours above are picked to read as fills and against
+     white; sitting them on their own 10% tint drops several under the 4.5:1
+     AA floor for label text (--orange lands near 3.5:1, --green near 3.4:1).
+     These are the same hues taken darker, only for text/icons on a *-bg tint,
+     never for a fill. Dark theme overrides them back to the bright versions,
+     where the tint is dark and the bright colour is the readable one. */
+  --accent-t:#8F4419;--green-t:#116635;--red-t:#B01B1B;--yellow-t:#8A4B04;
+  --blue-t:#1D4FD8;--purple-t:#6321D6;--orange-t:#9C3A08;
   --shadow:0 1px 2px rgba(16,32,24,.05),0 1px 3px rgba(16,32,24,.04);
   --shadow-h:0 4px 14px rgba(16,32,24,.10);
   --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
@@ -55,6 +63,10 @@ html[data-theme="dark"]{
   --blue:#60A5FA;--blue-bg:rgba(96,165,250,.08);
   --purple:#A78BFA;--purple-bg:rgba(167,139,250,.08);
   --orange:#FB923C;--orange-bg:rgba(251,146,60,.08);
+  /* On a dark tint the bright colour is already the readable one, so text-on-tint
+     is just the colour itself here. Darkening would make it worse, not better. */
+  --accent-t:var(--accent);--green-t:var(--green);--red-t:var(--red);--yellow-t:var(--yellow);
+  --blue-t:var(--blue);--purple-t:var(--purple);--orange-t:var(--orange);
   --shadow:0 1px 2px rgba(0,0,0,.3);--shadow-h:0 4px 14px rgba(0,0,0,.4);
 }
 /* Hide number spinners everywhere */
@@ -125,7 +137,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .btn-ghost{background:var(--bg-2);color:var(--text-2);border:1px solid var(--border)}
 .btn-ghost:hover{border-color:var(--border-h);color:var(--text)}
 .btn-ghost.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,.2)}
+/* --red on --red-bg is the same tint pattern as the buttons below, and read 3.75:1,
+   under the 4.5:1 floor. --red-t is the same red taken darker for text on that tint
+   (and is --red itself in dark mode, where the bright one is the readable one). */
+.btn-danger{background:var(--red-bg);color:var(--red-t);border:1px solid rgba(248,113,113,.2)}
 /* Same tinted shape as .btn-danger, for a pause/park action (Hold): deliberate,
    but nothing is destroyed, so it must not read as red. */
 .btn-warn{background:var(--yellow-bg);color:var(--yellow);border:1px solid rgba(234,179,8,.22)}
@@ -535,15 +550,46 @@ tr:hover td{background:var(--bg-2)}
 .doc-tab-btn{padding:8px 18px;border:none;background:transparent;border-radius:999px;font-family:var(--sans);font-size:12.5px;font-weight:700;color:var(--text-3);cursor:pointer;transition:background .15s ease,color .15s ease;white-space:nowrap}
 .doc-tab-btn.active{background:var(--accent);color:#fff}
 .doc-tab-btn:not(.active):hover{color:var(--text)}
-/* Add Order's 3 document actions (Order Acknowledgement / Invoice / Quotation), one consistent
-   pill style instead of 3 differently-sized solid-fill buttons in random colours. */
+/* Add Order's action bar. These were one uniform grey pill, which kept them from
+   being "3 differently-sized solid-fill buttons in random colours" but left six
+   identical-looking buttons where only Save read as anything. Each carries its own
+   tint now, taken from the same map the row-action buttons already use
+   (.btn-icon-doc/-invoice/-duplicate above), so one action is one colour across the
+   whole app rather than a colour invented per screen: Order Acknowledgement is the
+   brand accent, Invoice orange, Quotation purple (the same purple the page tint
+   uses in Quotation mode), Gift green, Clear amber, Cancel muted.
+
+   Tint, not solid fill. Six solid buttons in a row would be the noise the old
+   comment was avoiding, and white on any of these hues sits under 4.5:1 anyway.
+   Save stays the only filled button, so the primary action is still obvious. */
 .qa-doc-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:20px;
-  border:1px solid var(--border);background:var(--bg-2);color:var(--text);font-family:var(--sans);
-  font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s ease}
-.qa-doc-btn:hover{border-color:var(--accent);color:var(--accent)}
-.qa-doc-btn-accent{background:var(--accent);color:#fff;border-color:var(--accent)}
-.qa-doc-btn-accent:hover{color:#fff;opacity:.9}
+  border:1px solid transparent;background:var(--tint-bg,var(--bg-2));color:var(--tint,var(--text));
+  font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;
+  transition:background .15s ease,border-color .15s ease,color .15s ease}
+.qa-doc-btn:hover{border-color:var(--tint,var(--accent));filter:brightness(.97)}
+.qa-doc-btn:focus-visible{outline:2px solid var(--tint,var(--accent));outline-offset:2px}
+.qa-doc-record{--tint:var(--accent-t);--tint-bg:var(--accent-bg)}
+.qa-doc-invoice{--tint:var(--orange-t);--tint-bg:var(--orange-bg)}
+.qa-doc-quote{--tint:var(--purple-t);--tint-bg:var(--purple-bg)}
+.qa-doc-back{--tint:var(--text-2);--tint-bg:var(--bg-3)}
 .qa-doc-icon{font-size:13px;display:inline-flex;align-items:center}
+/* Gift is a state toggle, not a document: tinted while off, filled once it is on,
+   because "this order is a gift" has to be obvious at a glance from the bar. */
+#qaGiftToggle{--tint:var(--green-t);--tint-bg:var(--green-bg);
+  background:var(--tint-bg);color:var(--tint);border:1px solid transparent}
+/* Filled with the darker green, not --green: white on --green is 3.3:1, and this
+   label has to stay readable in the state that actually changes what gets saved. */
+#qaGiftToggle.active{background:var(--green-t);color:#fff;border-color:var(--green-t)}
+/* Dark mode's green is a bright mint, so the light-mode recipe inverts badly:
+   white on it is 1.74:1. Fill with the bright green and put the dark surface
+   colour on top instead, which is how a light-on-dark fill has to read. */
+html[data-theme="dark"] #qaGiftToggle.active{background:var(--green);color:#0B1410;border-color:var(--green)}
+#qaGiftToggle svg{width:14px;height:14px}
+/* Clear wipes the whole form, so it reads as a warning rather than another
+   neutral button sitting next to Cancel. */
+#qaFixedBottom .qa-btn-clear{background:var(--yellow-bg);color:var(--yellow-t);border:1px solid transparent}
+#qaFixedBottom .qa-btn-clear:hover{border-color:var(--yellow-t)}
+#qaFixedBottom .qa-btn-cancel{background:var(--bg-3);color:var(--text-2);border:1px solid var(--border-h)}
 /* Order/Quotation mode toggle, one pill, a sliding thumb behind whichever side is
    active, centered on the page (the "sexy swipe" ask, iOS-settings-style). */
 .qa-mode-toggle{position:relative;display:inline-flex;background:var(--bg-2);border:1px solid var(--border);
@@ -994,8 +1040,13 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
   }
   .qa-step-back{flex:0 0 auto;padding:0 18px}
   .qa-step-more{flex:0 0 48px;width:48px;padding:0;font-size:20px;line-height:1}
-  .qa-step-next{flex:1;padding:0 20px;background:var(--accent);border-color:var(--accent);color:#fff}
-  .qa-step-next.is-save{background:var(--green,#2D8A4E);border-color:var(--green,#2D8A4E)}
+  /* Filled with the darker shades: white on --accent is 4.1:1 and on --green 3.3:1,
+     and this is the one button on the screen that must always be legible. Dark mode
+     flips it, bright fill with the dark surface colour on top. */
+  .qa-step-next{flex:1;padding:0 20px;background:var(--accent-t);border-color:var(--accent-t);color:#fff}
+  .qa-step-next.is-save{background:var(--green-t);border-color:var(--green-t);color:#fff}
+  html[data-theme="dark"] .qa-step-next{background:var(--accent);border-color:var(--accent);color:#0B1410}
+  html[data-theme="dark"] .qa-step-next.is-save{background:var(--green);border-color:var(--green);color:#0B1410}
   .qa-step-btn:disabled{opacity:.4}
   /* Back is pointless on step 1, but keeping it in the layout stops Next from
      jumping sideways between steps. */
@@ -2357,20 +2408,20 @@ html[data-theme="dark"] .biz-login{
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
           <div class="qa-doc-actions qa-order-only" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-            <button type="button" class="qa-doc-btn" onclick="saveOrderRecord()"><span class="qa-doc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1Z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="16" y2="15"/></svg></span>Order Acknowledgement</button>
-            <button type="button" class="qa-doc-btn qa-doc-btn-accent" onclick="saveAndPrint()"><span class="qa-doc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2h16v20l-2-1-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></svg></span>Invoice</button>
-            <button type="button" class="qa-doc-btn" onclick="setQaFormMode('quotation')"><span class="qa-doc-icon">⎘</span>Quotation</button>
+            <button type="button" class="qa-doc-btn qa-doc-record" onclick="saveOrderRecord()"><span class="qa-doc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1Z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="16" y2="15"/></svg></span>Order Acknowledgement</button>
+            <button type="button" class="qa-doc-btn qa-doc-invoice" onclick="saveAndPrint()"><span class="qa-doc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2h16v20l-2-1-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></svg></span>Invoice</button>
+            <button type="button" class="qa-doc-btn qa-doc-quote" onclick="setQaFormMode('quotation')"><span class="qa-doc-icon">⎘</span>Quotation</button>
             <button type="button" class="qchip" id="qaGiftToggle" onclick="toggleQaGift()" title="Friends, clients, relatives, anyone you're gifting a print to"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4"/><path d="M12 8v13M3 12v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M12 8c-1.5 0-4-1-4-3.5A2.5 2.5 0 0 1 10.5 2C12 2 12 5 12 8ZM12 8c1.5 0 4-1 4-3.5A2.5 2.5 0 0 0 13.5 2C12 2 12 5 12 8Z"/></svg> Mark as Gift</button>
             <span id="qaGiftHint" style="display:none;font-size:11px;color:var(--text-3)">No revenue logged, its production cost auto-logs as a Marketing expense</span>
             <button type="button" class="btn btn-danger btn-sm" id="qaMarkReturnBtn" onclick="markReturn()" style="display:none" title="Mark as returned and log in Returns">↩ Mark Return</button>
           </div>
           <div class="qa-doc-actions qa-quote-only" style="display:none;gap:6px;align-items:center">
-            <button type="button" class="qa-doc-btn" onclick="setQaFormMode('order')"><span class="qa-doc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span>Back to Order</button>
+            <button type="button" class="qa-doc-btn qa-doc-back" onclick="setQaFormMode('order')"><span class="qa-doc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span>Back to Order</button>
           </div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <span class="qa-shortcut-hint"><kbd>Ctrl</kbd>/<kbd>&#8984;</kbd> + <kbd>Enter</kbd> to save</span>
-            <button type="button" class="btn btn-ghost btn-sm" onclick="confirmClearQuickAdd()" title="Wipes the whole form">Clear</button>
-            <button type="button" class="btn btn-ghost btn-sm qa-fixed-bottom-btn" onclick="exitAddOrderEditMode()">
+            <button type="button" class="btn btn-sm qa-btn-clear" onclick="confirmClearQuickAdd()" title="Wipes the whole form">Clear</button>
+            <button type="button" class="btn btn-sm qa-fixed-bottom-btn qa-btn-cancel" onclick="exitAddOrderEditMode()">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               Cancel
             </button>
