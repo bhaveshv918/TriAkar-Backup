@@ -78,6 +78,19 @@
   --shadow-md:0 10px 28px rgba(22,22,20,.10);
   --shadow-lg:0 20px 52px rgba(22,22,20,.16);
   --shadow-orange:0 4px 16px rgba(196,98,42,.20);
+
+  /* Fields. Lifted from the storefront's .glass-input (shared.css): a near-white
+     translucent fill, a hairline dark enough to actually draw an edge, and an
+     inset highlight so the control reads as a recess you type into. The fill
+     brightens on hover and again on focus, which is what makes a field feel
+     live under the cursor instead of painted on. See section 02 for the rules. */
+  --field-bg:rgba(255,255,255,.72);
+  --field-bg-hover:rgba(255,255,255,.92);
+  --field-bg-focus:#FFFFFF;
+  --field-border:rgba(22,22,20,.13);
+  --field-border-hover:rgba(22,22,20,.24);
+  --field-inset:inset 0 2px 4px rgba(22,22,20,.045);
+  --field-caret:#75706A;
 }
 html[data-theme="dark"]{
   --tri-orange:#D97742;
@@ -114,6 +127,16 @@ html[data-theme="dark"]{
   --shadow-md:0 10px 28px rgba(0,0,0,.40);
   --shadow-lg:0 20px 52px rgba(0,0,0,.55);
   --shadow-orange:0 4px 16px rgba(217,119,66,.28);
+
+  /* Same field system inverted: on dark the recess is a lighter film over the
+     card, not a white fill, and the inset goes to shadow instead of highlight. */
+  --field-bg:rgba(255,255,255,.045);
+  --field-bg-hover:rgba(255,255,255,.075);
+  --field-bg-focus:rgba(255,255,255,.10);
+  --field-border:rgba(255,255,255,.12);
+  --field-border-hover:rgba(255,255,255,.24);
+  --field-inset:inset 0 2px 4px rgba(0,0,0,.25);
+  --field-caret:#B4AEA6;
 }
 
 /* ── 01 · PALETTE REMAP, retarget both panels' variable systems ──
@@ -760,10 +783,91 @@ html[data-theme="dark"] .qchip[data-v="website"].active{color:#A78BFA}
   font-size:11px;font-weight:600;letter-spacing:.04em;
   color:var(--text-secondary);
 }
-.form-group input,.form-group select,.form-group textarea{
-  background:var(--surface-2);border:1px solid var(--border-c);
-  border-radius:8px;padding:10px 14px;
+
+/* ── Fields, the storefront's glass pill brought into both panels ──────────
+   Every field used to be filled with --surface-2, which is the exact colour of
+   the page background, and outlined in --border-c, one shade off that fill. On
+   a card that reads as a flat beige slab: no edge, no depth, and an empty field
+   looking identical to a filled one. The storefront answers this with a
+   near-white translucent fill, a hairline with real contrast and an inset
+   highlight, so a field looks like a recess rather than a painted rectangle.
+   Same recipe here at admin density, tokens in section 00.
+
+   background-color, not the background shorthand, because the select rule below
+   layers a chevron image on top and a later shorthand would wipe it out. */
+.form-group input,.form-group select,.form-group textarea,
+.item-row input,.item-row select,
+.filter-bar input,.filter-bar select,
+.ff input,.ff select,.ff textarea,.form-input,
+.biz-tb-search input,.iq-edit-input,.mapping-row select,
+.month-select,input[type=month],input[type=date]{
+  background-color:var(--field-bg);
+  border:1.5px solid var(--field-border);
+  border-radius:999px;
+  box-shadow:var(--field-inset);
+  transition:background-color .2s ease,border-color .2s ease,box-shadow .2s ease;
 }
+/* A pill only reads right on a single-line control. A 999px radius curves a
+   multi-line box's first and last lines inward, so text areas take a soft
+   corner instead, same split the storefront makes. */
+.form-group textarea,.ff textarea{border-radius:16px}
+/* Hover and focus both lift the fill. Hover alone is a weak signal on a dense
+   grid, so the step is small; focus goes all the way to solid white and picks up
+   the orange ring from section 02, which is the one field you are actually in. */
+.form-group input:hover,.form-group select:hover,.form-group textarea:hover,
+.item-row input:hover,.item-row select:hover,
+.filter-bar input:hover,.filter-bar select:hover,
+.ff input:hover,.ff select:hover,.ff textarea:hover,.form-input:hover,
+.biz-tb-search input:hover,.iq-edit-input:hover,.mapping-row select:hover,
+.month-select:hover,input[type=month]:hover,input[type=date]:hover{
+  background-color:var(--field-bg-hover);
+  border-color:var(--field-border-hover);
+}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus,
+.item-row input:focus,.item-row select:focus,
+.filter-bar input:focus,.filter-bar select:focus,
+.ff input:focus,.ff select:focus,.ff textarea:focus,.form-input:focus,
+.biz-tb-search input:focus,.iq-edit-input:focus,.mapping-row select:focus,
+.month-select:focus,input[type=month]:focus,input[type=date]:focus{
+  background-color:var(--field-bg-focus);
+}
+/* A disabled or readonly field must not look like something you can type in. */
+.form-group input:disabled,.form-group select:disabled,.form-group textarea:disabled,
+.item-row input:disabled,.item-row select:disabled,
+.ff input:disabled,.ff select:disabled,.form-input:disabled,
+.form-group input[readonly],.item-row input[readonly],.ff input[readonly]{
+  background-color:var(--surface-2);box-shadow:none;color:var(--text-muted);
+}
+
+/* Padding. The pill radius needs more horizontal inset than the old 8px corner
+   did, or the first character sits in the curve. Vertical is untouched, these
+   grids are dense on purpose. */
+.form-group input,.form-group select,.form-group textarea,
+.ff input,.ff select,.ff textarea,.form-input{padding:10px 17px}
+.item-row input,.item-row select{padding:6px 12px}
+.filter-bar input,.filter-bar select{padding:6px 14px}
+
+/* Select arrows. Both panels already draw their own chevron on `select`, but the
+   old rule above set `background`, and the shorthand wiped background-image, so
+   every select inside a form group was left with appearance:none and no arrow
+   at all: Channel and State looked exactly like text boxes. Fixed at the root by
+   using background-color above; the arrow itself is restated here because the
+   panels' version is a filled triangle in #869488, a cool grey-green that is
+   not in the palette. This is a stroked chevron in the text colours instead. */
+select{
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%2375706A' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 2l5 4 5-4'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 12px center;
+}
+/* :not(.badge-select) because the dark selector would otherwise outrank the status
+   pill's own tighter arrow, which the light rule above is too weak to touch. */
+html[data-theme="dark"] select:not(.badge-select){
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%23B4AEA6' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 2l5 4 5-4'/%3E%3C/svg%3E");
+}
+/* Room for the arrow, sized per density. .badge-select and the few selects with an
+   inline background-image keep their own tighter arrow, both outrank these. */
+.form-group select,.ff select,select.form-input,.month-select{padding-right:34px}
+.item-row select,.filter-bar select{background-position:right 9px center;padding-right:26px}
 
 /* Totals strip + collapsible shipping read as cards too */
 .calc-row{
@@ -819,18 +923,21 @@ th,thead th{
 td{padding:12px 14px;border-bottom:1px solid var(--border-c)}
 
 /* Status pills, the unified palette, applied to badges AND the
-   inline badge-select dropdowns (All Sales / Open Orders rows) */
-.badge-pending,.badge-select.badge-pending{background:rgba(139,92,246,.12);color:var(--status-pending)}
-.badge-order_received,.badge-select.badge-order_received{background:rgba(59,130,246,.12);color:var(--status-order-received)}
-.badge-processing,.badge-select.badge-processing{background:rgba(245,158,11,.14);color:var(--status-processing)}
-.badge-printing,.badge-select.badge-printing{background:rgba(249,115,22,.14);color:var(--status-printing)}
-.badge-packed,.badge-select.badge-packed{background:rgba(6,182,212,.13);color:var(--status-packed)}
-.badge-dispatched,.badge-select.badge-dispatched{background:rgba(99,102,241,.13);color:var(--status-dispatched)}
-.badge-delivered,.badge-select.badge-delivered{background:rgba(16,185,129,.13);color:var(--status-delivered)}
-.badge-completed,.badge-select.badge-completed{background:rgba(5,150,105,.13);color:var(--status-completed)}
-.badge-delayed,.badge-select.badge-delayed{background:rgba(239,68,68,.12);color:var(--status-delayed)}
-.badge-cancelled,.badge-select.badge-cancelled{background:rgba(107,114,128,.14);color:var(--status-cancelled)}
-.badge-returned,.badge-select.badge-returned{background:rgba(236,72,153,.12);color:var(--status-returned)}
+   inline badge-select dropdowns (All Sales / Open Orders rows).
+   background-color, not the shorthand: these outrank .badge-select, so the
+   shorthand was erasing that pill's own dropdown arrow and leaving the 18px
+   of clearance it reserves looking like a gap. */
+.badge-pending,.badge-select.badge-pending{background-color:rgba(139,92,246,.12);color:var(--status-pending)}
+.badge-order_received,.badge-select.badge-order_received{background-color:rgba(59,130,246,.12);color:var(--status-order-received)}
+.badge-processing,.badge-select.badge-processing{background-color:rgba(245,158,11,.14);color:var(--status-processing)}
+.badge-printing,.badge-select.badge-printing{background-color:rgba(249,115,22,.14);color:var(--status-printing)}
+.badge-packed,.badge-select.badge-packed{background-color:rgba(6,182,212,.13);color:var(--status-packed)}
+.badge-dispatched,.badge-select.badge-dispatched{background-color:rgba(99,102,241,.13);color:var(--status-dispatched)}
+.badge-delivered,.badge-select.badge-delivered{background-color:rgba(16,185,129,.13);color:var(--status-delivered)}
+.badge-completed,.badge-select.badge-completed{background-color:rgba(5,150,105,.13);color:var(--status-completed)}
+.badge-delayed,.badge-select.badge-delayed{background-color:rgba(239,68,68,.12);color:var(--status-delayed)}
+.badge-cancelled,.badge-select.badge-cancelled{background-color:rgba(107,114,128,.14);color:var(--status-cancelled)}
+.badge-returned,.badge-select.badge-returned{background-color:rgba(236,72,153,.12);color:var(--status-returned)}
 .badge-select{border-radius:999px;padding:3px 20px 3px 10px}
 
 /* Channel dots, filled 8px circles with a soft matching glow */
@@ -929,11 +1036,13 @@ html[data-theme="dark"] #openKpi .kpi.yellow{background:linear-gradient(rgba(249
 #panelStock .btn-primary{box-shadow:var(--shadow-orange)}
 
 /* ── 50 · REVIEWS (Admin) ─────────────────────────────────────── */
-/* Filter bars, consistent fields on both panels */
+/* Filter bars, consistent fields on both panels. Fill, border and radius come
+   from the shared field system in section 02, this only sets the type and the
+   fixed height a filter row needs. It used to restate `background`, and being
+   later in the file that shorthand quietly undid both the new fill and the
+   select chevron here. */
 .filter-bar select,.filter-bar input{
-  font-family:var(--sans);font-size:12px;
-  background:var(--surface-2);border:1px solid var(--border-c);
-  border-radius:8px;padding:8px 12px;height:36px;
+  font-family:var(--sans);font-size:12px;height:36px;
 }
 
 /* Review text, roomier column, controlled line rhythm */
@@ -1115,12 +1224,12 @@ html[data-theme="dark"] .shell .sidebar .sidebar-section:nth-of-type(5) ~ .tab .
 html[data-theme="dark"] .sidebar .tab.active .tab-icon,
 html[data-theme="dark"] .sidebar .tab:hover:not(.active) .tab-icon{color:var(--tri-orange)}
 
-/* Inputs sit a step above the card surface in dark mode */
-html[data-theme="dark"] .form-group input,
-html[data-theme="dark"] .form-group select,
-html[data-theme="dark"] .form-group textarea,
-html[data-theme="dark"] .filter-bar select,
-html[data-theme="dark"] .filter-bar input{background:var(--surface-3)}
+/* Inputs sit a step above the card surface in dark mode. That step now comes
+   from the --field-bg token (a light film over whatever card it sits on, so it
+   works on --surface and --surface-2 alike), which the shared field rules
+   already apply. Only the controls outside that system are listed here. */
+html[data-theme="dark"] .iq-edit-input,
+html[data-theme="dark"] .mapping-row select{background:var(--surface-3)}
 
 /* Chip + hover states that need a visible step on dark surfaces */
 html[data-theme="dark"] .qchip:hover{background:#3D3B38;border-color:#4A4844}
