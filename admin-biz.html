@@ -1477,6 +1477,18 @@ html[data-theme="dark"] .biz-login{
   .spool-cat-swatch,.spool-cat-preview,.spool-cat-disc,.spool-cat-preview-disc{transition:none}
   .spool-cat-preview-stock .dot{animation:none}
 }
+
+/* Floating suggestion dropdowns (customer picker + item catalogue on Add Order).
+   Hover and the arrow-key highlight share one class, so the mouse and the keyboard
+   can never light up two different rows at the same time. */
+.sugg-item{padding:7px 11px;cursor:pointer;border-bottom:1px solid var(--border)}
+.sugg-item:last-of-type{border-bottom:none}
+.sugg-item.is-active{background:var(--tri-orange-dim)}
+.sugg-item-name{font-weight:600;font-size:12px}
+.sugg-item-meta{font-size:11px;color:var(--text-3);font-family:var(--mono)}
+.sugg-hint{position:sticky;bottom:0;display:flex;gap:9px;padding:6px 11px;
+  border-top:1px solid var(--border);background:var(--bg-2);color:var(--text-3);
+  font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
 </style>
 <link rel="stylesheet" href="/admin-theme.css">
 </head>
@@ -2029,12 +2041,12 @@ html[data-theme="dark"] .biz-login{
         <div class="form-grid" style="margin-bottom:0">
           <div class="form-group">
             <label>Customer Name</label>
-            <input type="text" id="qa_cname" placeholder="Type name or phone, existing customers autofill" oninput="onCustomerName(this.value);custSuggest(this.value,'qa_cname')" onfocus="ensureCustomers()" autocomplete="off" required>
+            <input type="text" id="qa_cname" placeholder="Type name or phone, existing customers autofill" oninput="onCustomerName(this.value);custSuggest(this.value,'qa_cname')" onkeydown="suggKey(event,'custSuggestBox')" onfocus="ensureCustomers()" autocomplete="off" required>
             <datalist id="customerList"></datalist>
           </div>
           <div class="form-group">
             <label>Phone</label>
-            <input type="tel" id="qa_phone" placeholder="Mobile number" oninput="custSuggest(this.value,'qa_phone')" onfocus="ensureCustomers()" autocomplete="off">
+            <input type="tel" id="qa_phone" placeholder="Mobile number" oninput="custSuggest(this.value,'qa_phone')" onkeydown="suggKey(event,'custSuggestBox')" onfocus="ensureCustomers()" autocomplete="off">
           </div>
           <div class="form-group" style="grid-column:span 2">
             <label>Full Address</label>
@@ -6800,7 +6812,7 @@ function renderItems(){
           // one-off machine or a reworded invoice line never needs a catalogue entry first.
           ? `<select style="cursor:pointer" title="Pick a machine, fills price, GST and HSN together" onchange="onItemMachine(${i},this.value)">${machineOptions(it.machineId)}</select>
              <input value="${esc(it.name)}" placeholder="Machine / printer name & model" title="What prints on the invoice, edit freely" oninput="_items[${i}].name=this.value">`
-          : `<input list="catalogList" value="${esc(it.name)}" placeholder="Item name / type to search" oninput="onItemName(${i},this.value);itemSuggest(${i},this.value)" autocomplete="off">`}
+          : `<input list="catalogList" value="${esc(it.name)}" placeholder="Item name / type to search" oninput="onItemName(${i},this.value);itemSuggest(${i},this.value)" onkeydown="suggKey(event,'itemSuggestBox')" autocomplete="off">`}
         <input class="variant" value="${esc(it.variant)}" placeholder="size / colour / customisation (optional)" oninput="_items[${i}].variant=this.value">
         <input class="variant" style="font-style:italic" value="${esc(it.remarks||'')}" placeholder="remarks (shown italic on invoice)" oninput="_items[${i}].remarks=this.value">
         ${it.itemType==='product'?`<select class="variant" style="cursor:pointer" title="Spool, logging grams+waste deducts from this spool's stock" onchange="onItemSpool(${i},this.value)">${spoolOptions(it.spool)}</select>`:''}
@@ -6907,6 +6919,40 @@ function onItemName(i,val){
   if(p){ applyProductToItem(i,p); }
   else { _items[i].productId=null; recalcTotals(); }
 }
+/* ── Keyboard navigation for the floating suggestion dropdowns ──────────────
+   Shared by the customer picker (#custSuggestBox) and the item catalogue
+   (#itemSuggestBox): both render plain rows that already carry their own
+   onclick, so navigation only has to track which row is active and click it.
+   Nothing here knows what a row means, which is why one helper covers both.
+   Up/Down move with wrap-around, Enter takes the highlighted row (or the top
+   match when nothing is highlighted yet), Esc/Tab dismiss without picking. */
+const SUGG_HINT='<div class="sugg-hint"><span>&#8593;&#8595; move</span><span>&#9166; pick</span><span>esc close</span></div>';
+const _suggActive={};
+function suggRows(boxId){
+  const b=document.getElementById(boxId);
+  return (b&&b.style.display!=='none') ? Array.prototype.slice.call(b.querySelectorAll('.sugg-item')) : [];
+}
+function suggReset(boxId){ _suggActive[boxId]=-1; }
+function suggSetActive(boxId,idx){
+  const rows=suggRows(boxId); if(!rows.length) return;
+  if(idx<0) idx=rows.length-1; else if(idx>=rows.length) idx=0;
+  _suggActive[boxId]=idx;
+  rows.forEach(function(r,i){ r.classList.toggle('is-active',i===idx); });
+  rows[idx].scrollIntoView({block:'nearest'});
+}
+function suggClose(boxId){ const b=document.getElementById(boxId); if(b) b.style.display='none'; suggReset(boxId); }
+function suggKey(ev,boxId){
+  // Ctrl/Cmd+Enter is the form's save shortcut, never a pick.
+  if(ev.ctrlKey||ev.metaKey||ev.altKey||ev.isComposing) return;
+  const rows=suggRows(boxId); if(!rows.length) return;
+  const cur=_suggActive[boxId]==null?-1:_suggActive[boxId];
+  if(ev.key==='ArrowDown'){ ev.preventDefault(); suggSetActive(boxId,cur+1); }
+  else if(ev.key==='ArrowUp'){ ev.preventDefault(); suggSetActive(boxId,cur<0?rows.length-1:cur-1); }
+  else if(ev.key==='Enter'){ ev.preventDefault(); rows[cur<0?0:cur].click(); }
+  else if(ev.key==='Escape'){ ev.preventDefault(); ev.stopPropagation(); suggClose(boxId); } // stop here, Esc must not also close the whole form
+  else if(ev.key==='Tab'){ suggClose(boxId); }
+}
+
 // Item-name catalog search, same floating-dropdown pattern as custSuggest() for
 // customers (native <datalist> popups don't reliably open in the browser this
 // runs in, list="catalogList" on the input is left in place as a harmless
@@ -6915,24 +6961,29 @@ let _itemSugg=[];
 function itemSuggest(i,val){
   const box=document.getElementById('itemSuggestBox'); if(!box) return;
   const q=(val||'').trim().toLowerCase();
-  if(q.length<2){ box.style.display='none'; return; }
+  if(q.length<2){ suggClose('itemSuggestBox'); return; }
   const list=(_products||[]).filter(function(p){ return (p.name||'').toLowerCase().includes(q); }).slice(0,8);
   _itemSugg=list;
-  if(!list.length){ box.style.display='none'; return; }
-  box.innerHTML=list.map(function(p,idx){ return '<div onclick="itemPick('+i+','+idx+')" style="padding:7px 11px;cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background=\'var(--bg-2)\'" onmouseout="this.style.background=\'\'"><div style="font-weight:600;font-size:12px">'+esc(p.name)+'</div><div style="font-size:11px;color:var(--text-3);font-family:var(--mono)">'+(p.sku?esc(p.sku):'N/A')+(p.gst_rate?' · '+p.gst_rate+'% GST':'')+'</div></div>'; }).join('');
+  if(!list.length){ suggClose('itemSuggestBox'); return; }
+  box.innerHTML=list.map(function(p,idx){ return '<div class="sugg-item" onclick="itemPick('+i+','+idx+')" onmouseenter="suggSetActive(\'itemSuggestBox\','+idx+')"><div class="sugg-item-name">'+esc(p.name)+'</div><div class="sugg-item-meta">'+(p.sku?esc(p.sku):'N/A')+(p.gst_rate?' · '+p.gst_rate+'% GST':'')+'</div></div>'; }).join('')+SUGG_HINT;
   const inp=document.querySelector('.item-row[data-idx="'+i+'"] .item-cell input');
-  if(!inp){ box.style.display='none'; return; }
+  if(!inp){ suggClose('itemSuggestBox'); return; }
   const r=inp.getBoundingClientRect();
   box.style.left=r.left+'px'; box.style.top=(r.bottom+3)+'px'; box.style.width=Math.max(220,r.width)+'px';
   box.style.display='block';
+  suggReset('itemSuggestBox');
 }
 function itemPick(i,idx){
   const p=_itemSugg[idx]; if(!p) return;
   _items[i].name=p.name;
   applyProductToItem(i,p);
-  const box=document.getElementById('itemSuggestBox'); if(box) box.style.display='none';
+  suggClose('itemSuggestBox');
+  // applyProductToItem re-renders the row, which drops focus. Land on Qty, the
+  // field the operator fills next, so an Enter-picked item never breaks the flow.
+  const qty=document.querySelector('.item-row[data-idx="'+i+'"] input[type=number]');
+  if(qty){ qty.focus(); qty.select(); }
 }
-document.addEventListener('click',function(e){ if(!e.target.closest('.item-cell input,#itemSuggestBox')){ const b=document.getElementById('itemSuggestBox'); if(b) b.style.display='none'; } });
+document.addEventListener('click',function(e){ if(!e.target.closest('.item-cell input,#itemSuggestBox')){ suggClose('itemSuggestBox'); } });
 function onItemNum(i,f,v){
   _items[i][f]= f==='qty' ? (parseInt(v)||1) : (parseFloat(v)||0);
   const el=document.getElementById('amt_'+i);
@@ -9361,25 +9412,27 @@ function ensureCustomers(){ if(_custTried) return; _custTried=true; if((!_custom
 function custSuggest(q,srcId){
   const box=document.getElementById('custSuggestBox'); if(!box) return;
   q=(q||'').trim().toLowerCase();
-  if(q.length<2){ box.style.display='none'; return; }
+  if(q.length<2){ suggClose('custSuggestBox'); return; }
   const list=(_customersList||[]).filter(function(c){ return (c.name||'').toLowerCase().includes(q)||(c.phone||'').toLowerCase().includes(q); }).slice(0,7);
   _custSugg=list;
-  if(!list.length){ box.style.display='none'; return; }
-  box.innerHTML=list.map(function(c,i){ return '<div onclick="custPick('+i+')" style="padding:7px 11px;cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background=\'var(--bg-2)\'" onmouseout="this.style.background=\'\'"><div style="font-weight:600;font-size:12px">'+esc(c.name)+'</div><div style="font-size:11px;color:var(--text-3);font-family:var(--mono)">'+esc(c.phone||'N/A')+(c.city?' · '+esc(c.city):'')+(c.gstin?' · '+esc(c.gstin):'')+'</div></div>'; }).join('');
+  if(!list.length){ suggClose('custSuggestBox'); return; }
+  box.innerHTML=list.map(function(c,i){ return '<div class="sugg-item" onclick="custPick('+i+')" onmouseenter="suggSetActive(\'custSuggestBox\','+i+')"><div class="sugg-item-name">'+esc(c.name)+'</div><div class="sugg-item-meta">'+esc(c.phone||'N/A')+(c.city?' · '+esc(c.city):'')+(c.gstin?' · '+esc(c.gstin):'')+'</div></div>'; }).join('')+SUGG_HINT;
   const inp=document.getElementById(srcId)||document.getElementById('qa_cname');
   const r=inp.getBoundingClientRect();
   box.style.left=r.left+'px'; box.style.top=(r.bottom+3)+'px'; box.style.width=Math.max(220,r.width)+'px';
   box.style.display='block';
+  // Fresh list, nothing highlighted: Enter still picks the top match, arrows move from there.
+  suggReset('custSuggestBox');
 }
 function custPick(i){
   const c=_custSugg[i]; if(!c) return;
   const set=function(id,v){ const e=document.getElementById(id); if(e) e.value=v||''; };
   set('qa_cname',c.name); set('qa_phone',c.phone); set('qa_address',c.address); set('qa_city',c.city); set('qa_state',c.state); set('qa_pin',c.pincode); set('qa_gstin',c.gstin);
-  const box=document.getElementById('custSuggestBox'); if(box) box.style.display='none';
+  suggClose('custSuggestBox');
   // Picked from the known-customers list, so this is a repeat customer, skip re-asking lead source.
   if(typeof setLeadSource==='function') setLeadSource('existing');
 }
-document.addEventListener('click',function(e){ if(!e.target.closest('#qa_cname,#qa_phone,#custSuggestBox')){ const b=document.getElementById('custSuggestBox'); if(b) b.style.display='none'; } });
+document.addEventListener('click',function(e){ if(!e.target.closest('#qa_cname,#qa_phone,#custSuggestBox')){ suggClose('custSuggestBox'); } });
 
 // ── 5.4 Marketplace settlement ingestion ────────────────────
 // Upload a Flipkart/Amazon settlement report → aggregate payout + fees by order ID
