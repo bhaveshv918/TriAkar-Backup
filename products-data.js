@@ -63,7 +63,7 @@ function enrichProduct(p, slug){
     p.ready_to_ship = !isCustom && cat !== 'custom' && Number(p.price) <= 1000;
   }
   if (!p.delivery_text){
-    p.delivery_text = p.ready_to_ship ? 'Ships today' : 'Delivers in 5–7 days';
+    p.delivery_text = p.ready_to_ship ? 'Ships today' : 'Delivers in 3 to 6 days';
   }
   if (!p.occasion){
     // Prefer occasions stored on the product (migration 004). Derive only as a

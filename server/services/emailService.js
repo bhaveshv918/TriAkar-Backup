@@ -197,7 +197,7 @@ export async function sendOrderProcessingUpdate(order) {
     </table>
     <div style="background:#f8f8f8;border-left:3px solid ${ACCENT};padding:14px 18px;border-radius:0 8px 8px 0;margin:0 0 24px;">
       <p style="margin:0;font-size:13px;color:#555;line-height:1.6;">
-        We will notify you again once your order is dispatched with tracking details. Most orders are dispatched within 3–7 business days.
+        We will notify you again once your order is dispatched with tracking details. Most orders reach you within 3 to 6 business days.
       </p>
     </div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;">
