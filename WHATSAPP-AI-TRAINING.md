@@ -51,14 +51,96 @@ API route. See [section 0](#0-where-each-block-goes) for what each setup can and
 
 ## 0. Where each block goes
 
+**Current decision, August 2026: WhatsApp Business app automations only.** No AI bot, no Cloud API,
+no backend build. The owner replies personally, the app handles the canned parts, and the app's own
+phone notifications are the alerting system. Everything else in this pack is the owner's reply
+playbook, not a machine's instructions.
+
+Setup walkthrough for that decision is in [section 0.1](#01-setup-walkthrough-do-this-today).
+Day to day, use `WHATSAPP-CHEATSHEET.md`, not this file. This file is the source of truth, the
+cheat sheet is what you actually read while typing on a phone.
+
+The other two routes, if this is revisited later:
+
 | Setup | Can it do silent owner notifications? | Which blocks to use |
 |---|---|---|
-| **A. Meta Business AI** (WhatsApp Business app, Settings > Business tools) | **No.** Closed product, no escalation hook. You would have to watch the inbox manually | Block 1 into business info, Block 2 short version into the instruction box, Blocks 13 and 11 into FAQ entries. Block 10 becomes a manual watching habit, not automation |
-| **B. WhatsApp Business app only** (no AI in your region yet) | No AI at all | Block 15 (greeting, away, quick replies). Blocks 3 to 12 become your own reply playbook |
-| **C. Cloud API via a BSP or your own backend** (Interakt, AiSensy, Wati, Gallabox, or Express on Render calling Claude) | **Yes.** This is the only setup that does what you described | Blocks 1 through 12 concatenated as the system prompt, plus Block 10 built as real code |
+| **A. Meta Business AI** (Settings > Business tools, if the entry appears) | **No.** Closed product, no escalation hook, no file checking, no takeover | Block 1 into business info, Block 2 short version into the instruction box, Blocks 13 and 11 into FAQ entries |
+| **B. WhatsApp Business app only** ← **current choice** | No AI, but the app notifies you on every message, which is the point | Block 15 pasted into the app. Blocks 3 to 12 become your own reply playbook |
+| **C. Cloud API via a BSP or your own backend** | **Yes.** The only setup that does the Block 10 design | Blocks 1 through 12 as the system prompt, plus Block 10 built as real code |
 
-You have Meta Verified Essential. Check **Settings > Business tools** for an AI entry. Even if it
-is there, note the table above: the notification design you want needs Setup C.
+Two constraints worth knowing before ever choosing C: a phone number lives on the WhatsApp Business
+app **or** on the Cloud API, never both, so moving to C means the phone app stops working for that
+number. And WhatsApp only allows free-form replies within 24 hours of the customer's last message,
+after which only pre-approved templates go out.
+
+---
+
+## 0.1 Setup walkthrough, do this today
+
+Roughly 20 minutes on the phone. Menu wording shifts slightly between app versions, so if a label
+reads a little differently, look for the nearest match under Business tools.
+
+### 1. Finish the business profile first
+
+**Settings > Business tools > Business profile.** This is the trust surface. Fear 3 in Block 6 is
+"is this a real shop", and a complete profile answers it before anyone asks.
+
+Fill in: business name TriAkar, category, the studio address (Shop No. 25, Karan Singh Market,
+Chhoti Milak, Greater Noida West, UP 201307), hours Monday to Saturday 11 AM to 8 PM with Sunday
+closed, website triakar.com, email hello@triakar.com, and a description. Add a real photo of the
+studio, not a logo, if you have one.
+
+### 2. Greeting message
+
+**Settings > Business tools > Greeting message.** Turn it on, set recipients to everyone, paste the
+greeting from [Block 15](#block-15-fallback-no-ai-available).
+
+Know the limit: WhatsApp only sends a greeting to someone messaging for the first time, or after a
+long gap in the conversation. It is not a reply to every message, so do not treat it as one.
+
+### 3. Away message
+
+**Settings > Business tools > Away message.** Turn it on, choose the scheduled option, and set
+custom hours so it fires outside 11 AM to 8 PM and all day Sunday. Paste the away message from
+Block 15.
+
+### 4. Quick replies, the highest value 20 minutes here
+
+**Settings > Business tools > Quick replies.** Add all 15 from Block 15. Each one is a shortcut plus
+a message. In a chat you type `/` and the shortcut, and the message drops in.
+
+Add these first, they carry the most weight: `/ref`, `/exp`, `/file`, `/cod`, `/urgent`, `/ship`,
+`/one`, `/trust`, `/mat`.
+
+`/ref`, `/cod` and `/one` alone will save you the most typing, because those three questions come
+up in almost every first conversation.
+
+### 5. Labels
+
+**Settings > Business tools > Labels.** Create the list from the end of Block 15. Label every chat
+as it moves. The two that matter most are `Lost, price` and `Lost, no COD`, because after a month
+they tell you what your pricing and your payment policy actually cost you, in real numbers rather
+than a feeling.
+
+### 6. Notifications, so nothing is missed
+
+**Settings > Notifications.** Make sure message notifications are on, and give this number a
+distinct tone if your phone allows it, so a customer message sounds different from a personal one.
+
+This is now your alerting system. There is no RED and AMBER classifier without a backend, so the
+rule is simpler: every message is a notification, and you decide. Block 10's three levels are still
+worth reading as a mental model for what deserves your attention first.
+
+### 7. Catalogue, optional but worth it
+
+**Settings > Business tools > Catalogue.** Adding even 8 to 10 bestsellers lets a customer browse
+inside WhatsApp instead of being sent to the website and lost. Prices in rupees, one clean photo
+each.
+
+### 8. Test it on yourself
+
+Message the business number from another phone and check: greeting fires, `/ref` and `/cod` drop in
+cleanly, away message appears after 8 PM, and the notification actually reaches you.
 
 ---
 
