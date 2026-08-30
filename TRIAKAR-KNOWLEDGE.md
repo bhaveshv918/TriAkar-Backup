@@ -177,14 +177,25 @@ after the customer approves the design.
 
 ## Payment
 
-We accept UPI, credit cards, debit cards and net banking, all through Razorpay.
+There are two ways to pay, depending on where the order is placed.
+
+**On WhatsApp:** we send our GPay UPI QR code directly in the chat. The customer scans it and pays.
+
+**On the website:** checkout goes through Razorpay, which covers UPI, credit cards, debit cards and
+net banking.
+
+A GST invoice is available either way, the customer just needs to share their GSTIN.
 
 **We do not offer Cash on Delivery.** The reason is that every piece is made to order specially for
 that customer. Nothing goes out of existing stock, and once a customer's name or design is printed
 on a piece it cannot go to anyone else.
 
-Payment is always through a Razorpay link, never to a personal UPI number. A GST invoice is
-available, customers just need to share their GSTIN.
+**We never ask for a card number, CVV, OTP or UPI PIN.** Nobody from TriAkar will ever ask for
+those. Payment is only ever the customer scanning our QR or paying on our website.
+
+**The amount is always confirmed before any payment is requested.** For custom work the price
+depends on size, material, detail and quantity, so a QR code goes out only after the exact amount
+has been agreed with the customer.
 
 ---
 
@@ -260,7 +271,8 @@ We have every type of material available and high-end quality FDM machines. PLA+
 made from corn starch. Tell us where the piece will be used and we pick the right material.
 
 **Do you have Cash on Delivery?**
-No. Every piece is made to order specially for you, so payment is online through Razorpay, with a
+No. Every piece is made to order specially for you, so payment is online. On WhatsApp we send our
+GPay QR right in the chat, or you can pay on the website through Razorpay. Either way you get a
 GST invoice. If you live nearby you can also pick up from the studio.
 
 **How much will my custom item cost?**

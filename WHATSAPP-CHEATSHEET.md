@@ -87,7 +87,7 @@ Machine ka model number kabhi mat batana.
 > Wo branch hai, showroom nahi, toh browsing ke liye aana nahi hota. Order ready ho jaye toh pickup kar sakte hain, time fix kar lenge. Dekh kar lena hai toh Greater Noida West studio aa jaiye.
 
 **"COD nahi hai? Phir rehne do"**
-> COD isliye nahi rakha kyunki har piece order ke baad specially banta hai, stock se nahi jaata. Aapka naam print ho gaya toh wo kisi aur ko ja hi nahi sakta. Payment Razorpay se hoti hai, kisi personal number pe nahi, GST invoice bhi milta hai. Aas paas rehte hain toh studio se same day pickup bhi kar sakte hain.
+> COD isliye nahi rakha kyunki har piece order ke baad specially banta hai, stock se nahi jaata. Aapka naam print ho gaya toh wo kisi aur ko ja hi nahi sakta. Payment aasan hai, yahin hamara GPay QR bhej dete hain, ya website pe Razorpay se kar sakte hain. GST invoice dono mein milta hai. Aas paas rehte hain toh studio se same day pickup bhi kar sakte hain.
 
 **"Waisa hi banega jaisa socha hai?"**
 > Print se pehle design aapko dikha dete hain, toh koi surprise nahi hoga.
@@ -136,7 +136,7 @@ Customer se **type** karwao, phir wapas bhej ke confirm karo:
 | Price range | ₹149 se ₹5,000+ |
 | Guarantee | 7-Day Reprint Guarantee |
 | Cancel | confirm aur payment ke baad nahi hota |
-| COD | nahi hai, Razorpay only |
+| COD | nahi hai. WhatsApp pe GPay QR, website pe Razorpay |
 
 ---
 

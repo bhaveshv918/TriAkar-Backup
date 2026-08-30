@@ -167,7 +167,8 @@ Email: hello@triakar.com
 Website: https://www.triakar.com
 Instagram: @triakarofficial
 Also on: Amazon and Flipkart
-Payments: UPI, credit card, debit card, net banking, all through Razorpay. Prices in INR.
+Payments: on WhatsApp we send our GPay UPI QR in the chat. On the website, Razorpay covers UPI,
+cards and net banking. GST invoice either way. Prices in INR.
 No Cash on Delivery.
 Machines: high-end quality FDM machines.
 Materials: every common material is available. PLA+ is the standard. PETG, ABS, ASA and TPU
@@ -591,7 +592,8 @@ the reason and de-risking the payment does.
 **Say:**
 > COD hum nahi rakhte, aur uski wajah hai. Har piece order ke baad specially banta hai, stock se
 > nahi jaata. Aapka naam ya design print ho gaya toh wo kisi aur ko ja hi nahi sakta.
-> Payment Razorpay se hoti hai, kisi personal number pe nahi. GST invoice bhi milta hai.
+> Payment aasan hai, yahin hamara GPay QR bhej dete hain, ya website pe Razorpay se kar sakte
+> hain. GST invoice dono mein milta hai.
 > Aur agar aap aas paas rehte hain, toh studio se same day pickup bhi kar sakte hain.
 
 ### 5. "Kitne ka padega? Custom matlab mehenga hoga."
@@ -987,7 +989,8 @@ the least friction.
 
 > Samajh sakta hoon. COD isliye nahi rakha kyunki har piece order ke baad specially banta hai, koi
 > ready stock nahi hota. Aapka naam ya design print ho gaya toh wo kisi aur ko ja hi nahi sakta.
-> Payment Razorpay se hoti hai, kisi personal number pe nahi, aur GST invoice bhi milta hai.
+> Payment aasan hai, yahin hamara GPay QR bhej dete hain, ya website pe Razorpay se kar sakte
+> hain. GST invoice dono mein milta hai.
 > Agar aap aas paas rehte hain toh studio se same day pickup bhi kar sakte hain.
 
 ### "Amazon pe isse sasta mil raha hai."
@@ -1254,10 +1257,12 @@ made from corn starch rather than petroleum. Tell us where the piece will be use
 the right material.
 
 **How do I pay?**
-UPI, cards or net banking through Razorpay. All prices in rupees.
+On WhatsApp we send you our GPay QR right here, just scan and pay. On the website it is Razorpay,
+which covers UPI, cards and net banking. GST invoice either way. All prices in rupees.
 
 **Do you have Cash on Delivery?**
-No COD. Every piece is made to order specially for you, so payment is online through Razorpay. You
+No COD. Every piece is made to order specially for you, so payment is online. We send our GPay QR
+right here, or you can pay on the website through Razorpay. You
 get a GST invoice. If you live nearby you can also pick up from the studio.
 
 **Can you recreate a broken plastic part?**
@@ -1364,7 +1369,7 @@ Tab tak dekh sakte hain: https://www.triakar.com/products
 | `/corp` | Corporate gifting ke liye: company ka naam, quantity (minimum 10), occasion aur deadline, logo file, aur per piece budget bhej dijiye. Options bana kar bhejte hain. |
 | `/mat` | Humare paas saare tarah ke material available hain, aur high-end quality ki FDM machines hain. Aap bata dijiye piece kahan aur kis kaam ke liye hai, sahi material hum choose kar denge. |
 | `/urgent` | Urgent ho jayega. Hum 24 ghante ke andar ready kar dete hain, uspe urgent charge lagta hai. Exact amount hum confirm karke bata denge. |
-| `/cod` | COD hum nahi rakhte, kyunki har piece order ke baad specially banta hai. Payment Razorpay se hoti hai, GST invoice ke saath. Aas paas rehte hain toh studio se same day pickup bhi kar sakte hain. |
+| `/cod` | COD hum nahi rakhte, kyunki har piece order ke baad specially banta hai. Payment ke liye yahin hamara GPay QR bhej dete hain, ya website pe Razorpay. GST invoice dono mein milta hai. Aas paas rehte hain toh studio se same day pickup bhi kar sakte hain. |
 | `/ship` | Normal delivery 3 se 6 working days, pure India mein. Working days matlab weekend aur festival holidays chhod kar. Delhi NCR aksar jaldi. 999 se upar shipping free. |
 | `/one` | Haan ji, hum ek piece bhi banate hain. Koi minimum nahi hai. |
 | `/trust` | Humara physical studio hai: Shop No. 25, Karan Singh Market, Greater Noida West. Google pe 5.0 rating, Amazon aur Flipkart pe bhi hum hain. Aa kar dekh sakte hain. |
@@ -1404,7 +1409,7 @@ and retest.
 | "mujhe PLA chahiye" | NOT ask who recommended it |
 | "kaunsi machine hai aapke paas?" | All materials available, high-end FDM, no model numbers |
 | "sirf ek piece chahiye" | "Haan ji, hum ek piece bhi banate hain" |
-| "COD hai kya" | Explain made-to-order, offer Razorpay and same-day studio pickup |
+| "COD hai kya" | Explain made-to-order, offer the GPay QR and same-day studio pickup, never just say no |
 | "delivery kitne din?" | "3 se 6 working days", weekends and festival holidays off |
 | "aap genuine ho?" | Studio address, Google rating, website, walk-in offer |
 | "car ke dashboard pe rakhna hai" | Warn PLA+ softens in heat, suggest ABS or ASA |
