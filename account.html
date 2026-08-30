@@ -539,6 +539,18 @@
            passkey yet and the device can make one. This is the moment people actually
            say yes: they have just proved who they are and have not started doing
            anything else. Skippable, and never shown on the way into checkout. -->
+      <!-- A recovery link that is expired, already used, or was opened in a different
+           browser than it was requested from. Its own screen because the old behaviour
+           was to show the password form anyway: the customer chose a password, typed it
+           twice, pressed Update, and only then got Supabase's raw "Auth session
+           missing!". Nothing they could do with that. -->
+      <div class="auth-form" id="resetDeadForm">
+        <div class="auth-form-title">This link has expired</div>
+        <p class="auth-form-sub" id="resetDeadSub">Password reset links are only good for a short while, and only once. Ask for a fresh one and it will be in your inbox in a moment.</p>
+        <button type="button" class="btn btn-dark auth-submit" onclick="showForgotForm()">Send me a new link →</button>
+        <div class="back-row"><button type="button" class="auth-link" onclick="switchTab('login')">← Back to sign in</button></div>
+      </div>
+
       <div class="auth-form" id="passkeySetupForm">
         <div class="pk-hero">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 11a4 4 0 0 0-4 4c0 1.5-.3 3-1 4.3"/><path d="M12 3a8 8 0 0 0-8 8c0 1.2-.2 2.4-.6 3.5"/><path d="M8 11a4 4 0 0 1 7.5-1.9"/><path d="M16 15c0 2-.4 4-1.2 5.8"/><path d="M12 15v1c0 1.7-.2 3.4-.7 5"/><path d="M20 11c0 3-.5 6-1.5 8.7"/></svg>
@@ -839,7 +851,7 @@ const STATUS_TEXT={
 function switchTab(tab){
   // tab: 'quick' | 'login' | 'signup' | 'forgot' | 'reset' | 'passkeysetup'
   const tabsBar=document.querySelector('.auth-tabs');
-  const forms=['quickForm','loginForm','signupForm','forgotForm','resetForm','passkeySetupForm'];
+  const forms=['quickForm','loginForm','signupForm','forgotForm','resetForm','resetDeadForm','passkeySetupForm'];
   forms.forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active')});
   document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('active'));
   if(tab==='passkeysetup'){
@@ -869,11 +881,49 @@ function switchTab(tab){
   }else if(tab==='reset'){
     if(tabsBar)tabsBar.style.display='none';
     document.getElementById('resetForm').classList.add('active');
+  }else if(tab==='resetdead'){
+    if(tabsBar)tabsBar.style.display='none';
+    document.getElementById('resetDeadForm').classList.add('active');
   }
 }
 function showForgotForm(){switchTab('forgot')}
 function showLoginForm(){switchTab('login')}
 function showResetForm(){switchTab('reset')}
+
+/* Supabase reports a bad recovery link as error/error_code/error_description. It
+   normally puts them in the hash, but a redirect can move them into the query string
+   (the live failure arrived as ?error=access_denied&error_code=otp_expired), so read
+   both rather than betting on one. Returns 'expired', 'used', 'invalid' or null. */
+function _recoveryLinkProblem(){
+  const q=new URLSearchParams(window.location.search||'');
+  const h=new URLSearchParams((window.location.hash||'').replace(/^#/,''));
+  const get=k=>q.get(k)||h.get(k);
+  const code=get('error_code'), err=get('error');
+  if(!code&&!err) return null;
+  const desc=(get('error_description')||'').replace(/\+/g,' ');
+  if(code==='otp_expired'||/expired/i.test(desc)) return 'expired';
+  if(/already|used/i.test(desc)) return 'used';
+  return 'invalid';
+}
+
+function showResetDead(kind){
+  const sub=document.getElementById('resetDeadSub');
+  const title=document.querySelector('#resetDeadForm .auth-form-title');
+  if(kind==='used'&&title){
+    title.textContent='This link has already been used';
+    sub.textContent='A reset link works once. If you still need to change your password, ask for a fresh one.';
+  }else if(kind==='invalid'&&title){
+    title.textContent='This link did not work';
+    sub.textContent='It may have been cut short by your email app, or opened in a different browser than the one you asked from. Ask for a new one and open it in the same browser.';
+  }
+  switchTab('resetdead');
+  // Strip the error noise out of the address bar so a refresh does not replay it.
+  try{
+    const u=new URL(window.location.href);
+    ['error','error_code','error_description','reset','sb'].forEach(k=>u.searchParams.delete(k));
+    window.history.replaceState({},'',u.pathname+(u.search||''));
+  }catch(_){}
+}
 
 /* ── Password eye toggle ── */
 function togglePwEye(btn,inputId){
@@ -950,7 +1000,14 @@ async function handleReset(e){
       try{const u=new URL(window.location.href);u.searchParams.delete('reset');window.history.replaceState({},'',u.pathname+u.search)}catch(e){}
       switchTab('login');
     },2000);
-  }catch(err){showMsg('resetMsg',err.message||'Could not update password.','err')}
+  }catch(err){
+    // "Auth session missing!" is Supabase telling us the recovery link never took.
+    // Shown verbatim it is meaningless to a customer who has just typed a password
+    // twice, so send them to the screen that actually has the way out.
+    const raw=err&&err.message||'';
+    if(/session missing|not authenticated|jwt|token/i.test(raw)){ showResetDead('expired'); return; }
+    showMsg('resetMsg',raw||'Could not update password. Please try again.','err');
+  }
   finally{btn.textContent='Update Password →';btn.disabled=false}
 }
 
@@ -2726,8 +2783,36 @@ document.addEventListener('DOMContentLoaded',function(){
   // Handle ?reset=true → show reset form, hide login/signup
   const params=new URLSearchParams(window.location.search);
   if(params.get('reset')==='true'){
-    // Wait briefly so Supabase can process the recovery token in the URL hash
+    const linkProblem=_recoveryLinkProblem();
+    if(linkProblem){ showResetDead(linkProblem); return; }
     switchTab('reset');
+    // Supabase applies the recovery token from the URL asynchronously, so there is no
+    // session on the first tick. Wait for one, and if none arrives the link was dead.
+    // Without this the form sits there looking usable and only fails after the
+    // customer has already chosen and confirmed a new password.
+    //
+    // Event-driven, not a poll: a single getSession() call takes the best part of a
+    // second because supabase-js waits on its own lock, so polling it 24 times meant
+    // the customer stared at a working-looking form for 24 seconds before being told
+    // the link was dead. onAuthStateChange fires the moment the token is applied.
+    (function(){
+      let recovered=false, sub=null;
+      const settle=()=>{ try{ sub&&sub.unsubscribe(); }catch(_){} };
+      try{
+        const r=sb.auth.onAuthStateChange(function(_event,session){
+          if(session){ recovered=true; settle(); }
+        });
+        sub=r&&r.data&&r.data.subscription;
+      }catch(_){}
+      // Covers a token that was already applied before the listener attached.
+      try{ sb.auth.getSession().then(function(res){
+        if(res&&res.data&&res.data.session){ recovered=true; settle(); }
+      }).catch(function(){}); }catch(_){}
+      setTimeout(function(){
+        settle();
+        if(!recovered) showResetDead('expired');
+      },6000);
+    })();
     return;
   }
 
