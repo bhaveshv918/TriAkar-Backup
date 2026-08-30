@@ -40,9 +40,11 @@ const LISTING_SCHEMA = {
 
 export async function generateListing(req, res, next) {
   try {
-    // A11: admin may supply a key per-request (never persisted); else use the server env key.
-    if (!process.env.ANTHROPIC_API_KEY && !req.body.apiKey) {
-      return res.status(500).json({ error: 'No Anthropic key — set ANTHROPIC_API_KEY on the server or enter one in the import form' });
+    // The key lives on the server only. It used to be accepted per-request from the
+    // admin panel, which meant a real secret sat in the browser's localStorage where
+    // any XSS could read it. Nothing about the key ever reaches the browser now.
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(500).json({ error: 'No Anthropic key. Set ANTHROPIC_API_KEY on the server.' });
     }
 
     const { url, material, print_hours, filament_cost, markup } = req.body;
@@ -67,7 +69,7 @@ export async function generateListing(req, res, next) {
       `MakerWorld URL: ${url} Material: ${material} Print time: ${hours} hours Filament cost: ₹${cost} Target markup: ${mult}x\n` +
       `Please generate a TriAkar product listing for this item. Use the URL to infer the product name and use case (you cannot fetch URLs, so work from the URL slug and any context in it). Write as if you have printed this item and are describing it from experience.`;
 
-    const anthropic = new Anthropic(req.body.apiKey ? { apiKey: String(req.body.apiKey) } : undefined);
+    const anthropic = new Anthropic();   // reads ANTHROPIC_API_KEY from the environment
     const response = await anthropic.messages.create({
       model: MODEL,
       max_tokens: 2048,

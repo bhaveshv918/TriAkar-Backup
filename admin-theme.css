@@ -210,7 +210,32 @@ tbody tr{transition:background .15s ease}
 tr:hover td{background:var(--tri-orange-light)!important}
 tbody tr:hover{background:var(--tri-orange-light)}
 
-/* Focus ring, one system for every input in both panels */
+/* Corner radius, one system for every input in both panels, matching the pill
+   buttons here and the pill form fields on the customer site.
+
+   !important is doing real work rather than papering over a specificity fight:
+   between them admin.html and admin-biz.html carry ~57 controls with a hard-coded
+   border-radius in a style attribute, and an inline declaration beats any stylesheet
+   rule that is not !important. Chasing all 57 by hand would leave the next inline
+   control someone adds looking wrong again, so the radius lives here as a token.
+
+   Excluded on purpose: checkbox, radio, range and color are native controls whose
+   shape is drawn by the browser, and file inputs render a button inside the field. */
+input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]),
+select{
+  border-radius:999px!important;
+}
+/* A pill only reads right on a single-line control. A multi-line box with a 999px
+   radius curves its first and last lines inward, so textareas get a soft corner. */
+textarea{border-radius:16px!important}
+
+/* Padding is deliberately left alone. On a single-line pill the text sits on the
+   vertical centre line, which is exactly where the curve is widest, so the existing
+   10-12px insets still clear it. Forcing more would only loosen the dense grids. */
+
+/* Focus ring, one system for every input in both panels. A box-shadow ring follows
+   whatever border-radius the control has, so it stays a clean outline on the pills
+   above rather than a rectangle around them. */
 input:focus,select:focus,textarea:focus{
   border-color:var(--tri-orange)!important;
   box-shadow:0 0 0 3px var(--tri-orange-dim)!important;

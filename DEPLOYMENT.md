@@ -198,6 +198,13 @@ No environment variables needed — the frontend is static HTML/JS. The Render A
 **Products page shows nothing**  
 → Confirm the schema SQL was run and `products` table has rows — add one via the admin panel first
 
+**Admin two-factor: the authenticator app is lost**  
+→ Nobody is ever locked out, the service role sits underneath the second factor. From the `server` folder run `node --env-file=.env scripts/mfa-reset.mjs --list` to see what is enrolled, then the same command without `--list` to delete it. That drops the account back to password-only sign-in. Give it 60 seconds if the API still refuses, `requireAdmin` caches the factor lookup for a minute in its fallback path. Expect to be signed out everywhere, Supabase revokes sessions when a verified factor is deleted. Then sign in with the password and turn 2FA back on from admin Settings, saving the secret key offline this time.
+→ Last resort, if the script cannot run: Supabase SQL Editor, `delete from auth.mfa_factors where user_id = (select id from auth.users where email = 'bhaveshv918@gmail.com');`
+
+**Admin API returns 403 `mfa_required` but the panel let you in**  
+→ A stale access token from before 2FA was enrolled. Sign out of the admin panel and back in so the session is reissued at aal2. The customer-facing site is unaffected either way.
+
 ---
 
 *Last updated: 2026-05-17 | Stack: Node + Supabase + Razorpay + Vercel + Render*
