@@ -90,6 +90,13 @@ AS $$
   SELECT COALESCE((SELECT auth.email()), '') = 'bhaveshv918@gmail.com';
 $$;
 
+-- The column has to exist BEFORE staff_branch() is created. Postgres validates the
+-- body of a LANGUAGE sql function at CREATE time (check_function_bodies is on by
+-- default), so declaring the function first fails with
+-- `column "branch_id" does not exist`. Do not reorder these two.
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS branch_id TEXT REFERENCES public.biz_branches(id);
+
 -- The branch a staff account is pinned to. NULL for the owner, for the service role
 -- (backend writes, where auth.uid() is null) and for anyone who is not staff.
 -- A staff row with a NULL branch_id therefore sees NOTHING rather than everything,
@@ -101,9 +108,6 @@ AS $$
   SELECT branch_id FROM public.profiles
    WHERE id = (SELECT auth.uid()) AND role = 'staff';
 $$;
-
-ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS branch_id TEXT REFERENCES public.biz_branches(id);
 
 -- biz_branches visibility: the storefront reads the public ones anonymously (so an
 -- address fix needs no redeploy), staff read their own, the owner reads and writes all.
