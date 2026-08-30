@@ -456,6 +456,17 @@ DROP POLICY IF EXISTS biz_activity_select ON public.biz_activity_log;
 CREATE POLICY biz_activity_select ON public.biz_activity_log
   FOR SELECT TO authenticated USING ((SELECT public.is_biz_owner()));
 
+-- Self-register, guarded in case schema_migrations does not exist yet (it comes from
+-- 20260723_record_id_extension_and_hardening.sql). This is what makes
+-- "have I already run this one?" answerable with a query instead of from memory.
+DO $$
+BEGIN
+  IF to_regclass('public.schema_migrations') IS NOT NULL THEN
+    INSERT INTO schema_migrations (filename) VALUES ('20260830_branches.sql')
+    ON CONFLICT (filename) DO NOTHING;
+  END IF;
+END $$;
+
 -- ════════════════════════════════════════════════════════════════════════════════
 -- VERIFY (run these after the migration)
 -- ════════════════════════════════════════════════════════════════════════════════
