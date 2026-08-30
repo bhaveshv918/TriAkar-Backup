@@ -2023,17 +2023,41 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
   </div>
 
   <!-- ── ACTIVITY LOG PANEL (Module 7) ────────────── -->
+  <!-- Team Activity. Every add, edit and delete across both panels and both
+       branches, merged from the admin API's own log, Business OS's log, and the
+       database audit trail that records the actual before/after values. An edit
+       row expands into a field-by-field diff. -->
   <div class="panel" id="panelActivity">
     <div class="p-head">
-      <div class="p-title">Activity Log</div>
-      <div class="p-actions">
+      <div class="p-title">Team Activity</div>
+      <div class="p-actions" style="flex-wrap:wrap;gap:8px">
+        <select id="actBranch" onchange="loadActivity()" style="color:var(--text);font-size:12px" title="Branch"></select>
+        <select id="actWho" onchange="loadActivity()" style="color:var(--text);font-size:12px" title="Person">
+          <option value="">Everyone</option>
+        </select>
+        <select id="actAction" onchange="loadActivity()" style="color:var(--text);font-size:12px" title="What happened">
+          <option value="">All actions</option>
+          <option value="create">Added</option>
+          <option value="edit">Edited</option>
+          <option value="delete">Deleted</option>
+        </select>
+        <select id="actRange" onchange="loadActivity()" style="color:var(--text);font-size:12px" title="Period">
+          <option value="7">Last 7 days</option>
+          <option value="30" selected>Last 30 days</option>
+          <option value="90">Last 90 days</option>
+          <option value="">All time</option>
+        </select>
         <input type="text" id="activitySearch" placeholder="Search activity…" oninput="renderActivity()" style="min-width:160px;color:var(--text);font-size:12px">
+        <button class="btn-secondary" style="padding:6px 12px" onclick="exportActivityCsv()">Export CSV</button>
       </div>
+    </div>
+    <div style="font-size:11px;color:var(--text-3);padding:0 0 10px;line-height:1.6">
+      Rows marked <span style="font-family:var(--mono)">db</span> come from the database audit trail. Those are recorded by the database itself, so they cannot be skipped by the panel and they include exactly which fields changed. Click any edited row to see the before and after values.
     </div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Type</th><th>Detail</th></tr></thead>
-        <tbody id="activityBody"><tr><td colspan="5" class="tbl-msg">Loading…</td></tr></tbody>
+        <thead><tr><th style="width:132px">When</th><th>Who</th><th style="width:90px">Branch</th><th style="width:80px">Action</th><th>What</th><th>Detail</th></tr></thead>
+        <tbody id="activityBody"><tr><td colspan="6" class="tbl-msg">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2046,6 +2070,21 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
       </div>
     </div>
     <div style="max-width:680px">
+      <!-- Branches. This is the operational record: it drives the branch picker in
+           Business OS, which branch a staff account is pinned to, and the pincode
+           rules that route incoming orders. The addresses printed on the website
+           pages themselves are static HTML for SEO reasons and are edited in the
+           page source, which is why that is spelled out here rather than implied. -->
+      <div style="padding:14px 16px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+          <div style="font-weight:700;font-size:13px">Branches <span style="font-weight:400;color:var(--text-3);font-size:11px">· locations you operate from</span></div>
+          <button class="btn-secondary" style="padding:6px 12px" onclick="openBranchEditor('')">+ Add branch</button>
+        </div>
+        <div id="branchList" style="display:flex;flex-direction:column;gap:8px"><div style="font-size:12px;color:var(--text-3)">Loading…</div></div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:10px;line-height:1.6">
+          Editing a branch here changes how it behaves inside Business OS, which staff account belongs to it, and which pincodes route to it. It does not rewrite the address printed on the public pages, that text lives in the page source so search engines see it without running any JavaScript.
+        </div>
+      </div>
       <div style="padding:14px 16px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px">
         <div style="font-weight:700;font-size:13px;margin-bottom:10px">Announcement bar <span style="font-weight:400;color:var(--text-3);font-size:11px">· the rotating notices at the very top of every page</span></div>
         <label class="form-label">Notice 1</label><input id="cAnn1" class="form-input" placeholder="Free shipping above ₹999 · ₹99 below ₹999">
@@ -2060,12 +2099,24 @@ html[data-theme="dark"] .ms-card:hover{box-shadow:0 8px 22px rgba(0,0,0,.32)!imp
           <div><label class="form-label">Contact email</label><input id="cEmail" class="form-input" placeholder="hello@triakar.com"></div>
         </div>
       </div>
-      <!-- Round-2 #4, Anthropic key moved here from the MakerWorld page -->
+      <!-- The Anthropic key used to be typed here and kept in localStorage. A real
+           secret sitting in browser storage is readable by any XSS on this page, so it
+           now lives only in the server's ANTHROPIC_API_KEY env var on Render. -->
       <div style="padding:14px 16px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px">
         <div style="font-weight:700;font-size:13px;margin-bottom:4px">Claude (Anthropic) API key <span style="font-weight:400;color:var(--text-3);font-size:11px">· used by MakerWorld listing generation</span></div>
-        <div style="font-size:11px;color:var(--text-3);margin-bottom:8px">Stored only in this browser, never sent to the database. Leave blank to use the server's key.</div>
-        <input type="password" id="anthropicKeyField" placeholder="sk-ant-…" autocomplete="off" onchange="try{localStorage.setItem('ta_anthropic_key',this.value.trim())}catch(e){}" style="width:100%;max-width:420px;padding:8px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:8px">
-        <script>try{var _akf=document.getElementById('anthropicKeyField');if(_akf)_akf.value=localStorage.getItem('ta_anthropic_key')||'';}catch(e){}</script>
+        <div style="font-size:11px;color:var(--text-3)">Now stored server side only, as the <code>ANTHROPIC_API_KEY</code> environment variable on Render. It is never sent to the browser and cannot be set from here. To rotate it, update the Render environment variable and redeploy.</div>
+        <div id="anthropicKeyPurged" style="font-size:11px;color:var(--green);margin-top:8px;display:none">The old key that was saved in this browser has been removed. Rotate it in the Anthropic console if it was ever exposed.</div>
+        <script>
+        // One-time cleanup: browsers that used the old Settings field still have the key
+        // sitting in localStorage. Clear it on sight so the secret does not outlive the
+        // feature that put it there.
+        try{
+          if(localStorage.getItem('ta_anthropic_key')!==null){
+            localStorage.removeItem('ta_anthropic_key');
+            var _akp=document.getElementById('anthropicKeyPurged'); if(_akp)_akp.style.display='block';
+          }
+        }catch(e){}
+        </script>
       </div>
       <!-- A7 Document Customization moved to Business OS → Settings (Round-2 #6) -->
       <div style="padding:12px 16px;background:var(--bg-1);border:1px dashed var(--border);border-radius:var(--radius);margin-bottom:16px;font-size:12px;color:var(--text-3)">Document layout settings (what shows on invoices &amp; order records) now live in <b>Business OS → Settings → Document Settings</b>. Invoices generated here still use them automatically, it's one shared setting.</div>
@@ -2845,24 +2896,224 @@ function toggleNotifications(ev){
 
 async function loadActivity(){
   const tbody=document.getElementById('activityBody'); if(!tbody)return;
+  await ensureBranches();
+  const p=new URLSearchParams();
+  const g=id=>document.getElementById(id)?.value||'';
+  if(g('actBranch')) p.set('branch',g('actBranch'));
+  if(g('actWho'))    p.set('actor', g('actWho'));
+  if(g('actAction')) p.set('action',g('actAction'));
+  const days=g('actRange');
+  if(days){ p.set('from', new Date(Date.now()-Number(days)*864e5).toISOString()); }
   try{
-    const {activity}=await adminApi('/api/admin/activity');
-    _activity=activity||[]; renderActivity();
-  }catch(e){ tbody.innerHTML='<tr><td colspan="5" class="tbl-msg" style="color:#B91C1C">Error: '+esc(e.message)+'</td></tr>'; }
+    const {activity}=await adminApi('/api/admin/activity'+(p.toString()?'?'+p:''));
+    _activity=activity||[];
+    fillActivityPeople();
+    renderActivity();
+  }catch(e){ tbody.innerHTML='<tr><td colspan="6" class="tbl-msg" style="color:#B91C1C">Error: '+esc(e.message)+'</td></tr>'; }
+}
+
+// Built from whoever actually shows up in the feed, rather than from the user list:
+// the point of this filter is "show me only what this person did", and only people
+// with activity can satisfy that.
+function fillActivityPeople(){
+  const sel=document.getElementById('actWho'); if(!sel)return;
+  const cur=sel.value;
+  const people=[...new Set(_activity.map(a=>a.actor).filter(Boolean))].sort();
+  sel.innerHTML='<option value="">Everyone</option>'
+    +people.map(p=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join('');
+  if(people.includes(cur)) sel.value=cur;
+}
+
+const ACT_VERB={create:['Added','var(--green)'],edit:['Edited','var(--blue,#2563EB)'],delete:['Deleted','#B91C1C']};
+// A whole row of column names is unreadable at a glance, and the noisy ones
+// (timestamps the database maintains itself) are never what the owner is looking for.
+const AUDIT_NOISE_FIELDS=new Set(['updated_at','created_at','id']);
+function activityFields(a){
+  const f=(a.changed_fields||[]).filter(k=>!AUDIT_NOISE_FIELDS.has(k));
+  return f;
 }
 function renderActivity(){
   const tbody=document.getElementById('activityBody'); if(!tbody)return;
   const q=(document.getElementById('activitySearch')?.value||'').toLowerCase();
-  let list=_activity;
-  if(q) list=list.filter(a=>((a.actor_email||'')+' '+(a.action||'')+' '+(a.entity_type||'')+' '+(a.detail||'')).toLowerCase().includes(q));
-  if(!list.length){ tbody.innerHTML='<tr><td colspan="5" class="tbl-msg">No activity yet.</td></tr>'; return; }
-  tbody.innerHTML=list.map(a=>'<tr>'
-    +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(a.created_at)+'</td>'
-    +'<td style="font-size:11px;font-family:var(--mono)">'+esc(a.actor_email||'N/A')+'</td>'
-    +'<td><span style="font-size:11px;font-weight:600">'+esc(a.action||'')+'</span></td>'
-    +'<td style="font-size:11px;color:var(--text-3)">'+esc(a.entity_type||'N/A')+'</td>'
-    +'<td style="font-size:12px">'+esc(a.detail||'N/A')+'</td>'
-    +'</tr>').join('');
+  let list=_activity||[];
+  if(q) list=list.filter(a=>((a.actor||'')+' '+(a.action||'')+' '+(a.entity||'')+' '+(a.entity_id||'')+' '+(a.detail||'')+' '+(a.changed_fields||[]).join(' ')).toLowerCase().includes(q));
+  if(!list.length){ tbody.innerHTML='<tr><td colspan="6" class="tbl-msg">Nothing in this period.</td></tr>'; return; }
+  tbody.innerHTML=list.map((a,i)=>{
+    const [verb,colour]=ACT_VERB[a.action_kind]||[a.action||'',"var(--text-2)"];
+    const fields=activityFields(a);
+    const expandable=a.source==='audit'&&(a.before||a.after);
+    const detail=a.detail
+      ? esc(a.detail)
+      : (fields.length
+          ? '<span style="color:var(--text-3)">changed</span> '+fields.slice(0,6).map(f=>'<span style="font-family:var(--mono);font-size:11px">'+esc(f)+'</span>').join(', ')+(fields.length>6?' <span style="color:var(--text-3)">and '+(fields.length-6)+' more</span>':'')
+          : '<span style="color:var(--text-3)">N/A</span>');
+    const srcTag=a.source==='audit'
+      ? '<span style="font-family:var(--mono);font-size:9px;padding:1px 5px;border-radius:4px;background:var(--bg-3);color:var(--text-3);margin-left:6px" title="Recorded by the database itself">db</span>'
+      : '';
+    const branchCell=a.branch_id
+      ? '<span style="font-size:11px;font-weight:600">'+esc(_branchesCache.find(b=>b.id===a.branch_id)?.short_name||a.branch_id)+'</span>'
+      : '<span style="font-size:11px;color:var(--text-3)">N/A</span>';
+    return '<tr'+(expandable?' onclick="toggleActivityDiff('+i+')" style="cursor:pointer"':'')+'>'
+      +'<td style="font-size:11px;white-space:nowrap">'+fmtDateTimeIST(a.created_at)+'</td>'
+      +'<td style="font-size:11px;font-family:var(--mono)">'+esc(a.actor||'system')
+        +(a.actor_role==='staff'?' <span style="font-family:var(--font);font-size:9px;color:var(--text-3)">staff</span>':'')+'</td>'
+      +'<td>'+branchCell+'</td>'
+      +'<td><span style="font-size:11px;font-weight:700;color:'+colour+'">'+esc(verb)+'</span></td>'
+      +'<td style="font-size:11px;color:var(--text-2)">'+esc(a.entity||'N/A')
+        +(a.entity_id?'<div style="font-family:var(--mono);font-size:10px;color:var(--text-3)" title="'+esc(a.entity_id)+'">'+esc(String(a.entity_id).slice(0,24))+'</div>':'')+'</td>'
+      +'<td style="font-size:12px">'+detail+srcTag+'</td>'
+      +'</tr>'
+      +(expandable?'<tr id="actDiff'+i+'" style="display:none"><td colspan="6" style="padding:0">'+activityDiffHtml(a)+'</td></tr>':'');
+  }).join('');
+}
+function toggleActivityDiff(i){
+  const el=document.getElementById('actDiff'+i); if(!el)return;
+  el.style.display=el.style.display==='none'?'table-row':'none';
+}
+function activityDiffHtml(a){
+  const before=a.before||{}, after=a.after||{};
+  const val=v=>v==null||v===''?'<span style="color:var(--text-3)">empty</span>':esc(typeof v==='object'?JSON.stringify(v):String(v));
+  const hd=t=>'<th style="text-align:left;font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">'+t+'</th>';
+  const shell=inner=>'<div style="padding:12px 14px;background:var(--bg-2);border-top:1px solid var(--border)">'+inner+'</div>';
+
+  // An add or a delete has only one side. A two-column table there would print
+  // "empty" against every single field, which reads as a bug rather than as the
+  // record simply not existing on that side.
+  if(a.action_kind!=='edit'){
+    const row=a.action_kind==='delete'?before:after;
+    const keys=Object.keys(row).filter(k=>!AUDIT_NOISE_FIELDS.has(k)&&row[k]!=null&&row[k]!=='');
+    if(!keys.length) return shell('<div style="font-size:12px;color:var(--text-3)">No field-level detail recorded.</div>');
+    return shell(
+      '<div style="font-size:11px;color:var(--text-3);margin-bottom:6px">'
+        +(a.action_kind==='delete'?'The record as it was, just before it was deleted':'The record as it was created')+'</div>'
+      +'<table style="width:100%;font-size:12px"><thead><tr>'+hd('Field')+hd('Value')+'</tr></thead><tbody>'
+      +keys.map(k=>'<tr><td style="font-family:var(--mono);font-size:11px;padding:3px 0;width:180px">'+esc(k)+'</td>'
+        +'<td style="padding:3px 0">'+val(row[k])+'</td></tr>').join('')
+      +'</tbody></table>');
+  }
+
+  const keys=activityFields(a);
+  if(!keys.length) return shell('<div style="font-size:12px;color:var(--text-3)">No field-level detail recorded.</div>');
+  return shell(
+    '<table style="width:100%;font-size:12px"><thead><tr>'+hd('Field')+hd('Before')+hd('After')+'</tr></thead><tbody>'
+    +keys.map(k=>'<tr>'
+      +'<td style="font-family:var(--mono);font-size:11px;padding:3px 0;width:180px">'+esc(k)+'</td>'
+      +'<td style="padding:3px 0;color:#B91C1C">'+val(before[k])+'</td>'
+      +'<td style="padding:3px 0;color:var(--green)">'+val(after[k])+'</td>'
+    +'</tr>').join('')
+    +'</tbody></table>');
+}
+function exportActivityCsv(){
+  const rows=[['When','Who','Role','Branch','Action','What','Record','Changed fields','Detail','Source']];
+  (_activity||[]).forEach(a=>rows.push([
+    a.created_at||'', a.actor||'', a.actor_role||'', a.branch_id||'',
+    (ACT_VERB[a.action_kind]||[a.action])[0], a.entity||'', a.entity_id||'',
+    (a.changed_fields||[]).join(' '), a.detail||'', a.source||'',
+  ]));
+  const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  const a=document.createElement('a');
+  a.href=url; a.download='triakar-activity-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+// ── Branches ────────────────────────────────────────────────
+// Shared by the Activity filter, the staff Branch picker and the Branches card in
+// Site Content. Written straight through the browser client, same as site_settings:
+// biz_branches carries an owner-only write policy, so RLS is the gate.
+async function renderBranchList(){
+  const wrap=document.getElementById('branchList'); if(!wrap)return;
+  await ensureBranches(true);
+  if(!_branchesCache.length){
+    wrap.innerHTML='<div style="font-size:12px;color:var(--text-3)">No branches yet. If you expected two here, the 20260830_branches.sql migration has not been run in Supabase.</div>';
+    return;
+  }
+  wrap.innerHTML=_branchesCache.map(b=>
+    '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius)">'
+    +'<span style="width:8px;height:8px;border-radius:50%;margin-top:5px;flex:none;background:'+esc(b.color||'#888')+'"></span>'
+    +'<div style="flex:1;min-width:0">'
+      +'<div style="font-size:13px;font-weight:700">'+esc(b.name)+(b.is_active?'':' <span style="font-size:10px;font-weight:600;color:var(--text-3)">inactive</span>')+'</div>'
+      +'<div style="font-size:11px;color:var(--text-3);margin-top:2px">'+esc([b.address_line,b.locality,b.city,b.state,b.pincode].filter(Boolean).join(', ')||'No address set')+'</div>'
+      +'<div style="font-size:11px;color:var(--text-3);margin-top:3px">'
+        +(b.walk_ins?'Walk-ins welcome':'No walk-ins')+(b.pickup?' · Pickup available':'')
+        +(b.is_public?'':' · Hidden from the website')
+      +'</div>'
+    +'</div>'
+    +'<button class="btn-secondary" style="padding:5px 10px" onclick="openBranchEditor(\''+esc(b.id)+'\')">Edit</button>'
+    +'</div>').join('');
+}
+let _editingBranchId=null;
+function openBranchEditor(id){
+  _editingBranchId=id||null;
+  const b=_branchesCache.find(x=>x.id===id)||{};
+  const f=(label,key,val,ph)=>'<label style="display:block;margin-bottom:10px"><span style="display:block;font-size:11px;color:var(--text-3);margin-bottom:3px">'+label+'</span>'
+    +'<input id="bf_'+key+'" value="'+esc(val==null?'':val)+'" placeholder="'+esc(ph||'')+'" class="form-input"></label>';
+  const chk=(label,key,val,note)=>'<label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;margin-bottom:8px;cursor:pointer">'
+    +'<input type="checkbox" id="bf_'+key+'"'+(val?' checked':'')+' style="margin-top:2px">'
+    +'<span>'+label+(note?'<span style="display:block;font-size:11px;color:var(--text-3)">'+note+'</span>':'')+'</span></label>';
+  document.getElementById('bmTitle').textContent=id?'Edit branch':'Add branch';
+  document.getElementById('bmSave').textContent=id?'Save branch':'Create branch';
+  document.getElementById('bmBody').innerHTML=
+    (id
+      ? '<div style="font-size:11px;color:var(--text-3);margin-bottom:12px">ID <span style="font-family:var(--mono)">'+esc(id)+'</span>. Fixed once created, because every order, expense and staff account points at it.</div>'
+      : f('ID (lowercase, no spaces)','id','','e.g. jaipur'))
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">'
+      +f('Full name','name',b.name,'Sohna Branch, Gurugram')
+      +f('Short name','short_name',b.short_name,'Gurugram')
+    +'</div>'
+    +f('Address line','address_line',b.address_line)
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">'
+      +f('Locality','locality',b.locality)+f('City','city',b.city)
+      +f('State','state',b.state)+f('Pincode','pincode',b.pincode)
+      +f('Phone','phone',b.phone)+f('Colour','color',b.color||'#C4622A','#C4622A')
+    +'</div>'
+    +f('Maps link','maps_url',b.maps_url)
+    +'<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">'
+      +chk('Walk-ins welcome here','walk_ins',b.walk_ins,'Leave off for a fulfilment branch. This is what stops the site inviting people to turn up.')
+      +chk('Pickup available','pickup',b.pickup!==false)
+      +chk('Show on the website','is_public',b.is_public!==false)
+      +chk('Active','is_active',b.is_active!==false,'Inactive branches disappear from the Business OS picker but keep their history.')
+    +'</div>';
+  document.getElementById('branchModal').style.display='flex';
+}
+function closeBranchModal(){ document.getElementById('branchModal').style.display='none'; _editingBranchId=null; }
+async function saveBranch(){
+  const id=_editingBranchId;
+  const v=k=>document.getElementById('bf_'+k)?.value.trim()||null;
+  const c=k=>!!document.getElementById('bf_'+k)?.checked;
+  const branchId=id||(v('id')||'').toLowerCase().replace(/[^a-z0-9_]/g,'');
+  if(!branchId){ toast('Give the branch an id','error'); return false; }
+  if(!v('name')||!v('short_name')){ toast('Name and short name are both required','error'); return false; }
+  const payload={
+    id:branchId, name:v('name'), short_name:v('short_name'),
+    address_line:v('address_line'), locality:v('locality'), city:v('city'),
+    state:v('state'), pincode:v('pincode'), phone:v('phone'), maps_url:v('maps_url'),
+    color:v('color')||'#C4622A',
+    walk_ins:c('walk_ins'), pickup:c('pickup'), is_public:c('is_public'), is_active:c('is_active'),
+    kind:c('walk_ins')?'studio':'branch',
+    updated_at:new Date().toISOString(),
+  };
+  const {error}=await sb.from('biz_branches').upsert(payload,{onConflict:'id'});
+  if(error){ toast('Error: '+error.message,'error'); return false; }
+  toast(id?'Branch updated':'Branch created','success');
+  closeBranchModal();
+  await renderBranchList();
+  return true;
+}
+
+let _branchesCache=[];
+async function ensureBranches(force){
+  if(_branchesCache.length&&!force) return _branchesCache;
+  const {data}=await sb.from('biz_branches').select('*').order('sort_order');
+  _branchesCache=data||[];
+  const sel=document.getElementById('actBranch');
+  if(sel){
+    const cur=sel.value;
+    sel.innerHTML='<option value="">All branches</option>'
+      +_branchesCache.map(b=>'<option value="'+esc(b.id)+'">'+esc(b.short_name)+'</option>').join('');
+    sel.value=cur;
+  }
+  return _branchesCache;
 }
 // ═══════════════════════════════════════════════════════════
 // HEADER NAV, ported from Business OS (admin-biz.html Phase 3/5): the
@@ -3227,7 +3478,7 @@ function switchTab(tab){
   if(tab==='promo')loadPromoCodes();
   if(tab==='reviews'){loadReviewsAdmin();loadGoogleSettings();}
   if(tab==='activity')loadActivity();
-  if(tab==='content'){loadContentSettings();loadStoriesAdmin();loadProtoGallery();}   /* Document Settings moved to Business OS (Round-2 #6) */
+  if(tab==='content'){loadContentSettings();loadStoriesAdmin();loadProtoGallery();renderBranchList();}   /* Document Settings moved to Business OS (Round-2 #6) */
   if(tab==='inbox')loadInbox();
   if(tab==='appearance')loadMenuStyleSetting();
   if(tab==='productstudio')loadProductStudio();
@@ -4718,7 +4969,6 @@ async function mwBulkImport(){
   const statusEl=document.getElementById('mwBulkStatus');
   const urls=(document.getElementById('mwBulkUrls').value||'').split('\n').map(s=>s.trim()).filter(s=>/makerworld\.com\//i.test(s)).slice(0,20);
   if(!urls.length){ statusEl.innerHTML='<span style="color:var(--red);font-size:12px">Paste at least one MakerWorld URL.</span>'; return; }
-  const apiKey=(localStorage.getItem('ta_anthropic_key')||'').trim();   // moved to Settings (Round-2 #4)
   const material=document.getElementById('mwMaterial').value||'PLA';
   const hours=Number(document.getElementById('mwHours').value)||3;
   const cost=Number(document.getElementById('mwCost').value)||60;
@@ -4733,7 +4983,7 @@ async function mwBulkImport(){
   for(let i=0;i<urls.length;i++){
     const url=urls[i], row=document.getElementById('mwb_'+i);
     try{
-      const res=await fetch(API+'/api/admin/generate-listing',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({url,material,print_hours:hours,filament_cost:cost,markup,apiKey:apiKey||undefined})});
+      const res=await fetch(API+'/api/admin/generate-listing',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({url,material,print_hours:hours,filament_cost:cost,markup})});
       const d=await res.json();
       if(!res.ok) throw new Error(d.error||res.statusText);
       const l=d.listing, name=(l.title||'').trim();
@@ -4771,7 +5021,7 @@ async function mwGenerate(){
     const res=await fetch(API+'/api/admin/generate-listing',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-      body:JSON.stringify({url,material,print_hours:hours,filament_cost:cost,markup,apiKey:(localStorage.getItem('ta_anthropic_key')||'').trim()||undefined})
+      body:JSON.stringify({url,material,print_hours:hours,filament_cost:cost,markup})
     });
     const d=await res.json();
     if(!res.ok)throw new Error(d.error||res.statusText);
@@ -5856,7 +6106,10 @@ async function openUserModal(id){
   const m=document.getElementById('userModal'); m.style.display='flex';
   document.getElementById('umBody').innerHTML='<div style="padding:50px;text-align:center;color:var(--text-3)">Loading…</div>';
   try{
-    const {user,orders,addresses,stats}=await adminApi('/api/admin/users/'+id);
+    const [{user,orders,addresses,stats}]=await Promise.all([
+      adminApi('/api/admin/users/'+id),
+      ensureBranches(),   // the staff Branch picker needs the list before it renders
+    ]);
     _editingUserAddr=(addresses&&addresses.find(a=>a.is_default))||(addresses&&addresses[0])||null;
     renderUserModal(user,orders||[],stats||{},_editingUserAddr);
   }catch(e){
@@ -5872,7 +6125,19 @@ function renderUserModal(u,orders,stats,addr){
   const roleSel='<select id="umRole" onchange="document.getElementById(\'umBizTabs\').style.display=this.value===\'staff\'?\'block\':\'none\'" style="padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:8px">'
     +['customer','staff','admin'].map(r=>'<option value="'+r+'"'+((u.role||'customer')===r?' selected':'')+'>'+r+'</option>').join('')+'</select>';
   const bizTabsChecked=Array.isArray(u.biz_tabs)?u.biz_tabs:[];
+  // Branch is the real security boundary for a staff account: RLS returns only rows
+  // from this branch, and a staff row with no branch set sees nothing at all. So it
+  // sits above the tab checkboxes, which are only about hiding UI.
+  const branchPicker='<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)">'
+    +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:6px">Branch</div>'
+    +'<select id="umBranch" style="padding:6px 10px;background:var(--bg-3);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:8px">'
+      +'<option value="">Select a branch…</option>'
+      +_branchesCache.map(b=>'<option value="'+esc(b.id)+'"'+(u.branch_id===b.id?' selected':'')+'>'+esc(b.name)+'</option>').join('')
+    +'</select>'
+    +'<div style="font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.5">This account will only see orders, tasks, stock and money for this branch. Nothing from any other branch is readable or writable, enforced in the database, not just in the panel.</div>'
+  +'</div>';
   const bizTabsPicker='<div id="umBizTabs" style="display:'+((u.role||'customer')==='staff'?'block':'none')+';margin-top:14px;padding:14px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius)">'
+    +branchPicker
     +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:8px">Business OS tabs this staff account can access</div>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px 10px">'
     +BIZ_TAB_LIST.map(([k,name])=>'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" class="umBizTabCb" value="'+k+'" '+(bizTabsChecked.includes(k)?'checked':'')+'> '+esc(name)+'</label>').join('')
@@ -5963,22 +6228,37 @@ async function toggleUserDisabled(disabled){
 // Every Business OS sidebar tab (admin-biz.html), kept in sync manually since the two
 // panels are separate files. Staff accounts can only be granted access to these tabs,
 // never to the Admin Panel itself (that stays the hardcoded owner-email allowlist).
+// Must stay in step with NAV_CONFIG in admin-biz.html: a key that is not a real tab
+// id grants nothing, and a real tab missing from this list can never be granted.
+// ('activity' is deliberately absent, the Activity Log is a section inside Settings.)
 const BIZ_TAB_LIST=[
-  ['openorders',"Today's Tasks"],['dashboard','Dashboard'],['quickadd','Add Sale'],['sales','All Sales'],
-  ['import','Import & Labels'],['customers','Customers'],['products','Products & Costs'],
-  ['stock','Stock'],['spooltracker','Spool Tracker'],['returns','Returns & Claims'],['fees','Fees & Costs'],
-  ['gst','GST Summary'],['reports','Reports & Export'],['expenses','Expenses'],['ledger','Money In/Out'],
-  ['purchases','Purchases'],['balance','Balance Sheet'],['shoplog','Studio Hours'],['activity','Activity Log'],
-  ['settings','Settings'],
+  ['openorders','Task'],['quickadd','Add Order'],['sales','All Orders'],['salesview','Sales'],
+  ['quotations','Quotations'],['instantquotes','Instant Quotes'],['weborders','Website Orders'],
+  ['import','Import & Labels'],['customers','Customers'],
+  ['products','Products'],['stock','Stock'],['spooltracker','Spool Tracker'],
+  ['machinery','Machinery'],['machinecat','Machine Catalogue'],['rack','Rack / Shelf'],
+  ['dashboard','Dashboard'],['gst','GST Summary'],['gstportal','GST Portal'],['gstauto','GSTR-1 Auto-File'],
+  ['invoicing','Invoicing'],['fees','Fees & Costs'],['expenses','Expenses'],['ledger','Money In/Out'],
+  ['purchases','Purchases'],['balance','Balance Sheet'],['returns','Returns & Claims'],
+  ['reports','Reports & Export'],['shoplog','Studio Hours'],['settings','Settings'],
 ];
 async function saveUserRole(){
   if(!_editingUserId)return;
   const role=document.getElementById('umRole').value;
   const body={role};
-  if(role==='staff') body.biz_tabs=[...document.querySelectorAll('.umBizTabCb:checked')].map(c=>c.value);
+  if(role==='staff'){
+    body.biz_tabs=[...document.querySelectorAll('.umBizTabCb:checked')].map(c=>c.value);
+    body.branch_id=document.getElementById('umBranch')?.value||'';
+    // Caught here as well as on the server, because the failure mode is quiet:
+    // a branchless staff account signs in fine and then sees an empty Business OS,
+    // which reads as "the app is broken" rather than "no branch was set".
+    if(!body.branch_id){ toast('Pick a branch for this staff account first','error'); return; }
+  }
   try{
     await adminApi('/api/admin/users/'+_editingUserId+'/role',{method:'PUT',body:JSON.stringify(body)});
-    toast('Role set to '+role+(body.biz_tabs?' ('+body.biz_tabs.length+' tab'+(body.biz_tabs.length===1?'':'s')+')':''),'success');
+    toast('Role set to '+role
+      +(body.branch_id?' at '+(_branchesCache.find(b=>b.id===body.branch_id)?.short_name||body.branch_id):'')
+      +(body.biz_tabs?' ('+body.biz_tabs.length+' tab'+(body.biz_tabs.length===1?'':'s')+')':''),'success');
     loadCustomers();
   }catch(e){ toast('Error: '+e.message,'error'); }
 }
@@ -7250,6 +7530,23 @@ async function saveReview(){
       <button onclick="closeUserModal()" style="background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;line-height:1">×</button>
     </div>
     <div id="umBody"></div>
+  </div>
+</div>
+
+<!-- ── BRANCH MODAL ────────────────────────────────────
+     Its own modal rather than bizForm(), which has no checkbox support and this
+     form is mostly toggles. Same shell as the customer modal above. -->
+<div id="branchModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:24px 28px;max-width:560px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="p-title" id="bmTitle">Branch</div>
+      <button onclick="closeBranchModal()" style="background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;line-height:1">×</button>
+    </div>
+    <div id="bmBody"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
+      <button class="btn-secondary" style="padding:8px 16px" onclick="closeBranchModal()">Cancel</button>
+      <button class="btn-primary" style="padding:8px 16px" id="bmSave" onclick="saveBranch()">Save branch</button>
+    </div>
   </div>
 </div>
 

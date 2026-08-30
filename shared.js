@@ -1465,13 +1465,65 @@ async function submitCallback(){
 }
 
 /* ══ COPY TO CLIPBOARD ═════════════════════════════════════ */
-function copyAddress(){
-  const addr='Shop No. 25, Karan Singh Market, Chhoti Milak, Greater Noida West, Gautam Buddha Nagar, UP – 201307';
+/* There are two locations now, so the button carries its own address in
+   data-address and passes itself in. A bare copyAddress() still works and copies
+   the Greater Noida West studio, which is what any older page expects.
+   (Restores innerHTML rather than textContent, so the copy icon survives.) */
+function copyAddress(el){
+  const btn=(el&&el.closest)?el.closest('.copy-btn'):document.querySelector('.copy-btn');
+  const addr=(btn&&btn.dataset.address)
+    ||'Shop No. 25, Karan Singh Market, Chhoti Milak, Greater Noida West, Gautam Buddha Nagar, UP 201307';
   navigator.clipboard.writeText(addr).then(()=>{
-    const btn=document.querySelector('.copy-btn');
-    if(btn){const old=btn.textContent;btn.textContent='Copied!';setTimeout(()=>btn.textContent=old,2000)}
+    if(!btn)return;
+    const old=btn.innerHTML;btn.textContent='Copied!';setTimeout(()=>btn.innerHTML=old,2000);
   });
 }
+
+/* ══ CONVERSION TRACKING ═══════════════════════════════════
+   One place that knows how to report an intent event, so a Google Ads campaign
+   (the Gurugram one to begin with) can optimise on real actions instead of raw
+   clicks. Elements opt in with data-track="event_name", so adding a CTA is a
+   markup change and nothing else. tel: and wa.me links are picked up
+   automatically, because those are the two actions a local ad actually drives.
+
+   TA_ADS_ID is empty until the Google Ads account exists. With no ID the Ads
+   send is skipped and only the GA4 event fires, so this is safe to ship now and
+   activate later by filling in two constants. See GURUGRAM-BRANCH-SETUP.md. */
+var TA_ADS_ID = '';       /* 'AW-XXXXXXXXX' once the Ads account is created */
+var TA_ADS_LABELS = {};   /* { whatsapp_click:'AbC-D_efGh', purchase:'...' }  */
+
+function taTrack(name, params){
+  if(!name) return;
+  params = params || {};
+  try{
+    if(typeof gtag !== 'function') return;
+    gtag('event', name, params);
+    var label = TA_ADS_LABELS[name];
+    if(TA_ADS_ID && label){
+      var payload = { send_to: TA_ADS_ID + '/' + label };
+      for(var k in params) if(Object.prototype.hasOwnProperty.call(params, k)) payload[k] = params[k];
+      gtag('event', 'conversion', payload);
+    }
+  }catch(_){}
+}
+
+(function(){
+  if(typeof gtag === 'function' && TA_ADS_ID) gtag('config', TA_ADS_ID);
+  /* Capture phase, so the event is recorded even when the handler that opens
+     the link stops propagation. */
+  document.addEventListener('click', function(e){
+    var el = e.target && e.target.closest ? e.target.closest('a,button,[data-track]') : null;
+    if(!el) return;
+    var name = el.dataset ? el.dataset.track : null;
+    var href = el.getAttribute ? (el.getAttribute('href') || '') : '';
+    if(!name){
+      if(href.indexOf('tel:') === 0) name = 'call_click';
+      else if(href.indexOf('wa.me') > -1 || href.indexOf('api.whatsapp.com') > -1) name = 'whatsapp_click';
+    }
+    if(!name) return;
+    taTrack(name, { page_path: location.pathname });
+  }, true);
+})();
 
 /* ══ PROFILE CACHE HELPERS ═════════════════════════════════ */
 /* Fetch fresh profile from API and store in localStorage ta_profile */

@@ -188,8 +188,20 @@ window._FOOTER_HTML = `<footer>
         <p class="foot-desc">3D Printing Services, Delhi NCR</p>
         <div class="foot-phone"><a href="tel:+919217555833">+91 9217-555-833</a></div>
         <div class="foot-hours">Open Monday to Saturday · 11 AM to 8 PM</div>
-        <div class="foot-addr">Shop No. 25, Karan Singh Market<br>Chhoti Milak, Greater Noida West, UP 201307</div>
-        <a href="https://maps.app.goo.gl/Ki2GXFgi6JUZMb7z6" class="foot-dir" target="_blank">Get Directions →</a>
+        <!-- Two locations. Noida is the studio you can walk into, Sohna is a branch
+             that fulfils Gurugram: pickup on confirmation and home delivery, no
+             walk-in browsing, so it is never called a studio. -->
+        <div class="foot-loc">
+          <div class="foot-loc-t">Greater Noida West Studio</div>
+          <div class="foot-addr">Shop No. 25, Karan Singh Market<br>Chhoti Milak, Greater Noida West, UP 201307</div>
+          <a href="https://maps.app.goo.gl/Ki2GXFgi6JUZMb7z6" class="foot-dir" target="_blank" rel="noopener">Get Directions →</a>
+        </div>
+        <div class="foot-loc">
+          <div class="foot-loc-t">Sohna Branch, Gurugram</div>
+          <div class="foot-addr">Flora Avenue 33 by Breez, Sector 33<br>Dhunela, Sohna, Gurugram, Haryana 122103</div>
+          <div class="foot-loc-note">Pickup and home delivery available</div>
+          <a href="https://maps.app.goo.gl/29p3kMqwkbJomNk58" class="foot-dir" target="_blank" rel="noopener">Get Directions →</a>
+        </div>
       </div>
       <!-- Internal links drop the .html: cleanUrls is on, so /products.html
            308s to /products and every footer on every page was spending a
@@ -221,6 +233,8 @@ window._FOOTER_HTML = `<footer>
         <ul class="foot-links">
           <li><a href="/3d-printing-noida">3D Printing Noida</a></li>
           <li><a href="/3d-printing-greater-noida">3D Printing Greater Noida</a></li>
+          <li><a href="/3d-printing-gurugram">3D Printing Gurugram</a></li>
+          <li><a href="/3d-printing-sohna">3D Printing Sohna</a></li>
           <li><a href="/replacement-parts-noida">Replacement Parts Noida</a></li>
           <li><a href="/3d-printed-gifts-delhi">3D Printed Gifts Delhi</a></li>
           <li><a href="/gifts/corporate-gifts-noida">Corporate Gifts Noida</a></li>

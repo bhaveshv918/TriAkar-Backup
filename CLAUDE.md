@@ -203,7 +203,42 @@ regular feature work:
   read and write Supabase directly with the anon key, and those RLS policies still only check
   `auth.email()`. Adding `AND (auth.jwt()->>'aal')='aal2'` to every admin policy is a separate
   migration sweep. Also note Supabase issues no backup codes, so the TOTP secret must be kept
-  offline or the only way back in is the service role from the Supabase dashboard.
+  offline. If the authenticator is lost, the break-glass is
+  `node --env-file=.env scripts/mfa-reset.mjs` from the `server` folder, which deletes the
+  factors with the service role and drops the account back to password-only. Full recovery
+  steps are in DEPLOYMENT.md under Common Issues.
+
+- Anthropic API key is server side only (`ANTHROPIC_API_KEY` env var on Render). It used to be
+  typed into admin Settings and kept in `localStorage`, and `/api/admin/generate-listing`
+  accepted it per request. Both are gone: a real secret in browser storage is readable by any
+  XSS on the page. Do not reintroduce a client-supplied key path.
+
+- **Multi-branch Business OS.** TriAkar now runs from two locations: the Greater Noida West
+  studio (walk-ins) and the Sohna Branch, Gurugram (`Flora Avenue 33 by Breez, Sector 33,
+  Dhunela, Sohna, Haryana 122103`, apartment-based, no walk-ins, delivery plus pickup on prior
+  confirmation). **Always call Sohna a "branch", never a "studio".** Every Business OS row
+  carries `branch_id`; branches live in `biz_branches`, pincode routing in
+  `biz_branch_pincodes` + `public.branch_for_pincode()`. Migration
+  `supabase/migrations/20260830_branches.sql`, **must be run in the Supabase SQL Editor before
+  any of this works**. Key facts: staff are pinned to one branch via `profiles.branch_id`, and
+  that pin is enforced three ways (RLS `USING`, RLS `WITH CHECK`, and a `BEFORE` trigger that
+  overwrites `branch_id` on staff writes), so a tampered browser cannot cross branches. This
+  replaces the deliberately table-level staff model in `20260703_biz_staff_access.sql`, which
+  gave any staff account the owner's full read of every `biz_*` table. Reads are branch-filtered
+  centrally by a wrapper around `sb.from()` in `admin-biz.html` (see `BRANCH_SCOPED_TABLES`), not
+  per loader, so a new tab inherits scoping automatically. New audit table `biz_audit_trail` is
+  trigger-fed with full before/after JSON on the money tables and cannot be bypassed by the UI;
+  `biz_activity_log`'s INSERT policy was owner-email-only, so staff actions had always logged
+  nothing silently, now fixed. Admin Panel's Activity tab is now "Team Activity", merging
+  `admin_activity` + `biz_activity_log` + `biz_audit_trail`. Orders are routed to a branch by
+  delivery pincode server-side (`server/services/branch.js`), always overridable by hand.
+  Storefront: `3d-printing-gurugram.html`, `3d-printing-sohna.html`, two-location footer and
+  contact page. The Sohna Google Business Profile is live at
+  `https://maps.app.goo.gl/29p3kMqwkbJomNk58`, pin `28.283748, 77.0751219`, and those exact
+  coordinates are what the schema, `biz_branches` and every map embed use. **Not done on
+  purpose:** GST is untouched, everything still bills from the one UP GSTIN. Owner-side setup
+  steps (migration, staff account, Business Profile tidy-up, Google Ads conversion IDs) are in
+  `GURUGRAM-BRANCH-SETUP.md`.
 
 **Before building something new, check if it already exists.** Grep/search the codebase first.
 

@@ -2,13 +2,97 @@ import supabase from '../db/supabaseClient.js';
 import { logActivity } from '../services/activityLog.js';
 
 // ── ACTIVITY LOG (Module 7) ────────────────────────────────────────────────
+// One feed over three separate records of what happened, because no single one of
+// them sees the whole picture:
+//
+//   admin_activity    what the Admin Panel's own API routes did (products, users,
+//                     orders). Written by logActivity(), server side.
+//   biz_activity_log  what someone did in Business OS, in human terms ("edited
+//                     sale X"). Written by the browser, best effort.
+//   biz_audit_trail   what actually changed in the database, row by row, with the
+//                     before and after values. Written by triggers, so it cannot be
+//                     bypassed by the UI and it captures deletes nothing else sees.
+//
+// The trail is the source of truth for WHAT changed; the two logs add the intent
+// and the screen it came from. Merged and sorted here rather than in the browser so
+// the panel stays a straight render.
+//
+// Query: ?actor= &branch= &action= &entity= &from= &to= &limit=
 export async function getActivity(req, res, next) {
   try {
-    const { data, error } = await supabase
-      .from('admin_activity').select('*')
-      .order('created_at', { ascending: false }).limit(100);
-    if (error) throw error;
-    res.json({ activity: data || [] });
+    const { actor, branch, action, entity, from, to } = req.query;
+    const limit = Math.min(Number(req.query.limit) || 300, 1000);
+
+    const inRange = q => {
+      if (from) q = q.gte('created_at', from);
+      if (to)   q = q.lte('created_at', to);
+      return q;
+    };
+
+    let adminQ = inRange(supabase.from('admin_activity').select('*'))
+      .order('created_at', { ascending: false }).limit(limit);
+    if (actor)  adminQ = adminQ.eq('actor_email', actor);
+    if (entity) adminQ = adminQ.eq('entity_type', entity);
+
+    let bizQ = inRange(supabase.from('biz_activity_log').select('*'))
+      .order('created_at', { ascending: false }).limit(limit);
+    if (actor)  bizQ = bizQ.eq('admin_email', actor);
+    if (branch) bizQ = bizQ.eq('branch_id', branch);
+    if (entity) bizQ = bizQ.eq('entity', entity);
+
+    let auditQ = inRange(supabase.from('biz_audit_trail').select('*'))
+      .order('created_at', { ascending: false }).limit(limit);
+    if (actor)  auditQ = auditQ.eq('actor_email', actor);
+    if (branch) auditQ = auditQ.eq('branch_id', branch);
+    if (entity) auditQ = auditQ.eq('table_name', entity);
+
+    const [adminR, bizR, auditR] = await Promise.all([adminQ, bizQ, auditQ]);
+    // A missing table (the branches migration not run yet) must not take the whole
+    // Activity tab down, so each source degrades on its own.
+    for (const [name, r] of [['admin_activity', adminR], ['biz_activity_log', bizR], ['biz_audit_trail', auditR]]) {
+      if (r.error) console.warn(`[getActivity] ${name}:`, r.error.message);
+    }
+
+    const rows = [
+      ...(adminR.data || []).map(a => ({
+        source: 'admin', created_at: a.created_at, actor: a.actor_email,
+        actor_role: 'owner', branch_id: null,
+        action: a.action, entity: a.entity_type, entity_id: a.entity_id,
+        detail: a.detail, changed_fields: null, before: null, after: null,
+      })),
+      ...(bizR.data || []).map(a => ({
+        source: 'biz', created_at: a.created_at, actor: a.admin_email,
+        actor_role: null, branch_id: a.branch_id || null,
+        action: a.action, entity: a.entity, entity_id: a.entity_id,
+        detail: a.detail, changed_fields: null, before: null, after: null,
+      })),
+      ...(auditR.data || []).map(a => ({
+        source: 'audit', created_at: a.created_at, actor: a.actor_email,
+        actor_role: a.actor_role, branch_id: a.branch_id || null,
+        action: a.action, entity: a.table_name, entity_id: a.row_id,
+        detail: null, changed_fields: a.changed_fields, before: a.before, after: a.after,
+      })),
+    ];
+
+    // Three vocabularies for the same three verbs: the trail says insert/update/
+    // delete, Business OS says create/edit/delete, and the admin API says things
+    // like 'product.create' or 'user.role'. Collapsed to one so the Add / Edit /
+    // Delete filter means the same thing whichever source a row came from.
+    const VERB = {
+      insert: 'create', create: 'create',
+      update: 'edit',   edit:   'edit',   save: 'edit', status: 'edit',
+      paid:   'edit',   role:   'edit',   restore: 'edit', bulk: 'edit',
+      delete: 'delete', purge:  'delete',
+    };
+    const actionKind = a => {
+      const verb = String(a || '').split('.').pop();
+      return VERB[verb] || 'other';
+    };
+    const normalised = rows.map(r => ({ ...r, action_kind: actionKind(r.action) }));
+    const filtered = action ? normalised.filter(r => r.action_kind === action) : normalised;
+
+    filtered.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    res.json({ activity: filtered.slice(0, limit) });
   } catch (err) { next(err); }
 }
 

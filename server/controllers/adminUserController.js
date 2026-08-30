@@ -207,7 +207,7 @@ export function setUserDisabled(disabled) {
 export async function setUserRole(req, res, next) {
   try {
     const { id } = req.params;
-    const { role, biz_tabs } = req.body;
+    const { role, biz_tabs, branch_id } = req.body;
     if (!['customer', 'staff', 'admin'].includes(role)) {
       return res.status(400).json({ error: 'role must be customer, staff, or admin' });
     }
@@ -218,11 +218,26 @@ export async function setUserRole(req, res, next) {
       }
       updates.biz_tabs = role === 'staff' ? biz_tabs : [];
     }
+    // Branch pins a staff account to one location. RLS reads this column through
+    // public.staff_branch(), and a staff row with a NULL branch sees nothing at all,
+    // so a staff account is required to name one rather than silently defaulting.
+    if (role === 'staff') {
+      if (!branch_id) return res.status(400).json({ error: 'branch_id is required for a staff account' });
+      const { data: branch } = await supabase
+        .from('biz_branches').select('id').eq('id', branch_id).maybeSingle();
+      if (!branch) return res.status(400).json({ error: 'Unknown branch: ' + branch_id });
+      updates.branch_id = branch_id;
+    } else {
+      updates.branch_id = null;   // owner and customers are not branch scoped
+    }
     const { error } = await supabase.from('profiles')
       .update(updates).eq('id', id);
     if (error) throw error;
-    logActivity(req.user?.email, 'user.role', 'user', id, '→ ' + role + (updates.biz_tabs ? ' [' + updates.biz_tabs.join(',') + ']' : ''));
-    res.json({ ok: true, role, biz_tabs: updates.biz_tabs });
+    logActivity(req.user?.email, 'user.role', 'user', id,
+      '→ ' + role
+      + (updates.branch_id ? ' @' + updates.branch_id : '')
+      + (updates.biz_tabs ? ' [' + updates.biz_tabs.join(',') + ']' : ''));
+    res.json({ ok: true, role, biz_tabs: updates.biz_tabs, branch_id: updates.branch_id });
   } catch (err) { next(err); }
 }
 

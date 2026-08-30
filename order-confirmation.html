@@ -137,9 +137,35 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+/* Fires the purchase conversion exactly once per order id. loadOrder() can render
+   the same order twice (cached row, then the fresh fetch), and a double-counted
+   purchase would quietly inflate every Ads ROAS number. */
+const _trackedPurchases = new Set();
+function trackPurchase(order, orderId) {
+  if (!order || _trackedPurchases.has(orderId)) return;
+  // A WhatsApp-channel order lands here with payment still pending. Counting it
+  // as a purchase would report revenue that has not been collected yet, so it is
+  // reported as a lead instead and only converts when the payment does.
+  const pending = order.payment_method === 'whatsapp'
+    || order.order_status === 'whatsapp_pending'
+    || order.payment_status === 'pending';
+  _trackedPurchases.add(orderId);
+  if (typeof taTrack !== 'function') return;
+  if (pending) {
+    taTrack('generate_lead', { currency: 'INR', value: 0, lead_source: 'whatsapp_order' });
+    return;
+  }
+  taTrack('purchase', {
+    transaction_id: orderId,
+    value: Number(order.total_amount) || 0,
+    currency: 'INR',
+  });
+}
+
 function renderOrder(order) {
   const items = order.items || order.order_items || [];
   const orderId = order.order_id || order.invoice_number || ('TRK-' + order.id.slice(0, 8).toUpperCase());
+  trackPurchase(order, orderId);
   const isWA = order.payment_method === 'whatsapp'
     || order.order_status === 'whatsapp_pending'
     || new URLSearchParams(window.location.search).get('via') === 'whatsapp';

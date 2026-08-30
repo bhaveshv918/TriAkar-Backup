@@ -2,6 +2,7 @@ import Razorpay from 'razorpay';
 import crypto   from 'crypto';
 import supabase from '../db/supabaseClient.js';
 import { logActivity } from '../services/activityLog.js';
+import { branchForAddress } from '../services/branch.js';
 
 /* Generate invoice number: TRK-YYYYMMDD-XXXX */
 function generateInvoiceNumber() {
@@ -154,6 +155,9 @@ export async function createOrder(req, res, next) {
       user_id, ...(address_id ? { address_id } : {}), status: 'pending', total_amount, subtotal, shipping_charge, shipping_address,
       invoice_number: invoiceNumber,
       order_id:       invoiceNumber,   // keep order_id in sync for legacy compatibility
+      // Which branch fulfils this, picked from the delivery pincode. Overridable
+      // by hand in Business OS, see server/services/branch.js.
+      branch_id:      await branchForAddress(shipping_address),
     };
     if (customer_name)      orderInsert.customer_name       = customer_name;
     if (customer_email)     orderInsert.customer_email      = customer_email;

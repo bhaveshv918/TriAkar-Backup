@@ -156,7 +156,12 @@ designed for the world. We manufacture our own products, we are not a marketplac
 Founded: 2024
 Studio address: Shop No. 25, Karan Singh Market, Chhoti Milak, Greater Noida West, UP 201307
 Landmarks: near Cherry County and Ek Murti Chowk
-Hours: Monday to Saturday, 11 AM to 8 PM IST. Closed Sunday.
+Gurugram branch: Flora Avenue 33 by Breez, Sector 33, Dhunela, Sohna, Gurugram, Haryana 122103.
+This is a fulfilment branch, not a studio and not a walk-in showroom. Never invite anyone to
+"come and see" this address. It serves Gurugram, Sohna, Sohna Road, Badshahpur, Bhondsi and
+Manesar with home delivery, and pickup only after the order is ready and a time is fixed on
+WhatsApp. If someone wants to walk in and browse, send them to the Greater Noida West studio.
+Hours: Monday to Saturday, 11 AM to 8 PM IST. Closed Sunday. Both locations.
 Phone and WhatsApp: +91 92175 55833
 Email: hello@triakar.com
 Website: https://www.triakar.com
@@ -1214,6 +1219,17 @@ Short answers. This is WhatsApp, not a website. Note that none of these mention 
 Shop No. 25, Karan Singh Market, Chhoti Milak, Greater Noida West, UP 201307, near Cherry County
 and Ek Murti Chowk. Monday to Saturday, 11 AM to 8 PM. Walk-ins welcome.
 
+**Are you in Gurugram?**
+Haan ji. Humari Sohna branch hai, Flora Avenue 33 by Breez, Sector 33, Dhunela, Sohna 122103.
+Gurugram, Sohna Road, Badshahpur, Bhondsi, Manesar sab cover hota hai. Ghar tak delivery kar dete
+hain. Stock wala item hai toh aksar same day ya next day. Banwana hai toh pehle banane ka time
+lagega, date confirm kar ke batate hain.
+
+**Gurugram wali jagah pe aa kar dekh sakte hain?**
+Wo branch hai, showroom nahi, toh browsing ke liye aana nahi hota. Order ready hone ke baad pickup
+kar sakte hain, time WhatsApp pe fix kar lenge. Dekh kar lena hai toh Greater Noida West studio
+aa jaiye, wahan walk-in hai.
+
 **How long does delivery take?**
 Normal delivery is 3 to 6 working days across India. Working days means weekends and festival
 holidays are off. Delhi NCR is often faster.
@@ -1354,6 +1370,7 @@ Tab tak dekh sakte hain: https://www.triakar.com/products
 | `/trust` | Humara physical studio hai: Shop No. 25, Karan Singh Market, Greater Noida West. Google pe 5.0 rating, Amazon aur Flipkart pe bhi hum hain. Aa kar dekh sakte hain. |
 | `/files` | 3D file **Document** ke roop mein attach kijiye, photo ke roop mein nahi. STL, OBJ, STEP, 3MF sab chalte hain. File badi hai toh hello@triakar.com pe mail kar dijiye. |
 | `/addr` | Shop No. 25, Karan Singh Market, Chhoti Milak, Greater Noida West, UP 201307, Cherry County aur Ek Murti Chowk ke paas. Monday to Saturday, 11 AM se 8 PM. |
+| `/ggn` | Gurugram mein humari Sohna branch hai: Flora Avenue 33 by Breez, Sector 33, Dhunela, Sohna 122103. Ghar tak delivery kar dete hain, stock wala item aksar same ya next day. Wo branch hai showroom nahi, toh pickup order ready hone par, time fix kar ke. |
 | `/track` | Order track yahan kar sakte hain: https://www.triakar.com/track-order |
 
 ### Labels

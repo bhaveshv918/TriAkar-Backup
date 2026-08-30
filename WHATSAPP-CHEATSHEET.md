@@ -80,6 +80,12 @@ Machine ka model number kabhi mat batana.
 **"Genuine ho na aap log?"**
 > Humara physical studio hai, Shop No. 25, Karan Singh Market, Greater Noida West. Aa kar dekh sakte hain. Google pe 5.0 rating hai, Amazon aur Flipkart pe bhi hum hain.
 
+**"Gurugram mein ho?"**
+> Haan ji, Sohna mein humari branch hai, Sector 33 Dhunela. Gurugram, Sohna Road, Badshahpur, Bhondsi sab jagah ghar tak delivery kar dete hain.
+
+**"Gurugram wali branch pe aa jayen?"**
+> Wo branch hai, showroom nahi, toh browsing ke liye aana nahi hota. Order ready ho jaye toh pickup kar sakte hain, time fix kar lenge. Dekh kar lena hai toh Greater Noida West studio aa jaiye.
+
 **"COD nahi hai? Phir rehne do"**
 > COD isliye nahi rakha kyunki har piece order ke baad specially banta hai, stock se nahi jaata. Aapka naam print ho gaya toh wo kisi aur ko ja hi nahi sakta. Payment Razorpay se hoti hai, kisi personal number pe nahi, GST invoice bhi milta hai. Aas paas rehte hain toh studio se same day pickup bhi kar sakte hain.
 

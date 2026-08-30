@@ -1,4 +1,5 @@
 import supabase from '../db/supabaseClient.js';
+import { branchForAddress } from '../services/branch.js';
 
 export async function createOrder(req, res, next) {
   try {
@@ -26,9 +27,22 @@ export async function createOrder(req, res, next) {
       total_amount += p.price * qty;
     }
 
+    // Branch routing needs a pincode. When the caller sent only a saved address id,
+    // read the pincode off that address rather than defaulting blind.
+    let routingAddress = shipping_address;
+    if (!routingAddress?.pincode && address_id) {
+      const { data: addr } = await supabase
+        .from('user_addresses').select('pincode').eq('id', address_id).eq('user_id', user_id).maybeSingle();
+      if (addr) routingAddress = addr;
+    }
+
     const { data: order, error: oErr } = await supabase
       .from('orders')
-      .insert({ user_id, status: 'pending', total_amount, shipping_address: shipping_address || {}, address_id: address_id || null })
+      .insert({
+        user_id, status: 'pending', total_amount,
+        shipping_address: shipping_address || {}, address_id: address_id || null,
+        branch_id: await branchForAddress(routingAddress),
+      })
       .select().single();
     if (oErr) throw oErr;
 
@@ -145,6 +159,9 @@ export async function createWhatsAppOrder(req, res, next) {
       order_status:        'whatsapp_pending',
       status:              'pending',
       special_instructions: special_instructions || null,
+      // WhatsApp is a parallel ordering channel, not an exception, so it gets
+      // routed to a branch exactly like a checkout order does.
+      branch_id:           await branchForAddress(shipping_address),
     };
     if (appliedPromoCode) { insert.promo_code = appliedPromoCode; insert.discount_amount = discount_amount; }
     if (is_gift)         insert.is_gift         = true;

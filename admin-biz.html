@@ -777,6 +777,29 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
 .biz-tb-direct.tab-active .biz-tb-dd-badge{background:rgba(255,255,255,.25);color:#fff}
 .biz-tb-direct-icon{font-size:13px}
 @media(max-width:1080px){.biz-tb-direct span:not(.biz-tb-direct-icon):not(.biz-tb-dd-badge){display:none}}
+/* Branch scope control. Every number on every tab is read through this, so it sits
+   in the header next to Task rather than inside a settings page, and it carries the
+   branch's own colour so "which books am I looking at" is answerable at a glance.
+   A staff account is pinned by RLS and sees the static chip form instead. */
+.biz-tb-branch{display:flex;align-items:center;gap:7px;padding:5px 10px;border-radius:var(--radius);
+  border:1px solid var(--border);background:var(--bg-2);white-space:nowrap}
+.biz-tb-branch-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex:none;
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 22%,transparent)}
+.biz-tb-branch select{background:none;border:none;color:var(--text);font-size:12.5px;font-weight:700;
+  outline:none;cursor:pointer;padding:0;font-family:inherit}
+.biz-tb-branch-chip{font-size:12.5px;font-weight:700;color:var(--text)}
+/* The header already runs out of room below ~900px (a known open item), so this
+   control shrinks rather than pushing anything else off. flex:none keeps it from
+   being squeezed to nothing, since the coloured dot is the only cue on a phone
+   telling you whose books you are looking at. */
+@media(max-width:900px){
+  .biz-tb-branch{padding:5px 7px;gap:5px;flex:none}
+  .biz-tb-branch select,.biz-tb-branch-chip{max-width:62px;text-overflow:ellipsis;overflow:hidden;font-size:12px}
+}
+/* Row-level branch marker in list tables. */
+.branch-chip{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;
+  letter-spacing:.02em;padding:2px 8px;border-radius:100px;background:var(--bg-3);color:var(--text-2);white-space:nowrap}
+.branch-chip::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.9}
 .biz-tb-search{flex:1;max-width:440px;position:relative}
 .biz-tb-search input{width:100%;padding:7px 11px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;outline:none}
 .biz-tb-search input:focus{border-color:var(--accent)}
@@ -1541,6 +1564,12 @@ html[data-theme="dark"] .biz-login{
       <span class="biz-tb-direct-icon">⚑</span><span>Task</span>
       <span class="biz-tb-dd-badge" id="openCount_hdr">N/A</span>
     </button>
+    <!-- Branch scope, applies to every tab. Owner picks; staff see a fixed chip. -->
+    <div class="biz-tb-branch" id="bizBranchWrap" title="Which branch's data you are looking at">
+      <span class="biz-tb-branch-dot" id="bizBranchDot"></span>
+      <select id="bizBranchSel" onchange="setBranchScope(this.value)" aria-label="Branch scope"></select>
+      <span class="biz-tb-branch-chip" id="bizBranchChip" style="display:none"></span>
+    </div>
     <nav class="biz-tb-nav" id="bizTbNav"></nav>
     <button class="biz-tb-icon biz-tb-cmdk biz-tb-icon-muted" onclick="openCmdPalette()" title="Command palette (Ctrl/Cmd+K)" style="font-size:14px;font-weight:700">⌘</button>
     <div class="biz-tb-search">
@@ -2017,6 +2046,14 @@ html[data-theme="dark"] .biz-login{
               <option value="website">Website</option>
             </select>
           </div>
+          <!-- Which branch fulfils this order. Auto-suggested from the pincode as
+               soon as one is typed, always overridable. Hidden for staff, whose
+               branch is fixed by RLS and stamped by the database anyway. -->
+          <div class="form-group" id="qa_branch_wrap">
+            <label>Branch</label>
+            <select id="qa_branch" onchange="onQaBranchManual()"></select>
+            <span style="display:block;font-weight:400;color:var(--text-3);font-size:10px;margin-top:4px" id="qa_branch_hint">Suggested from the delivery pincode</span>
+          </div>
           <div class="form-group">
             <label>Order Date</label>
             <input type="date" id="qa_date">
@@ -2065,7 +2102,7 @@ html[data-theme="dark"] .biz-login{
           </div>
           <div class="form-group">
             <label>Pincode</label>
-            <input type="text" id="qa_pin" placeholder="6-digit pincode" maxlength="6" inputmode="numeric">
+            <input type="text" id="qa_pin" placeholder="6-digit pincode" maxlength="6" inputmode="numeric" oninput="onQaPinBranch(this.value)">
           </div>
           <div class="form-group">
             <label>Country</label>
@@ -4927,6 +4964,81 @@ html[data-theme="dark"] .biz-login{
 const SUPA_URL = 'https://qarjbmogersuaerkhlcu.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmpibW9nZXJzdWFlcmtobGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDMzNzMsImV4cCI6MjA5NDU3OTM3M30.iS7VcO9j9UjlmBN0EhhuWBOu6Vvrg8-SQrb3oZ25AIs';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ── Branch scoping, applied once at the client ──────────────────────────────
+// There are well over a hundred sb.from('biz_*').select(...) reads in this file.
+// Adding .eq('branch_id', ...) to each by hand would mean the next tab someone
+// adds silently shows both branches, so the filter is installed on the client
+// itself: every READ of a branch-scoped table picks up the header's branch
+// selection automatically.
+//
+// Reads only. Writes are deliberately left alone, because the database already
+// owns that side: RLS blocks a staff account from writing outside its branch and
+// the trg_stamp_branch trigger overwrites branch_id on the way in. Duplicating
+// that here would just be a second copy to keep in sync.
+//
+// The two flags this reads are declared here rather than next to the rest of the
+// auth state further down, because a `let` read before its declaration line throws
+// (temporal dead zone) even through typeof, and this closure is installed first.
+let _isStaffUser = false;   // set by checkBizAccess()
+let _branchScope = 'all';   // set by initBranchScope(), changed by setBranchScope()
+const BRANCH_SCOPED_TABLES = new Set([
+  'biz_sales','biz_returns','biz_expenses','biz_income','biz_purchases',
+  'biz_stock_movements','biz_rack_items','biz_printers','biz_print_attempts',
+  'biz_invoices','biz_quotations','biz_sale_payments','biz_shop_log',
+  'biz_customers','biz_filament_rolls','biz_filament_resales','filament_inventory',
+  'orders'
+]);
+// Child records whose branch must follow their parent sale, not the header. An
+// invoice for a Gurugram order belongs to Gurugram even if the owner happened to
+// raise it while looking at "All branches", so the database derives these from the
+// parent (see biz_stamp_branch in 20260830_branches.sql) and the client stays out.
+const BRANCH_INHERITED_TABLES = new Set(['biz_invoices','biz_sale_payments']);
+
+(function installBranchScope(){
+  const rawFrom = sb.from.bind(sb);
+  sb.from = function(table){
+    const q = rawFrom(table);
+    if(!BRANCH_SCOPED_TABLES.has(table)) return q;
+
+    const rawSelect = q.select.bind(q);
+    q.select = function(){
+      const built = rawSelect.apply(null, arguments);
+      // Staff are already pinned by RLS, so a second filter here would be dead
+      // weight. The owner viewing "All branches" wants everything.
+      if(_isStaffUser) return built;
+      if(_branchScope && _branchScope !== 'all') return built.eq('branch_id', _branchScope);
+      return built;
+    };
+
+    // New records land in the branch you are currently looking at, so an expense
+    // typed while scoped to Gurugram is a Gurugram expense without anyone having
+    // to remember a second dropdown. An explicit branch_id in the payload always
+    // wins, which is how Add Order carries its own pincode-derived choice.
+    if(!BRANCH_INHERITED_TABLES.has(table)){
+      const stamp = row => {
+        // Nothing to stamp with until the branches migration has been run. Sending
+        // branch_id at that point would make PostgREST reject the whole insert on a
+        // column that does not exist yet, which would take Add Order and Expenses
+        // down between a frontend deploy and running the SQL.
+        const b = defaultBranchForNew();
+        return (b && row && typeof row === 'object' && !Array.isArray(row) && row.branch_id == null)
+          ? Object.assign({}, row, { branch_id: b })
+          : row;
+      };
+      const rawInsert = q.insert.bind(q);
+      q.insert = function(values, opts){
+        return rawInsert(Array.isArray(values) ? values.map(stamp) : stamp(values), opts);
+      };
+      const rawUpsert = q.upsert.bind(q);
+      q.upsert = function(values, opts){
+        return rawUpsert(Array.isArray(values) ? values.map(stamp) : stamp(values), opts);
+      };
+    }
+    return q;
+  };
+})();
+
 const ADMIN_EMAIL = 'bhaveshv918@gmail.com';
 const MY_STATE = 'Uttar Pradesh'; // your GST registration state, for CGST/SGST vs IGST
 // GSTR-1 Auto-File is the one Business OS feature that needs the Express backend (server-side
@@ -5959,18 +6071,175 @@ document.addEventListener('keydown',function(ev){
 
 // ── Auth ────────────────────────────────────────────────────
 // Staff accounts (role='staff' on profiles, with a biz_tabs allow-list) can log into
-// Business OS only, never admin.html. Tab visibility is enforced client-side below;
-// the actual data-access boundary is RLS (any staff role gets the same table access as
-// the owner, see 20260703_biz_staff_access.sql for why tab-level RLS wasn't built).
-let _isStaffUser=false, _staffTabs=null, _currentUserEmail=null;
+// Business OS only, never admin.html. Which TABS they see is enforced client-side
+// below; which ROWS they see is enforced by RLS, scoped to profiles.branch_id
+// (20260830_branches.sql). Those are different boundaries on purpose: hiding a tab is
+// a convenience, the branch scope is the actual security line, and it holds even if
+// someone edits the JS in their browser.
+// (_isStaffUser is declared up with the branch-scope install, see BRANCH_SCOPED_TABLES.)
+let _staffTabs=null, _currentUserEmail=null, _staffBranch=null;
 async function checkBizAccess(user){
   if(!user) return false;
-  if(user.email===ADMIN_EMAIL){ _isStaffUser=false; _staffTabs=null; _currentUserEmail=user.email; return true; }
-  const {data:profile}=await sb.from('profiles').select('role,biz_tabs').eq('id',user.id).maybeSingle();
+  if(user.email===ADMIN_EMAIL){ _isStaffUser=false; _staffTabs=null; _staffBranch=null; _currentUserEmail=user.email; return true; }
+  const {data:profile}=await sb.from('profiles').select('role,biz_tabs,branch_id').eq('id',user.id).maybeSingle();
   if(profile && profile.role==='staff' && Array.isArray(profile.biz_tabs) && profile.biz_tabs.length){
-    _isStaffUser=true; _staffTabs=profile.biz_tabs; _currentUserEmail=user.email; return true;
+    _isStaffUser=true; _staffTabs=profile.biz_tabs; _staffBranch=profile.branch_id||null; _currentUserEmail=user.email; return true;
   }
   return false;
+}
+
+// ── Branch scope ────────────────────────────────────────────
+// One selection that every tab reads through. For the owner it is a choice
+// ('all' plus one entry per branch, remembered across sessions). For staff it is
+// fixed to their own branch and the control renders as a plain chip, because RLS
+// would return nothing for any other value anyway and offering a dead option is
+// worse than offering none.
+// (_branchScope is declared up with the branch-scope install, see BRANCH_SCOPED_TABLES.)
+let _branches=[];
+const BRANCH_SCOPE_KEY='ta_biz_branch_scope';
+
+let _branchPinRules=[];
+async function loadBranches(){
+  const [br,pins]=await Promise.all([
+    sb.from('biz_branches').select('id,name,short_name,color,kind,city,is_active')
+      .eq('is_active',true).order('sort_order'),
+    sb.from('biz_branch_pincodes').select('pincode_prefix,branch_id')
+  ]);
+  if(br.error){ console.warn('branches:',br.error.message); _branches=[]; }
+  else _branches=br.data||[];
+  // Longest prefix first, so a specific 122103 rule beats a broad 122 one. Same
+  // ordering the server uses in server/services/branch.js, kept deliberately
+  // simple so both sides can be read side by side.
+  _branchPinRules=(pins.data||[]).sort((a,b)=>b.pincode_prefix.length-a.pincode_prefix.length);
+}
+// Client-side twin of public.branch_for_pincode(). Only ever picks a DEFAULT for a
+// form; the database is still the one that decides what actually gets stored.
+function branchForPincodeLocal(pin){
+  const p=String(pin||'').replace(/\D/g,'');
+  if(p.length!==6) return null;
+  const hit=_branchPinRules.find(r=>p.startsWith(r.pincode_prefix));
+  return hit?hit.branch_id:'noida';
+}
+function branchById(id){ return _branches.find(b=>b.id===id)||null; }
+function branchLabel(id){ const b=branchById(id); return b?b.short_name:(id||''); }
+function branchColor(id){ const b=branchById(id); return b?(b.color||'var(--text-2)'):'var(--text-3)'; }
+// Small coloured pill for a row in a list table.
+function branchChip(id){
+  if(!id) return '';
+  return `<span class="branch-chip" style="color:${esc(branchColor(id))}">${esc(branchLabel(id))}</span>`;
+}
+// Row-level marker, but only when more than one branch is actually on screen. With
+// a branch picked in the header, or on a staff session, every row is the same
+// branch and repeating it on each line is noise rather than information.
+function branchTag(id){
+  if(_isStaffUser||_branchScope!=='all'||_branches.length<2||!id) return '';
+  return `<div style="margin-top:3px">${branchChip(id)}</div>`;
+}
+// (Reads are filtered centrally by the sb.from() wrapper near BRANCH_SCOPED_TABLES,
+// so no loader needs to remember to call anything here.)
+// The branch a newly created record should default to. Staff have no say.
+// Returns undefined until the branches migration has been run, which is what keeps
+// branch_id out of every insert payload in the window between deploying this file
+// and running the SQL. An undefined value is dropped by JSON.stringify, so callers
+// can pass it straight through without a null check.
+function defaultBranchForNew(){
+  if(!_branches.length) return undefined;
+  if(_isStaffUser) return _staffBranch||undefined;
+  if(_branchScope&&_branchScope!=='all') return _branchScope;
+  return 'noida';
+}
+function renderBranchControl(){
+  const wrap=document.getElementById('bizBranchWrap');
+  const sel=document.getElementById('bizBranchSel');
+  const chip=document.getElementById('bizBranchChip');
+  const dot=document.getElementById('bizBranchDot');
+  if(!wrap||!sel||!chip) return;
+  if(!_branches.length){ wrap.style.display='none'; return; }
+  wrap.style.display='flex';
+  if(_isStaffUser){
+    sel.style.display='none'; chip.style.display='';
+    chip.textContent=branchLabel(_staffBranch)||'No branch';
+    if(dot) dot.style.background=branchColor(_staffBranch);
+    wrap.title=_staffBranch
+      ? 'You are working in the '+(branchById(_staffBranch)?.name||_staffBranch)+' branch'
+      : 'No branch assigned to this account yet, so no records will be visible. Ask the owner to set one.';
+    return;
+  }
+  sel.style.display=''; chip.style.display='none';
+  sel.innerHTML='<option value="all">All branches</option>'
+    +_branches.map(b=>`<option value="${esc(b.id)}">${esc(b.short_name)}</option>`).join('');
+  sel.value=_branchScope;
+  if(dot) dot.style.background=_branchScope==='all'?'var(--text-3)':branchColor(_branchScope);
+  wrap.title=_branchScope==='all'?'Showing every branch':'Showing '+branchLabel(_branchScope)+' only';
+}
+function setBranchScope(id){
+  _branchScope=id||'all';
+  try{ localStorage.setItem(BRANCH_SCOPE_KEY,_branchScope); }catch(_){}
+  renderBranchControl();
+  // Re-read the tab you are on, plus the header badges, so no stale number from
+  // the previous branch is left sitting on screen.
+  switchTab(_curBizTab);
+  if(typeof loadSalesBadge==='function') loadSalesBadge();
+  if(typeof loadReturnsBadge==='function') loadReturnsBadge();
+  toast(_branchScope==='all'?'Showing all branches':'Showing '+branchLabel(_branchScope));
+}
+// ── Branch on the Add Order form ────────────────────────────
+// The pincode picks a default, the operator can override it, and once they have
+// overridden it we stop moving it under them for the rest of that entry.
+let _qaBranchManual=false;
+function fillBranchSelect(id, selected){
+  const el=document.getElementById(id); if(!el) return;
+  el.innerHTML=_branches.map(b=>`<option value="${esc(b.id)}">${esc(b.short_name)}</option>`).join('');
+  if(selected) el.value=selected;
+}
+function renderQaBranchField(){
+  const wrap=document.getElementById('qa_branch_wrap'); if(!wrap) return;
+  // Staff have exactly one option and no ability to change it, so showing the
+  // field would only be a control that cannot do anything.
+  wrap.style.display=_isStaffUser?'none':'';
+  fillBranchSelect('qa_branch', defaultBranchForNew());
+}
+function onQaBranchManual(){
+  _qaBranchManual=true;
+  const hint=document.getElementById('qa_branch_hint');
+  if(hint) hint.textContent='Set by hand for this order';
+}
+function onQaPinBranch(v){
+  if(_qaBranchManual) return;
+  const guess=branchForPincodeLocal(v); if(!guess) return;
+  const el=document.getElementById('qa_branch'); if(!el) return;
+  el.value=guess;
+  const hint=document.getElementById('qa_branch_hint');
+  if(hint) hint.textContent='Suggested from pincode '+String(v).replace(/\D/g,'').slice(0,6);
+}
+// What to actually save. Autofill paths (existing customer, quotation, website
+// order) set the pincode with .value, which fires no input event, so the pincode
+// is re-read here rather than trusting the field to have been updated.
+function resolveQaBranch(){
+  if(!_branches.length) return undefined;   // migration not run yet, see defaultBranchForNew()
+  if(_isStaffUser) return _staffBranch||undefined;
+  const el=document.getElementById('qa_branch');
+  if(_qaBranchManual&&el&&el.value) return el.value;
+  const pinEl=document.getElementById('qa_pin');
+  const guess=pinEl?branchForPincodeLocal(pinEl.value):null;
+  return guess||(el&&el.value)||defaultBranchForNew();
+}
+function resetQaBranch(){
+  _qaBranchManual=false;
+  const hint=document.getElementById('qa_branch_hint');
+  if(hint) hint.textContent='Suggested from the delivery pincode';
+  renderQaBranchField();
+}
+
+async function initBranchScope(){
+  await loadBranches();
+  if(_isStaffUser){ _branchScope=_staffBranch||'all'; }
+  else{
+    let saved=null; try{ saved=localStorage.getItem(BRANCH_SCOPE_KEY); }catch(_){}
+    _branchScope=(saved==='all'||branchById(saved))?saved:'all';
+  }
+  renderBranchControl();
+  renderQaBranchField();
 }
 async function initAuth(){
   const { data:{ session } } = await sb.auth.getSession();
@@ -6040,6 +6309,9 @@ async function startApp(){
   document.getElementById('authOverlay').style.display = 'none';
   document.getElementById('shell').style.display = 'flex';
   updateBizClock(); setInterval(updateBizClock,30000);
+  // Branch scope has to resolve before any loader runs, otherwise the first paint
+  // shows every branch and then silently swaps under the operator.
+  await initBranchScope();
   renderBizHeaderNav();
   updateBizHeaderNavActive(_curBizTab);
   applyStaffTabRestrictions();
@@ -7196,6 +7468,10 @@ async function getOrderFields(){
     customer_pincode:g('qa_pin'),
     customer_country:g('qa_country')||'India',
     customer_gstin:g('qa_gstin'),
+    // Which branch fulfils this. For a staff session the database overwrites
+    // whatever is sent here with their own branch, so this value only ever
+    // matters when the owner is the one saving.
+    branch_id:resolveQaBranch(),
     notes:g('qa_notes'),
     terms_notes:g('qa_inv_terms'),
     record_terms_notes:g('qa_rec_terms'),
@@ -7273,6 +7549,7 @@ function resetQuickAdd(){
   document.getElementById('qa_delivery_date').value=today();
   document.getElementById('qa_state').value='Uttar Pradesh';
   document.getElementById('qa_channel').value='shop';
+  resetQaBranch();   // form.reset() wipes the <select>, and drops any manual override
   const z=id=>{const e=document.getElementById(id);if(e)e.value='0';};
   z('qa_platformfee'); z('qa_shipping'); z('qa_porter'); z('qa_roundoff');
   _qaRoundoffManual=false;
@@ -7545,6 +7822,7 @@ async function submitQuickAddAsQuotation(){
     customer_id:custId||null,
     customer_name:cname, customer_phone:g('qa_phone'), customer_address:g('qa_address'),
     customer_city:g('qa_city'), customer_state:g('qa_state'), customer_pincode:g('qa_pin'), customer_country:g('qa_country')||'India', customer_gstin:g('qa_gstin'),
+    branch_id:resolveQaBranch(),
     items, subtotal:sub, gst_amount:gstAmt, round_off:roundOff, total:sub+gstAmt+roundOff-discTotal,
     validity_date:g('qa_qt_validity'), terms_notes:g('qa_qt_terms'), promised_date:g('qa_qt_promised'),
     quotation_number:manualNumber, quotation_date:g('qa_date')||today(),
@@ -7604,6 +7882,11 @@ function openAddOrderEdit(firstId){
   set('qa_packet',f.package_size); set('qa_cname',f.customer_name); set('qa_phone',f.customer_phone);
   set('qa_address',f.customer_address); set('qa_city',f.customer_city); set('qa_state',f.customer_state);
   set('qa_pin',f.customer_pincode); set('qa_country',f.customer_country||'India'); set('qa_gstin',f.customer_gstin); set('qa_notes',f.notes);
+  // Editing shows the branch this order already belongs to and treats it as
+  // deliberate, so re-saving an old order never quietly moves it to another
+  // branch because the pincode rules changed since it was created.
+  if(f.branch_id){ fillBranchSelect('qa_branch', f.branch_id); _qaBranchManual=true;
+    const bh=document.getElementById('qa_branch_hint'); if(bh) bh.textContent='As saved on this order'; }
   set('qa_inv_terms',f.terms_notes); set('qa_rec_terms',f.record_terms_notes);
   set('qa_platformfee', f.platform_fee||0); set('qa_shipping', f.shipping_fee||0); set('qa_porter', f.other_deductions||0);
   // Show exactly what was saved, not a freshly auto-calculated figure, an operator
@@ -8461,7 +8744,7 @@ async function loadSalesview(){
     const f=items[0], totalQty=items.reduce((a,s)=>a+(parseInt(s.qty)||0),0), totalPrice=items.reduce((a,s)=>a+(parseFloat(s.selling_price)||0),0)+(parseFloat(f.round_off)||0);
     const excluded=NON_REVENUE_STATUSES.includes(f.status);
     return `<tr class="sale-row${excluded?' row-breached':''}" onclick="jumpToOrderDetail('${f.id}')" style="cursor:pointer${excluded?';opacity:.7':''}">
-      <td>${idx+1}</td><td>${fmtDay(f.order_date)}</td><td>${chHtml(f.channel_id)}</td>
+      <td>${idx+1}</td><td>${fmtDay(f.order_date)}</td><td>${chHtml(f.channel_id)}${branchTag(f.branch_id)}</td>
       <td>${esc(f.customer_name||'N/A')}</td><td>${esc(f.product_name||'N/A')}${f.is_gift?' <span title="Gift, ₹0 revenue"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4"/><path d="M12 8v13M3 12v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M12 8c-1.5 0-4-1-4-3.5A2.5 2.5 0 0 1 10.5 2C12 2 12 5 12 8ZM12 8c1.5 0 4-1 4-3.5A2.5 2.5 0 0 0 13.5 2C12 2 12 5 12 8Z"/></svg></span>':''}${items.length>1?` <span style="color:var(--text-3);font-size:10px">+${items.length-1} more</span>`:''}${excluded?' <span style="color:var(--red);font-size:10px">(excluded from Sales)</span>':''}</td>
       <td class="td-num">${totalQty}</td><td class="td-num">${fmt(totalPrice)}</td>
       <td><span class="badge badge-${f.status}">${STATUS_LABEL?.[f.status]||f.status}</span></td>
@@ -10047,7 +10330,7 @@ async function loadOpenOrders(){
         <td style="white-space:nowrap">${slaCell(f)}</td>
         <td style="white-space:nowrap">${esc(f.customer_name||'N/A')}</td>
         <td>${skuItemCol(f,more)}</td>
-        <td>${chHtml(f.channel_id)}</td>
+        <td>${chHtml(f.channel_id)}${branchTag(f.branch_id)}</td>
         <td onclick="event.stopPropagation()"><select onchange="updateOrderStatus('${f.id}',this.value)" class="badge-select badge-${f.status}">${UNIFIED_STATUSES.map(x=>`<option value="${x}"${f.status===x?' selected':''}>${STATUS_LABEL[x]}</option>`).join('')}</select></td>
         <td class="td-actions" style="color:var(--text-3)">↗</td>
       </tr>`;
@@ -10070,7 +10353,7 @@ async function loadOpenOrders(){
         <td style="white-space:nowrap">${slaCell(f)}${waiting!=null?`<div style="font-size:10px;color:var(--yellow);font-weight:600" title="Packed and ready, not collected yet. Not an SLA breach">${waiting}d awaiting pickup</div>`:''}</td>
         <td style="white-space:nowrap">${esc(f.customer_name||'N/A')}</td>
         <td>${skuItemCol(f,more)}</td>
-        <td>${chHtml(f.channel_id)}</td>
+        <td>${chHtml(f.channel_id)}${branchTag(f.branch_id)}</td>
         <td onclick="event.stopPropagation()"><select onchange="updateOrderStatus('${f.id}',this.value)" class="badge-select badge-${f.status}">${UNIFIED_STATUSES.map(x=>`<option value="${x}"${f.status===x?' selected':''}>${STATUS_LABEL[x]}</option>`).join('')}</select></td>
         <td class="td-actions" style="color:var(--text-3)">↗</td>
       </tr>`;
@@ -10092,7 +10375,7 @@ async function loadOpenOrders(){
         <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${f.dispatch_date?fmtDay(f.dispatch_date):'N/A'}${dispatchInfo?'<br>'+dispatchInfo:''}</td>
         <td style="white-space:nowrap">${esc(f.customer_name||'N/A')}</td>
         <td>${skuItemCol(f,more)}</td>
-        <td>${chHtml(f.channel_id)}</td>
+        <td>${chHtml(f.channel_id)}${branchTag(f.branch_id)}</td>
         <td style="font-size:11px;white-space:nowrap">${rw}</td>
         <td onclick="event.stopPropagation()"><button class="btn btn-sm" onclick="toggleReviewReceived('${f.id}',${!!f.review_received})" style="background:${f.review_received?'var(--green-bg)':'var(--bg-2)'};color:${f.review_received?'var(--green)':'var(--text-3)'};border:1px solid ${f.review_received?'var(--green)':'var(--border)'};font-size:11px;padding:3px 8px">${f.review_received?'✓ Received':'◯ Pending'}</button></td>
         <td onclick="event.stopPropagation()"><select onchange="updateOrderStatus('${f.id}',this.value)" class="badge-select badge-${f.status}">${UNIFIED_STATUSES.map(x=>`<option value="${x}"${f.status===x?' selected':''}>${STATUS_LABEL[x]}</option>`).join('')}</select></td>
@@ -12572,7 +12855,7 @@ async function loadSales(){
       <td><input type="checkbox" class="sale-cb" data-ids="${ids}" onclick="event.stopPropagation()" onchange="updateBulkBar()"></td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text-3)">${idx+1}</td>
       <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${fmtDay(f.order_date)}</td>
-      <td>${chHtml(f.channel_id)}</td>
+      <td>${chHtml(f.channel_id)}${branchTag(f.branch_id)}</td>
       <td style="white-space:nowrap">${esc(f.customer_name||'N/A')}</td>
       <td>${itemCol}</td>
       <td class="td-num">${totalQty}</td>
