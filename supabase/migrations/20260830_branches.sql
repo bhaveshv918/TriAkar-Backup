@@ -332,15 +332,21 @@ CREATE POLICY "orders_branch_staff" ON public.orders FOR ALL TO authenticated
   USING      ((SELECT public.is_biz_staff()) AND branch_id = (SELECT public.staff_branch()))
   WITH CHECK ((SELECT public.is_biz_staff()) AND branch_id = (SELECT public.staff_branch()));
 
+-- order_items.order_id is written out in full on purpose. Unqualified, it resolves to
+-- the INNER table first, and orders has its own order_id (the TEXT TRK- number, added
+-- in schema-v2.sql), so `o.id = order_id` silently became uuid = text and the whole
+-- migration failed. The older customer policy on this table gets away with the same
+-- shorthand only because it was created before orders.order_id existed, which is luck,
+-- not correctness. Never leave a column unqualified inside an EXISTS here.
 DROP POLICY IF EXISTS "order_items_branch_staff" ON public.order_items;
 CREATE POLICY "order_items_branch_staff" ON public.order_items FOR ALL TO authenticated
   USING (EXISTS (
     SELECT 1 FROM public.orders o
-     WHERE o.id = order_id
+     WHERE o.id = public.order_items.order_id
        AND (SELECT public.is_biz_staff()) AND o.branch_id = (SELECT public.staff_branch())))
   WITH CHECK (EXISTS (
     SELECT 1 FROM public.orders o
-     WHERE o.id = order_id
+     WHERE o.id = public.order_items.order_id
        AND (SELECT public.is_biz_staff()) AND o.branch_id = (SELECT public.staff_branch())));
 
 -- Storage: invoice uploads stay open to owner and any staff. Bucket objects have no
