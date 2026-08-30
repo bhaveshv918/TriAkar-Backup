@@ -1556,7 +1556,7 @@ html[data-theme="dark"] .biz-login{
     </button>
     <div title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="display:flex;flex-direction:column;line-height:1.05;white-space:nowrap">
       <span style="font-family:'Glorida','Inter',sans-serif;font-size:15px;font-weight:800;letter-spacing:.04em"><span style="color:var(--accent)">TRI</span><span style="color:var(--text)">AKAR</span></span>
-      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V4.11</span></span>
+      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V4.12</span></span>
     </div>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
@@ -5035,6 +5035,38 @@ const BRANCH_INHERITED_TABLES = new Set(['biz_invoices','biz_sale_payments']);
         return rawUpsert(Array.isArray(values) ? values.map(stamp) : stamp(values), opts);
       };
     }
+    return q;
+  };
+})();
+
+// site_settings is business-wide configuration (pricing formula, fee rules, opening
+// balance, document layout) and its RLS policy is owner-write for good reason. A staff
+// session has no business changing any of it, but several code paths reach a write
+// incidentally, and the customer-facing result was a red
+// "new row violates row-level security policy" toast on a screen where nothing had
+// gone wrong.
+//
+// So for a staff session the write is stopped here and reported as a plain sentence
+// instead of Postgres's wording. The console.warn carries a stack, which is what will
+// name the exact caller if another one of these turns up.
+(function guardOwnerOnlyConfig(){
+  const rawFrom = sb.from.bind(sb);
+  sb.from = function(table){
+    const q = rawFrom(table);
+    if(table !== 'site_settings') return q;
+    ['insert','update','upsert','delete'].forEach(function(op){
+      const raw = q[op] && q[op].bind(q);
+      if(!raw) return;
+      q[op] = function(){
+        if(!_isStaffUser) return raw.apply(null, arguments);
+        console.warn('[site_settings] blocked a staff write, owner-only config:', op, new Error('caller').stack);
+        const result = { data:null, error:{ message:'Only the owner can change business settings.' } };
+        return Object.assign(Promise.resolve(result), {
+          // Keep the builder chainable, since callers write .upsert(...).select() etc.
+          select(){ return this; }, eq(){ return this; }, single(){ return this; }, maybeSingle(){ return this; },
+        });
+      };
+    });
     return q;
   };
 })();
@@ -10389,10 +10421,17 @@ async function loadOpenOrders(){
 // Orders" represents work that hasn't landed as a real order yet, once it does, it moves
 // out of that bucket on its own. Still fully manually editable via editUpcomingOrders().
 async function decrementUpcomingOrders(){
+  // Owner only, for two reasons. site_settings is owner-write in RLS, so a staff
+  // account adding an order got a red "violates row-level security policy" toast
+  // even though the order itself had saved perfectly. And the counter is one global
+  // number the owner keeps by hand, so a Gurugram order should not be quietly
+  // subtracting from it anyway.
+  if(_isStaffUser) return;
   const {data}=await sb.from('site_settings').select('value').eq('key','biz_upcoming_orders').maybeSingle();
   const cur=parseInt((data&&data.value)||'0',10)||0;
   if(cur<=0) return;
-  await sb.from('site_settings').upsert({key:'biz_upcoming_orders',value:String(cur-1),updated_at:new Date().toISOString()},{onConflict:'key'});
+  const {error}=await sb.from('site_settings').upsert({key:'biz_upcoming_orders',value:String(cur-1),updated_at:new Date().toISOString()},{onConflict:'key'});
+  if(error) console.warn('upcoming orders counter not updated:',error.message);
 }
 async function editUpcomingOrders(){
   const {data}=await sb.from('site_settings').select('value').eq('key','biz_upcoming_orders').maybeSingle();
