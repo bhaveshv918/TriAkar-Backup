@@ -156,22 +156,67 @@ Details: https://www.triakar.com/prototyping
 
 ---
 
-## Delivery
+## Shipping and delivery
 
-**Normal delivery is 3 to 6 working days across India.** Working days exclude weekends and festival
-holidays.
+**Normal delivery is 3 to 6 business days across India.** Business days are Monday to Saturday.
+Sundays and national or public holidays are not counted, and processing, dispatch and support may
+pause on those days.
+
+**Shipping charges**
+
+- Free shipping on orders above ₹999
+- Orders below ₹999 attract a ₹99 shipping fee
+- Studio pickup at Greater Noida West is free, and same day for customers who live nearby
+- Sohna Branch covers Gurugram, Sohna, Sohna Road, Badshahpur, Bhondsi and Manesar with home
+  delivery, and pickup only by prior confirmation once the order is ready
+
+**Speed by region**
 
 - Delhi NCR is often faster, usually 1 to 3 days
-- Free shipping on orders above ₹999
-- Studio pickup at Greater Noida West is free, and same day for customers who live nearby
-- Sohna Branch covers Gurugram and nearby areas with home delivery, and pickup only by prior
-  confirmation once the order is ready
+- Everywhere else in India, 3 to 6 business days
+
+Everything ships by tracked courier. Customers can follow their order at
+https://www.triakar.com/track-order using their order ID.
 
 **Urgent orders:** we can have a piece ready within 24 hours. An urgent charge applies, and the
 exact amount is confirmed case by case.
 
 **Custom orders:** a quote comes within 24 hours. Most custom parts are ready in 48 to 72 hours
-after the customer approves the design.
+after the customer approves the design, and then shipping time applies on top.
+
+**International:** we do ship internationally. Rates are confirmed at checkout. Customs duties and
+import taxes are the customer's responsibility, and customs delays are outside our control.
+
+**Delivery estimates are indicative, not guaranteed.** We are not responsible for delays caused by
+couriers, customs, weather or anything else outside our control. If a customer gave us an incorrect
+address, a free reship does not apply.
+
+---
+
+## How to order
+
+There are three routes, and they all end the same way, with a human confirming the plan before
+anything is printed.
+
+**On WhatsApp.** Tell us what you need, send a reference image (or a 3D file if you have one), and
+share quantity, delivery pincode and the date you need it by. We come back with the exact price,
+then send our GPay QR. Once payment is done the order is confirmed.
+
+**On the website.** Browse https://www.triakar.com/products, add to cart, and check out through
+Razorpay. An account is needed, we do not offer guest checkout.
+
+**Instant Quote,** at https://www.triakar.com/instant-quote. Upload your own STL or OBJ, pick
+material and colour, and get an automated price estimate straight away. No account needed just to
+see a price.
+
+Important about Instant Quote: **the price shown is an automated estimate and the actual price can
+vary by 15 to 60 percent.** Payment secures a place in the queue, but production does not begin
+until the customer confirms the final customisation details with us. Before that confirmation the
+customer can cancel at no cost.
+
+**Customisation is always confirmed by a person before production.** For any customisable product
+we show a digital preview or a written confirmation of specifications, and nothing goes into
+production until the customer approves it.
 
 ---
 
@@ -199,23 +244,88 @@ has been agreed with the customer.
 
 ---
 
-## Policies
+## The unboxing video, tell every customer this before delivery
 
-**7-Day Reprint Guarantee.** If an item arrives damaged or incorrect, the customer sends a photo
-within 7 days and we reprint and reship it free.
+This is the single most important thing to say early, not after something goes wrong.
 
-**Returns.** Standard products can be returned within 7 days if unused and in original condition.
-Custom orders are not refundable once the design has been approved.
+**A free reprint for a damaged or incorrect item requires an unboxing video.** The video must show:
 
-**Cancellation.** Once an order is confirmed and paid, it cannot be cancelled, because the piece is
-made only for that customer. Customers should check items, quantity, spelling and address carefully
-before paying.
+1. The sealed TriAkar package **before** opening, with the tamper-evident seal fully visible and
+   intact
+2. The complete unboxing in **one single uncut recording**, from sealed to fully opened
+3. The condition of the item as received
 
-**Design approval.** We show the customer the design before printing. Nothing goes into production
-until they are happy with it.
+**Claims without a valid unboxing video showing the intact seal at the start will not be processed,
+under any circumstances.**
+
+So when an order is confirmed, or when delivery is close, remind the customer kindly:
+
+> Ek chhoti si request, jab parcel khole toh video bana lijiyega. Seal band dikhna chahiye shuru
+> mein, aur ek hi recording mein poora kholna, beech mein rukna nahi. Kuch gadbad nikli toh usi
+> video se hum turant free reprint kar dete hain, kuch poochte bhi nahi.
+
+Framing it as protection for the customer works. Framing it as a condition they might fail does not.
+
+---
+
+## Returns and refunds
+
+**Standard (non-custom) products, 7-day return window.** A return can be requested within 7 days of
+the delivery date. The item must be unused, in original condition and undamaged. Returns are
+started by emailing hello@triakar.com.
+
+Return shipping is paid by the customer, unless the item was defective or incorrect, in which case
+we cover it.
+
+Refunds are processed within 5 to 7 business days of us receiving the returned item, back to the
+original payment method.
+
+**Damaged or incorrect items, 7-Day Free Reprint Guarantee.** Share the unboxing video plus clear
+photographs within 7 days of delivery, and we reprint and reship free.
+
+**We do not give cash refunds for damaged items, only a free replacement.** Every item is made to
+order and cannot be resold, so a reprint is what we offer.
+
+**Custom orders are non-refundable once approved.** Before approving the design or specifications a
+customer can cancel at no cost. After approval the order enters production and cannot be cancelled
+or refunded. Instant Quote orders follow the same rule once the final details are confirmed.
+
+**Order cancellation.** An order cannot be reversed after confirmation. The only exception is when
+we cannot fulfil it ourselves, for example a stock or pricing error, in which case we cancel and
+refund in full.
+
+**Not eligible for return or refund:**
+
+- Items damaged through misuse, modification, or use outside their intended purpose
+- Digital files such as CAD or design files, once delivered
+- Uploaded 3D model files, which are not deliverables
+- Orders where the customer gave an incorrect address, for a free reship
+- Delays or damage caused by customs on international orders
+
+**Bulk orders of 10 or more units** are covered by a separate agreement confirmed in writing before
+production. Partial refunds may apply if fewer than the agreed units are delivered because of our
+error.
+
+**Exchanges.** We do not run a separate exchange scheme. Because every piece is made to order, the
+equivalent is the 7-Day Free Reprint Guarantee: anything damaged or incorrect is reprinted and
+reshipped free. A standard product that a customer simply does not want can be returned within 7
+days for a refund, and they can place a fresh order for what they did want.
+
+---
+
+## Other policies
+
+**Design approval.** We show the customer the design or a specification confirmation before
+printing. Nothing goes into production until they approve it.
 
 **Confidentiality.** A customer's design stays theirs. We do not share it or publish it without
 their permission. A formal NDA can be arranged on request.
+
+**Business days.** Every timeline here, processing, dispatch, returns and refunds, is counted in
+business days. Business days are Monday to Saturday. Sundays and national or public holidays are
+not counted.
+
+Full policy: https://www.triakar.com/refund-policy
 
 ---
 
@@ -255,8 +365,9 @@ not a showroom, so pickup happens only once the order is ready and a time is fix
 person, visit the Greater Noida West studio.
 
 **How long does delivery take?**
-Normal delivery is 3 to 6 working days across India, weekends and festival holidays excluded. Delhi
-NCR is often faster.
+Normal delivery is 3 to 6 business days across India. Business days are Monday to Saturday, Sundays
+and public holidays are not counted. Delhi NCR is often faster, usually 1 to 3 days. Free shipping
+above ₹999, and a ₹99 shipping fee below that.
 
 **Can you do it urgently?**
 Yes, we can have a piece ready within 24 hours. An urgent charge applies and we confirm the exact
@@ -292,9 +403,21 @@ Yes, from 10 pieces, with custom logos, bulk packaging and personalised items. S
 name, quantity, deadline and logo file and we put together options.
 
 **Can I return an item?**
-Standard products within 7 days if unused and in original condition. Anything damaged or incorrect
-is reprinted free under our 7-Day Reprint Guarantee. Custom orders are not refundable once the
-design is approved.
+Standard products within 7 days of delivery if unused and in original condition, just email
+hello@triakar.com. Return shipping is on the customer unless the item was defective or incorrect.
+Refunds take 5 to 7 business days after we receive the item. Custom orders are not refundable once
+the design is approved.
+
+**Something arrived damaged, what now?**
+Send your unboxing video and clear photos within 7 days of delivery and we reprint and reship it
+free. The unboxing video is required: it has to show the sealed package with the seal intact at the
+start, and the whole opening in one uncut recording. Without it we cannot process the claim. We
+replace rather than refund, because every piece is made to order.
+
+**Do you do exchanges?**
+We do not run a separate exchange scheme, because every piece is made to order. If something is
+damaged or incorrect we reprint it free under the 7-Day Reprint Guarantee. If you simply do not
+want a standard product, return it within 7 days for a refund and place a fresh order.
 
 **Can I cancel my order?**
 Not once it is confirmed and paid, because the piece is made only for you.
