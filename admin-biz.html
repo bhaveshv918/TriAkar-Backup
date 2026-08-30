@@ -4253,7 +4253,7 @@ html[data-theme="dark"] .biz-login{
     ═══════════════════════════════════════════════════════ -->
     <div class="panel" id="panelInvoicing">
       <div class="p-head">
-        <div><div class="p-title">Invoicing</div><div class="p-sub">Every invoice generated, with its real sequential number. Always sorted by invoice number, drag a row onto another to move it there (shares that number, delete/renumber one after).</div></div>
+        <div><div class="p-title">Invoicing</div><div class="p-sub">Every invoice generated, with its real sequential number. Always sorted by invoice number, drag a row onto another to move it there (shares that number, delete/renumber one after). Click a Doc Date to change the date printed on that document.</div></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <input type="text" id="invSearch" placeholder="Search invoice # / order" oninput="loadInvoicing()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;padding:5px 8px;min-width:160px">
           <select id="invKindFilter" onchange="loadInvoicing()" style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;padding:5px 8px">
@@ -15306,12 +15306,33 @@ async function loadInvoicing(){
   const kind=document.getElementById('invKindFilter')?.value;
   const fy=document.getElementById('invFyFilter')?.value;
   const search=(document.getElementById('invSearch')?.value||'').trim().replace(/[,()%]/g,'');
-  let q=sb.from('biz_invoices').select('*').limit(500);
-  if(mo){ const [yy,mm]=mo.split('-').map(Number); const start=mo+'-01'; const next=(mm===12)?`${yy+1}-01-01`:`${yy}-${String(mm+1).padStart(2,'0')}-01`; q=q.gte('generated_at',start).lt('generated_at',next); }
-  if(kind) q=q.eq('doc_kind',kind);
-  if(fy) q=q.eq('financial_year',fy);
-  if(search) q=q.or(`invoice_number.ilike.%${search}%,order_id.ilike.%${search}%`);
-  const {data,error}=await q;
+  // Month filter follows the document's OWN date (the Doc Date column, editable per row),
+  // not generated_at, so a bill dated back into July still turns up under July even if it
+  // was actually printed in August. Rows logged before the doc_date column existed have
+  // none, so they're picked up by a second pass on generated_at and merged in. Two passes
+  // rather than one or(and(...),and(...)) because a search term already uses .or(), and
+  // stacking two of them on one query is exactly the kind of filter that silently returns
+  // the wrong set.
+  const baseQuery=()=>{
+    let q=sb.from('biz_invoices').select('*').limit(500);
+    if(kind) q=q.eq('doc_kind',kind);
+    if(fy) q=q.eq('financial_year',fy);
+    if(search) q=q.or(`invoice_number.ilike.%${search}%,order_id.ilike.%${search}%`);
+    return q;
+  };
+  let data, error;
+  if(mo){
+    const [yy,mm]=mo.split('-').map(Number);
+    const start=mo+'-01', next=(mm===12)?`${yy+1}-01-01`:`${yy}-${String(mm+1).padStart(2,'0')}-01`;
+    const [dated,legacy]=await Promise.all([
+      baseQuery().gte('doc_date',start).lt('doc_date',next),
+      baseQuery().is('doc_date',null).gte('generated_at',start).lt('generated_at',next)
+    ]);
+    error=dated.error||legacy.error;
+    data=[...(dated.data||[]),...(legacy.data||[])];
+  } else {
+    ({data,error}=await baseQuery());
+  }
   const tbody=document.getElementById('invoicingBody'); if(!tbody) return;
   if(error){ tbody.innerHTML=`<tr><td colspan="7" class="empty"><div class="em-text">Error loading, has 20260709_biz_invoicing.sql been run?</div></td></tr>`; return; }
   // Customer names aren't stored on biz_invoices itself, look them up from biz_sales
@@ -15343,12 +15364,12 @@ async function loadInvoicing(){
        ondragstart="invDragStart(event,'${r.id}')" ondragend="invDragEnd(event)"
        ondragover="invDragOver(event)" ondragleave="invDragLeave(event)" ondrop="invDrop(event,'${r.id}')">
     <td class="srl" draggable="true" title="Drag onto another row to move here" style="cursor:grab;color:var(--text-3);text-align:center">⠿</td>
-    <td style="font-family:var(--mono);font-size:11px">${r.doc_date?fmtDay(r.doc_date):'N/A'}</td>
+    <td style="font-family:var(--mono);font-size:11px"><button onclick="editInvoiceDate('${r.id}')" title="Click to change this invoice's date" style="font:inherit;color:inherit;background:none;border:none;padding:2px 0;cursor:pointer;border-bottom:1px dashed var(--border-h)">${r.doc_date?fmtDay(r.doc_date):'Set date'}</button></td>
     <td style="font-family:var(--mono);font-weight:600">${esc(r.invoice_number)}</td>
     <td style="font-family:var(--mono);font-size:11px">${r.order_id?orderIdTag(r.order_id,{size:'11px'}):'N/A'}</td>
     <td><span class="badge" style="background:var(--bg-3);color:var(--text-2)">${r.doc_kind==='record'?'Ack':'Invoice'}</span></td>
     <td style="white-space:nowrap">${esc(custName)}</td>
-    <td class="td-actions" style="white-space:nowrap"><button class="btn btn-icon-tint btn-icon-doc btn-sm" onclick="viewLoggedInvoice('${r.order_id||''}','${r.sale_id||''}','${r.doc_kind||'invoice'}')" title="Open the actual invoice/record document" style="padding:3px 6px">${ICO_VIEW}</button> ${r.order_id?`<button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${esc(r.order_id)}';loadSales();}},300)" title="Jump to order" style="padding:3px 6px">${ICO_EXTERNAL}</button>`:''} <button class="btn btn-icon-tint btn-icon-duplicate btn-sm" onclick="duplicateInvoiceLog('${r.id}')" title="Duplicate onto a new sequential number, same order/kind" style="padding:3px 6px">${ICO_DUPLICATE}</button> <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editInvoiceLog('${r.id}','${esc(r.invoice_number)}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deleteInvoiceLog('${r.id}','${esc(r.invoice_number)}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
+    <td class="td-actions" style="white-space:nowrap"><button class="btn btn-icon-tint btn-icon-doc btn-sm" onclick="viewLoggedInvoice('${r.order_id||''}','${r.sale_id||''}','${r.doc_kind||'invoice'}','${r.doc_date||''}')" title="Open the actual invoice/record document" style="padding:3px 6px">${ICO_VIEW}</button> ${r.order_id?`<button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="switchTab('sales');setTimeout(function(){var s=document.getElementById('sfSearch');if(s){s.value='${esc(r.order_id)}';loadSales();}},300)" title="Jump to order" style="padding:3px 6px">${ICO_EXTERNAL}</button>`:''} <button class="btn btn-icon-tint btn-icon-duplicate btn-sm" onclick="duplicateInvoiceLog('${r.id}')" title="Duplicate onto a new sequential number, same order/kind" style="padding:3px 6px">${ICO_DUPLICATE}</button> <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editInvoiceDate('${r.id}')" title="Change invoice date" style="padding:3px 6px">${ICO_CALENDAR}</button> <button class="btn btn-icon-tint btn-icon-edit btn-sm" onclick="editInvoiceLog('${r.id}','${esc(r.invoice_number)}')" title="Change invoice number" style="padding:3px 6px">${ICO_EDIT}</button> <button class="btn btn-danger btn-sm" onclick="deleteInvoiceLog('${r.id}','${esc(r.invoice_number)}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button></td>
   </tr>`;
   }).join(''):`<tr><td colspan="7" class="empty"><div class="em-text">No invoices generated yet</div></td></tr>`;
 }
@@ -15377,6 +15398,56 @@ async function editInvoiceLog(id,cur){
   if(error){ toast('Update failed: '+(error.message.includes('duplicate')?'that number is already in use':error.message),'error'); return; }
   toast('Invoice number updated','success');
   loadInvoicing();
+}
+// Change the date printed on an already-issued document, straight from the Invoicing
+// tab, without having to go back into the order. The logged doc_date is what every
+// reprint reads from here on (see allocateInvoiceNumber/printInvoice), so the correction
+// sticks on the document itself, not just on this table.
+// Two bypassable warnings first, both about consequences that are easy to miss:
+// the financial year the new date sits in vs the year this number was issued under,
+// and the same date-vs-series check every other numbering change runs.
+// The sale's own Order Date is a separate fact (it drives the dashboard, reports and the
+// GST period), so it's offered afterwards as its own explicit choice rather than moved
+// silently along with the invoice date.
+async function editInvoiceDate(id){
+  const {data:row,error}=await sb.from('biz_invoices').select('*').eq('id',id).single();
+  if(error||!row){ toast('Could not load that invoice','error'); return; }
+  const cur=(row.doc_date||'').slice(0,10);
+  const val=await bizPrompt('Invoice date',cur||today(),{
+    title:'Change invoice date',
+    message:`${row.invoice_number}. This is the date printed on the document, every reprint will use it.`,
+    type:'date', confirmLabel:'Save date'
+  });
+  if(val==null) return;
+  const nd=String(val).slice(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(nd)){ toast('That is not a valid date','error'); return; }
+  if(nd===cur) return;
+  const fyStart=(+nd.slice(5,7)>=4)?+nd.slice(0,4):+nd.slice(0,4)-1;
+  const newFy=`${fyStart}-${String((fyStart+1)%100).padStart(2,'0')}`;
+  if(row.financial_year&&newFy!==row.financial_year
+     &&!await bizConfirm(`${fmtDay(nd)} falls in FY ${newFy}, but ${row.invoice_number} was issued in the FY ${row.financial_year} series. That moves the bill into a different year's return. Continue anyway?`)) return;
+  const period=row.period||row.financial_year;
+  const m=(row.invoice_number||'').match(/(\d+)\s*$/);
+  if(period&&m){
+    const dateMsg=await checkDateSequenceIssue(nd,period,parseInt(m[1],10),id);
+    if(dateMsg&&!await bizConfirm('Invoice date vs series order: '+dateMsg+' Continue anyway?')) return;
+  }
+  const {error:updErr}=await sb.from('biz_invoices').update({doc_date:nd}).eq('id',id);
+  if(updErr){ toast('Update failed: '+updErr.message,'error'); return; }
+  toast('Invoice date set to '+fmtDay(nd),'success');
+  loadInvoicing();
+  if(!row.order_id&&!row.sale_id) return;
+  const {data:sales}=await (row.order_id
+    ? sb.from('biz_sales').select('id,order_date').eq('order_id',row.order_id).eq('is_deleted',false)
+    : sb.from('biz_sales').select('id,order_date').eq('id',row.sale_id));
+  const stale=(sales||[]).filter(s=>(s.order_date||'').slice(0,10)!==nd);
+  if(!stale.length) return;
+  const what=stale.length===1?'this sale':`all ${stale.length} lines of this order`;
+  if(!await bizConfirm(`Move the Order Date on ${what} to ${fmtDay(nd)} as well? It reads ${fmtDay(stale[0].order_date)} today, and changing it also moves this sale's revenue in the dashboard, reports and GST period.`,
+                       {title:'Order date too?',confirmLabel:'Move order date too',cancelLabel:'Invoice date only'})) return;
+  const {error:sErr}=await sb.from('biz_sales').update({order_date:nd}).in('id',stale.map(s=>s.id));
+  if(sErr){ toast('Invoice date saved, but the order date could not be moved: '+sErr.message,'error'); return; }
+  toast('Order date moved to '+fmtDay(nd)+' too','success');
 }
 // Duplicate: clones this row's order/sale link, doc kind and doc date onto a fresh
 // sequential number in the same FY series, e.g. to re-issue a split copy. Always
@@ -15449,7 +15520,10 @@ async function deleteInvoiceLog(id,num){
 // alongside order_id for every multi-item order too (it's just whichever line item
 // was items[0] at print time, see allocateInvoiceNumber's comment), so checking
 // sale_id first was pulling back only that one line item instead of the whole order.
-async function viewLoggedInvoice(orderId, saleId, docKind){
+// docDate, when passed, is the logged row's own doc_date, so the document opens on the
+// date the log shows even for an Order Acknowledgement (which never goes through
+// allocateInvoiceNumber and so has no other way to pick the corrected date up).
+async function viewLoggedInvoice(orderId, saleId, docKind, docDate){
   const win=window.open('','_blank');   // opened synchronously so mobile still treats it as user-initiated
   let items=[];
   try{
@@ -15463,7 +15537,7 @@ async function viewLoggedInvoice(orderId, saleId, docKind){
   }catch(_){}
   if(!items.length){ if(win) win.close(); toast('Could not find the original order/sale','error'); return; }
   const anyGst=items.some(s=>parseFloat(s.gst_rate)>0);
-  printInvoice({...items[0], items}, anyGst?'gst':'nongst', docKind==='record'?'record':undefined, win);
+  printInvoice({...items[0], items, doc_date_override:(docDate||'').slice(0,10)||null}, anyGst?'gst':'nongst', docKind==='record'?'record':undefined, win);
 }
 
 // ── Dashboard ───────────────────────────────────────────────
@@ -16727,7 +16801,14 @@ async function checkDateSequenceIssue(docDate, period, candidateSeq, excludeId){
   return null;
 }
 function invoiceFyShort(fyStartYear){ return `${String(fyStartYear).slice(-2)}${String((fyStartYear+1)%100).padStart(2,'0')}`; }
+// Set by allocateInvoiceNumber when the sale/order already has a logged invoice: the
+// doc_date stored on that row, which is the invoice's real date once it has been issued
+// (and possibly corrected from the Invoicing tab). printInvoice reads it right after
+// allocating so every reprint, from anywhere, shows the same date as the log, instead of
+// silently re-dating the bill to whatever the order's Order Date happens to be now.
+let _loggedDocDate=null;
 async function allocateInvoiceNumber(saleId, orderId, docKind, manualNumber, docDate){
+  _loggedDocDate=null;
   try{
     const now=new Date(), fyStartYear=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
     const fy=`${fyStartYear}-${String((fyStartYear+1)%100).padStart(2,'0')}`;
@@ -16743,14 +16824,14 @@ async function allocateInvoiceNumber(saleId, orderId, docKind, manualNumber, doc
     // a fallback for legacy single-row sales printed before order_id existed.
     let existing=null;
     if(orderId){
-      const {data:ex}=await sb.from('biz_invoices').select('id,invoice_number').eq('order_id',orderId).eq('doc_kind',docKind).limit(1);
+      const {data:ex}=await sb.from('biz_invoices').select('id,invoice_number,doc_date').eq('order_id',orderId).eq('doc_kind',docKind).limit(1);
       existing=(ex&&ex[0])||null;
     }
     if(!existing&&saleId){
-      const {data:ex}=await sb.from('biz_invoices').select('id,invoice_number').eq('sale_id',saleId).eq('doc_kind',docKind).limit(1);
+      const {data:ex}=await sb.from('biz_invoices').select('id,invoice_number,doc_date').eq('sale_id',saleId).eq('doc_kind',docKind).limit(1);
       existing=(ex&&ex[0])||null;
     }
-    if(existing) return existing.invoice_number;
+    if(existing){ _loggedDocDate=existing.doc_date||null; return existing.invoice_number; }
     let useManual=!!manualNumber;
     if(manualNumber){
       const {isDup,gapMsg}=await checkInvoiceNumberIssues(manualNumber,period,null);
@@ -16995,9 +17076,16 @@ async function printInvoice(d, type, docKind, win){
   const showHdrIdentity=isQuote?docQuo('business_identity'):(SELLER_ADDR||SELLER_GSTIN||SELLER_EMAIL||SELLER_PHONE||SELLER_WEB);
   const hdrShowGstin=isQuote?docQuo('gstin'):(isRecord?docRec('gst_details'):docInv('gstin'));
   const hdrShowAddr=isQuote?true:(isRecord||docInv('business_address'));
-  const docDate=d.order_date||today();
+  // Order Date is only the STARTING point for the document's date. Once an invoice has
+  // been issued, its date lives on the logged biz_invoices row (doc_date), where it can be
+  // corrected from the Invoicing tab, so that one wins on every reprint. doc_date_override
+  // is the explicit form of the same thing, passed by viewLoggedInvoice.
+  let docDate=d.doc_date_override||d.order_date||today();
   const docNo=isRecord?(d.order_id||nextDocNumber()):isQuote?(d.quotation_number||await genQuotationNumber()):await allocateInvoiceNumber(d.id||d.sale_id||null, d.order_id||null, docKind||'invoice', (d.invoice_no||'').trim()||null, docDate);
   if(!docNo){ if(win) win.close(); return; } // allocateInvoiceNumber already toasted the reason
+  // Invoices only: a record/quotation never goes through allocateInvoiceNumber, so
+  // _loggedDocDate would still be holding whatever the last invoice print left there.
+  if(!isRecord&&!isQuote&&!d.doc_date_override&&_loggedDocDate) docDate=_loggedDocDate;
   // A due date picked on the order (Add Order → Payment → "Payment Due Date")
   // always wins over the generic Order Date + global Due Days fallback below.
   let dueDateStr=d.payment_due_date||null;
