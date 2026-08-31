@@ -767,6 +767,19 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
 .biz-tb-brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:var(--text);white-space:nowrap}
 .biz-tb-mark{flex-shrink:0;border-radius:6px}
 .biz-tb-brand span{color:var(--text-3);font-weight:500}
+/* ── Task page quick-log strip ──────────────────────────────
+   The buttons used to be one flat list with 1px divider spans dropped in between.
+   That only held while the whole strip fitted on one line: the moment it wrapped,
+   the break landed wherever it liked (leaving one button stranded on its own row)
+   and a divider could end up first on a line as a stray sliver.
+
+   Now each set of related actions is a real group. Wrapping happens BETWEEN groups,
+   never through the middle of one, so a row never ends with an orphan. Spacing does
+   the separating that the dividers used to: 8px inside a group, 20px between them,
+   which reads as grouping without drawing a single extra line. */
+.qa-quicklog{display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px}
+.qa-ql-group{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+
 /* Direct one-click nav button (Today's Tasks), styled like the dropdown categories
    next to it but with no hover-menu, just a straight tab switch. */
 .biz-tb-direct{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--radius);
@@ -974,11 +987,8 @@ html[data-theme="dark"] .biz-topbar{background:linear-gradient(90deg,rgba(196,98
   .qchip{padding:10px 14px!important;font-size:13px!important}
   .qchip[data-s]{padding-left:29px!important}
 
-  /* Today's Tasks quick-log strip: 1px vertical dividers between button groups
-     only make sense when the whole strip fits on one row (desktop). On mobile
-     the row wraps onto several lines, so a divider can land alone at a wrap
-     boundary and render as a stray sliver at the screen edge. No row to divide
-     once wrapped, so just hide them. */
+  /* Legacy: the strip used to carry 1px divider spans. They are gone (see
+     .qa-quicklog), but the rule stays harmless in case one is reintroduced. */
   .qa-quicklog-divider{display:none}
 
   /* All Orders' utility buttons (sync/settlement/restore/export/bin) collapse into
@@ -1556,7 +1566,7 @@ html[data-theme="dark"] .biz-login{
     </button>
     <div title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="display:flex;flex-direction:column;line-height:1.05;white-space:nowrap">
       <span style="font-family:'Glorida','Inter',sans-serif;font-size:15px;font-weight:800;letter-spacing:.04em"><span style="color:var(--accent)">TRI</span><span style="color:var(--text)">AKAR</span></span>
-      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V4.13</span></span>
+      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V4.14</span></span>
     </div>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
@@ -1825,7 +1835,8 @@ html[data-theme="dark"] .biz-login{
       <!-- Daily quick-log strip, the landing tab doubles as a punch-clock / daily log,
            so the things you'd otherwise open 3 other tabs for are one click away here. -->
       <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <div class="qa-quicklog">
+          <div class="qa-ql-group">
           <button class="btn btn-primary btn-sm" onclick="switchTab('quickadd')" style="gap:6px">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1.4"/><circle cx="19" cy="21" r="1.4"/><path d="M1 1h3.2l2.68 13.39a2 2 0 0 0 2 1.61h9.24a2 2 0 0 0 2-1.61L22 6H6"/></svg>
             Add Order
@@ -1834,7 +1845,8 @@ html[data-theme="dark"] .biz-login{
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24L3 3v6.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.59-4.59a2 2 0 0 0 0-2.83Z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
             Import &amp; Labels
           </button>
-          <span class="qa-quicklog-divider" style="width:1px;height:22px;background:var(--border)"></span>
+          </div>
+          <div class="qa-ql-group">
           <button class="btn btn-icon-tint btn-icon-order btn-sm" onclick="punchShop('open')" style="gap:6px">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 3 20 12 6 21 6 3"/></svg>
             Studio Open
@@ -1851,7 +1863,8 @@ html[data-theme="dark"] .biz-login{
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
             Studio Close
           </button>
-          <span class="qa-quicklog-divider" style="width:1px;height:22px;background:var(--border)"></span>
+          </div>
+          <div class="qa-ql-group">
           <button class="btn btn-danger btn-sm" onclick="toggleQuickLog('expense')" style="gap:6px">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Expense
@@ -1867,14 +1880,17 @@ html[data-theme="dark"] .biz-login{
           <!-- Printed for ourselves, not sold. Lives on Task rather than Add Order
                because it is a two-line job, not an order: what it was, which spool,
                how many grams. -->
-          <button class="btn btn-icon-tint btn-icon-accept btn-sm" onclick="openPersonalUse()" title="Something printed for the branch itself, not for a customer. Deducts the filament and logs its cost." style="gap:6px">
+          <button class="btn btn-icon-tint btn-icon-accept btn-sm" onclick="toggleQuickLog('personal')" title="Something printed for the branch itself, not for a customer. Deducts the filament and logs its cost." style="gap:6px">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2M8 12h8M8 16h5"/></svg>
             Personal Use
           </button>
+          </div>
+          <div class="qa-ql-group">
           <button class="btn btn-icon-tint btn-icon-invoice btn-sm" onclick="openSpoolCatalogueFromTask()" title="Opens a separate, full-screen color picker meant to be shown to the customer, not an inventory action" style="gap:6px">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.688-1.688h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
             Show Customer Catalogue
           </button>
+          </div>
         </div>
         <div id="shopPunchStatus" style="font-size:11px;color:var(--text-3);margin-top:8px">Loading today's log…</div>
 
@@ -1895,6 +1911,21 @@ html[data-theme="dark"] .biz-login{
             <div class="form-group"><label>Mode</label><select id="ql_pay_mode"><option value="">Select</option><option value="bank_transfer">Bank Transfer</option><option value="upi">UPI</option><option value="cash">Cash</option><option value="card">Card</option><option value="gpay">GPay</option><option value="paytm">Paytm</option></select></div>
           </div>
           <button class="btn btn-primary btn-sm" onclick="runSave(this,saveQuickPayment)" title="Shortcut: Ctrl+Enter" style="margin-top:8px">Save Payment <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
+        </div>
+
+        <!-- Printed for the branch itself, not sold. Same inline shape as the three
+             quick-logs above rather than a modal, because it is the same kind of job:
+             four fields and gone. -->
+        <div id="qlPersonal" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <div class="form-grid">
+            <div class="form-group"><label>What was made</label><input type="text" id="ql_pu_name" placeholder="e.g. Shelf bracket for the studio"></div>
+            <div class="form-group"><label>Spool</label><select id="ql_pu_spool" onchange="updatePersonalUseCost()"></select></div>
+            <div class="form-group"><label>Grams used</label><input type="number" id="ql_pu_grams" step="0.01" min="0" placeholder="e.g. 120" oninput="updatePersonalUseCost()"></div>
+            <div class="form-group"><label>Date</label><input type="date" id="ql_pu_date"></div>
+            <div class="form-group" style="grid-column:1/-1"><label>Note</label><input type="text" id="ql_pu_note" placeholder="optional"></div>
+          </div>
+          <div id="ql_pu_cost" style="font-size:12px;color:var(--text-3);margin-top:8px"></div>
+          <button class="btn btn-primary btn-sm" onclick="runSave(this,saveQuickPersonalUse)" title="Shortcut: Ctrl+Enter" style="margin-top:8px">Save Personal Use <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
         </div>
 
         <div id="qlFilament" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
@@ -3814,27 +3845,6 @@ html[data-theme="dark"] .biz-login{
         <div style="display:flex;gap:8px;margin-top:12px">
           <button class="btn btn-primary btn-sm" onclick="saveSpoolTransfer()">Transfer</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('spoolTransferForm').style.display='none'">Cancel</button>
-        </div>
-      </div>
-</div>
-
-      <!-- Personal use: printed for the branch itself. -->
-      <div id="personalUseForm" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.style.display='none'">
-<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
-        <div style="font-size:13px;font-weight:700;margin-bottom:4px">Personal Use</div>
-        <div style="font-size:12px;color:var(--text-3);margin-bottom:12px">Something printed for the branch, not for a customer. No revenue, and the filament cost goes to Expenses so the books stay honest.</div>
-        <div class="form-grid">
-          <div class="form-group" style="grid-column:1/-1"><label>What was made *</label><input type="text" id="pu_name" placeholder="e.g. Shelf bracket for the studio"></div>
-          <div class="form-group" style="grid-column:1/-1"><label>Spool *</label><select id="pu_spool"></select></div>
-          <div class="form-group"><label>Grams used *</label><input type="number" id="pu_grams" step="0.01" min="0" placeholder="e.g. 120"></div>
-          <div class="form-group"><label>Date</label><input type="date" id="pu_date"></div>
-          <div class="form-group" style="grid-column:1/-1"><label>Notes <span style="font-weight:400;color:var(--text-3);font-size:10px">(optional)</span></label><input type="text" id="pu_notes"></div>
-        </div>
-        <div id="pu_cost" style="font-size:12px;color:var(--text-3);margin-top:10px"></div>
-        <div class="auth-msg" id="pu_msg" style="display:none"></div>
-        <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary btn-sm" id="pu_save" onclick="savePersonalUse()">Save</button>
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('personalUseForm').style.display='none'">Cancel</button>
         </div>
       </div>
 </div>
@@ -11986,12 +11996,17 @@ async function punchShop(action){
 }
 function toggleQuickLog(which){
   const targetId='ql'+which.charAt(0).toUpperCase()+which.slice(1);
-  ['qlExpense','qlPayment','qlFilament'].forEach(id=>{
+  ['qlExpense','qlPayment','qlFilament','qlPersonal'].forEach(id=>{
     const el=document.getElementById(id); if(!el) return;
     if(id===targetId) el.style.display=(el.style.display==='none'||!el.style.display)?'block':'none';
     else el.style.display='none';
   });
   const dateEl=document.getElementById('ql_exp_date'); if(dateEl&&!dateEl.value) dateEl.value=today();
+  const puDate=document.getElementById('ql_pu_date'); if(puDate&&!puDate.value) puDate.value=today();
+  // Spools are fetched when the panel is actually opened, not on every Task load.
+  if(targetId==='qlPersonal' && document.getElementById('qlPersonal')?.style.display==='block'){
+    fillPersonalUseSpools();
+  }
 }
 async function saveQuickExpense(){
   const g=id=>document.getElementById(id)?.value||'';
@@ -12943,7 +12958,8 @@ async function loadSales(){
     // find-in-page / matching against platform dashboards).
     const orderIdLine=orderIdTag(f.order_id);
     const giftBadge=f.is_gift?` <span title="Gift, ₹0 revenue, cost logged as a Marketing expense"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4"/><path d="M12 8v13M3 12v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M12 8c-1.5 0-4-1-4-3.5A2.5 2.5 0 0 1 10.5 2C12 2 12 5 12 8ZM12 8c1.5 0 4-1 4-3.5A2.5 2.5 0 0 0 13.5 2C12 2 12 5 12 8Z"/></svg></span>`:'';
-    const itemCol=thumb+`<span style="display:inline-block;vertical-align:middle">${skuLine}${giftBadge}${orderIdLine}${items.length>1?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">+${items.length-1} more</span>`:''}${orderAlertBadge(f)}</span>`;
+    const personalBadge=f.is_personal_use?` <span class="badge" style="background:var(--bg-3);color:var(--text-2);font-size:9px" title="Printed for the branch itself, not sold. Filament cost is in Expenses.">PERSONAL</span>`:'';
+    const itemCol=thumb+`<span style="display:inline-block;vertical-align:middle">${skuLine}${giftBadge}${personalBadge}${orderIdLine}${items.length>1?` <span style="color:var(--accent,#C4622A);font-size:10px;font-weight:600">+${items.length-1} more</span>`:''}${orderAlertBadge(f)}</span>`;
     const breached=daysPastPromiseNotCompleted(f)!=null;
     const inv=f.order_id?invByOrder[f.order_id]:null;
     const invCell=inv
@@ -14435,34 +14451,30 @@ async function saveSpoolTransfer(){
 // Rides on biz_sales so the spool deduction, branch tagging, audit trail and history
 // all come for free. selling_price stays 0, so no revenue figure needs to know it
 // exists; the filament cost is pushed to Expenses the same way a gift order is.
-function openPersonalUse(){
-  const sel=document.getElementById('pu_spool');
-  const usable=(_spoolRows||[]).filter(r=>r.status!=='Finsh'&&spoolRemaining(r)>0)
-    .sort((a,b)=>a.s_no-b.s_no);
-  // _spoolRows is only filled once the Spool Tracker tab has been opened, and Personal
-  // Use lives on Task, so on a fresh session the list is empty for a reason that has
-  // nothing to do with the actual stock. Load it, then reopen, instead of showing an
-  // empty dropdown that says there is no filament.
-  if(!usable.length && !(_spoolRows||[]).length){
-    loadSpoolTracker().then(()=>openPersonalUse());
-    return;
+//
+// Entered from the Task strip as an inline quick-log, same shape as Expense / Payment
+// Received / Filament Arrived, because it is the same size of job.
+async function fillPersonalUseSpools(){
+  const sel=document.getElementById('ql_pu_spool'); if(!sel) return;
+  // Task never loads the Spool Tracker, so on a fresh session _spoolRows is empty for
+  // a reason that has nothing to do with the actual stock. Fetch it once, here.
+  if(!(_spoolRows||[]).length){
+    sel.innerHTML='<option value="">Loading spools…</option>';
+    await loadSpoolTracker();
   }
-  sel.innerHTML=usable.map(r=>`<option value="${r.id}">#${r.s_no} ${esc([r.brand,r.filament_type,r.color].filter(Boolean).join(' '))} · ${Math.round(spoolRemaining(r))}g left</option>`).join('')
-    ||'<option value="">No spool with filament left</option>';
-  document.getElementById('pu_name').value='';
-  document.getElementById('pu_grams').value='';
-  document.getElementById('pu_date').value=today();
-  document.getElementById('pu_notes').value='';
-  document.getElementById('pu_cost').textContent='';
-  const m=document.getElementById('pu_msg'); m.style.display='none';
-  sel.onchange=document.getElementById('pu_grams').oninput=updatePersonalUseCost;
-  document.getElementById('personalUseForm').style.display='flex';
+  const usable=(_spoolRows||[])
+    .filter(r=>r.status!=='Finsh' && spoolRemaining(r)>0)
+    .sort((a,b)=>a.s_no-b.s_no);
+  sel.innerHTML=usable.length
+    ? usable.map(r=>`<option value="${r.id}">#${r.s_no} ${esc([r.brand,r.filament_type,r.color].filter(Boolean).join(' '))} · ${Math.round(spoolRemaining(r))}g left</option>`).join('')
+    : '<option value="">No spool with filament left</option>';
+  updatePersonalUseCost();
 }
 
 function updatePersonalUseCost(){
-  const r=_spoolRows.find(x=>String(x.id)===document.getElementById('pu_spool').value);
-  const g=parseFloat(document.getElementById('pu_grams').value)||0;
-  const el=document.getElementById('pu_cost');
+  const el=document.getElementById('ql_pu_cost'); if(!el) return;
+  const r=(_spoolRows||[]).find(x=>String(x.id)===document.getElementById('ql_pu_spool')?.value);
+  const g=parseFloat(document.getElementById('ql_pu_grams')?.value)||0;
   if(!r||g<=0){ el.textContent=''; return; }
   const cpg=Number(r.cost_per_gram)||((Number(r.price)||0)/(Number(r.total_grams)||1000));
   const cost=Math.round(cpg*g*100)/100;
@@ -14472,53 +14484,55 @@ function updatePersonalUseCost(){
             :`Spool will have ${left}g left.`);
 }
 
-async function savePersonalUse(){
-  const name=document.getElementById('pu_name').value.trim();
-  const spoolId=document.getElementById('pu_spool').value;
-  const grams=parseFloat(document.getElementById('pu_grams').value)||0;
-  const date=document.getElementById('pu_date').value||today();
-  const notes=document.getElementById('pu_notes').value.trim()||null;
-  const msg=(t,type)=>{const m=document.getElementById('pu_msg');m.textContent=t;m.className='auth-msg show '+(type||'err');m.style.display='block';};
-  if(!name){ msg('Say what was made.'); return; }
-  if(!spoolId){ msg('Pick a spool.'); return; }
-  if(grams<=0){ msg('Enter the grams used.'); return; }
-  const r=_spoolRows.find(x=>String(x.id)===String(spoolId));
-  if(!r){ msg('That spool is no longer available.'); return; }
-  if(grams>spoolRemaining(r)+0.01){ msg('Only '+Math.round(spoolRemaining(r))+'g left on that spool.'); return; }
+async function saveQuickPersonalUse(){
+  const g=id=>document.getElementById(id)?.value||'';
+  const name=g('ql_pu_name').trim();
+  const spoolId=g('ql_pu_spool');
+  const grams=parseFloat(g('ql_pu_grams'))||0;
+  const date=g('ql_pu_date')||today();
+  const note=g('ql_pu_note').trim()||null;
 
-  const btn=document.getElementById('pu_save'); btn.disabled=true; btn.textContent='Saving…';
-  try{
-    const cpg=Number(r.cost_per_gram)||((Number(r.price)||0)/(Number(r.total_grams)||1000));
-    const cogs=Math.round(cpg*grams*100)/100;
-    const orderId='PU-'+date.replace(/-/g,'')+'-'+String(Date.now()).slice(-4);
+  if(!name){ toast('Say what was made','error'); return; }
+  if(!spoolId){ toast('Pick a spool','error'); return; }
+  if(!(grams>0)){ toast('Enter the grams used','error'); return; }
+  const r=(_spoolRows||[]).find(x=>String(x.id)===String(spoolId));
+  if(!r){ toast('That spool is no longer available','error'); return; }
+  if(grams>spoolRemaining(r)+0.01){ toast('Only '+Math.round(spoolRemaining(r))+'g left on that spool','error'); return; }
 
-    let row={
-      order_id:orderId, order_date:date, channel_id:'shop',
-      customer_name:'Personal use', product_name:name, qty:1,
-      selling_price:0, cogs, is_paid:true, status:'completed',
-      is_personal_use:true, spool_id:r.id, grams_used:grams,
-      notes:notes, import_source:'personal_use',
-    };
-    row=await attachRecordId(row,true,'sale',name);
-    const {error}=await insertResilient('biz_sales',row);
-    if(error) throw error;
+  const cpg=Number(r.cost_per_gram)||((Number(r.price)||0)/(Number(r.total_grams)||1000));
+  const cogs=Math.round(cpg*grams*100)/100;
+  const orderId='PU-'+date.replace(/-/g,'')+'-'+String(Date.now()).slice(-4);
 
-    await applySpoolDelta(r.id, grams, 0);
+  let row={
+    order_id:orderId, order_date:date, channel_id:'shop',
+    customer_name:'Personal use', product_name:name, qty:1,
+    selling_price:0, cogs, is_paid:true, status:'completed',
+    is_personal_use:true, spool_id:r.id, grams_used:grams,
+    notes:note, import_source:'personal_use',
+  };
+  row=await attachRecordId(row,true,'sale',name);
+  const {error}=await insertResilient('biz_sales',row);
+  if(error){ toast('Error: '+error.message,'error'); return; }
 
-    if(cogs>0){
-      let exp={ date, category:'materials',
-        vendor:'Personal use, '+name, amount:cogs,
-        notes:'Filament for a personal print'+(notes?', '+notes:''), source:'personal_use' };
-      exp=await attachRecordId(exp,true,'expense',exp.vendor);
-      await insertResilient('biz_expenses',exp);
-    }
-    logBizActivity('create','personal_use',orderId,name+', '+grams+'g');
-    document.getElementById('personalUseForm').style.display='none';
-    toast('Logged: '+name+' ('+grams+'g)');
-    if(typeof loadSpoolTracker==='function') loadSpoolTracker();
-    if(typeof loadOpenOrders==='function') loadOpenOrders();
-  }catch(err){ msg('Could not save: '+(err.message||err)); }
-  finally{ btn.disabled=false; btn.textContent='Save'; }
+  await applySpoolDelta(r.id, grams, 0);
+
+  if(cogs>0){
+    let exp={ date, category:'materials', vendor:'Personal use, '+name, amount:cogs,
+      notes:'Filament for a personal print'+(note?', '+note:''), source:'personal_use' };
+    exp=await attachRecordId(exp,true,'expense',exp.vendor);
+    const {error:eErr}=await insertResilient('biz_expenses',exp);
+    // The material is already off the spool at this point, so a failed expense is worth
+    // saying out loud rather than swallowing: the books would understate it silently.
+    if(eErr) toast('Logged, but the expense did not save: '+eErr.message,'error');
+  }
+
+  logBizActivity('create','personal_use',orderId,name+', '+grams+'g');
+  toast('Logged: '+name+' ('+grams+'g)');
+  document.getElementById('qlPersonal').style.display='none';
+  ['ql_pu_name','ql_pu_grams','ql_pu_note'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const c=document.getElementById('ql_pu_cost'); if(c) c.textContent='';
+  if(typeof loadSpoolTracker==='function') loadSpoolTracker();
+  if(typeof loadOpenOrders==='function') loadOpenOrders();
 }
 
 // ══════════════ PRINTABLE SPOOL SHEET ══════════════
