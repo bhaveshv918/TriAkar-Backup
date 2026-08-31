@@ -240,6 +240,29 @@ regular feature work:
   steps (migration, staff account, Business Profile tidy-up, Google Ads conversion IDs) are in
   `GURUGRAM-BRANCH-SETUP.md`.
 
+- **Spool transfers, personal use, printable spool sheets.** Spools move between branches
+  through `biz_spool_transfers` (owner only: `trg_stamp_branch` forces a staff write back
+  into their own branch, so a branch cannot push or pull stock, and the button is hidden
+  for them). "Personal Use" on the Task page logs something printed for the branch itself:
+  a `biz_sales` row with `is_personal_use`, `selling_price` 0, grams deducted via
+  `applySpoolDelta`, filament cost pushed to `biz_expenses`. Same shape `is_gift` already
+  used, so no revenue sum had to learn about it. Spool Tracker prints three hard-copy
+  sheets (colours only, colour + status, full details with hex/%/position), scoped to the
+  branch on screen. Migration
+  `supabase/migrations/20260831_spool_transfers_personal_use.sql`, **must be run in the
+  Supabase SQL Editor**. A read-only health check for the branch work lives at
+  `supabase/migrations/20260830_branches_healthcheck.sql` (31 PASS/FAIL rows plus
+  per-branch row counts).
+
+- **Migration dry-run harness.** `server/scripts/migration-dryrun.mjs` runs a migration
+  against a real Postgres (PGlite, WASM) on a stubbed schema, twice, to prove it parses,
+  binds and is idempotent before it touches production. Added after 20260830_branches.sql
+  failed twice on the live database for things reading cannot catch: a `LANGUAGE sql`
+  function body is validated at CREATE time, and an unqualified column inside `EXISTS`
+  binds to the inner table first. Run it on any new migration:
+  `node server/scripts/migration-dryrun.mjs <file.sql>` (needs `@electric-sql/pglite`,
+  deliberately not a repo dependency, install it wherever you run it).
+
 **Before building something new, check if it already exists.** Grep/search the codebase first.
 
 **Note:** All of the above is functionally built and live. The current need is more likely

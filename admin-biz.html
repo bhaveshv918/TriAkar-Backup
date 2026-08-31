@@ -1556,7 +1556,7 @@ html[data-theme="dark"] .biz-login{
     </button>
     <div title="Version, bumps every time this file is edited &amp; committed, so you can tell a deploy actually went live" style="display:flex;flex-direction:column;line-height:1.05;white-space:nowrap">
       <span style="font-family:'Glorida','Inter',sans-serif;font-size:15px;font-weight:800;letter-spacing:.04em"><span style="color:var(--accent)">TRI</span><span style="color:var(--text)">AKAR</span></span>
-      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V4.12</span></span>
+      <span style="font-family:'Glorida','Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text-3)">Business Suite <span style="color:var(--accent)">V4.13</span></span>
     </div>
     <!-- Direct one-click button, not a dropdown category, this is the actual landing
          tab (_curBizTab starts on 'openorders') and the most-used page by far. -->
@@ -1863,6 +1863,13 @@ html[data-theme="dark"] .biz-login{
           <button class="btn btn-icon-tint btn-icon-duplicate btn-sm" onclick="toggleQuickLog('filament')" style="gap:6px">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Filament Arrived
+          </button>
+          <!-- Printed for ourselves, not sold. Lives on Task rather than Add Order
+               because it is a two-line job, not an order: what it was, which spool,
+               how many grams. -->
+          <button class="btn btn-icon-tint btn-icon-accept btn-sm" onclick="openPersonalUse()" title="Something printed for the branch itself, not for a customer. Deducts the filament and logs its cost." style="gap:6px">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2M8 12h8M8 16h5"/></svg>
+            Personal Use
           </button>
           <button class="btn btn-icon-tint btn-icon-invoice btn-sm" onclick="openSpoolCatalogueFromTask()" title="Opens a separate, full-screen color picker meant to be shown to the customer, not an inventory action" style="gap:6px">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.688-1.688h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
@@ -3715,6 +3722,14 @@ html[data-theme="dark"] .biz-login{
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('spoolBulkInput').click()" title="Bulk add spools from Excel">⇲ Bulk Excel</button>
           <input type="file" id="spoolBulkInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="spoolBulkUpload(event)">
           <button class="btn btn-ghost btn-sm" onclick="toggleSpoolCustomize()" title="Show / hide / reorder KPI tiles">⚙ Widgets</button>
+          <!-- Hard copy for the rack. Three sheets because they get used for different
+               things: a colour list to hold up, a full audit sheet, and a tick sheet. -->
+          <select id="spoolPrintFormat" onchange="printSpoolSheet(this.value);this.selectedIndex=0" title="Print a hard copy of the spool list" style="border-radius:6px;border:1px solid var(--border);font-size:12px;padding:6px 8px;background:var(--bg-2);color:var(--text)">
+            <option value="">🖨 Print…</option>
+            <option value="colors">Colours only</option>
+            <option value="full">Full details (hex, status, %, grams)</option>
+            <option value="status">Colour + status</option>
+          </select>
           <button class="btn btn-ghost btn-sm" id="spoolViewToggleBtn" onclick="toggleSpoolViewMode()" title="Switch between grouped (Color → Material → Company) and a flat list">☰ Flat list</button>
           <input type="text" id="spoolSearch" placeholder="Search brand / color / vendor…" oninput="renderSpoolTracker()" style="min-width:180px;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;padding:7px 11px;outline:none">
           <span style="width:1px;height:20px;background:var(--border);flex:none" aria-hidden="true"></span>
@@ -3776,6 +3791,50 @@ html[data-theme="dark"] .biz-login{
         <div style="display:flex;gap:8px;margin-top:12px">
           <button class="btn btn-primary btn-sm" onclick="runSave(this,saveSpool)" title="Shortcut: Ctrl+Enter">Save <span style="color:rgba(255,255,255,.65);font-size:10px;font-weight:600">Ctrl+&#9166;</span></button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('spoolForm').style.display='none'">Cancel</button>
+        </div>
+      </div>
+</div>
+
+      <!-- Move a spool to another branch. Owner only: the database forces a staff
+           write back into the staff member's own branch, so a branch cannot push or
+           pull stock even if the button were shown to them. -->
+      <div id="spoolTransferForm" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.style.display='none'">
+<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
+        <input type="hidden" id="st_spool_id">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px">Transfer Spool</div>
+        <div id="st_summary" style="font-size:12px;color:var(--text-3);margin-bottom:12px"></div>
+        <div class="form-grid">
+          <div class="form-group"><label>From</label><input type="text" id="st_from" readonly></div>
+          <div class="form-group"><label>Send to *</label><select id="st_to"></select></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Note <span style="font-weight:400;color:var(--text-3);font-size:10px">(optional, e.g. who carried it)</span></label><input type="text" id="st_notes" placeholder="Sent with jiju, 3 Sep"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:10px;line-height:1.6">
+          The spool and whatever is left on it move together. It disappears from this branch and appears in the destination's Spool Tracker straight away, and the move is recorded so both sides can see where it went.
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary btn-sm" onclick="saveSpoolTransfer()">Transfer</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('spoolTransferForm').style.display='none'">Cancel</button>
+        </div>
+      </div>
+</div>
+
+      <!-- Personal use: printed for the branch itself. -->
+      <div id="personalUseForm" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.style.display='none'">
+<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px">Personal Use</div>
+        <div style="font-size:12px;color:var(--text-3);margin-bottom:12px">Something printed for the branch, not for a customer. No revenue, and the filament cost goes to Expenses so the books stay honest.</div>
+        <div class="form-grid">
+          <div class="form-group" style="grid-column:1/-1"><label>What was made *</label><input type="text" id="pu_name" placeholder="e.g. Shelf bracket for the studio"></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Spool *</label><select id="pu_spool"></select></div>
+          <div class="form-group"><label>Grams used *</label><input type="number" id="pu_grams" step="0.01" min="0" placeholder="e.g. 120"></div>
+          <div class="form-group"><label>Date</label><input type="date" id="pu_date"></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Notes <span style="font-weight:400;color:var(--text-3);font-size:10px">(optional)</span></label><input type="text" id="pu_notes"></div>
+        </div>
+        <div id="pu_cost" style="font-size:12px;color:var(--text-3);margin-top:10px"></div>
+        <div class="auth-msg" id="pu_msg" style="display:none"></div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary btn-sm" id="pu_save" onclick="savePersonalUse()">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('personalUseForm').style.display='none'">Cancel</button>
         </div>
       </div>
 </div>
@@ -13963,6 +14022,7 @@ function renderSpoolTracker(){
       <td class="td-actions">
         <button class="btn btn-icon-tint btn-icon-muted btn-sm" onclick="showSpoolEdit('${r.id}')" title="Edit" style="padding:3px 6px">${ICO_EDIT}</button>
         ${r.status!=='Finsh'?`<button class="btn btn-icon-tint btn-icon-order btn-sm" title="Mark resold" onclick="showResellSpool('${r.id}')" style="padding:3px 6px">${ICO_RECYCLE}</button>`:''}
+        ${(!_isStaffUser&&r.status!=='Finsh'&&_branches.length>1)?`<button class="btn btn-icon-tint btn-icon-duplicate btn-sm" title="Send this spool to another branch" onclick="showSpoolTransfer('${r.id}')" style="padding:3px 6px">⇄</button>`:''}
         ${isResold?`<button class="btn btn-icon-tint btn-icon-order btn-sm" title="Undo resell, restore this spool back into inventory" onclick="undoSpoolResaleForSpool('${r.id}')" style="padding:3px 6px">↺</button>`:''}
         <button class="btn btn-danger btn-sm" onclick="deleteSpool('${r.id}')" title="Delete" style="padding:3px 6px">${ICO_DELETE}</button>
       </td>
@@ -14320,6 +14380,209 @@ async function spoolBulkUpload(e){
   }catch(err){ toast('Upload failed: '+err.message,'error'); }
   e.target.value='';
 }
+// ══════════════ SPOOL TRANSFER BETWEEN BRANCHES ══════════════
+// Owner only. A staff write is forced back into the staff member's own branch by
+// trg_stamp_branch, so a branch physically cannot push or pull stock, which is why
+// the button is not rendered for them either.
+function showSpoolTransfer(id){
+  const r=_spoolRows.find(x=>String(x.id)===String(id));
+  if(!r) return;
+  if(_isStaffUser){ toast('Only the owner can move spools between branches','error'); return; }
+  const from=r.branch_id||'noida';
+  document.getElementById('st_spool_id').value=r.id;
+  document.getElementById('st_from').value=branchLabel(from)||from;
+  document.getElementById('st_summary').textContent=
+    '#'+r.s_no+' · '+[r.brand,r.filament_type,r.color].filter(Boolean).join(' ')
+    +' · '+Math.round(spoolRemaining(r))+'g left ('+Math.round(spoolPct(r))+'%)';
+  const sel=document.getElementById('st_to');
+  sel.innerHTML=_branches.filter(b=>b.id!==from)
+    .map(b=>`<option value="${esc(b.id)}">${esc(b.name||b.short_name)}</option>`).join('');
+  document.getElementById('st_notes').value='';
+  document.getElementById('spoolTransferForm').style.display='flex';
+}
+
+async function saveSpoolTransfer(){
+  const id=document.getElementById('st_spool_id').value;
+  const to=document.getElementById('st_to').value;
+  const notes=document.getElementById('st_notes').value.trim()||null;
+  const r=_spoolRows.find(x=>String(x.id)===String(id));
+  if(!r||!to){ toast('Pick a destination branch','error'); return; }
+  const from=r.branch_id||'noida';
+  if(from===to){ toast('That spool is already there','error'); return; }
+
+  // Ledger first. If the branch_id update then fails we are left with a transfer that
+  // did not happen, which is visible and fixable; the other order would silently move
+  // stock with no record of where it came from.
+  const {error:tErr}=await sb.from('biz_spool_transfers').insert({
+    spool_id:r.id,
+    spool_label:'#'+r.s_no+' '+[r.brand,r.filament_type,r.color].filter(Boolean).join(' '),
+    from_branch:from, to_branch:to,
+    grams_left:Math.round(spoolRemaining(r)*100)/100,
+    transferred_by:_currentUserEmail||null, notes
+  });
+  if(tErr){ toast('Error: '+tErr.message,'error'); return; }
+
+  const {error:uErr}=await sb.from('filament_inventory').update({branch_id:to}).eq('id',r.id);
+  if(uErr){ toast('Spool did not move: '+uErr.message,'error'); return; }
+
+  logBizActivity('edit','spool',r.id,'transferred '+branchLabel(from)+' → '+branchLabel(to));
+  document.getElementById('spoolTransferForm').style.display='none';
+  toast('Spool sent to '+branchLabel(to));
+  loadSpoolTracker();
+}
+
+// ══════════════ PERSONAL USE ══════════════
+// Rides on biz_sales so the spool deduction, branch tagging, audit trail and history
+// all come for free. selling_price stays 0, so no revenue figure needs to know it
+// exists; the filament cost is pushed to Expenses the same way a gift order is.
+function openPersonalUse(){
+  const sel=document.getElementById('pu_spool');
+  const usable=(_spoolRows||[]).filter(r=>r.status!=='Finsh'&&spoolRemaining(r)>0)
+    .sort((a,b)=>a.s_no-b.s_no);
+  // _spoolRows is only filled once the Spool Tracker tab has been opened, and Personal
+  // Use lives on Task, so on a fresh session the list is empty for a reason that has
+  // nothing to do with the actual stock. Load it, then reopen, instead of showing an
+  // empty dropdown that says there is no filament.
+  if(!usable.length && !(_spoolRows||[]).length){
+    loadSpoolTracker().then(()=>openPersonalUse());
+    return;
+  }
+  sel.innerHTML=usable.map(r=>`<option value="${r.id}">#${r.s_no} ${esc([r.brand,r.filament_type,r.color].filter(Boolean).join(' '))} · ${Math.round(spoolRemaining(r))}g left</option>`).join('')
+    ||'<option value="">No spool with filament left</option>';
+  document.getElementById('pu_name').value='';
+  document.getElementById('pu_grams').value='';
+  document.getElementById('pu_date').value=today();
+  document.getElementById('pu_notes').value='';
+  document.getElementById('pu_cost').textContent='';
+  const m=document.getElementById('pu_msg'); m.style.display='none';
+  sel.onchange=document.getElementById('pu_grams').oninput=updatePersonalUseCost;
+  document.getElementById('personalUseForm').style.display='flex';
+}
+
+function updatePersonalUseCost(){
+  const r=_spoolRows.find(x=>String(x.id)===document.getElementById('pu_spool').value);
+  const g=parseFloat(document.getElementById('pu_grams').value)||0;
+  const el=document.getElementById('pu_cost');
+  if(!r||g<=0){ el.textContent=''; return; }
+  const cpg=Number(r.cost_per_gram)||((Number(r.price)||0)/(Number(r.total_grams)||1000));
+  const cost=Math.round(cpg*g*100)/100;
+  const left=Math.round(spoolRemaining(r)-g);
+  el.innerHTML=`Filament cost <strong>${fmt(cost)}</strong>, logged to Expenses. `
+    +(left<0?`<span style="color:var(--red)">That is ${Math.abs(left)}g more than this spool has left.</span>`
+            :`Spool will have ${left}g left.`);
+}
+
+async function savePersonalUse(){
+  const name=document.getElementById('pu_name').value.trim();
+  const spoolId=document.getElementById('pu_spool').value;
+  const grams=parseFloat(document.getElementById('pu_grams').value)||0;
+  const date=document.getElementById('pu_date').value||today();
+  const notes=document.getElementById('pu_notes').value.trim()||null;
+  const msg=(t,type)=>{const m=document.getElementById('pu_msg');m.textContent=t;m.className='auth-msg show '+(type||'err');m.style.display='block';};
+  if(!name){ msg('Say what was made.'); return; }
+  if(!spoolId){ msg('Pick a spool.'); return; }
+  if(grams<=0){ msg('Enter the grams used.'); return; }
+  const r=_spoolRows.find(x=>String(x.id)===String(spoolId));
+  if(!r){ msg('That spool is no longer available.'); return; }
+  if(grams>spoolRemaining(r)+0.01){ msg('Only '+Math.round(spoolRemaining(r))+'g left on that spool.'); return; }
+
+  const btn=document.getElementById('pu_save'); btn.disabled=true; btn.textContent='Saving…';
+  try{
+    const cpg=Number(r.cost_per_gram)||((Number(r.price)||0)/(Number(r.total_grams)||1000));
+    const cogs=Math.round(cpg*grams*100)/100;
+    const orderId='PU-'+date.replace(/-/g,'')+'-'+String(Date.now()).slice(-4);
+
+    let row={
+      order_id:orderId, order_date:date, channel_id:'shop',
+      customer_name:'Personal use', product_name:name, qty:1,
+      selling_price:0, cogs, is_paid:true, status:'completed',
+      is_personal_use:true, spool_id:r.id, grams_used:grams,
+      notes:notes, import_source:'personal_use',
+    };
+    row=await attachRecordId(row,true,'sale',name);
+    const {error}=await insertResilient('biz_sales',row);
+    if(error) throw error;
+
+    await applySpoolDelta(r.id, grams, 0);
+
+    if(cogs>0){
+      let exp={ date, category:'materials',
+        vendor:'Personal use, '+name, amount:cogs,
+        notes:'Filament for a personal print'+(notes?', '+notes:''), source:'personal_use' };
+      exp=await attachRecordId(exp,true,'expense',exp.vendor);
+      await insertResilient('biz_expenses',exp);
+    }
+    logBizActivity('create','personal_use',orderId,name+', '+grams+'g');
+    document.getElementById('personalUseForm').style.display='none';
+    toast('Logged: '+name+' ('+grams+'g)');
+    if(typeof loadSpoolTracker==='function') loadSpoolTracker();
+    if(typeof loadOpenOrders==='function') loadOpenOrders();
+  }catch(err){ msg('Could not save: '+(err.message||err)); }
+  finally{ btn.disabled=false; btn.textContent='Save'; }
+}
+
+// ══════════════ PRINTABLE SPOOL SHEET ══════════════
+// Three sheets because they get used for three different jobs: a colour list to hold
+// up against a print, a full audit sheet for a physical stock count, and a tick sheet
+// for a quick "what have we still got" walk along the rack.
+function printSpoolSheet(kind){
+  if(!kind) return;
+  const rows=[..._spoolRows]
+    .filter(r=>r.status!=='Finsh')
+    .sort((a,b)=>String(a.color||'').localeCompare(String(b.color||''))||a.s_no-b.s_no);
+  if(!rows.length){ toast('Nothing to print','error'); return; }
+
+  const scope=_isStaffUser?branchLabel(_staffBranch)
+            :(_branchScope==='all'?'All branches':branchLabel(_branchScope));
+  const swatch=r=>`<span class="sw" style="background:${esc(r.color_hex||'#ccc')}"></span>`;
+  const pct=r=>Math.round(spoolPct(r));
+  let head, body;
+
+  if(kind==='colors'){
+    head='<tr><th></th><th>Colour</th><th>Material</th></tr>';
+    body=rows.map(r=>`<tr><td>${swatch(r)}</td><td>${esc(r.color||'N/A')}</td><td>${esc(r.filament_type||'')}</td></tr>`).join('');
+  }else if(kind==='status'){
+    head='<tr><th></th><th>Colour</th><th>Material</th><th>Status</th><th>Left</th></tr>';
+    body=rows.map(r=>`<tr><td>${swatch(r)}</td><td>${esc(r.color||'N/A')}</td><td>${esc(r.filament_type||'')}</td><td>${esc(r.status||'')}</td><td>${pct(r)}%</td></tr>`).join('');
+  }else{
+    head='<tr><th>#</th><th></th><th>Colour</th><th>Hex</th><th>Brand</th><th>Material</th><th>Finish</th><th>Status</th><th>Left g</th><th>%</th><th>Position</th></tr>';
+    body=rows.map(r=>`<tr>
+      <td>${r.s_no??''}</td><td>${swatch(r)}</td><td>${esc(r.color||'N/A')}</td>
+      <td class="mono">${esc(r.color_hex||'')}</td><td>${esc(r.brand||'')}</td>
+      <td>${esc(r.filament_type||'')}</td><td>${esc(r.finish||'')}</td>
+      <td>${esc(r.status||'')}</td><td>${Math.round(spoolRemaining(r))}</td>
+      <td>${pct(r)}%</td><td>${esc(r.position||r.box_name||'')}</td></tr>`).join('');
+  }
+
+  const title={colors:'Filament Colours',full:'Filament Stock, full details',status:'Filament Colours & Status'}[kind];
+  const w=window.open('','_blank');
+  if(!w){ toast('Allow pop-ups to print','error'); return; }
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title><style>
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#161614;margin:24px}
+    h1{font-size:18px;margin:0 0 2px}
+    .meta{font-size:11px;color:#6b6862;margin-bottom:14px}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{text-align:left;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#6b6862;
+       border-bottom:1.5px solid #161614;padding:6px 8px}
+    td{padding:5px 8px;border-bottom:1px solid #e6e3dd}
+    /* Zebra stripes survive a mono laser print, which a colour fill would not. */
+    tbody tr:nth-child(even){background:#faf9f6}
+    .sw{display:inline-block;width:13px;height:13px;border-radius:3px;border:1px solid rgba(0,0,0,.25);
+        vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px}
+    @media print{ @page{margin:12mm} body{margin:0} thead{display:table-header-group} tr{break-inside:avoid} }
+  </style></head><body>
+    <h1>TriAkar, ${title}</h1>
+    <div class="meta">${scope} · ${rows.length} spools · ${new Date().toLocaleString('en-IN',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+    <table><thead>${head}</thead><tbody>${body}</tbody></table>
+  </body></html>`);
+  w.document.close();
+  w.focus();
+  // Let the swatches paint before the print dialog freezes the page.
+  setTimeout(()=>w.print(),350);
+}
+
 function showResellSpool(id){
   const r=_spoolRows.find(x=>String(x.id)===String(id));
   if(!r) return;
